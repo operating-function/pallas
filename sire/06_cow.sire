@@ -1,0 +1,198 @@
+"""
+""" Rows
+""" ====
+"""
+""" Rows are data-jetted arrays.  Since Fan is untyped, these are used
+""" both as vectors and as tuples.
+"""
+""" A row is represented as (cow n) partially applied to n argumnts,
+""" for example:
+"""
+"""     [5 4 3]
+"""     ((cow 3) 3 4 5)
+"""     ((0 0 4 0) 3 4 5)
+"""     (0 0 4 0 3 4 5)
+"""
+""" Row operations like `len` and `map` work on any closures (the last
+""" partially applied argument is treated as the first element of the
+""" row), but if you use the special function (cow n), then the runtime
+""" system will optimize the elements into contiguous memory.
+"""
+""" Rows are also used as the building blocks for more complex data-types
+""" like lists and trees.
+"""
+""" This module defines the core primitives of the Row datajet, the bulk
+""" of the row operations are defined later.
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan  [mkLaw inc seq apply supply]
+/+  01_fan  [isLaw lawName lawBody]
+/+  01_fan  [isApp car caar caaar caaaar]
+/+  02_bit  [if ifNot and or not]
+/+  03_nat  [eqlNat dec sub add lthNat isZero]
+/+  04_app  [head arity len null idx get mut put]
+/+  05_eql  [eql]
+
+
+""" Core Definitions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+(cow n)=(mkLaw 0 inc-n 0)
+
+c0=(cow 0)
+c1=(cow 1)
+c2=(cow 2)
+c3=(cow 3)
+c4=(cow 4)
+c5=(cow 5)
+c6=(cow 6)
+c7=(cow 7)
+c8=(cow 8)
+c9=(cow 9)
+
+v0=c0
+v1=c1
+(v2 a b)=(c2 b a)
+(v3 a b c)=(c3 c b a)
+(v4 p q r s)=(c4 s r q p)
+(v5 a b c d e)=(c5 e d c b a)
+(v6 a b c d e f)=(c6 f e d c b a)
+(v7 a b c d e f g)=(c7 g f e d c b a)
+(v8 a b c d e f g h)=(c8 h g f e d c b a)
+(v9 a b c d e f g h i)=(c9 i h g f e d c b a)
+
+= (mkRow n)
+| 0 0 n
+^ n (2 cow-n)
+? (go i acc)
+| ifNot i acc
+| go (dec i) (0 acc i)
+
+= (isCow val)
+| and isLaw-val
+| and isZero-(lawName val)
+      isZero-(lawBody val)
+
+= (isRow r)
+| and (eql 1 arity-r)
+| isCow head-r
+
+?= 1 | isRow v0
+?= 1 | isRow (v1 1)
+?= 1 | isRow (v2 1 2)
+?= 1 | not (isRow (0 0 3 (v2 0 1)))
+?= 1 | not (isRow isRow)
+
+?= (v3 3 4 5) | caaar  (v3 3 4 5) 5 4 3
+?= (v2 3 4)   | caar   (v2 3 4)   4 3
+?= (v1 3)     | car    (v1 3)     3
+?= (v0)       | car    (v0)       0
+?= (v1 3)     | caar   (v1 3)     0 3
+?= (v2 3 4)   | caaar  (v2 3 4)   0 4 3
+?= (v3 3 4 5) | caaaar (v3 3 4 5) 0 5 4 3
+
+?= 3 | len (v3 0 0 0)
+?= 2 | len (v2 0 0)
+?= 1 | len (v1 0)
+?= 0 | len (v0)
+
+?= 1 | null (v0)
+?= 0 | null (v1 "x")
+
+
+""" Generating Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (gen n f)
+^ n cow-n
+? (go mor acc)
+| ifNot mor acc
+@ nex dec-mor
+| go nex acc-(f nex)
+
+
+""" Folding Rows """"""""""""""""'""""""""""""""""""""""""""""""""""""""""""""""
+
+= (foldr f z row)
+^ 0 (len row)
+? (go i rem)
+| ifNot rem z
+| f (get row i)
+| go inc-i dec-rem
+
+= (foldl f z row)
+^ z 0 (len row)
+? (go acc i rem)
+| seq acc
+| ifNot rem acc
+@ rem (dec rem)
+@ acc (f acc (idx i row))
+| go acc (inc i) rem
+
+(ADD x y k)=(k x y)
+
+?= (foldr ADD "z" (v0))       | "z"
+?= (foldl ADD "z" (v0))       | "z"
+?= (foldr ADD "z" (v3 1 2 3)) | ADD 1 | ADD 2 | ADD 3 "z"
+?= (foldl ADD "z" (v3 1 2 3)) | ADD (ADD (ADD "z" 1) 2) 3
+?= (foldl ADD "z" 1)          | "z"
+?= (foldl ADD "z" (0 1))      | ADD "z" 1
+?= (foldl ADD "z" (0 2 1))    | ADD (ADD "z" 1) 2
+
+
+""" Concatenation """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (weld x y)
+@ xw len-x
+@ yw len-y
+| gen (add xw yw)
+& i
+| if (lthNat i xw) (idx i x)
+| idx (sub i xw) y
+
+?= (v3 1 2 3) | weld (v0) (v3 1 2 3)
+?= (v3 1 2 3) | weld (v1 1) (v2 2 3)
+?= (v3 1 2 3) | weld (v2 1 2) (v1 3)
+?= (v3 1 2 3) | weld (v3 1 2 3) (v0)
+
+
+""" More Basic Operations """"""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (map f v)       | gen len-v x&(f idx-x-v)
+= (turn v f)      | map f v
+= (rev xs)        @ wid len-xs | gen wid i&(get xs sub-wid-(inc i))
+= (rowApply f xs) | foldl apply f xs
+= (rowRepel f xs) | foldr supply f xs
+
+?= 7 | rowApply add (v2 4 3)
+?= 1 | rowApply sub (v2 4 3)
+?= 7 | rowRepel add (v2 3 4)
+?= 1 | rowRepel sub (v2 3 4)
+
+?= (ADD 0 1) | rowApply ADD (v2 0 1)
+?= (2 0 1)   | rowApply ADD (v3 0 1 2)
+?= 1         | rowApply add (v2 0 1)
+?= (1 1)     | rowApply add (v3 0 1 1)
+?= (1 1)     | rowApply add (v2 0 1) 1
+?= (1 1 1)   | rowApply add (v2 0 1) 1 1
+
+?= (rowRepel ADD (v2 1 0))   | ADD 0 1
+?= (rowRepel ADD (v3 2 1 0)) | 2 0 1
+
+?= (v3 5 4 3) | rev | v3 3 4 5
+?= (v0)       | rev | v0
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^ c0 c1 c2 c3 c4 c5 c6 c7 c8 c9
+^-^ v0 v1 v2 v3 v4 v5 v6 v7 v8 v9
+^-^
+^-^ cow isCow isRow
+^-^ mkRow null
+^-^ weld
+^-^ gen foldr foldl
+^-^ mut put
+^-^ map turn rev
+^-^ rowApply rowRepel

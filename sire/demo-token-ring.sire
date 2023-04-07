@@ -1,0 +1,48 @@
+/+ boot
+/+ io
+
+= (talker ourName us them white theMsg k)
+@ recur mkPin-talker
+; trk [%talker ourName us them theMsg]
+: sendThread <- fork
+                  & done
+                  : now <- PortSend us them theMsg
+                  | trk [ourName %sent theMsg] ;;; %at now]
+                  | done 0
+: response <- PortRecv us white
+@ respBody (idx 2 response)
+| trk [ourName %got respBody]
+| recur ourName us them white theMsg k
+
+= (tokenRing k)
+;
+; trk %tokenRing,k
+;
+: ali_seed_addr <- PortSire
+: bob_seed_addr <- PortSire
+: chr_seed_addr <- PortSire
+@ [ali_seed ali_addr] ali_seed_addr
+@ [bob_seed bob_addr] bob_seed_addr
+@ [chr_seed chr_addr] chr_seed_addr
+;
+@ ali_white | cabSingleton chr_addr
+@ bob_white | cabSingleton ali_addr
+@ chr_white | cabSingleton bob_addr
+;
+; trk %[=ali_seed =ali_addr =bob_seed =bob_addr]
+;
+@ ali_msg b#"Hi, bob.  What's good?"
+@ bob_msg b#"Life is good.  Charlie?"
+@ chr_msg b#"Life is good.  Alice?"
+;
+; trk [%ali ali_seed ali_addr]
+; trk [%bob bob_seed bob_addr]
+; trk [%chr chr_seed chr_addr]
+;
+: ali_thread <- fork (talker %ali ali_seed bob_addr ali_white ali_msg)
+: bob_thread <- fork (talker %bob bob_seed chr_addr bob_white bob_msg)
+| talker %chr chr_seed ali_addr chr_white chr_msg k
+
+exe=(newMachine tokenRing)
+
+exe

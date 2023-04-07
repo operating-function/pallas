@@ -1,0 +1,27 @@
+/+  boot
+/+  io
+/+  switch
+
+
+;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= yieldDemo
+| newMachine
+& return
+: bob <- fork & done
+              : val <- block
+              | trk ["BOB GOT" val]
+              | done 0
+: _ <- yield bob "Hey Bob, do your thing first."
+| trk ("MAIN THREAD SAYS", "Control is returned to Alice")
+| return 0
+
+
+;; Manual Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+yieldDemo %zod ;;; Boot Machine
+
+
+;; Export For Boot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+yieldDemo

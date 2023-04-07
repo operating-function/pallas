@@ -1,0 +1,15 @@
+;;; This is an example of a tiny program using the `kern.sire` exo-kernel.
+
+/+  boot
+/+  kern
+
+= (timeDemo count return)
+| trk %timeDemo,count,return
+| if (isZero count)
+        | return 0
+: (GotTime now) <- TimeWhen
+| trk %[current_time=now]
+: (Waited _) <- TimeWait (inc now)
+| timeDemo (dec count) return
+
+newMachine-(timeDemo 5)

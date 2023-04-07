@@ -1,0 +1,30 @@
+;;; This is an example of a raw program.  This runs directly against
+;;; the Cog interface without even using the `kern.sire` exokernel.
+
+/+  boot
+
+(call count)=[%rand 0 %byte count]
+
+= (RandLoop count calls response)
+@ bytes (look response 0)
+| if not-(count == barLen bytes)
+    | die "%rand size is not what we asked for"
+| trk %[=bytes]
+| if (isZero count) (RandLoop 0 [])
+@ count (dec count)
+| RandLoop count [call-count]
+
+randTest=(RandLoop 5 [call-5])
+
+?= (cdr randTest) [[%rand 0 %byte 5]]
+
+?= (RandLoop 0 [])
+    | randTest
+        %[0=(x#1122334455)]
+        %[0=(x#11223344)]
+        %[0=(x#112233)]
+        %[0=(x#1122)]
+        %[0=(x#11)]
+        %[0=(x#{})]
+
+randTest

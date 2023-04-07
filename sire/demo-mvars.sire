@@ -1,0 +1,58 @@
+/+  boot
+/+  io
+/+  switch
+
+
+;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= yieldDemo
+| newMachine
+& return
+: var <- newEmptyMVar
+: bob <- fork & done
+              : val <- takeMVar var
+              | trk ["BOB GOT #1" val]
+              : val <- takeMVar var
+              | trk ["BOB GOT #2" val]
+              | done 0
+: _ <- putMVar var "Hey Bob, do your thing first."
+: _ <- putMVar var "You done over there, Bob?"
+| trk "Control is returned to Alice"
+;
+: curTime <- concurrently TimeWhen TimeWhen
+| trk [%x (idx 0 curTime)]
+| trk [%y (idx 0 curTime)]
+;
+;;; One at a time ;;;
+;
+: forTime <- for [2 1 0 1 2]
+           & (off return)
+           | trk [%TimeWhen %[=off]]
+           : tim <- TimeWhen
+           : _   <- TimeWait (add off tim)
+           | return tim
+;
+;;; All at the same time ;;
+;
+: forPar <- forConcurrently [2 1 0 1 2]
+          & (off return)
+          | trk [%TimeWhen %[=off]]
+          : tim <- TimeWhen
+          : _   <- TimeWait (add off tim)
+          | return tim
+;
+| die
+   ,, %[=curTime]
+   ,, %[=forTime]
+   ,, %[=forPar]
+| return 0
+
+
+;; Manual Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+yieldDemo %zod ;;; Boot Machine
+
+
+;; Export For Boot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+yieldDemo

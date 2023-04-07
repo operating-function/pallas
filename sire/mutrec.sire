@@ -1,0 +1,330 @@
+"""
+""" Mutually Recursive Functions
+""" ============================
+"""
+
+'''
+''' Example Input:
+'''
+'''     = (foo x)
+'''     # mutrec %even_odd (even 9)
+'''     = (even x)
+'''         | ifNot x TRUE  (odd dec-x)
+'''     = (odd x)
+'''         | ifNot x FALSE (even dec-x)
+'''
+''' Example Output:
+'''
+'''      = (foo x)
+'''     #@ _core1
+'''         #? (_core1 _tag2 _g3)
+'''         #@ even (x #& _core1 0 x)
+'''         #@ odd  (x #& _core1 1 x)
+'''         #| switch _tag2 0
+'''         #|      *v2
+'''             #@ n _g3
+'''              | ifNot n TRUE (*odd dec-n)
+'''         #@ m _g3
+'''          | ifNot m FALSE (*even dec-m)
+'''     #@ even (n & _core1 0 n)
+'''     #@ odd  (m & _core1 1 m)
+'''      (*even x)
+'''
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  boot
+/+  switch  [unrollSlip2Tis]
+
+
+""" Constructing Bloodlines """""'""""""""""""""""""""""""""""""""""""""""""""""
+
+(bloodline lis)=(listFoldr (i r & rexSetHeir r i) 0 lis)
+
+?= `((a=1)(b=2)(c=3))
+        | bloodline ~[`(a=1) `(b=2) `(c=3)]
+
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (readCoreBody aft rex err ok)
+@ parseAlien (x err ret & err x 'Not a core arm')
+: clauses
+    < unrollSlip2Tis rex parseAlien err
+: (aft results)
+    < forRowWithState aft clauses
+        & (aft sigBody ret)
+        @ [sigRex body] sigBody
+        : (sym binds)   <- readDestroyer sigRex err
+        : (aft sig bod) <- makeDestroyer aft binds body
+        | ret aft [sym sig bod]
+| ok aft results
+
+?= 5,[[%f [%x] `x] [%g [%y] `0]]
+        | readCoreBody 5 `((f x = x)(g y = 0)) v2 v2
+
+?=     ,, 7
+       ,,  ,,   | *v3 %f ['_g5']
+                   `` #@ $$(varKE 6 '_g6') _g5
+                      #@ x (#| $(idx 0) _g6)
+                      #@ y (#| $(idx 1) _g6)
+                       x
+    | readCoreBody 5 `((f [x y] = x)) v2 v2
+
+?= [`(*) 'Not a core arm']
+        | readCoreBody 5 `((f x = x)(g y = 0)(*)) v2 v2
+
+?= [`(= f) '= node expects two parameters']
+        | readCoreBody 5 `((= f|x x)(= f)) v2 v2
+
+; TODO Move this to `17-exp.sire`
+; TODO Avoid the ## where necessary.
+= (taggedLamE nam tag args body)
+@ idn (SHUT 0 "##" (varE nam, litE tag) 0)
+@ sig (NEST 0 "|" (rowCons idn args) 0)
+| OPEN 0 "#?" [sig] body
+
+?= (taggedLamE %f 2 [`x `y `z] `x)
+        ` #? (f##2 x y z)
+           x
+
+= (matchE x wildExp patExps)
+| OPEN 0 "#|"
+       ,, cnsE switch
+       ,, appE (cnsE idx, natE 0, x)
+       ,, wildExp
+| bowE patExps
+
+?= (matchE `[0 1 2] `0 [`1 `2 `3])
+       ``
+       #| $switch (#| $idx 0 [0 1 2]) 0
+       #| $(cow 3) 3 2 1
+
+(maxRow x)=(foldl max (idx 0 x) x)
+
+?= 3 | maxRow [0 3 2]
+?= 4 | maxRow [0 3 4]
+?= 5 | maxRow [5 3 4]
+?= 0 | maxRow []
+
+= ("#mutrec" s p e a r err ok)
+@ coreNam (gensymNm "core" a)
+: (_ coreTag letBody sigRex)
+        < rexParseKids r [readAny readAtomLit readAny readAny] err
+: (aft sigExpPairs)
+       < readCoreBody a sigRex err
+;
+@ arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
+@ aft     | add aft 2
+@ maxArgs
+    | maxRow
+    | turn (listToRow arms)
+    & [_ [_ args _]]
+    | len args
+;
+@ (bindArms body arms)
+    | *listCase arms body
+    & (item rest)
+    @ [key arm] item
+    @ [fun args _] arm
+    @ extras  (sub maxArgs | len args)
+    | letE fun
+        | lamE args
+        | appE
+        | weld (varE coreNam, litE key)
+        | weld (map varE args)
+        | rep (cnsE 0) extras
+    | bindArms body rest
+;
+: (aft coreArgs)
+        < forRowWithState aft (rep 0 maxArgs)
+                & (aft item pure)
+                | pure (inc aft) (varE | gensymNm "arg" aft)
+;
+@ tagArg | varE (gensymNm "tag" | inc aft)
+@ aft    | inc aft
+@
+    = coreArgs
+        | rowCons tagArg coreArgs
+    = branches
+        | turn (listToRow arms)
+        & foo
+        @ [key [fun args body]] foo
+        @ f
+                & ([ix var] rest)
+                | letE var (idx ix coreArgs) rest
+        | foldr f body (drop 1 | tag (rowCons fun args))
+    = coreBody
+        | OPEN 0 "#|" (cnsE switch, tagArg, cnsE 0)
+        | bowE branches
+;
+| ok p aft
+| letE coreNam
+    | taggedLamE coreNam coreTag coreArgs
+    | bindArms coreBody arms
+| bindArms letBody arms
+
+; ?= 1
+;         @ e
+;                 `
+;                 # mutrec %loop (*loop start)
+;                 = (loop xx)
+;                     | ifNot xx 0 (*loop 0)
+;         (##"#mutrec" 3 3 3 e v2 v4)
+
+
+; ?= 1
+;         @ e
+;                 `(#mutrec %loop (f 3) (f x = x)(g a e = g a e))
+;         (##"#mutrec" 3 3 3 e v2 v4)
+
+= (foo x)
+# mutrec %even_odd
+    (and (*even x 8) (*odd x))
+= (even x y)
+    | ifNot x TRUE  (*odd dec-x)
+= (odd x)
+    | ifNot x FALSE (*even dec-x 9)
+
+= (looper start)
+# mutrec %loop (*loop start)
+= (loop xx)
+    | ifNot xx 0 (*loop 0)
+
+= loopFun
+? (looper start)
+^ 0 start
+? (loop b x)
+| switch b 0
+,, ifNot x 0 (loop 0 0)
+
+?= (car looper) 4
+?= (cdr looper) loopFun
+
+?? eql (pinItem looper) loopFun
+?? eql looper           (mkPin loopFun)
+
+= [even odd]
+# mutrec %even_odd [even odd]
+= (even x)
+    | ifNot x TRUE  (*odd dec-x)
+= (odd x)
+    | ifNot x FALSE (*even dec-x)
+
+?? even 0
+?? even 2
+?? even 20
+?? odd 1
+?? odd 3
+?? odd 21
+
+
+""" #mutual """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= ("#mutual" s p e aft r err ok)
+: (_ coreSymbol sigRex)
+        < rexParseKids r [readAny readAny readAny] err
+: (aft sigExpPairs)
+       < readCoreBody aft sigRex err
+: coreName
+        < readSymbol coreSymbol err
+@
+    = coreIdn | varKE (rexIdnt coreSymbol) coreName
+    = tagKey  | aft
+    = tagNam  | gensymNm "tag" tagKey
+    = tagIdn  | varKE tagKey tagNam
+    = !aft    | inc aft
+    = arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
+    = maxArgs | maxRow
+              | turn (listToRow arms)
+              & [_ [fun args _]]
+              | len args
+@
+    (bindArms body arms)
+        | *listCase arms body
+        & (item rest)
+        @ key,arm item
+        @ [fun args _] arm
+        @ extras (sub maxArgs | len args)
+        | letE fun
+                | lamE args
+                | appE
+                | weld (coreIdn, litE key)
+                | weld (map varE args)
+                | gen extras (K (cnsE 0))
+        | bindArms body rest
+: (aft coreArgIdns)
+        < forRowWithState aft (gen maxArgs | K 0)
+                & (aft item pure)
+                @ idn  (varKE aft | gensymNm "arg" aft)
+                @ !aft (inc aft)
+                | pure aft idn
+: (aft armDefuns)
+        < forListWithState aft arms
+                & (aft [key [armName argNames exp]] pure)
+                @
+                    = armKey     | aft
+                    = armIdn     | varKE armKey armName
+                    = !aft       | inc aft
+                    = armArgIdns | map varE argNames
+                    = numArgs    | len armArgIdns
+                    = extraArgs  | sub maxArgs numArgs
+                | pure aft
+                | OPEN 0 "#="
+                   ,, NEST 0 "|" (rowCons armIdn armArgIdns) 0
+                   ,, | appE
+                      | weld (coreIdn, litE key)
+                      | weld armArgIdns
+                      | rep cnsE-0 extraArgs
+                | 0
+@
+    = coreSig
+        | rowCons tagIdn coreArgIdns
+    = branches
+        | turn (listToRow arms)
+        & foo
+        @ [key [branchArm branchArgs body]] foo
+        @ f
+                & ([ix var] rest)
+                | letE var (idx ix coreSig) rest
+        | foldr f body (drop 1 | tag (rowCons branchArm branchArgs))
+    = coreBody
+        | OPEN 0 "#|" (cnsE switch, tagIdn, cnsE 0)
+        | bowE branches
+| ok p aft
+| OPEN 0 "#="
+       ,, NEST 0 "|" (rowCons coreIdn coreSig) 0
+       ,, bindArms coreBody arms
+| bloodline armDefuns
+
+# mutual even_odd
+= (even x)
+    | ifNot x TRUE  (*odd dec-x)
+= (odd x)
+    | ifNot x FALSE (*even dec-x)
+
+?? even 0
+?? even 2
+?? even 20
+?? odd 1
+?? odd 3
+?? odd 21
+
+; Inspect the output of this by hand, lgtm.
+# mutual foo_bar
+= (foo [x !y])
+    | add x x
+= (bar x)
+    | foo [x x]
+
+
+;;;;;;;;;;;;;
+;; Exports ;;
+;;;;;;;;;;;;;
+
+^-^ "#mutual"
+^-^ "#mutrec"
+^-^ unrollSlip2Tis
+^-^ readSignature
+^-^ bloodline

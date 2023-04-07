@@ -1,0 +1,829 @@
+"""
+""" Pattern Matching
+""" ================
+"""
+""" Extends `@` to support destructuring on rows and tabs.
+"""
+""" TODO: Support pin patterns:
+"""
+"""     @ (4 addLaw) add
+"""     ...
+"""
+""" TODO: Support list patterns:
+"""
+"""     (@ ~[x y] ~[3 4])
+"""     (@ (x::y) ~[3 4])
+"""     ...
+"""
+""" This require parsers, but they work the same way as row-patterns,
+""" so no additional work is required in codegen or sequencing.
+"""
+"""
+""" TODO: Support `:` patterns to get access to value that is also
+""" being destructured:
+"""
+"""     @ v:[x y z]
+"""            ,, add 2 3
+"""            ,, add 3 4
+"""            ,, add 5 6
+"""    ,, sum v
+"""    ,, | add x
+"""       | mul y z
+"""
+"""
+""" TODO: Don't output `_` bindings.
+"""
+""" TODO: Don't output trivial rebindings (x=x).
+"""
+""" TODO: Suport lambda-patterns in multi-let
+"""
+"""     @  = (id x) | x
+"""        = nine   | id 9
+"""     | [nine nine nine]
+"""
+"""
+""" TODO: Support pattern matching in lambdas.
+"""
+"""     1.  Write a parser for lambdas.
+"""
+"""         -   One for `?` and another for `&`.
+"""
+"""         -   All of the arguments should be parsed with parseBinder.
+"""
+"""         -   Turn this into a bindSpec somehow.
+"""
+"""         -   Maybe extend the concept to support a top-level sequence
+"""             of binds and associated expressions.
+"""
+"""         -   Generate the binds, output the raw Sire forms.
+"""
+"""     2.  Apply this same thing to (@ (f ...) ...).
+"""
+"""     3.  Apply this same thing to (@ (= x ...)(= y ...)).
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan
+/+  02_bit  [if else ifNot not and or FALSE]
+/+  03_nat  [add div gteNat inc lthNat isZero]
+/+  04_app  [len null idx]
+/+  05_eql  [eql neq]
+/+  06_cow  [weld map turn foldl foldr v1 v2 v4]
+/+  07_rex  [rexKids rexRune rexHeir rexSons rexText rexVal rexEql "`"]
+/+  07_rex  [rexIsNode rexIsLeaf]
+/+  07_rex  [rexGetKidsOfNodeWithRune rexGetWord]
+/+  07_rex  [rexGetNodeWithRune]
+/+  07_rex  [NEST OPEN]
+/+  07_rex  [rexIdnt]
+/+  08_dat  [switch all tag drop rowCons cat take zip bapE]
+/+  08_dat  [CONS NIL listCase]
+/+  08_dat  [listToRowReversed listZip listEnumFrom listToRow listFromRow]
+/+  08_dat  [',' ',,']
+/+  09_sci  []
+/+  10_chr  []
+/+  11_str  [strWeld strCat]
+/+  12_cab  [readKey]
+/+  13_tab  ["%" "%%" tabToPairs tabFromPairs tabIdx tabToList tabMut]
+/+  14_exp
+/+  15_hax  ['#']
+/+  16_pad  []
+/+  17_bar  []
+/+  18_sug  ['``' ':' '~' '::']
+
+
+""" Pattern Matching On Rows """""""""""""""""""""""""""""""""""""""""""""""""""
+
+; TODO: Rebuild this as a call to (sequenceBinds >=> bindSeqE).
+
+= (destructureRowE tmpVar lhs rowExpr bodyExpr)
+@ isVar  | rexEql rowExpr varE-(rexText rowExpr)
+@ tmpVar | if isVar (rexText rowExpr) tmpVar
+@ go
+        ? (go binds)
+        : (bind binds) <- *listCase binds bodyExpr
+        @ bindVar (idx 1 bind)
+        | if (eql '_' bindVar) (go binds)
+        | letE bindVar
+                | appE
+               ,, cnsE (idx (idx 0 bind))
+               ,, varE tmpVar
+        | go binds
+| if isVar I (letE tmpVar rowExpr)
+| go (listFromRow (tag lhs))
+
+?= (destructureRowE %_g1 [%x %y %z] `(a b) (appE [`x `y]))
+       ``
+       #@ _g1 (a b)
+       #@ x (#| $(idx 0) _g1)
+       #@ y (#| $(idx 1) _g1)
+       #@ z (#| $(idx 2) _g1)
+        (#| x y)
+
+?= (destructureRowE %_g1 [%x %y %z] `yo (appE [`x `y]))
+       ``
+       #@ x (#| $(idx 0) yo)
+       #@ y (#| $(idx 1) yo)
+       #@ z (#| $(idx 2) yo)
+        (#| x y)
+
+
+""" Parsing Binders in General """""""""""""""""""""""""""""""""""""""""""""""""
+
+; (VAR k x)=[%v k x]
+; (ROW x)=[%r x]
+; (TAB x)=[%t x]
+;
+; First parse patterns into data structures.
+;
+;   @ [x [y z] %[a=b c=d e=f]] (foo foo)
+;   body
+;
+;     =>
+;
+;   | ROW
+;  ,, VAR 1 'x'
+;  ,, ROW
+;      ,, VAR 2 'y'
+;      ,, VAR 3 'z'
+;  ,, TAB
+;      %% =a (VAR 4 'b')
+;      %% =c (VAR 5 'd')
+;      %% =e (VAR 6 'f')
+;
+; Then generate code from that:
+;
+; #@ _g0  (foo foo)
+; #@ x    (idx-0      _g0)
+; #@ _g1  (idx-1      _g0)
+; #@ y    (idx-0      _g1)
+; #@ z    (idx-1      _g1)
+; #@ _g2  (idx-2      _g0)
+; #@ b    (tabIdx-"a" _g2)
+; #@ d    (tabIdx-"c" _g2)
+; #@ f    (tabIdx-"e" _g2)
+;  body
+;
+; This same process should work more-or-less verbatim in other contexts:
+; functions, lambdas, etc.
+;
+
+= sbBadForm | "seq-patterns must be a single banged symbol: !x"
+= sbBadHeir | "seq-patterns may not have an heir"
+
+= (parseSeqBinder rex err ok)
+@ sons | rexSons rex
+@ expr | idx 0 sons
+| if (not (rexIsNode rex))   | err rex sbBadForm
+| if (neq (rexRune rex) "!") | err rex sbBadForm
+| if (neq (len sons) 1)      | err rex sbBadForm
+| if (neq (rexHeir rex) 0)   | err rex sbBadHeir
+: sym <- readSymbol expr err
+| ok [%s (rexIdnt expr) sym]
+
+= rbBadForm | "Row-Patterns must be a row of symbols [x y z]"
+= rbBadHeir | "Row-Patterns may not have an heir"
+
+= (parseRowBinder parseBinder rex err ok)
+| if (not (rexIsNode rex))   | err rex rbBadForm
+| if (neq (rexRune rex) ",") | err rex rbBadForm
+| if (neq (rexHeir rex) 0)   | err rex rbBadHeir
+: elems <- traverseRow (son ret & parseBinder son err ret) (rexSons rex)
+| ok [%r elems]
+
+= noHeir | "Unexpected heir"
+
+= (parseTabBind parseBinder rex err ok)
+: kids <- rexGetKidsOfNodeWithRune "=" rex
+        | err rex "Expected an = node"
+| if (neq 0 (rexHeir rex))
+        | err (rexHeir rex) noHeir
+| if (eql 1 len-kids)
+        @ rex (idx 0 kids)
+        : k <- readKey rex err
+        @ idnt (rexIdnt rex)
+        | ok k [%v idnt k]
+| if (eql 2 len-kids)
+        : k <- readKey (idx 0 kids) err
+        : v <- parseBinder (idx 1 kids) err
+        | ok k v
+| *else
+        | err rex "Tab-Binder must have form (= k) or (= k v)"
+
+= (parseTabBinder parseBinder rex err ok)
+: kids <- readNodeWithoutHeirButWithRune "%" rex err
+| if (neq 1 len-kids)
+        | err rex "Tab-Pattern expects % rune with one kid"
+@ com (idx 0 kids)
+: comKids
+       <- readKidsOfNodeWithRune "," com err
+@ step
+        ? (step kid ret)
+        : (k v) <- parseTabBind parseBinder kid err
+        | ret [k v]
+: result
+       <- traverseRow step comKids
+| ok (%t, tabFromPairs result)
+
+= (parseBinder rex err ok)
+| if (rexIsLeaf rex)
+        : sym <- readSymbol rex err
+        | ok [%v (rexIdnt rex) sym]
+@ rune (rexRune rex)
+| if (eql rune "!")
+        | parseSeqBinder rex err ok
+| if (eql rune ",")
+        | parseRowBinder parseBinder rex err ok
+| if (eql rune "%")
+        | parseTabBinder parseBinder rex err ok
+| *else
+        | err rex "Unknown binding pattern"
+
+?= (parseBinder `[x y z] v2 I)
+       ,, %r
+       ,, ,, [%v 0 %x]
+          ,, [%v 0 %y]
+          ,, [%v 0 %z]
+
+?= (parseBinder `[x y !z] v2 I)
+       ,, %r
+       ,, ,, [%v 0 %x]
+          ,, [%v 0 %y]
+          ,, [%s 0 %z]
+
+?= (parseBinder `(%[=x y=b]) v2 I)
+       ,, %t
+       ,, %% =x [%v 0 %x]
+          %% =y [%v 0 %b]
+
+?= (parseBinder `[%[=x] [y]] v2 I)
+       ,, %r
+       ,, ,, [%t %[x=[%v 0 %x]]]
+          ,, [%r [[%v 0 %y]]]
+
+?= (parseBinder ``[$$(varKE 1 %x) $$(varKE 2 %y)] v2 I)
+       ,, %r
+       ,, ,, [%v 1 %x]
+          ,, [%v 2 %y]
+
+
+""" Sequence Binds """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;
+; Then, generate a binder sequence from this:
+;
+;   @ [x [y z] %[a=b c=d e=f]] (foo foo)
+;   body
+;
+;     =>
+;
+; ~~ [ "x"    `(idx-0      _g0) ]
+; ~~ [ "_g1"  `(idx-1      _g0) ]
+; ~~ [ "y"    `(idx-0      _g1) ]
+; ~~ [ "z"    `(idx-1      _g1) ]
+; ~~ [ "_g2"  `(idx-2      _g0) ]
+; ~~ [ "b"    `(tabIdx-"a" _g2) ]
+; ~~ [ "d"    `(tabIdx-"c" _g2) ]
+; ~~ [ "f"    `(tabIdx-"e" _g2) ]
+;
+
+= (sequenceBindPair nex bindSpec exp)
+^ exp bindSpec nex NIL
+        & (nex acc)
+        @ row (listToRowReversed acc)
+        | [nex (map (take 3) row) (cat | map idx-3 row)]
+? (go exp bindSpec nex acc ok)
+@ typ (idx 0 bindSpec)
+| if (eql 'v' typ)
+        @ key (idx 1 bindSpec)
+        @ var (idx 2 bindSpec)
+        | ok nex [key var exp []]::acc
+| if (eql 's' typ)
+        @ key (idx 1 bindSpec)
+        @ var (idx 2 bindSpec)
+        | ok nex [key var exp [var]]::acc
+@ dat (idx 1 bindSpec)
+@ tey nex
+@ tmp (gensym tey)
+@ nex (inc nex)
+@ acc [tey tmp exp []]::acc
+@ res
+        | if (eql 't' typ)
+                ^ [nex acc] (tabToPairs dat)
+                | foldl
+                & (st elem)
+                @ nex (idx 0 st)
+                @ acc (idx 1 st)
+                @ key (idx 0 elem)
+                @ pat (idx 1 elem)
+                @ exp (appE (cnsE tabIdx-key, varE tmp))
+                : (nex acc) <- go exp pat nex acc
+                | [nex acc]
+        | if (eql 'r' typ)
+                ^ [nex acc] (tag dat)
+                | foldl
+                & (st elem)
+                @ nex (idx 0 st)
+                @ acc (idx 1 st)
+                @ i   (idx 0 elem)
+                @ pat (idx 1 elem)
+                @ exp (appE (cnsE idx-i, varE tmp))
+                : (nex acc) <- go exp pat nex acc
+                | [nex acc]
+        | die ['bad bind spec' bindSpec]
+@ nex (idx 0 res)
+@ acc (idx 1 res)
+| ok nex acc
+
+= (sequenceBinds initialAft bindSpecs)
+@ step
+    & (acc item)
+    @ aft   (idx 0 acc)
+    @ soFar (idx 1 acc)
+    @ deps  (idx 2 acc)
+    ;
+    @ bind  (idx 0 item)
+    @ exp   (idx 1 item)
+    ;
+    @ res    (sequenceBindPair aft bind exp)
+    @ aft    (idx 0 res)
+    @ extra  (idx 1 res)
+    @ depend (idx 2 res)
+    ;
+    | [aft (weld soFar extra) (weld deps depend)]
+| foldl step initialAft,[],[] bindSpecs
+
+?=     ,, 5
+       ,, [[4 %y (`x)]]
+       ,, []
+    | sequenceBinds 5 [[[%v 4 %y] `x]]
+
+?=     ,, 5
+       ,, [[4 %y (`x)]]
+       ,, ['y']
+    | sequenceBinds 5 [[[%s 4 %y] `x]]
+
+?=     ,, 8
+       ,,  ,, [5 '_g5'  ``(foo foo)]
+           ,, [6 '_g6'  ``(#| $(idx 0) _g5)]
+           ,, [1 %x     ``(#| $(idx 0) _g6)]
+           ,, [7 '_g7'  ``(#| $(idx 1) _g5)]
+           ,, [2 %y     ``(#| $(idx 0) _g7)]
+       ,,  [%x %y]
+    | sequenceBinds 5
+    | v1
+   ,,   | v2 %r
+       ,, [%r [[%s 1 %x]]]
+       ,, [%r [[%s 2 %y]]]
+   ,, `(foo foo)
+
+?=
+       ,, 8
+       ,,  ,, [5 '_g5'  ``(foo foo)]
+           ,, [6 '_g6'  ``(#| $(idx 0) _g5)]
+           ,, [2 %x     ``(#| $(tabIdx 'x') _g6)]
+           ,, [7 '_g7'  ``(#| $(idx 1) _g5)]
+           ,, [3 %y     ``(#| $(idx 0) _g7)]
+       ,, []
+    | sequenceBinds 5
+    | v1
+   ,,   | v2 %r
+       ,, [%t %[x=[%v 2 %x]]]
+       ,, [%r [[%v 3 %y]]]
+   ,, `(foo foo)
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (bindSeqE binds body deps)
+@ addBind
+        & (bind body)
+        @ key (idx 0 bind)
+        @ var (idx 1 bind)
+        @ exp (idx 2 bind)
+        @ sameVar (readSymbol exp (K2 FALSE) (eql var))
+        | if (or (eql var '_') sameVar) body
+        | letKE key var exp body
+@ addDep
+        & (dep body)
+        | bapE (cnsE seq, varE dep, body)
+@ depBody
+    | foldr addDep body deps
+| foldr addBind depBody binds
+
+?=    ``
+       #@ $$(varKE 5 "_g5") (foo foo)
+       #@ $$(varKE 6 "_g6") (#| $(idx 1)     _g5)
+       #@ $$(varKE 1 "y")   (#| $(idx 0)     _g6)
+       #@ $$(varKE 7 "_g7") (#| $(idx 0)     _g5)
+       #@ $$(varKE 2 "x")   (#| $(tabIdx %x) _g7)
+       #| $seq $$(varE %_g5)
+       #| $seq $$(varE %y)
+       #| $seq $$(varE %z)
+        x
+   | bindSeqE
+          ,, [5 '_g5'  ``(foo foo)]
+          ,, [6 '_g6'  ``(#| $(idx 1) _g5)]
+          ,, [1 %y     ``(#| $(idx 0) _g6)]
+          ,, [7 '_g7'  ``(#| $(idx 0) _g5)]
+          ,, [2 %x     ``(#| $(tabIdx 'x') _g7)]
+       | `x
+   | [%_g5 %y %z]
+
+
+""" Multi Binders """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (isMultiBinder rex)
+| eql "=" (rexRune rex)
+
+= mbNeedsTwo | "Each multi-bind needs at least two son"
+
+= (readMultiBinder rex err ok)
+| if (isZero rex) ok-[]
+: (sons heir) <- readNodeWithRune "=" rex err
+| if (lthNat len-sons 2) (err rex mbNeedsTwo)
+: bind < parseBinder (idx 0 sons) err
+: more < readMultiBinder heir err
+@ exp | appE (drop 1 sons)
+| ok
+| rowCons [bind exp] more
+
+?= (readMultiBinder `((= x 3)(= y 3 4)) v2 I)
+        [[[%v 0 %x] `3] [[%v 0 %y] `(#| 3 4)]]
+
+= (multiBindE binds bodyExpr)
+@ f     & (bind body)
+        | letE (idx 0 bind) (idx 1 bind) body
+| foldr f bodyExpr binds
+
+
+""" Lambda Binders """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (isLambdaBinder rex)
+| and (rexIsNode rex)
+| and (eql "|" (rexRune rex))
+| and (isZero (rexHeir rex))
+@ sons (rexSons rex)
+| and (gteNat (len sons) 2)
+| rexIsSymbol (idx 0 sons)
+
+?= 1 | isLambdaBinder `(f x)
+?= 0 | isLambdaBinder `f
+?= 0 | isLambdaBinder `(f)
+?= 0 | isLambdaBinder `(| f)
+?= 1 | isLambdaBinder `(f a b c)
+?= 0 | isLambdaBinder `[]
+
+
+""" Pattern Matching on Tabs """""""""""""""""""""""""""""""""""""""""""""""""""
+
+; TODO: Rebuild this as a call to (sequenceBinds >=> bindSeqE).
+= (destructureTabE nex bindings tabExp bodyExp ok)
+@ tmp (gensym nex)
+@ go
+        ? (go bind)
+        | *listCase bind
+                | bodyExp
+        & (kv more)
+        @ key (idx 0 kv)
+        @ val (idx 1 kv)
+        | letE val
+                | appE (cnsE tabIdx, cnsE key, varE tmp)
+        | go more
+| ok (inc nex)
+| letE tmp tabExp
+| (go (tabToList bindings))
+
+?= (destructureTabE 9 %[x=(%y) p=(%q)] `tabby `(add y q) v2)
+        | v2 10
+       ``
+       #@ _g9 tabby
+       #@ q (#| $tabIdx $$(cnsE %p) _g9)
+       #@ y (#| $tabIdx $$(cnsE %x) _g9)
+        (add y q)
+
+?= (destructureTabE 9 %[] `tabby `(add y q) v2)
+        | v2 10
+       ``
+       #@ _g9 tabby
+        (add y q)
+
+
+""" Read Signatures with Support for Destructuring """""""""""""""""""""""""""""
+
+= sigExpect | "Expected `x` or signature `(x y z)`"
+= sigNoHeir | "name-sequence cannot have an heir"
+
+= (readBindSig rex err ok)
+@ rune (rexRune rex)
+| if (eql rune "|")
+    | if (neq 0 (rexHeir rex))
+        | err rex sigNoHeir
+    @ sons (rexSons rex)
+    | if (isZero len-sons)
+        | err rex sigExpect
+    @ step
+        ? (step son ret)
+        | parseBinder son err ret
+    | traverseRow step sons ok
+| *else
+    : bin <- parseBinder rex err
+    | ok [bin]
+
+?= ,[[%v 0 %a] [%v 0 %b] [%v 0 %c]]
+        | readBindSig `(a b c) v2 v1
+
+?= [[[%r [[%v 0 %x] [%s 0 %a]]] [%v 0 %y] [%s 0 %z]]]
+        | readBindSig `([x !a] y !z) v2 v1
+
+= symSigExpect | "Expected `x` or signature `(x y z)`"
+= symSigNoHeir | "name-sequence cannot have an heir"
+
+;
+; readDestroyer :: Rex -> RexParser2 Key (Row Pat)
+;
+; `readDestroyer` parsing something with the same shape as a function
+; signature:
+;
+;     (| Key Pat*)
+;
+= (readDestroyer rex err ok)
+: (sons heir)
+        < rexGetNodeWithRune "|" rex
+        | err rex symSigExpect
+| ifNot (isZero heir)
+        | err rex symSigNoHeir
+| if (lthNat len-sons 2)
+        | err rex symSigExpect
+: sym
+        < readKey (idx 0 sons) err
+@ step
+        ? (step son ret)
+        | parseBinder son err ret
+: binds <- traverseRow step (drop 1 sons)
+| ok sym binds
+
+
+(tryRBSS x)=(readDestroyer x v2 v2)
+
+?= [%a [[%v 0 %b] [%v 0 %c]]]                  | tryRBSS `(a b c)
+?= [%a [[%v 0 %b] [%r [[%v 0 %c] [%v 0 %d]]]]] | tryRBSS `(a b [c d])
+?= [`a sigExpect]                              | tryRBSS `(a)
+?= [`a sigExpect]                              | tryRBSS `a
+?= [`[a b] sigExpect]                          | tryRBSS `[a b]
+?= [`([][]) sigExpect]                         | tryRBSS `([][])
+?= [`((|)[]) sigNoHeir]                        | tryRBSS `((|)[])
+
+
+
+""" Generic Pattern Matching """""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (makeDestroyer aft binds bodyExpr pure)
+: (aft sig)
+        < forRowWithState aft binds
+        & (aft bind ret)
+        | if (eql %v (idx 0 bind))
+                | ret aft (idx 2 bind)
+        | ret (inc aft) (gensym aft)
+@ binder (zip binds (map varE sig))
+@ res  (sequenceBinds aft binder)
+@ aft  (idx 0 res)
+@ bSeq (idx 1 res)
+@ deps (idx 2 res)
+; if (not null-deps) (die [['sequenceBinds' 'returned' res] [aft binder]])
+| pure aft sig
+| bindSeqE bSeq bodyExpr deps
+
+= ("@" s p e a r err ok)
+@ kids (rexKids r)
+| if (eql 2 len-kids)
+        @ binders  (idx 0 kids)
+        @ bodyExpr (idx 1 kids)
+        : binds <- readMultiBinder binders err
+        @ res  (sequenceBinds a binds)
+        @ a    (idx 0 res)
+        @ bSeq (idx 1 res)
+        @ deps (idx 2 res)
+        | ok p a
+        | bindSeqE bSeq bodyExpr deps
+| if (neq 3 len-kids)
+        | err r "@ requires 2 or 3 kids"
+@ binder    (idx 0 kids)
+@ valueExpr (idx 1 kids)
+@ bodyExpr  (idx 2 kids)
+| if (isLambdaBinder binder)
+        : (sym binds)       <- readDestroyer binder err
+        : (a sig valueExpr) <- makeDestroyer a binds valueExpr
+        | ok p a
+        | letE sym
+                | wutE (rowCons sym sig) valueExpr
+        | bodyExpr
+: bindSpec <- parseBinder binder err
+@ res  (sequenceBinds a [[bindSpec valueExpr]])
+@ a    (idx 0 res)
+@ bSeq (idx 1 res)
+@ deps (idx 2 res)
+| ok p a
+| bindSeqE bSeq bodyExpr deps
+
+?= 7
+       @ [x y z] [3 4]
+       | (add x (add y z))
+
+?= 7
+       @ [!x !y !z] [3 4]
+       | (add x (add y z))
+
+?= 7
+       @ %[=x =y =z] %[y=4 z=3]
+       | (add x (add y z))
+
+?= 7
+       @ %[x=(!x) =y =z] %[y=4 z=3]
+       | (add x (add y z))
+
+?= [5 3 0 3 4 3]
+        @ t       | 3
+        @ [x y z] | [t 4 5]
+        | [z x 0 x y x]
+
+?= [[0 3 5 4 0] 3 4]
+        @ f 5
+        @ [p q r s]  [3 4 f]
+        @ %[x=a =y]  %[x=3 y=4]
+        | [[s p r q s] a y]
+
+?= 5
+        @ (addTwo x) (add x 2)
+        | addTwo 3
+
+?= 5
+        @ (uncurry f [x y]) (f x y)
+        | uncurry add [2 3]
+
+?= [4 3]
+        @   = x     | 3
+            = y     | x
+            = z     | [x (inc y)]
+            = [a b] | z
+        [b a]
+
+?= [500 200 1001]
+        @ %[pos=[px py pz] vel=[vx vy vz]]
+               %% =pos [500 200 1]
+               %% =vel [0 0 1000]
+       ,, add px vx
+       ,, add py vy
+       ,, add pz vz
+
+?=  [11 22 33]
+    @ (addV3 [x1 y1 z1] [x2 y2 z2])
+        ,, add x1 x2
+        ,, add y1 y2
+        ,, add z1 z2
+    | addV3 [1 2 3] [10 20 30]
+
+
+""" Named Lambdas with Destroy """""""""""""""""""""""""""""""""""""""""""""""""
+
+; TODO: Lambda binders should have binder-identities
+;
+= ("?" s p e a r err ok)
+: (sigRex bodyExpr) <- rexParseKids r [readAny readAny] err
+: (sym    binds  )  <- readDestroyer sigRex err
+: (a sig  bodyExpr) <- makeDestroyer a binds bodyExpr
+| ok p a
+| wutE (rowCons sym sig)
+| bodyExpr
+
+?= 5 | (uncurry f [x y] ? f x y) add [2 3]
+
+
+""" Anon Lambdas with Destroy """"""""""""""""""""""""""""""""""""""""""""""""""
+
+= ("&" s p e a r err ok)
+: (sigRex bodyExpr) <- rexParseKids r [readAny readAny] err
+: binds             <- readBindSig sigRex err
+: (a sig  bodyExpr) <- makeDestroyer a binds bodyExpr
+| ok p a
+| lamE sig
+| bodyExpr
+
+?= 5 | [x y]&(add x y) [2 3]
+
+?= 5 | (f [x y] & f x y) add [2 3]
+
+?= %[x=0 y=1 z=2]
+     | foldr ([k v] t & tabMut k v t) %[] [[%x 0] [%y 1] [%z 2]]
+
+
+""" Col Sugar with Destroy """""""""""""""""""""""""""""""""""""""""""""""""""""
+
+'TODO'
+
+
+""" Top-Level Definitions with Destroy """""""""""""""""""""""""""""""""""""""""
+
+= (keyE k)
+| if (strIsSymbol k) (varE k) (txtE k)
+
+= (sogE f rs)
+| (NEST 0 "|" (rowCons (keyE f) (map varE rs)) 0)
+
+= (keyKE i k)
+| if (strIsSymbol k) (varKE i k) (txtKE i k)
+
+= (sogKE k f rs)
+| (NEST 0 "|" (rowCons (keyKE k f) (map varE rs)) 0)
+
+= ("=" s p e a r err ok)
+@ rune (rexRune r)
+@ sons (rexSons r)
+@ heir (rexHeir r)
+@ [sons heir]
+    | if (neq 1 | len sons) [sons heir]
+    | [(rexKids r) 0]
+| if (neq 2 | len sons)
+    | err r "Expected two sons"
+@ [brex bodyExpr] sons
+@ bune (rexRune brex)
+| if (eql "|" bune)
+    : (sym binds) <- readDestroyer brex err
+    : (a sig bod) <- makeDestroyer a binds bodyExpr
+    @ key rexIdnt-(idx 0 rexKids-brex)
+    | ok p a
+    | OPEN 0 "#=" (sogKE key sym sig, bod)
+    | heir
+| *else
+    : spec <- parseBinder brex err
+    @ [a bSeq] (sequenceBinds a [[spec bodyExpr]])
+    | ok p a
+    ^ heir bSeq
+    | foldr
+    & ([key var exp] heir)
+    | OPEN 0 "#=" (keyKE key var, exp) heir
+
+
+= (weird [[[x]] %[=y a=z]]) [x y z]
+
+?= [3 9 8] (weird [[[3]] %[y=9 a=8]])
+
+[x y]=[3 4]
+[a b]=[3 4]
+
+?= x 3
+?= y 4
+?= a 3
+?= b 4
+
+= [x y] [3 4]
+= [a b] [3 4]
+
+?= x 3
+?= y 4
+?= a 3
+?= b 4
+
+;;  : (sigRex bodyExpr) <- rexParseKids r [readAny readAny] err
+;;  : (sym    binds  )  <- readDestroyer sigRex err
+;;  : (n sig  bodyExpr) <- makeDestroyer n binds bodyExpr
+;;  | ok p a
+;;  | wutE (rowCons sym sig)
+;;  | bodyExpr
+
+
+; TODO
+;
+; [[x y] z]=[[3 4] 5]
+;
+;   =>
+;
+;     = _g0 [[3 4] 5]
+;     = _g1 (idx 0 _g0)
+;     = x   (idx 0 _g1)
+;     = y   (idx 1 _g1)
+;     = z   (idx 0 _g0)
+;
+; (uncurry f [x y])=(f x y)
+;
+;   =>
+;
+;     = (uncurry f _g0)
+;     @ (idx 0 _g0)
+;     @ (idx 1 _g0)
+;     | f x y
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ readDestroyer makeDestroyer
+^-^
+^-^ sequenceBinds bindSeqE
+^-^
+^-^ destructureRowE
+^-^ destructureTabE  ;;  TODO: Don't export these, export a more general
+                     ;;  API instead.
+^-^
+^-^ "@" "?" "&" "="

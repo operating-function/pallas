@@ -1,0 +1,203 @@
+"""
+""" Natural Numbers
+""" ===============
+"""
+""" Core jets:
+"""
+""" - toNat,dec
+""" - add,sub ;;; - mul,div,mod ;;; - lsh,rsh,met
+""" - mix,dis,con
+"""
+""" What about `nat_take`?
+""" What about `setBit`?
+""" What about `getBit`?
+""" What about `flipBit`?
+""" What about `popCount`?
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan  [seq isNat cdr die K]
+/+  02_bit  [if else ifNot not bit and or xor]
+
+
+""" Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (toNat x)    | 2 0 3 x
+= inc          | 3
+= (dec x)      | 2 0 y&y x
+= (exec f z x) | 2 z (exec f f-z) x
+
+= (add x y) | exec inc toNat-x y
+= (mul x y) | exec add-x 0 y
+= (sub x y) | exec dec x y
+
+= (lteNat x y) | not (sub x y)
+= (lthNat x y) | lteNat inc-x y
+= (gteNat x y) | lteNat y x
+= (gthNat x y) | lthNat y x
+= (eqlNat x y) | and lteNat-y-x lteNat-x-y
+= (minNat x y) | if lteNat-x-y x y
+= (maxNat x y) | if gteNat-x-y x y
+= (cmpNat x y) | minNat 2 (sub inc-x y)
+
+LT=0
+EQ=1
+GT=2
+
+= (div x y) | if (lthNat x y) 0 inc-(div sub-x-y y)
+= (mod x y) | sub x | mul y | div x y
+= (bex n)   | exec mul-2 1 n
+= (lsh v n) | mul bex-n v
+= (rsh v n) | div v bex-n
+
+= (even n) | not mod-n-2
+= (odd n)  | mod n 2
+
+= (met n)
+^ 0 n
+? (go acc n)
+| seq acc
+| ifNot n acc
+| go (inc acc) (div n 2)
+
+; TODO Can a better name be found for this?
+= (roundUp num x)
+| ifNot x           num
+| ifNot (mod num x) num
+| sub (add num x) (mod num x)
+
+; check if literally zero, not converted equivalent to 0.
+(isZero x)=(and (isNat x) (eqlNat 0 x))
+
+?= 1 | isZero 0
+?= 0 | isZero 1
+?= 0 | isZero isZero
+
+
+""" Pad Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;; TODO Should these live in `pad.sire`?
+
+; padTake?
+(takeBits n v)=(mod v bex-n)
+
+; TODO What use is this?  What laws does it follow?  Why not just padWeld?
+= (bitWeld x y)
+| add x | lsh y met-x
+
+= (perbit f x y)
+^ x y 0 0
+? (go a b off acc)
+| ifNot (add a b) acc
+@ bit | f (mod a 2) (mod b 2)
+@ acc | add acc (lsh bit off)
+| seq acc
+| go (div a 2) (div b 2) (inc off) acc
+
+= (con x y) | perbit or  x y
+= (dis x y) | perbit and x y
+= (mix x y) | perbit xor x y
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= 1 | inc ( add 0   0   )
+?= 1 | inc ( add 0   0-0 )
+?= 1 | inc ( add 0-0 0   )
+?= 1 | inc ( add 0-0 0-0 )
+?= 1 | add 0 1
+?= 1 | add 1 0
+
+?= 1 | eqlNat 5 5
+?= 1 | eqlNat 6 mul-2-3
+?= 1 | eqlNat 2 sub-4-2
+?= 1 | gthNat 4 3
+?= 1 | gteNat 4 3
+?= 1 | gteNat 4 4
+?= 1 | eqlNat 0 (sub 3 4)
+?= 1 | eqlNat 0 (sub 3 3)
+?= 1 | eqlNat 1 (sub 3 2)
+
+?= 1 | eqlNat 3 (sub 3 0)
+?= 1 | eqlNat 0 (1 2)
+?= 1 | eqlNat (1 2) 0
+
+?= 1 | eqlNat 1 (mix 0 1)
+?= 1 | eqlNat 1 (mix 1 0)
+?= 1 | eqlNat 3 (mix 2 1)
+?= 1 | eqlNat 1 (mix 2 3)
+
+?= 1 | eqlNat 0 (roundUp 0 4)
+?= 1 | eqlNat 4 (roundUp 3 4)
+?= 1 | eqlNat 8 (roundUp 5 4)
+
+= (checkOrd x y)
+@ o (cmpNat x y)
+| if (eqlNat o LT)
+  | and (bit (lthNat x y))
+  | and (bit (lteNat x y))
+  | and (not (eqlNat x y))
+  | and (not (gteNat x y))
+  | and (not (gthNat x y))
+  | and (eqlNat x (minNat x y))
+        (eqlNat y (maxNat x y))
+| if (eqlNat o EQ)
+  | and (not (lthNat x y))
+  | and (bit (lteNat x y))
+  | and (bit (eqlNat x y))
+  | and (bit (gteNat x y))
+        (not (gthNat x y))
+| *else
+  | and (not (lthNat x y))
+  | and (not (lteNat x y))
+  | and (not (eqlNat x y))
+  | and (bit (gteNat x y))
+  | and (bit (gthNat x y))
+  | and (eqlNat y (minNat x y))
+        (eqlNat x (maxNat x y))
+
+?= 1 (checkOrd 0 0)
+?= 1 (checkOrd 0 1)
+?= 1 (checkOrd 1 0)
+?= 1 (checkOrd 1 1)
+
+?= 1 (checkOrd 1 4)
+?= 1 (checkOrd 2 4)
+?= 1 (checkOrd 3 4)
+?= 1 (checkOrd 4 4)
+?= 1 (checkOrd 5 4)
+?= 1 (checkOrd 6 4)
+?= 1 (checkOrd 7 4)
+?= 1 (checkOrd K 4)
+?= 1 (checkOrd K 0)
+
+
+""" Check Literal Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= 0x10   | 16
+?= 0x0100 | 256
+?= 0x61   | 'a'
+?= 0x7a   | "z"
+?= 0x7a61 | {az}
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ inc dec add sub mod mul div
+^-^ toNat
+^-^ eqlNat lthNat gthNat lteNat gteNat minNat maxNat cmpNat
+^-^ even odd
+^-^ met
+^-^ roundUp
+^-^ isZero
+^-^ lsh rsh con mix dis bex
+^-^ takeBits
+^-^ isNat toNat
+^-^ exec
+^-^ perbit
+^-^
+^-^ LT EQ GT
+^-^

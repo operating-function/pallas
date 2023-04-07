@@ -1,0 +1,410 @@
+/+  boot
+/+  switch  ['#switch' switchE unrollSlip2Tis]
+
+
+""" Constructing Bloodlines """""'""""""""""""""""""""""""""""""""""""""""""""""
+
+(bloodline lis)=(listFoldr (i r & rexSetHeir r i) 0 lis)
+
+?= `((a=1)(b=2)(c=3))
+        | bloodline ~[`(a=1) `(b=2) `(c=3)]
+
+
+""" Opening Records """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (constrToCamel prefix constr)
+| strWeld prefix
+| strFromList
+| ? (fixUnderscores str)
+  : (c cs) <- listCase str str
+  : (d ds) <- listCase cs  str
+  | if (eql c '_')
+      | fixUnderscores (CONS toUpper-d ds)
+  | CONS c (fixUnderscores cs)
+| CONS '_'
+| strToList
+| strToLower constr
+
+?= 'openPair'     | constrToCamel %open 'PAIR'
+?= 'mkTreeConfig' | constrToCamel %mk 'TREE_CONFIG'
+
+= (defC sig bodyExp)
+| OPEN 0 "=" (sigE sig, bodyExp) 0
+
+= (defKC key sig bodyExp)
+| OPEN 0 "=" (sigKE key sig, bodyExp) 0
+
+; mkGetterC/[Nat Str] -> Cmd
+= (mkGetterC pair)
+@ ix,field | pair
+@ nam      | strWeld "get" (strCapitalize field)
+| defC (nam, "x")
+| appE (cnsE (idx ix), varE "x")
+
+; mkSetterC/[Nat Str] -> Cmd
+= (mkSetterC pair)
+@ ix,field | pair
+@ nam      | strWeld "set" (strCapitalize field)
+| defC [nam 'x' 'record']
+| appE (cnsE (mut ix), varE 'x', varE 'record')
+
+; mkNamedC/[Str Row-Str] -> Cmd
+= (mkNamedC constr fields)
+@ nam
+        | strWeld "mk"
+        | strCapitalize
+        | strToLower constr
+| defC [nam %t]
+| appE
+| rowCons (varE constr)
+| turn fields (f & appE (cnsE (tabIdx f), varE "t"))
+
+= (mkConstrC constr fields)
+| defC (rowCons constr fields)
+| rowE (map varE fields)
+
+= (mkOpenerC constr fields)
+@ nam
+    (constrToCamel "#open" constr)
+``
+    = ($$(txtE nam) s p e a r err ok)
+        : (_ expr body)
+               <- $rexParseKids r $[readAny readAny readAny] err
+        | ok p ($inc a)
+        | $destructureRowE ($gensym a) $$(rowE | map txtE fields) expr body
+
+?= (mkOpenerC %pair [%fst %snd])
+       ``
+        = ('#openPair' s p e a r err ok)
+            : (_ expr body)
+               <- $rexParseKids r $[readAny readAny readAny] err
+            | ok p ($inc a)
+            | $destructureRowE ($gensym a) (#| $(cow 2) 'snd' 'fst')
+              expr
+              body
+
+"""
+""" This example:
+"""
+"""     record#(PAIR fst snd)
+"""
+""" Expands to:
+"""
+"""     = (PAIR fst snd) | [fst snd]
+"""     = (getFst x)     | idx 0 x
+"""     = (getSnd x)     | idx 1 x
+"""     = (setFst v x)   | mut 0 v x
+"""     = (setSnd v x)   | mut 1 v x
+"""     = (mkPair t)     | PAIR (look %fst t) (look %snd t)
+"""
+""" This input format works too:
+"""
+"""     # record
+"""     | PAIR fst snd
+"""
+
+= (readConstructorSig node err ok)
+: bindings <- readKeySignature node err
+@ symbols (map idx-1 bindings)
+@ key (idx 0 | idx 0 bindings)
+| if (isZero len-symbols)
+    | err node 'Non-sense empty constructor signature.'
+@ = constr (idx 0 symbols)
+  = fields (drop 1 symbols)
+| ok key constr fields
+
+= (rexToTrip rex)
+@ bad
+    | die [%rexToTrip %badArgument rex]
+: (rune sons heir)
+   <- *rexGetNode rex bad
+| if (neq 0 heir)
+    | bad
+| rowCons rune sons
+
+; '#record'/Macro
+= ('#record' s p e a r err ok)
+@ kids (rexKids r)
+| if (neq (len kids) 2)
+        | err r '#record requires exactly one son.'
+: (key constr fields)
+       <- *readConstructorSig (idx 1 kids) err
+| ok p a
+| if (isZero len-fields)
+        | bloodline
+        ; trkVal %bloodline
+       ~~ defC [constr] (natE 0)
+       ~~ @ nam (| strWeld "mk" | strCapitalize | strToLower constr)
+          | defC [nam '_'] (natE 0)
+; trkVal %bloodline
+| bloodline
+| listCat
+~~ ~~ mkConstrC constr fields
+~~ ~~ mkOpenerC constr fields
+~~ ~~ mkNamedC constr fields
+~~ listMap mkGetterC (listIndexed (listFromRow fields))
+~~ listMap mkSetterC (listIndexed (listFromRow fields))
+
+record#UNIT
+record#(BOX boxItem)
+
+# record
+| PAIR fst snd
+
+ex=(PAIR %a %b)
+
+?= (getFst ex)    | %a
+?= (getSnd ex)    | %b
+?= (setFst %x ex) | PAIR %x %b
+?= (setSnd %x ex) | PAIR %a %x
+?= ex             | mkPair %[fst="a" snd="b"]
+?= (BOX UNIT)     | BOX (mkUnit %[])
+?= 3              | openBox#(BOX 3)#boxItem
+?= 5              | openPair#(PAIR 2 3)#(add fst snd)
+
+
+""" Datatypes """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;;
+;;; # datatype
+;;; | LEFT x
+;;; | RYTE x
+;;;
+;;; # datatype
+;;; | NULL
+;;; | CONS item tail
+;;;
+
+; readDataBranch/(Rex > MacroMonad (Row (Symbol, Row Symbol)))
+= (readDataBranches r err ok)
+^ NIL r
+? (go acc r)
+; trk 'WHAAA',[%[=r] (rexSetHeir 0 r)]
+@ = this (rexSetHeir 0 r)
+  = that (rexHeir r)
+: (key ctr slots) <- readConstructorSig this err
+; trk 'Y THO?',(%[=key =ctr =slots])
+@ acc
+        | CONS [key ctr slots] acc
+| if (isZero that)
+        | ok (listToRowReversed acc)
+| *else
+        | go acc that
+
+
+?=             ,, [0 %FOO [%x]]
+               ,, [0 %BAR [%x %y %z]]
+               ,, [0 %LOL []]
+        ^ v2 I
+        | readDataBranches
+        ` | FOO x
+          | BAR x y z
+          | LOL
+
+
+; / defDataTypeC
+; > RexSources
+; > RexProps
+; > Env
+; > Row (Key, Str, Row Str)
+; > (RexProps, Cmd)
+;
+= (defDataTypeC src prp env branches)
+;
+; trkVal %defDataTypeC
+;
+^ 0 prp NIL (listFromRow branches)
+? (loop ix prp acc remain)
+;
+| seq ix
+; trk %loop,(%[=ix =prp =acc =remain])
+;
+: (kca xs) <- *listCase remain (prp, bloodline acc)
+@ [key cns arg] kca
+;
+@ prp (setProperty key 'conTag' ix      prp)
+@ prp (setProperty key 'conAri' len-arg prp)
+;
+@ bod (| rowE | rowCons natE-ix | map varE arg)
+@ cmd (defKC key (rowCons cns arg) bod)
+@ acc (CONS cmd acc)
+;
+| loop (inc ix) prp acc xs
+
+
+; '#datatype'/Macro
+= ('#datatype' s p e a r err ok)
+@ = heir (rexHeir r)
+  = sons (rexSons r)
+| if (gteNat len-sons 2)
+        | err r '#datatype requires only an heir (no sons)'
+| if (isZero heir)
+        | err r '#datatype an heir'
+: branches  < readDataBranches heir err
+@ [prp rex] | defDataTypeC s p e branches
+| ok prp a rex
+
+
+# datatype
+| E_LEFT x
+| E_RIGHT x
+
+?= 0 getProp#(E_LEFT.conTag)
+?= 1 getProp#(E_LEFT.conAri)
+?= 1 getProp#(E_RIGHT.conTag)
+?= 1 getProp#(E_RIGHT.conAri)
+
+?? eql [0 9] | E_LEFT 9
+?? eql [1 8] | E_RIGHT 8
+
+
+"""
+""" # datacase foo
+""" = NIL         0
+""" = (CONS x xs) xs
+"""
+""" ~~ [0 [] `0)
+""" ~~ [1 [%x %xs] `xs]
+"""
+""" # switch (idx 0 foo)
+""" = 0
+"""     @ [_] foo
+"""     0
+""" = 1
+"""     @ [_ x xs] foo
+"""     1
+"""
+
+; Properties -> Rex -> Macro (Row (Nat, Row Symb, Rex))
+= (readDatacaseBody src prp cases err ok)
+;
+@ onAlien (x err ret & err x 'Not a switch branch')
+: clauses <- unrollSlip2Tis cases onAlien err
+;
+^ NIL (listFromRow clauses)
+;
+? (go acc remain)
+: ([sigRex bodyRex] remain)
+       <- *listCase remain (ok | listToRowReversed acc)
+;
+: (constr fields) < & k
+                    | if (rexIsLeaf sigRex)
+                        : sym < readKey sigRex err
+                        | k sym []
+                    | readDestroyer sigRex err k
+; trk %[=constr =fields]
+;
+| if (not hasKey-constr-src)
+        | err sigRex (strWeld "Undefined Pattern: " constr)
+@ key (look src constr)
+| if (isZero key)
+        | err sigRex (strWeld "Pattern defined without identity: " constr)
+;
+| if (not (hasProperty key 'conTag' prp))
+        | err sigRex (strWeld "Unknown constructor(tag): " constr)
+| if (not (hasProperty key 'conAri' prp))
+        | err sigRex (strWeld "Unknown constructor(ari): " constr)
+;
+@ = tag (getProperty key 'conTag' prp)
+  = ari (getProperty key 'conAri' prp)
+  = acc (CONS [tag ari fields bodyRex] acc)
+;
+| if (neq ari len-fields)
+    | err sigRex | strWeld 'This constructor requires arity=' (showNat ari)
+;;;
+| go acc remain
+
+?=     ,, [0 0 []                      `[x "]"]]
+       ,, [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
+    ^ v2 I
+    | readDatacaseBody
+           %% =LNULL 3
+           %% =LCONS 4
+       %% =conTag %[3=0 4=1]
+       %% =conAri %[3=0 4=2]
+   ``
+    = LNULL       [x "]"]
+    = (LCONS _ _) [x " " (go xs)]
+
+= (makeDatacaseExpr aft valExp cases return)
+@ !tmpVar (gensym aft)
+@ !tmpExp (varE tmpVar)
+@ !aft (inc aft)
+: (aft pairs)
+    < forRowWithState aft cases
+        & (aft [tag ari params body] continue)
+        @ rowPat (%r, rowCons [%v 0 '_'] params)
+        @ binds [(rowPat, valExp)]
+        @ [aft bSeq deps] (sequenceBinds aft binds)
+        | continue aft (tag, bindSeqE bSeq body deps)
+@ tagExp (appE (cnsE (idx 0), tmpExp))
+@ result
+    | OPEN 0 '@' [tmpExp valExp]
+    | switchE tagExp (natE 0)
+    | tabFromPairs
+    | pairs
+| return aft result
+
+= ('#datacase' s p e a r err ok)
+;;;
+@ nex  | a
+@ sons | rexSons r
+@ heir | rexHeir r
+;;;
+| if (neq 2 (len sons))
+        | err r '#datacase requires one son plus an heir.'
+| if (isZero heir)
+        | err r '#datacase requires one son plus an heir.'
+;;;
+@ [_ valExp] sons
+: cases     < readDatacaseBody s p heir err
+: (nex exp) < makeDatacaseExpr nex valExp cases
+| ok p nex exp
+
+# datatype
+| LNULL
+| LCONS x y
+
+= (showList xs)
+| strWeld "["
+^ xs
+? (go xs)
+# datacase xs
+= LNULL
+        | "]"
+= (LCONS x xs)
+        | strCat
+        # datacase xs
+        = LNULL       [x "]"]
+        = (LCONS _ _) [x " " (go xs)]
+
+?= '[a b c]'
+        | showList | LCONS %a | LCONS %b | LCONS %c LNULL
+
+;;;
+;;; TODO: Parse type-aware syntax, but ignore the type.
+;;;
+;;;     record#(Unit = UNIT)
+;;;
+;;;     record#(Box a = BOX boxItem/a)
+;;;
+;;;     record#(Pair a b = PAIR fst/a snd/b)
+;;;
+;;;     # record
+;;;     = (Pair a b)
+;;;     | PAIR
+;;;       fst/a
+;;;       snd/b
+;;;
+;;;     datatype#(Either a b = (Left a | Right b))
+;;;
+;;;     datatype#(Either a b = (Left x/a | Right x/b))
+;;;
+;;;     # datatype (Either a b)
+;;;     | LEFT x/a
+;;;     | RYTE x/b
+;;;
+;;;     # datatype (List a)
+;;;     | NULL
+;;;     | CONS item/a tail/(List a)
+;;;

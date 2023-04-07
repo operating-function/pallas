@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+
+#
+# To use this script, run `rm -Rf .demo/ && plunder server .demo`
+# and then run this script in a different terminal from the root of the
+# repository with `sh/full-tag-site-demo`.
+#
+
+THREADS=16
+FIRST_PAGE=1
+LAST_PAGE=20
+#LAST_PAGE=600
+#LAST_PAGE=20263
+
+USE_LOCAL=0
+USE_CDN=0
+
+usage ()
+{
+    echo "Usage: ./full-tag-site-demo [ -d | --demosrc SRCDIR ]
+                                      [ --use-local | --use-cdn ]
+
+            full-tag-site-demo will try to download a small 600 json file
+            demo if -d is unset."
+    exit 2
+}
+
+PARSED_ARGUMENTS=$(getopt -a -n alphabet -o d: --long demosrc:,use-local,use-cdn -- "$@")
+VALID_ARGUMENTS=$?
+if [ "$VALID_ARGUMENTS" != "0" ]; then
+  usage
+fi
+
+echo "PARSED_ARGUMENTS is $PARSED_ARGUMENTS"
+eval set -- "$PARSED_ARGUMENTS"
+while :
+do
+  case "$1" in
+    -d | --demosrc) DEMOSRC="$2" ; shift 2 ;;
+    --use-local)    USE_LOCAL=1  ; shift   ;;
+    --use-cdn)      USE_CDN=1    ; shift   ;;
+
+    # -- means the end of the arguments; drop this, and break out of the while loop
+    --) shift; break ;;
+    # If invalid options were passed, then getopt should have reported an error,
+    # which we checked as VALID_ARGUMENTS when getopt was called...
+    *) echo "Unexpected option: $1 - this should not happen."
+       usage ;;
+  esac
+done
+
+if [ -z "${DEMOSRC}" ]; then
+    echo "Using default demo..."
+
+    # Ensure the datadir files are downloaded. This is 600 json files to parse.
+    if ! [ -f ./elm/tag-site-demo/datadir.tar.gz ]; then
+        pushd ./elm/tag-site-demo
+        wget -O datadir.tar.gz \
+             https://www.dropbox.com/s/a9dwuiny135pk6o/datadir.tar.gz?dl=1
+        mkdir -p datadir/json/
+        # previous demo was just json, now requires json/img separation in the
+        # big demo.
+        tar xf datadir.tar.gz -C datadir/json --strip-components=1
+        popd
+    fi
+
+    DEMOSRC="./elm/tag-site-demo/datadir"
+fi
+
+UPLOAD_IMG=0
+
+if [ "${USE_LOCAL}" -eq 1 -a "${USE_CDN}" -eq 1 ]; then
+    echo "Error: Can't both set --use-local and --use-cdn"
+    exit 2
+elif [ "${USE_LOCAL}" -eq 1 ]; then
+    if [ -d "$DEMOSRC/img/" ]; then
+        UPLOAD_IMG=1
+    else
+        echo "Error: Can't --use-local on a dataset without images"
+        exit 2
+    fi
+fi
+
+# Only operate on the `.demo` directory.
+export PLUNDER_DIR=$(realpath .demo)
+
+# Ensure the elm files are built.
+if ! [ -f ./elm/tag-site-demo/elm.js ]; then
+    nix-shell -p elmPackages.elm --run "cd ./elm/tag-site-demo && sh/build"
+elif [ ./elm/tag-site-demo/src/Main.elm -nt ./elm/tag-site-demo/elm.js ]; then
+    nix-shell -p elmPackages.elm --run "cd ./elm/tag-site-demo && sh/build"
+fi
+
+waited=0
+until [ -d ./.demo ]
+do
+    if [ $waited -eq 0 ]; then
+        echo "Waiting for demo directory to be created"
+        waited=1
+    fi
+
+    sleep 0.1
+done
+
+# TODO: error out if this broke.
+plunder boot fulltag sire/demo-full-tag-site.sire
+plunder spin fulltag
+
+until [ -f ./.demo/fulltag.http.port ]
+do
+     sleep 0.1
+done
+
+PORT=$(cat .demo/fulltag.http.port)
+
+echo "Setting interface files..."
+curl --data-binary @./elm/tag-site-demo/elm.js -H "Content-Type: text/javascript" -X PUT http://localhost:$PORT/elm.js
+curl --data-binary @./elm/tag-site-demo/index-xmlhttprequest.html -H "Content-Type: text/html" -X PUT http://localhost:$PORT/index.html
+
+echo "Interface files are set. Running on http://localhost:$PORT/index.html"
+
+if [ ${UPLOAD_IMG} -eq 1 ]; then
+    echo "Setting use local images only..."
+    curl -X POST "http://localhost:$PORT/uselocal"
+fi
+
+echo "Sending JSON dumps..."
+
+upload_images_for_file () {
+
+    if [ ${UPLOAD_IMG} -ne 1 ]; then
+        return
+    fi
+
+    echo "page-$i.json (IMG)"
+
+    local FILE="$1"
+
+    local CURL_ARGS=""
+
+    # Get all the thumbnail URLs from the file.
+    local urls=$(cat $FILE | jq -r ".images[] | .representations.thumb")
+
+    local url
+    for url in $urls; do
+        local BASEURL=$(dirname $url)
+        local THUMBFILE=$(basename $url)
+        local ID=$(basename $BASEURL)
+
+        # Filesystems REALLY don't like directories with hundreds of thousands
+        # of files, so on disk we have a two level structure where we cap
+        # things at, ie, for an $ID of 1522818, the file is at
+        # `1520000/1522818/thumb.gif`.
+        if [ $ID -lt "10000" ]
+        then BASEDIR="0"
+        else BASEDIR="$(expr $ID / 10000)0000"
+        fi
+
+        # Check file existence to work around derpicdn not always agreeing with
+        # the database.
+        local THUMBSRC="$DEMOSRC/img/$BASEDIR/$ID/$THUMBFILE"
+        local THUMBDST="http://localhost:$PORT/img/$ID/$THUMBFILE"
+        if [ -f "$THUMBSRC" ]; then
+            CURL_ARGS+="-T $THUMBSRC $THUMBDST "
+        fi
+    done
+
+    # Upload files 50 at a time so we get some http connection reusage.
+    curl $CURL_ARGS
+}
+
+#
+# Each thread takes a slice of the page-space.
+#
+# For example, if there are four threads, the distribution will be:
+#
+# thread 0: 0 4  8 12 16 ...
+# thread 1: 1 5  9 13 17 ...
+# thread 2: 2 6 10 14 18 ...
+# thread 3: 3 7 11 15 19 ...
+#
+upload_pages () {
+    local threadnum=$1
+    local top=$(($FIRST_PAGE + $threadnum))
+
+    local i
+    for i in $(seq $top $THREADS $LAST_PAGE); do
+        local FILE="$DEMOSRC/json/page-$i.json"
+        local url="http://localhost:$PORT/learn";
+        if [ -e "$FILE" ]
+        then
+            upload_images_for_file "$FILE"
+
+            echo "page-$i.json"
+            curl -d @$FILE -H "Content-Type: application/json" -X POST "$url"
+        fi
+    done
+}
+
+last_thread=$(($THREADS - 1))
+
+for i in $(seq 0 $last_thread); do
+    upload_pages $i &
+    tid[$i]=$!;
+done
+
+cleanup () {
+    for i in $(seq 0 $last_thread); do
+        kill ${tid[$i]} 2>/dev/null
+    done
+}
+
+trap cleanup EXIT
+
+for i in $(seq 0 $last_thread); do
+    wait ${tid[$i]}
+done
+
+echo "Running on http://localhost:$PORT/index.html"

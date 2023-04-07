@@ -1,0 +1,439 @@
+"""
+""" Tabs
+""" ====
+"""
+""" A tab is a data-jetted map from noun to noun.
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan  [lawBody trk isLaw mkLaw inc]
+/+  02_bit  [if ifNot and or not]
+/+  03_nat  [toNat isZero]
+/+  04_app  [len idx head mut]
+/+  05_eql  [eql neq lth lte gte gth]
+/+  06_cow  [map weld rowRepel rowApply rev foldl]
+/+  07_rex  [rexKids rexGetNodeWithRune EMBD]
+/+  08_dat  ["," findIdx elemIdx has rowCons cat drop take span insert]
+/+  08_dat  [appE]
+/+  08_dat  [SOME NONE maybeCase]
+/+  08_dat  [sortOn listFromRow listToRow listNull listZip listMap listWeld]
+/+  08_dat  [listRev filter CONS NIL]
+/+  08_dat  [listCase]
+/+  09_sci  [inspect fullInspection]
+/+  10_chr  []
+/+  11_str  [strWeld]
+/+  12_cab  [isCab emptyCab cabLen cabHas cabFirst]
+/+  12_cab  [readKey]
+/+  12_cab  ["%" mkCenMacro cenCab]
+/+  12_cab  ["%%" mkCenCenMacro cenCenCab]
+
+
+""" Tabs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+emptyTab=emptyCab
+
+(tabSingleton k v)=(0 0 2 [toNat-k] v)
+
+= (mkTab keys vals)
+@ len (len keys)
+| rowRepel (0 0 inc-len keys) vals
+
+= (isTab tab)
+@ cab (head tab)
+| and (isCab cab)
+| eql (cabLen cab) (len tab)
+
+
+""" Tab Lookup """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;; TODO Maybe this should take the fallback as an argument?
+;; That would eliminate the need for `tabSwitch`.
+= (tabIdx key tab)
+@ keys (lawBody head-tab)
+| *maybeCase (elemIdx key keys) 0
+(ix & idx ix tab)
+
+= (look tab key)   | tabIdx key tab
+
+#= ex | mkTab [1 2 3] [4 5 6]
+?= 4  | look ex 1
+?= 5  | look ex 2
+?= 6  | look ex 3
+
+
+""" Basic Quations about Tabs """"""""""""""""""""""""""""""""""""""""""""""""""
+
+;; TODO `tabKeys` should probably return a cab
+
+= (tabLen tab)     | len tab
+= (tabIsEmpty tab) | isLaw tab
+= (tabKeysCab tab) | head-tab
+= (tabKeys tab)    | lawBody head-tab
+= (tabVals tab)    | map look-tab tabKeys-tab
+= (hasKey k t)     | cabHas k tabKeysCab-t
+= (tabLookup k t)  | if (hasKey k t) (SOME | tabIdx k t) NONE
+
+
+""" Tab Insertion """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (findInsIdx key keys)
+@ midx (findIdx lte-key keys)
+| *maybeCase midx (len keys) (ix & ix)
+
+?= 0 (findInsIdx 0 [1 2 3])
+?= 0 (findInsIdx 1 [1 2 3])
+?= 1 (findInsIdx 2 [1 2 3])
+?= 2 (findInsIdx 3 [1 2 3])
+?= 3 (findInsIdx 4 [1 2 3])
+
+= (tabMut key val tab)
+@ keys (tabKeys tab)
+| *maybeCase (elemIdx key keys)
+    @ ix (findInsIdx key keys)
+    | mkTab (insert ix key keys) (insert ix val tab)
+& ix
+| mut ix val tab
+
+(tabPut x k v)=(tabMut k v x)
+
+= ex1 (mkTab [1 5] [5 1])
+
+?= ( mkTab [1 2 5] [5 6 1] ) | tabMut 2 6 | ex1
+?= ( mkTab [0 1 5] [6 5 1] ) | tabMut 0 6 | ex1
+?= ( mkTab [1 5 9] [5 1 6] ) | tabMut 9 6 | ex1
+?= ( mkTab [1 5]   [9 1]   ) | tabMut 1 9 | ex1
+?= ( mkTab [1 5]   [5 9]   ) | tabMut 5 9 | ex1
+?= ( mkTab [1 5]   [8 9]   ) | tabMut 1 8 | tabMut 5 9 | ex1
+?= ( mkTab [1 3 5] [8 7 9] ) | tabMut 3 7 | tabMut 1 8 | tabMut 5 9 | ex1
+?= ( mkTab [1 3 5] [8 7 9] ) | tabMut 1 8 | tabMut 3 7 | tabMut 5 9 | ex1
+?= ( mkTab [1 3 5] [8 7 9] ) | tabMut 5 9 | tabMut 3 7 | tabMut 1 8 | ex1
+
+
+""" Switching on Tabs """"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (tabSwitch key fal tab)
+| ifNot (hasKey key tab) fal
+| tabIdx key tab
+
+= (tabMatch val fal tab)
+| tabSwitch idx-0-val fal tab
+
+
+""" Raw Table Construction from Ordered Pairs """"""""""""""""""""""""""""""""""
+
+= (tabFromAscPairs pairs)
+@ keys | map idx-0 pairs
+@ vals | map idx-1 pairs
+| mkTab keys vals
+
+= (tabToPairs tab)
+@ ks | listFromRow tabKeys-tab
+@ vs | listFromRow tab
+| listToRow | listZip ks vs
+
+#= par | [[1 4] [2 5] [3 6]]
+#= tab | tabFromAscPairs par
+?= 4   | look ex 1
+?= 5   | look ex 2
+?= 6   | look ex 3
+?= 6   | look ex 3
+?= par | tabToPairs tab
+
+
+""" Table Construction from unique pairs """""""""""""""""""""""""""""""""""""""
+
+= (tabFromPairs pairs)
+| foldl (t p & tabMut (idx 0 p) (idx 1 p) t) emptyTab pairs
+
+= (tabToPairList tab)
+| listMap (i & [i look-tab-i])
+| listFromRow (tabKeys tab)
+
+(tabToList tab)=(listFromRow tabToPairs-tab)
+
+?= (mkTab [3 5] [8 9]) | tabFromPairs [[3 8] [5 9]]
+?= (mkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 8]]
+?= (mkTab [3 5] [8 9]) | tabFromPairs [[3 7] [3 8] [5 9]]
+?= (mkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 7] [3 8]]
+
+?= 0             | tabToPairList | tabFromPairs []
+?= [3,8 0]       | tabToPairList | tabFromPairs [[3 8]]
+?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 8] [5 9]]
+?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 8]]
+?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 7] [3 8] [5 9]]
+?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 7] [3 8]]
+
+
+""" tabElem """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; This could be named better?  Gets a key-value by index of ascending
+; traversal?
+
+= (tabElem i tab)
+@ pairs (tabToPairs tab)
+| if (gte i len-pairs) 0
+| idx i pairs
+
+
+""" Deletion """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; TODO: Avoid using tabFromPairs for everything
+
+= (tabDel key tab)
+| tabFromPairs
+| filter kv&(neq (idx 0 kv) key)
+| tabToPairs
+| tab
+
+= (tabPop tab)
+@ key (cabFirst (head tab))
+@ val (look tab key)
+@ rem (tabDel key tab)
+| [key val rem]
+
+= (tabSplitAt idx a)
+@ pairs | tabToPairs a
+@ head  | take idx pairs
+@ tails | drop idx pairs
+[(tabFromPairs head) (tabFromPairs tails)]
+
+; Nat > Tab v > [(Tab v) (Tab v)]
+= (tabSplitLT key t)
+@ pairs | tabToPairs t
+@ s | span p&(lth (idx 0 p) key) pairs
+@ head | idx 0 s
+@ tail | idx 1 s
+[(tabFromPairs head) (tabFromPairs tail)]
+
+= (tabAlter fun key tab)
+@ keys (lawBody head-tab)
+| *maybeCase (elemIdx key keys)
+    | *maybeCase (fun NONE)
+      tab
+    & val
+    | tabFromPairs
+    | weld [[key val]]
+    | tabToPairs tab
+& ix
+@ prev | idx ix tab
+| *maybeCase (fun (SOME prev))
+    | tabDel key tab
+& new
+| mut ix new tab
+
+; (Nat > v > v) > Tab v > Tab v
+= (tabMap fun tab)
+@ pairs | tabToPairs tab
+@ do
+  ? (do p)
+  @ k | idx 0 p
+  @ v | idx 1 p
+  @ nv | fun k v
+  [k nv]
+| tabFromPairs | map do pairs
+
+; (a > a > a) > Tab a > Tab a > Tab a
+= (tabUnionWith fun ar br)
+@ a | tabToList ar
+@ b | tabToList br
+| tabFromPairs
+| listToRow
+^ a b NIL
+? (loop a b xs)
+| if (listNull a) (listWeld (listRev xs) b)
+| if (listNull b) (listWeld (listRev xs) a)
+@ ap  (idx 0 a)
+@ ak  (idx 0 ap)
+@ av  (idx 1 ap)
+@ axs (idx 1 a)
+@ bp  (idx 0 b)
+@ bk  (idx 0 bp)
+@ bv  (idx 1 bp)
+@ bxs (idx 1 b)
+| if | eql ak bk
+    | loop axs bxs (CONS [ak (fun av bv)] xs)
+| if | lth ak bk
+    | loop axs b (CONS ap xs)
+| loop a bxs (CONS bp xs)
+
+= (tabMinKey t)
+@ pairs | tabToPairs t
+| idx 0 | idx 0 pairs
+
+; (a > Nat > b > a) > a > Tab b > a
+= (tabFoldlWithKey fun start tab)
+@ do
+  ? (do i pair)
+  | fun i (idx 0 pair) (idx 1 pair)
+| foldl do start | tabToPairs tab
+
+""" Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; Tab Exp -> Exp
+= (tabE tab)
+| appE
+| rowCons (EMBD | tabKeysCab tab)
+| rev (tabVals tab)
+
+; TODO Break out `readTabPair`
+; TODO Parse decimal
+; TODO Should we support 0xHEX?
+; TODO Validate identifiers
+= (cenTab s p e a r kids err ok)
+^ emptyTab (listFromRow kids)
+? (go acc pairs)
+; trk [%go acc pairs]
+| *listCase pairs (ok p a tabE-acc)
+& (thisPair morePairs)
+;
+@ unexpect
+    | err thisPair "Every element of a tab literals must be a = node."
+;
+@ okay
+    ? (okay newKey newValue)
+    | if (hasKey newKey acc)
+        | err thisPair "duplicate key"
+    @ acc (tabMut newKey newValue acc)
+    | go acc morePairs
+;
+| rexGetNodeWithRune "=" thisPair unexpect
+& (sons heir)
+;
+@ kids   | rexKids thisPair
+@ nKid   | len kids
+@ keyRex | idx 0 kids
+;
+| if (or (isZero nKid) (gth nKid 2))
+    | err thisPair "Tab key-value pairs must be = nodes with one-or-two sons"
+;
+| readKey keyRex err
+& key
+; trk [%key key]
+| if (eql 1 nKid)
+    | okay key keyRex
+| okay key (idx 1 kids)
+
+= (cenCenTab s p e a r err ok)
+^ emptyTab r
+? (go acc rex)
+; trk 'go',acc,rex
+| if (isZero rex)
+    | ok p a (tabE acc)
+| rexGetNodeWithRune "%%" rex
+    | err rex "Expected a %% node (in a tall-form tab literal)"
+& (sons heir)
+@ okay
+    ? (okay newKey newValue)
+    ; trk 'okay',newKey,newValue
+    | if (hasKey newKey acc)
+        | err rex "duplicate key"
+    @ acc (tabMut newKey newValue acc)
+    | go acc heir
+| if (isZero len-sons)
+    ; trk 'zeroSons'
+    | err rex "%% requires at least 1 son (in a tall-form tab literal)"
+;;;;
+; trk %sons,sons
+@ keyTisRex (idx 0 sons)
+| rexGetNodeWithRune "=" keyTisRex
+    | err keyTisRex
+    | strWeld "First son of every %% node must be a = node "
+              "(in a tall-form tab literal)"
+& (tisSons tisHeir)
+| if    | or (neq 1 len-tisSons)
+             (neq 0 tisHeir)
+    | err keyTisRex
+    | "=key form for tall-form tab literal must have exactly one son"
+@ keyRex (idx 0 tisSons)
+@ valExp
+    | if (eql 1 len-sons) keyRex
+    | if (eql 2 len-sons) (idx 1 sons)
+    | appE (drop 1 sons)
+; trk [%keyRex,keyRex %valExp,valExp]
+| *readKey keyRex err
+& k
+| okay k valExp
+
+= ("%" s p e a r err ok)
+| *mkCenMacro cenCab cenTab s p e a r err ok
+
+= ("%%" s p e a r err ok)
+| *mkCenCenMacro cenCenCab cenCenTab s p e a r err ok
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= 1 | isTab %[]
+?= 1 | isTab %[0=0]
+?= 1 | isTab %[x=3]
+?= 1 | isTab %[x=3 y=4]
+
+?= 0 | isTab []
+?= 0 | isTab %[x y]
+?= 0 | isTab (%[x y] 3)
+?= 1 | isTab (%[x y] 3 4)
+
+?= %[a=0]     | %[97=0]
+?= %[a=0]     | %['a'=0]
+?= %[a=0 b=1] | %[98=1 97=0]
+?= %[a=0 b=1] | %["b"=1 'a'=0]
+
+?= 0 | tabLen %[]
+?= 1 | tabLen %[x=0]
+?= 2 | tabLen %[x=0 y=1]
+
+?= (inspect %[x=0 y=1])        | [%[x y] 1 0]
+?= (inspect %[x y])            | [0 0 3 [%x %y]]
+?= (inspect [%x %y])           | [(0 0 3 0) %y %x]
+?= (fullInspection %[x=0 y=1]) | [[0 0 3 [[0 0 3 0] %y %x]] 1 0]
+
+?= 8 | tabIdx 0 %[0=8]
+?= 9 | tabIdx %aa %(bb=8, aa=9)
+
+?= 1 | hasKey %aa %(bb=8, aa=9)
+?= 1 | not | hasKey %cc %(bb=8, aa=9)
+
+?= [3 4] | tabKeys %[3=3 4=4]
+?= []    | tabKeys %[]
+
+?= %[3=3]     | tabMut 3 3 %[3=4]
+?= %[3=4 4=4] | tabMut 4 4 %[3=4]
+?= %[0=0]     | tabMut 0 0 %[]
+?= %[0=0]     | tabMut 0 0 %[]
+
+?= %[a=(0 1)] | (%% =a 0 1)
+
+;
+; TODO Support this form also.
+;
+; %% x=3
+; %% y=4
+; %% =z
+;    | strToBar
+;    | renderNat
+;    | bex
+;    | add 3 4
+;
+
+?= %["a"=1 b=2] | (%% =b 2)(%% ="a" 1)
+
+;; eql 8 | tabIdx 0 %(0=8)
+;; TODO This should work too.
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ tabSingleton mkTab isTab
+^-^
+^-^ tabLen tabIdx tabKeys hasKey look tabVals tabSwitch tabMatch
+^-^ tabFromPairs tabToPairs tabToPairList tabToList look tabPut tabMut
+^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter tabMap tabUnionWith
+^-^ tabLookup tabMinKey tabFoldlWithKey tabElem
+^-^
+^-^ tabE
+^-^
+^-^ "%" "%%"
+^-^

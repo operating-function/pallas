@@ -1,0 +1,290 @@
+;; Simple OS Kernel based on the Haskell IO Monad.
+;;
+;; This is probably not the ideal kernel paradigm in the long run,
+;; since there's no good way to upgrade running code, but it works great
+;; for demos.
+;;
+;; This implementation is in continuation passing style, where each step
+;; passes around five values:
+;;
+;; -  `end`: What to do when this thread is done executing for now?
+;; -  `me`: What is the thread-id of the current thread?
+;; -  `fr`: A list of unused slots in the `sl` array.
+;; -  `kl`: A list of slots that house canceled requests.  They are not
+;;          re-used until the next event.
+;; -  `sl`: An array of "state slots", used for paused threads, IORefs, etc.
+;; -  `rq`: An array of live requests to the runtime system.  These
+;;          corespond 1-1 with the callbacks in `sl`.  For values in
+;;          `sl` that are not pending syscalls, rq[key]=0
+;;
+;;     type IO a = (a -> Thread) -> Thread
+;;
+;;     type Thread
+;;         = end/Action   -- What should we do when we're done?
+;;        -> me/ThreadId  -- What thread is this?
+;;        -> Action
+;;
+;;     type Action = fr/(List Nat) -> sl/(Row Any) -> rq/(Row Req) -> Void
+;;
+;; ### Strictness
+;;
+;; In theory, we should be using strictness annotations everywhere in
+;; this code.  We are accumulating lazy state, and that creates a lot
+;; of useless thunks and leaks space.
+;;
+;; However, the these space leaks are small and short-lived (because
+;; each event is short-lived).  Using strictness annotations actually
+;; slows things down.
+;;
+;; Eventually, when the interpreter is smarter, strictness annotations
+;; will have zero (actually negative) overhead, and then this code should
+;; be made strict.
+
+/+ boot
+/+ datatype
+
+
+""" Basic Control Flow """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; DONE : Any -> Thread
+= (DONE _ end me fr kl sl rq)
+| end [me fr] kl sl rq
+; This is called when a thread reaches the end of its program.  This does
+; nothing, it simply yields control back to the kernel.
+;
+; The rest of the kernel enforces the invariant that
+; requests/continuations are zeros as soon as they are used/canceled.
+; So, this doesn't need to do any of that.
+
+; allocateSlot does not follow the convention.
+= (allocateSlot fr kl sl rq k)
+| if (0 == fr)
+    @ key (len sl)
+    @ sl  (rowSnoc sl 0)
+    @ rq  (rowSnoc rq 0)
+    | k key fr kl sl rq
+@ [key fr] | fr
+| k key fr kl sl rq
+
+; myThreadId : IO ThreadId
+= (myThreadId k end me fr kl sl rq)
+| k me end me fr kl sl rq
+
+; getKernelState : IO KernelState
+= (getKernelState k end me fr kl sl rq)
+| k (end,me,fr,kl,sl,rq) end me fr kl sl rq
+
+; fork : IO a -> IO ThreadId
+= (fork act k end me fr kl sl rq)
+: (tid fr kl sl rq) <- allocateSlot fr kl sl rq
+| act DONE (k tid end me) tid fr kl sl rq
+
+; prepareFork :: IO ThreadId
+= (prepareFork k end me fr kl sl rq)
+: (tid fr kl sl rq) <- allocateSlot fr kl sl rq
+| k tid end me fr kl sl rq
+
+; finalizeFork :: ThreadId -> IO a -> IO ()
+= (finalizeFork tid act k end me fr kl sl rq)
+| act DONE (k 0 end me) tid fr kl sl rq
+
+; cancelFork : ThreadId -> IO () -> IO ()
+= (cancelFork tid act k end me fr kl sl rq)
+| if (tid == me)
+    | die 'TODO: cancelfork should support canceling the current thread'
+@ sl | put sl tid 0
+@ rq | put rq tid 0
+| act DONE (k 0 end me) tid fr kl sl rq
+; Replaces a running thread with a new action.  This is equivalent to
+; (cancel+fork) except that the new code is run on the same thread as
+; the old code (this is unsafe in the case where the current event has
+; a response in-flight on this thread.  Only use this if that case
+; is impossible).
+
+; cancel :: ThreadId -> IO ()
+= (cancel tid k end me fr kl sl rq)
+@ sl (put sl tid 0)
+@ rq (put rq tid 0)
+@ kl [tid kl]
+| if (tid == me)                                      ; If we cancel ourselves,
+    | end fr kl sl rq                                 ; do not continue.
+| k 0 end me fr kl sl rq                              ; Otherwise, continue
+;
+; Note that canceling a thread adds the slot to the "killed" list instead
+; of the free list.  Because we have multiple syscall returns per-event,
+; a canceled thread may receive a syscall response.  We need to make sure that
+; these response are dropped, instead of being sent to the wrong thread.
+;
+
+
+""" IORefs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; newIORef : a -> IO (IORef a)
+= (newIORef val k end me fr kl sl rq)
+| if (0 == fr)
+    @ key (len sl)
+    @ sl  (rowSnoc sl val)
+    @ rq  (rowSnoc rq 0)
+    | k key end me fr kl sl rq
+@ [key fr] | fr
+@ sl       | put sl key val
+| k key end me fr kl sl rq
+
+; readIORef : IORef a -> IO a
+= (readIORef key k end me fr kl sl rq)
+| k (get sl key) end me fr kl sl rq
+
+; writeIORef : IORef a -> a -> IO ()
+= (writeIORef key val k end me fr kl sl rq)
+@ sl (put sl key val)
+| k 0 end me fr kl sl rq
+
+; modifyIORef :: IORef a -> (a -> a) -> IO ()
+= (modifyIORef key fun k end me fr kl sl rq)
+@ sl (| put sl key | fun | get sl key)
+| k 0 end me fr kl sl rq
+
+; freeIORef : IORef a -> IO ()
+= (freeIORef key k end me fr kl sl rq)
+@ sl (put sl key 0)
+@ fr [key fr]
+| k 0 end me fr kl sl rq
+
+
+""" MVar """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+# datatype
+| MV_FULL val writers
+| MV_EMPT readers
+
+(newMVar val)=(newIORef (*MV_FULL val []))
+
+newEmptyMVar=(newIORef (*MV_EMPT []))
+
+; putMVar : MVar a -> a -> IO ()
+= (putMVar key newVal k end me fr kl sl rq)
+# datacase (get sl key)
+= (MV_FULL existingVal writers)
+    @ writers | rowSnoc writers [me newVal]
+    @ sl      | put sl key (*MV_FULL existingVal writers)
+    @ sl      | put sl me k
+    | end fr kl sl rq
+= (MV_EMPT readers)
+    | if (null readers)
+        @ sl (put sl key (*MV_FULL newVal []))
+        | k 0 end me fr kl sl rq
+    | *else
+        @ mvSt | (*MV_EMPT (drop 1 readers))
+        @ sl   | put sl key mvSt
+        @ them | get readers 0
+        @ !exe | get sl them
+        | exe newVal (k 0 end me) them fr kl sl rq
+
+= (takeMVar key k end me fr kl sl rq)
+# datacase (get sl key)
+= (MV_EMPT readers)
+    @ mvSt | (*MV_EMPT (rowSnoc readers me))
+    @ sl   | put sl key mvSt
+    @ sl   | put sl me  k
+    | end fr kl sl rq
+= (MV_FULL val writers)
+    | if (null writers)                               ; no writers, empty it
+        @ mvSt | (*MV_EMPT [])
+        @ sl   | put sl key mvSt
+        (k val end me fr kl sl rq)
+    | *else                                           ; writers, pop first in
+        @ them,vl | idx 0 writers                     ; queue
+        @ writers | drop 1 writers
+        @ mvSt    | (*MV_FULL vl writers)
+        @ sl      | put sl key mvSt
+        @ !exe    | get sl them
+        | exe val (k val end me) them fr kl sl rq
+
+
+""" The Kernel """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; syscall : Request -> IO Response
+= (syscall request k end me fr kl sl rq)
+@ rq (put rq me request)
+@ sl (put sl me k)
+| end fr kl sl rq
+
+; To trace the kernel state at the end of each event, replace every
+; reference to `KERNEL` below with a reference to `TRACED KERNEL`.
+= (TRACED KERNEL fr kl sl rq)
+@ cog (KERNEL fr kl sl rq)
+| trk cog
+cog
+
+= (STEP KERNEL stream fr kl sl rq)
+;
+| if (0 == stream) (KERNEL fr kl sl rq)
+;
+@ [key,response stream] stream
+;
+@ exe | get sl key
+@ rq  | put rq key 0
+@ sl  | put sl key 0
+;
+| if (0 == exe)
+    ; The thread was already canceled, so we just ignore the response
+    ; (rq[key] and sl[key] are already zero, so no need to set those).
+    | STEP KERNEL stream fr kl sl rq
+; Run the callback for the thread associated with the request that we got
+; a response for.  Pass ourselves (applied to the remaining events)
+; as the `end` callback.
+@ end | STEP KERNEL stream
+@ me  | key
+| exe response end me fr kl sl rq
+
+; The final act of processing an event is to call this with three
+; arguments.  That will yield control to the runtime system, which will
+; then supply the final two arguments.
+= (KERNEL fr kl sl rq event)
+| ifNot (isTab event)
+    | die ["TODO: Crash handling is not implemented" event]
+@ fr | listWeld kl fr
+@ kl | ~[]
+| STEP KERNEL (tabToPairList event) fr kl sl rq
+
+; newMachine :: IO a -> Machine
+= (newMachine startUp)
+@ k   | DONE
+@ end | KERNEL
+@ me  | 0
+@ fr  | ~[]
+@ kl  | ~[]
+@ sl  | [0]
+@ rq  | [0]
+| startUp k end me fr kl sl rq
+; We run the startup action on thread 0, and when it's done it will
+; call (KERNEL fr kl sl rq) which will give control back to the runtime
+; system.
+
+
+""" Sys Calls """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; TODO: Proably better to just use syscall directly, now that we have
+; such a nice api.
+
+= (Eval tim e)         | syscall (weld [%eval tim] e)
+= (RandByte x)         | syscall [%rand 0 %byte x]
+= (HttpServ ss)        | syscall [%http 0 %serv ss]
+= HttpHear             | syscall [%http 0 %hear]
+= (HttpHold n)         | syscall [%http 0 %hold n]
+= (HttpEcho r c m h b) | syscall [%http 0 %echo r c m h b]
+= SockOpen             | syscall [%sock 0 %open]
+= (SockKill h)         | syscall [%sock 0 %kill h]
+= (SockWait h)         | syscall [%sock 0 %wait h]
+= (SockRecv h)         | syscall [%sock 0 %recv h]
+= (SockSend h b)       | syscall [%sock 0 %send h b]
+= WockOpen             | syscall [%wock 0 %open]
+= (WockKill h)         | syscall [%wock 0 %kill h]
+= (WockWait h)         | syscall [%wock 0 %wait h]
+= (WockRecv h)         | syscall [%wock 0 %recv h]
+= (WockSend h b)       | syscall [%wock 0 %send h b]
+= TimeWhen             | syscall [%time 0 %when]
+= (TimeWait x)         | syscall [%time 0 %wait x]
+= PortSire             | syscall [%port 0 %sire]
+= (PortSend m w)       | syscall [%port 0 %send m w]
+= (PortRecv m u b)     | syscall [%port 0 %recv m u b]

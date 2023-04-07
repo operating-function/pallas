@@ -1,0 +1,15 @@
+;; TODO Need to fix this since pin shape has changed.
+
+= (car x) | 1 _&4 (n a _ & 0 n a) (h _ & h) 0 x
+= (cdr x) | 1 x&x (_ _ b & b)     (_ t & t) 0 x
+
+= $4 (car car)
+
+= tags ,, cdr | car | car | cdr car
+       ,, cdr | car | car | cdr cdr
+
+k4=(| cdr | car | car | car | cdr | car | cdr | cdr car)
+
+= car (car-car ((car cdr-car) (cdr cdr-car)))
+
+%[=car =cdr =4 =tags =k4]

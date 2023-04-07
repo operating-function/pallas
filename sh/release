@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+echo 'Usage:' $0 '~/repos/plunder-release'
+
+set -ex
+test $# -eq 1
+target=$1
+pushd $target
+set +x
+popd
+
+echo "This will copy all files to the directory '$target'."
+echo "Proceed?  (^C to exit)"
+read
+
+# TODO Wipe everything but .git?
+
+pushd $target
+echo "pwd=$(pwd)"
+ls
+rm -Ir *
+popd
+
+tar c $(git ls-files) |
+  ( cd $target; tar x )

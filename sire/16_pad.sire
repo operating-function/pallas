@@ -1,0 +1,209 @@
+"""
+""" Pads
+""" ====
+"""
+""" A pad is a bit-string encoded as a non-zero nat.
+"""
+""" Pads are not data-jetted, since the direct nat works perfectly.
+"""
+""" Pads are encoded least-significant-bit-first, with the high bit used
+""" to indicate the end of the bit-array.
+"""
+"""     p#""       = 0b1
+"""     p#"00"     = 0b100
+"""     p#"01"     = 0b110
+"""     p#"111000" = 0b1000111
+"""
+""" All of the pad operations coerce their inputs into pads, and always
+""" return pads.
+"""
+""" toPad: Coerces a value into a non-zero natural number.
+"""
+""" padNat: Convert a pad to a nat (dropping all trailining zeros).
+"""
+""" natPad: Convert a nat into a pad with a specific minimum bit-width.
+"""
+""" padWeld: Concatenate two pads
+"""
+""" padCat: Concatenate a row of pads (TODO)
+"""
+""" padCatTree: Concatenate a rose-tree of pads (TODO)
+"""
+""" padIdx: TODO
+""" padGet: TODO
+""" padSet: TODO
+""" padMap: TODO
+"""
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan  [die seq isNat K]
+/+  02_bit  [if ifNot]
+/+  03_nat  [add mul sub bex dec met lsh rsh mod]
+/+  04_app  [idx len]
+/+  05_eql  [eql neq]
+/+  06_cow  [map weld foldl]
+/+  07_rex  [rexKids rexText rexIsLeaf]
+/+  08_dat  [","]
+/+  08_dat  [listFromRow listCase]
+/+  09_sci  []
+/+  10_chr  []
+/+  11_str  [explode]
+/+  12_cab  []
+/+  13_tab  []
+/+  14_exp  [cnsE]
+/+  15_hax  ['#']
+
+
+""" Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+emptyPad=1
+
+(toPad x)=(if x x 1)
+
+= (padNat x)
+@ x toPad-x
+| sub x
+| bex | dec met-x
+
+= (padWeld x y)
+@ x toPad-x
+@ y toPad-y
+@ wid (dec met-x)
+| add (sub x bex-wid)
+| lsh y wid
+
+= (padCat val)
+| foldl padWeld emptyPad val
+
+= (padFlat val)
+| if isNat-val val
+| padCat (map padFlat val)
+
+= (natPad n wid)
+@ pid met-n
+| padWeld (add n (bex met-n))
+| bex (sub wid (met n))
+
+(padLen p)=(dec met-p)
+
+
+""" Parsing Pad Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (padSplitAt i pad)
+| ifNot i [emptyPad pad]
+@ remain (rsh pad i)
+@ looted (add bex-i (mod pad bex-i))
+| ifNot remain [pad emptyPad]
+| [looted remain]
+
+= (padFromBinaryStr str)
+@ dig | map (eql "1") explode-str
+@ buf | listFromRow weld-dig-[1]
+^ 0 buf 1
+? (loop acc lis pos)
+| seq acc
+| *listCase lis acc
+& (b bs)
+@ acc | if b (add pos acc) acc
+| loop acc bs (mul 2 pos)
+
+
+""" The `#p` Macro """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= hpBadShape | "Expcted two kids"
+= hpBadType  | "Bar literal expects a text parameter"
+
+= ("#p" s p e a r err ok)
+@ kids (rexKids r)
+| if (neq 2 len-kids) | (err r hpBadShape)
+@ s (idx 1 kids)
+| ifNot (rexIsLeaf s) | (err s hpBadType)
+| ok p a
+| cnsE | padFromBinaryStr | rexText s
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= 1 (toPad 0)
+?= 1 (toPad 1)
+?= 1 (toPad toPad)
+?= 3 (toPad 3)
+
+?= 01 p#""
+?= 02 p#0
+?= 04 p#00
+?= 08 p#000
+?= 16 p#0000
+?= 17 p#1000
+?= 18 p#0100
+?= 20 p#0010
+?= 24 p#0001
+?= 19 p#1100
+?= 21 p#1010
+?= 25 p#1001
+?= 22 p#0110
+?= 26 p#0101
+?= 28 p#0011
+?= 23 p#1110
+?= 27 p#1101
+?= 29 p#1011
+?= 30 p#0111
+
+?= p#101 (padWeld p#101 0)
+?= p#101 (padWeld p#101 K)
+?= p#101 (padWeld 0 p#101)
+?= p#101 (padWeld K p#101)
+
+?= p#0000 (padWeld p#00 p#00)
+?= p#1000 (padWeld p#10 p#00)
+?= p#0100 (padWeld p#01 p#00)
+?= p#0010 (padWeld p#00 p#10)
+?= p#0001 (padWeld p#00 p#01)
+?= p#1100 (padWeld p#11 p#00)
+?= p#1010 (padWeld p#10 p#10)
+?= p#1001 (padWeld p#10 p#01)
+?= p#0110 (padWeld p#01 p#10)
+?= p#0101 (padWeld p#01 p#01)
+?= p#0011 (padWeld p#00 p#11)
+?= p#1110 (padWeld p#11 p#10)
+?= p#1101 (padWeld p#11 p#01)
+?= p#1011 (padWeld p#10 p#11)
+?= p#0111 (padWeld p#01 p#11)
+
+?= (padSplitAt 0 p#1111) [ p#''   p#1111 ]
+?= (padSplitAt 1 p#1111) [ p#1    p#111  ]
+?= (padSplitAt 2 p#1111) [ p#11   p#11   ]
+?= (padSplitAt 3 p#1111) [ p#111  p#1    ]
+?= (padSplitAt 4 p#1111) [ p#1111 p#''   ]
+?= (padSplitAt 5 p#1111) [ p#1111 p#''   ]
+?= (padSplitAt 9 p#1111) [ p#1111 p#''   ]
+
+?= p#''   | padCat []
+?= p#1100 | padCat [p#1100]
+?= p#1100 | padCat [p#11 p#00]
+?= p#1011 | padCat [p#10 p#11]
+?= p#1011 | padCat [p#1 p#0 p#1 p#1]
+?= p#1011 | padCat [p#1 p#0 p#11]
+?= p#1011 | padCat [p#1 p#0 p#11 p#'']
+
+?= p#''   | padFlat []
+?= p#''   | padFlat [[[]] []]
+?= p#1100 | padFlat [p#1100]
+?= p#1100 | padFlat (K p#1100)
+?= p#1100 | padFlat [[p#1100]]
+?= p#1100 | padFlat [p#11 p#00]
+?= p#1011 | padFlat [p#10 p#11]
+?= p#1011 | padFlat [[p#1 p#0] [p#1 p#1]]
+?= p#1011 | padFlat [[p#1 p#0] p#11]
+?= p#1011 | padFlat [[p#1 [] p#0] p#11 p#'']
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^ emptyPad
+^-^ toPad padNat natPad padLen
+^-^ padWeld padCat padFlat
+^-^ padSplitAt
+^-^ padFromBinaryStr
+^-^ "#p"

@@ -1,0 +1,59 @@
+"""
+""" Characters
+""" ==========
+"""
+""" TODO Expand this
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan  []
+/+  02_bit  [if and or not]
+/+  03_nat  [gteNat lteNat add sub eqlNat]
+/+  04_app  []
+/+  05_eql  []
+/+  06_cow  []
+/+  07_rex  []
+/+  08_dat  []
+/+  09_sci  []
+
+
+""" Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+(isDigit c)=(and (gteNat c '0') (lteNat c '9'))
+(isUpper c)=(and (gteNat c 'A') (lteNat c 'Z'))
+(isLower c)=(and (gteNat c 'a') (lteNat c 'z'))
+(isAlpha c)=(or isUpper-c isLower-c)
+
+= (toLower c)
+| if (isUpper c) (add 32 c)
+| c
+
+= (toUpper c)
+| if (isLower c) (sub c 32)
+| c
+
+(chr c)=(add c 48)
+(ord c)=(sub c 48)
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= 1 | eqlNat 1   (ord "1")
+?= 1 | eqlNat "3" (chr 3)
+?= 1 | eqlNat 5   (ord (chr 5))
+?= 1 | eqlNat "9" (chr (ord "9"))
+
+?= 1 | isLower 'c'
+?= 1 | isUpper 'C'
+?= 1 | not (isAlpha '0')
+?= 1 | isDigit '0'
+?= 1 | not (isDigit 'a')
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^  ord chr
+^-^  isDigit isUpper isLower isAlpha
+^-^  toLower toUpper

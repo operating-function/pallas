@@ -1,0 +1,227 @@
+name:                plunder
+version:             0.1.0.0
+license:             AGPL
+author:              "Plunder Authors"
+maintainer:          "plun@pqrs.me"
+copyright:           "2021 Plunder Authors"
+
+ghc-options: -O2 -j
+# ghc-options: -O -j
+
+cc-options: -Wall -O3
+
+library:
+  source-dirs: lib
+  cc-options: -O3 -Wall -Werror
+  c-sources:
+    - cbits/jelly.c
+    - cbits/base58.c
+    - cbits/xxhash.c
+    - cbits/xxh_x86dispatch.c
+
+extra-source-files:
+  - cbits/*.h
+  - cbits/*.c
+
+include-dirs:
+  - cbits
+
+executables:
+  rex:
+    main: Main.hs
+    source-dirs: exe/rex
+    dependencies:
+      - plunder
+
+  plock:
+    main: Main.hs
+    source-dirs: exe/plock
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+      - bytestring
+
+  plunder:
+    main: Main.hs
+    source-dirs: exe/plunder
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+
+tests:
+  server-tests:
+    source-dirs: exe/server-tests
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - base
+      - plunder
+
+  jelly-tests:
+    source-dirs: exe/jelly-tests
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - base
+      - plunder
+
+  natty-tests:
+    source-dirs: exe/natty-tests
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - base
+      - bytestring
+      - plunder
+      - QuickCheck
+      - text
+      - vector
+
+  rex-tests:
+    source-dirs: exe/rex-tests
+    main: Main.hs
+    dependencies:
+      - plunder
+
+  loot-tests:
+    source-dirs: exe/loot-tests
+    main: Main.hs
+    dependencies:
+      - plunder
+
+  sire-tests:
+    source-dirs: exe/sire-tests
+    main: Main.hs
+    dependencies:
+      - plunder
+
+benchmarks:
+  natty-bench:
+    source-dirs: exe/natty-bench
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+
+dependencies:
+- aeson
+- async
+- base
+- base16-bytestring
+- base58-bytestring
+- blake3
+- bytestring
+- bytestring-mmap
+- case-insensitive
+- classy-prelude
+- conduit
+- containers
+- criterion
+- deepseq
+- directory
+- ed25519
+- entropy
+- exceptions
+- filepath
+- focus
+- ghc-prim
+- hashable
+- hashtables
+- heap
+- http-client
+- http-types
+- integer-gmp
+- kazura-queue
+- largeword
+- lmdb
+- megaparsec
+- memory
+- mtl
+- network
+- optics
+- optparse-applicative
+- parallel
+- pretty-show
+- primitive
+- process
+- QuickCheck
+- random
+- random-shuffle
+- resourcet
+- servant
+- servant-client
+- servant-server
+- stm
+- stm-chans
+- stm-containers
+- stm-delay
+- tasty
+- tasty-golden
+- tasty-quickcheck
+- terminal-size
+- text
+- text-builder
+- time
+- transformers
+- unboxed-ref
+- unordered-containers
+- unix
+- unix-time
+- unliftio
+- utf8-string
+- vector
+- wai
+- wai-app-static
+- wai-websockets
+- warp
+- websockets
+
+default-extensions:
+- ApplicativeDo
+- BangPatterns
+- BlockArguments
+- ConstraintKinds
+- DataKinds
+- DefaultSignatures
+- DeriveAnyClass
+- DeriveDataTypeable
+- DeriveFoldable
+- DeriveGeneric
+- DeriveTraversable
+- DerivingStrategies
+- DuplicateRecordFields
+- EmptyCase
+- EmptyDataDecls
+- FlexibleContexts
+- FlexibleInstances
+- FunctionalDependencies
+- GADTs
+- GeneralizedNewtypeDeriving
+- ImplicitParams
+- LambdaCase
+- MagicHash
+- MultiParamTypeClasses
+- MultiWayIf
+- NamedFieldPuns
+- NoImplicitPrelude
+- NumericUnderscores
+- OverloadedLabels
+- OverloadedRecordDot
+- OverloadedStrings
+- PartialTypeSignatures
+- PatternSynonyms
+- QuasiQuotes
+- Rank2Types
+- RankNTypes
+- RecordWildCards
+- RecursiveDo
+- ScopedTypeVariables
+- StandaloneDeriving
+- TemplateHaskell
+- TupleSections
+- TypeApplications
+- TypeFamilies
+- TypeOperators
+- UndecidableInstances
+- UnicodeSyntax
+- ViewPatterns

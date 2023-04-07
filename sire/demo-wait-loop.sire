@@ -1,0 +1,14 @@
+/+ boot
+/+ io
+
+= (waitLoop k)
+| trk %waitLoop,k
+: now <- TimeWhen
+| trk %now,now
+: _ <- TimeWait (add now 1)
+| trk %waited
+| waitLoop k
+
+exe=(newMachine waitLoop)
+
+exe

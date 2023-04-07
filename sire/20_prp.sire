@@ -1,0 +1,127 @@
+"""
+""" Properties
+""" ==========
+"""
+""" Lookup and set properties on syntax objects.
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan
+/+  02_bit
+/+  03_nat
+/+  04_app
+/+  05_eql
+/+  06_cow
+/+  07_rex
+/+  08_dat
+/+  09_sci
+/+  10_chr
+/+  11_str
+/+  12_cab
+/+  13_tab
+/+  14_exp
+/+  15_hax
+/+  16_pad
+/+  17_bar
+/+  18_sug
+/+  19_pat
+
+
+""" Operations on Property Tables """"""""""""""""""""""""""""""""""""""""""""""
+
+= (hasProperty key pro tab)
+| and (hasKey pro tab)
+| hasKey key (tabIdx pro tab)
+
+= (getProperty key pro tab)
+| tabIdx key
+| tabIdx pro
+| tab
+
+= (setProperty key pro val tab)
+@ kid | tabIdx pro tab
+@ kid | if isNat-kid %[] kid
+@ kid | tabMut key val kid
+| tabMut pro kid tab
+
+?= %val                 | getProperty 37 %foo %[foo=(%[37='val'])]
+?= %[foo=(%[37='val'])] | setProperty 37 %foo %val 0
+?= %[foo=(%[37='val'])] | setProperty 37 %foo %val %[foo=(%[])]
+
+?= %[foo=(%[130='v' 129='w']) bar=(%[130='v'])]
+        | setProperty 130 %foo %v
+        | setProperty 130 %bar %v
+        | setProperty 129 %foo %w
+        | 0
+
+
+""" Convenience Wrappers to use Rex nodes as keys """"""""""""""""""""""""""""""
+
+(rexHasProp rex pro tab)=(hasProperty (rexIdnt rex) pro tab)
+(rexGetProp rex pro tab)=(getProperty (rexIdnt rex) pro tab)
+(rexSetProp rex pro val tab)=(setProperty (rexIdnt rex) pro val tab)
+
+
+""" Convenience Macros to Query properties of bindings. """"""""""""""""""""""""
+
+= (readSymbProp rex err ret)
+| if (neq '.' rexRune-rex)
+  | err rex 'Expected a . rune'
+: (symbol property) <- rexParseKids rex [readSymbol readSymbol] err
+| ret [symbol property]
+
+= ('#hasProp' s p e a r err expand)
+: (_ [symbol property]) <- rexParseKids r [readAny readSymbProp] err
+@ key (look s symbol)
+| if (isZero key)
+  | die [symbol s]
+  | err (varE symbol) 'Undefined symbol'
+@ has (hasProperty key property p)
+;
+| expand p a (cnsE has)
+
+= ('#getProp' s p e a r err expand)
+: (_ [symbol property]) <- rexParseKids r [readAny readSymbProp] err
+@ key (look s symbol)
+| if (isZero key)
+  | die [symbol s]
+  | err (varE symbol) 'Undefined symbol'
+@ val (getProperty key property p)
+;
+| expand p a (cnsE val)
+
+
+= ('#setProp' s p e a r err expand)
+: (_ [symbol property] valSym)
+        < rexParseKids r [readAny readSymbProp readSymbol] err
+| if not-(hasKey symbol s)
+        | err (varE symbol) 'Undefined symbol'
+| if not-(hasKey valSym e)
+        | err (varE valSym) 'Property value must be the name of a bound value.'
+;
+@ key (look s symbol)
+@ val (look e valSym)
+@ p (setProperty key property val p)
+| expand p a (cnsE 0)
+
+why=3
+whySrc=(`(why=3))
+setProp#(why.src)#whySrc
+(1        ?= hasProp#(why.src))
+(`(why=3) ?= getProp#(why.src))
+why=4
+(0 ?= hasProp#(why.src))
+(0 ?= getProp#(why.src))
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ hasProperty getProperty setProperty
+^-^
+^-^ '#hasProp' '#getProp' '#setProp'
+^-^
+^-^ rexHasProp rexGetProp rexSetProp
+^-^

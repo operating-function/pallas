@@ -1,0 +1,157 @@
+"""
+""" PLAN Primitives
+""" ===============
+"""
+""" This module essentially just defines named wrappers around primtive
+""" PLAN operations.
+"""
+""" For example `isLaw` is just a nice interface to functionality provided
+""" by the `1` primop.
+"""
+"""     (isLaw x)=(1 _&0 (_ _ _)&1 (_ _)&0 _&0 x)
+"""
+""" This module also includes some bread-and-butter jets and combinators
+""" that are widely used but don't generally belong anywhere else.
+"""
+""" -   `trk` produces debugging traces.
+""" -   `compose`, `id`, `const` are generally useful.
+""" -   ...etc
+"""
+
+
+""" Names for PLAN Primitives """"""""""""""""""""""""""""""""""""""""""""""""""
+
+= mkLaw   | 0
+= valCase | 1
+= natCase | 2
+= inc     | 3
+= mkPin   | 4
+
+
+""" Utilities """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; reverse pair constructor (see 06_cow.sire)
+= c2 | 0 0 3 0
+
+
+""" Primps API """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (force x)     | 0 0 0 | 2 x
+= (seq x y)     | 2 y (_ & y) x
+= (deepseq x y) | seq (force x) y
+= (trk x y)     | deepseq x y
+= (trkVal k v)  | trk (c2 v k) v
+
+die="die"
+todo="todo"
+
+= (isPin x) | 1 (_ & 1) (_ _ _ & 0) (_ _ & 0) (_ & 0) x
+= (isLaw x) | 1 (_ & 0) (_ _ _ & 1) (_ _ & 0) (_ & 0) x
+= (isApp x) | 1 (_ & 0) (_ _ _ & 0) (_ _ & 1) (_ & 0) x
+= (isNat x) | 1 (_ & 0) (_ _ _ & 0) (_ _ & 0) (_ & 1) x
+
+= (pinItem x) | 1 (i & i) (_ _ _ & 0)     (_ _ & 0) (_ & 0) x
+= (lawName x) | 1 (_ & 0) (i _ _ & i)     (_ _ & 0) (_ & 0) x
+= (lawArgs x) | 1 (_ & 0) (_ i _ & i)     (_ _ & 0) (_ & 0) x
+= (lawBody x) | 1 (_ & 0) (_ _ i & i)     (_ _ & 0) (_ & 0) x
+= (car x)     | 1 (_ & 4) (n a _ & 0 n a) (h _ & h) (_ & 0) x
+= (cdr x)     | 1 (i & i) (_ _ b & b)     (_ t & t) (_ & 0) x
+
+= (caar x)   | car | car | x
+= (cadr x)   | car | cdr | x
+= (cdar x)   | cdr | car | x
+= (cddr x)   | cdr | cdr | x
+= (caaar x)  | car | car | car x
+= (caadr x)  | car | car | cdr x
+= (cadar x)  | car | cdr | car x
+= (caddr x)  | car | cdr | cdr x
+= (cdaar x)  | cdr | car | car x
+= (cdadr x)  | cdr | car | cdr x
+= (cddar x)  | cdr | cdr | car x
+= (cdddr x)  | cdr | cdr | cdr x
+= (caaaar x) | car | car | car | car x
+
+
+""" Combinators """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (S x y z)  | x z (y z)
+= (K x y)    | x
+= (I x)      | x
+= (B g f y)  | g (f y)
+= (K2 x y z) | x
+
+= (apply f x)  | f x
+= (supply x f) | f x
+
+= compose | B
+= const   | K
+= const2  | K2
+= id      | I
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= 0   | pinItem 4
+?= 4   | pinItem | 4 4
+?= 4-4 | pinItem | 4 4-4
+
+?= 1 | car (1 2)
+?= 2 | cdr (1 2)
+?= 2 | caar ((2 0) (0 0))
+?= 2 | cdar ((0 2) (0 0))
+?= 2 | cadr ((0 0) (2 0))
+?= 2 | cddr ((0 0) (0 2))
+
+?= 4 | car car
+?= 1 | cdadr car
+
+?= 'K'       | lawName (0 'K' 2 1)
+?= 2         | lawArgs (0 'K' 2 1)
+?= 1         | lawBody (0 'K' 2 1)
+?= 1         | cdr     (0 'K' 2 1)
+?= (0 'K' 2) | car     (0 'K' 2 1)
+
+?= (K a b ? a)     | 0 'K'   2 1
+?= (G a b ? b)     | 0 'G'   2 2
+?= (die x ? die x) | 0 'die' 1 (0 0 1)
+?= (f a b ? f)     | 0 'f'   2 0
+?= (f a b ? a)     | 0 'f'   2 1
+?= (f a b ? b)     | 0 'f'   2 2
+?= (f a b ? 3)     | 0 'f'   2 3
+?= (f a b ? a b)   | 0 'f'   2 (0 1 2)
+?= (f a b ? f a b) | 0 'f'   2 (0 (0 0 1) 2)
+?= (f a b ? f 7 7) | 0 'f'   2 (0 (0 0 7) 7)
+?= (f a b ? f 1 2) | 0 'f'   2 (0 (0 0 (2 1)) (2 2))
+
+?= (a b & a)       | 0 0 2 1
+?= (a b & b)       | 0 0 2 2
+?= (a b & 3)       | 0 0 2 3
+
+?= 7 | (0 'f' 1 (2 7)) 3
+?= 7 | (0 'f' 1 1)     7
+?= 7 | (0 'f' 2 1)     7 0
+?= 7 | (0 'f' 2 2)     0 7
+
+;; Note that zero-arity laws are possible (they evaluate immediately).
+?= 7 | (0 'f' 0 7)
+?= 7 | (0 'f' 0 (2 7))
+?= 7 | (0 'f' 0 (1 7 1))
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ mkLaw valCase natCase inc mkPin
+^-^
+^-^ force seq deepseq
+^-^ die todo
+^-^ isLaw lawName lawArgs lawBody
+^-^ isPin pinItem
+^-^ isApp car cdr
+^-^ isNat
+^-^ trk trkVal
+^-^ caar cadr cdar cddr caaar caadr cadar caddr cdaar cdadr cddar cdddr
+^-^ caaaar
+^-^ S K K2 I B
+^-^ apply supply compose const const2 id
+^-^

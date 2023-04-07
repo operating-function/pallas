@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -ex
+
+stack install "$@"
+
+sire \
+    tests/{laws,lawtest,mandelbrot,pong}.sire \
+    < /dev/null

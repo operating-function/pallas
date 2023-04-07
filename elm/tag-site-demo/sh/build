@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -ex
+
+elm make src/Main.elm --output=elm.js 2>&1 | sed -e 's/\x1b\[[0-9;]*m//g'

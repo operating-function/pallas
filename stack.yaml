@@ -1,0 +1,11 @@
+# resolver: lts-19.3
+# resolver: lts-20.10
+resolver: nightly-2022-12-26
+
+packages: ["."]
+
+extra-deps:
+- blake3-0.2@sha256:d1146b9a51ccfbb0532780778b6d016a614e3d44c05d8c1923dde9a8be869045,2448
+
+nix:
+  packages: [lmdb, zlib]

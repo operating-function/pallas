@@ -1,0 +1,188 @@
+"""
+""" Equality and Ordering
+""" =====================
+"""
+""" This defines the equality jet (`eql`) for arbitrary Fan values
+""" and it's inverse `neq`.
+"""
+""" And we also define `compare` and some convenience functions wrapping
+""" that: (lth, lte, gte, gth, max, min)
+"""
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan  [isPin pinItem]
+/+  01_fan  [isLaw lawArgs lawName lawBody]
+/+  01_fan  [isApp car cdr]
+/+  01_fan  [isNat]
+/+  01_fan  [I K]
+/+  02_bit  [if ifNot else and not]
+/+  03_nat  [eqlNat LT EQ GT cmpNat]
+/+  04_app  [len]
+
+
+""" Equality """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (eql x y)
+| if isPin-x
+        | and isPin-y
+              (eql pinItem-x pinItem-y)
+| if isLaw-x
+        | and isLaw-y
+        | and (eqlNat lawArgs-x lawArgs-y)
+        | and (eqlNat lawName-x lawName-y)
+              (eql lawBody-x lawBody-y)
+| if isApp-x
+        | and isApp-y
+        | and (eql car-x car-y)
+              (eql cdr-x cdr-y)
+| *else
+        | and isNat-y eqlNat-x-y
+
+(neq x y)=(not eql-x-y)
+
+?= 1 | eql 0         0
+?= 1 | eql 99        99
+?= 1 | eql I         I
+?= 1 | eql _&0       _&0
+?= 1 | eql (0 0)     (0 0)
+?= 1 | eql (K 0)     (K 0)
+?= 1 | eql (K K)     (K K)
+?= 1 | eql (1 0 1 2) (1 0 1 2)
+
+
+""" Ordering """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;
+; The ordering on Fan nouns is designed to find differences quickly.
+;
+; Laws are ordered left-to-right, so the name is compared first and the
+; body last.  Law bodies are large, so we avoid entering them unless
+; everything else is equal.
+;
+; Apps are first compared by closure-size, and then also compared
+; left-to-right.  Comparing closure size is a quick short-cut, and
+; comparing head-first maximizes laziness.
+;
+; For example, this terminates:
+;
+;     (cmp (v2 die-3 die-4) (v2 die-5))
+;
+; As does this:
+;
+;     (cmp K-(die 3) G-(die 3))
+;
+; This also a jetting implementation to compare data jets without
+; deconstructing them.
+;
+
+; EQ <> y = y
+; x  <> _ = x
+= (ordWeld x y)
+| if (eql x EQ) y
+| x
+
+= (cmpLaw cmp x y)
+| ordWeld (cmpNat (lawName x) (lawName y))
+| ordWeld (cmpNat (lawArgs x) (lawArgs y))
+          (cmp (lawBody x) (lawBody y))
+
+;
+; (Nat < Pin < Law < App)
+;
+; Nats comparisons are done in the obvious ways.
+;
+; Pins, Laws, and Apps are compared "lexicographically" (compare the
+; first thing first), except that apps are first checked length-wise.
+;
+; Apps with fewer application are smaller than apps with more.  Apps with
+; the same length are check lexicographically.
+;
+; This system of comparing closure-lengths first makes it much easier
+; and simpler to implement equality efficiently, especially for data-jets.
+;
+= (cmp x y)
+| if (isNat x) | ifNot (isNat y) LT (cmpNat x y)
+| if (isNat y) | GT
+| if (isPin x) | ifNot (isPin y) LT (cmp (pinItem x) (pinItem y))
+| if (isPin y) | GT
+| if (isLaw x) | ifNot (isLaw y) LT (*cmpLaw cmp x y)
+| if (isLaw y) | GT
+| *else
+    | ordWeld (cmpNat (len x) (len y))
+    | ordWeld (cmp (car x) (car y))
+              (cmp (cdr x) (cdr y))
+
+?= LT | cmp 9     K
+?= EQ | cmp K     K
+?= GT | cmp (0 0) K
+
+?= LT | cmp 0 1
+?= EQ | cmp 1 1
+?= GT | cmp 2 1
+
+?= LT | cmp (0 0) (1 1)
+?= LT | cmp (0 1) (1 1)
+?= LT | cmp (0 2) (1 1)
+?= LT | cmp (1 0) (1 1)
+?= EQ | cmp (1 1) (1 1)
+?= GT | cmp (1 2) (1 1)
+?= GT | cmp (2 0) (1 1)
+?= GT | cmp (2 1) (1 1)
+?= GT | cmp (2 2) (1 1)
+
+?= LT | cmp (1 1 1) | (1 1 1 1)
+?= EQ | cmp (1 1 1) | (1 1 1)
+?= GT | cmp (1 1 1) | (1 1)
+
+?= LT | cmp (2 2) | (1 1 1 1)
+?= LT | cmp (2 2) | (1 1 1)
+?= GT | cmp (2 2) | (1 1)
+?= GT | cmp (2 2) | 1
+
+?= LT | cmp (0 1 1 1) (0 2 2 2)
+?= LT | cmp (0 1 1 2) (0 2 2 2)
+?= LT | cmp (0 1 1 3) (0 2 2 2)
+?= LT | cmp (0 1 2 1) (0 2 2 2)
+?= LT | cmp (0 1 2 2) (0 2 2 2)
+?= LT | cmp (0 1 2 3) (0 2 2 2)
+?= LT | cmp (0 1 3 1) (0 2 2 2)
+?= LT | cmp (0 1 3 2) (0 2 2 2)
+?= LT | cmp (0 1 3 3) (0 2 2 2)
+?= LT | cmp (0 2 1 1) (0 2 2 2)
+?= LT | cmp (0 2 1 2) (0 2 2 2)
+?= LT | cmp (0 2 1 3) (0 2 2 2)
+?= LT | cmp (0 2 2 1) (0 2 2 2)
+?= EQ | cmp (0 2 2 2) (0 2 2 2)
+?= GT | cmp (0 2 2 3) (0 2 2 2)
+?= GT | cmp (0 2 3 1) (0 2 2 2)
+?= GT | cmp (0 2 3 2) (0 2 2 2)
+?= GT | cmp (0 2 3 3) (0 2 2 2)
+?= GT | cmp (0 3 1 1) (0 2 2 2)
+?= GT | cmp (0 3 1 2) (0 2 2 2)
+?= GT | cmp (0 3 1 3) (0 2 2 2)
+?= GT | cmp (0 3 2 1) (0 2 2 2)
+?= GT | cmp (0 3 2 2) (0 2 2 2)
+?= GT | cmp (0 3 2 3) (0 2 2 2)
+?= GT | cmp (0 3 3 1) (0 2 2 2)
+?= GT | cmp (0 3 3 2) (0 2 2 2)
+?= GT | cmp (0 3 3 3) (0 2 2 2)
+
+= (lth x y) | eql LT (cmp x y)
+= (lte x y) | neq GT (cmp x y)
+= (gth x y) | eql GT (cmp x y)
+= (gte x y) | neq LT (cmp x y)
+= (min x y) | if (lte x y) x y
+= (max x y) | if (gte x y) x y
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ eql neq
+^-^
+^-^ ordWeld cmp
+^-^
+^-^ lth lte gth gte
+^-^ min max
+^-^

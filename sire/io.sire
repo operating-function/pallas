@@ -1,0 +1,452 @@
+/+  boot
+/+  switch  ["#switch"]
+
+
+;; Kernel State ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; State =
+;;;     ( List Nat      --  free slots
+;;;     , Row Any       --  slots row (vars or threads)
+;;;     , Row Request   --  requests row
+;;;     )
+= emptyState (~[], [], [])
+
+(getSlotsRow st)=(idx 1 st)
+(setSlotsRow val st)=(mut 1 val st)
+(putSlotsRow st val)=(mut 1 val st)
+(modifySlotsRow f st)=(*putSlotsRow st (f (*getSlotsRow st)))
+(getSlot key st)=(idx key (*getSlotsRow st))
+(setSlot key val st)=(*modifySlotsRow (mut key val) st)
+
+(getRequestsRow st)=(idx 2 st)
+(setRequestsRow val st)=(mut 2 val st)
+(putRequestsRow st val)=(mut 2 val st)
+(modifyRequestsRow f st)=(*putRequestsRow st (f (*getRequestsRow st)))
+(getRequest key st)=(idx key (*getRequestsRow st))
+(setRequest key val st)=(*modifyRequestsRow (mut key val) st)
+
+
+;; Core Thread Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; {allocateThread : State -> (State, ThreadId)}
+= (allocateThread [free slots requests])
+| ifNot (0 == free)
+    @ [key free] | free
+    @ st         | [free slots requests]
+    (st,key)
+@ key      | len slots
+@ slots    | rowSnoc slots 0
+@ requests | rowSnoc requests 0
+@ st [free slots requests]
+(st,key)
+
+; releaseThread : ThreadId -> State -> State
+= (releaseThread key [free slots requests])
+@ slots    | put slots    key 0
+@ requests | put requests key 0
+@ free     | [key free]
+| [free slots requests]
+
+; allocateIORef : Any -> State -> (State, IORef Any)
+= (allocateIORef value [free slots requests])
+| ifNot (free == 0)
+    @ [key free] | free
+    @ slots      | put slots key value
+    @ st         | [free slots requests]
+    (st,key)
+@ key      | len slots
+@ slots    | rowSnoc slots value
+@ requests | rowSnoc requests 0
+@ st       | [free slots requests]
+(st,key)
+
+; releaseIORef :: IORef a -> State -> State
+= (releaseIORef key [free slots requests])
+@ slots | put slots key 0
+@ free  | [key free]
+| [free slots requests]
+
+
+;; An IO Action is a state transition function that closes over a
+;; ThreadID.
+;;
+;; A Thread is always tied to a slot in the requests table and a slot
+;; in the continuation vector.
+;;
+;; When a thread wants to perform IO, it writes the request to it's
+;; request slot, and it's continuation to the continuation vector.
+;;
+;; To create a new thread or cancel an existing thread, the thread
+;; function simply updates the state to have a new thread, or to no
+;; longer have an existing thread.  Similarly, a thread can terminate
+;; itself by deleting itself from the state.
+;;
+;; Action = (ThreadId -> State -> State)
+;; Thread = Response -> Action
+;; Effect = Thread -> Action
+;;
+
+; {nullThread :: Thread}
+(nullThread _resp tid st)=(releaseThread tid st)
+
+(pure val k t s)=(k val t s)
+(myThreadId k t s)=(k t t s)
+(getKernelState k t s)=(k s t s)
+
+; {fork :: IO a -> IO ThreadId}
+= (fork act k tid st)
+@ st,newTid | allocateThread st
+@ st        | act nullThread newTid st
+| k newTid tid st
+
+; cancelFork : ThreadId -> IO () -> IO ()
+= (cancelFork tid act k me [free slots requests])
+@ slots    | put slots    tid 0
+@ requests | put requests tid 0
+@ st       | [free slots requests]
+@ st       | act nullThread tid st
+| k 0 me st
+; Replaces a running thread with a new action.  This is equivalent to
+; (cancel+fork) except that the result is guarenteed to use the same
+; threadId
+
+; {prepareFork :: IO ThreadId}
+= (prepareFork k me st)
+@ st,newTid | allocateThread st
+| k newTid me st
+
+; {finalizeFork :: ThreadId -> IO a -> IO ()}
+= (finalizeFork tid act k me st)
+@ st (act nullThread tid st)
+| k 0 me st
+
+; {newIORef :: a -> IO (IORef a)}
+= (newIORef val k tid st)
+@ st,var (allocateIORef val st)
+; trk %newIORef,var,val
+| k var tid st
+
+; {readIORef :: IORef a -> IO a}
+= (readIORef var k tid st)
+@ val (*getSlot var st)
+; trk %readIORef,var,val
+| k val tid st
+
+; {writeIORef :: IORef a -> a -> IO ()}
+= (writeIORef var val k tid st)
+; trk %writeIORef,var,val
+@ st (*setSlot var val st)
+| k 0 tid st
+
+; {modifyIORef :: IORef a -> (a -> a) -> a -> IO ()}
+= (modifyIORef var fun k tid st)
+; trk %modifyIORef,var,fun
+@ val (fun (*getSlot var st))
+| seq val
+@ st (*setSlot var val st)
+| k 0 tid st
+
+; {freeIORef :: IORef a -> IO ()}
+= (freeIORef var k tid st)
+@ st (releaseIORef var st)
+| k 0 tid st
+
+;;;
+;;; TODO Testing
+;;;
+;;; {cancel :: ThreadId -> IO ()}
+= (cancel targetThread k me st)
+| if (eql targetThread me)
+    | releaseThread me st
+| k 0 me (releaseThread targetThread st)
+
+;;;
+;;; TODO Testing
+;;;
+;;; {exit :: IO a}
+(exit k me st)=(cancel me k me st)
+
+
+; andThen : IO a -> IO b -> IO b
+= (andThen x y k)
+: xr <- x
+: yr <- y
+| k yr
+
+; bindIO : IO a -> (a -> IO b) -> IO b
+= (bindIO x y k)
+: xr <- x
+: yr <- y xr
+| k yr
+
+= (foreverCycle act resp tid st)
+| act (foreverCycle act) tid st
+
+; forever : IO a -> IO b
+(forever act k tid st)=(foreverCycle act 0 tid st)
+
+= (">>" e n kids heir)
+| if (neq 0 heir) LEFT-"unexpected heir"
+# switch (len kids)
+= 0 | LEFT "Expected node to have at least two kids"
+= 1 | LEFT "Expected node to have at least two kids"
+= 2 @ fst,snd kids
+    | RIGHT [0 (appE [cnsE-andThen fst snd])]
+= _ : result <- eitherOpen (##">>" e n (drop 1 kids) 0)
+    @ _,rest result
+    | RIGHT [0 (appE [cnsE-andThen idx-0-kids rest])]
+
+= (">>=" s p e a r err ok)
+@ heir (rexHeir r)
+@ sons (rexSons r)
+| if (neq 0 heir)
+        | err r "unexpected heir"
+# switch (len sons)
+= 0
+        | err r "Expected node to have at least two sons"
+= 1
+        | err r "Expected node to have at least two sons"
+= 2
+        @ [fst snd] sons
+        | ok p a
+        | appE (cnsE bindIO, fst, snd)
+= _
+        : (s p e a result) <- (##">>=" s p e a (drop 1 sons) err)
+        @ [_ rest] result
+        | ok p a
+        | appE (cnsE bindIO, idx 0 sons, rest)
+
+= (ioLoop st _requests tid response)
+@ exe (*getSlot tid st)
+| if (isZero exe)
+    ; trk %FINAL_STATE,st
+    | die "Impossible: response does not match any thread"
+@ st_ (exe response tid st)
+; trk %[requests=(getRequestsRow st_)]
+| ioLoop st_ (*getRequestsRow st_)
+
+; newMachine :: IO a -> Machine
+= (newMachine act)
+; trk (%newMachine),act
+@ st,tid (allocateThread emptyState)
+@ st     (act nullThread tid st)
+; trk %[=st]
+; trk %[requests=(getRequestsRow st)]
+| ioLoop st (*getRequestsRow st)
+
+
+;; IO Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (performIO req exe tid st)
+| *setSlot tid exe
+| *setRequest tid req
+| st
+
+= (Eval tim f x       k t s) | performIO [%eval tim f x]           k t s
+= (RandByte x         k t s) | performIO [%rand 0 %byte x]         k t s
+= (HttpServ ss        k t s) | performIO [%http 0 %serv ss]        k t s
+= (HttpHear           k t s) | performIO [%http 0 %hear]           k t s
+= (HttpHold n         k t s) | performIO [%http 0 %hold n]         k t s
+= (HttpEcho r c m h b k t s) | performIO [%http 0 %echo r c m h b] k t s
+= (SockOpen           k t s) | performIO [%sock 0 %open]           k t s
+= (SockKill h         k t s) | performIO [%sock 0 %kill h]         k t s
+= (SockWait h         k t s) | performIO [%sock 0 %wait h]         k t s
+= (SockRecv h         k t s) | performIO [%sock 0 %recv h]         k t s
+= (SockSend h b       k t s) | performIO [%sock 0 %send h b]       k t s
+= (WockOpen           k t s) | performIO [%wock 0 %open]           k t s
+= (WockKill h         k t s) | performIO [%wock 0 %kill h]         k t s
+= (WockWait h         k t s) | performIO [%wock 0 %wait h]         k t s
+= (WockRecv h         k t s) | performIO [%wock 0 %recv h]         k t s
+= (WockSend h b       k t s) | performIO [%wock 0 %send h b]       k t s
+= (TimeWhen           k t s) | performIO [%time 0 %when]           k t s
+= (TimeWait x         k t s) | performIO [%time 0 %wait x]         k t s
+= (PortSire           k t s) | performIO [%port 0 %sire]           k t s
+= (PortSend m w       k t s) | performIO [%port 0 %send m w]       k t s
+= (PortRecv m u b     k t s) | performIO [%port 0 %recv m u b]     k t s
+
+;;;
+;;; `yield` manually executes another thread.  That thread
+;;; must be in a state where it is expecting to be
+;;; explicitly yielded to (waiting to read from or write
+;;; to an MVar)
+;;;
+;;; First we fetch `targetThread` from the kernel state.
+;;;
+;;;    targetThread : Thread
+;;;    targetThread : Any -> Action
+;;;    targetThread : Any -> ThreadId -> State -> State
+;;;
+;;; Then we run this function, allowing it to update
+;;; the state.  It will replace it's request/continuation
+;;; with the appropriate things.
+;;;
+;;; Then we resume our normal execution on the current
+;;; thread by invoking `return` as usual.
+;;;
+;;; `block` is the opposite.  It clears the IO request slot
+;;; for this thread and waits to be explicitly resumed via `yield`.
+;;;
+
+; yield : ThreadId -> Any -> IO ()
+= (yield targetThreadId val return ourThreadId st)
+@ targetThread (*getSlot targetThreadId st)
+@ st (targetThread val targetThreadId st)
+| seq st
+| return 0 ourThreadId st
+
+; block : IO a
+= (block return tid st)
+| *setRequest tid 0
+| *setSlot tid return
+| st
+
+
+;; MVars ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; data MVar a
+;;;   | Full a (Row (ThreadId,a))  ;;  Value + Pending writes
+;;;   | Empty (Row ThreadId)       ;;  Pending reads
+
+(MVAR_FULL val writers)=[0 val writers]
+
+(MVAR_EMPTY readers)=[1 readers]
+
+= (mvarCase var full empty)
+# switch (idx 0 var)
+= 0 (*full (idx 1 var) (idx 2 var))
+= 1 (*empty (idx 1 var))
+
+= (newMVar val return)
+: var <- newIORef (*MVAR_FULL val [])
+| return var
+
+= (newEmptyMVar return)
+: var <- newIORef (*MVAR_EMPTY [])
+| return var
+
+= (putMVar var val return)
+: mvarSt <- readIORef var
+; trk %putMVar,var,mvarSt
+| *mvarCase mvarSt
+    ; full
+    & (existingVal writers)
+    : tid <- myThreadId
+    @ writers (rowSnoc writers [tid val])
+    : _ <- writeIORef var (*MVAR_FULL existingVal writers)
+    : _ <- block
+    | return 0
+; empty
+& readers
+| ifNot (len readers) ; No readers
+    : _ <- writeIORef var (*MVAR_FULL val [])
+    | return 0
+; Readers waiting
+; trk %PUT,readers,r,rs
+: _ <- writeIORef var (*MVAR_EMPTY (drop 1 readers))
+: _ <- yield (idx 0 readers) val
+| return 0
+
+= (takeMVar var return)
+: mvarSt <- readIORef var
+; trk %takeMVar,var,mvarSt
+| *mvarCase mvarSt
+    ; full
+    & (filledWith pendingWrites)
+    | ifNot (len pendingWrites) ; no writes, make it empty
+        : _ <- writeIORef var (*MVAR_EMPTY [])
+        | return filledWith
+    ; writes, pop writter from queue
+    @ [tid val] (idx 0 pendingWrites)
+    : _ <- writeIORef (*MVAR_FULL val (drop 1 pendingWrites))
+    : _ <- yield tid 0
+    | return filledWith
+; empty, append to readers queue
+& readers
+: me <- myThreadId
+: _  <- writeIORef var (*MVAR_EMPTY (rowSnoc readers me))
+: rs <- block
+| return rs
+
+
+;; Looping ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (forList_ list f return)
+: (x xs) <- listCase list (return 0)
+: _      <- f x
+| forList_ xs f return
+
+(for_ row f return)=(forList_ (listFromRow row) f return)
+(forCab_ cab f return)=(*for_ (cabRow cab) f return)
+(traverseList_ f cab return)=(forList_ cab f return)
+(traverse_ f cab return)=(*for_ cab f return)
+(traverseCab_ f cab return)=(*forCab_ cab f return)
+
+= (forList list f return)
+: (x xs) <- listCase list (return 0)
+: r      <- f x
+: rs     <- forList xs f
+| return (CONS r rs)
+
+(traverseList f cab return)=(forList cab f return)
+
+= (for row f return)
+: res <- forList (listFromRow row) f
+| return (listToRow res)
+
+(traverse f cab return)=(*for cab f return)
+
+
+;; Concurency ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; concurrently : IO a -> IO b -> IO (a, b)
+= (concurrently x y return)
+: xMVar   <- newEmptyMVar
+: yMVar   <- newEmptyMVar
+: xThread <- fork (x >>= putMVar xMVar)
+; trk %[=xThread]
+: yThread <- fork (y >>= putMVar yMVar)
+; trk %[=yThread]
+: xVal    <- takeMVar xMVar
+; trk %[=xVal]
+: yVal    <- takeMVar yMVar
+; trk %[=yVal]
+| return [xVal yVal]
+
+; mapConcurrently : (a -> IO b) -> Row a -> IO (Row b)
+= (mapConcurrently f xs return)
+: pending <- for xs & (x return)
+                    : xMVar   <- newEmptyMVar
+                    : xThread <- fork (f x >>= putMVar xMVar)
+                    | return xMVar
+: results <- for pending takeMVar
+| return results
+
+; forConcurrently : Row a -> (a -> IO b) -> IO (Row b)
+(forConcurrently xs f return)=(*mapConcurrently f xs return)
+
+
+;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^ pure andThen ">>" forever
+^-^ exit cancel fork prepareFork finalizeFork cancelFork
+^-^ myThreadId getKernelState
+^-^ newMachine
+^-^
+^-^ Eval
+^-^ RandByte
+^-^ HttpServ HttpHear HttpHold HttpEcho
+^-^ SockOpen SockKill SockWait SockRecv SockSend
+^-^ WockOpen WockKill WockWait WockRecv WockSend
+^-^ TimeWhen TimeWait
+^-^ PortSire PortSend PortRecv
+^-^
+^-^ newIORef freeIORef readIORef writeIORef modifyIORef
+^-^
+^-^ newMVar newEmptyMVar putMVar takeMVar
+^-^
+^-^ block yield
+^-^
+^-^ concurrently mapConcurrently forConcurrently
+^-^
+^-^ for  traverse  forList  traverseList
+^-^ for_ traverse_ forList_ traverseList_ forCab_ traverseCab_

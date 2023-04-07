@@ -1,0 +1,1014 @@
+;;;
+;;; The shared code for hitchhiker trees
+;;;
+
+/+  boot
+/+  switch    ["#switch"]
+/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  mutrec
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; MUST BE MOVED ELSEWHERE ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; This section is for utility functions which should be in the standard
+;; library, but aren't. In the future, these should be moved there, but the
+;; organization is in flux, so they stay here for now.
+
+(flipUnfoldr b0 f)=(unfoldr f b0)
+
+;;;;;;;;;;
+;; Util ;;
+;;;;;;;;;;
+
+; General utilities related to searching.
+
+= (compare x y)
+| if (eql x y) %eq
+| if (lteNat x y) %lt
+%gt
+
+= (binFindIdxLte cmp r)
+^ 0 (len r)
+? (go_binfind l u)
+| if (lteNat u l) l
+@ k | rsh (add u l) 1
+# switch | cmp | get r k
+= %lt | go_binfind l k
+= %eq | inc k
+| go_binfind (inc k) u
+
+;
+; Given an index and a hitchhiker object, creates a packed representation.
+;
+; Indexes' subnodes are wrapped in pins so that we don't have to write
+; parts of trees which haven't changed during snapshotting.
+;
+= (packIndexNode [keys nodes] hh)
+| mkPin [0 keys nodes hh]
+
+= (caseImpl pinnedNode)
+; if (not isPin-pinnedNode)
+;   | die ['not a pin' pinnedNode]
+@ !node (pinItem pinnedNode)
+@ !tag  (get node 0)
+| if (neq 0 tag) node
+@ [_ keys nodes hh] node
+[0 [keys nodes] hh]
+
+; Row > Maybe [a Row]
+= (rowUncons r)
+| if (isZero | len r) NONE
+| *SOME [(idx 0 r) (drop 1 r)]
+
+?= NONE               (rowUncons [])
+?= (SOME [0 [1 2 3]]) (rowUncons [0 1 2 3])
+
+; Row > Maybe [Row a]
+= (rowUnsnoc r)
+@ l | len r
+| if (isZero l) NONE
+@ minusOne | dec l
+| *SOME [(take minusOne r) (idx minusOne r)]
+
+?= NONE               (rowUnsnoc [])
+?= (SOME [[0 1 2] 3]) (rowUnsnoc [0 1 2 3])
+
+;;;;;;;;;;;;;
+;; TreeFun ;;
+;;;;;;;;;;;;;
+
+# record
+| TREE_FUN mkNode mkLeaf caseNode leafInsert leafMerge leafLength leafSplitAt
+  leafFirstKey leafEmpty leafDelete hhMerge hhLength hhSplit hhEmpty hhDelete
+
+
+;;;;;;;;;;;
+;; Index ;;
+;;;;;;;;;;;
+
+;; A node is either [0 index hitchhikers] or [1 leaf]
+# datatype
+| INDEXNODE idx hh
+| LEAFNODE leaf
+
+;; An index is a row of [a row of keys, a row of subnodes]
+= emptyIndex [[] []]
+
+;
+; Merges two indexes with the key to put between the two of them.
+;
+; (Index k v > k > Index k v > Index k v)
+= (mergeIndex [lKeys lVals] middle [rKeys rVals])
+[(cat [lKeys [middle] rKeys]) (weld lVals rVals)]
+
+?? | eql [[5] [%a %b]]
+   | mergeIndex [[] ["a"]] 5 [[] ["b"]]
+
+
+; (v > Index k v)
+= (singletonIndex val) [[] [val]]
+
+
+; (Index k v > Maybe v)
+= (fromSingletonIndex [_ vals])
+| if (eqlNat 1 (len vals)) (*SOME (get vals 0)) NONE
+
+; (Index k v > Nat)
+= (indexKeyLen [keys _])
+| len keys
+
+; (Index k v > Nat)
+= (indexValLen [_ vals])
+| len vals
+
+
+;
+; Given an index, split it into two so the left index has `numLeftKeys`
+; and the right contains the rest. Also returns the pivot key.
+;
+; (Int -> Index k v > [(Index k v) k (Index k v)])
+= (splitIndexAt numLeftKeys [keys vals])
+@ leftKeys             | take numLeftKeys keys
+@ middleKeyAndRightKey | drop numLeftKeys keys
+@ numPlusOne           | inc numLeftKeys
+@ leftVals             | take numPlusOne vals
+@ rightVals            | drop numPlusOne vals
+| if (isZero len-middleKeyAndRightKey) (die %splitIndexAtEmpty)
+@ middleKey            | get middleKeyAndRightKey 0
+@ rightKeys            | drop 1 middleKeyAndRightKey
+[[leftKeys leftVals] middleKey [rightKeys rightVals]]
+
+?? | eql [[[] [[%a]]] %b [[] [[%b]]]]
+   | splitIndexAt 0 [["b"] [["a"] ["b"]]]
+
+;
+;  Given a pure index with no hitchhikers, create a node.
+;
+; (TreeFun > Int > Index k v > Index k v)
+= (extendIndex treeFun maxIndexKeys idx)
+# openTreeFun treeFun
+@ maxIndexVals | inc maxIndexKeys
+^ idx
+? (loop idx)
+@ numVals      | *indexValLen idx
+| if (lteNat numVals maxIndexVals)
+    | *singletonIndex | mkNode idx hhEmpty
+| if (lteNat numVals | mul 2 maxIndexVals)
+    @ pos | dec | div numVals 2
+    @ [lIdx middleKey rIdx] | splitIndexAt pos idx
+    @ !leftNode  | mkNode lIdx hhEmpty
+    @ !rightNode | mkNode rIdx hhEmpty
+    [[middleKey] [leftNode rightNode]]
+@ [lIdx middleKey rIdx] | splitIndexAt maxIndexVals idx
+@ ls | *singletonIndex | mkNode lIdx hhEmpty
+| mergeIndex ls middleKey | loop rIdx
+
+= (valView key [keys vals])
+@ [leftKeys rightKeys]       | span a&(lte a key) keys
+@ n                          | len leftKeys
+@ [leftVals valAndRightVals] | splitAt n vals
+| *maybeCase | rowUncons valAndRightVals
+    | die "valView: can't split empty index"
+& [val rightVals]
+[[leftKeys leftVals rightKeys rightVals] val]
+
+= (leftView [leftKeys leftVals rightKeys rightVals])
+| *maybeCase (rowUnsnoc leftVals) NONE
+& [leftVals leftVal]
+| *maybeCase (rowUnsnoc leftKeys) NONE
+& [leftKeys leftKey]
+@ newCtx  [leftKeys leftVals rightKeys rightVals]
+| *SOME [newCtx leftVal leftKey]
+
+= (rightView [leftKeys leftVals rightKeys rightVals])
+| *maybeCase (rowUncons rightVals) NONE
+& [rightVal rightVals]
+| *maybeCase (rowUncons rightKeys) NONE
+& [rightKey rightKeys]
+@ newCtx  [leftKeys leftVals rightKeys rightVals]
+| *SOME [rightKey rightVal newCtx]
+
+= (putVal [leftKeys leftVals rightKeys rightVals] val)
+,, weld leftKeys rightKeys
+,, cat [leftVals [val] rightVals]
+
+= (putIdx [leftKeys leftVals rightKeys rightVals] [keys vals])
+,, cat [leftKeys keys rightKeys]
+,, cat [leftVals vals rightVals]
+
+;
+; Find the val for recursing downwards
+;
+= (findSubnodeByKey key [keys vals])
+| get vals
+| binFindIdxLte (*compare key) keys
+
+;;;;;;;;;;
+;; Leaf ;;
+;;;;;;;;;;
+
+; (TreeFun > Int > Index k n)
+= (splitLeafMany treeFun maxLeafItems items)
+# openTreeFun treeFun
+@ itemLen | leafLength items
+; leaf items don't overflow a single node
+| if (lteNat itemLen maxLeafItems)
+    | *singletonIndex | mkLeaf items
+; we have to split, but only into two nodes
+| if (lteNat itemLen | mul 2 maxLeafItems)
+    @ numLeft        | div itemLen 2
+    @ [lLeaf rLeaf]  | leafSplitAt numLeft items
+    @ rightFirstItem | leafFirstKey rLeaf
+    [[rightFirstItem] [(mkLeaf lLeaf) (mkLeaf rLeaf)]]
+; we have to split the node into more than two nodes
+@ (fixup [keys vals])
+  [keys (map mkLeaf vals)]
+| fixup
+^ items NIL NIL
+? (loop items keys leafs)
+@ itemLen | leafLength items
+| if (gthNat itemLen | mul 2 maxLeafItems)
+    @ [leaf rem]   | leafSplitAt maxLeafItems items
+    @ key          | leafFirstKey rem
+    | loop rem (*CONS key keys) (*CONS leaf leafs)
+| if (gthNat itemLen maxLeafItems)
+    @ numLeft      | div itemLen 2
+    @ [left right] | leafSplitAt numLeft items
+    @ key          | leafFirstKey right
+    | loop leafEmpty (*CONS key keys) (*CONS right (*CONS left leafs))
+| if (isZero itemLen)
+    [(listToRowReversed keys) (listToRowReversed leafs)]
+| die %leafConstraintViolation
+
+;;;;;;;;;;;;;;;;
+;; TreeConfig ;;
+;;;;;;;;;;;;;;;;
+
+# record
+| TREE_CONFIG minFanout maxFanout minIdxKeys maxIdxKeys minLeafItems
+  maxLeafItems maxHitchhikers
+
+;
+; Testing TreeConfig which overflows quickly.
+;
+= twoThreeConfig
+@ minFanout 2
+@ maxFanout | dec | mul 2 minFanout
+| TREE_CONFIG minFanout
+              maxFanout
+              (dec minFanout)
+              (dec maxFanout)
+              minFanout
+              maxFanout
+              minFanout
+
+;
+; A config with larger corfficients for more realistic testing.
+;
+= largeConfig
+@ minFanout 64
+@ maxFanout | dec | mul 2 minFanout
+| TREE_CONFIG minFanout
+              maxFanout
+              (dec minFanout)
+              (dec maxFanout)
+              minFanout
+              maxFanout
+              minFanout
+
+;;;;;;;;;;
+;; Tree ;;
+;;;;;;;;;;
+
+= (fixup treeConfig treeFun index)
+# openTreeConfig treeConfig
+@ !mybNode | fromSingletonIndex index
+: newRootNode
+    <- *maybeCase mybNode
+         @ !index | extendIndex treeFun maxLeafItems index
+         | fixup treeConfig treeFun index
+newRootNode
+
+# mutual insertRect_distributeDownwards
+= (insertRec treeConfig treeFun toAdd node)
+  # openTreeConfig treeConfig
+  # openTreeFun treeFun
+  # datacase (caseNode node)
+  = (INDEXNODE children hitchhikers)
+    @ !merged | hhMerge hitchhikers toAdd
+    | if | gthNat (hhLength merged) maxHitchhikers
+      @ !distrib | distributeDownwards treeConfig treeFun merged children
+      ; We have reached the maximum number of hitchhikers, we now need to
+      ; flush these downwards.
+      | extendIndex treeFun maxLeafItems distrib
+    ; All we must do is rebuild the node with the new k/v pair added on as a
+    ; hitchhiker to this node.
+    | *singletonIndex | mkNode children merged
+  = (LEAFNODE items)
+    @ !inserted (leafInsert items toAdd)
+    | splitLeafMany treeFun maxLeafItems inserted
+;
+= (distributeDownwards treeConfig treeFun hitchhikers index)
+  # openTreeFun treeFun
+  | if (isZero | hhLength hitchhikers) index
+  @ [keys vals] index
+  @ keyList   | listFromRow keys
+  @ splitHH   | downSplit treeFun keyList hitchhikers
+  @ indexList | parList
+              | listMap (downPush treeConfig treeFun)
+              | listZip splitHH
+              | listFromRow vals
+  @ [!lkeys !lvals] | joinIndex keyList indexList
+  [(listToRow lkeys) (cat | listToRow lvals)]
+;
+; implementation details of insertRec/distributeDownwards
+;
+= (downSplit treeFun l hh)
+  : (key keys) <- *listCase l ~[hh]
+  # openTreeFun treeFun
+  @ [!toAdd !rest] | hhSplit key hh
+  | *CONS toAdd | downSplit treeFun keys rest
+;
+= (downPush treeConfig treeFun [hh node])
+  # openTreeFun treeFun
+  | if (isZero | hhLength hh)
+    | *singletonIndex node
+  | insertRec treeConfig treeFun hh node
+;
+= (joinIndex kl il)
+  : (k ks) <- *listCase kl
+                : ([keys vals] _) <- *listCase il [NIL NIL]
+                [(listFromRow keys) ~[vals]]
+  : ([keys vals] ts) <- *listCase il (die "missing index in joinIndex")
+  @ [keyrest valrest] | joinIndex ks ts
+  @ !kout | listWeld (listFromRow keys) (*CONS k keyrest)
+  @ !vout | *CONS vals valrest
+  [kout vout]
+
+;;;;;;;;;;;;;;;;;;;;
+
+= (splitHitchhikersByKeys treeFun keys hh)
+# openTreeFun treeFun
+@ l | len keys
+| flipUnfoldr [0 hh]
+& [i hh]
+| if (eqlNat i l) | *SOME [hh [(inc i) hhEmpty]]
+| if (gthNat i l) | NONE
+@ [!cur !rest] | hhSplit (idx i keys) hh
+| *SOME [cur [(inc i) rest]]
+
+;
+; Forces a flush of all hitchhikers down to the leaf levels and return the
+; resulting leaf vectors.
+;
+= (getLeafRow treeFun node)
+# openTreeFun treeFun
+^ hhEmpty node
+? (go_openTreeFun hh node)
+# datacase (caseImpl node)
+= (LEAFNODE leaves)
+  @ !item (leafInsert leaves hh)
+  [item]
+= (INDEXNODE [keys vals] hitchhikers)
+  @ !merged (hhMerge hitchhikers hh)
+  @ splitHH | splitHitchhikersByKeys treeFun keys merged
+  | cat
+  | map [hh node]&(go_openTreeFun hh node) | zip splitHH vals
+
+; Given a node, ensure that all hitchhikers have been pushed down to leaves.
+= (flushDownwards treeFun node)  ; -> node
+# openTreeFun treeFun
+^ hhEmpty node
+? (go_openTreeFun hh node)
+# datacase (caseImpl node)
+= (LEAFNODE leaves)
+  | if (isZero | hhLength hh) node
+  @ !item (leafInsert leaves hh)
+  | mkLeaf item
+= (INDEXNODE [keys vals] hitchhikers)
+  @ !merged (hhMerge hitchhikers hh)
+  | if (isZero | hhLength merged) node
+  @ splitHH | splitHitchhikersByKeys treeFun keys merged
+  @ !nuvals | map [hh node]&(go_openTreeFun hh node) | zip splitHH vals
+  | mkNode [keys nuvals] hhEmpty
+
+= (nodeNeedsMerge config treeFun node)
+# openTreeConfig config
+# openTreeFun treeFun
+# datacase (caseImpl node)
+= (INDEXNODE index hitchhikers)
+  | lthNat (indexKeyLen index) minIdxKeys
+= (LEAFNODE leaves)
+  | lthNat (leafLength leaves) minLeafItems
+
+= (mergeNodes config treeFun left middleKey right)
+# openTreeConfig config
+# openTreeFun treeFun
+; wish I could collapse this into a single case like in haskell
+# datacase (caseImpl left)
+= (INDEXNODE leftIdx leftHH)
+  # datacase (caseImpl right)
+  = (INDEXNODE rightIdx rightHH)
+    @ !left   | distributeDownwards config treeFun leftHH leftIdx
+    @ !right  | distributeDownwards config treeFun rightHH rightIdx
+    @ !merged | mergeIndex left middleKey right
+    | extendIndex treeFun maxIdxKeys merged
+  = (LEAFNODE _)
+    | die %nodeMismatch
+= (LEAFNODE leftLeaf)
+  # datacase (caseImpl right)
+  = (LEAFNODE rightLeaf)
+    @ !merged | leafMerge leftLeaf rightLeaf
+    | splitLeafMany treeFun maxLeafItems merged
+  = (INDEXNODE _ _)
+    | die %nodeMismatch
+
+; backwards maybeCase is easier in some usage patterns.
+(maybeCaseBack opt som non)=(maybeCase opt non som)
+
+= (deleteRec config treeFun key mybV node)
+# openTreeConfig config
+# openTreeFun treeFun
+# datacase (caseImpl node)
+= (LEAFNODE leaves)
+  | mkLeaf | leafDelete key mybV leaves
+= (INDEXNODE index hitchhikers)
+  @ [ctx child]     | valView key index
+  @ newChild        | deleteRec config treeFun key mybV child
+  @ childNeedsMerge | nodeNeedsMerge config treeFun newChild
+  @ prunedHH        | hhDelete key mybV hitchhikers
+  | if | not childNeedsMerge
+    | mkNode (putVal ctx newChild) prunedHH
+  | *maybeCaseBack | rightView ctx
+    & [rKey rChild rCtx]
+    | mkNode
+        | putIdx rCtx | mergeNodes config treeFun newChild rKey rChild
+    prunedHH
+  | *maybeCaseBack | leftView ctx
+    & [lCtx lChild lKey]
+    | mkNode
+        | putIdx lCtx | mergeNodes config treeFun lChild lKey newChild
+    prunedHH
+  | die "deleteRec: node with single child"
+
+
+;;;;;;;;;;;;;;;;;;;
+;; HitchhikerMap ;;
+;;;;;;;;;;;;;;;;;;;
+
+(hhDeleteKey k _ t)=(tabDel k t)
+
+= (hmEmpty config) | [config NONE]
+= (hmLeaf l)       | mkPin [1 l]
+
+= (hmSingleton config k v)
+@ node | hmLeaf | tabSingleton k v
+[config (*SOME node)]
+
+= hhMapTF
+,, packIndexNode                 ; mkNode
+,, hmLeaf                        ; mkLeaf
+,, caseImpl                      ; caseNode
+,, (tabUnionWith (a b)&b)        ; leafInsert
+,, (tabUnionWith (a b)&b)        ; leafMerge
+,, tabLen                        ; leafLength
+,, tabSplitAt                    ; leafSplitAt
+,, tabMinKey                     ; leafFirstKey
+,, %[]                           ; leafEmpty
+,, hhDeleteKey                   ; leafDelete
+,, (tabUnionWith (a b)&b)        ; hhMerge
+,, tabLen                        ; hhLength
+,, tabSplitLT                    ; hhSplit
+,, %[]                           ; hhEmpty
+,, hhDeleteKey                   ; hhDelete
+
+= (hmSize [config r])
+| *maybeCase r 0
+& top
+| sum
+| map tabLen
+| getLeafRow hhMapTF top
+
+= (hmKeys [config r])
+| *maybeCase r %[]
+& top
+| map tabKeys
+| getLeafRow hhMapTF top
+
+= (hmInsert k v [config r])
+@ p | tabSingleton k v
+| *maybeCase r
+    [config (*SOME (mkPin [1 p]))]
+& gr
+@ !index | insertRec config hhMapTF p gr
+@ !fixed | fixup config hhMapTF index
+,, config
+,, *SOME fixed
+
+= (hmInsertMany tab [config r])
+| if | tabIsEmpty tab
+  [config r]
+# openTreeConfig config
+@ !index
+  | *maybeCase r
+      | splitLeafMany hhMapTF maxLeafItems tab
+  & top
+  | insertRec config hhMapTF tab top
+@ !fixed | fixup config hhMapTF index
+,, config
+,, *SOME fixed
+
+; TODO: case guard statements would make this much more readable.
+= (hmDelete k [config r])
+| *maybeCase r [config r]
+& gr
+@ newRootNode | deleteRec config hhMapTF k NONE gr
+# datacase (caseImpl newRootNode)
+= (LEAFNODE leaves)
+  ,, config
+  ,, if (tabIsEmpty leaves) NONE (*SOME newRootNode)
+= (INDEXNODE index hitchhikers)
+  | *maybeCase | fromSingletonIndex index
+    [config (*SOME newRootNode)]
+  & childNode
+  @ base [config (*SOME childNode)]
+  | if (tabIsEmpty hitchhikers) base
+  | hmInsertMany hitchhikers base
+
+
+= (hmLookup key [config r])
+| *maybeCase r NONE
+? (lookInNode node)
+# datacase (caseImpl node)
+= (INDEXNODE index hitchhikers)
+  : v <- *maybeCase (tabLookup key hitchhikers)
+             (lookInNode | findSubnodeByKey key index)
+  | (*SOME v)
+= (LEAFNODE items)
+  | tabLookup key items
+
+;;;;;;;;;;;;;;;;;;;
+;; HitchhikerSet ;;
+;;;;;;;;;;;;;;;;;;;
+
+(hsDeleteItem k _ c)=(cabDel k c)
+
+= (hsEmpty config)
+[config NONE]
+
+= (hsNull [config r])
+| (*isNone r)
+
+= (hsRawSingleton v)
+@ node (mkPin [1 (cabSingleton v)])
+| *SOME node
+
+(hsSingleton config v)=[config (hsRawSingleton v)]
+
+= hhSetTF
+,, packIndexNode                 ; mkNode
+,, hmLeaf                        ; mkLeaf
+,, caseImpl                      ; caseNode
+,, cabUnion                      ; leafInsert
+,, cabUnion                      ; leafMerge
+,, cabLen                        ; leafLength
+,, cabSplitAt                    ; leafSplitAt
+,, cabMin                        ; leafFirstKey
+,, %[]                           ; leafEmpty
+,, hsDeleteItem                  ; leafDelete
+,, cabUnion                      ; hhMerge
+,, cabLen                        ; hhLength
+,, cabSplitLT                    ; hhSplit
+,, %[]                           ; hhEmpty
+,, hsDeleteItem                  ; hhDelete
+
+= (hsRawInsert i config r)
+@ is | cabSingleton i
+| *maybeCase r
+    (*SOME (mkPin [1 is]))
+& gr
+@ !index | insertRec config hhSetTF is gr
+@ !fixed | fixup config hhSetTF index
+| *SOME fixed
+
+(hsInsert i [config r])=[config (hsRawInsert i config r)]
+
+= (hsRawInsertMany cab config r)
+| if (cabIsEmpty cab) r
+# openTreeConfig config
+@ !index
+  | *maybeCase r
+      | splitLeafMany hhSetTF maxLeafItems cab
+  & top
+  | insertRec config hhSetTF cab top
+@ !fixed | fixup config hhSetTF index
+| *SOME fixed
+
+(hsInsertMany cab [config r])=[config (hsRawInsertMany cab config r)]
+
+= (hsRawFromCab config c)
+| if (cabIsEmpty c) NONE
+| hsRawInsertMany c config NONE
+
+(hsFromCab config c)=[config (hsRawFromCab config c)]
+
+= (hsToCab [config r])
+| *maybeCase r %[]
+& top
+| cabAscUnions
+| getLeafRow hhSetTF top
+
+= (hsMember key [config r])
+| *maybeCase r FALSE
+? (lookInNode node)
+# datacase (caseImpl node)
+= (INDEXNODE index hitchhikers)
+  | if (cabHas key hitchhikers) TRUE
+  | lookInNode | findSubnodeByKey key index
+= (LEAFNODE items)
+  | cabHas key items
+
+= (hsRawDelete key config r)
+| *maybeCase r r
+& gr
+@ newRootNode | deleteRec config hhSetTF key NONE gr
+# datacase (caseImpl newRootNode)
+= (LEAFNODE leaves)
+  | if (cabIsEmpty leaves) NONE (*SOME newRootNode)
+= (INDEXNODE index hitchhikers)
+  | *maybeCase (fromSingletonIndex index)
+      | *SOME newRootNode
+  & !childNode
+  @ base | *SOME childNode
+  | if (cabIsEmpty hitchhikers) base
+  | hsRawInsertMany hitchhikers config base
+
+= (hsDelete key [config r])
+@ x | hsRawDelete key config r
+[config x]
+
+; TODO: Same as intersection: a real implementation needs to be built.
+;
+; What would a faster union look like? This implementation goes through all
+; leaf sets and then iteratively unions them all together on each side and then
+; unions that. Then it takes that megacab and splits it back up. That seems
+; hella inefficient.
+;
+; some ideas:
+;
+; when one side is small, treat it as an insertRec into the other.
+;
+; operate on a list of set pieces. unlike intersection, you can't
+; prevent touching the pins for every leaf so maintain using getLeafRow. But
+; make the internal union operation work on [Set k] -> [Set k] -> [Set k] and
+; then `consolidate` on that structure. That at minimum removes the megaunion
+; at the end and then breaking that back up into smaller leaves. (It's probably
+; faster everywhere else, but I'd have to double check...)
+;
+= (hsRawUnion aconfig ar br)
+: a <- *maybeCase ar br
+: b <- *maybeCase br ar
+@ as | cabAscUnions | getLeafRow hhSetTF a
+@ bs | cabAscUnions | getLeafRow hhSetTF b
+| hsRawFromCab aconfig
+| cabUnion as bs
+
+= (hsUnion as bs)
+@ [aconfig ar] as
+@ [_ br] bs
+[aconfig (hsRawUnion aconfig ar br)]
+
+?= 1 | hsNull | hsEmpty twoThreeConfig
+?= 0 | hsNull | hsSingleton twoThreeConfig 9
+?= 0 | hsNull | hsInsert 8 | hsSingleton twoThreeConfig 9
+?= 0 | hsNull | hsInsert 9 | hsSingleton twoThreeConfig 9
+?= 1 | hsNull | hsDelete 9 | hsSingleton twoThreeConfig 9
+
+; takes a list of sets and compacts them down so each is in a range between
+; `min` and `max`.
+;
+; consolidate : Nat -> Nat -> Row (Cab k) -> Row (Cab k)
+= (consolidate min max row)
+@ rowLen | len row
+| flipUnfoldr [0 0 NIL]
+? (loop [i curSize curOut])
+| if (gth i rowLen) NONE
+| if | eql i rowLen
+  | if (listNull curOut) NONE
+  @ !u | cabAscUnions | listToRowReversed curOut
+  | if (cabIsEmpty u) NONE
+  | *SOME [u [(inc i) 0 NIL]]
+;
+@ next    | idx i row
+@ nextLen | cabLen next
+;
+; if adding the next set would go over the max, then emit a set.
+| if | gth (add curSize nextLen) max
+  | if | lth curSize min
+    ; we can't add the next set without going over max, but we're currently
+    ; under the minimum, so split the set.
+    @ off | sub max curSize
+    @ [head tail] | cabSplitAt off next
+    @ !u | cabAscUnions | listToRowReversed | *CONS head curOut
+    @ nextStep [(inc i) (cabLen tail) (*CONS tail NIL)]
+    | if (cabIsEmpty u) | loop nextStep
+    | *SOME [u nextStep]
+  ; we can just combine and be done.
+  @ !u | cabAscUnions | listToRowReversed curOut
+  @ nextStep [(inc i) 0 (*CONS next NIL)]
+  | if (cabIsEmpty u) | loop nextStep
+  | *SOME [u nextStep]
+;
+| loop [(inc i) (add nextLen curSize) (*CONS next curOut)]
+
+
+; test minimize splitting, between min and max
+?= []                | consolidate 2 4 []
+?= [%[1]]            | consolidate 2 4 [%[1]]
+?= [%[1 2]]          | consolidate 2 4 [%[1 2]]
+?= [%[1 2 3]]        | consolidate 2 4 [%[1 2 3]]
+?= [%[1 2 3 4]]      | consolidate 2 4 [%[1 2 3 4]]
+?= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1 2 3 4 5]]
+?= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1] %[2] %[3] %[4] %[5]]
+?= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1 2] %[3 4] %[5]]
+?= [%[1 2 3] %[4 5]] | consolidate 2 4 [%[1 2 3] %[4 5]]
+
+= (getLeftmostValue a)
+# datacase (caseImpl a)
+= (LEAFNODE s)
+  | cabMin s
+= (INDEXNODE [keys vals] _)
+  | getLeftmostValue (idx 0 vals)
+
+; implementation detail of intersection
+;
+; checkSetAgainst : Cab k -> SetNode k -> [Cab k]
+= (checkSetAgainst a b)
+# datacase b
+= (LEAFNODE bLeaves)
+  @ !c | cabIntersection a bLeaves
+  | if (cabIsEmpty c) []
+  [c]
+= (INDEXNODE index _)
+  ; todo: i don't think you can rewrite this without the unfoldr, but could you
+  ; at least use integer indexes instead of making a ton of copies of the keys
+  ; and vals rows?
+  | cat
+  | flipUnfoldr [a (*SOME index)]
+  ? (loop [leaves mybIdx])
+  : [keys vals] <- *maybeCase mybIdx NONE
+  | if (cabIsEmpty leaves) NONE
+  @ [[tryLeaves restLeaves] subNode restIndex]
+    @ l | len vals
+    | if | (eql 0 l)
+      | die "invalid treeindex in checkSetAgainst"
+    | if | (eql 1 l)
+      | [[leaves %[]] (idx 0 vals) NONE]
+    | *else
+      ,, cabSplitLT (idx 0 keys) leaves
+      ,, idx 0 vals
+      ,, *SOME [(drop 1 keys) (drop 1 vals)]
+  | if (cabIsEmpty tryLeaves) | loop [restLeaves restIndex]
+  @ !result | checkSetAgainst tryLeaves (caseImpl subNode)
+  | if (isZero | len result) | loop [restLeaves restIndex]
+  | *SOME [result [restLeaves restIndex]]
+
+?= [%[1] %[5]]
+   | checkSetAgainst %[1 5]
+   (INDEXNODE [[5] [(hmLeaf %[1 2]) (hmLeaf %[5 7])]] %[])
+
+?= []
+   | checkSetAgainst %[8 9]
+   (INDEXNODE [[5] [(hmLeaf %[1 2]) (hmLeaf %[5 7])]] %[])
+
+= (findIntersectStep find [arange anode brange bnode])
+: (a    as)     <- *listCase anode  NONE
+: (b    bs)     <- *listCase bnode  NONE
+;
+@ asNil | *listNull as
+@ bsNil | *listNull bs
+; both ranges at end.
+| if (and asNil bsNil)
+  | *SOME [(find a b) [NIL NIL NIL NIL]]
+;
+: (amin aminxs) <- *listCase arange NONE
+: (bmin bminxs) <- *listCase brange NONE
+; right range at end.
+| if bsNil
+  : (amax arest) <- *listCase aminxs (die "missing a range")
+  | if (lteNat bmin amax)
+    | *SOME [(find a b) [aminxs as brange bnode]]
+  | findIntersectStep find [aminxs as brange bnode]
+; left range at end.
+| if asNil
+  : (bmax brest) <- *listCase bminxs (die "missing b range")
+  | if (lteNat amin bmax)
+    | *SOME [(find a b) [arange anode bminxs bs]]
+  | findIntersectStep find [arange anode bminxs bs]
+; both ranges.
+: (amax arest) <- *listCase aminxs (die "missing a range")
+: (bmax brest) <- *listCase bminxs (die "missing b range")
+@ advances | if (eqlNat amax bmax) [aminxs as bminxs bs]
+           | if (gthNat amax bmax) [arange anode bminxs bs]
+           [aminxs as brange bnode]
+| if (and (lthNat amin bmax) (lthNat bmin amax))
+  | *SOME [(find a b) advances]
+| findIntersectStep find advances
+
+= (hsIntersection as bs)
+@ [aconfig ar] as
+@ [_ br] bs
+: a <- *maybeCase ar bs
+: b <- *maybeCase br as
+# openTreeConfig aconfig
+# mutrec %impl | top a b
+;
+= (top a b)
+  ,, aconfig
+  ,, | build
+     | consolidate minLeafItems maxLeafItems
+     | find (flushDownwards hhSetTF a)
+            (flushDownwards hhSetTF b)
+;
+= (build r)
+  | if | isZero | len r
+    | NONE
+  @ vals | map hmLeaf r
+  @ keys | map cabMin | drop 1 r
+  | *SOME | fixup aconfig hhSetTF [keys vals]
+;
+= (find left right)
+  # datacase (caseImpl left)
+  = (LEAFNODE leftLeaves)
+    # datacase (caseImpl right)
+    = (LEAFNODE rightLeaves)
+      @ c | cabIntersection leftLeaves rightLeaves
+      | if (cabIsEmpty c) []
+      [c]
+    = (INDEXNODE rightIdx _)
+      | checkSetAgainst leftLeaves (caseImpl right)
+  = (INDEXNODE leftIdx leftHH)
+    # datacase (caseImpl right)
+    = (LEAFNODE rightLeaves)
+      | checkSetAgainst rightLeaves (caseImpl left)
+    = (INDEXNODE rightIdx rightHH)
+      @ [aIdxKeys aVals] leftIdx
+      @ [bIdxKeys bVals] rightIdx
+      @ !aLeftmost | getLeftmostValue | idx 0 aVals
+      @ !bLeftmost | getLeftmostValue | idx 0 bVals
+      @ !aRestList | listFromRow aIdxKeys
+      @ !bRestList | listFromRow bIdxKeys
+      @ !aKeys | *CONS aLeftmost aRestList
+      @ !bKeys | *CONS bLeftmost bRestList
+      | cat
+      | unfoldr (findIntersectStep find)
+      ,, aKeys
+      ,, listFromRow aVals
+      ,, bKeys
+      ,, listFromRow bVals
+
+;;;;;;;;;;;;;;;;;;;;;;
+;; HitchhikerSetMap ;;
+;;;;;;;;;;;;;;;;;;;;;;
+
+= (hsmEmpty mapConfig setConfig)
+[mapConfig setConfig NONE]
+
+;
+; In SetMap, hitchhikers are a normal map of sets, but leaves are maps of
+; raw hitchhikersets.
+;
+; TreeConfig > Tab (HitchhikerSet Nat) > Tab Cab > Tab (Hitchhiker Set Nat)
+= (hsmLeafInsertImpl setConfig leaf hh)
+@ (alt new m)
+  | *SOME
+  | *maybeCase m | hsRawFromCab setConfig new
+  & old
+  | hsRawInsertMany new setConfig old
+@ (merge items k vset)
+  | tabAlter (alt vset) k items
+| tabFoldlWithKey merge leaf hh
+
+= (hsmLeafDeleteImpl setConfig k mybV hsm)
+| *maybeCase mybV (die %cantDeleteNoValue)
+& v
+@ (update in)
+  | *maybeCase in NONE
+  & set
+  | *SOME | hsRawDelete v setConfig set
+| tabAlter update k hsm
+
+= (hsmHHDeleteImpl k mybV sm)
+| *maybeCase mybV (die %cantDeleteNoValue)
+& v
+@ (update in)
+  | *maybeCase in NONE
+  & set
+  | *SOME | cabDel v set
+| tabAlter update k sm
+
+= (hhSetMapTF setConfig)
+,, packIndexNode                       ; mkNode
+,, hmLeaf                              ; mkLeaf
+,, caseImpl                            ; caseNode
+,, hsmLeafInsertImpl setConfig         ; leafInsert
+,, tabUnionWith (hsRawUnion setConfig) ; leafMerge
+,, tabLen                              ; leafLength
+,, tabSplitAt                          ; leafSplitAt
+,, tabMinKey                           ; leafFirstKey
+,, %[]                                 ; leafEmpty
+,, hsmLeafDeleteImpl setConfig         ; leafDelete
+,, tabUnionWith cabUnion               ; hhMerge
+,, & (a)                               ; hhLength
+   ; since the point of hitchhikers is that they'll fit in an index node's
+   ; grain, we count the number of items across all sets in the hitchhiker,
+   ; not the number of tab entries.
+   | sum | map cabLen | tabVals a
+,, tabSplitLT                          ; hhSplit
+,, %[]                                 ; hhEmpty
+,, hsmHHDeleteImpl                     ; hhDelete
+
+= (hsmInsert k v [mapConfig setConfig r])
+| *maybeCase r
+   @ raw  | hsRawSingleton v
+   @ leaf | tabSingleton k raw
+   ,, mapConfig
+   ,, setConfig
+   ,, | *SOME (mkPin [1 leaf])
+& gr
+@ tf | hhSetMapTF setConfig
+@ hh | tabSingleton k (cabSingleton v)
+@ !index | insertRec mapConfig tf hh gr
+@ !fixed | fixup mapConfig tf index
+,, mapConfig
+,, setConfig
+,, *SOME fixed
+
+= (hsmInsertMany tabcab [mapConfig setConfig r])
+| if | tabIsEmpty tabcab
+  [mapConfig setConfig r]
+@ tf | hhSetMapTF setConfig
+@ !index
+  | *maybeCase r
+      # openTreeConfig mapConfig
+      | splitLeafMany tf maxLeafItems
+      | tabMap (k v)&(hsRawFromCab setConfig v) tabcab
+  & top
+  | insertRec mapConfig tf tabcab top
+@ !fixed | fixup mapConfig tf index
+,, mapConfig
+,, setConfig
+,, | *SOME fixed
+
+= (hsmDelete k v [mapConfig setConfig r])
+| *maybeCase r [mapConfig setConfig r]
+& gr
+@ newRootNode | deleteRec mapConfig (hhSetMapTF setConfig) k (*SOME v) gr
+# datacase (caseImpl newRootNode)
+= (LEAFNODE leaves)
+  ,, mapConfig
+  ,, setConfig
+  ,, if (tabIsEmpty leaves) NONE (*SOME newRootNode)
+= (INDEXNODE index hitchhikers)
+  | *maybeCase | fromSingletonIndex index
+    [mapConfig setConfig (*SOME newRootNode)]
+  & childNode
+  @ base [mapConfig setConfig (*SOME childNode)]
+  | if (tabIsEmpty hitchhikers) base
+  | hsmInsertMany hitchhikers base
+
+
+;
+; TODO: hsmLookup does a bunch of work each time which gets thrown away. We are
+; likely to lookup the same items multiple times in a row, so a stateful,
+; modifying hsmFlushAndLookup which modified itself so hitchhikers for that one 
+;
+= (hsmLookup k [mapConfig setConfig r])
+# openTreeConfig mapConfig
+| *maybeCase r (hsEmpty setConfig)
+^ %[]
+? (lookInNode !hh node)
+# datacase (caseImpl node)
+= (INDEXNODE children hitchhikers)
+  @ matched | fromSome %[] (tabLookup k hitchhikers)
+  | lookInNode (cabUnion hh matched) | findSubnodeByKey k children
+= (LEAFNODE items)
+  : ret <- *maybeCase (tabLookup k items)
+             [setConfig (hsRawFromCab setConfig hh)]
+  [setConfig (hsRawInsertMany hh setConfig ret)]
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; shared configuration
+^-^ twoThreeConfig largeConfig
+; hitchhikermap (hm)
+^-^ hmEmpty hmSingleton hmSize hmKeys hmInsert hmInsertMany hmDelete hmLookup
+; hitchhikerset (hs)
+^-^ hsEmpty hsNull hsSingleton hsInsert hsInsertMany hsDelete hsToCab hsFromCab
+^-^ hsMember hsIntersection hsUnion
+; hitchhiersetmap (hsm)
+^-^ hsmEmpty hsmInsert hsmInsertMany hsmDelete hsmLookup
+^-^ tabSplitLT
+^-^ TREE_CONFIG

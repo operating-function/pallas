@@ -1,0 +1,11 @@
+*~
+.demo
+dist-newstyle/
+.multi
+plunder.cabal
+scratch
+.stack-work/
+*.swp
+TAGS
+.ting
+.tmp.sire

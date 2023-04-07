@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+set -ex
+
+# stack install :plunder --fast --trace --no-strip
+stack install :plunder
+# stack install --fast :plunder
+
+mkdir -p .ting
+export PLUNDER_DIR=$(realpath .ting)
+rm -r ./.ting
+
+plunder boot ali sire/demo-token-ring-ali.sire
+plunder boot bob sire/demo-token-ring-bob.sire
+plunder boot chr sire/demo-token-ring-chr.sire
+
+plunder status
+
+sleep 0.1
+
+dump () {
+    echo ==== $1 ====
+    tail -n 30 $1 | sed 's/^/>>> /'
+}
+
+dump .ting/logs
+plunder spin ali
+plunder status
+sleep 0.1
+
+dump .ting/logs
+plunder spin bob
+plunder status
+sleep 0.1
+
+dump .ting/logs
+plunder spin chr
+plunder status
+sleep 0.1
+
+dump .ting/logs
+plunder daemon --stop
+
+less .ting/logs

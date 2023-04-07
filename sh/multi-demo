@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -ex
+
+stack install :plunder
+# stack install --fast :plunder
+
+rm -rf ./.multi
+mkdir -p .multi
+export PLUNDER_DIR=$(realpath .multi)
+
+plunder boot zod sire/demo-multi-effect.sire
+
+plunder status
+
+plunder boot bus sire/demo-multi-effect.sire
+
+plunder status
+
+plunder spin zod
+
+plunder status
+
+plunder spin bus
+
+plunder status
+
+set +x
+echo
+echo
+echo '# To open connect via telnet'
+echo plunder term zod -d "'$PLUNDER_DIR'"
+echo plunder term bus -d "'$PLUNDER_DIR'"
+echo ''
+echo '# To open connect via http'
+echo plunder open zod -d "'$PLUNDER_DIR'"
+echo plunder open bus -d "'$PLUNDER_DIR'"
+echo
+echo

@@ -1,0 +1,69 @@
+/+ boot
+
+'===================================='
+
+<
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                  ;;
+,, force          ;; All of these are core building blocks.
+,, seq            ;;
+,, deepseq        ;;
+,, trk            ;;
+,, die            ;;
+,, isLaw          ;;
+,, isApp          ;;
+,, isNat          ;;
+,, car            ;;
+,, cdr            ;;
+,, lawName        ;;
+,, lawArgs        ;;
+                  ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                  ;;
+,, if             ;; `if` is THE core building block for bools.
+,, not            ;; Unnecessary
+,, or             ;; Unnecessary
+,, and            ;; Unnecessary
+                  ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                  ;;
+,, dec            ;;
+,, add            ;;
+,, mul            ;;
+,, sub            ;;
+,, bex            ;;
+,, lteNat         ;;
+,, lthNat         ;;
+,, div            ;;
+,, mod            ;;
+,, eqlNat         ;;
+                  ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                  ;;
+,, eql            ;; The jet is O(1) for pins.
+                  ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                  ;;
+,, cow            ;; Unnecessary?
+,, isCow          ;; MUCH faster if jetted (Check the type tag)
+,, head           ;; Unnecessary.
+,, arity          ;; MUCH faster if jetted (tracked by runtime)
+,, isRow          ;; MUCH faster if jetted (check the type tag)
+,, idx            ;; A core building-block.
+,, len            ;; A core building-block.
+,, gen            ;; A core building-block.
+,, mut            ;; A core building-block.
+,, foldl          ;; A core building-block.
+,, foldr          ;; A core building-block.
+,, weld           ;; Maybe not necessary, but very common operation
+,, cat            ;; Maybe not necessary, but very common operation
+,, take           ;; Jet is O(1), not O(n)
+,, drop           ;; Jet is O(1), not O(n)
+                  ;;
+                  ;; The following could be jetted as well, but should have
+                  ;; little performance difference in an optimizing
+                  ;; implementation:
+                  ;;
+                  ;;     map,rowOr,rowAnd,any,has,rev,findIdx,elemIdx
+                  ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

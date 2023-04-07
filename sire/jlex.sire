@@ -1,0 +1,283 @@
+/+  boot
+/+  switch  ["#switch"]
+/+  mutrec  ["#mutrec"]
+
+
+""" Lexems """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= TOK_SPACE                 | %_
+= TOK_NULL                  | %n
+= TOK_TRUE                  | %t
+= TOK_FALSE                 | %f
+= TOK_COMMA                 | ','
+= TOK_COLON                 | ':'
+= TOK_L_BRAK                | '['
+= TOK_R_BRAK                | ']'
+= TOK_L_CURL                | '{'
+= TOK_R_CURL                | '}'
+= (TOK_STR t)               | [%str t]
+= (TOK_NUM neg num dec exp) | [%num neg num dec exp]
+= (TOK_ERR off why)         | [%err off why]
+
+
+""" Consume Whitespace """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (chomp input off)
+# switch (barIdx off input)
+= 32 | chomp input (inc off)
+= 9  | chomp input (inc off)
+= 10 | chomp input (inc off)
+= 13 | chomp input (inc off)
+= _  | off
+
+?= 7 (chomp b#'	  	   xyz' 0)
+
+
+""" Lex Strings """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (lexStringLoop input top off)
+@ off (barElemIndexOff '"' off input)
+| if (eql off barLen-input)
+        | 'Unexpected EOF (string)'
+@ (countSlashes off count)
+    | if (eql '\' | barIdx off input)
+      | countSlashes (dec off) (inc count)
+    count
+@ numSlashes | *countSlashes (dec off) 0
+| if (and (gth numSlashes 0) (mod numSlashes 2))
+    | lexStringLoop input top (inc off)
+| *else
+        @ tok (*TOK_STR (barSlice top (sub off top) input))
+        | (tok, inc off)
+
+(lexString input off)=(lexStringLoop input off off)
+
+?= [(TOK_STR b#{fdsafdsa}) 10]
+        | lexString b#{"fdsafdsa"} 1
+
+?= [(TOK_STR b#'fdsafdsa\"more') 16]
+        | lexString b#'"fdsafdsa\"more"' 1
+
+; TODO: Sol says that escaping slashes wasn't intended in the parser for {}
+; literals. Remove that later.
+?= [(TOK_STR b#'fdsafdsa\\') 12]
+        | lexString b#{"fdsafdsa\\\\"} 1
+
+?= 'Unexpected EOF (string)'
+        | lexString b#'"fdsafdsa\"more' 1
+
+
+""" Lex Numbers """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (consumeDigits input startOff)
+^ 0 startOff
+? (loop acc off)
+@ chr (barIdx off input)
+| ifNot (isDigit chr) [acc off]
+@ !acc (add (sub chr 48) (mul 10 acc))
+| loop acc (inc off)
+
+?= [1234 5] (consumeDigits b#'+1234+' 1)
+?= [0 0]    (consumeDigits b#'+1234+' 0)
+
+
+""" Lex Strings of Zeros """""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (consumeZeros input startOff)
+^ 0 startOff
+? (go count off)
+| seq count
+@ chr (barIdx off input)
+| if (eqlNat chr '0')
+        | go (inc count) (inc off)
+| [count off]
+
+?= [0 0] | consumeZeros b#{+0000+} 0
+?= [4 5] | consumeZeros b#{+0000+} 1
+?= [3 5] | consumeZeros b#{+0000+} 2
+
+
+""" Lex Decimal Part """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= noDig | 'No digits after dot (.)'
+
+; This can't be turned into inlined-continuation-passing-style because
+; we have two places where we return successfully, and the short-circult
+; case is the common case, so we don't want to just do the whole thing
+; each time.
+;
+; Inlining this anyways doesn't make things faster, because it's used
+; in the body of a let-binding, so all of the branches become calls to
+; `if` instead of being a part of the law's code.
+;
+; lexDecimal/(Bar -> Nat -> (| Or Zero | Or Nat | [Nat Nat Nat])
+= (lexDecimal input off)
+@ c (barIdx off input)
+;
+| ifNot (eqlNat '.' c) [0 off]
+@ off (inc off)
+;
+@ [numZeros zof] (*consumeZeros input off)
+@ [nat dof]      (*consumeDigits input zof)
+;
+| if (dof == off) noDig
+;
+| [[numZeros nat] dof]
+
+?= [[2 33] 6] | lexDecimal b#'#.0033#' 1
+?= [[1 0 ] 3] | lexDecimal b#'#.0#'    1
+?= [[0 1 ] 3] | lexDecimal b#'#.1#'    1
+?= [0      1] | lexDecimal b#'##'      1
+?= [0      1] | lexDecimal b#'#e2#'    1
+?= noDig      | lexDecimal b#'#.#'     1
+
+
+""" Lex Exponent Part """"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;
+; optional exponent. {e,E}{-,+,[nothing]}[digits]
+;
+
+= noDig | 'No digits in exponent'
+
+;
+; This can't be turned into inlined-continuation-passing-style because
+; we have two places where we return successfully, and the short-circult
+; case is the common case, so we don't want to just do the whole thing
+; each time.
+;
+; if we were to just inline this anyways, that doesn't make things faster,
+; because it's used in the body of a let-binding, so all of the branches
+; become calls to `if` instead of being a part of the law's code.
+;
+; lexDecimal/(Bar -> Nat -> (| Or Zero | Or Nat | [Nat Nat Nat])
+; lexExponent/(Bar -> Nat -> (Or Nat (Or Zero [Nat Nat], Nat))
+= (lexExponent input off)
+;
+@ chr    (barIdx off input)
+@ hasExp ((chr == 'e') || (chr == 'E'))
+;
+| ifNot hasExp [0 off]
+@ off    (inc off)
+;
+@ chr    (barIdx off input)
+@ nega   (chr == '-')
+@ posi   (chr == '+')
+@ signed (nega || posi)
+@ off    (add off signed)
+;
+; trk %[=input =off =nega =posi =signed]
+; trk 'REST',(barDrop off input)
+;
+@ [nat dof] (*consumeDigits input off)
+;
+| if (dof == off) noDig
+;
+| [[nega nat] dof]
+
+?= [[0  0] 3] | lexExponent b#'#e0#'   1
+?= [[0  0] 4] | lexExponent b#'#e00#'  1
+?= [[0  0] 5] | lexExponent b#'#e+00#' 1
+?= [[1  0] 5] | lexExponent b#'#e-00#' 1
+?= [[1  1] 5] | lexExponent b#'#e-01#' 1
+?= [[1 10] 5] | lexExponent b#'#e-10#' 1
+?= [[1 11] 5] | lexExponent b#'#e-11#' 1
+?= noDig      | lexExponent b#'#e-#'   1
+?= noDig      | lexExponent b#'#e+#'   1
+?= noDig      | lexExponent b#'#e#'    1
+?= [0 0]      | lexExponent b#'#e00#'  0
+?= [0 1]      | lexExponent b#'#g00#'  1
+
+
+""" Lexer JSON """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (lexJson input)
+^ 0
+? (loop off)
+;
+# switch (barIdx off input)
+;
+= 0
+    | NIL
+;
+= 'n'
+    | ifNot (b#null == barSlice off 4 input) 0
+    [TOK_NULL (loop (add 4 off))]
+;
+= 't'
+    | ifNot (b#true == barSlice off 4 input) 0
+    [TOK_TRUE (loop (add 4 off))]
+; false
+= 'f'
+    | ifNot (b#false == barSlice off 5 input) 0
+    [TOK_FALSE (loop (add 5 off))]
+; runes
+= ',' [TOK_COMMA  (loop inc-off)]
+= ':' [TOK_COLON  (loop inc-off)]
+= '[' [TOK_L_BRAK (loop inc-off)]
+= ']' [TOK_R_BRAK (loop inc-off)]
+= '{' [TOK_L_CURL (loop inc-off)]
+= '}' [TOK_R_CURL (loop inc-off)]
+;
+= '"'
+    @ res (*lexString input (inc off))
+    | if res [(*TOK_ERR off res) 0]
+    @ [tok off] res
+    [tok (loop off)]
+;
+= 32 [TOK_SPACE loop-(chomp input | inc off)]
+= 9  [TOK_SPACE loop-(chomp input | inc off)]
+= 10 [TOK_SPACE loop-(chomp input | inc off)]
+= 13 [TOK_SPACE loop-(chomp input | inc off)]
+;
+= _
+    @ fst (barIdx off input)
+    @ neg (eqlNat '-' fst)
+    @ off (add neg off) ; add bit+number to avoid branching.
+    ;
+    @ chr (barIdx off input)
+    @ [nat dof] (*consumeDigits input off)
+    | if (dof == off)
+            | if neg [(*TOK_ERR off 'Bad number, no digits') 0]
+            | [(*TOK_ERR off 'Unexpected Character') 0]
+    @ off dof
+    ;
+    @ decRes (lexDecimal input off)
+    | if decRes [(*TOK_ERR off decRes) 0]
+    @ [deci off] decRes
+    ;
+    @ expRes (lexExponent input off)
+    | if expRes [(*TOK_ERR off expRes) 0]
+    @ [expi off] expRes
+    ;
+    | [(*TOK_NUM neg nat deci expi) (loop off)]
+
+?=     | listToRow | lexJson b#'{"x":999}'
+    ('{', [%str b#x], ':', [%num 0 999 0 0], '}')
+
+?=     | listToRow | lexJson b#'{"x":-999}'
+    ('{', [%str b#x], ':', [%num 1 999 0 0], '}')
+
+?=     | listToRow | lexJson b#'{"x":9.9}'
+    ('{', [%str b#x], ':', [%num 0 9 [0 9] 0], '}')
+
+?=     | listToRow | lexJson b#'{"x":9e9}'
+    ('{', [%str b#x], ':', [%num 0 9 0 [0 9]], '}')
+
+?=     | listToRow | lexJson b#'{"x":09.09e9}'
+    ('{', [%str b#x], ':', [%num 0 9 [1 9] [0 9]], '}')
+
+?=     | listToRow | lexJson b#' { "x" : 999 } '
+    ('_', '{', '_', [%str b#x], '_', ':', '_', [%num 0 999 0 0], '_', '}', '_')
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ lexJson
+^-^
+^-^ TOK_SPACE TOK_NULL TOK_TRUE TOK_FALSE
+^-^ TOK_COMMA TOK_COLON
+^-^ TOK_L_BRAK TOK_R_BRAK TOK_L_CURL TOK_R_CURL
+^-^ TOK_STR TOK_NUM
+^-^

@@ -1,0 +1,485 @@
+/+ boot
+/+ kern
+/+ switch
+/+ hitch
+/+ json
+/+ datatype  ["#record" "#datatype" "#datacase"]
+
+; Design:
+;
+; Has one big HTTP server which just receives posts and gets. All POSTs perform
+; plunder lookups. All GETs perform lookups in a cache of file for PUT
+;
+; - POST /usecdn   - sets demo to use CDN urls in the json
+; - POST /uselocal - sets demo to use urls we serve
+;
+; - POST /learn 'content-type: application/json' [json file]
+;
+; - POST /count -> application/json back.
+;
+; - POST /search 'tags=x,y,z' -> application/json back.
+;
+; - GET / -> frontpage
+
+= imgmapConfig
+@ minFanout 128
+@ maxFanout | dec | mul 2 minFanout
+| TREE_CONFIG minFanout
+              maxFanout
+              (dec minFanout)
+              (dec maxFanout)
+              minFanout
+              maxFanout
+              minFanout
+
+; config for just the set part of the id setmap, optimized for nat -> bigset of
+; nats.
+= idsetConfig
+@ minItems 1024
+@ maxItems | dec | mul 2 minItems
+@ minFanout 128
+@ maxFanout | dec | mul 2 minFanout
+| TREE_CONFIG minFanout
+              maxFanout
+              (dec minFanout)
+              (dec maxFanout)
+              minItems
+              maxItems
+              maxItems
+
+; derpibooru's favicon
+= favicon
+| mkPin
+| x#0000010001001010000000000000680400001600000028000000100000002000000001002000000000000004000000000000000000000000000000000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00edd673ffedd673ffeed97ee6ffffff00ffffff00ffffff0000000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00fefdfb05edd673ffedd673fffbf8e9ffedd673ffedd673ffffffff00ffffff0000000000ffffff00ffffff00ffffff00ddc194ffffffff00ffffff00edd673feedd673ffedd673ffedd673ffedd673ffedd673ffedd673fff9f2d445ffffff0000000000ffffff00ffffff00ffffff00ddc194ffddc194ffedd673ffedd673fffbf8e9ffedd673ffedd673ffedd673ffedd673ffedd673ffedd673ffffffff0000000000fdfbf213edd673ffedd673ffedd673ffddc194ffedd673ffedd673ffedd673ffedd673ffedd673ffedd673fffbf8e9ffedd673ffedd673ffffffff0000000000ffffff00ffffff00edd673ffedd673ffddc194ffddc194ffedd673ffedd673ffedd673ffedd673ffedd673ffedd673ffedd673ffedd673ffefda82dd00000000ffffff00ffffff00ffffff00ffffff00fefefe00ddc194fffefefd02ffffff00ffffff00ffffff00fdfaef18edd673ffedd673ffedd673ffedd673ff00000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194ffffffff00ffffff00ffffff00ffffff00ffffff00edd673fffbf8e9ffedd673ff00000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194fff1e5d360ffffff00ffffff00ffffff00ffffff00edd673ffedd673ffedd673ff00000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194fcffffff00ffffff00ffffff00ffffff00ffffff00edd673ffedd673ff00000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00be8523fff9efdf7cffffff00ffffff00ffffff00edd673ffedd673ff00000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00fdf9f428be8523fff3e1c1fffdfaf61effffff00ffffff00f0dd8cffedd673ff00000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2c3ffddc194ffddc194ffe1c79cfff4e2c3fff7ebd6a2edd673ffefda83dc00000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2c3ffddc194fff4e2c3ffffffff00ffffff00edd673ffffffff0000000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2c3ffffffff00f3e1c2ffffffff00ffffff00edd673ffffffff0000000000ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff0000000000ff8f0000ff070000ec070000e003000080030000c0010000fbe10000fdf10000fdf10000fef90000ff790000ff390000fe010000ff1b0000ff5b0000ffff0000
+
+= startingFiles
+; TODO: Figure out tuned config for files.
+| hmSingleton largeConfig "/favicon.ico" [b#{image/x-icon} favicon]
+
+record#(STATE files fileBytes local imgCount pairCount imgs tags servThread learnLock)
+
+= (newState servThread learnLock)
+| mkState
+  %% =files      | startingFiles
+  %% =fileBytes  | 0
+  %% =local      | FALSE
+  %% =imgCount   | 0
+  %% =pairCount  | 0
+  %% =imgs       | hmEmpty imgmapConfig
+  %% =tags       | hsmEmpty largeConfig idsetConfig
+  %% =servThread | servThread
+  %% =learnLock  | learnLock
+
+(mkBarPath path)=(barFlat (b#{/}, listIntersperse b#{/} (listFromRow path)))
+
+?= (mkBarPath [b#{a} b#{b}])
+   b#{/a/b}
+
+= (getFilename path)
+| *maybeCase (barElemIndexEnd "/" path)
+    | die "weird filename"
+& lastIdx
+| barDrop (inc lastIdx) path
+
+?= (getFilename b#{http://blah/blah/two.html})
+   b#{two.html}
+
+; Set of images from derpibooru where there was a proper non-deleted API
+; response, but the thumbnail file referenced was non-existent. Handle these as
+; exceptions.
+= missingImgs
+%[79135 918505 3031483 3030628 3028888 3031523 1078315 3017754 500313 2899504 2460697 2944469 911039 1078318 543877 3032025 2999533 2662803 2863835 2916074 2929953 3023899 891477 2918755 2971526 2460696 2824778 3032519 2915600 918535 1772525 2905776 2871055 2983147 2937212 2825423 3019449 3032217 2836375 2668954 2938918 2994310 89769 2922373 3020597 2943107]
+
+""" JSON Handling """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (assertThat x msg rest)
+| if x | rest
+| die msg
+
+= (assertMap jsonBS m)
+@ [h t] m
+| *assertThat (eqlNat h %map) [%notAMap jsonBS m]
+t
+
+= (assertNum n)
+@ [h t] n
+| *assertThat (eqlNat h %num) [%notANum n]
+t
+
+= (assertTabLookup key t)
+| *maybeCase (tabLookup key t) (die [%missingKey key])
+& (v)
+v
+
+= (assertVec v)
+@ [h t] v
+| *assertThat (eqlNat h %vec) [%notAVec v]
+t
+
+= (assertStr s)
+@ [h t] s
+| *assertThat (eqlNat h %str) [%notAStr s]
+t
+
+= (jsonImgToRow jsonBS m)
+@ id | assertNum | assertTabLookup %id m
+| if (cabHas id missingImgs) NONE
+@ !rawTags
+  | strictRow
+  | map assertStr
+  | assertVec
+  | assertTabLookup %tags m
+@ !thumbnailURL
+  | assertStr
+  | assertTabLookup %thumb
+  | assertMap jsonBS
+  | assertTabLookup %representations m
+| SOME [id rawTags thumbnailURL]
+
+= (imgRowToTagTabCab imgRow)
+  @ [id tags _] imgRow
+  @ cabId | cabSingleton id
+  | tabFromPairs
+  | map tag&[(barNat tag) cabId] tags
+
+= (imgRowToPair imgRow)
+  @ [id _ _] imgRow
+  [id imgRow]
+
+= (parseLearn jsonBS)
+@ jsonBS (pinItem jsonBS)
+@ [!json _]
+  | trk %parse
+  | parseValue jsonBS
+@ !rows
+  | catMaybes
+  | map m&(jsonImgToRow jsonBS | assertMap jsonBS m)
+  | assertVec
+  | assertTabLookup %images
+  | assertMap jsonBS
+  | json
+@ !addTags
+  | trk %addTags
+  | foldl (tabUnionWith cabUnion) %[]
+  | map imgRowToTagTabCab rows
+@ !addImgs
+  | tabFromPairs
+  | map imgRowToPair rows
+| [rows addImgs addTags]
+
+= (calcLearnSt pSt pBundle)
+@ [rows addImgs addTags] (pinItem pBundle)
+| trk [%calcLearnSt (len rows) %rows]
+# openState (pinItem pSt)
+@ !nuImgs   | hmInsertMany addImgs imgs
+@ !nuTags   | hsmInsertMany addTags tags
+@ imgCount  | add imgCount  | len rows
+@ pairCount | add pairCount | tabLen addTags
+| [nuImgs nuTags imgCount pairCount]
+
+= (forceUnpackEvalResult ctx res)
+# switch (len res)
+= 0 (die [%eval_timeout ctx])
+= 2 (die [%eval_crash ctx])
+= 1 (idx 0 res)
+= _ (die [%runtime_gave_bad_eval_result ctx]) ; TODO Remove once stable
+
+; TODO: user #datatype to define the json structure, and use #datacase here.
+= (jsonRow jsonBS)
+@ res (parseValue jsonBS)
+| if res NONE
+@ [json leftover] res
+| if (neq 0 leftover) NONE
+# switch (if json json (idx 0 json))
+= 'vec'
+    | SOME (idx 1 json)
+= _
+    | NONE
+
+= (jsonMap jsonBS)
+@ res (parseValue jsonBS)
+| if res NONE
+@ [json leftover] res
+| if (neq 0 leftover) NONE
+# switch (if json json (idx 0 json))
+= 'map'
+    | SOME (idx 1 json)
+= _
+    | NONE
+
+= (asJsonMap m)
+# switch (idx 0 m)
+= 'map'
+    | SOME (idx 1 m)
+= _
+    | NONE
+
+= (asJsonRow m)
+# switch (idx 0 m)
+= 'vec'
+    | SOME (idx 1 m)
+= _
+    | NONE
+
+= (asJsonNum m)
+# switch (idx 0 m)
+= 'num'
+    | SOME (idx 1 m)
+= _
+    | NONE
+
+= (asJsonStr m)
+# switch (idx 0 m)
+= 'str'
+    | SOME | barNat (idx 1 m)
+= _
+    | NONE
+
+; List of commands we parse out of the incoming json
+# datatype
+| STATUSCMD
+| SEARCHCMD offset tags
+
+; bs > Maybe Row Cord
+;
+; the json here being parsed is `{tag: "Search", contents: [array of str]}`.
+= (parseSearch jsonBS)
+: m <- *maybeCase (jsonMap jsonBS) NONE
+| if | not | eql (SOME [%str b#{Search}]) | tabLookup %tag m
+  NONE
+: jcontents <- *maybeCase (tabLookup %contents m) NONE
+: content <- *maybeCase (asJsonMap jcontents) NONE
+: joffset <- *maybeCase (tabLookup %offset content) NONE
+: offset <- *maybeCase (asJsonNum joffset) NONE
+: jr <- *maybeCase (tabLookup %tags content) NONE
+: r <- *maybeCase (asJsonRow jr) NONE
+^ t&(*SOME (*SEARCHCMD offset t))
+| forRow r
+? (step [h t] pure)
+| if | eqlNat h %str
+  | pure | barNat t
+NONE
+
+; todo: this is doing the quick hack of just calling the old parseSearch; I
+; think all of this should be rewritten when we have more user friendly json
+; usage components.
+= (parseCmd jsonBS)
+: jm <- *maybeCase (jsonMap jsonBS) NONE
+: jt <- *maybeCase (tabLookup %tag jm) NONE
+: tg <- *maybeCase (asJsonStr jt) NONE
+# switch tg
+= 'Search' | parseSearch jsonBS
+= 'Status' | *SOME 0 ; STATUSCMD (but #datatype generated [0], not 0)
+
+?= NONE         | parseCmd b#{"}
+?= NONE         | parseCmd b#{{"x":3}}
+?= NONE         | parseCmd b#{[]}
+?= SOME-[1 5 [%x]]
+   | parseCmd b#{{"tag": "Search", "contents": {"offset":5, "tags":["x"]}}}
+?= NONE
+   | parseCmd b#{{"tag": "bonk",   "contents": {"offset":0, "tags":["x"]}}}
+?= NONE
+   | parseCmd b#{{"tag": "Search", "contents": [234]}}
+?= SOME-[1 8 [%x %y]]
+   | parseCmd
+   b#{{"tag": "Search", "contents": {"offset":8, "tags":["x", "y"]}}}
+?= SOME-0
+   | parseCmd b#{{"tag": "Status"}}
+
+(tagToStr t)=(*JSON_STR (natBar t))
+
+= (buildStatus st)
+# openState st
+| *JSON_MAP
+%% =bytes | *JSON_NUM fileBytes
+%% =imgs  | *JSON_NUM imgCount
+%% =pairs | *JSON_NUM pairCount
+
+; [hm hsm] [cord] > bar
+= (doSearch st [offset searchTags])
+# openState st
+@ (lookupTag tag)
+  @ hs | hsmLookup tag tags
+  | if | hsNull hs
+    | LEFT tag
+  | RIGHT hs
+@ [missing idsets] | partition | map lookupTag searchTags
+;| trk [%results missing idsets]
+| if | not | isZero | len missing
+  ; send back the missing tags
+  | *JSON_MAP
+ %% =tag      | *JSON_STR b#{BadTag}
+ %% =contents | *JSON_VEC (map tagToStr missing)
+ %% =status   | *buildStatus st
+;
+@ ids
+  | hsToCab
+  | foldr hsIntersection (hsEmpty idsetConfig) idsets
+;
+;| trk [%ids ids]
+@ targetIds
+  | cabList
+  | cabTake 25
+  | cabDrop offset ids
+@ records
+    | listToRow
+    | listTurnMaybe targetIds
+    & id
+    | *fmapMaybe (hmLookup id imgs)
+    & [_ _ url]
+    @ path
+      | ifNot local url
+      ; generate a local server path from the id and the filename
+      @ filename | getFilename url
+      | mkBarPath [b#{img} (natBar | showNat id) filename]
+    | *JSON_VEC
+   ,, *JSON_NUM id
+   ,, *JSON_STR path
+| *JSON_MAP
+%% =tag      | *JSON_STR b#{OK}
+%% =contents | *JSON_MAP
+            %% =total  | *JSON_NUM | cabLen ids
+            %% =offset | *JSON_NUM offset
+            %% =query  | *JSON_VEC | map tagToStr searchTags
+            %% =slice  | *JSON_VEC records
+%% =status   | *buildStatus st
+
+= (doStatus st)
+| *JSON_MAP
+%% =tag      | *JSON_STR b#{Status}
+%% =contents | *buildStatus st
+
+
+""" Website """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+(emptyFileServer req)=0
+
+= (fileServer pinnedSt [method path headers body])
+@ st (pinItem pinnedSt)
+# switch method
+= _ 0
+= 'POST'
+  # switch path
+  = b#"/search"
+    : q <- *maybeCase (parseCmd (pinItem body))
+             | SOME [400 b#bad [] b#{}]
+    # datacase q
+    = STATUSCMD
+      @ statusJson | *doStatus st
+      @ statusBS   | printJSON statusJson
+      | SOME [200 b#gotcha [] statusBS]
+    = (SEARCHCMD offset tags)
+      @ searchJson | doSearch st [offset tags]
+      @ searchBS   | printJSON searchJson
+      | SOME [200 b#gotcha [] searchBS]
+= 'GET'
+  | *fmapMaybe | hmLookup (barNat path) (*getFiles st)
+  & [type content]
+  @ head | [(b#{content-type}, type)]
+  [200 b#gotcha head (pinItem content)]
+
+= (modifyState vSt fun return)
+: pOld < readIORef vSt
+@ old  | pinItem pOld
+@ srv  | (*getServThread old)
+@ pNew | mkPin (fun old)
+: ____ < writeIORef vSt pNew
+: ____ < cancelFork srv (HttpServ | fileServer pNew)
+| return 0
+
+= (addLearningsToState vSt pBundle return)
+;
+; Take the lock, and inject the stuff
+: tmp <- readIORef vSt
+@ learnLock (*getLearnLock pinItem-tmp)
+;
+: (ALTS_Locked _)   <- takeMVar learnLock
+: pOld              <- readIORef vSt
+: (ALTS_Evaled res) <- Eval 1000 [calcLearnSt pOld pBundle]
+;
+@ [nuImgs nuTags nuImgCount nuPairCount]
+    (forceUnpackEvalResult %learn res)
+;
+: __ <- modifyState vSt & st
+                        | setImgCount nuImgCount
+                        | setPairCount nuPairCount
+                        | setImgs nuImgs
+                        | setTags nuTags
+                        | st
+;
+; Release the lock (This wont block, since there are no other writers)
+;
+| putMVar learnLock 0 return
+
+= (addToState vSt rid jsonPin return)
+;
+: (ATS_Evaled evalResult) <- Eval 1000 [parseLearn jsonPin]
+;
+# switch (len evalResult)
+= 0 | trk b#"TIMEOUT in /learn"
+    | HttpEcho rid 408 b#timeout [] b#{}
+    | return
+= 2 | trk [b#"CRASH in /learn" (idx 0 evalResult) (idx 1 evalResult)]
+    | HttpEcho rid 500 b#error [] b#{}
+    | return
+= _ | die [%rts_gave_bad_eval_evalResult '/learn'] ; TODO Remove once stable
+= 1
+;
+@ parsed (idx 0 evalResult)
+: (ATS_Learned _) <- addLearningsToState vSt (mkPin parsed)
+| HttpEcho rid 200 b#ok [] b#{}
+| return
+
+= (handleReq vSt [rid method path headers body] return)
+# switch method
+= 'POST'
+  # switch path
+  = b#"/usecdn"
+    : _ <- fork (HttpEcho rid 200 b#ok [] b#{})
+    : _ <- modifyIORef vSt pSt&(| mkPin | setLocal FALSE | pinItem pSt)
+    | return 0
+  = b#"/uselocal"
+    : _ <- fork (HttpEcho rid 200 b#ok [] b#{})
+    : _ <- modifyIORef vSt pSt&(| mkPin | setLocal TRUE | pinItem pSt)
+    | return 0
+  = b#"/learn"
+    : _ <- fork (addToState vSt rid body)
+    | return 0
+= 'PUT'
+  @ barType | *fromSome b#{text/plain}
+            | tabLookup b#{content-type}
+            | tabFromPairs headers
+  : pSt <- readIORef vSt
+  @ st (pinItem pSt)
+  @ newTotalSize | add (barLen | pinItem body) | getFileBytes st
+  ; TODO: Currently inserting paths as nats instead of bars because bars put in
+  ; don't get looked up later despite showing up with hmKeys? Somehow? wat?
+  @ files (*getFiles st)
+  @ files | hmInsert (barNat path) [barType body] files
+  : _ <- fork (HttpEcho rid 201 b#done [] b#{})
+  : _ <- modifyState vSt & st
+                         | setFileBytes newTotalSize
+                         | setFiles files
+                         | st
+  | return 0
+= _
+    : _ <- fork (HttpEcho rid 400 b#bad [] b#{})
+    | return 0
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (runHttpServer vSt return)
+: (HttpHeard req) <- HttpHear
+: _               <- handleReq vSt req
+| runHttpServer vSt return
+
+= (launchFullTagDemo return)
+: servThread  <- fork (HttpServ emptyFileServer)
+: learnLock   <- newMVar 0
+: vSt         <- newIORef (mkPin | newState servThread learnLock)
+: httpThread1 <- fork (runHttpServer vSt)
+: httpThread2 <- fork (runHttpServer vSt)
+| return 0
+
+(newMachine launchFullTagDemo)

@@ -1,0 +1,22 @@
+/+ boot
+
+; this test case forks a logged process, prints its pid, and shuts down.
+
+= (forked selfId)
+| trk [%forked selfId]
+^ []
+? (loop _ id val)
+| trk [%recv id val]
+0
+
+= (sendTest selfId)
+| trk [%self selfId]
+^ [[2 forked]]
+& (_ _ forkId)
+| trk [%completed forkId]
+^ [[1 forkId %hi]]
+& (_ recvId val)
+| trk [%sendack recvId val]
+0
+
+sendTest

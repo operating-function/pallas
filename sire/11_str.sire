@@ -1,0 +1,79 @@
+"""
+""" Strings
+""" =======
+"""
+""" A `str` is a utf8 string represented as a natural number.
+"""
+""" TODO: Expand this
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan
+/+  02_bit  [if ifNot and or not]
+/+  03_nat  [gteNat lteNat add sub lsh roundUp met takeBits mul rsh mod div]
+/+  04_app  []
+/+  05_eql  [eql neq]
+/+  06_cow  [foldl]
+/+  07_rex  []
+/+  08_dat  [CONS NIL listFoldl listToRow listMap "," listLen]
+/+  09_sci  []
+/+  10_chr  [isUpper toUpper toLower]
+
+
+""" Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+(strWeld x y)=(| add x | lsh y | roundUp met-x 8)
+(strTake n c)=(takeBits (mul 8 n) c)
+(strDrop n c)=(rsh c (mul 8 n))
+(strCat vs)=(foldl strWeld 0 vs)
+
+= (strToList s)
+| ifNot s NIL
+| CONS (mod s 256)
+| strToList (div s 256)
+
+(strFromList cs)=(listFoldl strWeld 0 cs)
+(explode str)=(listToRow strToList-str)
+(implode cs)=(strCat cs)
+
+= (strLen s)       | listLen (strToList s)
+= (strMap f str)   | strFromList | listMap f | strToList str
+= (strToUpper str) | strMap toUpper str
+= (strToLower str) | strMap toLower str
+
+= (strCapitalize str)
+@ hed (mod str 256)
+@ cap (toUpper hed)
+; trk ["hed",hed "cap",cap]
+| add cap (sub str hed)
+
+(strIsCapitalized str)=(isUpper (mod str 256))
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= "fdsa" (strWeld "" "fdsa")
+?= "fdsa" (strWeld "f" "dsa")
+?= "fdsa" (strWeld "fd" "sa")
+
+?= ["f"]     (explode "f")
+?= [255]     (explode 255)
+?= ["f" "d"] (explode "fd")
+
+?= 0 (strLen "")
+?= 1 (strLen "a")
+?= 2 (strLen "ab")
+?= 3 (strLen "abc")
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^  strLen
+^-^  strWeld strCat
+^-^  strTake strDrop
+^-^  strToList strFromList
+^-^  explode implode
+^-^  strToUpper strToLower strCapitalize strIsCapitalized
+^-^  strMap

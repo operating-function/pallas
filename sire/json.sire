@@ -1,0 +1,205 @@
+/+  boot
+/+  switch  ["#switch"]
+/+  mutrec  ["#mutrec"]
+/+  jlex
+
+
+""" Json Values """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= JSON_NULL    | %nil
+= JSON_TRUE    | %ya
+= JSON_FALSE   | %no
+= TAG_JSON_STR | %str
+= TAG_JSON_NUM | %num
+= TAG_JSON_VEC | %vec
+= TAG_JSON_MAP | %map
+= (JSON_STR s) | [%str s]
+= (JSON_NUM n) | [%num n]
+= (JSON_VEC r) | [%vec r]
+= (JSON_MAP t) | [%map t]
+
+
+""" Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (eatSpace stream)
+: (t ts) <- *listCase stream stream
+| if (eql TOK_SPACE t) ts stream
+
+= (parseLexerStream inputStream topFail topOkay)
+# mutrec %loop
+   | val inputStream topFail topOkay
+= (val stream fail ok)
+   @ stream (eatSpace stream)
+   : (t ts) <- *listCase stream (fail "value" stream)
+   # switch (if t t (idx 0 t))
+   = 'n'   | ok JSON_NULL ts
+   = 't'   | ok JSON_TRUE ts
+   = 'f'   | ok JSON_FALSE ts
+   = '['   | arr NIL ts fail ok
+   = '{'   | obj %[] ts fail ok
+   = 'str' | ok (*JSON_STR (idx 1 t)) ts
+   = 'num' | ok (*JSON_NUM (idx 2 t)) ts  ; todo: more data.
+   = 'err' @ [_ off why] t
+           @ msg (strCat ["lex error @" showNat-off ": " why])
+           | fail msg stream
+   = _     | fail "value" stream
+;
+= (obj acc stream fail ok)
+   ;
+   @ stream (eatSpace stream)
+   ; trk %[s1=(listToRow stream)]
+   : (t ts) <- *listCase stream (fail "'}', or key" stream)
+   | if (eql t TOK_R_CURL)
+       | ok (*JSON_MAP acc) ts
+   @ [k v] t
+   | if (or isNat-t | neq k TAG_JSON_STR)
+     (fail "'}', or key" stream)
+   @ newKey barNat-v
+   ;
+   @ stream (eatSpace ts)
+   ; trk %[s2=(listToRow stream)]
+   @ complain (fail 'Expecting :' stream)
+   : (t ts) <- *listCase stream complain
+   | if (neq TOK_COLON t) complain
+   ;
+   @ stream (eatSpace ts)
+   ; trk %[s3=(listToRow stream)]
+   : (newVal stream) <- val stream fail
+   @ !acc (tabMut newKey newVal acc)
+   ;
+   @ stream (eatSpace stream)
+   @ complain (fail 'Expecting , or }' stream)
+   : (t ts) <- *listCase stream complain
+   | if (eql t TOK_R_CURL) | obj acc stream fail ok
+   | if (eql t TOK_COMMA)  | obj acc ts fail ok
+   | complain
+;
+= (arr acc stream fail ok)
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [end]
+   @ stream (eatSpace stream)
+   @ complain (fail "space, ']', or value" stream)
+   : (t ts) <- *listCase stream complain
+   | if (eql t TOK_R_BRAK)
+       @ res (*JSON_VEC (listToRowReversed acc))
+       | ok res ts
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [val]
+   : (val more) <- val stream fail
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [more]
+   @ more     (eatSpace more)
+   @ complain (fail "space, ']', or value" stream)
+   : (m ms) <- *listCase more complain
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [final]
+   | if (eql TOK_R_BRAK m)
+       @ acc (*CONS val acc)
+       @ !res (*JSON_VEC (listToRowReversed acc))
+       | ok res ms
+   | if (eql TOK_COMMA m)
+       @ acc (*CONS val acc)
+       | arr acc ms fail ok
+   | fail "space or ',' or ']'" more
+
+= (parseValue input)
+@ tokStream       | lexJson input
+@ (fail reason _) | reason
+@ (okay v extra)  | [v extra]
+| parseLexerStream tokStream fail okay
+
+?= (parseValue b#{"})
+    | 'lex error @0: Unexpected EOF (string)'
+
+?= (parseValue b#{[null]})
+  ,, JSON_VEC [JSON_NULL]
+  ,, NIL
+
+?= (parseValue b#{ [null,null,true,false] })
+  ,,   | JSON_VEC
+      ,, JSON_NULL
+      ,, JSON_NULL
+      ,, JSON_TRUE
+      ,, JSON_FALSE
+  ,, [TOK_SPACE 0]
+
+?= (parseValue b#{[[]]})
+  ,, JSON_VEC [(JSON_VEC [])]
+  ,, NIL
+
+?= (parseValue b#{[[null,null]]})
+  ,, JSON_VEC [(JSON_VEC (JSON_NULL, JSON_NULL))]
+  ,, NIL
+
+?= (parseValue b#{[[0,0],[0, 0],[0 ,0],[0 , 0]]})
+  ,,   | JSON_VEC
+      ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
+      ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
+      ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
+      ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
+  ,, NIL
+
+?= (parseValue b#{[0, ",", 1]})
+  ,, JSON_VEC (JSON_NUM 0, JSON_STR b#{,}, JSON_NUM 1)
+  ,, NIL
+
+?= (parseValue b#{{}})   (JSON_MAP %[], NIL)
+?= (parseValue b#{ { }}) (JSON_MAP %[], NIL)
+?= (parseValue b#{ {"str":"x", "null":null}})
+  ,,   | JSON_MAP
+      %% =str  (JSON_STR b#x)
+      %% =null JSON_NULL
+  ,, NIL
+
+
+""" Printer """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+""" TODO: Substitue escape characters.
+""" TODO: Handle edge-cases with "\u1234" escapes.
+
+= (printJSON input)
+| barFlat
+^ input
+? (go json)
+; trk ['go' json]
+| if (eql JSON_NULL json)  b#null
+| if (eql JSON_TRUE json)  b#true
+| if (eql JSON_FALSE json) b#false
+@ t,v json
+| if (eql TAG_JSON_STR t)
+   | [b#{"} v b#{"}]
+| if (eql TAG_JSON_NUM t)
+   | natBar (showNat v)
+| if (eql TAG_JSON_VEC t)
+  ,, b#{[}
+  ,, listIntersperse b#{,} (| listFromRow | map go v)
+  ,, b#{]}
+| if (eql TAG_JSON_MAP t)
+  ,, b#'{'
+  ,,  @ goKV ? (goKV pair)
+             @ k,v pair
+            ,, go (JSON_STR | natBar k)
+            ,, b#{:}
+            ,, go v
+      | listIntersperse b#{,} (| listFromRow | map goKV | tabToPairs v)
+  ,, b#'}'
+| die ["impossible" t json]
+
+?? eql b#{["hi",null,true,false,99]}
+   | printJSON
+   | JSON_VEC
+  ,, JSON_STR b#hi
+  ,, JSON_NULL
+  ,, JSON_TRUE
+  ,, JSON_FALSE
+  ,, JSON_NUM 99
+
+?? eql b#{{"null":null,"bools":[true,false]}}
+   | printJSON
+   | JSON_MAP
+  %% =null  JSON_NULL
+  %% =bools JSON_VEC-[JSON_TRUE JSON_FALSE]
+
+??  | eql
+       ,, b#{{}}
+       ,, b#{{}}
+       ,, b#{{"str":"x","null":null}}
+  ,, printJSON | idx 0 | parseValue b#{{}}
+  ,, printJSON | idx 0 | parseValue b#{ { }}
+  ,, printJSON | idx 0 | parseValue b#{ {"str":"x", "null":null}}

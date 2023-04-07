@@ -1,0 +1,117 @@
+"""
+""" The Hax Rune
+""" ============
+"""
+""" This defines the `#` rune, which is a way to define named macros.
+"""
+""" For example, `quote#x` expands by passing `(# x)` to the `#quote`
+""" function.
+"""
+""" This module also defines a handeful of such named macros:
+"""
+""" -   `#quote` is the same as `\``
+"""
+""" -   `#getenv` returns the current global symbol table (as a tab).
+"""
+"""
+""" * * *
+"""
+"""
+""" Here's a quick walk through of what happens when we expand `quote#`:
+"""
+"""     quote#x
+"""
+""" Expands the by passing `(# x)` to the `#quote` function.  Let's say that:
+"""
+"""    (v2 x y)=[x y]
+"""    ("#quote" e n kids heir)=(| RIGHT | v2 0 | EBED | idx 0 kids)
+"""
+""" Then quote#[3 4] is expanded by calling:
+"""
+"""     (##"#quote" env nextGensym [[0 ',' [[1 '3'] [1 '4']]]] 0)
+"""
+""" Which expands to this rex:
+"""
+"""     (1 [0 [4 [0 ',' [[1 '3'] [1 '4']]]]])
+"""
+""" Which evaluates to:
+"""
+"""     [0 ',' [[1 '3'] [1 '4']]]
+"""
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan  [die trk pinItem]
+/+  02_bit  [if ifNot not]
+/+  03_nat  [lthNat]
+/+  04_app  [len idx]
+/+  05_eql  [eql neq]
+/+  06_cow  [v1 v2 v4 null weld]
+/+  07_rex  [rexKids rexGetWord "`" rexVal]
+/+  08_dat  ["," drop]
+/+  09_sci  []
+/+  10_chr  []
+/+  11_str  [strWeld]
+/+  12_cab  []
+/+  13_tab  ["%" "%%" look hasKey tabKeys isTab tabIsEmpty]
+/+  14_exp  [cnsE varE]
+
+;; TODO s/hasKey/tabHas/g
+
+
+""" Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; TODO Handle cases where `x` is not a valid identifier (use one of
+;;; these forms: (##"asdf" ##234).
+= (showSymbol x)
+| x
+
+= haxNeedKid | "# Macros needs at least on kid"
+= haxFstWord | "First parameter to # must be a symbol."
+= haxBadSymb | (key & strWeld "Undefined Symbol: " showSymbol-key)
+
+= ("#" s p e a r err ok)
+@ kids rexKids-r
+; trk %[=kids]
+| if (null kids)           | (err r haxNeedKid)
+| *rexGetWord (idx 0 kids) | (err r haxFstWord)
+& (name heir)
+; trk %[=name =heir]
+@ key (strWeld "#" name)
+; trk %[=key]
+| ifNot (hasKey key e)    | (err r haxBadSymb-key)
+@ fun (look e key)
+; trk %[fun=(pinItem fun)]
+| fun s p e a r err ok
+
+= ("#foo" s p e a r err ok) ; envr next kids heir)
+| ok p a (cnsE | rexVal r)
+
+= ("#quote" s p e a r err ok)
+@ kids rexKids-r
+| if (neq 1 len-kids)
+    | err r "#foo expects exactly one kid (or heir)"
+| ok p a (cnsE idx-0-kids)
+
+= ("#getenv" s p e a r err ok)
+| ok p a (cnsE e)
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= 1 | isTab #getenv
+
+?= 1 | not (tabIsEmpty #getenv)
+
+?= `((foo#bar)zaz) (foo#bar)zaz
+
+^-^ "#" ',' eql '#quote' tabKeys '#getenv'
+
+?= (tabKeys #getenv) | ['#' ',' 'eql' '#quote' 'tabKeys' '#getenv']
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^ "#"
+^-^ "#quote"
+^-^ "#getenv"

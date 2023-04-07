@@ -1,0 +1,79 @@
+"""
+""" Bits
+""" ====
+"""
+""" These around foundational operations on bits/booleans.
+"""
+""" There's many different ways to implement these operations, optimizing
+""" for different things.  What I've decided to optimize for here is
+""" "jet weight".
+"""
+""" Jetting only `if` gets you pretty far.  With an `if` jet + inlining,
+""" everything else is automatically implemented as a truth table.
+"""
+""" We could instead optimize for dependency depth, having most of these
+""" be implemented directly in terms of `2`, but `2` is much more
+""" cumbersome than `if`.
+"""
+""" We could inline everything besides `if`, which would make all of
+""" these functions literally truth tables.  However, we instead optimize
+""" for clarity of the PLAN code.
+"""
+""" The general principles are:
+"""
+""" -   Prefer fewer jets to shallow dependency trees.
+""" -   Prefer code clarity to shallow dependency trees
+"""
+""" So in general, we are going for short/clear definitions that boil
+""" down to a small set of core functions that benefit greatly from
+""" jetting.
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan  []
+
+
+""" Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+TRUE=1
+FALSE=0
+
+= (if x t e)    | 2 e _&t x
+= (else x)      | x
+= (not x)       | if x 0 1
+= (bit x)       | if x 1 0
+= (and x y)     | if x (bit y) 0
+= (or x y)      | if x 1 (bit y)
+= (xor x y)     | if x (not y) (bit y)
+= (nand x y)    | not (and x y)
+= (nor x y)     | not (or x y)
+= (xnor x y)    | not (xor x y)
+= (ifNot x t e) | if (not x) t e
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= 1 | TRUE
+?= 1 | not FALSE
+?= 1 | not (not TRUE)
+
+?= 1 | if 1 1 0
+?= 1 | not (if 1 0 1)
+?= 1 | if 0 0 1
+?= 1 | not (if 0 1 0)
+
+?= 1 | if if 0 1
+?= 1 | not (if if 1 0)
+
+;; TODO More tests like this one
+?= 0 | and 1 (x&x)
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^ TRUE FALSE
+^-^ if ifNot else
+^-^ bit not
+^-^ and or xor nand nor xnor

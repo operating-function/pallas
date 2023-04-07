@@ -1,0 +1,13 @@
+#!/usr/bin/env bash 
+
+INPUT='(3 (0 0 3 0 44 55) (0 0 3 0 44 55) 0x04 ("foo" "foo" "foo") "abcdefghijklmnopqrstuvwxyz" "abcdefghijklmnopqrstuvwxyz" 0x99 0xff 0xff 1000 0xdeadbeef 0xdeadbeef77deadbeef 0x112233445566778899 0x112233445566778899 88 99)'
+
+clear
+make && ./a.out <./test.sexp
+
+while
+        inotifywait -e modify -e close_write -e move -e create .
+do
+        clear
+        make && ./a.out <./test.sexp
+done

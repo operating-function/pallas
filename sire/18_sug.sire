@@ -1,0 +1,375 @@
+"""
+""" Syntactic Sugar
+""" ===============
+"""
+""" This module is a collection of convenience macros.
+"""
+""" - `:` is convenient syntax for continuation-passing.
+"""
+""" - `~` and `~~` implement list-literals.
+"""
+"""
+""" The Col Macro
+""" -------------
+"""
+""" `:` is a shorthand for a function call where the last argument is
+""" a callback lambda.
+"""
+""" This pattern comes up quite a lot since we don't have do notation.
+"""
+""" You write something like:
+"""
+"""     : (x y z) <- foo x y
+"""     | add x
+"""     | add y z
+"""
+""" And that expands to:
+"""
+"""     - foo x y
+"""     & (x y z)
+"""     | add x
+"""     | add y z
+"""
+""" (Remember that `-` is function application, just like `|`)
+"""
+"""
+""" List Literals
+""" -------------
+"""
+""" Wide form:
+"""
+"""     ~[3 4 5]
+"""
+""" Tall form:
+"""
+"""    ~~ 3
+"""    ~~ 4
+"""    ~~ 5
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan
+/+  02_bit  [if ifNot and or not else]
+/+  03_nat  [add div inc isZero]
+/+  04_app  [idx len]
+/+  05_eql  [eql neq]
+/+  06_cow  [weld map foldr v2 v3]
+/+  07_rex  [rexConstr rexIdnt rexRune rexSons rexHeir rexKids]
+/+  07_rex  [rexIsNode rexGetNode]
+/+  07_rex  ["`" rexGetKidsOfNodeWithRune rexVal]
+/+  07_rex  [R NEST EMBD OPEN WORD CORD]
+/+  07_rex  [rexGetNodeWithRune]
+/+  07_rex  [rexStyle rexText rexEql]
+/+  08_dat  ["," ",," drop switch]
+/+  08_dat  [CONS NIL listToRowReversed listCase listFromRow]
+/+  09_sci  []
+/+  10_chr  []
+/+  11_str  [strWeld strIsCapitalized]
+/+  12_cab  []
+/+  13_tab  ["%" look tabPut]
+/+  14_exp  [traverseRow]
+/+  14_exp  [readAny readSymbol rexParseKids]
+/+  14_exp  [rowE natE letE cnsE txtE appE varE gensym]
+/+  15_hax  []
+/+  16_pad  []
+/+  17_bar  []
+
+
+""" Parsing Signatures """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= sigExpect | "Expected `x` or signature `(x y z)`"
+= sigNoHeir | "name-sequence cannot have an heir"
+
+= (readKeySignature rex err ok)
+| if (neq 0 rexHeir-rex)
+        | err rex sigNoHeir
+| if (rexIsNode rex)
+        | if (neq "|" rexRune-rex)
+                | (err rex sigExpect)
+        @ step
+                ? (step son ret)
+                | readSymbol son err
+                & sym
+                | ret (rexIdnt son, sym)
+        | traverseRow step (rexSons rex) ok
+| readSymbol rex err
+& sym
+| ok [(rexIdnt rex, sym)]
+
+= (readSignature rex err ok)
+| readKeySignature rex err
+& bindings
+| ok (map idx-1 bindings)
+
+?= [%a %b %c]          | readSignature `(a b c) v2 I
+?= [%a]                | readSignature `(a)     v2 I
+?= [%a]                | readSignature `a       v2 I
+?= [`[a b] sigExpect]  | readSignature `[a b]   v2 I
+?= [`([][]) sigNoHeir] | readSignature `([][])  v2 I
+
+?= [[0 %a] [0 %b] [0 %c]] | readKeySignature `(a b c) v2 I
+
+
+""" The Col Macro """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= cbExpect | "Expected a <- (or <) node in : binder"
+
+= (readColBinder rex err ok)
+| rexGetNode rex (err rex cbExpect)
+& (rune sons heir)
+| if (eql rune "<-")
+        | ok (rexKids rex)
+| if (eql rune "<")
+        | ok (rexKids rex)
+| *else
+        | err rex cbExpect
+
+= (rexIsCapsSymbol rex)
+| and (neq 0 rex)
+| and (eql %WORD rexStyle-rex)
+      (strIsCapitalized rexText-rex)
+
+?= 1 | rexIsCapsSymbol `Foo
+?= 0 | rexIsCapsSymbol `foo
+?= 0 | rexIsCapsSymbol `"Foo"
+?= 0 | rexIsCapsSymbol `0
+?= 0 | rexIsCapsSymbol `(hi there)
+
+= (readColSig rex err ok)
+@ capsName | and (eql '|' (rexRune rex))
+                (*rexIsCapsSymbol (idx 0 (rexSons rex)))
+| ok [capsName rex]
+
+?= [1 `(Foo x)] (readColSig `(Foo x) I I)
+
+= colNeedsHeir | "Heir is required"
+= colTwoSons   | "Expected two sons"
+
+; TODO: This expands to `&` instead of `#&`.  This is a bit of a hack,
+; since we generally use the approach of expanding only to primitive runes
+; (avoiding repeated macro-expansion).  However, it is currently too
+; cumbersome for such a simple little sugar-macro.  Re-architect the
+; destructuring code so that it's easy to do this the right way.
+;
+; As a consequence of this hack, we get error messages in the expansion,
+; instead of directly from this macro, which is a worse user experience.
+= (":" s p e a r err ok)
+| if (isZero (rexHeir r))    | err r colNeedsHeir
+| if (neq 2 (len rexSons-r)) | err r colTwoSons
+| rexParseKids r [readColSig readColBinder readAny] err
+& (sig kids body)
+@ sigTag idx-0-sig
+@ sigExp idx-1-sig
+| ok p a
+| trkVal ": output"
+| OPEN 0 "#|" kids
+| OPEN 0 (if sigTag "?!" "&") [sigExp]
+| body
+
+= (rexGetRune rex fall ok)
+: (rune kids heir) <- rexGetNode rex fall
+| *ok rune
+
+?= ["+" "+"]
+        : rune <- *rexGetRune `(3 + 4) 99
+        , rune rune
+
+?= [`(<* f) cbExpect]
+        (##":" 0 0 0 0 `((: x <* f)(, 3)) v2 v3)
+
+
+""" Closed List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= sigExpect | "~ expects to be wrapped around a tuple literal: `~[3 4 5]`"
+
+= ("~" s p e a r err ok)
+@ fail | err r sigExpect
+@ heir (rexHeir r)
+@ sons (rexSons r)
+| if (or (neq 0 heir) (neq 1 len-sons)) fail
+| rexGetKidsOfNodeWithRune "," (idx 0 sons) fail
+& kids
+| ok p a
+| foldr (x rex & rowE [x rex]) (natE 0) kids
+
+?= ~[3 4 5] | [3 [4 [5 0]]]
+?= ~[3]     | [3 0]
+?= ~[]      | 0
+
+
+""" Cons Operator """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= ("::" s p e a r err ok)
+| ok p a
+^ (rexKids r)
+? (go kids)
+| if (isZero len-kids) | natE 0
+| if (eql 1 len-kids)  | idx 0 kids
+| *else                | rowE (idx 0 kids, go (drop 1 kids))
+
+?= ~[3 4]   (3 :: 4 :: ~[])
+?= ~[3 4 5] (3 :: 4 :: ~[5])
+
+?= ~[3 4]
+        :: 3
+        :: 4
+        :: ~[]
+
+
+""" Open List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (unrollSlip2 rune alien rex err ok)
+^ NIL rex
+? (loop acc rex)
+: (kids heir)
+       <- rexGetNodeWithRune rune rex
+                : right <- alien rex err
+                | ok | listToRowReversed | CONS right acc
+@ acc (CONS kids acc)
+| if (isZero heir)
+        | ok | listToRowReversed acc
+| *else
+        | loop acc heir
+
+= ("~~" s p e a r err ok)
+: row <- unrollSlip2 "~~" (x e o & o [x]) r err
+| ok p a
+| foldr (xs rex & rowE [appE-xs rex]) natE-0 row
+
+?= ~[3 4 5] | [3 [4 [5 0]]]
+?= ~[3]     | ~~ 3
+?= ~[3 4 5]
+       ~~ 3
+       ~~ 4
+       ~~ 5
+
+
+""" Quasi Quotation """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; $ splices in a constant value
+; $$ splices in an expression
+
+; TODO Don't use `die`
+= ("``" s p e a r err ok)
+@ topKids (rexKids | rexVal r)
+| if (neq 1 len-topKids)
+    | err r "Expected one kid"
+: result
+   <-   ^ (idx 0 topKids)
+        ? (quote qRex qRet)
+        : (qRune qSons qHeir)
+               <- rexGetNode qRex (qRet | cnsE qRex)
+        @ qKids (rexKids qRex)
+        | if (eql qRune "$")
+                | if (neq 1 len-qKids)
+                        | err qRex 'Too many/few sons for $ in `` macro'
+                | qRet (appE (cnsE EMBD, idx 0 qKids))
+        | if (eql qRune "$$")
+                | if (neq 1 len-qKids)
+                        | err qRex 'Too many/few sons for $$ in `` macro'
+                | qRet (idx 0 qKids)
+        : quotedSons <- traverseRow quote qSons
+        : quotedHeir
+           <-   & ret
+                | if (isZero qHeir) (ret (natE 0))
+                | quote qHeir ret
+        | qRet
+        | appE
+       ,, cnsE R
+       ,,   | appE
+           ,, cnsE (rexConstr qRex)
+           ,, cnsE (rexIdnt qRex)
+           ,, txtE (rexRune qRex)
+           ,, rowE quotedSons
+           ,, quotedHeir
+| ok p a result
+
+four=(WORD 0 "4" 0)
+
+?= `(3 4 5) | ``(3 4 5)
+?= `(3 4 5) | ``($$(WORD 0 "3" 0) 4 5)
+
+?= ``(3 $$(cnsE four) 5)
+    ``(3 $four 5)
+
+;; TODO It's stupidly hard to test this quasiquotation stuff.  Best
+;; evidence I have that this works is that the code downstream from
+;; it works, but that's a rough scene.
+;;
+;; TODO Maybe something like `traverseRex` would clean this up?
+;; That's feels like it may be the essence of what's going on here.
+
+= ("&&" s p e a r err ok)
+@ kids (rexKids r)
+| if (neq 2 len-kids)
+    | err r "must have exactly two sons"
+| ok p a
+| ``($and $$(idx 0 kids) $$(idx 1 kids))
+
+= ("||" s p e a r err ok)
+@ kids (rexKids r)
+| if (neq 2 len-kids)
+    | err r "must have exactly two sons"
+| ok p a
+| ``($or $$(idx 0 kids) $$(idx 1 kids))
+
+?= 1 | (@ one 1)(@ zero 0)(one && not zero)
+?= 1 | not (1 && 0)
+?= 1 | not (0 && 1)
+?= 1 | not (0 && 0)
+?= 1 | ((0 && 1) || (1 && 1))
+
+
+""" Short-Hand Assertion """""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= ("??" s p e a r err ok)
+@ sons (rexSons r)
+@ heir (rexHeir r)
+| if (isZero len-sons)
+        | err r "At least one son is required."
+| ok p a
+| OPEN 0 "#?=" [natE-1 (appE sons)] heir
+
+?? add 0 1
+?? add 1 0
+?? not (add 0 0)
+
+
+""" Equality """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (multiEqlE n exps)
+| switch (len exps)
+    , (inc n)
+    @ tmpVar (gensym n)
+    | letE tmpVar (idx 0 exps)
+    ^ (listFromRow | drop 1 exps)
+    ? (loop more)
+    : (x xs) <- *listCase more (die "impossible")
+    : (y ys) <- *listCase xs appE-[cnsE-eql varE-tmpVar x]
+    | appE
+   ,, cnsE-and
+   ,, appE [cnsE-eql varE-tmpVar x]
+   ,, loop xs
+,, (n, natE 1)
+,, (n, appE (cnsE seq, idx 0 exps, natE 1))
+,, (n, appE (cnsE eql, idx 0 exps, idx 1 exps))
+
+= ("==" s p e a r err ok)
+@ ar | multiEqlE a (rexKids r)
+@ a  | idx 0 ar
+@ r  | idx 1 ar
+| ok p a r
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ readKeySignature readSignature unrollSlip2 rexGetRune
+^-^ ":"
+^-^ "~" "~~" "::"
+^-^ "``"
+^-^ "&&" "||" "=="
+^-^ "??"
+^-^

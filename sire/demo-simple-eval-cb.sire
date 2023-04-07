@@ -1,0 +1,10 @@
+/+ boot
+
+; This is a simple eval callback. It waits on a single eval, prints the
+; results, and exits.
+
+= evalTest
+^ [[0 100000 add [200 2]]]
+& (_ id val)
+| trk [%add val]
+0

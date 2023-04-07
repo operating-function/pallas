@@ -1,0 +1,6 @@
+(car a)=(1:(b&4):(b c d & 0-b-c):(b c & b) 0 a)
+(cdr a)=(1:(b&b):(b c d & d):(b c & c) 0 a)
+_=(%[4=0 k4=0 car=(0 0-car) =cdr tags=[0 0]])
+
+_hash=(x#4056a18a552b3f589ff2067050a3d3f812909659073bcf1bce960866e5fc11cb)
+

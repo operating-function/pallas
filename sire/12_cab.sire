@@ -1,0 +1,420 @@
+"""
+""" Cabs
+""" ====
+"""
+""" A cab is a data-jetted set of nouns.
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan
+/+  02_bit  [if else ifNot and or not]
+/+  03_nat  [add sub mul dec gteNat isZero]
+/+  04_app  [idx get len]
+/+  05_eql  [eql neq lte lth gth gte]
+/+  06_cow  [null weld v2 isRow map]
+/+  07_rex
+/+  08_dat  [CONS NIL listCase listFromRow listToRowReversed sort delete cat]
+/+  08_dat  [listAll listFoldl]
+/+  08_dat  ["," drop take span has]
+/+  09_sci  []
+/+  10_chr  [isDigit]
+/+  11_str  [strToList strWeld]
+
+
+""" Cabs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= emptyCab         | 0 0 1 []
+= (cabSingleton x) | 0 0 2 [x]
+= (cabIsEmpty cab) | eql 1 (lawArgs cab)
+
+?= 1 | cabIsEmpty emptyCab
+?= 1 | not (cabIsEmpty | cabSingleton "a")
+
+= (cabFirst cab) | idx 0 (lawBody cab)
+= (cabLen cab)   | len (lawBody cab)
+
+= (cabPop cab)
+@ bod | lawBody cab
+@ new | 0 0 (dec (lawArgs cab)) (drop 1 bod)
+@ hed | idx 0 bod
+| [hed new]
+
+(cabRow cab)=(lawBody cab)
+(cabList cab)=(listFromRow (cabRow cab))
+
+= (cabIns itm cab)
+@ bod | sort (weld [itm] (lawBody cab))
+@ arg | inc (len bod)
+| 0 0 arg bod
+
+= (cabDel itm cab)
+@ bod | delete itm (lawBody cab)
+@ arg | inc (len bod)
+| 0 0 arg bod
+
+= (cabUnion a b)
+@ bod | sort (weld (lawBody a) (lawBody b))
+@ arg | inc (len bod)
+| 0 0 arg bod
+
+; when cabs are not in strictly ascending order, we deop into not a set.
+= (cabAscUnions cabs)
+@ bod | cat | map lawBody cabs
+@ arg | inc (len bod)
+| 0 0 arg bod
+
+= (cabKeys cab)  | lawBody cab
+= (cabHas k cab) | has k cabKeys-cab
+= (cabMin cab)   | idx 0 | lawBody cab
+
+= (ordered chk row)
+@ wid (len row)
+^ (idx 0 row) 1
+? (go las i)
+| or (gteNat i wid)
+@ cur (idx i row)
+| and (chk las cur)
+| go cur (inc i)
+
+?= 1 | ordered lth [0 1 2]
+?= 1 | ordered lte [0 0 1]
+?= 1 | ordered gth [3 2 1]
+?= 1 | ordered gte [3 3 2]
+?= 1 | ordered eql [3 3 3]
+?= 1 | ordered neq [3 4 2]
+
+?= 1 | ordered lth []
+?= 1 | ordered lth [0]
+?= 1 | ordered lth [0 1]
+?= 1 | ordered lth [0 1 [0]]
+?= 1 | ordered lth [0 1 2]
+?= 1 | ordered lth [1]
+?= 1 | ordered lth [1 2]
+?= 1 | ordered lth [1 2 3 4 5 999]
+?= 1 | ordered lth [1 2 K]
+?= 1 | ordered lth [1 2 K (0 0)]
+?= 1 | ordered lth [1 K]
+?= 1 | ordered lth [2]
+
+?= 0 | ordered lth [0 0]
+?= 0 | ordered lth [0 0 [0]]
+?= 0 | ordered lth [1 1]
+?= 0 | ordered lth [1 2 0]
+?= 0 | ordered lth [2 1]
+?= 0 | ordered lth [2 1 (die 'never evaluated')]
+?= 0 | ordered lth [1 1 (die 'never evaluated')]
+?= 1 | ordered lth []
+
+= (isCab cab)
+| and isLaw-cab
+@ arg lawArgs-cab
+@ nam lawName-cab
+@ bod lawBody-cab
+| and eql-0-nam
+| and isRow-bod
+| and (eql arg (inc len-bod))
+      (ordered lth bod)
+
+= (cabDrop idx c)
+@ r       | lawBody c
+@ tail    | drop idx r
+@ tailArg | inc | len tail
+(0 0 tailArg tail)
+
+= (cabTake idx c)
+@ r       | lawBody c
+@ head    | take idx r
+@ headArg | inc | len head
+(0 0 headArg head)
+
+= (cabSplitAt idx c)
+@ r       | lawBody c
+@ head    | take idx r
+@ headArg | inc | len head
+@ tail    | drop idx r
+@ tailArg | inc | len tail
+[(0 0 headArg head) (0 0 tailArg tail)]
+
+= (cabSplitLT key c)
+@ r | lawBody c
+@ s | span (gth key) r
+@ head | idx 0 s
+@ tail | idx 1 s
+@ headArg | inc | len head
+@ tailArg | inc | len tail
+[(0 0 headArg head) (0 0 tailArg tail)]
+
+= (cabIntersection a b)
+@ ab   | lawBody a
+@ alen | len ab
+@ bb   | lawBody b
+@ blen | len bb
+@ mkCab
+  ? (mkCab l)
+  @ r   | listToRowReversed l
+  @ arg | inc (len r)
+  | 0 0 arg r
+| mkCab
+^ 0 0 NIL
+? (loop aIdx bIdx cur)
+| if (eql aIdx alen) cur
+| if (eql bIdx blen) cur
+@ ai | get ab aIdx
+@ bi | get bb bIdx
+| if (eql ai bi)
+    | loop (inc aIdx) (inc bIdx) (CONS ai cur)
+| if (lth ai bi)
+    | loop (inc aIdx) bIdx cur
+| loop aIdx (inc bIdx) cur
+
+
+= (cabElem i cab)
+| idx i | lawBody cab
+
+""" % Rune: Atoms, Tabs, and Cabs """"""""""""""""""""""""""""""""""""""""""""""
+
+;
+; %x
+;
+; %[0 x 'y']
+;
+
+(chr c)=(add c 48)
+(ord c)=(sub c 48)
+
+; loadDecimal/(Str -> Nat)
+= (loadDecimal n)
+@ step
+    & (acc c)
+    | add (mul 10 acc) (ord c)
+| listFoldl step 0 (strToList n)
+
+; loadKeyWord/(Str -> Nat)
+= (loadKeyWord str)
+| if (listAll isDigit strToList-str)
+    | loadDecimal str
+| str
+
+= (readKey rex err ok)
+| if (neq 0 (rexHeir rex))
+    | err rex (strWeld "Unexpected heir on key")
+@ style (rexStyle rex)
+| if (eql "WORD" style)
+    | ok (loadKeyWord rexText-rex)
+| if    | or (eql "TAPE" style)
+        | or (eql "CORD" style)
+        | or (eql "LINE" style)
+             (eql "PAGE" style)
+    | ok (rexText rex)
+| if (eql "EMBD" style)
+    @ fan (rexEmbd rex)
+    | ifNot (isNat fan)
+        | err rex "Invalid Key: Embeded fan value is not a natural"
+    | ok fan
+| err rex "Invalid Key: Expected a word, text, or an embeded natural"
+
+?= 'a' (readKey `"a"     v2 x&x)
+?= 'a' (readKey `a       v2 x&x)
+?= 9   (readKey `9       v2 x&x)
+?= 9   (readKey (EMBD 9) v2 x&x)
+
+= (mkCenMacro doCab doTab s p e a r err ok)
+@ fail (err r "% expects something like %foo or %[...]")
+;;
+@ heir (rexHeir r)
+@ sons (rexSons r)
+| if (neq 0 heir) fail
+| if (neq 1 len-sons) fail
+@ son (idx 0 sons)
+;;
+| if (eql "WORD" (rexStyle son))
+    | ok p a (CORD 0 rexText-son 0)
+;;
+| ifNot (rexIsNode son) fail
+| ifNot (eql "," rexRune-son) fail
+;;
+@ grandsons (rexSons son)
+| if (null grandsons)
+    | ok p a (EMBD emptyCab)
+| if (rexIsNode (idx 0 grandsons))
+  (doTab s p e a r grandsons err ok)
+  (doCab s p e a r grandsons err ok)
+
+= (cenCab s p e a r kids err ok)
+^ emptyCab (listFromRow kids)
+? (go acc kidList)
+| *listCase kidList (ok p a (EMBD acc))
+& (thisKid moreKids)
+@ unexpected
+   | err thisKid
+      """ A cab key literal must be one of:
+      """
+      """ -   String ('', 'x', 'text', ...)
+      """ -   Number number (0, 3, 12341234, ...)
+      """ -   Identifier (x, _Y_3, ...)
+@ okay
+    ? (okay newKey)
+    | if (cabHas newKey acc)
+        | err thisKid "duplicate key"
+    | go (cabIns newKey acc) moreKids
+@ style (rexStyle thisKid)
+| if (eql "WORD" style)
+    | okay (loadKeyWord thisKid^rexText)
+| if    | or (eql "CORD" style)
+        | or (eql "TAPE" style)
+        | or (eql "TAPE" style)
+        | or (eql "LINE" style)
+             (eql "PAGE" style)
+    | okay thisKid^rexText
+| if (eql "EMBD" style)
+    @ fan (rexEmbd thisKid)
+    | if (not isNat-fan) unexpected
+    | okay fan
+| else
+    | unexpected
+
+;;; TODO test the above
+;;;
+;;; TODO Need much more careful tests throghout this module, complex code.
+
+= (cenTabStub s p e a kids err ok)
+| err "Import the % macro from `17_tab`, not from `16_cab`."
+
+= ("%" s p e a r err ok)
+| *mkCenMacro cenCab cenTabStub s p e a r err ok
+
+
+""" %% Rune: Tall-Form Tabs and Cabs """""""""""""""""""""""""""""""""""""""""""
+
+;
+; %% 3
+; %% x
+; %% 'x'
+; %% """y
+;
+
+= (cenCenTabStub s p e a r err ok)
+| err r "Import the %% macro from `17_tab`, not from `16_cab`."
+
+
+= (readCenCenCabLine rex err ok)
+| rexGetNodeWithRune "%%" rex
+    | err rex "Expected a %% node (in a tall-form cab literal)"
+& (sons heir)
+| if (neq 1 len-sons)
+    | err rex "%% requires exactly 1 son (in a tall-form cab literal)"
+| readKey (idx 0 sons) err
+& key
+| ok key heir
+
+
+= (readCenCenCab rex err ok)
+^ emptyCab rex
+? (go acc rex)
+| if (isZero rex) (ok acc)
+| *readCenCenCabLine rex err
+& (newKey heir)
+| if (cabHas newKey acc) (err rex "duplicate key")
+| go (cabIns newKey acc) heir
+
+
+= (cenCenCab s p e a r err ok)
+| readCenCenCab r err
+& cab
+| ok p a (EMBD cab)
+
+
+= (mkCenCenMacro doCab doTab s p e a r err ok)
+@ sons (rexSons r)
+| if (null sons)
+    | *err r "%% rune must be given sons"
+| if (rexIsNode (idx 0 sons))
+    | *doTab s p e a r err ok
+| *else
+    | *doCab s p e a r err ok
+
+= ("%%" s p e a r err ok)
+| (*mkCenCenMacro cenCenCab cenCenTabStub s p e a r err ok)
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= 1 | isCab %[]
+?= 1 | isCab %[1]
+?= 1 | isCab %[1 a]
+?= 1 | isCab %[a 9 1]
+?= 1 | isCab (0 0 1 (0 0 1 0))
+?= 0 | isCab (0 1 1 (0 0 1 0))
+?= 0 | isCab (0 0 1 (0 0 1 1))
+?= 0 | isCab (0 0 2 (0 0 1 0))
+?= 1 | isCab (0 0 2 (0 0 2 0 9))
+?= 0 | isCab (0 0 1 (0 0 2 0 9))
+
+?= %a   | "a"
+?= %3   | "3"
+?= %x_x | "x_x"
+
+?= %[]    | %[]
+
+?= %[a]   | %[97]
+
+?= %[a]   | %['a']
+
+?= %[a b] | %[98 97]
+
+?= %[a b] | %["b" 'a']
+
+?= %[]        | emptyCab
+?= %['x']     | cabIns 'x' emptyCab
+?= %[x]       | cabIns 'x' emptyCab
+?= %[3]       | cabIns 3  emptyCab
+?= %[3]       | cabSingleton 3
+?= %[3]       | cabIns 3  %[]
+?= %[0 1 2 3] | cabIns 3  %[0 1 2]
+?= %[a b c]   | cabIns %c %[a b]
+?= %[0 1 2 3] | cabIns 3  %[0 1 2 3]
+?= %[a b c]   | cabIns %c %[a b c]
+?= %[0 1 2]   | cabDel 3 %[0 1 2 3]
+?= %[0 1 3]   | cabDel 2 %[0 1 2 3]
+?= %[0 2 3]   | cabDel 1 %[0 1 2 3]
+?= %[1 2 3]   | cabDel 0 %[0 1 2 3]
+?= %[0 1 2]   | cabDel 3 %[0 1 2]
+?= %[0 1 2 3] | cabUnion %[0 2]   %[1 3]
+?= %[a b c]   | cabUnion %[a c]   %[b]
+?= %[a b c]   | cabUnion %[a c]   %[b c]
+?= %[a b c]   | cabUnion %[a c]   %[a b c]
+?= %[a b c]   | cabUnion %[a b c] %[a b c]
+
+?= %[]        | cabAscUnions []
+?= %[a]       | cabAscUnions [%[a]]
+?= %[a b c]   | cabAscUnions [%[a] %[b] %[c]]
+?= %[a b]     | cabAscUnions [%[a] %[] %[b]]
+
+; cabAscUnions deopt behaviour
+?= (a b c d & [7 9 8]) | cabAscUnions [%[7 9] %[8]]
+
+?= %[3]       | %% 3
+?= %[3 4 'a'] | (%%3)(%%4)(%% 'a')
+?= %[3 4 'a'] | (%%3)(%%4)(%% 'a')
+?= %[3 4 'a'] | %% 3
+                %% 4
+                %% a
+?= %[3 4 'a'] | %% 3
+                %% 4
+                %% """a
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^ isCab
+^-^ emptyCab cabIsEmpty
+^-^ cabFirst cabLen cabPop cabRow cabList cabIns cabDel cabUnion cabAscUnions
+^-^ cabKeys cabHas cabMin cabSingleton cabDrop cabTake cabSplitAt cabSplitLT
+^-^ cabIntersection cabElem
+^-^
+^-^ "%" "%%"
+^-^ loadKeyWord readKey
+^-^ mkCenMacro cenCab
+^-^ mkCenCenMacro cenCenCab

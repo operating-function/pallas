@@ -1,0 +1,441 @@
+"""
+""" Rex Syntax Trees
+""" ================
+"""
+""" This is some basic utilities for working with Rune-Expressions.
+"""
+""" It includes the "`" macro for quoting.
+"""
+""" TODO This is going to be radicaly changed soon (different
+""" representation + datajet)
+"""
+""" ` is just a simple macro that quotes an expression (just like in LISP).
+"""
+""" It works by simply parsing out it's first kid and retuning it as an
+""" embeded plunder value.
+"""
+
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  01_fan  [lawName trk]
+/+  02_bit  [if ifNot or]
+/+  03_nat  [isZero]
+/+  04_app  [idx len]
+/+  05_eql  [eql neq]
+/+  06_cow  [weld map c1 v0 v1 v2]
+
+
+""" Rex Representation (possibly data-jetted) """"""""""""""""""""""""""""""""""
+
+"""
+""" These are the datatypes that are used to represent Rex trees in
+""" macros.
+"""
+""" The Sire compiler will give us rex trees representated in this way,
+""" and expect our expansions to also be represented in this way.
+"""
+""" All these basic Rex representations are defined using Scott
+""" Encoding.
+"""
+""" Scott encoding is less efficient than tagged-array encoding, but
+""" it makes sense in this context, since we haven't built up any of
+""" the operations required to work with that representation.
+"""
+
+= (R x)
+| 0 'R' 3
+| (0 (0 (0 x 1) 2) 3)
+
+= EMBD (EMBD valu e l n ? e EMBD valu)
+
+= WORD (WORD idnt text heir e l n ? l WORD idnt text heir)
+= CORD (CORD idnt text heir e l n ? l CORD idnt text heir)
+= TAPE (TAPE idnt text heir e l n ? l TAPE idnt text heir)
+= LINE (LINE idnt text heir e l n ? l LINE idnt text heir)
+= PAGE (PAGE idnt text heir e l n ? l PAGE idnt text heir)
+= CURL (CURL idnt text heir e l n ? l CURL idnt text heir)
+
+= OPEN (OPEN idnt rune sons heir e l n ? n OPEN idnt rune sons heir)
+= NEST (NEST idnt rune sons heir e l n ? n NEST idnt rune sons heir)
+= INFX (INFX idnt rune sons heir e l n ? n INFX idnt rune sons heir)
+= PREF (PREF idnt rune sons heir e l n ? n PREF idnt rune sons heir)
+= SHUT (SHUT idnt rune sons heir e l n ? n SHUT idnt rune sons heir)
+
+;;;;;;;;;;
+
+embd=EMBD
+word=WORD
+cord=CORD
+tape=TAPE
+line=LINE
+page=PAGE
+brak=CURL
+open=OPEN
+nest=NEST
+infx=INFX
+pref=PREF
+shut=SHUT
+
+= (EMBD valu) | R | embd valu
+
+= (WORD idnt text heir) | R | word idnt text heir
+= (CORD idnt text heir) | R | cord idnt text heir
+= (TAPE idnt text heir) | R | tape idnt text heir
+= (LINE idnt text heir) | R | line idnt text heir
+= (PAGE idnt text heir) | R | page idnt text heir
+= (CURL idnt text heir) | R | brak idnt text heir
+
+= (OPEN idnt rune sons heir) | R | open idnt rune sons heir
+= (NEST idnt rune sons heir) | R | nest idnt rune sons heir
+= (INFX idnt rune sons heir) | R | infx idnt rune sons heir
+= (PREF idnt rune sons heir) | R | pref idnt rune sons heir
+= (SHUT idnt rune sons heir) | R | shut idnt rune sons heir
+
+;;;;;;;;;;
+
+= (rexConstr rex)
+@ E ? (E c v)       | c
+@ L ? (L c i t h)   | c
+@ N ? (N c i r s h) | c
+| rex E L N
+
+;;;;;;;;;;
+
+= (rexIdnt rex)
+@ E ? (E c v)       | 0
+@ L ? (L c i t h)   | i
+@ N ? (N c i r s h) | i
+| rex E L N
+
+= (rexSetIdnt newIdnt rex)
+@ E ? (E c v)       | rex
+@ L ? (L c i t h)   | R | c newIdnt t h
+@ N ? (N c i r s h) | R | c newIdnt r s h
+| rex E L N
+
+;;;;;;;;;;
+
+= (rexRune rex)
+@ E ? (E c v)       | 0
+@ L ? (L c i t h)   | 0
+@ N ? (N c i r s h) | r
+| rex E L N
+
+= (rexSetRune newRune rex)
+@ E ? (E c v)       | rex
+@ L ? (L c i t h)   | rex
+@ N ? (N c i r s h) | R | c i newRune s h
+| rex E L N
+
+;;;;;;;;;;
+
+= (rexHeir rex)
+@ E ? (E c v)       | 0
+@ L ? (L c i t h)   | h
+@ N ? (N c i r s h) | h
+| rex E L N
+
+= (rexSetHeir newHeir rex)
+@ E ? (E c v)       | rex
+@ L ? (L c i t h)   | R | c i t newHeir
+@ N ? (N c i r s h) | R | c i r s newHeir
+| rex E L N
+
+;;;;;;;;;;
+
+= (rexText rex)
+@ E ? (E c v)       | 0
+@ L ? (L c i t h)   | t
+@ N ? (N c i r s h) | 0
+| rex E L N
+
+= (rexSetText newText rex)
+@ E ? (E c v)       | rex
+@ L ? (L c i t h)   | R | c i newText h
+@ N ? (N c i r s h) | rex
+| rex E L N
+
+;;;;;;;;;;
+
+= (rexSons rex)
+@ E ? (E c v)       | 0
+@ L ? (L c i t h)   | 0 0 1 0
+@ N ? (N c i r s h) | s
+| rex E L N
+
+= (rexSetSons newSons rex)
+@ E ? (E c v)       | rex
+@ L ? (L c i t h)   | rex
+@ N ? (N c i r s h) | R | c i r newSons h
+| rex E L N
+
+;;;;;;;;;;
+
+= (rexEmbd rex)
+@ E ? (E c v)       | v
+@ L ? (L c i t h)   | 0
+@ N ? (N c i r s h) | 0
+| rex E L N
+
+= (rexSetEmbd newVal rex)
+@ E ? (E c v)       | R | c newVal
+@ L ? (L c i t h)   | rex
+@ N ? (N c i r s h) | rex
+| rex E L N
+
+;;;;;;;;;;
+
+= (rexIsEmbd rex)
+@ E ? (E c v)       | 1
+@ L ? (L c i t h)   | 0
+@ N ? (N c i r s h) | 0
+| rex E L N
+
+= (rexIsLeaf rex)
+@ E ? (E c v)       | 0
+@ L ? (L c i t h)   | 1
+@ N ? (N c i r s h) | 0
+| rex E L N
+
+= (rexIsNode rex)
+@ E ? (E c v)       | 0
+@ L ? (L c i t h)   | 0
+@ N ? (N c i r s h) | 1
+| rex E L N
+
+
+""" Basic Shape Queries """"""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (rexType rex)
+@ E ? (E c v)       | "EMBD"
+@ L ? (L c i t h)   | "LEAF"
+@ N ? (N c i r s h) | "NODE"
+| rex E L N
+
+= (rexGetNode rex fallback ok)
+@ E ? (E c v)       | fallback
+@ L ? (L c i t h)   | fallback
+@ N ? (N c i r s h) | ok r s h
+| rex E L N
+
+= (rexGetLeaf rex fallback ok)
+@ E ? (E c v)       | fallback
+@ L ? (L c i t h)   | ok t h
+@ N ? (N c i r s h) | fallback
+| rex E L N
+
+= (rexGetEmbd rex fallback ok)
+@ E ? (E c v)       | ok v
+@ L ? (L c i t h)   | fallback
+@ N ? (N c i r s h) | fallback
+| rex E L N
+
+
+""" Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (rexStyle rex)
+@ E ? (E c v)       | lawName c
+@ L ? (L c i t h)   | lawName c
+@ N ? (N c i r s h) | lawName c
+| rex E L N
+
+= (rexGetWord rex fall ok)
+| if (neq "WORD" rexStyle-rex) fall
+| rexGetLeaf rex fall ok
+
+= (rexGetWordNoHeir rex fall ok)
+| if (neq "WORD" rexStyle-rex) fall
+| rexGetLeaf rex fall
+& (text heir)
+| if (neq 0 heir) fall
+| ok text
+
+= (rexGetText rex fall ok)
+@ style (rexStyle rex)
+@ expected | or (eql style "TAPE")
+                (eql style "CORD")
+| ifNot expected fall
+| rexGetLeaf rex fall ok
+
+= (rexGetAnyText rex fall ok)
+@ style (rexStyle rex)
+@ expected | or (eql style "TAPE")
+           | or (eql style "CORD")
+           | or (eql style "PAGE")
+                (eql style "LINE")
+| ifNot expected fall
+| rexGetLeaf rex fall ok
+
+= (rexGetNodeWithRune rune rex fall ret)
+| rexGetNode rex fall
+& (r s h)
+| if (neq r rune) fall
+| ret s h
+
+= (rexGetKidsOfNodeWithRune rune rex fall ok)
+| rexGetNodeWithRune rune rex fall
+& (s h)
+@ kids (if (isZero h) s (weld s (c1 h)))
+| ok kids
+
+= (rexKids rex)
+@ sons (rexSons rex)
+@ heir (rexHeir rex)
+| if (isZero heir) sons
+| weld sons (c1 heir)
+
+
+""" Equality """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;
+; Applies a function to every node (including leaves and embeded
+; fan values) of a Rex tree.  The function is applied to leaves first,
+; then to the nodes containing them.
+;
+; The fan values contained in EMBD nodes are not traversed.
+;
+= (rexEvery f rex)
+@ E
+        ? (E c v)
+        | f rex
+@ L
+        ? (L c i t h)
+        @ h (if (isZero h) 0 (rexEvery f h))
+        | f | R | c i t h
+@ N
+        ? (N c i r s h)
+        @ s (map (rexEvery f) s)
+        @ h (if (isZero h) 0 (rexEvery f h))
+        | f | R | c i r s h
+| rex E L N
+
+; Remove the identity key from every node of a Rex tree.
+= (rexVal x)
+| rexEvery (rexSetIdnt 0) x
+
+;
+; Value equality on Rex trees, ignoring identity.
+;
+; Since every Rex node has a unique key (which is used to store
+; associated attributes), only "pointer equals" Rex nodes are equal with
+; `eql`.
+;
+; In order to calculate structural equality, we set all of the "identity
+; keys" to zero and then compare them with `eql`.
+;
+; This does not handle the case where EMBD nodes contain Rex subnouns,
+; those rex trees are just treated as nouns and the usual "pointer
+; equality" semantics apply.
+;
+= (rexEql x y)
+| eql (rexVal x) (rexVal y)
+
+
+""" Quoting """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= ("`" s p e a r err ok)
+@ args (rexKids r)
+| if (neq 1 len-args)
+    | *err r "Expected 1 Parameter"
+| *ok p a
+| EMBD (rexVal (idx 0 args))
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+?= (OPEN 0 "&" v0 0)
+    (OPEN 0 "&" v0 0)
+
+?= (| OPEN 0 "*" v0 0)
+    (| rexSetRune "*" | OPEN 0 "-" v0 0)
+
+?= (| OPEN 5 "-" v0 0)
+    (| rexSetIdnt 5 | OPEN 0 "-" v0 0)
+
+?= (| CORD 9 "hi" | CORD 5 "bye" 0)
+    (| rexSetIdnt 9 | CORD 4 "hi" | CORD 5 "bye" 0)
+
+wx=(WORD 2 "x" 0)
+w9=(WORD 3 "9" 0)
+hi=(TAPE 0 "hi" 0)
+yo=(CORD 0 "yo" 0)
+rw=(NEST 0 "," v0 0)
+e6=(EMBD 6)
+sx=(OPEN 1 "=" (v2 wx w9) 0)
+
+?= 0 (rexIsNode hi)
+?= 0 (rexIsNode yo)
+?= 0 (rexIsNode e6)
+?= 1 (rexIsNode sx)
+?= 1 (rexIsNode rw)
+?= 0 (rexIsEmbd hi)
+?= 0 (rexIsEmbd sx)
+?= 1 (rexIsEmbd e6)
+?= 1 (rexIsLeaf hi)
+?= 1 (rexIsLeaf yo)
+?= 1 (rexIsLeaf wx)
+?= 0 (rexIsLeaf e6)
+?= 0 (rexIsEmbd sx)
+?= 0 (rexIsEmbd sx)
+
+(w x)=(WORD 0 x 0)
+
+= (nestAnd rune sons heir) | NEST 0 rune sons heir
+= (nestNod rune sons)      | NEST 0 rune sons 0
+
+
+?= 1 | rexEql `3        | (w "3")
+?= 1 | rexEql `(3 4)    | nestNod "|" (v2 (w "3") (w "4"))
+?= 1 | rexEql `([a][b]) | nestAnd "," (v1 (w "a"))
+                         | nestNod "," (v1 (w "b"))
+?= 1
+    | rexEql
+        | NEST 1 "*" (v2 (WORD 2 "hi" 0) (WORD 3 "yo" 0))
+        | WORD 4 ""
+        | WORD 8 "heh"
+        | 0
+    | NEST 2 "*" (v2 (WORD 3 "hi" 0) (WORD 3 "yo" 0))
+    | WORD 5 ""
+    | WORD 9 "heh"
+    | 0
+
+?= "NEST" | rexStyle ` []
+?= "WORD" | rexStyle ` hi
+?= "TAPE" | rexStyle ` ""
+?= "CORD" | rexStyle ` ''
+?= "LINE" | rexStyle ` '''
+?= "PAGE" | rexStyle ` """
+?= "CURL" | rexStyle ` {}
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ R
+^-^ EMBD
+^-^ WORD CORD TAPE LINE PAGE CURL
+^-^ OPEN NEST INFX PREF SHUT
+^-^
+^-^ rexIsNode rexIsLeaf rexIsEmbd
+^-^
+^-^ rexConstr
+^-^ rexIdnt rexSetIdnt
+^-^ rexRune rexSetRune
+^-^ rexHeir rexSetHeir
+^-^ rexText rexSetText
+^-^ rexSons rexSetSons
+^-^ rexEmbd rexSetEmbd
+^-^ rexKids
+^-^
+^-^ rexType rexStyle
+^-^ rexGetEmbd rexGetLeaf rexGetNode
+^-^ rexGetWord rexGetWordNoHeir
+^-^ rexGetText rexGetAnyText
+^-^ rexGetNodeWithRune
+^-^ rexGetKidsOfNodeWithRune
+^-^
+^-^ rexEvery rexVal rexEql
+^-^
+^-^ "`"
+^-^

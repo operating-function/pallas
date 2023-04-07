@@ -1,0 +1,239 @@
+"""
+""" Atomic Switch
+""" =============
+"""
+
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+/+  boot
+
+
+""" Switch Patterns """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= cenOneKid | "% literals must have one kid"
+= cenWord   | "% literals expect a word (and no heir)"
+
+= (readFanLit rex err ret)
+| ifNot (isZero rexHeir-rex)
+        | err rex "Unexpected heir"
+| if (rexIsEmbd rex)
+        | ret (rexEmbd rex)
+| if (rexIsLeaf rex)
+        | if (eql "WORD" (rexStyle rex))
+                | readNat rex err ret
+        | *else
+                | ret (rexText rex)
+; Here, we know that the value is a node.
+@ kids (rexKids rex)
+@ ryn  (rexRune rex)
+| if (eql ryn "%")
+        @ [kid] kids
+        | if (neq 1 len-kids)      | err rex cenOneKid
+        | if (eql "," rexRune-kid) | err rex "TODO: Support cab and tab literals"
+        | rexGetWord kid | err rex cenWord
+        & (text heir)
+        | if (neq 0 heir) (err rex cenWord)
+        | ret text
+| if (eql ryn "#")
+        | readBarLit rex err ret
+| if (eql ryn ",")
+        : vals  < forRow kids
+                & (kid ret)
+                | readFanLit kid err ret
+        | ret vals
+| *else
+        | err rex (strWeld "Unexpected rune: " ryn)
+
+(try x)=(readFanLit x v2 v1)
+?= [%x]      | try `(%x)
+?= [[%x %y]] | try `['x' 'y']
+
+= (readSwitchPat pat err cab lit)
+| if (and (eql "_" rexText-pat) (eql %WORD rexStyle-pat))
+        | cab
+| readFanLit pat err lit
+
+= rnNumb | "Invalid number literal"
+
+?= %_          | readSwitchPat `_        v2 %_ v1
+?= [%x]        | readSwitchPat `(%x)     v2 %_ v1
+?= [[%x]]      | readSwitchPat `[%x]     v2 %_ v1
+?= [[%x %y]]   | readSwitchPat `[%x 'y'] v2 %_ v1
+?= [%x]        | readSwitchPat `"x"      v2 %_ v1
+?= [3]         | readSwitchPat `3        v2 %_ v1
+?= [`a rnNumb] | readSwitchPat `a        v2 %_ v1
+
+
+""" Parsing Switch Patterns """"""""""""""""""""""""""""""""""""""""""""""""""""
+
+;
+; This parses the generial pattern-match form with a sequence of = nodes,
+; one per match.
+;
+; TODO: Come up with a better name for this.
+;
+; `parseAlien` is a parser to handle heirs that are not `=` nodes.
+;
+; See the tests for examples of what syntax is supported.
+;
+= (unrollSlip2Tis rex parseAlien err ok)
+^ NIL rex
+? (loop acc form)
+: (kids heir)
+        < rexGetNodeWithRune "=" form
+                : end <- parseAlien form err
+                | ok (listToRowReversed (CONS end acc))
+@ size (len kids)
+| if (and (eql 1 size) (neq 0 heir))
+        ; = foo
+        ; body
+        @ [kid] kids
+        | ok (listToRowReversed (CONS [kid heir] acc))
+| if (neq 2 size)
+        | err form "= node expects two parameters"
+; = foo body
+@ acc (CONS kids acc)
+| if (isZero heir)
+        | ok (listToRowReversed acc)
+| loop acc heir
+
+foo=(x e o & o (varE "_", x))
+(try x)=(unrollSlip2Tis x foo v2 I)
+
+?= [[`x `y] [`_ `9]]
+        | try ` = x y
+                9
+
+?= [[`x `y]]
+        | try ` = x y
+
+?= [[`x `y]]
+        | try ` = x
+                y
+
+?= [[`3 `4] [`5 `6] [`_ `_]]
+        | try ` = 3 4
+                = 5 6
+                = _ _
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (readSwitchPats rex err ok)
+: clauses
+       <- unrollSlip2Tis rex (x err ret & ret (varE "_", x)) err
+; trk %[=clauses]
+: cases
+        < forRow clauses
+        & (keyExp ret)
+        @ [key exp] keyExp
+        : nat <- (pure & readSwitchPat key err (pure NONE) (x & pure SOME-x))
+        | ret [nat exp]
+; trk %[=cases]
+@ f
+        & ([wild acc] [mKey exp])
+        | *maybeCase mKey [exp acc]
+        & key
+        [wild (tabPut acc key exp)]
+| ok
+| foldl f (natE 0, %[]) cases
+
+?= [`0 %[3=(`4) 5=(`6)]]
+        | readSwitchPats `((= 3 4)(= 5 6)) v2 I
+
+?= [`x %[3=(`4) 5=(`6)]]
+        | readSwitchPats `((= 3 4)(= 5 6)(x)) v2 I
+
+?= [`x (tabMut [3 3] `6 %[3=(`4)])]
+        | readSwitchPats `((= 3 4)(= [3 3] 6)(x)) v2 I
+
+
+""" Atomic Switch """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; TODO: Optimize any contiguous sequence by shifting the input:
+;
+; # switch x
+; = 5 %hi
+; = 6 %hi
+; = 7 %hi
+;
+;  @ fall 0
+;  | switch (sub x 4) fall
+; ,, fall
+; ,, 5
+; ,, 6
+; ,, 7
+
+= (switchE expr wild pats)
+@ canUseRowIndex
+        | listAnd
+        | listZipWith eql (listEnumFrom 0)
+        | listFromRow (tabKeys pats)
+| if canUseRowIndex
+        | bopE (cnsE switch,    expr, wild, bowE (tabVals pats))
+| *else
+        | bopE (cnsE tabSwitch, expr, wild, tabE pats)
+
+
+= ("#switch" s p e a r err ok)
+: (_ expr arms) <- rexParseKids r [readAny readAny readSwitchPats] err
+@ wild,pats arms
+| ok p a
+| switchE expr wild pats
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (switchTest x)
+# switch x
+= 346    b#346
+= 345    b#345
+= %hi    b#hi
+= "yop"  b#yop
+| b#hur
+
+?? eql b#346 switchTest-346
+?? eql b#345 switchTest-345
+?? eql b#hi  switchTest-(%hi)
+?? eql b#yop switchTest-"yop"
+?? eql b#hur switchTest-45
+
+= (switchTest2 x)
+# switch x
+= _ %Other
+= 0 %Zero
+= 1 %One
+= 2 %Two
+= 3
+| barNat b#Three
+
+?? eql %Three switchTest2-3
+?? eql %Two   switchTest2-2
+?? eql %Other switchTest2-9
+
+= (switchTest3 x)
+# switch x
+= 1              | %One
+= [0 0]          | %ZeroZero
+= [%a 'b']       | %AyeBee
+= ['GET' b#{/p}] | %GetPee
+= [b#a]          | %AyeBar
+= [[[%a]]]       | %Ayyye
+= 9              | %Nine
+%Fallback
+
+?? eql %One      | switchTest3 1
+?? eql %ZeroZero | switchTest3 [0 0]
+?? eql %AyeBee   | switchTest3 [{a} %b]
+?? eql %GetPee   | switchTest3 ['GET' b#{/p}]
+?? eql %AyeBar   | switchTest3 [b#a]
+?? eql %Ayyye    | switchTest3 [[[%a]]]
+?? eql %Nine     | switchTest3 9
+?? eql %Fallback | switchTest3 8
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^ unrollSlip2Tis
+^-^ switchE
+^-^ "#switch"

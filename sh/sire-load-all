@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+(cd sire; ls | sed 's|\(.*\)[.]sire|/+  "\1"|') > .tmp.sire
+
+plunder sire "$@" .tmp.sire
