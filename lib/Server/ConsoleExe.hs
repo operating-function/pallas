@@ -25,11 +25,13 @@ import Server.Hardware.Rand (createHardwareRand)
 -- ort Server.Hardware.Sock (createHardwareSock)
 import Server.Hardware.Time (createHardwareTime)
 -- ort Server.Hardware.Wock (createHardwareWock)
+import Server.Hardware.Poke (SubmitPoke, createHardwarePoke)
 
 import Control.Concurrent       (threadDelay)
 import Control.Exception        (handle)
 import Control.Monad.Fail       (fail)
 import Control.Monad.State      (State, execState, modify')
+import Data.Text                (splitOn)
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Fan.Save                 (loadPack, savePack)
 import Jelly.Types              (hashToBTC)
@@ -226,6 +228,8 @@ type CogCap = Capture "cog" CogName
 
 type PackCap = ReqBody '[OctetStream] JellyPack
 
+type PokePath = CaptureAll "path" Text
+
 type GET  = Get '[JSON]
 type POST = Post '[JSON]
 
@@ -238,6 +242,8 @@ data CtlApi a = CTL_API
     , spin   :: a :- "cogs" :> CogCap :> "spin"   :> POST ()
     , replay :: a :- "cogs" :> CogCap :> "replay" :> POST ()
     , boot   :: a :- "boot" :> CogCap :> PackCap  :> POST ()
+    , poke   :: a :- "poke" :> CogCap
+                            :> PokePath :> PackCap :> POST ()
     }
   deriving (Generic)
 
@@ -253,6 +259,9 @@ ctlServer st =
 
     boot :: CogName -> JellyPack -> Handler ()
     boot n pkg = liftIO (doBoot st n pkg)
+
+    poke :: CogName -> [Text] -> JellyPack -> Handler ()
+    poke n path package = liftIO (doPoke st n path package)
 
     {-|
         If we were to respond, there would be a race condition between the
@@ -302,6 +311,7 @@ reqCogs    :: ClientM (Map CogName CogStatus)
 reqSpin    :: CogName -> ClientM ()
 _reqReplay :: CogName -> ClientM ()
 reqDu      :: CogName -> ClientM [Text]
+reqPoke    :: CogName -> [Text] -> JellyPack -> ClientM ()
 
 CTL_API { isUp   = reqIsUp
         , boot   = reqBoot
@@ -310,6 +320,7 @@ CTL_API { isUp   = reqIsUp
         , spin   = reqSpin
         , replay = _reqReplay
         , doDu   = reqDu
+        , poke   = reqPoke
         } = client (Proxy @(NamedRoutes CtlApi))
 
 --------------------------------------------------------------------------------
@@ -335,6 +346,7 @@ data RunType
     | RTCogs FilePath
     | RTStat FilePath
     | RTSpin FilePath ReplayFrom (Maybe CogName)
+    | RTPoke FilePath CogName Text FilePath
 
 cogNameArg :: Parser CogName
 cogNameArg = COG_NAME <$> strArgument (metavar "NAME" <> help helpTxt)
@@ -428,9 +440,17 @@ runType defaultDir = subparser
                 <*> numWorkers)
 
    <> plunderCmd "daemon" "Run a daemon (if not already running)."
-        (RTDamn <$> (storeArg <|> storeOpt) <*> profOpt <*> profLaw <*> daemonAction)
+        (RTDamn <$> (storeArg <|> storeOpt) <*> profOpt <*> profLaw
+                <*> daemonAction)
+
+   <> plunderCmd "poke" "Pokes a spinning cog with a value."
+        -- TODO: should pokePath parse the '/' instead?
+        (RTPoke <$> storeOpt <*> cogNameArg <*> pokePath
+                <*> pokeSire)
     )
   where
+    pokePathHelp = help "Path to send data on"
+    pokeSireHelp = help "Sire file to parse and send"
     storeHlp = help "Location of plunder data"
     profHelp = help "Where to output profile traces (JSON)"
     storeArg = strArgument (metavar "STORE" <> storeHlp)
@@ -442,6 +462,9 @@ runType defaultDir = subparser
                  <> metavar "STORE"
                  <> storeHlp
                   )
+
+    pokePath = strArgument (metavar "PATH" <> pokePathHelp)
+    pokeSire = strArgument (metavar "SIRE" <> pokeSireHelp)
 
     profLaw :: Parser Bool
     profLaw = switch ( short 'P'
@@ -582,6 +605,7 @@ main = Rex.colorsOnlyInTerminal do
         RTDamn d _ _ START   -> startDaemon d
         RTDamn d _ _ STOP    -> killDaemon d
         RTDamn d _ _ RESTART -> killDaemon d >> startDaemon d
+        RTPoke d cog p y     -> pokeCog d cog p y
 
 withProfileOutput :: RunType -> IO () -> IO ()
 withProfileOutput args act = do
@@ -603,6 +627,7 @@ withProfileOutput args act = do
         RTBoot _ p l _ _     -> (,l) <$> p
         RTServ _ p l _ _ _ _ -> (,l) <$> p
         RTDamn _ p l _       -> (,l) <$> p
+        RTPoke _ _ _ _       -> Nothing
 
 startDaemon :: Debug => FilePath -> IO ()
 startDaemon d =
@@ -622,6 +647,20 @@ bootCog d c pash = do
                                  ("No value at end of file : " <> pash)
                   Just vl -> pure vl
         reqBoot c (JELLY_PACK val)
+
+pokeCog :: (Debug, Rex.RexColor) => FilePath -> CogName -> Text -> FilePath
+        -> IO ()
+pokeCog d c p pash = do
+  withDaemon d $ do
+      let fil = unpack pash
+      e <- liftIO (doesFileExist fil)
+      unless e (error $ unpack ("File does not exist: " <> pash))
+      mVl <- liftIO (Sire.ReplExe.loadFile fil)
+      val <- case mVl of
+                Nothing -> (error . unpack) $
+                               ("No value at end of file : " <> pash)
+                Just vl -> pure vl
+      reqPoke c (splitOn "/" p) (JELLY_PACK val)
 
 duCog :: Debug => FilePath -> CogName -> IO ()
 duCog d c = do
@@ -707,6 +746,7 @@ data ServerState = SERVER_STATE
     , termSignal     :: MVar ()
     , lmdb           :: DB.LmdbStore
     , hardware       :: DeviceTable
+    , poke           :: SubmitPoke
     , evaluator      :: Evaluator
     }
 
@@ -729,7 +769,7 @@ runServer enableSnaps numWorkers storeDir = do
     isShuttingDown <- newTVarIO False
     cogHandles     <- newTVarIO mempty
 
-    let devTable db = do
+    let devTable db hw_poke = do
             hw1_rand          <- createHardwareRand
           --(hw4_wock, wsApp) <- createHardwareWock
             let wsApp _cogName _ws = pure ()
@@ -744,12 +784,14 @@ runServer enableSnaps numWorkers storeDir = do
                 --( "wock", hw4_wock )
                 , ( "time", hw5_time )
                 --( "port", hw6_port )
+                , ( "poke", hw_poke  )
                 ]
 
     let serverState = do
             _  <- getPidFile storeDir
             db <- DB.openDatastore storeDir
-            hw <- devTable db
+            (pokeHW, submitPoke) <- createHardwarePoke
+            hw <- devTable db pokeHW
             ev <- evaluator numWorkers
             st <- pure SERVER_STATE
                 { storeDir
@@ -757,6 +799,7 @@ runServer enableSnaps numWorkers storeDir = do
                 , cogHandles
                 , lmdb      = db
                 , hardware  = hw
+                , poke      = submitPoke
                 , evaluator = ev
                 , termSignal
                 , enableSnaps
@@ -780,6 +823,14 @@ doBoot st cogName pak = do
         error ("Trying to overwrite existing machine " <> show cogName)
     else
         DB.writeCogSnapshot st.lmdb cogName (BatchNum 0) pak.fan
+
+{-
+    Deliver a noun from the outside to a given cog.
+-}
+doPoke :: Debug => ServerState -> CogName -> [Text] -> JellyPack -> IO ()
+doPoke st cogName path pak = do
+    debug ["poke_cog", cogName.txt]
+    st.poke cogName (fromList path) pak.fan
 
 {-
     `vShutdownFlag` serves as a guard which prevents new cogs from

@@ -1,0 +1,17 @@
+;;; This is an example of a raw program.  This runs directly against
+;;; the Cog interface without even using the `kern.sire` exokernel.
+;;;
+;;; This program just sits and echos the values poked at it on the `listen`
+;;; path.
+;;;
+;;; Once this cog is spinning, try running
+;;; `plunder poke pokedemo listen sire/loop-val.sire`
+
+/+  boot
+
+= (PokeLoop calls response)
+@ val | look response 0
+| trk %[=val]
+| PokeLoop [[%poke 0 %poke [%listen]]]
+
+(PokeLoop [[%poke 0 %poke [%listen]]])
