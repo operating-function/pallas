@@ -1262,7 +1262,7 @@ instance Show Run where
         v = mapFromList (zip (toList ks) (toList vs)) :: Map Word Run
 
     show (LAZ exe arg) =
-        "(#laz " <> show (GHC.toList arg) <> " "  <> show exe <> ")"
+        parencalate ("LAZ" : show exe : (show <$> toList arg))
 
     show (JMP x f v) =
         parencalate ["TAB_SWITCH", show x, show f, show v]
@@ -1406,7 +1406,7 @@ optimizeSpine = go
                 let (pro, arg) = shatterSpine run
                     res = LAZ (pro { prgrm = go pro.prgrm })
                               (goLazy <$> arg)
-                in trace (ppShow res) res
+                in res -- trace (ppShow res) res
 
 runSize :: Run -> Int
 runSize = w
