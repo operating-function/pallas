@@ -1,7 +1,7 @@
 /+ boot
 
 = multi_demo_index_html
-| mkPin
+| PIN
 # b
 """<!DOCTYPE HTML>
 """<html>

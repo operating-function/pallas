@@ -434,7 +434,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 = (jar val)
 | idx 1
 | jarMemo %[]
-| if isPin-val val mkPin-val
+| if isPin-val val PIN-val
 
 = (niceJar val)
 @ [hash deps byts] jar-val

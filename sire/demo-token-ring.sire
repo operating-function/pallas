@@ -2,7 +2,7 @@
 /+ io
 
 = (talker ourName us them white theMsg k)
-@ recur mkPin-talker
+@ recur PIN-talker
 ; trk [%talker ourName us them theMsg]
 : sendThread <- fork
                   & done

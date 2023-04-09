@@ -9,8 +9,8 @@
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [mkPin isPin pinItem]
-/+  01_fan  [mkLaw isLaw lawBody lawArgs lawName]
+/+  01_fan  [PIN isPin pinItem]
+/+  01_fan  [LAW isLaw lawBody lawArgs lawName]
 /+  01_fan  [isApp car cdr]
 /+  01_fan  [isNat]
 /+  02_bit  [if]
@@ -32,8 +32,8 @@
 
 = (inspect x)
 | if isApp-x (| listToRow | unApply car-x | CONS cdr-x NIL)
-| if isPin-x [mkPin pinItem-x]
-| if isLaw-x [mkLaw lawName-x lawArgs-x lawBody-x]
+| if isPin-x [PIN pinItem-x]
+| if isLaw-x [LAW lawName-x lawArgs-x lawBody-x]
 | x
 
 = (fullInspection x)

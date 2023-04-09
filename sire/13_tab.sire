@@ -8,7 +8,7 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [lawBody trk isLaw mkLaw inc]
+/+  01_fan  [lawBody trk isLaw inc]
 /+  02_bit  [if ifNot and or not]
 /+  03_nat  [toNat isZero]
 /+  04_app  [len idx head mut]

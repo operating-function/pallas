@@ -28,7 +28,7 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [mkLaw inc seq apply supply]
+/+  01_fan  [LAW inc seq apply supply]
 /+  01_fan  [isLaw lawName lawBody]
 /+  01_fan  [isApp car caar caaar caaaar]
 /+  02_bit  [if ifNot and or not]
@@ -39,7 +39,7 @@
 
 """ Core Definitions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-(cow n)=(mkLaw 0 inc-n 0)
+(cow n)=(LAW 0 inc-n 0)
 
 c0=(cow 0)
 c1=(cow 1)

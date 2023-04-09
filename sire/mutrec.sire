@@ -203,7 +203,7 @@
 ?= (cdr looper) loopFun
 
 ?? eql (pinItem looper) loopFun
-?? eql looper           (mkPin loopFun)
+?? eql looper           (PIN loopFun)
 
 = [even odd]
 # mutrec %even_odd [even odd]

@@ -21,11 +21,11 @@
 
 """ Names for PLAN Primitives """"""""""""""""""""""""""""""""""""""""""""""""""
 
-= mkLaw   | 0
+= LAW     | 0
 = valCase | 1
 = natCase | 2
 = inc     | 3
-= mkPin   | 4
+= PIN     | 4
 
 
 """ Utilities """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -141,7 +141,7 @@ todo="todo"
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ mkLaw valCase natCase inc mkPin
+^-^ LAW valCase natCase inc PIN
 ^-^
 ^-^ force seq deepseq
 ^-^ die todo

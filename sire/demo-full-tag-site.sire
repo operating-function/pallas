@@ -49,7 +49,7 @@
 
 ; derpibooru's favicon
 = favicon
-| mkPin
+| PIN
 | barCat
 , x#0000010001001010000000000000680400001600000028000000100000002000
   x#000001002000000000000004000000000000000000000000000000000000ffff
@@ -418,7 +418,7 @@ NONE
 : pOld < readIORef vSt
 @ old  | pinItem pOld
 @ srv  | (*getServThread old)
-@ pNew | mkPin (fun old)
+@ pNew | PIN (fun old)
 : ____ < writeIORef vSt pNew
 : ____ < cancelFork srv (syscall (*HTTP_SERV | fileServer pNew))
 | return 0
@@ -462,7 +462,7 @@ NONE
 = 1
 ;
 @ parsed (idx 0 evalResult)
-: (ATS_Learned _) <- addLearningsToState vSt (mkPin parsed)
+: (ATS_Learned _) <- addLearningsToState vSt (PIN parsed)
 | syscall (*HTTP_ECHO rid 200 b#ok [] b#{})
 | return
 
@@ -472,11 +472,11 @@ NONE
   # switch path
   = b#"/usecdn"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
-    : _ <- modifyIORef vSt pSt&(| mkPin | setLocal FALSE | pinItem pSt)
+    : _ <- modifyIORef vSt pSt&(| PIN | setLocal FALSE | pinItem pSt)
     | return 0
   = b#"/uselocal"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
-    : _ <- modifyIORef vSt pSt&(| mkPin | setLocal TRUE | pinItem pSt)
+    : _ <- modifyIORef vSt pSt&(| PIN | setLocal TRUE | pinItem pSt)
     | return 0
   = b#"/learn"
     : _ <- fork (addToState vSt rid body)
@@ -513,7 +513,7 @@ NONE
 = (launchFullTagDemo return)
 : servThread  <- fork (syscall (*HTTP_SERV emptyFileServer))
 : learnLock   <- newMVar 0
-: vSt         <- newIORef (mkPin | newState servThread learnLock)
+: vSt         <- newIORef (PIN | newState servThread learnLock)
 : httpThread1 <- fork (runHttpServer vSt)
 : httpThread2 <- fork (runHttpServer vSt)
 | return 0

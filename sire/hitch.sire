@@ -45,7 +45,7 @@
 ; parts of trees which haven't changed during snapshotting.
 ;
 = (packIndexNode [keys nodes] hh)
-| mkPin [0 keys nodes hh]
+| PIN [0 keys nodes hh]
 
 = (caseImpl pinnedNode)
 ; if (not isPin-pinnedNode)
@@ -460,7 +460,7 @@ newRootNode
 (hhDeleteKey k _ t)=(tabDel k t)
 
 = (hmEmpty config) | [config NONE]
-= (hmLeaf l)       | mkPin [1 l]
+= (hmLeaf l)       | PIN [1 l]
 
 = (hmSingleton config k v)
 @ node | hmLeaf | tabSingleton k v
@@ -499,7 +499,7 @@ newRootNode
 = (hmInsert k v [config r])
 @ p | tabSingleton k v
 | *maybeCase r
-    [config (*SOME (mkPin [1 p]))]
+    [config (*SOME (PIN [1 p]))]
 & gr
 @ !index | insertRec config hhMapTF p gr
 @ !fixed | fixup config hhMapTF index
@@ -561,7 +561,7 @@ newRootNode
 | (*isNone r)
 
 = (hsRawSingleton v)
-@ node (mkPin [1 (cabSingleton v)])
+@ node (PIN [1 (cabSingleton v)])
 | *SOME node
 
 (hsSingleton config v)=[config (hsRawSingleton v)]
@@ -586,7 +586,7 @@ newRootNode
 = (hsRawInsert i config r)
 @ is | cabSingleton i
 | *maybeCase r
-    (*SOME (mkPin [1 is]))
+    (*SOME (PIN [1 is]))
 & gr
 @ !index | insertRec config hhSetTF is gr
 @ !fixed | fixup config hhSetTF index
@@ -935,7 +935,7 @@ newRootNode
    @ leaf | tabSingleton k raw
    ,, mapConfig
    ,, setConfig
-   ,, | *SOME (mkPin [1 leaf])
+   ,, | *SOME (PIN [1 leaf])
 & gr
 @ tf | hhSetMapTF setConfig
 @ hh | tabSingleton k (cabSingleton v)

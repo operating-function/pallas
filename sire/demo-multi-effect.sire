@@ -22,12 +22,12 @@
 
 ;; TODO Support `(# x)("""...)("""...)
 = favicon
-| mkPin
+| PIN
 | x#000001000100101010000100040028010000160000002800000010000000200000000100040000000000800000000000000000000000100000000000000000000000ff840000bfab9500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000010000000000000000000000000010011001000001000000010100200000000000000020100000000000000000000000010000000000000100100020010000001011002000100000010000020010000000000000000001110000000000000000000000000000000000000000000000f200000173000002b3c0000540c000063140000240000002c00000000160000000a000030c0000038a2000018d400001c0800000cf0000000000000
 
 = files
 @ html multi_demo_index_html
-| mkPin
+| PIN
 %% ="/index.html"  [ "text/html"    b#{Hello World!} ]
 %% ="/hello.txt"   [ "text/plain"   html             ]
 %% ="/"            [ "text/html"    html             ]
@@ -119,7 +119,7 @@ hexAlphabet=(b#{0123456789abcdef})
 : stt <- getKernelState
 : bar <- syscall (*sockRecv class sock)
 | if (eql 0 bar) (next 0)
-: tid <- fork (mkPin-handleSocketInput broadcast class vOpen sock)
+: tid <- fork (PIN-handleSocketInput broadcast class vOpen sock)
 : con <- readIORef vOpen
 @ conns (listFromRow cabRow-con)
 | broadcast bar next
@@ -146,7 +146,7 @@ hexAlphabet=(b#{0123456789abcdef})
 | next 0
 
 = (runSocketLoop broadcast class vOpen next)
-@ recur (mkPin runSocketLoop)
+@ recur (PIN runSocketLoop)
 | trk %WAITING_FOR_SOCKET,(*sockOpen class)
 : sock <- syscall (*sockOpen class)
 | trk %NEW_SOCKET,sock
@@ -167,7 +167,7 @@ hexAlphabet=(b#{0123456789abcdef})
 
 ;;;   ,, | tableAdd (TELNET_WAIT h) (onTelnetWait h)
 ;;;      | tableAdd (TELNET_RECV h) (onTelnetRecv h)
-;;;      | tableAdd TELNET_OPEN mkPin-onTelnetOpen
+;;;      | tableAdd TELNET_OPEN PIN-onTelnetOpen
 ;;;      | table
 
 ;; Random Wait ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -209,7 +209,7 @@ hexAlphabet=(b#{0123456789abcdef})
 ; | loop 0
 
 = (randomWaitLoop vCount k)
-@ recur mkPin-randomWaitLoop
+@ recur PIN-randomWaitLoop
 : _ <- randomWait vCount
 | recur vCount k
 
