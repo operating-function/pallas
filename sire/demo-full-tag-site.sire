@@ -149,13 +149,11 @@
 | if x | rest
 | die msg
 
-= (assertMap jsonBS m)
-@ [h t] m
+= (assertMap jsonBS m=[h t])
 | *assertThat (eqlNat h %map) [%notAMap jsonBS m]
 t
 
-= (assertNum n)
-@ [h t] n
+= (assertNum n=[h t])
 | *assertThat (eqlNat h %num) [%notANum n]
 t
 
@@ -164,13 +162,11 @@ t
 & (v)
 v
 
-= (assertVec v)
-@ [h t] v
+= (assertVec v=[h t])
 | *assertThat (eqlNat h %vec) [%notAVec v]
 t
 
-= (assertStr s)
-@ [h t] s
+= (assertStr s=[h t])
 | *assertThat (eqlNat h %str) [%notAStr s]
 t
 
@@ -193,8 +189,7 @@ t
 | tabFromPairs
 | map tag&(barNat tag, cabSingleton id) tags
 
-= (imgRowToPair imgRow)
-@ [id _ _] imgRow
+= (imgRowToPair imgRow=[id _ _])
 [id imgRow]
 
 = (parseLearn jsonBS)
@@ -237,18 +232,16 @@ t
 
 ; TODO: user #datatype to define the json structure, and use #datacase here.
 = (jsonRow jsonBS)
-@ res (parseValue jsonBS)
+@ res=[json leftover] (parseValue jsonBS)
 | if res NONE
-@ [json leftover] res
 | if (neq 0 leftover) NONE
 # switch (if json json (idx 0 json))
 = 'vec' | SOME (idx 1 json)
 = _     | NONE
 
 = (jsonMap jsonBS)
-@ res (parseValue jsonBS)
+@ res=[json leftover] (parseValue jsonBS)
 | if res NONE
-@ [json leftover] res
 | if (neq 0 leftover) NONE
 # switch (if json json (idx 0 json))
 = 'map' | SOME (idx 1 json)

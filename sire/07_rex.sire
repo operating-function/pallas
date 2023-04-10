@@ -388,7 +388,7 @@ sx=(OPEN 1 "=" (v2 wx w9) 0)
 ?= 1 | rexEql `3        | (w "3")
 ?= 1 | rexEql `(3 4)    | nestNod "|" (v2 (w "3") (w "4"))
 ?= 1 | rexEql `([a][b]) | nestAnd "," (v1 (w "a"))
-                         | nestNod "," (v1 (w "b"))
+                        | nestNod "," (v1 (w "b"))
 ?= 1
     | rexEql
         | NEST 1 "*" (v2 (WORD 2 "hi" 0) (WORD 3 "yo" 0))

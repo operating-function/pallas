@@ -75,7 +75,7 @@
 /+  07_rex  [rexIsNode rexIsLeaf]
 /+  07_rex  [rexGetKidsOfNodeWithRune rexGetWord]
 /+  07_rex  [rexGetNodeWithRune]
-/+  07_rex  [NEST OPEN]
+/+  07_rex  [NEST OPEN WORD]
 /+  07_rex  [rexIdnt]
 /+  08_dat  [switch all tag drop rowCons cat take zip bapE]
 /+  08_dat  [CONS NIL listCase]
@@ -132,9 +132,12 @@
 
 """ Parsing Binders in General """""""""""""""""""""""""""""""""""""""""""""""""
 
-; (VAR k x)=[%v k x]
-; (ROW x)=[%r x]
-; (TAB x)=[%t x]
+;
+; ( VAR k n   = [%v k n]   )  ==>  x
+; ( ALI k n p = [%a k n p] )  ==>  x@p
+; ( SEQ x y   = [%s x y]   )  ==>  !x
+; ( TAB x     = [%t x]     )  ==>  %[a=b c=d]
+; ( ROW x     = [%r x]     )  ==>  [a b c]
 ;
 ; First parse patterns into data structures.
 ;
@@ -227,6 +230,15 @@
        <- traverseRow step comKids
 | ok (%t, tabFromPairs result)
 
+; x=[a b c]
+= (parseAliasedBinder parseBinder rex err ok)
+: kids <- readNodeWithoutHeirButWithRune "=" rex err
+| if (neq 2 len-kids)
+        | err rex "Alias-Patterns expect two kids: x=y"
+: foo < parseBinder (idx 0 kids) err
+: bar < parseBinder (idx 1 kids) err
+| ok [%a foo bar]
+
 = (parseBinder rex err ok)
 | if (rexIsLeaf rex)
         : sym <- readSymbol rex err
@@ -238,6 +250,8 @@
         | parseRowBinder parseBinder rex err ok
 | if (eql rune "%")
         | parseTabBinder parseBinder rex err ok
+| if (eql rune "=")
+        | parseAliasedBinder parseBinder rex err ok
 | *else
         | err rex "Unknown binding pattern"
 
@@ -262,6 +276,15 @@
        ,, %r
        ,, ,, [%t %[x=[%v 0 %x]]]
           ,, [%r [[%v 0 %y]]]
+
+
+?= (parseBinder `(foo=[%[=x] [y]]) v2 I)
+       ,, 'a'
+       ,, ['v' 0 'foo']
+       ,,  ,, 'r'
+           ,,  ,, ['t' %[x=['v' 0 'x']]]
+               ,, ['r' [['v' 0 'y']]]
+
 
 ?= (parseBinder ``[$$(varKE 1 %x) $$(varKE 2 %y)] v2 I)
        ,, %r
@@ -304,10 +327,15 @@
         @ key (idx 1 bindSpec)
         @ var (idx 2 bindSpec)
         | ok nex [key var exp [var]]::acc
-@ dat (idx 1 bindSpec)
 @ tey nex
 @ tmp (gensym tey)
 @ nex (inc nex)
+| if (eql 'a' typ)
+        @ acc [tey tmp exp []]::acc
+        : (nex acc) <- go (varE tmp) (idx 1 bindSpec) nex acc
+        : (nex acc) <- go (varE tmp) (idx 2 bindSpec) nex acc
+        | ok nex acc
+@ dat (idx 1 bindSpec)
 @ acc [tey tmp exp []]::acc
 @ res
         | if (eql 't' typ)
@@ -332,7 +360,8 @@
                 @ exp (appE (cnsE idx-i, varE tmp))
                 : (nex acc) <- go exp pat nex acc
                 | [nex acc]
-        | die ['bad bind spec' bindSpec]
+        | *else
+            | die ['bad bind spec' bindSpec]
 @ nex (idx 0 res)
 @ acc (idx 1 res)
 | ok nex acc
@@ -786,6 +815,25 @@
 ?= a 3
 ?= b 4
 
+= x=[a b c] [9 8 7]
+
+?= x [9 8 7]
+?= a 9
+?= b 8
+?= c 7
+
+= !p=[q r s] [9 8 7]
+
+?= p [9 8 7]
+?= q 9
+?= r 8
+?= s 7
+
+= [n o _]=[_ _ w] [9 8 7]
+
+?= [n o w] [9 8 7]
+
+
 ;;  : (sigRex bodyExpr) <- rexParseKids r [readAny readAny] err
 ;;  : (sym    binds  )  <- readDestroyer sigRex err
 ;;  : (n sig  bodyExpr) <- makeDestroyer n binds bodyExpr
@@ -825,6 +873,6 @@
 ^-^
 ^-^ destructureRowE
 ^-^ destructureTabE  ;;  TODO: Don't export these, export a more general
-                     ;;  API instead.
+^-^                  ;;  API instead.
 ^-^
 ^-^ "@" "?" "&" "="
