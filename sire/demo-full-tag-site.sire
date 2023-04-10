@@ -24,13 +24,14 @@
 = imgmapConfig
 @ minFanout 128
 @ maxFanout | dec | mul 2 minFanout
-| TREE_CONFIG minFanout
-              maxFanout
-              (dec minFanout)
-              (dec maxFanout)
-              minFanout
-              maxFanout
-              minFanout
+| TREE_CONFIG
+    minFanout
+    maxFanout
+    (dec minFanout)
+    (dec maxFanout)
+    minFanout
+    maxFanout
+    minFanout
 
 ; config for just the set part of the id setmap, optimized for nat -> bigset of
 ; nats.
@@ -39,13 +40,14 @@
 @ maxItems | dec | mul 2 minItems
 @ minFanout 128
 @ maxFanout | dec | mul 2 minFanout
-| TREE_CONFIG minFanout
-              maxFanout
-              (dec minFanout)
-              (dec maxFanout)
-              minItems
-              maxItems
-              maxItems
+| TREE_CONFIG
+    minFanout
+    maxFanout
+    (dec minFanout)
+    (dec maxFanout)
+    minItems
+    maxItems
+    maxItems
 
 ; derpibooru's favicon
 = favicon
@@ -92,7 +94,17 @@
 ; TODO: Figure out tuned config for files.
 | hmSingleton largeConfig "/favicon.ico" [b#{image/x-icon} favicon]
 
-record#(STATE files fileBytes local imgCount pairCount imgs tags servThread learnLock)
+# record
+| STATE
+  files
+  fileBytes
+  local
+  imgCount
+  pairCount
+  imgs
+  tags
+  servThread
+  learnLock
 
 = (newState servThread learnLock)
 | mkState
@@ -172,15 +184,13 @@ t
   | assertTabLookup %representations m
 | SOME [id rawTags thumbnailURL]
 
-= (imgRowToTagTabCab imgRow)
-  @ [id tags _] imgRow
-  @ cabId | cabSingleton id
-  | tabFromPairs
-  | map tag&[(barNat tag) cabId] tags
+= (imgRowToTagTabCab [id tags _])
+| tabFromPairs
+| map tag&(barNat tag, cabSingleton id) tags
 
 = (imgRowToPair imgRow)
-  @ [id _ _] imgRow
-  [id imgRow]
+@ [id _ _] imgRow
+[id imgRow]
 
 = (parseLearn jsonBS)
 @ jsonBS (pinItem jsonBS)
@@ -201,7 +211,7 @@ t
 @ !addImgs
   | tabFromPairs
   | map imgRowToPair rows
-| [rows addImgs addTags]
+[rows addImgs addTags]
 
 = (calcLearnSt pSt pBundle)
 @ [rows addImgs addTags] (pinItem pBundle)
@@ -211,7 +221,7 @@ t
 @ !nuTags   | hsmInsertMany addTags tags
 @ imgCount  | add imgCount  | len rows
 @ pairCount | add pairCount | tabLen addTags
-| [nuImgs nuTags imgCount pairCount]
+[nuImgs nuTags imgCount pairCount]
 
 = (forceUnpackEvalResult ctx res)
 # switch (len res)
@@ -227,10 +237,8 @@ t
 @ [json leftover] res
 | if (neq 0 leftover) NONE
 # switch (if json json (idx 0 json))
-= 'vec'
-    | SOME (idx 1 json)
-= _
-    | NONE
+= 'vec' | SOME (idx 1 json)
+= _     | NONE
 
 = (jsonMap jsonBS)
 @ res (parseValue jsonBS)
@@ -238,57 +246,49 @@ t
 @ [json leftover] res
 | if (neq 0 leftover) NONE
 # switch (if json json (idx 0 json))
-= 'map'
-    | SOME (idx 1 json)
-= _
-    | NONE
+= 'map' | SOME (idx 1 json)
+= _     | NONE
 
 = (asJsonMap m)
 # switch (idx 0 m)
-= 'map'
-    | SOME (idx 1 m)
-= _
-    | NONE
+= 'map' | SOME (idx 1 m)
+= _     | NONE
 
 = (asJsonRow m)
 # switch (idx 0 m)
-= 'vec'
-    | SOME (idx 1 m)
-= _
-    | NONE
+= 'vec' | SOME (idx 1 m)
+= _     | NONE
 
 = (asJsonNum m)
 # switch (idx 0 m)
-= 'num'
-    | SOME (idx 1 m)
-= _
-    | NONE
+= 'num' | SOME (idx 1 m)
+= _     | NONE
 
 = (asJsonStr m)
 # switch (idx 0 m)
-= 'str'
-    | SOME | barNat (idx 1 m)
-= _
-    | NONE
+= 'str' | SOME | barNat (idx 1 m)
+= _     | NONE
 
 ; List of commands we parse out of the incoming json
 # datatype
 | STATUSCMD
 | SEARCHCMD offset tags
 
+(bindMaybe mVal k)=(*maybeCase mVal NONE k)
+
 ; bs > Maybe Row Cord
 ;
 ; the json here being parsed is `{tag: "Search", contents: [array of str]}`.
 = (parseSearch jsonBS)
-: m <- *maybeCase (jsonMap jsonBS) NONE
+: m <- *bindMaybe (jsonMap jsonBS)
 | if | not | eql (SOME [%str b#{Search}]) | tabLookup %tag m
   NONE
-: jcontents <- *maybeCase (tabLookup %contents m) NONE
-: content <- *maybeCase (asJsonMap jcontents) NONE
-: joffset <- *maybeCase (tabLookup %offset content) NONE
-: offset <- *maybeCase (asJsonNum joffset) NONE
-: jr <- *maybeCase (tabLookup %tags content) NONE
-: r <- *maybeCase (asJsonRow jr) NONE
+: jcontents <- *bindMaybe (tabLookup %contents m)
+: content   <- *bindMaybe (asJsonMap jcontents)
+: joffset   <- *bindMaybe (tabLookup %offset content)
+: offset    <- *bindMaybe (asJsonNum joffset)
+: jr        <- *bindMaybe (tabLookup %tags content)
+: r         <- *bindMaybe (asJsonRow jr)
 ^ t&(*SOME (*SEARCHCMD offset t))
 | forRow r
 ? (step [h t] pure)
@@ -300,9 +300,9 @@ NONE
 ; think all of this should be rewritten when we have more user friendly json
 ; usage components.
 = (parseCmd jsonBS)
-: jm <- *maybeCase (jsonMap jsonBS) NONE
-: jt <- *maybeCase (tabLookup %tag jm) NONE
-: tg <- *maybeCase (asJsonStr jt) NONE
+: jm <- *bindMaybe (jsonMap jsonBS)
+: jt <- *bindMaybe (tabLookup %tag jm)
+: tg <- *bindMaybe (asJsonStr jt)
 # switch tg
 = 'Search' | parseSearch jsonBS
 = 'Status' | *SOME 0 ; STATUSCMD (but #datatype generated [0], not 0)
@@ -429,9 +429,9 @@ NONE
 : tmp <- readIORef vSt
 @ learnLock (*getLearnLock pinItem-tmp)
 ;
-: (ALTS_Locked _)   <- takeMVar learnLock
+: (ALTS_locked _)   <- takeMVar learnLock
 : pOld              <- readIORef vSt
-: (ALTS_Evaled res) <- syscall (*EVAL 1000 [calcLearnSt pOld pBundle])
+: (ALTS_evaled res) <- syscall (*EVAL 1000 [calcLearnSt pOld pBundle])
 ;
 @ [nuImgs nuTags nuImgCount nuPairCount]
     (forceUnpackEvalResult %learn res)
@@ -449,7 +449,7 @@ NONE
 
 = (addToState vSt rid jsonPin return)
 ;
-: (ATS_Evaled evalResult) <- syscall (*EVAL 1000 [parseLearn jsonPin])
+: (ATS_evaled evalResult) <- syscall (*EVAL 1000 [parseLearn jsonPin])
 ;
 # switch (len evalResult)
 = 0 | trk b#"TIMEOUT in /learn"
@@ -458,11 +458,11 @@ NONE
 = 2 | trk [b#"CRASH in /learn" (idx 0 evalResult) (idx 1 evalResult)]
     | syscall (*HTTP_ECHO rid 500 b#error [] b#{})
     | return
-= _ | die [%rts_gave_bad_eval_evalResult '/learn'] ; TODO Remove once stable
+= _ | die 'rts_gave_bad_eval_evalResult' '/learn' ; TODO Remove once stable
 = 1
 ;
 @ parsed (idx 0 evalResult)
-: (ATS_Learned _) <- addLearningsToState vSt (PIN parsed)
+: (ATS_learned _) <- addLearningsToState vSt (PIN parsed)
 | syscall (*HTTP_ECHO rid 200 b#ok [] b#{})
 | return
 
@@ -506,7 +506,7 @@ NONE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (runHttpServer vSt return)
-: (HttpHeard req) <- syscall HTTP_HEAR
+: (RHS_heard req) <- syscall HTTP_HEAR
 : _               <- handleReq vSt req
 | runHttpServer vSt return
 
