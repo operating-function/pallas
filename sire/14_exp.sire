@@ -27,89 +27,13 @@
 /+  08_dat  ["," all zip zipWith appE rowE rowCons drop]
 /+  08_dat  [CONS NIL listCase digits]
 /+  08_dat  [listToRow listFromRow listToRowReversed listRev]
+/+  08_dat  [traverseRow]
 /+  08_dat  [",,"]
 /+  09_sci  []
 /+  10_chr  [isAlpha isDigit]
 /+  11_str  [strCat explode strWeld]
 /+  12_cab  []
 /+  13_tab  [tabToPairs '%' tabE]
-
-
-""" Traversing Lists """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-""" TODO: This should probably go in `dat`?
-
-; traverseList::((a -> (b -> r)) -> Row a -> m (Row b))
-= (traverseList f xs return)
-^ NIL xs
-? (go acc remain)
-| *listCase remain
-    (return (listRev acc))
-& (head tail)
-| f head
-& newHead
-| go (CONS newHead acc) tail
-
-(forList xs f return)=(*traverseList f xs return)
-
-?= 0         | traverseList (x ret)&(if even-x ret-x 0) [3 [4 0]] I
-?= 0         | traverseList (x ret)&(if even-x ret-x 0) [4 [5 0]] I
-?= [4 [6 0]] | traverseList (x ret)&(if even-x ret-x 0) [4 [6 0]] I
-
-
-; :: traverseListWithState
-; -> st
-; -> (st -> b -> r))
-; -> st
-; -> List a
-; -> m st (List b)
-= (traverseListWithState st f xs return)
-^ st NIL xs
-? (go st acc remain)
-| listCase remain (return st (listRev acc))
-& (head tail)
-| f st head
-& (st newHead)
-@ acc (CONS newHead acc)
-| go st acc tail
-
-(forListWithState st xs f return)=(*traverseListWithState st f xs return)
-
-?= 17,(, 3 , 4 , 5 0)
-          ^ v2
-          | forListWithState 5 [3 [4 [5 0]]]
-          ? (step st item pure)
-          | pure (add st item) item
-
-
-""" Traversing Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-; traverseRow::((a -> (b -> r)) -> Row a -> m (Row b))
-= (traverseRow f xs return)
-| traverseList f (listFromRow xs)
-& out
-| return (listToRow out)
-
-(forRow xs f return)=(*traverseRow f xs return)
-
-?= 0     | traverseRow (x ret)&(if even-x ret-x 0) [3 4] I
-?= 0     | traverseRow (x ret)&(if even-x ret-x 0) [4 5] I
-?= [4 6] | traverseRow (x ret)&(if even-x ret-x 0) [4 6] I
-
-
-; traverseRow::((a -> (st -> b -> r)) -> st -> Row a -> m st (Row b))
-= (traverseRowWithState st f xs return)
-| traverseListWithState st f (listFromRow xs)
-& (st out)
-| return st (listToRow out)
-
-(forRowWithState st xs f return)=(*traverseRowWithState st f xs return)
-
-?= 17,[4 5 6]
-          ^ v2
-          | forRowWithState 5 [3 4 5]
-          ? (step st item pure)
-          | pure (add st item) (inc item)
 
 
 """ Parsing and Printing Nats """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -393,8 +317,6 @@
 ^-^ rexParseKids rexParseKidsRow
 ^-^ rexParseSons rexParseSonsRow
 ^-^
-^-^ traverseRow forRow traverseRowWithState forRowWithState
-^-^ traverseList forList traverseListWithState forListWithState
 ^-^ rowE tabE
 ^-^ gensym gensymE gensymNm
 ^-^

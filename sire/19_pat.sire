@@ -81,6 +81,7 @@
 /+  08_dat  [CONS NIL listCase]
 /+  08_dat  [listToRowReversed listZip listEnumFrom listToRow listFromRow]
 /+  08_dat  [',' ',,']
+/+  08_dat  [traverseRow forRowWithState]
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld strCat]

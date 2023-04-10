@@ -18,6 +18,7 @@
 /+  08_dat  [CONS NIL listCase listFromRow listToRowReversed sort delete cat]
 /+  08_dat  [listAll listFoldl]
 /+  08_dat  ["," drop take span has]
+/+  08_dat  [forRow]
 /+  09_sci  []
 /+  10_chr  [isDigit]
 /+  11_str  [strToList strWeld]
