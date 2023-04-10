@@ -462,7 +462,7 @@ hexAlphabet=(natBar "0123456789abcdef")
    x#b74e96e0385dcb18599b1570e3c5807a9284050258766cb7cd10b004713d2032
 
 'pinHash ##"%%"'
-?= x#5ab16e928be2f63ec94bb735a13281acc843ec9b9da912c25e7e7993398f322a
+?= x#0400749bb3839eb3a3cb760f6f6dcc674be2ad24d5ac310419e13b32db11f263
    (pinHash ##"%%")
 
 'pinHash cmp'

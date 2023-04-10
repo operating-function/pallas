@@ -13,10 +13,10 @@
 /+  03_nat  [add sub mul dec gteNat isZero]
 /+  04_app  [idx get len]
 /+  05_eql  [eql neq lte lth gth gte]
-/+  06_cow  [null weld v2 isRow map]
+/+  06_cow  [null weld v2 isRow map foldl]
 /+  07_rex
 /+  08_dat  [CONS NIL listCase listFromRow listToRowReversed sort delete cat]
-/+  08_dat  [listAll listFoldl]
+/+  08_dat  [listAll listFoldl listRev listToRow]
 /+  08_dat  ["," drop take span has]
 /+  08_dat  [forRow]
 /+  09_sci  []
@@ -304,11 +304,10 @@
 | rexGetNodeWithRune "%%" rex
     | err rex "Expected a %% node (in a tall-form cab literal)"
 & (sons heir)
-| if (neq 1 len-sons)
-    | err rex "%% requires exactly 1 son (in a tall-form cab literal)"
-| readKey (idx 0 sons) err
-& key
-| ok key heir
+| forRow sons
+    ? (step son pure)
+    | readKey son err pure
+| (keys & ok keys heir)
 
 
 = (readCenCenCab rex err ok)
@@ -316,9 +315,14 @@
 ? (go acc rex)
 | if (isZero rex) (ok acc)
 | *readCenCenCabLine rex err
-& (newKey heir)
-| if (cabHas newKey acc) (err rex "duplicate key")
-| go (cabIns newKey acc) heir
+& (newKeys heir)
+@ acc
+    ^ acc newKeys
+    | foldl
+    ? (step acc key)
+    | if (cabHas key acc) (err rex "duplicate key")
+    | cabIns key acc
+| go acc heir
 
 
 = (cenCenCab s p e a r err ok)
@@ -405,6 +409,9 @@
 ?= %[3 4 'a'] | %% 3
                 %% 4
                 %% """a
+?= %[3 4 'a'] | %% 3 4 """a
+?= %[3 4 'a'] | %% 3
+                %% 4 """a
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
