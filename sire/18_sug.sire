@@ -138,12 +138,32 @@
 ?= 0 | rexIsCapsSymbol `0
 ?= 0 | rexIsCapsSymbol `(hi there)
 
+; ?(f x y) | ?!(f x y) | (x y) | .*
 = (readColSig rex err ok)
-@ capsName | and (eql '|' (rexRune rex))
-                (*rexIsCapsSymbol (idx 0 (rexSons rex)))
-| ok [capsName rex]
+@ ryn (rexRune rex)
+;
+| if (eql '&' ryn)
+    | ifNot | and (isZero rexHeir-rex) (eql 1 | len rexSons-rex)
+        | err rex '?(form ##":" signature)  <- has strange shape'
+    | ok ['&' (idx 0 rexSons-rex)]
+;
+| if (eql '?' ryn)
+    | ifNot | and (isZero rexHeir-rex) (eql 1 | len rexSons-rex)
+        | err rex '?(form ##":" signature)  <- has strange shape'
+    | ok ['?' (idx 0 rexSons-rex)]
+;
+| if (eql '?!' ryn)
+    | ifNot | and (isZero rexHeir-rex) (eql 1 | len rexSons-rex)
+        | err rex '?!(form ##":" signature)  <- has strange shape'
+    | ok ['?!' (idx 0 rexSons-rex)]
+;
+| ok ['&' rex]
 
-?= [1 `(Foo x)] (readColSig `(Foo x) I I)
+?= ['&' `(Foo x)] (readColSig `(Foo x) I I)
+
+?= ['?' `(Foo x)] (readColSig `(?(Foo x)) I I)
+
+?= ['?!' `(Foo x)] (readColSig `(?!(Foo x)) I I)
 
 = colNeedsHeir | "Heir is required"
 = colTwoSons   | "Expected two sons"
@@ -161,12 +181,12 @@
 | if (neq 2 (len rexSons-r)) | err r colTwoSons
 | rexParseKids r [readColSig readColBinder readAny] err
 & (sig kids body)
-@ sigTag idx-0-sig
-@ sigExp idx-1-sig
+@ sigRune idx-0-sig
+@ sigExp  idx-1-sig
 | ok p a
 | trkVal ": output"
 | OPEN 0 "#|" kids
-| OPEN 0 (if sigTag "?!" "&") [sigExp]
+| OPEN 0 sigRune [sigExp]
 | body
 
 = (rexGetRune rex fall ok)

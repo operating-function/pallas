@@ -833,6 +833,15 @@
 
 ?= [n o w] [9 8 7]
 
+?= 1
+    : ?(self x) <- (k & k 'self')
+    | and (eql x 'self')
+          (eql x lawName-self)
+
+?= 1
+    : ?!(self x) <- (k & k 'self')
+    | and (eql x 'self')
+          (| eql x | lawName | pinItem self)
 
 ;;  : (sigRex bodyExpr) <- rexParseKids r [readAny readAny] err
 ;;  : (sym    binds  )  <- readDestroyer sigRex err
