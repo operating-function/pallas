@@ -292,7 +292,7 @@
 @ targetThread (*getSlot targetThreadId st)
 @ st (targetThread val targetThreadId st)
 | seq st
-| return 0 ourThreadId st
+| return () ourThreadId st
 
 ; block : IO a
 = (block return tid st)
@@ -334,17 +334,17 @@
     @ writers (rowSnoc writers [tid val])
     : _ <- writeIORef var (*MVAR_FULL existingVal writers)
     : _ <- block
-    | return 0
+    | return ()
 ; empty
 & readers
 | ifNot (len readers) ; No readers
     : _ <- writeIORef var (*MVAR_FULL val [])
-    | return 0
+    | return ()
 ; Readers waiting
 ; trk %PUT,readers,r,rs
 : _ <- writeIORef var (*MVAR_EMPTY (drop 1 readers))
 : _ <- yield (idx 0 readers) val
-| return 0
+| return ()
 
 = (takeMVar var return)
 : mvarSt <- readIORef var
@@ -371,7 +371,7 @@
 ;; Looping ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (forList_ list f return)
-: (x xs) <- listCase list (return 0)
+: (x xs) <- listCase list (return ())
 : _      <- f x
 | forList_ xs f return
 
@@ -382,7 +382,7 @@
 (traverseCab_ f cab return)=(*forCab_ cab f return)
 
 = (forList list f return)
-: (x xs) <- listCase list (return 0)
+: (x xs) <- listCase list (return ())
 : r      <- f x
 : rs     <- forList xs f
 | return (CONS r rs)

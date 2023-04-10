@@ -6,7 +6,7 @@
 = (timeDemo count return)
 | trk %timeDemo,count,return
 | if (isZero count)
-        | return 0
+        | return ()
 : (GotTime now) <- syscall TIME_WHEN
 | trk %[current_time=now]
 : (Waited _) <- syscall (*TIME_WAIT (inc now))

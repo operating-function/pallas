@@ -45,7 +45,7 @@
    ,, %[=curTime]
    ,, %[=forTime]
    ,, %[=forPar]
-| return 0
+| return ()
 
 
 ;; Manual Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

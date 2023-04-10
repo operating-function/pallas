@@ -8,7 +8,7 @@
 : tid <- myThreadId
 | ifNot (tid == expected)
     | die ["You failed the test" tid '!=' expected]
-| return 0
+| return ()
 
 = (checkIds return)
 : _  <- checkThreadId 0
@@ -18,7 +18,7 @@
 : t3 <- fork (checkThreadId 1)   ; before the next one spawns.
 | ifNot ([t0 t1 t2 t3] == 0,1,1,1)
     | die "You failed the test!"
-| return 0
+| return ()
 
 ?= (newMachine checkIds)
     | KERNEL ~[0 1] 0 [0 0] [0 0]
@@ -34,7 +34,7 @@
 : t3 <- fork (checkThreadId 3)
 | ifNot ([t0 t1 t2 t3] == [0 1 3 3])
     | die "You failed the test!"
-| return 0
+| return ()
 
 ?= (newMachine checkIds_v2)
     | KERNEL ~[0 3] 0 [0 DONE (MV_FULL 9 [(1,10)]) 0] [0 0 0 0]
@@ -55,7 +55,7 @@
 | assert (kl  == ~[])         `(kl == ~[])
 | assert (sl  == [0])         `(sl == [0])
 | assert (rq  == [0])         `(rq == [0])
-| return 0
+| return ()
 
 ?= (newMachine checkKernelState)
     | KERNEL ~[0] 0 [0] [0]
@@ -65,7 +65,7 @@
 
 = (justAlloc i return)
 | trk ['justAlloc' i]
-| if (i == 9) (return 0)
+| if (i == 9) (return ())
 : v <- newIORef i
 | justAlloc (inc i) return
 
@@ -81,7 +81,7 @@
 = (freeLoop i return)
 | trk ['freeLoop' i]
 : _ <- freeIORef i
-| if (0 == i) (return 0)
+| if (0 == i) (return ())
 | freeLoop (dec i) return
 
 = (allocLoop i return)
@@ -161,7 +161,7 @@
 : v9  <- takeMVar key
 : v8  <- takeMVar key
 : v7  <- takeMVar key
-| return 0
+| return ()
 
 ?= (newMachine satedWriters)
     | KERNEL ~[0 3 2] ~[] (0, MV_EMPT [], DONE, DONE) [0 0 0 0]
@@ -177,7 +177,7 @@
 : zaz <- fork (syscall HTTP_HEAR)
 : ___ <- cancel bar
 : ___ <- cancel zaz
-| return 0
+| return ()
 
 ?= (newMachine canceledCalls)
     | KERNEL ~[0] ~[4 3 1] [0 0 DONE 0 0] [0 0 [%http 0 %hear] 0 0]
@@ -200,7 +200,7 @@
 : zaz <- fork (syscall HTTP_HEAR)
 : ___ <- cancel bar
 : ___ <- cancel zaz
-| return 0
+| return ()
 
 ?= (newMachine compoundEvents)
     | KERNEL ~[0]

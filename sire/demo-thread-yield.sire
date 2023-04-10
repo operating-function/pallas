@@ -14,7 +14,7 @@
               | done 0
 : _ <- yield bob "Hey Bob, do your thing first."
 | trk ("MAIN THREAD SAYS", "Control is returned to Alice")
-| return 0
+| return ()
 
 
 ;; Manual Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -62,6 +62,7 @@
 /+  07_rex  [R NEST EMBD OPEN WORD CORD]
 /+  07_rex  [rexGetNodeWithRune]
 /+  07_rex  [rexStyle rexText rexEql]
+/+  07_rex  [rexSetRune]
 /+  08_dat  ["," ",," drop switch]
 /+  08_dat  [CONS NIL listToRowReversed listCase listFromRow]
 /+  09_sci  []
@@ -363,8 +364,23 @@ four=(WORD 0 "4" 0)
 | ok p a r
 
 
+""" UNIT Hack (This should live elsewhere) """""""""""""""""""""""""""""""""""""
+
+UNIT=0
+
+= ("|" s p e a r err ok)
+| ifNot len-(rexSons r)
+    | ok p a `UNIT
+@ r (rexSetRune "#|" r)
+| ok p a r
+
+?= UNIT ()
+
+
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+^-^
+^-^ UNIT "|"
 ^-^
 ^-^ readKeySignature readSignature unrollSlip2 rexGetRune
 ^-^ ":"

@@ -319,7 +319,7 @@ NONE
 ?= SOME-[1 8 [%x %y]]
    | parseCmd
    b#{{"tag": "Search", "contents": {"offset":8, "tags":["x", "y"]}}}
-?= SOME-0
+?= (*SOME 0)
    | parseCmd b#{{"tag": "Status"}}
 
 (tagToStr t)=(*JSON_STR (natBar t))
@@ -388,12 +388,12 @@ NONE
 
 """ Website """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-(emptyFileServer req)=0
+(emptyFileServer req)=NONE
 
 = (fileServer pinnedSt [method path headers body])
 @ st (pinItem pinnedSt)
 # switch method
-= _ 0
+= _ NONE
 = 'POST'
   # switch path
   = b#"/search"
@@ -421,7 +421,7 @@ NONE
 @ pNew | PIN (fun old)
 : ____ < writeIORef vSt pNew
 : ____ < cancelFork srv (syscall (*HTTP_SERV | fileServer pNew))
-| return 0
+| return ()
 
 = (addLearningsToState vSt pBundle return)
 ;
@@ -445,7 +445,7 @@ NONE
 ;
 ; Release the lock (This wont block, since there are no other writers)
 ;
-| putMVar learnLock 0 return
+| putMVar learnLock () return
 
 = (addToState vSt rid jsonPin return)
 ;
@@ -473,14 +473,14 @@ NONE
   = b#"/usecdn"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
     : _ <- modifyIORef vSt pSt&(| PIN | setLocal FALSE | pinItem pSt)
-    | return 0
+    | return ()
   = b#"/uselocal"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
     : _ <- modifyIORef vSt pSt&(| PIN | setLocal TRUE | pinItem pSt)
-    | return 0
+    | return ()
   = b#"/learn"
     : _ <- fork (addToState vSt rid body)
-    | return 0
+    | return ()
 = 'PUT'
   @ barType | *fromSome b#{text/plain}
             | tabLookup b#{content-type}
@@ -497,10 +497,10 @@ NONE
                          | setFileBytes newTotalSize
                          | setFiles files
                          | st
-  | return 0
+  | return ()
 = _
     : _ <- fork (syscall (*HTTP_ECHO rid 400 b#bad [] b#{}))
-    | return 0
+    | return ()
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -512,10 +512,10 @@ NONE
 
 = (launchFullTagDemo return)
 : servThread  <- fork (syscall (*HTTP_SERV emptyFileServer))
-: learnLock   <- newMVar 0
+: learnLock   <- newMVar ()
 : vSt         <- newIORef (PIN | newState servThread learnLock)
 : httpThread1 <- fork (runHttpServer vSt)
 : httpThread2 <- fork (runHttpServer vSt)
-| return 0
+| return ()
 
 (newMachine launchFullTagDemo)
