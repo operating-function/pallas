@@ -1,6 +1,6 @@
 /+  boot
 /+  io      [">>" forever]
-/+  io      [RandByte TimeWhen TimeWait]
+/+  io      [syscall RAND_BYTE TIME_WHEN TIME_WAIT]
 /+  io      [fork]
 /+  io      [myThreadId getKernelState]
 /+  io      [newIORef readIORef writeIORef]
@@ -16,16 +16,16 @@
 ;;; randomWait :: IORef Nat -> IO ()
 = (randomWait vCount k)
 : tid <- myThreadId
-: bar <- RandByte 1
-: now <- TimeWhen
+: bar <- syscall (*RAND_BYTE 1)
+: now <- syscall TIME_WHEN
 @ off (mod (barIdx 0 bar) 5)
 @ then (add now off)
 : kd <- : cb <- fork
         : me <- myThreadId
-        : _  <- TimeWait then
+        : _  <- syscall (*TIME_WAIT then)
         | trk [%kid_waited_also then %[tid=me]]
         | cb 0
-: x <- TimeWait then
+: x <- syscall (*TIME_WAIT then)
 : n <- readIORef vCount
 : _ <- (@ x inc-n | seq x | writeIORef vCount x)
 : s <- getKernelState

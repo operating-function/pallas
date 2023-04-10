@@ -102,22 +102,22 @@ hexAlphabet=(b#{0123456789abcdef})
 (sockKill class)=(idx 4 class)
 
 = Telnet
-,, SockOpen
-,, SockSend
-,, SockRecv
-,, SockWait
-,, SockKill
+,, SOCK_OPEN
+,, SOCK_SEND
+,, SOCK_RECV
+,, SOCK_WAIT
+,, SOCK_KILL
 
 = WebSocket
-,, WockOpen
-,, WockSend
-,, WockRecv
-,, WockWait
-,, WockKill
+,, WOCK_OPEN
+,, WOCK_SEND
+,, WOCK_RECV
+,, WOCK_WAIT
+,, WOCK_KILL
 
 = (handleSocketInput broadcast class vOpen sock next)
 : stt <- getKernelState
-: bar <- *sockRecv class sock
+: bar <- syscall (*sockRecv class sock)
 | if (eql 0 bar) (next 0)
 : tid <- fork (mkPin-handleSocketInput broadcast class vOpen sock)
 : con <- readIORef vOpen
@@ -127,13 +127,13 @@ hexAlphabet=(b#{0123456789abcdef})
 = (runLocalFileServer next)
 : tid <- myThreadId
 | trk %serv,(%[=tid])
-: res <- HttpServ files
+: res <- syscall HTTP_SERV files
 | die "Impossible: File Server does not respond"
 | next res
 
 = (sendAllLoop send conns bar next)
 : (c cs) <- *listCase conns (next 0)
-: _      <- fork (*send c bar)
+: _      <- fork (syscall (*send c bar))
 | sendAllLoop send cs bar next
 
 = (sendAll vTelnetOpen vWebSocketOpen bar next)
@@ -141,14 +141,14 @@ hexAlphabet=(b#{0123456789abcdef})
 : tels <- readIORef vTelnetOpen
 : webs <- readIORef vWebSocketOpen
 | trk ["ALL_SEND" bar %[=tels =webs]]
-: ____ <- sendAllLoop SockSend (cabList tels) bar
-: ____ <- sendAllLoop WockSend (cabList webs) bar
+: ____ <- sendAllLoop SOCK_SEND (cabList tels) bar
+: ____ <- sendAllLoop WOCK_SEND (cabList webs) bar
 | next 0
 
 = (runSocketLoop broadcast class vOpen next)
 @ recur (mkPin runSocketLoop)
 | trk %WAITING_FOR_SOCKET,(*sockOpen class)
-: sock <- *sockOpen class
+: sock <- syscall (*sockOpen class)
 | trk %NEW_SOCKET,sock
 : _ <- registerSocket vOpen sock
 | trk %registered,sock
@@ -157,8 +157,8 @@ hexAlphabet=(b#{0123456789abcdef})
 : _ <- fork
         & done
         | trk %loopThread,_
-        : _ <- *sockWait class sock
-        : _ <- *sockKill class sock
+        : _ <- syscall (*sockWait class sock)
+        : _ <- syscall (*sockKill class sock)
         : _ <- unregisterSocket vOpen sock
         : s <- getKernelState
         | trk %socked_end,sock
@@ -178,16 +178,16 @@ hexAlphabet=(b#{0123456789abcdef})
 ;;; randomWait :: IORef Nat -> IO ()
 = (randomWait vCount k)
 : tid <- myThreadId
-: bar <- RandByte 1
-: now <- TimeWhen
+: bar <- syscall (RAND_BYTE 1)
+: now <- syscall TIME_WHEN
 @ off (mod (barIdx 0 bar) 5)
 @ then (add now off)
 : kd <- : cb <- fork
         : me <- myThreadId
-        : _  <- TimeWait then
+        : _  <- syscall (TIME_WAIT then)
         | trk [%kid_waited_also then %[tid=me]]
         | cb 0
-: x <- TimeWait then
+: x <- syscall (TIME_WAIT then)
 : n <- readIORef vCount
 : _ <- (@ x inc-n | seq x | writeIORef vCount x)
 : s <- getKernelState
@@ -225,7 +225,7 @@ hexAlphabet=(b#{0123456789abcdef})
 | runLocalFileServer done
 
 = (repeatRequestDemo done)
-: now <- TimeWhen
+: now <- syscall TIME_WHEN
 ; trk %now,now
 | repeatRequestDemo done
 

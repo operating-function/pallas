@@ -170,11 +170,11 @@
 ;; Canceled threads are not reused until the next input. ;;;;;;;;;;;;;;;;;;;;;;;
 
 = (canceledCalls return)
-: foo <- fork HttpHear
-: srv <- fork HttpHear
+: foo <- fork (syscall HTTP_HEAR)
+: srv <- fork (syscall HTTP_HEAR)
 : ___ <- cancel foo
-: bar <- fork HttpHear
-: zaz <- fork HttpHear
+: bar <- fork (syscall HTTP_HEAR)
+: zaz <- fork (syscall HTTP_HEAR)
 : ___ <- cancel bar
 : ___ <- cancel zaz
 | return 0
@@ -192,12 +192,12 @@
 ;; Compond Events ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (compoundEvents return)
-: foo <- fork HttpHear
-: sr1 <- fork HttpHear
+: foo <- fork (syscall HTTP_HEAR)
+: sr1 <- fork (syscall HTTP_HEAR)
 : ___ <- cancel foo
-: bar <- fork HttpHear
-: sr2 <- fork HttpHear
-: zaz <- fork HttpHear
+: bar <- fork (syscall HTTP_HEAR)
+: sr2 <- fork (syscall HTTP_HEAR)
+: zaz <- fork (syscall HTTP_HEAR)
 : ___ <- cancel bar
 : ___ <- cancel zaz
 | return 0

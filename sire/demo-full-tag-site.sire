@@ -384,7 +384,7 @@ NONE
 @ srv  | (*getServThread old)
 @ pNew | mkPin (fun old)
 : ____ < writeIORef vSt pNew
-: ____ < cancelFork srv (HttpServ | fileServer pNew)
+: ____ < cancelFork srv (syscall (*HTTP_SERV | fileServer pNew))
 | return 0
 
 = (addLearningsToState vSt pBundle return)
@@ -395,7 +395,7 @@ NONE
 ;
 : (ALTS_Locked _)   <- takeMVar learnLock
 : pOld              <- readIORef vSt
-: (ALTS_Evaled res) <- Eval 1000 [calcLearnSt pOld pBundle]
+: (ALTS_Evaled res) <- syscall (*EVAL 1000 [calcLearnSt pOld pBundle])
 ;
 @ [nuImgs nuTags nuImgCount nuPairCount]
     (forceUnpackEvalResult %learn res)
@@ -413,21 +413,21 @@ NONE
 
 = (addToState vSt rid jsonPin return)
 ;
-: (ATS_Evaled evalResult) <- Eval 1000 [parseLearn jsonPin]
+: (ATS_Evaled evalResult) <- syscall (*EVAL 1000 [parseLearn jsonPin])
 ;
 # switch (len evalResult)
 = 0 | trk b#"TIMEOUT in /learn"
-    | HttpEcho rid 408 b#timeout [] b#{}
+    | syscall (*HTTP_ECHO rid 408 b#timeout [] b#{})
     | return
 = 2 | trk [b#"CRASH in /learn" (idx 0 evalResult) (idx 1 evalResult)]
-    | HttpEcho rid 500 b#error [] b#{}
+    | syscall (*HTTP_ECHO rid 500 b#error [] b#{})
     | return
 = _ | die [%rts_gave_bad_eval_evalResult '/learn'] ; TODO Remove once stable
 = 1
 ;
 @ parsed (idx 0 evalResult)
 : (ATS_Learned _) <- addLearningsToState vSt (mkPin parsed)
-| HttpEcho rid 200 b#ok [] b#{}
+| syscall (*HTTP_ECHO rid 200 b#ok [] b#{})
 | return
 
 = (handleReq vSt [rid method path headers body] return)
@@ -435,11 +435,11 @@ NONE
 = 'POST'
   # switch path
   = b#"/usecdn"
-    : _ <- fork (HttpEcho rid 200 b#ok [] b#{})
+    : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
     : _ <- modifyIORef vSt pSt&(| mkPin | setLocal FALSE | pinItem pSt)
     | return 0
   = b#"/uselocal"
-    : _ <- fork (HttpEcho rid 200 b#ok [] b#{})
+    : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
     : _ <- modifyIORef vSt pSt&(| mkPin | setLocal TRUE | pinItem pSt)
     | return 0
   = b#"/learn"
@@ -456,26 +456,26 @@ NONE
   ; don't get looked up later despite showing up with hmKeys? Somehow? wat?
   @ files (*getFiles st)
   @ files | hmInsert (barNat path) [barType body] files
-  : _ <- fork (HttpEcho rid 201 b#done [] b#{})
+  : _ <- fork (syscall (*HTTP_ECHO rid 201 b#done [] b#{}))
   : _ <- modifyState vSt & st
                          | setFileBytes newTotalSize
                          | setFiles files
                          | st
   | return 0
 = _
-    : _ <- fork (HttpEcho rid 400 b#bad [] b#{})
+    : _ <- fork (syscall (*HTTP_ECHO rid 400 b#bad [] b#{}))
     | return 0
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (runHttpServer vSt return)
-: (HttpHeard req) <- HttpHear
+: (HttpHeard req) <- syscall HTTP_HEAR
 : _               <- handleReq vSt req
 | runHttpServer vSt return
 
 = (launchFullTagDemo return)
-: servThread  <- fork (HttpServ emptyFileServer)
+: servThread  <- fork (syscall (*HTTP_SERV emptyFileServer))
 : learnLock   <- newMVar 0
 : vSt         <- newIORef (mkPin | newState servThread learnLock)
 : httpThread1 <- fork (runHttpServer vSt)

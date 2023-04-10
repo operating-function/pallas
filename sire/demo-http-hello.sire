@@ -32,9 +32,9 @@
   ,, [5 201 b#done [] b#{}]
 
 = (httpHello st done)
-: req <- HttpHear
+: req <- syscall HTTP_HEAR
 @ [st resp] (handleReq st req)
-@ effect    (rowApply HttpEcho resp)
+@ effect    (syscall | rowApply HTTP_ECHO resp)
 | trk %[=effect]
 : _ <- effect
 | httpHello st done

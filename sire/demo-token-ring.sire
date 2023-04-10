@@ -6,10 +6,10 @@
 ; trk [%talker ourName us them theMsg]
 : sendThread <- fork
                   & done
-                  : now <- PortSend us them theMsg
+                  : now <- syscall (*PORT_SEND us them theMsg)
                   | trk [ourName %sent theMsg] ;;; %at now]
                   | done 0
-: response <- PortRecv us white
+: response <- syscall (*PORT_RECV us white)
 @ respBody (idx 2 response)
 | trk [ourName %got respBody]
 | recur ourName us them white theMsg k
@@ -18,9 +18,9 @@
 ;
 ; trk %tokenRing,k
 ;
-: ali_seed_addr <- PortSire
-: bob_seed_addr <- PortSire
-: chr_seed_addr <- PortSire
+: ali_seed_addr <- syscall PORT_SIRE
+: bob_seed_addr <- syscall PORT_SIRE
+: chr_seed_addr <- syscall PORT_SIRE
 @ [ali_seed ali_addr] ali_seed_addr
 @ [bob_seed bob_addr] bob_seed_addr
 @ [chr_seed chr_addr] chr_seed_addr

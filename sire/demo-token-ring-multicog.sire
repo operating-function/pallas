@@ -7,10 +7,10 @@
 ; trk [%talker ourName us them theMsg]
 : sendThread <- fork
                   & done
-                  : now <- PortSend us them theMsg
+                  : now <- syscall (*PORT_SEND us them theMsg)
                   | trk [ourName %sent theMsg] ;;; %at now]
                   | done 0
-: response <- PortRecv us white
+: response <- syscall (*PORT_RECV us white)
 @ respBody (idx 2 response)
 | trk [ourName %got respBody]
 | talker ourName us them white theMsg k

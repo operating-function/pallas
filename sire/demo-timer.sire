@@ -7,9 +7,9 @@
 | trk %timeDemo,count,return
 | if (isZero count)
         | return 0
-: (GotTime now) <- TimeWhen
+: (GotTime now) <- syscall TIME_WHEN
 | trk %[current_time=now]
-: (Waited _) <- TimeWait (inc now)
+: (Waited _) <- syscall (*TIME_WAIT (inc now))
 | timeDemo (dec count) return
 
 newMachine-(timeDemo 5)

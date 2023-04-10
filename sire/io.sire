@@ -237,32 +237,32 @@
 
 ;; IO Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= (performIO req exe tid st)
+= (syscall req exe tid st)
 | *setSlot tid exe
 | *setRequest tid req
 | st
 
-= (Eval tim f x       k t s) | performIO [%eval tim f x]           k t s
-= (RandByte x         k t s) | performIO [%rand 0 %byte x]         k t s
-= (HttpServ ss        k t s) | performIO [%http 0 %serv ss]        k t s
-= (HttpHear           k t s) | performIO [%http 0 %hear]           k t s
-= (HttpHold n         k t s) | performIO [%http 0 %hold n]         k t s
-= (HttpEcho r c m h b k t s) | performIO [%http 0 %echo r c m h b] k t s
-= (SockOpen           k t s) | performIO [%sock 0 %open]           k t s
-= (SockKill h         k t s) | performIO [%sock 0 %kill h]         k t s
-= (SockWait h         k t s) | performIO [%sock 0 %wait h]         k t s
-= (SockRecv h         k t s) | performIO [%sock 0 %recv h]         k t s
-= (SockSend h b       k t s) | performIO [%sock 0 %send h b]       k t s
-= (WockOpen           k t s) | performIO [%wock 0 %open]           k t s
-= (WockKill h         k t s) | performIO [%wock 0 %kill h]         k t s
-= (WockWait h         k t s) | performIO [%wock 0 %wait h]         k t s
-= (WockRecv h         k t s) | performIO [%wock 0 %recv h]         k t s
-= (WockSend h b       k t s) | performIO [%wock 0 %send h b]       k t s
-= (TimeWhen           k t s) | performIO [%time 0 %when]           k t s
-= (TimeWait x         k t s) | performIO [%time 0 %wait x]         k t s
-= (PortSire           k t s) | performIO [%port 0 %sire]           k t s
-= (PortSend m w       k t s) | performIO [%port 0 %send m w]       k t s
-= (PortRecv m u b     k t s) | performIO [%port 0 %recv m u b]     k t s
+= (EVAL tim f x)        | [%eval tim f x]
+= (RAND_BYTE x)         | [%rand 0 %byte x]
+= (HTTP_SERV ss)        | [%http 0 %serv ss]
+= (HTTP_HEAR)           | [%http 0 %hear]
+= (HTTP_HOLD n)         | [%http 0 %hold n]
+= (HTTP_ECHO r c m h b) | [%http 0 %echo r c m h b]
+= (SOCK_OPEN)           | [%sock 0 %open]
+= (SOCK_KILL h)         | [%sock 0 %kill h]
+= (SOCK_WAIT h)         | [%sock 0 %wait h]
+= (SOCK_RECV h)         | [%sock 0 %recv h]
+= (SOCK_SEND h b)       | [%sock 0 %send h b]
+= (WOCK_OPEN)           | [%wock 0 %open]
+= (WOCK_KILL h)         | [%wock 0 %kill h]
+= (WOCK_WAIT h)         | [%wock 0 %wait h]
+= (WOCK_RECV h)         | [%wock 0 %recv h]
+= (WOCK_SEND h b)       | [%wock 0 %send h b]
+= (TIME_WHEN)           | [%time 0 %when]
+= (TIME_WAIT x)         | [%time 0 %wait x]
+= (PORT_SIRE)           | [%port 0 %sire]
+= (PORT_SEND m w)       | [%port 0 %send m w]
+= (PORT_RECV m u b)     | [%port 0 %recv m u b]
 
 ;;;
 ;;; `yield` manually executes another thread.  That thread
@@ -432,13 +432,15 @@
 ^-^ myThreadId getKernelState
 ^-^ newMachine
 ^-^
-^-^ Eval
-^-^ RandByte
-^-^ HttpServ HttpHear HttpHold HttpEcho
-^-^ SockOpen SockKill SockWait SockRecv SockSend
-^-^ WockOpen WockKill WockWait WockRecv WockSend
-^-^ TimeWhen TimeWait
-^-^ PortSire PortSend PortRecv
+^-^ syscall
+^-^
+^-^ EVAL
+^-^ RAND_BYTE
+^-^ HTTP_SERV HTTP_HEAR HTTP_HOLD HTTP_ECHO
+^-^ SOCK_OPEN SOCK_KILL SOCK_WAIT SOCK_RECV SOCK_SEND
+^-^ WOCK_OPEN WOCK_KILL WOCK_WAIT WOCK_RECV WOCK_SEND
+^-^ TIME_WHEN TIME_WAIT
+^-^ PORT_SIRE PORT_SEND PORT_RECV
 ^-^
 ^-^ newIORef freeIORef readIORef writeIORef modifyIORef
 ^-^

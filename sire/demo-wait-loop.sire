@@ -3,9 +3,9 @@
 
 = (waitLoop k)
 | trk %waitLoop,k
-: now <- TimeWhen
+: now <- syscall TIME_WHEN
 | trk %now,now
-: _ <- TimeWait (add now 1)
+: _ <- syscall (*TIME_WAIT (add now 1))
 | trk %waited
 | waitLoop k
 
