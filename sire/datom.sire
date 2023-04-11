@@ -1,0 +1,193 @@
+/+  boot
+/+  hitch
+/+  switch    ["#switch"]
+/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  mutrec
+
+;; for v0, all trees are Tabs and Cabs, not hitch stuff. doing all the hitch
+;; stuff will require adding a `Multimap a b c -> Map a (Map b (MapSet c))`
+;; typw.
+
+;; The toplevel DB type.
+;;
+;; for v0, all tables are (Tab * (Tab * (Cab *))).
+# record
+| DB schema eav aev ave maxEid ; rschema
+
+= emptyDB
+@ schema %[]
+@ eav    %[]
+@ aev    %[]
+@ ave    %[]
+@ maxEid 0
+| DB schema eav aev ave maxEid
+
+; raw operation to add a resolved tuple to the database
+= (rawAdd e a v db)
+# openDb db
+@ (alter2 c in)
+  | *SOME
+  | *maybeCase in
+    | cabSingleton c
+  & cab
+  | cabIns c cab
+@ (alter b c in)
+  | *SOME
+  | *maybeCase in
+    | tabSingleton b
+    | cabSingleton c
+  & tab
+  | tabAlter (alter2 c) b tab
+@ eav | tabAlter (alter a v) e eav
+@ aev | tabAlter (alter e v) a aev
+@ ave | tabAlter (alter v e) a ave
+| DB schema eav aev ave maxEid
+
+; raw remove
+= (rawRm e a v db)
+# openDb db
+@ (alter2 c in)
+  | *maybeCase in NONE
+  & cab
+  @ rmed | cabDel c cab
+  | if (cabIsEmpty rmed) NONE
+  | *SOME rmed
+@ (alter b c in)
+  | *maybeCase in NONE
+  & tab
+  @ rmed | tabAlter (alter2 c) b tab
+  | if (tabIsEmpty rmed) NONE
+  | *SOME rmed
+@ eav | tabAlter (alter a v) e eav
+@ aev | tabAlter (alter e v) a aev
+@ ave | tabAlter (alter v e) a ave
+| DB schema eav aev ave maxEid
+
+;; Resolved transaction changes
+# datatype
+| RESADD entityId attr val
+| RESRETRACT entityId attr val
+
+;; Ident
+# datatype
+; Specific numeric entity
+| ENT entityId
+; New entity referred to multiple times by this value
+| TMP val
+; Entity id based on an attribute lookup.
+| LOOKUP attr val
+
+;; TxnItem: Transaction items
+# datatype
+; Creates a new entity and adds the contents of the tab as a list of e
+| NEWENTITY tab
+; Adds a specific
+| ADD ident attr val
+; Retracts a specific datom
+| RETRACT eid attr val
+
+; Return a new entity id and record the new max in the database.
+= (allocEntity db)
+# openDb db
+[maxEid [schema eav aev ave (inc maxEid)]]
+
+= (lookupByEA eid attr db)
+# openDb db
+: av <- *maybeCase (tabLookup eid eav) %[]
+: v  <- *maybeCase (tabLookup attr eav) %[]
+v
+
+= (lookupByAE attr eid db)
+# openDb db
+: ev <- *maybeCase (tabLookup attr aev) %[]
+: v  <- *maybeCase (tabLookup eid aev) %[]
+v
+
+= (lookupByAV attr val db)
+# openDb db
+: ve <- *maybeCase (tabLookup attr ave) %[]
+: e  <- *maybeCase (tabLookup val ve) %[]
+e
+
+; Given a user level entity identity, translate that to a numeric database
+; identity.
+;
+; resolveIdent : Ident -> Map * Nat -> DB -> [Nat (Map * Nat) DB]
+= (resolveIdent ident txnTmps db)
+# openDb db
+# datacase ident
+= (ENT eid)
+  ,, eid
+  ,, txnTmps
+  ,, | if (lth eid maxEid) db
+     ; user has specified a larger eid than exists by hand.
+     [schema eav aev ave (inc eid)]
+= (TMP val)
+  : eid <- maybeCase (tabLookup val txnTmps)
+             @ [eid db] | allocEntity db
+             [eid (tabMut val eid txnTmps) db]
+  [eid txnTmps db]
+= (LOOKUP attr val)
+  @ eids | lookupByAV attr val db
+  @ l | cabLen eids
+  | if (isZero l) | 'No match for ' %[=attr =val]
+  | if (gth l 1)  | 'Not unique for ' %[=attr =val]
+  [(cabFirst eids) txnTmps db]
+
+; Given input items, assign numeric entity ids to everything for loading into
+; the actual db.
+;
+; resolveTransactionItem : [(List TxnItem) (Map * Nat) DB] -> TxnItem -> _1
+= (resolveTransactionItem [items txnTmps db] item)
+# datacase item
+= (NEWENTITY tab)
+  @ [eid db] | allocEntity db
+  @ adds | listMap ([a v])&(RESADD eid a v) | tabToList tab
+  [(listWeld adds items) txnTmps db]
+= (ADD ident attr val)
+  @ [eid txnTmps db] | resolveIdent ident txnTmps db
+  [(*CONS (RESADD eid attr val) items) txnTmps db]
+= (RETRACT eid attr val)
+  [(*CONS (RESRETRACT eid attr val) items) txnTmps db]
+
+; User transaction function. Given transaction items, resolve any pending
+; entity numbers in them and then apply them to the database.
+;
+; TODO: The type is wrong. It should be `Either Error DB`, since a ton of
+; things can error and `die` is wrong in this case.
+;
+; transact : [TxnItem] -> DB -> DB
+= (transact items db)
+@ [resolved _ db]
+  | listFoldl resolveTransactionItem [NIL %[] db]
+  | listFromRow items
+| trk %[=resolved]
+@ (step db item)
+  | trk [%item item]
+  # datacase item
+  = (RESADD eid attr val)
+    | rawAdd eid attr val db
+  = (RESRETRACT eid attr val)
+    | rawRm eid attr val db
+| listFoldl step db resolved
+
+
+^ transact _ emptyDB
+,, | ADD (TMP "newpost") "post" "mai poast"
+,, | ADD (TMP "newpost") "author" "Iceman"
+,, | ADD (TMP "other") "post" "Other post"
+,, | ADD (TMP "other") "post" "Sol"
+
+
+^ transact _ emptyDB
+,, | NEWENTITY %["post"="mai poast" "author"="Iceman"]
+,, | NEWENTITY %["post"="Other post" "author"="Sol"]
+
+
+^-^
+^-^ DB emptyDB
+^-^
+^-^ ENT TMP LOOKUP
+^-^ NEWENTITY ADD RETRACT
+^-^
+^-^ lookupByEA lookupByAE lookupByAV transact
