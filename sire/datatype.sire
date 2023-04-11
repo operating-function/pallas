@@ -409,3 +409,39 @@ ex=(PAIR %a %b)
 ;;;     | NULL
 ;;;     | CONS item/a tail/(List a)
 ;;;
+
+
+;;;  How to build support for deconstruction of destructors?
+;;;
+;;;  (PIN x @ 4 3 @ [x x])
+;;;
+;;;      =>
+;;;
+;;;  @ _tmp px
+;;;  @ x (pinItem _tmp)
+;;;  [x x]
+;;;
+;;;  ========
+;;;
+;;;  (LAW n a b @ (f x ? x) @ loot %[=n =a =b])
+;;;
+;;;      =>
+;;;
+;;;  @ _tmp (f x ? x)
+;;;  @ n (lawName n)
+;;;  @ a (lawArgs a)
+;;;  @ b (lawBody b)
+;;;  (loot %[=n =a =b])
+;;;
+;;;  ========
+;;;
+;;;  # record (PAIR fst snd)
+;;;
+;;;  (PAIR x y @ PAIR 3 4 @ [x y])
+;;;
+;;;      =>
+;;;
+;;;  @ _tmp (PAIR 3 4)
+;;;  @ x (idx 0 _tmp)
+;;;  @ y (idx 1 _tmp)
+;;;  [x y]
