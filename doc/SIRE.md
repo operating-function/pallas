@@ -196,3 +196,33 @@ Table of Runes
     @@ ones (1 ones)
      | eql 1 (car ones)
     ```
+
+Macros
+------
+
+Macros are bound to runes, and they are functions that take rex trees
+and return rex trees.
+
+Macros are defined simply by binding a value to a rune-shapred variable.
+
+    '###'=haxHaxHax
+
+Macros can redefine the syntax of the base runes as well.
+
+    `&`=lambda
+
+This allows the base-syntax to be extended with macros.
+
+Since these base-rune macros still need to expand to something, all of
+the basic syntactic forms also work if prefixed with a #.
+
+    = apply
+    ? (x y)
+    | apply x y
+
+    #= apply
+    #? (x y)
+    #| apply x y
+
+So, macros generally expand to the stable '#'-previxed versions of the
+base syntax.
