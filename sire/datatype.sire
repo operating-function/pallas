@@ -294,8 +294,9 @@ ex=(PAIR %a %b)
                     | readDestroyer sigRex err k
 ; trk %[=constr =fields]
 ;
-| if (not hasKey-constr-src)
+| ifNot (hasKey constr src)
         | err sigRex (strWeld "Undefined Pattern: " constr)
+;
 @ key (look src constr)
 | if (isZero key)
         | err sigRex (strWeld "Pattern defined without identity: " constr)
