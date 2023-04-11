@@ -29,7 +29,7 @@
 | 1 p l a n x
 
 = (len v)
-^ 0 v
+^ _ 0 v
 ? (go n v)
 | seq n
 | ifNot (isApp v) n

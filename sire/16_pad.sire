@@ -100,7 +100,7 @@ emptyPad=1
 = (padFromBinaryStr str)
 @ dig | map (eql "1") explode-str
 @ buf | listFromRow weld-dig-[1]
-^ 0 buf 1
+^ _ 0 buf 1
 ? (loop acc lis pos)
 | seq acc
 | *listCase lis acc

@@ -77,7 +77,7 @@
 ; See the tests for examples of what syntax is supported.
 ;
 = (unrollSlip2Tis rex parseAlien err ok)
-^ NIL rex
+^ _ NIL rex
 ? (loop acc form)
 : kids heir
         < rexGetNodeWithRune "=" form

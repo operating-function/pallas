@@ -12,7 +12,7 @@
 (TELNET req)=[0 2 req]
 
 = (telnetHello selfId)
-^ [(TELNET 0)]
+^ _ [(TELNET 0)]
 ? (loop _ _ handle)
 | trk [%got_handle handle]
 | loop [(TELNET 0)]

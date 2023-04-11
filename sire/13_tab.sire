@@ -240,7 +240,7 @@ emptyTab=emptyCab
 @ b | tabToList br
 | tabFromPairs
 | listToRow
-^ a b NIL
+^ _ a b NIL
 ? (loop a b xs)
 | if (listNull a) (listWeld (listRev xs) b)
 | if (listNull b) (listWeld (listRev xs) a)
@@ -282,7 +282,7 @@ emptyTab=emptyCab
 ; TODO Should we support 0xHEX?
 ; TODO Validate identifiers
 = (cenTab s p e a r kids err ok)
-^ emptyTab (listFromRow kids)
+^ _ emptyTab (listFromRow kids)
 ? (go acc pairs)
 ; trk [%go acc pairs]
 | *listCase pairs (ok p a tabE-acc)
@@ -316,7 +316,7 @@ emptyTab=emptyCab
 | okay key (idx 1 kids)
 
 = (cenCenTab s p e a r err ok)
-^ emptyTab r
+^ _ emptyTab r
 ? (go acc rex)
 ; trk 'go',acc,rex
 | if (isZero rex)

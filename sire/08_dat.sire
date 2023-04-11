@@ -54,7 +54,7 @@
 | ifNot (isApp v) v0
 | rev
 @ wid (div (roundUp len-v i) i)
-^ v cow-wid
+^ _ v cow-wid
 ? (go v acc)
 | ifNot (len v) acc
 | go (drop i v)
@@ -63,7 +63,7 @@
 
 = (span f r)
 @ l | len r
-^ 0
+^ _ 0
 ? (loop i)
 | if (eql i l) (v2 r v0)
 | if (f (idx i r))
@@ -179,8 +179,7 @@
 ; TODO Consider returning (0 | (idx+1)) to avoid the boxing the result
 ;      in SOME.
 = (findIdx f row)
-^ NONE tag-row
-| foldr
+^ foldr _ NONE tag-row
 & (iv rest)
 | if f-(idx 1 iv) SOME-(idx 0 iv) rest
 
@@ -196,7 +195,7 @@
 """ Unfolding """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (unfoldr f b)
-^ 0 b
+^ _ 0 b
 ? (go idx b)
 | *maybeCase (f b) (cow idx)
 & xs
@@ -387,7 +386,7 @@
 ; TODO: Use `until`?
 = (listDigits num)
 | ifNot num (CONS "0" 0)
-^ num NIL
+^ _ num NIL
 ? (loop mor acc)
 | seq acc
 | ifNot mor acc
@@ -434,7 +433,7 @@
 
 ; TODO inline this CONS
 = (listGen n f)
-^ 0
+^ _ 0
 ? (loop i)
 | if (eql i n) NIL
 | CONS (f i)
@@ -443,7 +442,7 @@
 !!= (listGen 3 I) [0 [1 [2 0]]]
 
 = (listFindIndex f xs)
-^ 0 xs
+^ _ 0 xs
 ? (loop ix rest)
 | seq ix
 | *listCase rest NONE
@@ -482,8 +481,7 @@
 (delete val row)=(filter (neq val) row)
 
 = (findIdxMany f row)
-^ NIL tag-row
-| foldr
+^ foldr _ NIL tag-row
 & (iv rest)
 | ifNot f-(idx 1 iv) rest
 | CONS (idx 0 iv) rest
@@ -502,7 +500,7 @@
 | listIntersperse sep xs
 
 = (listRev a)
-^ a NIL
+^ _ a NIL
 ? (loop a xs)
 | if (listNull a) xs
 | loop (idx 1 a) (CONS (idx 0 a) xs)
@@ -559,8 +557,7 @@
 ;       the size of the resulting row.  This allows the jet to preallocate
 ;       an array fill it by walking the list, no need for realloc.
 = (mapMaybe law row)
-| listToRowReversed
-^ 0 NIL
+^ listToRowReversed (_ 0 NIL)
 ? (loop i acc)
 | seq acc
 | if (eql i | len row) acc
@@ -625,7 +622,7 @@
 
 ; traverseList::((a -> (b -> r)) -> Row a -> m (Row b))
 = (traverseList f xs return)
-^ NIL xs
+^ _ NIL xs
 ? (go acc remain)
 | *listCase remain
     (return (listRev acc))
@@ -648,7 +645,7 @@
 ; -> List a
 ; -> m st (List b)
 = (traverseListWithState st f xs return)
-^ st NIL xs
+^ _ st NIL xs
 ? (go st acc remain)
 | listCase remain (return st (listRev acc))
 & (head tail)
@@ -660,8 +657,7 @@
 (forListWithState st xs f return)=(*traverseListWithState st f xs return)
 
 !!= 17,(, 3 , 4 , 5 0)
-          ^ v2
-          | forListWithState 5 [3 [4 [5 0]]]
+          ^ forListWithState 5 [3 [4 [5 0]]] _ v2
           ? (step st item pure)
           | pure (add st item) item
 
@@ -690,8 +686,7 @@
 (forRowWithState st xs f return)=(*traverseRowWithState st f xs return)
 
 !!= 17,[4 5 6]
-          ^ v2
-          | forRowWithState 5 [3 4 5]
+          ^ forRowWithState 5 [3 4 5] _ v2
           ? (step st item pure)
           | pure (add st item) (inc item)
 

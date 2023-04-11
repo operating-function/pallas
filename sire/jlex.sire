@@ -70,7 +70,7 @@
 """ Lex Numbers """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (consumeDigits input startOff)
-^ 0 startOff
+^ _ 0 startOff
 ? (loop acc off)
 @ chr (barIdx off input)
 | ifNot (isDigit chr) [acc off]
@@ -84,7 +84,7 @@
 """ Lex Strings of Zeros """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (consumeZeros input startOff)
-^ 0 startOff
+^ _ 0 startOff
 ? (go count off)
 | seq count
 @ chr (barIdx off input)
@@ -192,7 +192,7 @@
 """ Lexer JSON """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (lexJson input)
-^ 0
+^ _ 0
 ? (loop off)
 ;
 # switch (barIdx off input)

@@ -299,7 +299,7 @@ black=[0 0 0]
 @ scrY | natFp y
 @ cr | subFp (mulFp (fracFp scrX fpW) 25000) 20000
 @ ci | subFp (mulFp (fracFp scrY fpH) 25000) 12500
-^ 0 0 0
+^ _ 0 0 0
 ? (m_loop i x0 y0)
 @ xx | mulFp x0 x0
 @ yy | mulFp y0 y0
@@ -357,7 +357,7 @@ nl=10
 @ jobs | map x&[%eval ms f x] args
 @ l    | len args
 @ ret  | rep 0 l
-^ l ret jobs
+^ _ l ret jobs
 ? (loop remaining all jobs idx val)
 | trk [%loopBegin remaining]
 ;

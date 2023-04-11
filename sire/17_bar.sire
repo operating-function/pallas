@@ -66,14 +66,14 @@
 ,, isZero (mod padLen-bod 8)
 
 = (byteWidth n)
-^ 0 n
+^ _ 0 n
 ? (loop acc n)
 | seq acc
 | ifNot n acc
 | loop (inc acc) (rsh n 8)
 
 = (barTrail n)
-^ 0 n
+^ _ 0 n
 ? (loop acc num)
 | seq acc
 | if (or eql-1-num isZero-num)
@@ -97,7 +97,7 @@
 = (barNull bar)    | eql 1 (lawBody bar)
 
 = (barIdx i bar)
-^ i (barNat bar)
+^ _ i (barNat bar)
 ? (loop i n)
 | ifNot i (mod n 256)
 | ifNot n 0
@@ -108,7 +108,7 @@
 @ len (len r)
 | ifNot len 0
 @ las (dec len)
-^ 0 las
+^ _ 0 las
 ? (loop n ix)
 @ vl | get r ix
 | if vl n
@@ -117,7 +117,7 @@
 
 = (barHas byt bar)
 @ wid (barLen bar)
-^ 0
+^ _ 0
 ? (loop i)
 | if (eql i wid) 0
 | if (eql byt barIdx-i-bar) 1
@@ -169,7 +169,7 @@ emptyBar=(0 1 1 1)
 (barSlice off wid bar)=(barTake wid (barDrop off bar))
 
 = (barCountHeadMatching match b)
-^ 0
+^ _ 0
 ? (loop i)
 | seq i
 | ifNot (match (barIdx i b)) i
@@ -189,7 +189,7 @@ emptyBar=(0 1 1 1)
 ; the sire version always returns a value.
 = (barElemIndexEnd e b)
 | if (barNull b) NONE
-^ (dec | barLen b)
+^ _ (dec | barLen b)
 ? (loop i)
 | if (eql (barIdx i b) e) | SOME i
 | if (isZero i) NONE
@@ -202,7 +202,7 @@ emptyBar=(0 1 1 1)
 
 = (barSplitWith fun bar)
 | if (barNull bar) NIL
-^ bar
+^ _ bar
 ? (loop bar)
 | *maybeCase (barFindIndex fun bar) (CONS bar NIL)
 & i
@@ -214,7 +214,7 @@ emptyBar=(0 1 1 1)
 
 ;;; TODO use (barCatList (listIntersperse sep (listFromRow vals)))
 = (barIntercalate sep vals)
-^ emptyBar listFromRow-vals
+^ _ emptyBar listFromRow-vals
 ? (go acc res)
 | *listCase res acc
 & (x xs)
@@ -236,7 +236,7 @@ emptyBar=(0 1 1 1)
 @ dig | map hexCharToNat explode-nat
 @ pad | if (even len-dig) [] [0]
 @ buf | listFromRow cat-[pad dig [0 1]]
-^ 0 buf 1
+^ _ 0 buf 1
 ? (loop acc lis pos)
 | seq acc
 | *listCase lis (0 1 1 acc)
@@ -301,7 +301,7 @@ newline=(natBar 10)
 
 = (barElemIndexOff byte off bar)
 @ len (barLen bar)
-^ off
+^ _ off
 ? (loop ix)
 | if (gte ix len) len
 | if (eql byte (barIdx ix bar)) ix

@@ -44,7 +44,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 @ dig | map hexCharToNat explode-nat
 @ pad | if (even len-dig) [] [0]
 @ buf | listFromRow cat-[pad dig [0 1]]
-^ 0 buf 1
+^ _ 0 buf 1
 ? (loop acc lis pos)
 | seq acc
 : a as <- *listCase lis (0 1 1 acc)
@@ -71,7 +71,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 = (refs top)
 | listToRowReversed
 @ ini (if isPin-top pinItem-top top)
-^ NIL ini
+^ _ NIL ini
 ? (go set non)
 | if isPin-non
     | if (listHas non set) set
@@ -87,7 +87,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 ; All the pins reference in the body of a pin.
 = (pinRefs top)
 | listToRowReversed
-^ NIL (pinItem top)
+^ _ NIL (pinItem top)
 ? (go set non)
 | if isPin-non
     | if (listHas non set) set
@@ -141,7 +141,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 
 ;; sequence :: Row (Option a) -> Option (Row a)
 = (optionRowSequence results)
-^ NIL listFromRow-results
+^ _ NIL listFromRow-results
 ? (loop acc rest)
 : mX more <- *listCase rest SOME-(listToRowReversed acc)
 : x <- *maybeCase mX NONE
@@ -205,7 +205,7 @@ hexAlphabet=(natBar "0123456789abcdef")
         , (inc n)
         @ tmpVar (gensym n)
         | letE tmpVar (idx 0 exps)
-        ^ (listFromRow | drop 1 exps)
+        ^ _ (listFromRow | drop 1 exps)
         ? (loop more)
         : x xs <- *listCase more (die "impossible")
         : y ys <- *listCase xs appE-[cnsE-eql varE-tmpVar x]
@@ -244,7 +244,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 
 = (showTree x)
 | barFlat
-^ x
+^ _ x
 ? (go x)
 | if isNat-x
     | if strIsSymbol-x [b#'%' natBar-x]
@@ -357,7 +357,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 = (natWords n)
 # switch n
 = 0 %Zero
-^ n
+^ _ n
 ? (loop n)
 # switch n
 = 0 ""
@@ -489,7 +489,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (readBindPairs rex err ok)
-^ NIL rex
+^ _ NIL rex
 ? (loop acc rex)
 | if (isZero rex)
         | ok | listToRowReversed acc

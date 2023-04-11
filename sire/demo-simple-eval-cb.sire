@@ -4,7 +4,7 @@
 ; results, and exits.
 
 = evalTest
-^ [[0 100000 add [200 2]]]
+^ _ [[0 100000 add [200 2]]]
 & (_ id val)
 | trk [%add val]
 0

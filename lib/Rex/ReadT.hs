@@ -18,7 +18,8 @@ module Rex.ReadT
     , readNode
     , readExtra
     , readResult
-    , form0, form1, form2, form3, form4, formN, form1N, formN1, formN1c
+    , form0, form1, form2, form3, form4, formN
+    , form1N, formN1, formN1c, form1N1c
     , form0C, form1C, form2C, form3C, form4C, formNC, form1NC
     , form0c, form1c, form2c, form3c, form4c, formNc, form1Nc
     , form0e, form1e, form2e, form3e, form4e, formNe, form1Ne
@@ -439,6 +440,20 @@ formN1c p q =
     case reverse ps of
       []   -> resty $ Expected [(x, "At least one kid")]
       y:ys -> (,) <$> traverse (subTree p) (reverse ys) <*> subTree q y
+
+form1N1c
+    :: Monad m
+    => ReadT z m a -> ReadT z m b -> ReadT z m c
+    -> ReadT z m (a, [b], c)
+form1N1c p q r =
+  formMatchEither $ \x ps ->
+    case ps of
+      []   -> resty $ Expected [(x, "At least two kids")]
+      y:ys -> case reverse ys of
+                [] -> resty $ Expected [(x, "At least two kids")]
+                z:zs -> (,,) <$> subTree p y
+                             <*> traverse (subTree q) (reverse zs)
+                             <*> subTree r z
 
 
 -- Expressions With Explicit Optional Heir -------------------------------------

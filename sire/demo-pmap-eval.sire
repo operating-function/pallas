@@ -4,7 +4,7 @@
 @ jobs | map x&[0 ms f [x]] args
 @ l    | len args
 @ ret  | rep 0 l
-^ l ret jobs
+^ _ l ret jobs
 ? (loop remaining all jobs idx val)
 | trk [%loopBegin remaining all jobs idx val]
 ;

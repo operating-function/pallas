@@ -72,7 +72,7 @@
 
 = (ordered chk row)
 @ wid (len row)
-^ (idx 0 row) 1
+^ _ (idx 0 row) 1
 ? (go las i)
 | or (gteNat i wid)
 @ cur (idx i row)
@@ -158,7 +158,7 @@
   @ arg | inc (len r)
   | 0 0 arg r
 | mkCab
-^ 0 0 NIL
+^ _ 0 0 NIL
 ? (loop aIdx bIdx cur)
 | if (eql aIdx alen) cur
 | if (eql bIdx blen) cur
@@ -244,7 +244,7 @@
   (doCab s p e a r grandsons err ok)
 
 = (cenCab s p e a r kids err ok)
-^ emptyCab (listFromRow kids)
+^ _ emptyCab (listFromRow kids)
 ? (go acc kidList)
 | *listCase kidList (ok p a (EMBD acc))
 & (thisKid moreKids)
@@ -262,13 +262,13 @@
     | go (cabIns newKey acc) moreKids
 @ style (rexStyle thisKid)
 | if (eql "WORD" style)
-    | okay (loadKeyWord thisKid^rexText)
+    | okay (loadKeyWord rexText-thisKid)
 | if    | or (eql "CORD" style)
         | or (eql "TAPE" style)
         | or (eql "TAPE" style)
         | or (eql "LINE" style)
              (eql "PAGE" style)
-    | okay thisKid^rexText
+    | okay rexText-thisKid
 | if (eql "EMBD" style)
     @ fan (rexEmbd thisKid)
     | if (not isNat-fan) unexpected
@@ -311,13 +311,13 @@
 
 
 = (readCenCenCab rex err ok)
-^ emptyCab rex
+^ _ emptyCab rex
 ? (go acc rex)
 | if (isZero rex) (ok acc)
 | *readCenCenCabLine rex err
 & (newKeys heir)
 @ acc
-    ^ acc newKeys
+    ^ _ acc newKeys
     | foldl
     ? (step acc key)
     | if (cabHas key acc) (err rex "duplicate key")

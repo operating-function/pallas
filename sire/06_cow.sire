@@ -65,7 +65,7 @@ v1=c1
 
 = (mkRow n)
 | 0 0 n
-^ n (2 cow-n)
+^ _ n (2 cow-n)
 ? (go i acc)
 | ifNot i acc
 | go (dec i) (0 acc i)
@@ -105,7 +105,7 @@ v1=c1
 """ Generating Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (gen n f)
-^ n cow-n
+^ _ n cow-n
 ? (go mor acc)
 | ifNot mor acc
 @ nex dec-mor
@@ -115,14 +115,14 @@ v1=c1
 """ Folding Rows """"""""""""""""'""""""""""""""""""""""""""""""""""""""""""""""
 
 = (foldr f z row)
-^ 0 (len row)
+^ _ 0 (len row)
 ? (go i rem)
 | ifNot rem z
 | f (get row i)
 | go inc-i dec-rem
 
 = (foldl f z row)
-^ z 0 (len row)
+^ _ z 0 (len row)
 ? (go acc i rem)
 | seq acc
 | ifNot rem acc

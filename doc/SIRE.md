@@ -135,15 +135,23 @@ Table of Runes
     (f x y)    ;;  short-hand for (| f x y)
     (- f x y)  ;;  alternative syntax for (| f x y)
     f-x-y      ;;  Same as the above, but written infix.
-    (^ x y f)  ;;  Alternate syntax for (| f x y)
     (| f x y)  ;;  Function application
     (| *f x y) ;;  Inlined Function application
     ```
 
-    `^` is mostly useful for loops and similar:
+-   Reordering Expressions
+
+    `(^ _ x y)f` is a short-hand for:
 
     ```
-    ^ NIL args
+    @ _ f
+    | _ x y
+    ```
+
+    This is mostly useful for loops and things like that:
+
+    ```
+    ^ _ NIL args
     ? (loop acc remain)
     | if (null remain) acc
     | loop

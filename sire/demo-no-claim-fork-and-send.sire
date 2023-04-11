@@ -4,17 +4,17 @@
 
 = (forked selfId)
 | trk [%forked selfId]
-^ []
+^ _ []
 ? (loop _ id val)
 | trk [%recv id val]
 0
 
 = (sendTest selfId)
 | trk [%self selfId]
-^ [[2 forked]]
+^ _ [[2 forked]]
 & (_ _ forkId)
 | trk [%completed forkId]
-^ [[1 forkId %hi]]
+^ _ [[1 forkId %hi]]
 & (_ recvId val)
 | trk [%sendack recvId val]
 0

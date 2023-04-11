@@ -194,7 +194,7 @@
 
 = loopFun
 ? (looper start)
-^ 0 start
+^ _ 0 start
 ? (loop b x)
 | switch b 0
 ,, ifNot x 0 (loop 0 0)

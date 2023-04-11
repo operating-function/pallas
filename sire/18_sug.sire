@@ -236,7 +236,7 @@
 
 = ("::" s p e a r err ok)
 | ok p a
-^ (rexKids r)
+^ _ (rexKids r)
 ? (go kids)
 | if (isZero len-kids) | natE 0
 | if (eql 1 len-kids)  | idx 0 kids
@@ -254,7 +254,7 @@
 """ Open List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (unrollSlip2 rune alien rex err ok)
-^ NIL rex
+^ _ NIL rex
 ? (loop acc rex)
 : kids heir
        <- rexGetNodeWithRune rune rex
@@ -290,7 +290,7 @@
 | if (neq 1 len-topKids)
     | err r "Expected one kid"
 : result
-   <-   ^ (idx 0 topKids)
+   <-   ^ _ (idx 0 topKids)
         ? (quote qRex qRet)
         : qRune qSons qHeir
                <- rexGetNode qRex (qRet | cnsE qRex)
@@ -377,7 +377,7 @@ four=(WORD 0 "4" 0)
     , (inc n)
     @ tmpVar (gensym n)
     | letE tmpVar (idx 0 exps)
-    ^ (listFromRow | drop 1 exps)
+    ^ _ (listFromRow | drop 1 exps)
     ? (loop more)
     : x xs <- *listCase more (die "impossible")
     : y ys <- *listCase xs appE-[cnsE-eql varE-tmpVar x]

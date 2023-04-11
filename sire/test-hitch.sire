@@ -15,7 +15,7 @@
 ; Builds an assoc list of 0-256 to random lower case strings.
 ;
 = (mkTestPair count gen)
-^ 0 NIL gen
+^ _ 0 NIL gen
 ? (loop_mktestpair idx cur gen)
 | if | eql idx count
     [gen cur]
@@ -32,7 +32,7 @@
 | loop_mktestpair (inc idx) (CONS [key (implode | listToRow listVal)] cur) gen
 
 = (buildTabFrom pairs)
-^ pairs %[]
+^ _ pairs %[]
 ? (build pairs t)
 | *listCase pairs
   t
@@ -41,7 +41,7 @@
 
 = (buildHMinsertFrom pairs)
 @ empty | hmEmpty twoThreeConfig
-^ pairs empty
+^ _ pairs empty
 ? (build pairs hm)
 | *listCase pairs
   hm
@@ -63,7 +63,7 @@
 @ checkLen      | tabLen tab
 | seq (FORCE (inPairs,checkLen,tab,checkLen))
 @ hm            | build inPairs
-^ 0
+^ _ 0
 ? (loop_eqs_tab idx)
 | if (eql idx checkLen) TRUE
 @ [key val] | tabElem idx tab
@@ -100,7 +100,7 @@
 ; step 3: ensure that all other items are present; not only did we delete the
 ; target item, we did not delete anything else.
 @ checkLen      | tabLen tab
-^ 0
+^ _ 0
 ? (loop_eqs_tab idx)
 | if (eql idx checkLen) TRUE
 @ [key val] | tabElem idx tab
@@ -116,7 +116,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;
 
 = (mkIntList count gen)
-^ 0 NIL gen
+^ _ 0 NIL gen
 ? (loop_mkint_list idx cur gen)
 | if | eql idx count
     [gen cur]
@@ -142,7 +142,7 @@
 @ checkLen     | len checkItems
 | seq (FORCE (inList,checkLen,checkItems))
 @ hs           | build inList
-^ 0
+^ _ 0
 ? (loop_eqs_cab idx)
 | if (eql idx checkLen) TRUE
 @ val | get checkItems idx
@@ -179,7 +179,7 @@
 ; step 3: ensure that all other items are present; not only did we delete the
 ; target item, we did not delete anything else.
 @ cabWid      | cabLen cab
-^ 0
+^ _ 0
 ? (loop_eqs_cab idx)
 | if (eql idx cabWid) TRUE
 @ val | cabElem idx cab
@@ -203,7 +203,7 @@
   | *maybeCase prev | cabSingleton val
   & c
   | cabIns val c
-^ pairs %[]
+^ _ pairs %[]
 ? (build pairs t)
 | *listCase pairs
   t
@@ -212,7 +212,7 @@
 
 = (buildHSMinsertFrom pairs)
 @ empty | hsmEmpty twoThreeConfig twoThreeConfig
-^ pairs empty
+^ _ pairs empty
 ? (build pairs hm)
 | *listCase pairs
   hm
@@ -232,7 +232,7 @@
 @ checkLen      | len tab
 | seq (FORCE (tab, checkLen, gen, count, inPairs))
 @ hsm           | build inPairs
-^ 0
+^ _ 0
 ? (loop_eqs_tabcab idx)
 | if (eql idx checkLen) TRUE
 @ [key val] | tabElem idx tab
@@ -273,7 +273,7 @@
 ; step 3: ensure that all other items are present; not only did we delete the
 ; target item, we did not delete anything else.
 @ inRowCount    | len inRow
-^ 0
+^ _ 0
 ? (loop_eqs_tabcab i)
 | if (eql i inRowCount) TRUE
 @ [key val] | idx i inRow

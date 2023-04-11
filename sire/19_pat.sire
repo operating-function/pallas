@@ -313,7 +313,7 @@
 ;
 
 = (sequenceBindPair nex bindSpec exp)
-^ exp bindSpec nex NIL
+^ _ exp bindSpec nex NIL
         & (nex acc)
         @ row (listToRowReversed acc)
         | [nex (map (take 3) row) (cat | map idx-3 row)]
@@ -339,8 +339,7 @@
 @ acc [tey tmp exp []]::acc
 @ res
         | if (eql 't' typ)
-                ^ [nex acc] (tabToPairs dat)
-                | foldl
+                ^ foldl _ [nex acc] (tabToPairs dat)
                 & (st elem)
                 @ nex (idx 0 st)
                 @ acc (idx 1 st)
@@ -350,8 +349,7 @@
                 : nex acc <- go exp pat nex acc
                 | [nex acc]
         | if (eql 'r' typ)
-                ^ [nex acc] (tag dat)
-                | foldl
+                ^ foldl _ [nex acc] (tag dat)
                 & (st elem)
                 @ nex (idx 0 st)
                 @ acc (idx 1 st)
@@ -789,8 +787,7 @@
     : spec <- parseBinder brex err
     @ [a bSeq] (sequenceBinds a [[spec bodyExpr]])
     | ok p a
-    ^ heir bSeq
-    | foldr
+    ^ foldr _ heir bSeq
     & ([key var exp] heir)
     | OPEN 0 "#=" (keyKE key var, exp) heir
 

@@ -56,7 +56,7 @@ GT=2
 = (odd n)  | mod n 2
 
 = (met n)
-^ 0 n
+^ _ 0 n
 ? (go acc n)
 | seq acc
 | ifNot n acc
@@ -88,7 +88,7 @@ GT=2
 | add x | lsh y met-x
 
 = (perbit f x y)
-^ x y 0 0
+^ _ x y 0 0
 ? (go a b off acc)
 | ifNot (add a b) acc
 @ bit | f (mod a 2) (mod b 2)

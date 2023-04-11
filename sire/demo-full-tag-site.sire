@@ -287,8 +287,7 @@ t
 : offset    <- *bindMaybe (asJsonNum joffset)
 : jr        <- *bindMaybe (tabLookup %tags content)
 : r         <- *bindMaybe (asJsonRow jr)
-^ t&(*SOME (*SEARCHCMD offset t))
-| forRow r
+^ forRow r _ t&(*SOME (*SEARCHCMD offset t))
 ? (step [h t] pure)
 | if | eqlNat h %str
   | pure | barNat t

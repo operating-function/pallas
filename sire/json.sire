@@ -154,8 +154,7 @@
 """ TODO: Handle edge-cases with "\u1234" escapes.
 
 = (printJSON input)
-| barFlat
-^ input
+^ barFlat (_ input)
 ? (go json)
 ; trk ['go' json]
 | if (eql JSON_NULL json)  b#null

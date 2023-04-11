@@ -311,10 +311,10 @@ readExpr = do
              pure (EREC r v b)
 
         , do (rune "#^" <|> rune "^")
-             (xs, h) <- formN1c readExpr readAppHead
-             pure case h of
-                 Left f  -> ELIN (EREF f :| xs)
-                 Right f -> foldl' EAPP f xs
+             (ef, xs, h) <- form1N1c readAppHead readExpr readExpr
+             pure case ef of
+                 Left f  -> ELET "_" h (ELIN (EREF f :| xs))
+                 Right f -> ELET "_" h (foldl' EAPP f xs)
 
         , do (rune "#&" <|> rune "&")
              (rs, b) <- form2c readArgs readExpr

@@ -29,7 +29,7 @@
 %gt
 
 = (binFindIdxLte cmp r)
-^ 0 (len r)
+^ _ 0 (len r)
 ? (go_binfind l u)
 | if (lteNat u l) l
 @ k | rsh (add u l) 1
@@ -149,7 +149,7 @@
 = (extendIndex treeFun maxIndexKeys idx)
 # openTreeFun treeFun
 @ maxIndexVals | inc maxIndexKeys
-^ idx
+^ _ idx
 ? (loop idx)
 @ numVals      | *indexValLen idx
 | if (lteNat numVals maxIndexVals)
@@ -224,8 +224,7 @@
 ; we have to split the node into more than two nodes
 @ (fixup [keys vals])
   [keys (map mkLeaf vals)]
-| fixup
-^ items NIL NIL
+^ fixup (_ items NIL NIL)
 ? (loop items keys leafs)
 @ itemLen | leafLength items
 | if (gthNat itemLen | mul 2 maxLeafItems)
@@ -364,7 +363,7 @@ newRootNode
 ;
 = (getLeafRow treeFun node)
 # openTreeFun treeFun
-^ hhEmpty node
+^ _ hhEmpty node
 ? (go_openTreeFun hh node)
 # datacase (caseImpl node)
 = (LEAFNODE leaves)
@@ -379,7 +378,7 @@ newRootNode
 ; Given a node, ensure that all hitchhikers have been pushed down to leaves.
 = (flushDownwards treeFun node)  ; -> node
 # openTreeFun treeFun
-^ hhEmpty node
+^ _ hhEmpty node
 ? (go_openTreeFun hh node)
 # datacase (caseImpl node)
 = (LEAFNODE leaves)
@@ -987,7 +986,8 @@ newRootNode
 = (hsmLookup k [mapConfig setConfig r])
 # openTreeConfig mapConfig
 | *maybeCase r (hsEmpty setConfig)
-^ %[]
+& node
+^ _ %[] node
 ? (lookInNode !hh node)
 # datacase (caseImpl node)
 = (INDEXNODE children hitchhikers)

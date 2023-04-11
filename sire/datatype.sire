@@ -177,7 +177,7 @@ ex=(PAIR %a %b)
 
 ; readDataBranch/(Rex > MacroMonad (Row (Symbol, Row Symbol)))
 = (readDataBranches r err ok)
-^ NIL r
+^ _ NIL r
 ? (go acc r)
 ; trk 'WHAAA',[%[=r] (rexSetHeir 0 r)]
 @ = this (rexSetHeir 0 r)
@@ -195,8 +195,7 @@ ex=(PAIR %a %b)
 !!=            ,, [0 %FOO [%x]]
                ,, [0 %BAR [%x %y %z]]
                ,, [0 %LOL []]
-        ^ v2 I
-        | readDataBranches
+        ^ readDataBranches _ v2 I
         ` | FOO x
           | BAR x y z
           | LOL
@@ -213,7 +212,7 @@ ex=(PAIR %a %b)
 ;
 ; trkVal %defDataTypeC
 ;
-^ 0 prp NIL (listFromRow branches)
+^ _ 0 prp NIL (listFromRow branches)
 ? (loop ix prp acc remain)
 ;
 | seq ix
@@ -281,8 +280,7 @@ ex=(PAIR %a %b)
 @ onAlien (x err ret & err x 'Not a switch branch')
 : clauses <- unrollSlip2Tis cases onAlien err
 ;
-^ NIL (listFromRow clauses)
-;
+^ _ NIL (listFromRow clauses)
 ? (go acc remain)
 : [sigRex bodyRex] remain
        <- *listCase remain (ok | listToRowReversed acc)
@@ -317,7 +315,7 @@ ex=(PAIR %a %b)
 
 !!=    ,, [0 0 []                      `[x "]"]]
        ,, [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
-    ^ v2 I
+    ^ _ v2 I
     | readDatacaseBody
            %% =LNULL 3
            %% =LCONS 4
@@ -368,7 +366,7 @@ ex=(PAIR %a %b)
 
 = (showList xs)
 | strWeld "["
-^ xs
+^ _ xs
 ? (go xs)
 # datacase xs
 = LNULL

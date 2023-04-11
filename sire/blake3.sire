@@ -82,7 +82,7 @@ st
 | if (mod len-bv 4)
     | die "byte-row length not a multiple of 4"
 @ wid (div len-bv 4)
-^ 0 0 (mkRow wid)
+^ _ 0 0 (mkRow wid)
 ? (loop i j acc)
 | if (eql j wid) acc
 @ next (add i 4)
@@ -148,7 +148,7 @@ st
 @ block | b3Permute block
 @ st    | b3Round st block         ;;; round 7
 ;
-^ 0 st
+^ _ 0 st
 ? (loop i st)
 | if (eql i 8)
   st
@@ -191,8 +191,7 @@ st
 @ wid
     | div (roundUp outSize outChunkLen)
           outChunkLen
-| cat
-^ 0 outSize (mkRow wid)
+^ cat (_ 0 outSize (mkRow wid))
 ? (loop outputBlockCounter remBytes acc)
 | if (eql outputBlockCounter wid) acc
 @ words | b3Compress
@@ -367,7 +366,7 @@ st
     h
     newCv
     totalChunks
-^ h newCv totalChunks
+^ _ h newCv totalChunks
 ? (go h newCv totalChunks)
 | ifNot (and32 totalChunks 1)
     @ [leftCv h]
@@ -408,22 +407,22 @@ st
 @ totalChunks
     | inc
     | b3ChunkstGetChunkCounter
-    | h^b3HasherGetChunkst
+    | b3HasherGetChunkst-h
 @ h | b3HasherAddChunkChainingValue
       h
       chunkCv
       totalChunks
-@ h | h^b3HasherPutChunkst
+@ h | b3HasherPutChunkst-h
     | b3ChunkstNew
-      h^b3HasherGetKeyWords
+      b3HasherGetKeyWords-h
       totalChunks
-      h^b3HasherGetFlags
+      b3HasherGetFlags-h
 | final h input
 
 ; (Hasher > Nat > Row u8)
 = (b3Finalize h outHashSize)
-@ out (b3ChunkstOutput h^b3HasherGetChunkst)
-^ out h^b3HasherGetCvStack
+@ out (b3ChunkstOutput b3HasherGetChunkst-h)
+^ _ out b3HasherGetCvStack-h
 ? (go output stack)
 | *listCase stack
   | b3OutputRootOutputBytes output outHashSize
@@ -431,9 +430,9 @@ st
 @ output
     | b3ParentOutput
       top
-      output^b3OutputChainingValue
-      h^b3HasherGetKeyWords
-      h^b3HasherGetFlags
+      b3OutputChainingValue-output
+      b3HasherGetKeyWords-h
+      b3HasherGetFlags-h
 | go output res
 
 ; One-function convenience method that
