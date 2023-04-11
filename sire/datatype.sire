@@ -16,8 +16,8 @@
 | strWeld prefix
 | strFromList
 | ? (fixUnderscores str)
-  : (c cs) <- listCase str str
-  : (d ds) <- listCase cs  str
+  : c cs <- listCase str str
+  : d ds <- listCase cs  str
   | if (eql c '_')
       | fixUnderscores (CONS toUpper-d ds)
   | CONS c (fixUnderscores cs)
@@ -68,7 +68,7 @@
     (constrToCamel "#open" constr)
 ``
     = ($$(txtE nam) s p e a r err ok)
-        : (_ expr body)
+        : _ expr body
                <- $rexParseKids r $[readAny readAny readAny] err
         | ok p ($inc a)
         | $destructureRowE ($gensym a) $$(rowE | map txtE fields) expr body
@@ -76,7 +76,7 @@
 ?= (mkOpenerC %pair [%fst %snd])
        ``
         = ('#openPair' s p e a r err ok)
-            : (_ expr body)
+            : _ expr body
                <- $rexParseKids r $[readAny readAny readAny] err
             | ok p ($inc a)
             | $destructureRowE ($gensym a) (#| $(cow 2) 'snd' 'fst')
@@ -116,7 +116,7 @@
 = (rexToTrip rex)
 @ bad
     | die [%rexToTrip %badArgument rex]
-: (rune sons heir)
+: rune sons heir
    <- *rexGetNode rex bad
 | if (neq 0 heir)
     | bad
@@ -127,7 +127,7 @@
 @ kids (rexKids r)
 | if (neq (len kids) 2)
         | err r '#record requires exactly one son.'
-: (key constr fields)
+: key constr fields
        <- *readConstructorSig (idx 1 kids) err
 | ok p a
 | if (isZero len-fields)
@@ -182,7 +182,7 @@ ex=(PAIR %a %b)
 ; trk 'WHAAA',[%[=r] (rexSetHeir 0 r)]
 @ = this (rexSetHeir 0 r)
   = that (rexHeir r)
-: (key ctr slots) <- readConstructorSig this err
+: key ctr slots <- readConstructorSig this err
 ; trk 'Y THO?',(%[=key =ctr =slots])
 @ acc
         | CONS [key ctr slots] acc
@@ -219,7 +219,7 @@ ex=(PAIR %a %b)
 | seq ix
 ; trk %loop,(%[=ix =prp =acc =remain])
 ;
-: (kca xs) <- *listCase remain (prp, bloodline acc)
+: kca xs <- *listCase remain (prp, bloodline acc)
 @ [key cns arg] kca
 ;
 @ prp (setProperty key 'conTag' ix      prp)
@@ -284,10 +284,10 @@ ex=(PAIR %a %b)
 ^ NIL (listFromRow clauses)
 ;
 ? (go acc remain)
-: ([sigRex bodyRex] remain)
+: [sigRex bodyRex] remain
        <- *listCase remain (ok | listToRowReversed acc)
 ;
-: (constr fields) < & k
+: constr fields < & k
                     | if (rexIsLeaf sigRex)
                         : sym < readKey sigRex err
                         | k sym []
@@ -330,7 +330,7 @@ ex=(PAIR %a %b)
 @ !tmpVar (gensym aft)
 @ !tmpExp (varE tmpVar)
 @ !aft (inc aft)
-: (aft pairs)
+: aft pairs
     < forRowWithState aft cases
         & (aft [tag ari params body] continue)
         @ rowPat (%r, rowCons [%v 0 '_'] params)
@@ -357,8 +357,8 @@ ex=(PAIR %a %b)
         | err r '#datacase requires one son plus an heir.'
 ;;;
 @ [_ valExp] sons
-: cases     < readDatacaseBody s p heir err
-: (nex exp) < makeDatacaseExpr nex valExp cases
+: cases   < readDatacaseBody s p heir err
+: nex exp < makeDatacaseExpr nex valExp cases
 | ok p nex exp
 
 # datatype

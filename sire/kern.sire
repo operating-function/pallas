@@ -76,12 +76,12 @@
 
 ; fork : IO a -> IO ThreadId
 = (fork act k end me fr kl sl rq)
-: (tid fr kl sl rq) <- allocateSlot fr kl sl rq
+: tid fr kl sl rq <- allocateSlot fr kl sl rq
 | act DONE (k tid end me) tid fr kl sl rq
 
 ; prepareFork :: IO ThreadId
 = (prepareFork k end me fr kl sl rq)
-: (tid fr kl sl rq) <- allocateSlot fr kl sl rq
+: tid fr kl sl rq <- allocateSlot fr kl sl rq
 | k tid end me fr kl sl rq
 
 ; finalizeFork :: ThreadId -> IO a -> IO ()

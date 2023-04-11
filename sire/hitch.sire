@@ -325,7 +325,7 @@ newRootNode
 ; implementation details of insertRec/distributeDownwards
 ;
 = (downSplit treeFun l hh)
-  : (key keys) <- *listCase l ~[hh]
+  : key keys <- *listCase l ~[hh]
   # openTreeFun treeFun
   @ [!toAdd !rest] | hhSplit key hh
   | *CONS toAdd | downSplit treeFun keys rest
@@ -337,10 +337,10 @@ newRootNode
   | insertRec treeConfig treeFun hh node
 ;
 = (joinIndex kl il)
-  : (k ks) <- *listCase kl
-                : ([keys vals] _) <- *listCase il [NIL NIL]
+  : k ks <- *listCase kl
+                : [keys vals] _ <- *listCase il [NIL NIL]
                 [(listFromRow keys) ~[vals]]
-  : ([keys vals] ts) <- *listCase il (die "missing index in joinIndex")
+  : [keys vals] ts <- *listCase il (die "missing index in joinIndex")
   @ [keyrest valrest] | joinIndex ks ts
   @ !kout | listWeld (listFromRow keys) (*CONS k keyrest)
   @ !vout | *CONS vals valrest
@@ -783,8 +783,8 @@ newRootNode
    (INDEXNODE [[5] [(hmLeaf %[1 2]) (hmLeaf %[5 7])]] %[])
 
 = (findIntersectStep find [arange anode brange bnode])
-: (a    as)     <- *listCase anode  NONE
-: (b    bs)     <- *listCase bnode  NONE
+: a as <- *listCase anode  NONE
+: b bs <- *listCase bnode  NONE
 ;
 @ asNil | *listNull as
 @ bsNil | *listNull bs
@@ -792,23 +792,23 @@ newRootNode
 | if (and asNil bsNil)
   | *SOME [(find a b) [NIL NIL NIL NIL]]
 ;
-: (amin aminxs) <- *listCase arange NONE
-: (bmin bminxs) <- *listCase brange NONE
+: amin aminxs <- *listCase arange NONE
+: bmin bminxs <- *listCase brange NONE
 ; right range at end.
 | if bsNil
-  : (amax arest) <- *listCase aminxs (die "missing a range")
+  : amax arest <- *listCase aminxs (die "missing a range")
   | if (lteNat bmin amax)
     | *SOME [(find a b) [aminxs as brange bnode]]
   | findIntersectStep find [aminxs as brange bnode]
 ; left range at end.
 | if asNil
-  : (bmax brest) <- *listCase bminxs (die "missing b range")
+  : bmax brest <- *listCase bminxs (die "missing b range")
   | if (lteNat amin bmax)
     | *SOME [(find a b) [arange anode bminxs bs]]
   | findIntersectStep find [arange anode bminxs bs]
 ; both ranges.
-: (amax arest) <- *listCase aminxs (die "missing a range")
-: (bmax brest) <- *listCase bminxs (die "missing b range")
+: amax arest <- *listCase aminxs (die "missing a range")
+: bmax brest <- *listCase bminxs (die "missing b range")
 @ advances | if (eqlNat amax bmax) [aminxs as bminxs bs]
            | if (gthNat amax bmax) [arange anode bminxs bs]
            [aminxs as brange bnode]

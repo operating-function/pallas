@@ -22,7 +22,7 @@
 """ Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (eatSpace stream)
-: (t ts) <- *listCase stream stream
+: t ts <- *listCase stream stream
 | if (eql TOK_SPACE t) ts stream
 
 = (parseLexerStream inputStream topFail topOkay)
@@ -30,7 +30,7 @@
    | val inputStream topFail topOkay
 = (val stream fail ok)
    @ stream (eatSpace stream)
-   : (t ts) <- *listCase stream (fail "value" stream)
+   : t ts <- *listCase stream (fail "value" stream)
    # switch (if t t (idx 0 t))
    = 'n'   | ok JSON_NULL ts
    = 't'   | ok JSON_TRUE ts
@@ -48,7 +48,7 @@
    ;
    @ stream (eatSpace stream)
    ; trk %[s1=(listToRow stream)]
-   : (t ts) <- *listCase stream (fail "'}', or key" stream)
+   : t ts <- *listCase stream (fail "'}', or key" stream)
    | if (eql t TOK_R_CURL)
        | ok (*JSON_MAP acc) ts
    @ [k v] t
@@ -59,17 +59,17 @@
    @ stream (eatSpace ts)
    ; trk %[s2=(listToRow stream)]
    @ complain (fail 'Expecting :' stream)
-   : (t ts) <- *listCase stream complain
+   : t ts <- *listCase stream complain
    | if (neq TOK_COLON t) complain
    ;
    @ stream (eatSpace ts)
    ; trk %[s3=(listToRow stream)]
-   : (newVal stream) <- val stream fail
+   : newVal stream <- val stream fail
    @ !acc (tabMut newKey newVal acc)
    ;
    @ stream (eatSpace stream)
    @ complain (fail 'Expecting , or }' stream)
-   : (t ts) <- *listCase stream complain
+   : t ts <- *listCase stream complain
    | if (eql t TOK_R_CURL) | obj acc stream fail ok
    | if (eql t TOK_COMMA)  | obj acc ts fail ok
    | complain
@@ -78,16 +78,16 @@
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [end]
    @ stream (eatSpace stream)
    @ complain (fail "space, ']', or value" stream)
-   : (t ts) <- *listCase stream complain
+   : t ts <- *listCase stream complain
    | if (eql t TOK_R_BRAK)
        @ res (*JSON_VEC (listToRowReversed acc))
        | ok res ts
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [val]
-   : (val more) <- val stream fail
+   : val more <- val stream fail
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [more]
    @ more     (eatSpace more)
    @ complain (fail "space, ']', or value" stream)
-   : (m ms) <- *listCase more complain
+   : m ms <- *listCase more complain
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [final]
    | if (eql TOK_R_BRAK m)
        @ acc (*CONS val acc)

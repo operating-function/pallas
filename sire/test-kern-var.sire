@@ -48,7 +48,7 @@
 | ok
 
 = (checkKernelState return)
-: (end,me,fr,kl,sl,rq) <- getKernelState
+: [end me fr kl sl rq] <- getKernelState
 | assert (end == KERNEL)      `(end == KERNEL)
 | assert (me  == 0)           `(me == 0)
 | assert (fr  == ~[])         `(fr == ~[])

@@ -52,12 +52,12 @@
 @ parseAlien (x err ret & err x 'Not a core arm')
 : clauses
     < unrollSlip2Tis rex parseAlien err
-: (aft results)
+: aft results
     < forRowWithState aft clauses
         & (aft sigBody ret)
         @ [sigRex body] sigBody
-        : (sym binds)   <- readDestroyer sigRex err
-        : (aft sig bod) <- makeDestroyer aft binds body
+        : sym binds   <- readDestroyer sigRex err
+        : aft sig bod <- makeDestroyer aft binds body
         | ret aft [sym sig bod]
 | ok aft results
 
@@ -110,10 +110,10 @@
 
 = ("#mutrec" s p e a r err ok)
 @ coreNam (gensymNm "core" a)
-: (_ coreTag letBody sigRex)
+: _ coreTag letBody sigRex
         < rexParseKids r [readAny readAtomLit readAny readAny] err
-: (aft sigExpPairs)
-       < readCoreBody a sigRex err
+: aft sigExpPairs
+        < readCoreBody a sigRex err
 ;
 @ arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
 @ aft     | add aft 2
@@ -137,7 +137,7 @@
         | rep (cnsE 0) extras
     | bindArms body rest
 ;
-: (aft coreArgs)
+: aft coreArgs
         < forRowWithState aft (rep 0 maxArgs)
                 & (aft item pure)
                 | pure (inc aft) (varE | gensymNm "arg" aft)
@@ -223,9 +223,9 @@
 """ #mutual """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = ("#mutual" s p e aft r err ok)
-: (_ coreSymbol sigRex)
+: _ coreSymbol sigRex
         < rexParseKids r [readAny readAny readAny] err
-: (aft sigExpPairs)
+: aft sigExpPairs
        < readCoreBody aft sigRex err
 : coreName
         < readSymbol coreSymbol err
@@ -254,13 +254,13 @@
                 | weld (map varE args)
                 | gen extras (K (cnsE 0))
         | bindArms body rest
-: (aft coreArgIdns)
+: aft coreArgIdns
         < forRowWithState aft (gen maxArgs | K 0)
                 & (aft item pure)
                 @ idn  (varKE aft | gensymNm "arg" aft)
                 @ !aft (inc aft)
                 | pure aft idn
-: (aft armDefuns)
+: aft armDefuns
         < forListWithState aft arms
                 & (aft [key [armName argNames exp]] pure)
                 @

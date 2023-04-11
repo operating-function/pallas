@@ -52,18 +52,18 @@
 
 /+  01_fan
 /+  02_bit  [if ifNot and or not else]
-/+  03_nat  [add div inc isZero]
+/+  03_nat  [add div inc dec isZero lthNat]
 /+  04_app  [idx len]
 /+  05_eql  [eql neq]
 /+  06_cow  [weld map foldr v2 v3]
 /+  07_rex  [rexConstr rexIdnt rexRune rexSons rexHeir rexKids]
 /+  07_rex  [rexIsNode rexGetNode]
 /+  07_rex  ["`" rexGetKidsOfNodeWithRune rexVal]
-/+  07_rex  [R NEST EMBD OPEN WORD CORD]
+/+  07_rex  [R PREF NEST EMBD OPEN WORD CORD]
 /+  07_rex  [rexGetNodeWithRune]
 /+  07_rex  [rexStyle rexText rexEql]
 /+  07_rex  [rexSetRune]
-/+  08_dat  ["," ",," drop switch]
+/+  08_dat  ["," ",," take drop switch]
 /+  08_dat  [CONS NIL listToRowReversed listCase listFromRow]
 /+  08_dat  [traverseRow]
 /+  09_sci  []
@@ -157,16 +157,18 @@
         | err rex '?!(form ##":" signature)  <- has strange shape'
     | ok ['?!' (idx 0 rexSons-rex)]
 ;
-| ok ['&' rex]
+| ok ['&' (NEST 0 "|" [rex] 0)]
 
-?= ['&' `(Foo x)] (readColSig `(Foo x) I I)
+?= ['&' `(| (Foo x))] (readColSig `(Foo x) I I)
+
+?= ['&' `(Foo x)] (readColSig `(&(Foo x)) I I)
 
 ?= ['?' `(Foo x)] (readColSig `(?(Foo x)) I I)
 
 ?= ['?!' `(Foo x)] (readColSig `(?!(Foo x)) I I)
 
 = colNeedsHeir | "Heir is required"
-= colTwoSons   | "Expected two sons"
+= colTwoSons   | "Expected at least two sons"
 
 ; TODO: This expands to `&` instead of `#&`.  This is a bit of a hack,
 ; since we generally use the approach of expanding only to primitive runes
@@ -177,20 +179,30 @@
 ; As a consequence of this hack, we get error messages in the expansion,
 ; instead of directly from this macro, which is a worse user experience.
 = (":" s p e a r err ok)
-| if (isZero (rexHeir r))    | err r colNeedsHeir
-| if (neq 2 (len rexSons-r)) | err r colTwoSons
-| rexParseKids r [readColSig readColBinder readAny] err
-& (sig kids body)
-@ sigRune idx-0-sig
-@ sigExp  idx-1-sig
+@ sons    (rexSons r)
+@ heir    (rexHeir r)
+@ numSons (len sons)
+| if (isZero heir)      | err r colNeedsHeir
+| if (lthNat numSons 2) | err r colTwoSons
+@ firstSons (take dec-numSons sons)
+@ lastSon   (idx dec-numSons sons)
+@ signature | if (eql 2 numSons) (idx 0 firstSons)
+            | (PREF 0 "&" [(NEST 0 "|" firstSons 0)] 0)
+| trk ['signature' signature]
+| readColSig signature err
+& sig
+@ sigRune | idx 0 sig
+@ sigExp  | idx 1 sig
+| readColBinder lastSon err
+& kids
 | ok p a
-| trkVal ": output"
+; trkVal ": output"
 | OPEN 0 "#|" kids
 | OPEN 0 sigRune [sigExp]
-| body
+| heir
 
 = (rexGetRune rex fall ok)
-: (rune kids heir) <- rexGetNode rex fall
+: rune kids heir <- rexGetNode rex fall
 | *ok rune
 
 ?= ["+" "+"]
@@ -244,7 +256,7 @@
 = (unrollSlip2 rune alien rex err ok)
 ^ NIL rex
 ? (loop acc rex)
-: (kids heir)
+: kids heir
        <- rexGetNodeWithRune rune rex
                 : right <- alien rex err
                 | ok | listToRowReversed | CONS right acc
@@ -280,7 +292,7 @@
 : result
    <-   ^ (idx 0 topKids)
         ? (quote qRex qRet)
-        : (qRune qSons qHeir)
+        : qRune qSons qHeir
                <- rexGetNode qRex (qRet | cnsE qRex)
         @ qKids (rexKids qRex)
         | if (eql qRune "$")
@@ -367,8 +379,8 @@ four=(WORD 0 "4" 0)
     | letE tmpVar (idx 0 exps)
     ^ (listFromRow | drop 1 exps)
     ? (loop more)
-    : (x xs) <- *listCase more (die "impossible")
-    : (y ys) <- *listCase xs appE-[cnsE-eql varE-tmpVar x]
+    : x xs <- *listCase more (die "impossible")
+    : y ys <- *listCase xs appE-[cnsE-eql varE-tmpVar x]
     | appE
    ,, cnsE-and
    ,, appE [cnsE-eql varE-tmpVar x]

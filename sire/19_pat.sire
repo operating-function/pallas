@@ -103,7 +103,7 @@
 @ tmpVar | if isVar (rexText rowExpr) tmpVar
 @ go
         ? (go binds)
-        : (bind binds) <- *listCase binds bodyExpr
+        : bind binds <- *listCase binds bodyExpr
         @ bindVar (idx 1 bind)
         | if (eql '_' bindVar) (go binds)
         | letE bindVar
@@ -224,7 +224,7 @@
        <- readKidsOfNodeWithRune "," com err
 @ step
         ? (step kid ret)
-        : (k v) <- parseTabBind parseBinder kid err
+        : k v <- parseTabBind parseBinder kid err
         | ret [k v]
 : result
        <- traverseRow step comKids
@@ -332,8 +332,8 @@
 @ nex (inc nex)
 | if (eql 'a' typ)
         @ acc [tey tmp exp []]::acc
-        : (nex acc) <- go (varE tmp) (idx 1 bindSpec) nex acc
-        : (nex acc) <- go (varE tmp) (idx 2 bindSpec) nex acc
+        : nex acc <- go (varE tmp) (idx 1 bindSpec) nex acc
+        : nex acc <- go (varE tmp) (idx 2 bindSpec) nex acc
         | ok nex acc
 @ dat (idx 1 bindSpec)
 @ acc [tey tmp exp []]::acc
@@ -347,7 +347,7 @@
                 @ key (idx 0 elem)
                 @ pat (idx 1 elem)
                 @ exp (appE (cnsE tabIdx-key, varE tmp))
-                : (nex acc) <- go exp pat nex acc
+                : nex acc <- go exp pat nex acc
                 | [nex acc]
         | if (eql 'r' typ)
                 ^ [nex acc] (tag dat)
@@ -358,7 +358,7 @@
                 @ i   (idx 0 elem)
                 @ pat (idx 1 elem)
                 @ exp (appE (cnsE idx-i, varE tmp))
-                : (nex acc) <- go exp pat nex acc
+                : nex acc <- go exp pat nex acc
                 | [nex acc]
         | *else
             | die ['bad bind spec' bindSpec]
@@ -471,7 +471,7 @@
 
 = (readMultiBinder rex err ok)
 | if (isZero rex) ok-[]
-: (sons heir) <- readNodeWithRune "=" rex err
+: sons heir <- readNodeWithRune "=" rex err
 | if (lthNat len-sons 2) (err rex mbNeedsTwo)
 : bind < parseBinder (idx 0 sons) err
 : more < readMultiBinder heir err
@@ -579,7 +579,7 @@
 ;     (| Key Pat*)
 ;
 = (readDestroyer rex err ok)
-: (sons heir)
+: sons heir
         < rexGetNodeWithRune "|" rex
         | err rex symSigExpect
 | ifNot (isZero heir)
@@ -610,7 +610,7 @@
 """ Generic Pattern Matching """""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (makeDestroyer aft binds bodyExpr pure)
-: (aft sig)
+: aft sig
         < forRowWithState aft binds
         & (aft bind ret)
         | if (eql %v (idx 0 bind))
@@ -643,8 +643,8 @@
 @ valueExpr (idx 1 kids)
 @ bodyExpr  (idx 2 kids)
 | if (isLambdaBinder binder)
-        : (sym binds)       <- readDestroyer binder err
-        : (a sig valueExpr) <- makeDestroyer a binds valueExpr
+        : sym binds       <- readDestroyer binder err
+        : a sig valueExpr <- makeDestroyer a binds valueExpr
         | ok p a
         | letE sym
                 | wutE (rowCons sym sig) valueExpr
@@ -720,9 +720,9 @@
 ; TODO: Lambda binders should have binder-identities
 ;
 = ("?" s p e a r err ok)
-: (sigRex bodyExpr) <- rexParseKids r [readAny readAny] err
-: (sym    binds  )  <- readDestroyer sigRex err
-: (a sig  bodyExpr) <- makeDestroyer a binds bodyExpr
+: sigRex bodyExpr <- rexParseKids r [readAny readAny] err
+: sym    binds    <- readDestroyer sigRex err
+: a sig  bodyExpr <- makeDestroyer a binds bodyExpr
 | ok p a
 | wutE (rowCons sym sig)
 | bodyExpr
@@ -733,9 +733,9 @@
 """ Anon Lambdas with Destroy """"""""""""""""""""""""""""""""""""""""""""""""""
 
 = ("&" s p e a r err ok)
-: (sigRex bodyExpr) <- rexParseKids r [readAny readAny] err
-: binds             <- readBindSig sigRex err
-: (a sig  bodyExpr) <- makeDestroyer a binds bodyExpr
+: sigRex bodyExpr <- rexParseKids r [readAny readAny] err
+: binds           <- readBindSig sigRex err
+: a sig  bodyExpr <- makeDestroyer a binds bodyExpr
 | ok p a
 | lamE sig
 | bodyExpr
@@ -779,8 +779,8 @@
 @ [brex bodyExpr] sons
 @ bune (rexRune brex)
 | if (eql "|" bune)
-    : (sym binds) <- readDestroyer brex err
-    : (a sig bod) <- makeDestroyer a binds bodyExpr
+    : sym binds <- readDestroyer brex err
+    : a sig bod <- makeDestroyer a binds bodyExpr
     @ key rexIdnt-(idx 0 rexKids-brex)
     | ok p a
     | OPEN 0 "#=" (sogKE key sym sig, bod)

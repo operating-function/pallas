@@ -69,11 +69,11 @@
 = (readSymbProp rex err ret)
 | if (neq '.' rexRune-rex)
   | err rex 'Expected a . rune'
-: (symbol property) <- rexParseKids rex [readSymbol readSymbol] err
+: symbol property <- rexParseKids rex [readSymbol readSymbol] err
 | ret [symbol property]
 
 = ('#hasProp' s p e a r err expand)
-: (_ [symbol property]) <- rexParseKids r [readAny readSymbProp] err
+: _ [symbol property] <- rexParseKids r [readAny readSymbProp] err
 @ key (look s symbol)
 | if (isZero key)
   | die [symbol s]
@@ -83,7 +83,7 @@
 | expand p a (cnsE has)
 
 = ('#getProp' s p e a r err expand)
-: (_ [symbol property]) <- rexParseKids r [readAny readSymbProp] err
+: _ [symbol property] <- rexParseKids r [readAny readSymbProp] err
 @ key (look s symbol)
 | if (isZero key)
   | die [symbol s]
@@ -94,7 +94,7 @@
 
 
 = ('#setProp' s p e a r err expand)
-: (_ [symbol property] valSym)
+: _ [symbol property] valSym
         < rexParseKids r [readAny readSymbProp readSymbol] err
 | if not-(hasKey symbol s)
         | err (varE symbol) 'Undefined symbol'

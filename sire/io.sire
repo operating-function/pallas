@@ -211,7 +211,7 @@
         | ok p a
         | appE (cnsE bindIO, fst, snd)
 = _
-        : (s p e a result) <- (##">>=" s p e a (drop 1 sons) err)
+        : s p e a result <- (##">>=" s p e a (drop 1 sons) err)
         @ [_ rest] result
         | ok p a
         | appE (cnsE bindIO, idx 0 sons, rest)
@@ -371,8 +371,8 @@
 ;; Looping ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (forList_ list f return)
-: (x xs) <- listCase list (return ())
-: _      <- f x
+: x xs <- listCase list (return ())
+: _    <- f x
 | forList_ xs f return
 
 (for_ row f return)=(forList_ (listFromRow row) f return)
@@ -382,9 +382,9 @@
 (traverseCab_ f cab return)=(*forCab_ cab f return)
 
 = (forList list f return)
-: (x xs) <- listCase list (return ())
-: r      <- f x
-: rs     <- forList xs f
+: x xs <- listCase list (return ())
+: r    <- f x
+: rs   <- forList xs f
 | return (CONS r rs)
 
 (traverseList f cab return)=(forList cab f return)

@@ -7,8 +7,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (forList_ list f next)
-: (x xs) <- listCase list (next 0)
-: _      <- f x
+: x xs <- listCase list (next 0)
+: _    <- f x
 | forList_ xs f next
 
 (forRow_ row f next)=(forList_ (listFromRow row) f next)
@@ -132,8 +132,8 @@ hexAlphabet=(b#{0123456789abcdef})
 | next res
 
 = (sendAllLoop send conns bar next)
-: (c cs) <- *listCase conns (next 0)
-: _      <- fork (syscall (*send c bar))
+: c cs <- *listCase conns (next 0)
+: _    <- fork (syscall (*send c bar))
 | sendAllLoop send cs bar next
 
 = (sendAll vTelnetOpen vWebSocketOpen bar next)
