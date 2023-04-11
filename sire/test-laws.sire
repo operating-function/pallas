@@ -75,38 +75,38 @@
 """;; idx ;;
 """;;;;;;;;;
 """
-"""?? check a [idx 0 a,b,c]
-"""?? check b [idx 1 a,b,c]
-"""?? check c [idx 2 a,b,c]
-"""?? check 0 [idx 3 a,b,c]
-"""?? check a [idx 0 1-b-a]
-"""?? check b [idx 1 1-b-a]
-"""?? check 0 [idx 2 1-b-a]
-"""?? check 0 [idx 0 1]
+"""!! check a [idx 0 a,b,c]
+"""!! check b [idx 1 a,b,c]
+"""!! check c [idx 2 a,b,c]
+"""!! check 0 [idx 3 a,b,c]
+"""!! check a [idx 0 1-b-a]
+"""!! check b [idx 1 1-b-a]
+"""!! check 0 [idx 2 1-b-a]
+"""!! check 0 [idx 0 1]
 """
 """;;;;;;;;;;
 """;; take ;;
 """;;;;;;;;;;
 """
 """;; Normal Behavior
-"""?? check []      , take 0 a,b,c
-"""?? check [a]     , take 1 a,b,c
-"""?? check [a b]   , take 2 a,b,c
-"""?? check [a b c] , take 3 a,b,c
-"""?? check [a b c] , take 4 a,b,c
+"""!! check []      , take 0 a,b,c
+"""!! check [a]     , take 1 a,b,c
+"""!! check [a b]   , take 2 a,b,c
+"""!! check [a b c] , take 3 a,b,c
+"""!! check [a b c] , take 4 a,b,c
 """
 """;; Non-closure interpreted as empty row
-"""?? check [] , take 0 %hi
-"""?? check [] , take 5 %hi
+"""!! check [] , take 0 %hi
+"""!! check [] , take 5 %hi
 """
 """;; Unnatural length interpreted as 0
-"""?? check [] , take 0-0 a,b,c
-"""?? check [] , take x&x a,b,c
-"""?? check [] , take add a,b,c
+"""!! check [] , take 0-0 a,b,c
+"""!! check [] , take x&x a,b,c
+"""!! check [] , take add a,b,c
 """
 """;; Vectors operations work on any closure
-"""?? check []    , take 0 put-2-1
-"""?? check [1]   , take 1 put-2-1
-"""?? check [1 2] , take 2 put-2-1
+"""!! check []    , take 0 put-2-1
+"""!! check [1]   , take 1 put-2-1
+"""!! check [1 2] , take 2 put-2-1
 
-"""?? check [1 2] , take 3 put-2-1
+"""!! check [1 2] , take 3 put-2-1

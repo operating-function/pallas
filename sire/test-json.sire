@@ -95,5 +95,5 @@ b#'{"type":"application","elm-version":"0.19.1","dependencies":{"direct":{"elm/t
     | die [[x '!=' round] x]
 | 1
 
-?? (| rowAnd | map chk | map printJSON | listToRow | listTake 100 | allJSON 0)
-; ?? (| rowAnd | map chk | map printJSON | listToRow | listTake 1000 | allJSON 0)
+!! (| rowAnd | map chk | map printJSON | listToRow | listTake 100 | allJSON 0)
+; !! (| rowAnd | map chk | map printJSON | listToRow | listTake 1000 | allJSON 0)

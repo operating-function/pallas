@@ -192,11 +192,11 @@ foo=(x e o & o (varE "_", x))
 = "yop"  b#yop
 | b#hur
 
-?? eql b#346 switchTest-346
-?? eql b#345 switchTest-345
-?? eql b#hi  switchTest-(%hi)
-?? eql b#yop switchTest-"yop"
-?? eql b#hur switchTest-45
+!! eql b#346 switchTest-346
+!! eql b#345 switchTest-345
+!! eql b#hi  switchTest-(%hi)
+!! eql b#yop switchTest-"yop"
+!! eql b#hur switchTest-45
 
 = (switchTest2 x)
 # switch x
@@ -207,9 +207,9 @@ foo=(x e o & o (varE "_", x))
 = 3
 | barNat b#Three
 
-?? eql %Three switchTest2-3
-?? eql %Two   switchTest2-2
-?? eql %Other switchTest2-9
+!! eql %Three switchTest2-3
+!! eql %Two   switchTest2-2
+!! eql %Other switchTest2-9
 
 = (switchTest3 x)
 # switch x
@@ -222,14 +222,14 @@ foo=(x e o & o (varE "_", x))
 = 9              | %Nine
 %Fallback
 
-?? eql %One      | switchTest3 1
-?? eql %ZeroZero | switchTest3 [0 0]
-?? eql %AyeBee   | switchTest3 [{a} %b]
-?? eql %GetPee   | switchTest3 ['GET' b#{/p}]
-?? eql %AyeBar   | switchTest3 [b#a]
-?? eql %Ayyye    | switchTest3 [[[%a]]]
-?? eql %Nine     | switchTest3 9
-?? eql %Fallback | switchTest3 8
+!! eql %One      | switchTest3 1
+!! eql %ZeroZero | switchTest3 [0 0]
+!! eql %AyeBee   | switchTest3 [{a} %b]
+!! eql %GetPee   | switchTest3 ['GET' b#{/p}]
+!! eql %AyeBar   | switchTest3 [b#a]
+!! eql %Ayyye    | switchTest3 [[[%a]]]
+!! eql %Nine     | switchTest3 9
+!! eql %Fallback | switchTest3 8
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

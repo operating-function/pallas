@@ -357,7 +357,7 @@ four=(WORD 0 "4" 0)
 
 """ Short-Hand Assertion """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= ("??" s p e a r err ok)
+= ("!!" s p e a r err ok)
 @ sons (rexSons r)
 @ heir (rexHeir r)
 | if (isZero len-sons)
@@ -365,9 +365,9 @@ four=(WORD 0 "4" 0)
 | ok p a
 | OPEN 0 "#?=" [natE-1 (appE sons)] heir
 
-?? add 0 1
-?? add 1 0
-?? not (add 0 0)
+!! add 0 1
+!! add 1 0
+!! not (add 0 0)
 
 
 """ Equality """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -419,5 +419,5 @@ UNIT=0
 ^-^ "~" "~~" "::"
 ^-^ "``"
 ^-^ "&&" "||" "=="
-^-^ "??"
+^-^ "!!"
 ^-^

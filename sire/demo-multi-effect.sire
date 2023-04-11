@@ -62,7 +62,7 @@ hexAlphabet=(b#{0123456789abcdef})
 
 (renderBar val)=(| barCat | map hexByte | barToRow val)
 
-?? eql b#ff00cccaba (renderBar x#ff00cccaba)
+!! eql b#ff00cccaba (renderBar x#ff00cccaba)
 
 = (guarenteeNewline bar)
 | if barNull-bar bar
@@ -70,13 +70,13 @@ hexAlphabet=(b#{0123456789abcdef})
 | if (eql 10 las) bar
 | barWeld bar (natBar 10)
 
-?? | eql (barWeld b#asdf (natBar 10))
+!! | eql (barWeld b#asdf (natBar 10))
    | guarenteeNewline (barWeld b#asdf (natBar 10))
 
-?? | eql (barWeld b#asdf (natBar 10))
+!! | eql (barWeld b#asdf (natBar 10))
    | guarenteeNewline b#asdf
 
-?? eql b#"" (guarenteeNewline b#"")
+!! eql b#"" (guarenteeNewline b#"")
 
 = (parseInput bar)
 @ isSpace (i & or (eql " " i) (eql 10 i))
@@ -84,7 +84,7 @@ hexAlphabet=(b#{0123456789abcdef})
 ,, command
 ,, barDropWhile isSpace rest
 
-?? | eql [b#broadcast b#{Hello World!}]
+!! | eql [b#broadcast b#{Hello World!}]
    | parseInput
    | b#{broadcast   Hello World!}
 

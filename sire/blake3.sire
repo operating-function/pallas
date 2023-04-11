@@ -449,7 +449,7 @@ st
 ;; Tests ;;
 ;;;;;;;;;;;
 
-?? eql  | barCat
+!! eql  | barCat
        ,, x#7470ea5654831e01ffc04ee0e43a32fb
        ,, x#90227162dc0faaa14f9627d8f5c718f7
     | blake3 b#fdsafdsa

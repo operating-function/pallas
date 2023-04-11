@@ -102,7 +102,7 @@
 = (mergeIndex [lKeys lVals] middle [rKeys rVals])
 [(cat [lKeys [middle] rKeys]) (weld lVals rVals)]
 
-?? | eql [[5] [%a %b]]
+!! | eql [[5] [%a %b]]
    | mergeIndex [[] ["a"]] 5 [[] ["b"]]
 
 
@@ -139,7 +139,7 @@
 @ rightKeys            | drop 1 middleKeyAndRightKey
 [[leftKeys leftVals] middleKey [rightKeys rightVals]]
 
-?? | eql [[[] [[%a]]] %b [[] [[%b]]]]
+!! | eql [[[] [[%a]]] %b [[] [[%b]]]]
    | splitIndexAt 0 [["b"] [["a"] ["b"]]]
 
 ;

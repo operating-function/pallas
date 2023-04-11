@@ -254,8 +254,8 @@ ex=(PAIR %a %b)
 ?= 1 getProp#(E_RIGHT.conTag)
 ?= 1 getProp#(E_RIGHT.conAri)
 
-?? eql [0 9] | E_LEFT 9
-?? eql [1 8] | E_RIGHT 8
+!! eql [0 9] | E_LEFT 9
+!! eql [1 8] | E_RIGHT 8
 
 
 """

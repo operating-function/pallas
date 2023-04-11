@@ -111,25 +111,25 @@ isZero32=not32
 ;; Tests ;;
 ;;;;;;;;;;;
 
-?? eql | gen32 3 (mul 0x11111111)
+!! eql | gen32 3 (mul 0x11111111)
    x#000000001111111122222222
 
-?? eql 0x00000000 | idx32 0 x#000000001111111122222222
-?? eql 0x11111111 | idx32 1 x#000000001111111122222222
-?? eql 0x22222222 | idx32 2 x#000000001111111122222222
+!! eql 0x00000000 | idx32 0 x#000000001111111122222222
+!! eql 0x11111111 | idx32 1 x#000000001111111122222222
+!! eql 0x22222222 | idx32 2 x#000000001111111122222222
 
-?? eql (fromRow32 [%helo %howR %yogh])
+!! eql (fromRow32 [%helo %howR %yogh])
    b#helohowRyogh
 
-?? eql (put32 (zer32 5) 0 0xffffffff)
+!! eql (put32 (zer32 5) 0 0xffffffff)
    x#ffffffff00000000000000000000000000000000
 
-?? eql (put32 (zer32 5) 3 0xffffffff)
+!! eql (put32 (zer32 5) 3 0xffffffff)
    x#000000000000000000000000ffffffff00000000
 
-?? eql x#ffffffff (sing32 0xffffffff)
-?? eql x#55555555 (sing32 0x55555555)
-?? eql x#55550000 (sing32 0x5555)
+!! eql x#ffffffff (sing32 0xffffffff)
+!! eql x#55555555 (sing32 0x55555555)
+!! eql x#55550000 (sing32 0x5555)
 
 
 ;;;;;;;;;;;;;

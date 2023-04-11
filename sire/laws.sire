@@ -52,17 +52,17 @@ hexAlphabet=(natBar "0123456789abcdef")
 @ acc (| add acc | add mul-pos-b | mul-pos | mul 16 a)
 | loop acc bs (mul 256 pos)
 
-?? eql (add 1  0     ) | lawBody | barFromHex '''
-?? eql (add 1  bex-8 ) | lawBody | barFromHex '''1
-?? eql (add 16 bex-8 ) | lawBody | barFromHex '''10
-?? eql (add 1  bex-16) | lawBody | barFromHex '''100
-?? eql (add 16 bex-16) | lawBody | barFromHex '''1000
-?? eql 0xfe            | barNat  | barFromHex '''fe
-?? eql 0xfe00          | barNat  | barFromHex '''00fe
-?? eql 0xfe00          | barNat  | barFromHex '''00fe
-?? eql 0xfe0011        | barNat  | barFromHex '''1100fe
+!! eql (add 1  0     ) | lawBody | barFromHex '''
+!! eql (add 1  bex-8 ) | lawBody | barFromHex '''1
+!! eql (add 16 bex-8 ) | lawBody | barFromHex '''10
+!! eql (add 1  bex-16) | lawBody | barFromHex '''100
+!! eql (add 16 bex-16) | lawBody | barFromHex '''1000
+!! eql 0xfe            | barNat  | barFromHex '''fe
+!! eql 0xfe00          | barNat  | barFromHex '''00fe
+!! eql 0xfe00          | barNat  | barFromHex '''00fe
+!! eql 0xfe0011        | barNat  | barFromHex '''1100fe
 
-?? eql  | barCat
+!! eql  | barCat
        ,, x#7470ea5654831e01ffc04ee0e43a32fb
        ,, x#90227162dc0faaa14f9627d8f5c718f7
     | blake3 b#fdsafdsa
@@ -149,10 +149,10 @@ hexAlphabet=(natBar "0123456789abcdef")
 
 (optionRowTraverse f xs)=(optionRowSequence map-f-xs)
 
-?? | eql NONE
+!! | eql NONE
    | optionRowSequence [SOME-3 SOME-4 NONE]
 
-?? | eql SOME-[3 4 5]
+!! | eql SOME-[3 4 5]
    | optionRowSequence [SOME-3 SOME-4 SOME-5]
 
 
@@ -185,11 +185,11 @@ hexAlphabet=(natBar "0123456789abcdef")
 | ifNot len-nums NONE
 | SOME (idx 1)(foldr f [1 0] nums)
 
-?? eql SOME-1   readNat-"1"
-?? eql SOME-12  readNat-"12"
-?? eql SOME-123 readNat-"123"
-?? eql NONE     readNat-""
-?? eql NONE     readNat-"a"
+!! eql SOME-1   readNat-"1"
+!! eql SOME-12  readNat-"12"
+!! eql SOME-123 readNat-"123"
+!! eql NONE     readNat-""
+!! eql NONE     readNat-"a"
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -519,7 +519,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 ;;;    | opnE bindSymz knotRef vecE-bindVals
 ;;; | opnE bindSymz knotRef body
 ;;;
-;;; ?? | listTake 3
+;;; !! | listTake 3
 ;;;    # knot = x (CONS 3 y)
 ;;;           = y (CONS 4 x)
 ;;;    | x

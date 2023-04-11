@@ -202,8 +202,8 @@
 ?= (car looper) 4
 ?= (cdr looper) loopFun
 
-?? eql (pinItem looper) loopFun
-?? eql looper           (PIN loopFun)
+!! eql (pinItem looper) loopFun
+!! eql looper           (PIN loopFun)
 
 = [even odd]
 # mutrec %even_odd [even odd]
@@ -212,12 +212,12 @@
 = (odd x)
     | ifNot x FALSE (*even dec-x)
 
-?? even 0
-?? even 2
-?? even 20
-?? odd 1
-?? odd 3
-?? odd 21
+!! even 0
+!! even 2
+!! even 20
+!! odd 1
+!! odd 3
+!! odd 21
 
 
 """ #mutual """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -304,12 +304,12 @@
 = (odd x)
     | ifNot x FALSE (*even dec-x)
 
-?? even 0
-?? even 2
-?? even 20
-?? odd 1
-?? odd 3
-?? odd 21
+!! even 0
+!! even 2
+!! even 20
+!! odd 1
+!! odd 3
+!! odd 21
 
 ; Inspect the output of this by hand, lgtm.
 # mutual foo_bar
