@@ -187,10 +187,9 @@
 
 ; loadDecimal/(Str -> Nat)
 = (loadDecimal n)
-@ step
-    & (acc c)
-    | add (mul 10 acc) (ord c)
-| listFoldl step 0 (strToList n)
+^ listFoldl _ 0 (strToList n)
+& (acc c)
+| add (mul 10 acc) (ord c)
 
 ; loadKeyWord/(Str -> Nat)
 = (loadKeyWord str)
@@ -304,10 +303,9 @@
 | rexGetNodeWithRune "%%" rex
     | err rex "Expected a %% node (in a tall-form cab literal)"
 & (sons heir)
-| forRow sons
-    ? (step son pure)
-    | readKey son err pure
-| (keys & ok keys heir)
+^ forRow sons _ (keys & ok keys heir)
+? (step son pure)
+| readKey son err pure
 
 
 = (readCenCenCab rex err ok)
@@ -316,13 +314,11 @@
 | if (isZero rex) (ok acc)
 | *readCenCenCabLine rex err
 & (newKeys heir)
-@ acc
-    ^ _ acc newKeys
-    | foldl
-    ? (step acc key)
-    | if (cabHas key acc) (err rex "duplicate key")
-    | cabIns key acc
-| go acc heir
+^ go _ heir
+^ foldl _ acc newKeys
+? (step acc key)
+| if (cabHas key acc) (err rex "duplicate key")
+| cabIns key acc
 
 
 = (cenCenCab s p e a r err ok)

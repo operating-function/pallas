@@ -89,12 +89,11 @@
 | if (rexIsNode rex)
         | if (neq "|" rexRune-rex)
                 | (err rex sigExpect)
-        @ step
-                ? (step son ret)
-                | readSymbol son err
-                & sym
-                | ret (rexIdnt son, sym)
-        | traverseRow step (rexSons rex) ok
+        ^ traverseRow _ (rexSons rex) ok
+        ? (step son ret)
+        | readSymbol son err
+        & sym
+        | ret (rexIdnt son, sym)
 | readSymbol rex err
 & sym
 | ok [(rexIdnt rex, sym)]

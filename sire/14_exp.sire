@@ -234,12 +234,11 @@
 
 
 = (rexParseRow rexRow readRow err ok)
-@ step
-    ? (step pair ret)
-    @ read (idx 0 pair)
-    @ rex  (idx 1 pair)
-    | read rex err ret
-| traverseRow step (zip readRow rexRow) ok
+^ traverseRow _ (zip readRow rexRow) ok
+? (step pair ret)
+@ read (idx 0 pair)
+@ rex  (idx 1 pair)
+| read rex err ret
 
 = (rexParseSonsRow rex readers err ok)
 | ifNot (rexIsNode rex)

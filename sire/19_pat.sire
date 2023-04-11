@@ -220,14 +220,11 @@
 | if (neq 1 len-kids)
         | err rex "Tab-Pattern expects % rune with one kid"
 @ com (idx 0 kids)
-: comKids
-       <- readKidsOfNodeWithRune "," com err
-@ step
-        ? (step kid ret)
-        : k v <- parseTabBind parseBinder kid err
-        | ret [k v]
-: result
-       <- traverseRow step comKids
+: comKids <- readKidsOfNodeWithRune "," com err
+: result  <- ^ traverseRow _ comKids
+             ? (step kid ret)
+             : k v <- parseTabBind parseBinder kid err
+             | ret [k v]
 | ok (%t, tabFromPairs result)
 
 ; x=[a b c]
@@ -365,22 +362,22 @@
 | ok nex acc
 
 = (sequenceBinds initialAft bindSpecs)
-@ step
-    & (acc item)
-    @ aft   (idx 0 acc)
-    @ soFar (idx 1 acc)
-    @ deps  (idx 2 acc)
-    ;
-    @ bind  (idx 0 item)
-    @ exp   (idx 1 item)
-    ;
-    @ res    (sequenceBindPair aft bind exp)
-    @ aft    (idx 0 res)
-    @ extra  (idx 1 res)
-    @ depend (idx 2 res)
-    ;
-    | [aft (weld soFar extra) (weld deps depend)]
-| foldl step initialAft,[],[] bindSpecs
+^ foldl _ initialAft,[],[] bindSpecs
+& (acc item)
+;
+@ aft   (idx 0 acc)
+@ soFar (idx 1 acc)
+@ deps  (idx 2 acc)
+;
+@ bind  (idx 0 item)
+@ exp   (idx 1 item)
+;
+@ res    (sequenceBindPair aft bind exp)
+@ aft    (idx 0 res)
+@ extra  (idx 1 res)
+@ depend (idx 2 res)
+;
+| [aft (weld soFar extra) (weld deps depend)]
 
 !!=    ,, 5
        ,, [[4 %y (`x)]]
@@ -551,10 +548,9 @@
     @ sons (rexSons rex)
     | if (isZero len-sons)
         | err rex sigExpect
-    @ step
-        ? (step son ret)
-        | parseBinder son err ret
-    | traverseRow step sons ok
+    ^ traverseRow _ sons ok
+    ? (step son ret)
+    | parseBinder son err ret
 | *else
     : bin <- parseBinder rex err
     | ok [bin]
@@ -586,10 +582,9 @@
         | err rex symSigExpect
 : sym
         < readKey (idx 0 sons) err
-@ step
-        ? (step son ret)
-        | parseBinder son err ret
-: binds <- traverseRow step (drop 1 sons)
+: binds <- ^ traverseRow _ (drop 1 sons)
+           ? (step son ret)
+           | parseBinder son err ret
 | ok sym binds
 
 
