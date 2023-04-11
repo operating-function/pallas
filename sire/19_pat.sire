@@ -839,7 +839,7 @@
           (eql x lawName-self)
 
 !!= 1
-    : ?!(self x) <- (k & k 'self')
+    : ??(self x) <- (k & k 'self')
     | and (eql x 'self')
           (| eql x | lawName | pinItem self)
 

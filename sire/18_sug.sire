@@ -138,7 +138,7 @@
 !!= 0 | rexIsCapsSymbol `0
 !!= 0 | rexIsCapsSymbol `(hi there)
 
-; ?(f x y) | ?!(f x y) | (x y) | .*
+; ?(f x y) | ??(f x y) | (x y) | .*
 = (readColSig rex err ok)
 @ ryn (rexRune rex)
 ;
@@ -152,10 +152,10 @@
         | err rex '?(form ##":" signature)  <- has strange shape'
     | ok ['?' (idx 0 rexSons-rex)]
 ;
-| if (eql '?!' ryn)
+| if (eql '??' ryn)
     | ifNot | and (isZero rexHeir-rex) (eql 1 | len rexSons-rex)
-        | err rex '?!(form ##":" signature)  <- has strange shape'
-    | ok ['?!' (idx 0 rexSons-rex)]
+        | err rex '??(form ##":" signature)  <- has strange shape'
+    | ok ['??' (idx 0 rexSons-rex)]
 ;
 | ok ['&' (NEST 0 "|" [rex] 0)]
 
@@ -165,7 +165,7 @@
 
 !!= ['?' `(Foo x)] (readColSig `(?(Foo x)) I I)
 
-!!= ['?!' `(Foo x)] (readColSig `(?!(Foo x)) I I)
+!!= ['??' `(Foo x)] (readColSig `(??(Foo x)) I I)
 
 = colNeedsHeir | "Heir is required"
 = colTwoSons   | "Expected at least two sons"

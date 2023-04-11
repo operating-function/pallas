@@ -306,7 +306,7 @@ readExpr = do
              (r,v,b) <- form3c readSymb readExpr readExpr
              pure (EREC r v b)
 
-        , do (rune "#?!" <|> rune "?!")
+        , do (rune "#??" <|> rune "??")
              ((t,rs),b) <- form2c readSigy readExpr
              pure (ELAM True (FUN (xtagIdn t) (LN $ xtagTag t) rs b))
 

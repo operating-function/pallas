@@ -427,9 +427,9 @@ NONE
 : tmp <- readIORef vSt
 @ learnLock (*getLearnLock pinItem-tmp)
 ;
-: ?!(alts_locked _)   <- takeMVar learnLock
+: ??(alts_locked _)   <- takeMVar learnLock
 : pOld                <- readIORef vSt
-: ?!(alts_evaled res) <- syscall (*EVAL 1000 [calcLearnSt pOld pBundle])
+: ??(alts_evaled res) <- syscall (*EVAL 1000 [calcLearnSt pOld pBundle])
 ;
 @ [nuImgs nuTags nuImgCount nuPairCount]
     (forceUnpackEvalResult %learn res)
@@ -447,7 +447,7 @@ NONE
 
 = (addToState vSt rid jsonPin return)
 ;
-: ?!(ats_evaled evalResult) <- syscall (*EVAL 1000 [parseLearn jsonPin])
+: ??(ats_evaled evalResult) <- syscall (*EVAL 1000 [parseLearn jsonPin])
 ;
 # switch (len evalResult)
 = 0 | trk b#"TIMEOUT in /learn"
@@ -460,7 +460,7 @@ NONE
 = 1
 ;
 @ parsed (idx 0 evalResult)
-: ?!(ats_learned _) <- addLearningsToState vSt (PIN parsed)
+: ??(ats_learned _) <- addLearningsToState vSt (PIN parsed)
 | syscall (*HTTP_ECHO rid 200 b#ok [] b#{})
 | return
 
@@ -504,7 +504,7 @@ NONE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (runHttpServer vSt return)
-: ?!(rhs_heard req) <- syscall HTTP_HEAR
+: ??(rhs_heard req) <- syscall HTTP_HEAR
 : _                 <- handleReq vSt req
 | runHttpServer vSt return
 
