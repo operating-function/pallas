@@ -99,7 +99,7 @@ data Cmd z v a
        -- ^ @(<e)@ Eval+print @e@ and it's environment.
 
     | ASSERT [Rex] (Exp z v a) (Exp z v a) (Maybe (Cmd z v a))
-       -- ^ @??= e f@ Assert that e==f
+       -- ^ @!!= e f@ Assert that e==f
 
     | DEFINE (Defn z v a)
              (Maybe (Cmd z v a))

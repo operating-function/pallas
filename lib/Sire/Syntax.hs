@@ -205,7 +205,7 @@ readCmd = do
         [ (rune "#=" <|> rune "=") >> readDefine
         , IMPORT <$> readImports
         , FILTER <$> readFilter
-        , do (rune "#?=" <|> rune "?=")
+        , do (rune "#!!=" <|> rune "!!=")
              ((pr,p), (qr,q), mC) <-
                  let x = withRex readExpr
                  in (form2C x x readCmd <&> \(a,b,c) -> (a,b,Just c))

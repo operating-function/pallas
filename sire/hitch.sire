@@ -61,8 +61,8 @@
 | if (isZero | len r) NONE
 | *SOME [(idx 0 r) (drop 1 r)]
 
-?= NONE               (rowUncons [])
-?= (SOME [0 [1 2 3]]) (rowUncons [0 1 2 3])
+!!= NONE               (rowUncons [])
+!!= (SOME [0 [1 2 3]]) (rowUncons [0 1 2 3])
 
 ; Row > Maybe [Row a]
 = (rowUnsnoc r)
@@ -71,8 +71,8 @@
 @ minusOne | dec l
 | *SOME [(take minusOne r) (idx minusOne r)]
 
-?= NONE               (rowUnsnoc [])
-?= (SOME [[0 1 2] 3]) (rowUnsnoc [0 1 2 3])
+!!= NONE               (rowUnsnoc [])
+!!= (SOME [[0 1 2] 3]) (rowUnsnoc [0 1 2 3])
 
 ;;;;;;;;;;;;;
 ;; TreeFun ;;
@@ -679,11 +679,11 @@ newRootNode
 @ [_ br] bs
 [aconfig (hsRawUnion aconfig ar br)]
 
-?= 1 | hsNull | hsEmpty twoThreeConfig
-?= 0 | hsNull | hsSingleton twoThreeConfig 9
-?= 0 | hsNull | hsInsert 8 | hsSingleton twoThreeConfig 9
-?= 0 | hsNull | hsInsert 9 | hsSingleton twoThreeConfig 9
-?= 1 | hsNull | hsDelete 9 | hsSingleton twoThreeConfig 9
+!!= 1 | hsNull | hsEmpty twoThreeConfig
+!!= 0 | hsNull | hsSingleton twoThreeConfig 9
+!!= 0 | hsNull | hsInsert 8 | hsSingleton twoThreeConfig 9
+!!= 0 | hsNull | hsInsert 9 | hsSingleton twoThreeConfig 9
+!!= 1 | hsNull | hsDelete 9 | hsSingleton twoThreeConfig 9
 
 ; takes a list of sets and compacts them down so each is in a range between
 ; `min` and `max`.
@@ -724,15 +724,15 @@ newRootNode
 
 
 ; test minimize splitting, between min and max
-?= []                | consolidate 2 4 []
-?= [%[1]]            | consolidate 2 4 [%[1]]
-?= [%[1 2]]          | consolidate 2 4 [%[1 2]]
-?= [%[1 2 3]]        | consolidate 2 4 [%[1 2 3]]
-?= [%[1 2 3 4]]      | consolidate 2 4 [%[1 2 3 4]]
-?= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1 2 3 4 5]]
-?= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1] %[2] %[3] %[4] %[5]]
-?= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1 2] %[3 4] %[5]]
-?= [%[1 2 3] %[4 5]] | consolidate 2 4 [%[1 2 3] %[4 5]]
+!!= []                | consolidate 2 4 []
+!!= [%[1]]            | consolidate 2 4 [%[1]]
+!!= [%[1 2]]          | consolidate 2 4 [%[1 2]]
+!!= [%[1 2 3]]        | consolidate 2 4 [%[1 2 3]]
+!!= [%[1 2 3 4]]      | consolidate 2 4 [%[1 2 3 4]]
+!!= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1 2 3 4 5]]
+!!= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1] %[2] %[3] %[4] %[5]]
+!!= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1 2] %[3 4] %[5]]
+!!= [%[1 2 3] %[4 5]] | consolidate 2 4 [%[1 2 3] %[4 5]]
 
 = (getLeftmostValue a)
 # datacase (caseImpl a)
@@ -774,11 +774,11 @@ newRootNode
   | if (isZero | len result) | loop [restLeaves restIndex]
   | *SOME [result [restLeaves restIndex]]
 
-?= [%[1] %[5]]
+!!= [%[1] %[5]]
    | checkSetAgainst %[1 5]
    (INDEXNODE [[5] [(hmLeaf %[1 2]) (hmLeaf %[5 7])]] %[])
 
-?= []
+!!= []
    | checkSetAgainst %[8 9]
    (INDEXNODE [[5] [(hmLeaf %[1 2]) (hmLeaf %[5 7])]] %[])
 

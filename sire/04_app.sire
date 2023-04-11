@@ -61,52 +61,52 @@ v0=(0 0 1 0)
 (v1 x)=(0 0 2 0 x)
 (v2 x y)=(0 0 3 0 y x)
 
-?= 1 | eqlNat 3 arity-0
-?= 1 | eqlNat 5 arity-1
-?= 1 | eqlNat 3 arity-2
-?= 1 | eqlNat 1 arity-3
-?= 1 | eqlNat 1 arity-4
-?= 1 | eqlNat 1 arity-5
+!!= 1 | eqlNat 3 arity-0
+!!= 1 | eqlNat 5 arity-1
+!!= 1 | eqlNat 3 arity-2
+!!= 1 | eqlNat 1 arity-3
+!!= 1 | eqlNat 1 arity-4
+!!= 1 | eqlNat 1 arity-5
 
-?= 1 | arity arity
-?= 1 | arity 3
-?= 1 | arity 4
-?= 1 | arity 0-1-2
+!!= 1 | arity arity
+!!= 1 | arity 3
+!!= 1 | arity 4
+!!= 1 | arity 0-1-2
 
-?= 1 | eqlNat 2 arity-(0 0)
-?= 1 | eqlNat 3 arity-0
+!!= 1 | eqlNat 2 arity-(0 0)
+!!= 1 | eqlNat 3 arity-0
 
-?= 1 | cdr (0 0 2 0 1)
-?= 1 | cdr (0 0 3 0 2 1)
-?= 1 | cdr car-(0 0 3 0 1 2)
+!!= 1 | cdr (0 0 2 0 1)
+!!= 1 | cdr (0 0 3 0 2 1)
+!!= 1 | cdr car-(0 0 3 0 1 2)
 
-?= 1 | eqlNat 0 | len v0
-?= 1 | len (v1 0)
-?= 1 | eqlNat 1 | len (v1 0)
+!!= 1 | eqlNat 0 | len v0
+!!= 1 | len (v1 0)
+!!= 1 | eqlNat 1 | len (v1 0)
 
-?= 1 | eqlNat 2 | len (v2 0 0)
-?= 1 | eqlNat 0 | len 0
-?= 1 | eqlNat 1 | len (0 1)
+!!= 1 | eqlNat 2 | len (v2 0 0)
+!!= 1 | eqlNat 0 | len 0
+!!= 1 | eqlNat 1 | len (0 1)
 
-?= 1 | eqlNat 0 | idx 0 2
-?= 1 | eqlNat 3 | idx 0 (2 3)
-?= 1 | eqlNat 4 | idx 0 (2 3 4)
-?= 1 | eqlNat 3 | idx 1 (2 3 4)
-?= 1 | eqlNat 0 | idx 2 (2 3 4)
+!!= 1 | eqlNat 0 | idx 0 2
+!!= 1 | eqlNat 3 | idx 0 (2 3)
+!!= 1 | eqlNat 4 | idx 0 (2 3 4)
+!!= 1 | eqlNat 3 | idx 1 (2 3 4)
+!!= 1 | eqlNat 0 | idx 2 (2 3 4)
 
-?= 1 | eqlNat 0 | idx 0 1
-?= 1 | eqlNat 1 | idx 0 (1 0 1)
-?= 1 | eqlNat 0 | idx 1 (1 0 1)
-?= 1 | eqlNat 0 | idx 2 (1 0 1)
+!!= 1 | eqlNat 0 | idx 0 1
+!!= 1 | eqlNat 1 | idx 0 (1 0 1)
+!!= 1 | eqlNat 0 | idx 1 (1 0 1)
+!!= 1 | eqlNat 0 | idx 2 (1 0 1)
 
-?= 1 | eqlNat 0 | get 1 0
-?= 1 | eqlNat 1 | get (1 0 1) 0
-?= 1 | eqlNat 0 | get (1 0 1) 1
-?= 1 | eqlNat 0 | get (1 0 1) 2
+!!= 1 | eqlNat 0 | get 1 0
+!!= 1 | eqlNat 1 | get (1 0 1) 0
+!!= 1 | eqlNat 0 | get (1 0 1) 1
+!!= 1 | eqlNat 0 | get (1 0 1) 2
 
-?= 1 | null-get
-?= 1 | null-0
-?= 1 | not null-(0 'x')
+!!= 1 | null-get
+!!= 1 | null-0
+!!= 1 | not null-(0 'x')
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

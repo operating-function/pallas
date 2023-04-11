@@ -344,16 +344,16 @@ shut=SHUT
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= (OPEN 0 "&" v0 0)
+!!= (OPEN 0 "&" v0 0)
     (OPEN 0 "&" v0 0)
 
-?= (| OPEN 0 "*" v0 0)
+!!= (| OPEN 0 "*" v0 0)
     (| rexSetRune "*" | OPEN 0 "-" v0 0)
 
-?= (| OPEN 5 "-" v0 0)
+!!= (| OPEN 5 "-" v0 0)
     (| rexSetIdnt 5 | OPEN 0 "-" v0 0)
 
-?= (| CORD 9 "hi" | CORD 5 "bye" 0)
+!!= (| CORD 9 "hi" | CORD 5 "bye" 0)
     (| rexSetIdnt 9 | CORD 4 "hi" | CORD 5 "bye" 0)
 
 wx=(WORD 2 "x" 0)
@@ -364,20 +364,20 @@ rw=(NEST 0 "," v0 0)
 e6=(EMBD 6)
 sx=(OPEN 1 "=" (v2 wx w9) 0)
 
-?= 0 (rexIsNode hi)
-?= 0 (rexIsNode yo)
-?= 0 (rexIsNode e6)
-?= 1 (rexIsNode sx)
-?= 1 (rexIsNode rw)
-?= 0 (rexIsEmbd hi)
-?= 0 (rexIsEmbd sx)
-?= 1 (rexIsEmbd e6)
-?= 1 (rexIsLeaf hi)
-?= 1 (rexIsLeaf yo)
-?= 1 (rexIsLeaf wx)
-?= 0 (rexIsLeaf e6)
-?= 0 (rexIsEmbd sx)
-?= 0 (rexIsEmbd sx)
+!!= 0 (rexIsNode hi)
+!!= 0 (rexIsNode yo)
+!!= 0 (rexIsNode e6)
+!!= 1 (rexIsNode sx)
+!!= 1 (rexIsNode rw)
+!!= 0 (rexIsEmbd hi)
+!!= 0 (rexIsEmbd sx)
+!!= 1 (rexIsEmbd e6)
+!!= 1 (rexIsLeaf hi)
+!!= 1 (rexIsLeaf yo)
+!!= 1 (rexIsLeaf wx)
+!!= 0 (rexIsLeaf e6)
+!!= 0 (rexIsEmbd sx)
+!!= 0 (rexIsEmbd sx)
 
 (w x)=(WORD 0 x 0)
 
@@ -385,11 +385,11 @@ sx=(OPEN 1 "=" (v2 wx w9) 0)
 = (nestNod rune sons)      | NEST 0 rune sons 0
 
 
-?= 1 | rexEql `3        | (w "3")
-?= 1 | rexEql `(3 4)    | nestNod "|" (v2 (w "3") (w "4"))
-?= 1 | rexEql `([a][b]) | nestAnd "," (v1 (w "a"))
-                        | nestNod "," (v1 (w "b"))
-?= 1
+!!= 1 | rexEql `3        | (w "3")
+!!= 1 | rexEql `(3 4)    | nestNod "|" (v2 (w "3") (w "4"))
+!!= 1 | rexEql `([a][b]) | nestAnd "," (v1 (w "a"))
+                         | nestNod "," (v1 (w "b"))
+!!= 1
     | rexEql
         | NEST 1 "*" (v2 (WORD 2 "hi" 0) (WORD 3 "yo" 0))
         | WORD 4 ""
@@ -400,13 +400,13 @@ sx=(OPEN 1 "=" (v2 wx w9) 0)
     | WORD 9 "heh"
     | 0
 
-?= "NEST" | rexStyle ` []
-?= "WORD" | rexStyle ` hi
-?= "TAPE" | rexStyle ` ""
-?= "CORD" | rexStyle ` ''
-?= "LINE" | rexStyle ` '''
-?= "PAGE" | rexStyle ` """
-?= "CURL" | rexStyle ` {}
+!!= "NEST" | rexStyle ` []
+!!= "WORD" | rexStyle ` hi
+!!= "TAPE" | rexStyle ` ""
+!!= "CORD" | rexStyle ` ''
+!!= "LINE" | rexStyle ` '''
+!!= "PAGE" | rexStyle ` """
+!!= "CURL" | rexStyle ` {}
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

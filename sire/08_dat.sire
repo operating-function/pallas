@@ -23,13 +23,13 @@
 (rowCons x xs)=(weld (v1 x) xs)
 (rowSnoc xs x)=(weld xs (v1 x))
 
-?= (rowCons 3 v0)       (v1 3)
-?= (rowCons 3 (v1 4))   (v2 3 4)
-?= (rowCons 3 (v2 4 5)) (v3 3 4 5)
+!!= (rowCons 3 v0)       (v1 3)
+!!= (rowCons 3 (v1 4))   (v2 3 4)
+!!= (rowCons 3 (v2 4 5)) (v3 3 4 5)
 
-?= (rowSnoc v0 3)       (v1 3)
-?= (rowSnoc (v1 3) 4)   (v2 3 4)
-?= (rowSnoc (v2 3 4) 5) (v3 3 4 5)
+!!= (rowSnoc v0 3)       (v1 3)
+!!= (rowSnoc (v1 3) 4)   (v2 3 4)
+!!= (rowSnoc (v2 3 4) 5) (v3 3 4 5)
 
 (tag row)=(gen len-row i&(c2 idx-i-row i))
 
@@ -82,13 +82,13 @@
 | if (eql i ix) | val
 | *else         | idx (dec i) row
 
-?= (v2 9 0)   | insert 0 9 (v1 0)
-?= (v2 0 9)   | insert 1 9 (v1 0)
-?= (v2 0 0)   | insert 2 9 (v1 0)
-?= (v3 9 0 1) | insert 0 9 (v2 0 1)
-?= (v3 0 9 1) | insert 1 9 (v2 0 1)
-?= (v3 0 1 9) | insert 2 9 (v2 0 1)
-?= (v3 0 1 0) | insert 3 9 (v2 0 1)
+!!= (v2 9 0)   | insert 0 9 (v1 0)
+!!= (v2 0 9)   | insert 1 9 (v1 0)
+!!= (v2 0 0)   | insert 2 9 (v1 0)
+!!= (v3 9 0 1) | insert 0 9 (v2 0 1)
+!!= (v3 0 9 1) | insert 1 9 (v2 0 1)
+!!= (v3 0 1 9) | insert 2 9 (v2 0 1)
+!!= (v3 0 1 0) | insert 3 9 (v2 0 1)
 
 
 """ Generating Basic Sire Expressions """"""""""""""""""""""""""""""""""""""""""
@@ -133,10 +133,10 @@
 @ kids (if (isZero heir) sons (weld sons (c1 heir)))
 | ok p a (rowE kids)
 
-?= []    v0
-?= [3]   (v1 3)
-?= [3 4] (v2 3 4)
-?= 3,4   (v2 3 4)
+!!= []    v0
+!!= [3]   (v1 3)
+!!= [3 4] (v2 3 4)
+!!= 3,4   (v2 3 4)
 
 
 """ Maybe """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -155,23 +155,23 @@
 
 (fromSome n x)=(*maybeCase x n I)
 
-?= 1 | maybeCase SOME-0 0 inc
-?= 1 | maybeCase SOME-1 0 I
-?= 1 | maybeCase SOME-2 0 dec
-?= 1 | maybeCase NONE   1 die
+!!= 1 | maybeCase SOME-0 0 inc
+!!= 1 | maybeCase SOME-1 0 I
+!!= 1 | maybeCase SOME-2 0 dec
+!!= 1 | maybeCase NONE   1 die
 
 = (fmapMaybe myb fun)
 | *maybeCase myb NONE
 & v
 | SOME | fun v
 
-?= SOME-1 | fmapMaybe SOME-0 inc
-?= NONE   | fmapMaybe NONE   inc
+!!= SOME-1 | fmapMaybe SOME-0 inc
+!!= NONE   | fmapMaybe NONE   inc
 
-?= 1 | isSome (SOME 0)
-?= 0 | isSome NONE
-?= 0 | isNone (SOME 0)
-?= 1 | isNone NONE
+!!= 1 | isSome (SOME 0)
+!!= 0 | isSome NONE
+!!= 0 | isNone (SOME 0)
+!!= 1 | isNone NONE
 
 
 """ Scanning Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -187,10 +187,10 @@
 = (elemIdx key row)
 | findIdx (eql key) row
 
-?= SOME-0 | elemIdx 5 [5 6 7]
-?= SOME-1 | elemIdx 6 [5 6 7]
-?= SOME-2 | elemIdx 7 [5 6 7]
-?= NONE   | elemIdx 8 [5 6 7]
+!!= SOME-0 | elemIdx 5 [5 6 7]
+!!= SOME-1 | elemIdx 6 [5 6 7]
+!!= SOME-2 | elemIdx 7 [5 6 7]
+!!= NONE   | elemIdx 8 [5 6 7]
 
 
 """ Unfolding """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -204,8 +204,8 @@
 @ newB | get xs 1
 | (go (inc idx) newB) a
 
-?= 1 @ testUnfoldr
-           & (x)
+!!= 1 @ testUnfoldr
+           & x
            | if (lteNat x 5) (SOME [x (inc x)]) NONE
       | eql [0 1 2 3 4 5]
       | unfoldr testUnfoldr 0
@@ -213,49 +213,49 @@
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= [0 1 2] (v3 0 1 2)
+!!= [0 1 2] (v3 0 1 2)
 
-?= 1 | not (has 1 [2 3 4])
-?= 1 | not (has 1 [2 3 4])
-?= 1 | has 2 [2 3 4]
-?= 1 | has 3 [2 3 4]
-?= 1 | has 4 [2 3 4]
-?= 1 | not (has 5 [2 3 4])
+!!= 1 | not (has 1 [2 3 4])
+!!= 1 | not (has 1 [2 3 4])
+!!= 1 | has 2 [2 3 4]
+!!= 1 | has 3 [2 3 4]
+!!= 1 | has 4 [2 3 4]
+!!= 1 | not (has 5 [2 3 4])
 
-?= (slice [3 4 5] 0 5) | [3 4 5 0 0]
-?= (slice [3 4 5] 1 4) | [4 5 0]
-?= (slice [3 4 5] 2 3) | [5]
-?= (slice [3 4 5] 3 2) | []
+!!= (slice [3 4 5] 0 5) | [3 4 5 0 0]
+!!= (slice [3 4 5] 1 4) | [4 5 0]
+!!= (slice [3 4 5] 2 3) | [5]
+!!= (slice [3 4 5] 3 2) | []
 
 (ADD x y k)=(k x y)
 
-?= [5 4 3] rev-([3 4 5])
-?= []      rev-([])
+!!= [5 4 3] | rev ([3 4 5])
+!!= []      | rev ([])
 
-?= 12                  | sum-([3 4 5])
-?= [1 2 3 4 5 6 7 8 9] | cat [[] [1] [2 3] [4 5 6] [7 8] [9] []]
+!!= 12                  | sum-([3 4 5])
+!!= [1 2 3 4 5 6 7 8 9] | cat [[] [1] [2 3] [4 5 6] [7 8] [9] []]
 
-?= [1 2 3] (rowCons 1 [2 3])
+!!= [1 2 3] (rowCons 1 [2 3])
 
-?= []        | take 0  [1 2 3 4]
-?= [1]       | take 1  [1 2 3 4]
-?= [1 2 3 4] | take 4  [1 2 3 4]
-?= [1 2 3 4] | take 20 [1 2 3 4]
-?= [1 2 3 4] | drop 0  [1 2 3 4]
-?= [2 3 4]   | drop 1  [1 2 3 4]
-?= [4]       | drop 3  [1 2 3 4]
-?= []        | drop 4  [1 2 3 4]
-?= []        | drop 20 [1 2 3 4]
+!!= []        | take 0  [1 2 3 4]
+!!= [1]       | take 1  [1 2 3 4]
+!!= [1 2 3 4] | take 4  [1 2 3 4]
+!!= [1 2 3 4] | take 20 [1 2 3 4]
+!!= [1 2 3 4] | drop 0  [1 2 3 4]
+!!= [2 3 4]   | drop 1  [1 2 3 4]
+!!= [4]       | drop 3  [1 2 3 4]
+!!= []        | drop 4  [1 2 3 4]
+!!= []        | drop 20 [1 2 3 4]
 
-?= [1 2 3 4]     | drop 0 [1 2 3 4]
-?= []            | drop 10 [1 2 3 4]
-?= []            | chunks 3 []
-?= [[1]]         | chunks 3 [1]
-?= [[1 2 3]]     | chunks 3 [1 2 3]
-?= [[1 2 3] [4]] | chunks 3 [1 2 3 4]
+!!= [1 2 3 4]     | drop 0 [1 2 3 4]
+!!= []            | drop 10 [1 2 3 4]
+!!= []            | chunks 3 []
+!!= [[1]]         | chunks 3 [1]
+!!= [[1 2 3]]     | chunks 3 [1 2 3]
+!!= [[1 2 3] [4]] | chunks 3 [1 2 3 4]
 
-?= 1 | has "aa" ["aa" "bb"]
-?= 1 | not (has "aa" ["bb" "cc"])
+!!= 1 | has "aa" ["aa" "bb"]
+!!= 1 | not (has "aa" ["bb" "cc"])
 
 
 """ Switch """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -300,10 +300,10 @@
 
 (listUnsafeHead l)=(listSafeHead 0)
 
-?= NONE   | listHead NIL
-?= SOME-3 | listHead (CONS 3 (CONS 4 NIL))
-?= 5      | fromSome 4 (SOME 5)
-?= 4      | fromSome 4 NONE
+!!= NONE   | listHead NIL
+!!= SOME-3 | listHead (CONS 3 (CONS 4 NIL))
+!!= 5      | fromSome 4 (SOME 5)
+!!= 4      | fromSome 4 NONE
 
 = (listLast l)
 | *listCase l NONE
@@ -312,9 +312,9 @@
 & (_ _)
 | listLast t
 
-?= NONE   | listLast NIL
-?= SOME-3 | listLast (CONS 3 NIL)
-?= SOME-4 | listLast (CONS 3 (CONS 4 NIL))
+!!= NONE   | listLast NIL
+!!= SOME-3 | listLast (CONS 3 NIL)
+!!= SOME-4 | listLast (CONS 3 (CONS 4 NIL))
 
 """ Operations With Lists """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -409,12 +409,12 @@
 
 (listZip a b)=(listZipWith (0 0 3 0) b a)
 
-?= (*CONS [3 4] (*CONS [4 5] NIL))
+!!= (*CONS [3 4] (*CONS [4 5] NIL))
     (listZip listFromRow-[3 4] listFromRow-[4 5])
 
 (listIndexed l)=(listZip (listEnumFrom 0) l)
 
-?= (listIndexed (, "a" , "b" , "c" 0))
+!!= (listIndexed (, "a" , "b" , "c" 0))
         (, [0 "a"] , [1 "b"] , [2 "c"] 0)
 
 = (listFilter f lis)
@@ -440,7 +440,7 @@
 | CONS (f i)
 | loop (inc i)
 
-?= (listGen 3 I) [0 [1 [2 0]]]
+!!= (listGen 3 I) [0 [1 [2 0]]]
 
 = (listFindIndex f xs)
 ^ 0 xs
@@ -453,11 +453,11 @@
 
 (listElemIndex e xs)=(listFindIndex (eql e) xs)
 
-?= (0 0) (listElemIndex 0 (, 0 , 1 , 2 , 3 0))
-?= (0 1) (listElemIndex 1 (, 0 , 1 , 2 , 3 0))
-?= (0 2) (listElemIndex 2 (, 0 , 1 , 2 , 3 0))
-?= (0 3) (listElemIndex 3 (, 0 , 1 , 2 , 3 0))
-?= 0     (listElemIndex 4 (, 0 , 1 , 2 , 3 0))
+!!= (0 0) (listElemIndex 0 (, 0 , 1 , 2 , 3 0))
+!!= (0 1) (listElemIndex 1 (, 0 , 1 , 2 , 3 0))
+!!= (0 2) (listElemIndex 2 (, 0 , 1 , 2 , 3 0))
+!!= (0 3) (listElemIndex 3 (, 0 , 1 , 2 , 3 0))
+!!= 0     (listElemIndex 4 (, 0 , 1 , 2 , 3 0))
 
 = (listSortOn f lis)
 | *listCase lis NIL
@@ -490,7 +490,7 @@
 
 (elemIdxMany key row)=(findIdxMany (eql key) row)
 
-?= [0 [2 0]] | elemIdxMany 5 [5 0 5]
+!!= [0 [2 0]] | elemIdxMany 5 [5 0 5]
 
 = (listIntersperse sep lis)
 | *listCase lis lis
@@ -524,12 +524,12 @@
 = (eitherGetLeft x k)    (*eitherCase x k _&x)
 = (eitherMap f val)      (*eitherCase val 0 (x & 1 f-x))
 
-?= 1 | eitherCase RIGHT-0 K-0 inc
-?= 1 | eitherCase RIGHT-1 K-0 I
-?= 1 | eitherCase RIGHT-2 K-0 dec
-?= 1 | eitherCase LEFT-9  K-1 die
-?= 1 | eitherCase LEFT-1  I   die
-?= 1 | eitherCase LEFT-0  inc die
+!!= 1 | eitherCase RIGHT-0 K-0 inc
+!!= 1 | eitherCase RIGHT-1 K-0 I
+!!= 1 | eitherCase RIGHT-2 K-0 dec
+!!= 1 | eitherCase LEFT-9  K-1 die
+!!= 1 | eitherCase LEFT-1  I   die
+!!= 1 | eitherCase LEFT-0  inc die
 
 = (partition r)
 @ check
@@ -541,7 +541,7 @@
   [(CONS (cdr x) lefts) rights]
 | map listToRow | foldr check [NIL NIL] r
 
-?= [[0 3] [1 2]]
+!!= [[0 3] [1 2]]
    | partition [LEFT-0 RIGHT-1 RIGHT-2 LEFT-3]
 
 """ Maybe utils that depend on list """""""""""""""""""""""""""""""""""""""""""
@@ -574,18 +574,18 @@
 = (listTurnMaybe lis f) | listMapMaybe f lis
 = (turnMaybe row f)     | mapMaybe f row
 
-?= [1 [2 0]] | listCatMaybes [SOME-1 [SOME-2 0]]
-?= [1 [2 0]] | listCatMaybes [SOME-1 [SOME-2 [NONE 0]]]
-?= [1 [2 0]] | listCatMaybes [SOME-1 [NONE [SOME-2 [NONE 0]]]]
-?= [1 [2 0]] | listCatMaybes [NONE [SOME-1 [NONE [SOME-2 [NONE 0]]]]]
+!!= [1 [2 0]] | listCatMaybes [SOME-1 [SOME-2 0]]
+!!= [1 [2 0]] | listCatMaybes [SOME-1 [SOME-2 [NONE 0]]]
+!!= [1 [2 0]] | listCatMaybes [SOME-1 [NONE [SOME-2 [NONE 0]]]]
+!!= [1 [2 0]] | listCatMaybes [NONE [SOME-1 [NONE [SOME-2 [NONE 0]]]]]
 
-?= [1 2] | catMaybes ( SOME 1 , SOME 2 )
-?= [1 2] | catMaybes ( SOME 1 , SOME 2 , NONE )
-?= [1 2] | catMaybes ( SOME 1 , NONE   , SOME 2 , NONE )
-?= [1 2] | catMaybes ( NONE   , SOME 1 , NONE   , SOME 2 )
+!!= [1 2] | catMaybes ( SOME 1 , SOME 2 )
+!!= [1 2] | catMaybes ( SOME 1 , SOME 2 , NONE )
+!!= [1 2] | catMaybes ( SOME 1 , NONE   , SOME 2 , NONE )
+!!= [1 2] | catMaybes ( NONE   , SOME 1 , NONE   , SOME 2 )
 
-?= [2 4 6] | turnMaybe [1 2 3 4 5 6] x&(if (even x) SOME-x NONE)
-?= [1 4 5] | catMaybes [SOME-1 NONE SOME-4 SOME-5 NONE]
+!!= [2 4 6] | turnMaybe [1 2 3 4 5 6] x&(if (even x) SOME-x NONE)
+!!= [1 4 5] | catMaybes [SOME-1 NONE SOME-4 SOME-5 NONE]
 
 
 """ Tall-Form Row Literals """""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -611,13 +611,14 @@
 & list
 | ok p a (rowE listToRow-list)
 
-?= [3 4 5] (,, 3)(,, 4)(,, 5)
-?= [3 4 5] (,, 3)(,, 4)5
-?= [3 4 5] (,,3)(,, 3 3)5
+!!= [3 4 5] (,, 3)(,, 4)(,, 5)
+!!= [3 4 5] (,, 3)(,, 4)5
+!!= [3 4 5] (,,3)(,, 3 3)5
 
-?= [3 4 5] ,, 3
-           ,, 4
-           ,, 5
+!!= [3 4 5]
+     ,, 3
+     ,, 4
+     ,, 5
 
 
 """ Traversing Lists """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -635,9 +636,9 @@
 
 (forList xs f return)=(*traverseList f xs return)
 
-?= 0         | traverseList (x ret)&(if even-x ret-x 0) [3 [4 0]] I
-?= 0         | traverseList (x ret)&(if even-x ret-x 0) [4 [5 0]] I
-?= [4 [6 0]] | traverseList (x ret)&(if even-x ret-x 0) [4 [6 0]] I
+!!= 0         | traverseList (x ret)&(if even-x ret-x 0) [3 [4 0]] I
+!!= 0         | traverseList (x ret)&(if even-x ret-x 0) [4 [5 0]] I
+!!= [4 [6 0]] | traverseList (x ret)&(if even-x ret-x 0) [4 [6 0]] I
 
 
 ; :: traverseListWithState
@@ -658,7 +659,7 @@
 
 (forListWithState st xs f return)=(*traverseListWithState st f xs return)
 
-?= 17,(, 3 , 4 , 5 0)
+!!= 17,(, 3 , 4 , 5 0)
           ^ v2
           | forListWithState 5 [3 [4 [5 0]]]
           ? (step st item pure)
@@ -675,9 +676,9 @@
 
 (forRow xs f return)=(*traverseRow f xs return)
 
-?= 0     | traverseRow (x ret)&(if even-x ret-x 0) [3 4] I
-?= 0     | traverseRow (x ret)&(if even-x ret-x 0) [4 5] I
-?= [4 6] | traverseRow (x ret)&(if even-x ret-x 0) [4 6] I
+!!= 0     | traverseRow (x ret)&(if even-x ret-x 0) [3 4] I
+!!= 0     | traverseRow (x ret)&(if even-x ret-x 0) [4 5] I
+!!= [4 6] | traverseRow (x ret)&(if even-x ret-x 0) [4 6] I
 
 
 ; traverseRow::((a -> (st -> b -> r)) -> st -> Row a -> m st (Row b))
@@ -688,7 +689,7 @@
 
 (forRowWithState st xs f return)=(*traverseRowWithState st f xs return)
 
-?= 17,[4 5 6]
+!!= 17,[4 5 6]
           ^ v2
           | forRowWithState 5 [3 4 5]
           ? (step st item pure)

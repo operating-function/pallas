@@ -54,18 +54,18 @@
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= "fdsa" (strWeld "" "fdsa")
-?= "fdsa" (strWeld "f" "dsa")
-?= "fdsa" (strWeld "fd" "sa")
+!!= "fdsa" (strWeld "" "fdsa")
+!!= "fdsa" (strWeld "f" "dsa")
+!!= "fdsa" (strWeld "fd" "sa")
 
-?= ["f"]     (explode "f")
-?= [255]     (explode 255)
-?= ["f" "d"] (explode "fd")
+!!= ["f"]     (explode "f")
+!!= [255]     (explode 255)
+!!= ["f" "d"] (explode "fd")
 
-?= 0 (strLen "")
-?= 1 (strLen "a")
-?= 2 (strLen "ab")
-?= 3 (strLen "abc")
+!!= 0 (strLen "")
+!!= 1 (strLen "a")
+!!= 2 (strLen "ab")
+!!= 3 (strLen "abc")
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

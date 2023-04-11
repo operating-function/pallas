@@ -114,7 +114,7 @@
 | if isVar I (letE tmpVar rowExpr)
 | go (listFromRow (tag lhs))
 
-?= (destructureRowE %_g1 [%x %y %z] `(a b) (appE [`x `y]))
+!!= (destructureRowE %_g1 [%x %y %z] `(a b) (appE [`x `y]))
        ``
        #@ _g1 (a b)
        #@ x (#| $(idx 0) _g1)
@@ -122,7 +122,7 @@
        #@ z (#| $(idx 2) _g1)
         (#| x y)
 
-?= (destructureRowE %_g1 [%x %y %z] `yo (appE [`x `y]))
+!!= (destructureRowE %_g1 [%x %y %z] `yo (appE [`x `y]))
        ``
        #@ x (#| $(idx 0) yo)
        #@ y (#| $(idx 1) yo)
@@ -255,30 +255,30 @@
 | *else
         | err rex "Unknown binding pattern"
 
-?= (parseBinder `[x y z] v2 I)
+!!= (parseBinder `[x y z] v2 I)
        ,, %r
        ,, ,, [%v 0 %x]
           ,, [%v 0 %y]
           ,, [%v 0 %z]
 
-?= (parseBinder `[x y !z] v2 I)
+!!= (parseBinder `[x y !z] v2 I)
        ,, %r
        ,, ,, [%v 0 %x]
           ,, [%v 0 %y]
           ,, [%s 0 %z]
 
-?= (parseBinder `(%[=x y=b]) v2 I)
+!!= (parseBinder `(%[=x y=b]) v2 I)
        ,, %t
        ,, %% =x [%v 0 %x]
           %% =y [%v 0 %b]
 
-?= (parseBinder `[%[=x] [y]] v2 I)
+!!= (parseBinder `[%[=x] [y]] v2 I)
        ,, %r
        ,, ,, [%t %[x=[%v 0 %x]]]
           ,, [%r [[%v 0 %y]]]
 
 
-?= (parseBinder `(foo=[%[=x] [y]]) v2 I)
+!!= (parseBinder `(foo=[%[=x] [y]]) v2 I)
        ,, 'a'
        ,, ['v' 0 'foo']
        ,,  ,, 'r'
@@ -286,7 +286,7 @@
                ,, ['r' [['v' 0 'y']]]
 
 
-?= (parseBinder ``[$$(varKE 1 %x) $$(varKE 2 %y)] v2 I)
+!!= (parseBinder ``[$$(varKE 1 %x) $$(varKE 2 %y)] v2 I)
        ,, %r
        ,, ,, [%v 1 %x]
           ,, [%v 2 %y]
@@ -384,17 +384,17 @@
     | [aft (weld soFar extra) (weld deps depend)]
 | foldl step initialAft,[],[] bindSpecs
 
-?=     ,, 5
+!!=    ,, 5
        ,, [[4 %y (`x)]]
        ,, []
     | sequenceBinds 5 [[[%v 4 %y] `x]]
 
-?=     ,, 5
+!!=    ,, 5
        ,, [[4 %y (`x)]]
        ,, ['y']
     | sequenceBinds 5 [[[%s 4 %y] `x]]
 
-?=     ,, 8
+!!=    ,, 8
        ,,  ,, [5 '_g5'  ``(foo foo)]
            ,, [6 '_g6'  ``(#| $(idx 0) _g5)]
            ,, [1 %x     ``(#| $(idx 0) _g6)]
@@ -408,7 +408,7 @@
        ,, [%r [[%s 2 %y]]]
    ,, `(foo foo)
 
-?=
+!!=
        ,, 8
        ,,  ,, [5 '_g5'  ``(foo foo)]
            ,, [6 '_g6'  ``(#| $(idx 0) _g5)]
@@ -442,7 +442,7 @@
     | foldr addDep body deps
 | foldr addBind depBody binds
 
-?=    ``
+!!=   ``
        #@ $$(varKE 5 "_g5") (foo foo)
        #@ $$(varKE 6 "_g6") (#| $(idx 1)     _g5)
        #@ $$(varKE 1 "y")   (#| $(idx 0)     _g6)
@@ -479,7 +479,7 @@
 | ok
 | rowCons [bind exp] more
 
-?= (readMultiBinder `((= x 3)(= y 3 4)) v2 I)
+!!= (readMultiBinder `((= x 3)(= y 3 4)) v2 I)
         [[[%v 0 %x] `3] [[%v 0 %y] `(#| 3 4)]]
 
 = (multiBindE binds bodyExpr)
@@ -498,12 +498,12 @@
 | and (gteNat (len sons) 2)
 | rexIsSymbol (idx 0 sons)
 
-?= 1 | isLambdaBinder `(f x)
-?= 0 | isLambdaBinder `f
-?= 0 | isLambdaBinder `(f)
-?= 0 | isLambdaBinder `(| f)
-?= 1 | isLambdaBinder `(f a b c)
-?= 0 | isLambdaBinder `[]
+!!= 1 | isLambdaBinder `(f x)
+!!= 0 | isLambdaBinder `f
+!!= 0 | isLambdaBinder `(f)
+!!= 0 | isLambdaBinder `(| f)
+!!= 1 | isLambdaBinder `(f a b c)
+!!= 0 | isLambdaBinder `[]
 
 
 """ Pattern Matching on Tabs """""""""""""""""""""""""""""""""""""""""""""""""""
@@ -525,7 +525,7 @@
 | letE tmp tabExp
 | (go (tabToList bindings))
 
-?= (destructureTabE 9 %[x=(%y) p=(%q)] `tabby `(add y q) v2)
+!!= (destructureTabE 9 %[x=(%y) p=(%q)] `tabby `(add y q) v2)
         | v2 10
        ``
        #@ _g9 tabby
@@ -533,7 +533,7 @@
        #@ y (#| $tabIdx $$(cnsE %x) _g9)
         (add y q)
 
-?= (destructureTabE 9 %[] `tabby `(add y q) v2)
+!!= (destructureTabE 9 %[] `tabby `(add y q) v2)
         | v2 10
        ``
        #@ _g9 tabby
@@ -561,10 +561,10 @@
     : bin <- parseBinder rex err
     | ok [bin]
 
-?= ,[[%v 0 %a] [%v 0 %b] [%v 0 %c]]
+!!= ,[[%v 0 %a] [%v 0 %b] [%v 0 %c]]
         | readBindSig `(a b c) v2 v1
 
-?= [[[%r [[%v 0 %x] [%s 0 %a]]] [%v 0 %y] [%s 0 %z]]]
+!!= [[[%r [[%v 0 %x] [%s 0 %a]]] [%v 0 %y] [%s 0 %z]]]
         | readBindSig `([x !a] y !z) v2 v1
 
 = symSigExpect | "Expected `x` or signature `(x y z)`"
@@ -597,13 +597,13 @@
 
 (tryRBSS x)=(readDestroyer x v2 v2)
 
-?= [%a [[%v 0 %b] [%v 0 %c]]]                  | tryRBSS `(a b c)
-?= [%a [[%v 0 %b] [%r [[%v 0 %c] [%v 0 %d]]]]] | tryRBSS `(a b [c d])
-?= [`a sigExpect]                              | tryRBSS `(a)
-?= [`a sigExpect]                              | tryRBSS `a
-?= [`[a b] sigExpect]                          | tryRBSS `[a b]
-?= [`([][]) sigExpect]                         | tryRBSS `([][])
-?= [`((|)[]) sigNoHeir]                        | tryRBSS `((|)[])
+!!= [%a [[%v 0 %b] [%v 0 %c]]]                  | tryRBSS `(a b c)
+!!= [%a [[%v 0 %b] [%r [[%v 0 %c] [%v 0 %d]]]]] | tryRBSS `(a b [c d])
+!!= [`a sigExpect]                              | tryRBSS `(a)
+!!= [`a sigExpect]                              | tryRBSS `a
+!!= [`[a b] sigExpect]                          | tryRBSS `[a b]
+!!= [`([][]) sigExpect]                         | tryRBSS `([][])
+!!= [`((|)[]) sigNoHeir]                        | tryRBSS `((|)[])
 
 
 
@@ -657,49 +657,49 @@
 | ok p a
 | bindSeqE bSeq bodyExpr deps
 
-?= 7
+!!= 7
        @ [x y z] [3 4]
        | (add x (add y z))
 
-?= 7
+!!= 7
        @ [!x !y !z] [3 4]
        | (add x (add y z))
 
-?= 7
+!!= 7
        @ %[=x =y =z] %[y=4 z=3]
        | (add x (add y z))
 
-?= 7
+!!= 7
        @ %[x=(!x) =y =z] %[y=4 z=3]
        | (add x (add y z))
 
-?= [5 3 0 3 4 3]
+!!= [5 3 0 3 4 3]
         @ t       | 3
         @ [x y z] | [t 4 5]
         | [z x 0 x y x]
 
-?= [[0 3 5 4 0] 3 4]
+!!= [[0 3 5 4 0] 3 4]
         @ f 5
         @ [p q r s]  [3 4 f]
         @ %[x=a =y]  %[x=3 y=4]
         | [[s p r q s] a y]
 
-?= 5
+!!= 5
         @ (addTwo x) (add x 2)
         | addTwo 3
 
-?= 5
+!!= 5
         @ (uncurry f [x y]) (f x y)
         | uncurry add [2 3]
 
-?= [4 3]
+!!= [4 3]
         @   = x     | 3
             = y     | x
             = z     | [x (inc y)]
             = [a b] | z
         [b a]
 
-?= [500 200 1001]
+!!= [500 200 1001]
         @ %[pos=[px py pz] vel=[vx vy vz]]
                %% =pos [500 200 1]
                %% =vel [0 0 1000]
@@ -707,7 +707,7 @@
        ,, add py vy
        ,, add pz vz
 
-?=  [11 22 33]
+!!=  [11 22 33]
     @ (addV3 [x1 y1 z1] [x2 y2 z2])
         ,, add x1 x2
         ,, add y1 y2
@@ -727,7 +727,7 @@
 | wutE (rowCons sym sig)
 | bodyExpr
 
-?= 5 | (uncurry f [x y] ? f x y) add [2 3]
+!!= 5 | (uncurry f [x y] ? f x y) add [2 3]
 
 
 """ Anon Lambdas with Destroy """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -740,11 +740,11 @@
 | lamE sig
 | bodyExpr
 
-?= 5 | [x y]&(add x y) [2 3]
+!!= 5 | [x y]&(add x y) [2 3]
 
-?= 5 | (f [x y] & f x y) add [2 3]
+!!= 5 | (f [x y] & f x y) add [2 3]
 
-?= %[x=0 y=1 z=2]
+!!= %[x=0 y=1 z=2]
      | foldr ([k v] t & tabMut k v t) %[] [[%x 0] [%y 1] [%z 2]]
 
 
@@ -797,48 +797,48 @@
 
 = (weird [[[x]] %[=y a=z]]) [x y z]
 
-?= [3 9 8] (weird [[[3]] %[y=9 a=8]])
+!!= [3 9 8] (weird [[[3]] %[y=9 a=8]])
 
 [x y]=[3 4]
 [a b]=[3 4]
 
-?= x 3
-?= y 4
-?= a 3
-?= b 4
+!!= x 3
+!!= y 4
+!!= a 3
+!!= b 4
 
 = [x y] [3 4]
 = [a b] [3 4]
 
-?= x 3
-?= y 4
-?= a 3
-?= b 4
+!!= x 3
+!!= y 4
+!!= a 3
+!!= b 4
 
 = x=[a b c] [9 8 7]
 
-?= x [9 8 7]
-?= a 9
-?= b 8
-?= c 7
+!!= x [9 8 7]
+!!= a 9
+!!= b 8
+!!= c 7
 
 = !p=[q r s] [9 8 7]
 
-?= p [9 8 7]
-?= q 9
-?= r 8
-?= s 7
+!!= p [9 8 7]
+!!= q 9
+!!= r 8
+!!= s 7
 
 = [n o _]=[_ _ w] [9 8 7]
 
-?= [n o w] [9 8 7]
+!!= [n o w] [9 8 7]
 
-?= 1
+!!= 1
     : ?(self x) <- (k & k 'self')
     | and (eql x 'self')
           (eql x lawName-self)
 
-?= 1
+!!= 1
     : ?!(self x) <- (k & k 'self')
     | and (eql x 'self')
           (| eql x | lawName | pinItem self)

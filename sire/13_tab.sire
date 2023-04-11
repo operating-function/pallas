@@ -57,10 +57,10 @@ emptyTab=emptyCab
 
 = (look tab key)   | tabIdx key tab
 
-#= ex | mkTab [1 2 3] [4 5 6]
-?= 4  | look ex 1
-?= 5  | look ex 2
-?= 6  | look ex 3
+  = ex | mkTab [1 2 3] [4 5 6]
+!!= 4  | look ex 1
+!!= 5  | look ex 2
+!!= 6  | look ex 3
 
 
 """ Basic Quations about Tabs """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -82,11 +82,11 @@ emptyTab=emptyCab
 @ midx (findIdx lte-key keys)
 | *maybeCase midx (len keys) (ix & ix)
 
-?= 0 (findInsIdx 0 [1 2 3])
-?= 0 (findInsIdx 1 [1 2 3])
-?= 1 (findInsIdx 2 [1 2 3])
-?= 2 (findInsIdx 3 [1 2 3])
-?= 3 (findInsIdx 4 [1 2 3])
+!!= 0 (findInsIdx 0 [1 2 3])
+!!= 0 (findInsIdx 1 [1 2 3])
+!!= 1 (findInsIdx 2 [1 2 3])
+!!= 2 (findInsIdx 3 [1 2 3])
+!!= 3 (findInsIdx 4 [1 2 3])
 
 = (tabMut key val tab)
 @ keys (tabKeys tab)
@@ -100,15 +100,15 @@ emptyTab=emptyCab
 
 = ex1 (mkTab [1 5] [5 1])
 
-?= ( mkTab [1 2 5] [5 6 1] ) | tabMut 2 6 | ex1
-?= ( mkTab [0 1 5] [6 5 1] ) | tabMut 0 6 | ex1
-?= ( mkTab [1 5 9] [5 1 6] ) | tabMut 9 6 | ex1
-?= ( mkTab [1 5]   [9 1]   ) | tabMut 1 9 | ex1
-?= ( mkTab [1 5]   [5 9]   ) | tabMut 5 9 | ex1
-?= ( mkTab [1 5]   [8 9]   ) | tabMut 1 8 | tabMut 5 9 | ex1
-?= ( mkTab [1 3 5] [8 7 9] ) | tabMut 3 7 | tabMut 1 8 | tabMut 5 9 | ex1
-?= ( mkTab [1 3 5] [8 7 9] ) | tabMut 1 8 | tabMut 3 7 | tabMut 5 9 | ex1
-?= ( mkTab [1 3 5] [8 7 9] ) | tabMut 5 9 | tabMut 3 7 | tabMut 1 8 | ex1
+!!= ( mkTab [1 2 5] [5 6 1] ) | tabMut 2 6 | ex1
+!!= ( mkTab [0 1 5] [6 5 1] ) | tabMut 0 6 | ex1
+!!= ( mkTab [1 5 9] [5 1 6] ) | tabMut 9 6 | ex1
+!!= ( mkTab [1 5]   [9 1]   ) | tabMut 1 9 | ex1
+!!= ( mkTab [1 5]   [5 9]   ) | tabMut 5 9 | ex1
+!!= ( mkTab [1 5]   [8 9]   ) | tabMut 1 8 | tabMut 5 9 | ex1
+!!= ( mkTab [1 3 5] [8 7 9] ) | tabMut 3 7 | tabMut 1 8 | tabMut 5 9 | ex1
+!!= ( mkTab [1 3 5] [8 7 9] ) | tabMut 1 8 | tabMut 3 7 | tabMut 5 9 | ex1
+!!= ( mkTab [1 3 5] [8 7 9] ) | tabMut 5 9 | tabMut 3 7 | tabMut 1 8 | ex1
 
 
 """ Switching on Tabs """"""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -133,13 +133,13 @@ emptyTab=emptyCab
 @ vs | listFromRow tab
 | listToRow | listZip ks vs
 
-#= par | [[1 4] [2 5] [3 6]]
-#= tab | tabFromAscPairs par
-?= 4   | look ex 1
-?= 5   | look ex 2
-?= 6   | look ex 3
-?= 6   | look ex 3
-?= par | tabToPairs tab
+  = par | [[1 4] [2 5] [3 6]]
+  = tab | tabFromAscPairs par
+!!= 4   | look ex 1
+!!= 5   | look ex 2
+!!= 6   | look ex 3
+!!= 6   | look ex 3
+!!= par | tabToPairs tab
 
 
 """ Table Construction from unique pairs """""""""""""""""""""""""""""""""""""""
@@ -153,17 +153,17 @@ emptyTab=emptyCab
 
 (tabToList tab)=(listFromRow tabToPairs-tab)
 
-?= (mkTab [3 5] [8 9]) | tabFromPairs [[3 8] [5 9]]
-?= (mkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 8]]
-?= (mkTab [3 5] [8 9]) | tabFromPairs [[3 7] [3 8] [5 9]]
-?= (mkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 7] [3 8]]
+!!= (mkTab [3 5] [8 9]) | tabFromPairs [[3 8] [5 9]]
+!!= (mkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 8]]
+!!= (mkTab [3 5] [8 9]) | tabFromPairs [[3 7] [3 8] [5 9]]
+!!= (mkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 7] [3 8]]
 
-?= 0             | tabToPairList | tabFromPairs []
-?= [3,8 0]       | tabToPairList | tabFromPairs [[3 8]]
-?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 8] [5 9]]
-?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 8]]
-?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 7] [3 8] [5 9]]
-?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 7] [3 8]]
+!!= 0             | tabToPairList | tabFromPairs []
+!!= [3,8 0]       | tabToPairList | tabFromPairs [[3 8]]
+!!= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 8] [5 9]]
+!!= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 8]]
+!!= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 7] [3 8] [5 9]]
+!!= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 7] [3 8]]
 
 
 """ tabElem """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -365,45 +365,45 @@ emptyTab=emptyCab
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= 1 | isTab %[]
-?= 1 | isTab %[0=0]
-?= 1 | isTab %[x=3]
-?= 1 | isTab %[x=3 y=4]
+!!= 1 | isTab %[]
+!!= 1 | isTab %[0=0]
+!!= 1 | isTab %[x=3]
+!!= 1 | isTab %[x=3 y=4]
 
-?= 0 | isTab []
-?= 0 | isTab %[x y]
-?= 0 | isTab (%[x y] 3)
-?= 1 | isTab (%[x y] 3 4)
+!!= 0 | isTab []
+!!= 0 | isTab %[x y]
+!!= 0 | isTab (%[x y] 3)
+!!= 1 | isTab (%[x y] 3 4)
 
-?= %[a=0]     | %[97=0]
-?= %[a=0]     | %['a'=0]
-?= %[a=0 b=1] | %[98=1 97=0]
-?= %[a=0 b=1] | %["b"=1 'a'=0]
+!!= %[a=0]     | %[97=0]
+!!= %[a=0]     | %['a'=0]
+!!= %[a=0 b=1] | %[98=1 97=0]
+!!= %[a=0 b=1] | %["b"=1 'a'=0]
 
-?= 0 | tabLen %[]
-?= 1 | tabLen %[x=0]
-?= 2 | tabLen %[x=0 y=1]
+!!= 0 | tabLen %[]
+!!= 1 | tabLen %[x=0]
+!!= 2 | tabLen %[x=0 y=1]
 
-?= (inspect %[x=0 y=1])        | [%[x y] 1 0]
-?= (inspect %[x y])            | [0 0 3 [%x %y]]
-?= (inspect [%x %y])           | [(0 0 3 0) %y %x]
-?= (fullInspection %[x=0 y=1]) | [[0 0 3 [[0 0 3 0] %y %x]] 1 0]
+!!= (inspect %[x=0 y=1])        | [%[x y] 1 0]
+!!= (inspect %[x y])            | [0 0 3 [%x %y]]
+!!= (inspect [%x %y])           | [(0 0 3 0) %y %x]
+!!= (fullInspection %[x=0 y=1]) | [[0 0 3 [[0 0 3 0] %y %x]] 1 0]
 
-?= 8 | tabIdx 0 %[0=8]
-?= 9 | tabIdx %aa %(bb=8, aa=9)
+!!= 8 | tabIdx 0 %[0=8]
+!!= 9 | tabIdx %aa %(bb=8, aa=9)
 
-?= 1 | hasKey %aa %(bb=8, aa=9)
-?= 1 | not | hasKey %cc %(bb=8, aa=9)
+!!= 1 | hasKey %aa %(bb=8, aa=9)
+!!= 1 | not | hasKey %cc %(bb=8, aa=9)
 
-?= [3 4] | tabKeys %[3=3 4=4]
-?= []    | tabKeys %[]
+!!= [3 4] | tabKeys %[3=3 4=4]
+!!= []    | tabKeys %[]
 
-?= %[3=3]     | tabMut 3 3 %[3=4]
-?= %[3=4 4=4] | tabMut 4 4 %[3=4]
-?= %[0=0]     | tabMut 0 0 %[]
-?= %[0=0]     | tabMut 0 0 %[]
+!!= %[3=3]     | tabMut 3 3 %[3=4]
+!!= %[3=4 4=4] | tabMut 4 4 %[3=4]
+!!= %[0=0]     | tabMut 0 0 %[]
+!!= %[0=0]     | tabMut 0 0 %[]
 
-?= %[a=(0 1)] | (%% =a 0 1)
+!!= %[a=(0 1)] | (%% =a 0 1)
 
 ;
 ; TODO Support this form also.
@@ -417,7 +417,7 @@ emptyTab=emptyCab
 ;    | add 3 4
 ;
 
-?= %["a"=1 b=2] | (%% =b 2)(%% ="a" 1)
+!!= %["a"=1 b=2] | (%% =b 2)(%% ="a" 1)
 
 ;; eql 8 | tabIdx 0 %(0=8)
 ;; TODO This should work too.

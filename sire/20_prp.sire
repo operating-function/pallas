@@ -46,11 +46,11 @@
 @ kid | tabMut key val kid
 | tabMut pro kid tab
 
-?= %val                 | getProperty 37 %foo %[foo=(%[37='val'])]
-?= %[foo=(%[37='val'])] | setProperty 37 %foo %val 0
-?= %[foo=(%[37='val'])] | setProperty 37 %foo %val %[foo=(%[])]
+!!= %val                 | getProperty 37 %foo %[foo=(%[37='val'])]
+!!= %[foo=(%[37='val'])] | setProperty 37 %foo %val 0
+!!= %[foo=(%[37='val'])] | setProperty 37 %foo %val %[foo=(%[])]
 
-?= %[foo=(%[130='v' 129='w']) bar=(%[130='v'])]
+!!= %[foo=(%[130='v' 129='w']) bar=(%[130='v'])]
         | setProperty 130 %foo %v
         | setProperty 130 %bar %v
         | setProperty 129 %foo %w
@@ -109,11 +109,11 @@
 why=3
 whySrc=(`(why=3))
 setProp#(why.src)#whySrc
-(1        ?= hasProp#(why.src))
-(`(why=3) ?= getProp#(why.src))
+(1        !!= hasProp#(why.src))
+(`(why=3) !!= getProp#(why.src))
 why=4
-(0 ?= hasProp#(why.src))
-(0 ?= getProp#(why.src))
+(0 !!= hasProp#(why.src))
+(0 !!= getProp#(why.src))
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

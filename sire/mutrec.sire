@@ -41,7 +41,7 @@
 
 (bloodline lis)=(listFoldr (i r & rexSetHeir r i) 0 lis)
 
-?= `((a=1)(b=2)(c=3))
+!!= `((a=1)(b=2)(c=3))
         | bloodline ~[`(a=1) `(b=2) `(c=3)]
 
 
@@ -61,10 +61,10 @@
         | ret aft [sym sig bod]
 | ok aft results
 
-?= 5,[[%f [%x] `x] [%g [%y] `0]]
+!!= 5,[[%f [%x] `x] [%g [%y] `0]]
         | readCoreBody 5 `((f x = x)(g y = 0)) v2 v2
 
-?=     ,, 7
+!!=    ,, 7
        ,,  ,,   | *v3 %f ['_g5']
                    `` #@ $$(varKE 6 '_g6') _g5
                       #@ x (#| $(idx 0) _g6)
@@ -72,10 +72,10 @@
                        x
     | readCoreBody 5 `((f [x y] = x)) v2 v2
 
-?= [`(*) 'Not a core arm']
+!!= [`(*) 'Not a core arm']
         | readCoreBody 5 `((f x = x)(g y = 0)(*)) v2 v2
 
-?= [`(= f) '= node expects two parameters']
+!!= [`(= f) '= node expects two parameters']
         | readCoreBody 5 `((= f|x x)(= f)) v2 v2
 
 ; TODO Move this to `17-exp.sire`
@@ -85,7 +85,7 @@
 @ sig (NEST 0 "|" (rowCons idn args) 0)
 | OPEN 0 "#?" [sig] body
 
-?= (taggedLamE %f 2 [`x `y `z] `x)
+!!= (taggedLamE %f 2 [`x `y `z] `x)
         ` #? (f##2 x y z)
            x
 
@@ -96,17 +96,17 @@
        ,, wildExp
 | bowE patExps
 
-?= (matchE `[0 1 2] `0 [`1 `2 `3])
+!!= (matchE `[0 1 2] `0 [`1 `2 `3])
        ``
        #| $switch (#| $idx 0 [0 1 2]) 0
        #| $(cow 3) 3 2 1
 
 (maxRow x)=(foldl max (idx 0 x) x)
 
-?= 3 | maxRow [0 3 2]
-?= 4 | maxRow [0 3 4]
-?= 5 | maxRow [5 3 4]
-?= 0 | maxRow []
+!!= 3 | maxRow [0 3 2]
+!!= 4 | maxRow [0 3 4]
+!!= 5 | maxRow [5 3 4]
+!!= 0 | maxRow []
 
 = ("#mutrec" s p e a r err ok)
 @ coreNam (gensymNm "core" a)
@@ -165,7 +165,7 @@
     | bindArms coreBody arms
 | bindArms letBody arms
 
-; ?= 1
+; !!= 1
 ;         @ e
 ;                 `
 ;                 # mutrec %loop (*loop start)
@@ -174,7 +174,7 @@
 ;         (##"#mutrec" 3 3 3 e v2 v4)
 
 
-; ?= 1
+; !!= 1
 ;         @ e
 ;                 `(#mutrec %loop (f 3) (f x = x)(g a e = g a e))
 ;         (##"#mutrec" 3 3 3 e v2 v4)
@@ -199,11 +199,10 @@
 | switch b 0
 ,, ifNot x 0 (loop 0 0)
 
-?= (car looper) 4
-?= (cdr looper) loopFun
-
-!! eql (pinItem looper) loopFun
-!! eql looper           (PIN loopFun)
+!!= (car looper)     4
+!!= (cdr looper)     loopFun
+!!= (pinItem looper) loopFun
+!!= looper           (PIN loopFun)
 
 = [even odd]
 # mutrec %even_odd [even odd]

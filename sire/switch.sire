@@ -45,8 +45,8 @@
         | err rex (strWeld "Unexpected rune: " ryn)
 
 (try x)=(readFanLit x v2 v1)
-?= [%x]      | try `(%x)
-?= [[%x %y]] | try `['x' 'y']
+!!= [%x]      | try `(%x)
+!!= [[%x %y]] | try `['x' 'y']
 
 = (readSwitchPat pat err cab lit)
 | if (and (eql "_" rexText-pat) (eql %WORD rexStyle-pat))
@@ -55,13 +55,13 @@
 
 = rnNumb | "Invalid number literal"
 
-?= %_          | readSwitchPat `_        v2 %_ v1
-?= [%x]        | readSwitchPat `(%x)     v2 %_ v1
-?= [[%x]]      | readSwitchPat `[%x]     v2 %_ v1
-?= [[%x %y]]   | readSwitchPat `[%x 'y'] v2 %_ v1
-?= [%x]        | readSwitchPat `"x"      v2 %_ v1
-?= [3]         | readSwitchPat `3        v2 %_ v1
-?= [`a rnNumb] | readSwitchPat `a        v2 %_ v1
+!!= %_          | readSwitchPat `_        v2 %_ v1
+!!= [%x]        | readSwitchPat `(%x)     v2 %_ v1
+!!= [[%x]]      | readSwitchPat `[%x]     v2 %_ v1
+!!= [[%x %y]]   | readSwitchPat `[%x 'y'] v2 %_ v1
+!!= [%x]        | readSwitchPat `"x"      v2 %_ v1
+!!= [3]         | readSwitchPat `3        v2 %_ v1
+!!= [`a rnNumb] | readSwitchPat `a        v2 %_ v1
 
 
 """ Parsing Switch Patterns """"""""""""""""""""""""""""""""""""""""""""""""""""
@@ -100,18 +100,18 @@
 foo=(x e o & o (varE "_", x))
 (try x)=(unrollSlip2Tis x foo v2 I)
 
-?= [[`x `y] [`_ `9]]
+!!= [[`x `y] [`_ `9]]
         | try ` = x y
                 9
 
-?= [[`x `y]]
+!!= [[`x `y]]
         | try ` = x y
 
-?= [[`x `y]]
+!!= [[`x `y]]
         | try ` = x
                 y
 
-?= [[`3 `4] [`5 `6] [`_ `_]]
+!!= [[`3 `4] [`5 `6] [`_ `_]]
         | try ` = 3 4
                 = 5 6
                 = _ _
@@ -138,13 +138,13 @@ foo=(x e o & o (varE "_", x))
 | ok
 | foldl f (natE 0, %[]) cases
 
-?= [`0 %[3=(`4) 5=(`6)]]
+!!= [`0 %[3=(`4) 5=(`6)]]
         | readSwitchPats `((= 3 4)(= 5 6)) v2 I
 
-?= [`x %[3=(`4) 5=(`6)]]
+!!= [`x %[3=(`4) 5=(`6)]]
         | readSwitchPats `((= 3 4)(= 5 6)(x)) v2 I
 
-?= [`x (tabMut [3 3] `6 %[3=(`4)])]
+!!= [`x (tabMut [3 3] `6 %[3=(`4)])]
         | readSwitchPats `((= 3 4)(= [3 3] 6)(x)) v2 I
 
 

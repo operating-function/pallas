@@ -30,7 +30,7 @@
 = 13 | chomp input (inc off)
 = _  | off
 
-?= 7 (chomp b#'	  	   xyz' 0)
+!!= 7 (chomp b#'	  	   xyz' 0)
 
 
 """ Lex Strings """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -52,18 +52,18 @@
 
 (lexString input off)=(lexStringLoop input off off)
 
-?= [(TOK_STR b#{fdsafdsa}) 10]
+!!= [(TOK_STR b#{fdsafdsa}) 10]
         | lexString b#{"fdsafdsa"} 1
 
-?= [(TOK_STR b#'fdsafdsa\"more') 16]
+!!= [(TOK_STR b#'fdsafdsa\"more') 16]
         | lexString b#'"fdsafdsa\"more"' 1
 
 ; TODO: Sol says that escaping slashes wasn't intended in the parser for {}
 ; literals. Remove that later.
-?= [(TOK_STR b#'fdsafdsa\\') 12]
+!!= [(TOK_STR b#'fdsafdsa\\') 12]
         | lexString b#{"fdsafdsa\\\\"} 1
 
-?= 'Unexpected EOF (string)'
+!!= 'Unexpected EOF (string)'
         | lexString b#'"fdsafdsa\"more' 1
 
 
@@ -77,8 +77,8 @@
 @ !acc (add (sub chr 48) (mul 10 acc))
 | loop acc (inc off)
 
-?= [1234 5] (consumeDigits b#'+1234+' 1)
-?= [0 0]    (consumeDigits b#'+1234+' 0)
+!!= [1234 5] (consumeDigits b#'+1234+' 1)
+!!= [0 0]    (consumeDigits b#'+1234+' 0)
 
 
 """ Lex Strings of Zeros """""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -92,9 +92,9 @@
         | go (inc count) (inc off)
 | [count off]
 
-?= [0 0] | consumeZeros b#{+0000+} 0
-?= [4 5] | consumeZeros b#{+0000+} 1
-?= [3 5] | consumeZeros b#{+0000+} 2
+!!= [0 0] | consumeZeros b#{+0000+} 0
+!!= [4 5] | consumeZeros b#{+0000+} 1
+!!= [3 5] | consumeZeros b#{+0000+} 2
 
 
 """ Lex Decimal Part """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -124,12 +124,12 @@
 ;
 | [[numZeros nat] dof]
 
-?= [[2 33] 6] | lexDecimal b#'#.0033#' 1
-?= [[1 0 ] 3] | lexDecimal b#'#.0#'    1
-?= [[0 1 ] 3] | lexDecimal b#'#.1#'    1
-?= [0      1] | lexDecimal b#'##'      1
-?= [0      1] | lexDecimal b#'#e2#'    1
-?= noDig      | lexDecimal b#'#.#'     1
+!!= [[2 33] 6] | lexDecimal b#'#.0033#' 1
+!!= [[1 0 ] 3] | lexDecimal b#'#.0#'    1
+!!= [[0 1 ] 3] | lexDecimal b#'#.1#'    1
+!!= [0      1] | lexDecimal b#'##'      1
+!!= [0      1] | lexDecimal b#'#e2#'    1
+!!= noDig      | lexDecimal b#'#.#'     1
 
 
 """ Lex Exponent Part """"""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -175,18 +175,18 @@
 ;
 | [[nega nat] dof]
 
-?= [[0  0] 3] | lexExponent b#'#e0#'   1
-?= [[0  0] 4] | lexExponent b#'#e00#'  1
-?= [[0  0] 5] | lexExponent b#'#e+00#' 1
-?= [[1  0] 5] | lexExponent b#'#e-00#' 1
-?= [[1  1] 5] | lexExponent b#'#e-01#' 1
-?= [[1 10] 5] | lexExponent b#'#e-10#' 1
-?= [[1 11] 5] | lexExponent b#'#e-11#' 1
-?= noDig      | lexExponent b#'#e-#'   1
-?= noDig      | lexExponent b#'#e+#'   1
-?= noDig      | lexExponent b#'#e#'    1
-?= [0 0]      | lexExponent b#'#e00#'  0
-?= [0 1]      | lexExponent b#'#g00#'  1
+!!= [[0  0] 3] | lexExponent b#'#e0#'   1
+!!= [[0  0] 4] | lexExponent b#'#e00#'  1
+!!= [[0  0] 5] | lexExponent b#'#e+00#' 1
+!!= [[1  0] 5] | lexExponent b#'#e-00#' 1
+!!= [[1  1] 5] | lexExponent b#'#e-01#' 1
+!!= [[1 10] 5] | lexExponent b#'#e-10#' 1
+!!= [[1 11] 5] | lexExponent b#'#e-11#' 1
+!!= noDig      | lexExponent b#'#e-#'   1
+!!= noDig      | lexExponent b#'#e+#'   1
+!!= noDig      | lexExponent b#'#e#'    1
+!!= [0 0]      | lexExponent b#'#e00#'  0
+!!= [0 1]      | lexExponent b#'#g00#'  1
 
 
 """ Lexer JSON """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -252,22 +252,22 @@
     ;
     | [(*TOK_NUM neg nat deci expi) (loop off)]
 
-?=     | listToRow | lexJson b#'{"x":999}'
+!!=     | listToRow | lexJson b#'{"x":999}'
     ('{', [%str b#x], ':', [%num 0 999 0 0], '}')
 
-?=     | listToRow | lexJson b#'{"x":-999}'
+!!=     | listToRow | lexJson b#'{"x":-999}'
     ('{', [%str b#x], ':', [%num 1 999 0 0], '}')
 
-?=     | listToRow | lexJson b#'{"x":9.9}'
+!!=     | listToRow | lexJson b#'{"x":9.9}'
     ('{', [%str b#x], ':', [%num 0 9 [0 9] 0], '}')
 
-?=     | listToRow | lexJson b#'{"x":9e9}'
+!!=     | listToRow | lexJson b#'{"x":9e9}'
     ('{', [%str b#x], ':', [%num 0 9 0 [0 9]], '}')
 
-?=     | listToRow | lexJson b#'{"x":09.09e9}'
+!!=     | listToRow | lexJson b#'{"x":09.09e9}'
     ('{', [%str b#x], ':', [%num 0 9 [1 9] [0 9]], '}')
 
-?=     | listToRow | lexJson b#' { "x" : 999 } '
+!!=     | listToRow | lexJson b#' { "x" : 999 } '
     ('_', '{', '_', [%str b#x], '_', ':', '_', [%num 0 999 0 0], '_', '}', '_')
 
 

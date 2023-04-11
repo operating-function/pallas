@@ -21,12 +21,12 @@
     , st
     | [rid 400 b#bad [] b#{}]
 
-?=   | handleReq (tabMut b#"index.html" b#"<body />" %[])
+!!=  | handleReq (tabMut b#"index.html" b#"<body />" %[])
      | [5 "GET" b#{index.html} [] b#{}]
   ,, (tabMut b#"index.html" b#"<body />" %[])
   ,, [5 200 b#gotcha [(b#{Content-Type}, b#{text/plain})] b#"<body />"]
 
-?=   | handleReq %[]
+!!=  | handleReq %[]
      | [5 "PUT" b#{/path} [] b#data]
   ,, (tabMut b#{/path} b#data %[])
   ,, [5 201 b#done [] b#{}]

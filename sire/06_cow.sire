@@ -79,27 +79,27 @@ v1=c1
 | and (eql 1 arity-r)
 | isCow head-r
 
-?= 1 | isRow v0
-?= 1 | isRow (v1 1)
-?= 1 | isRow (v2 1 2)
-?= 1 | not (isRow (0 0 3 (v2 0 1)))
-?= 1 | not (isRow isRow)
+!!= 1 | isRow v0
+!!= 1 | isRow (v1 1)
+!!= 1 | isRow (v2 1 2)
+!!= 1 | not (isRow (0 0 3 (v2 0 1)))
+!!= 1 | not (isRow isRow)
 
-?= (v3 3 4 5) | caaar  (v3 3 4 5) 5 4 3
-?= (v2 3 4)   | caar   (v2 3 4)   4 3
-?= (v1 3)     | car    (v1 3)     3
-?= (v0)       | car    (v0)       0
-?= (v1 3)     | caar   (v1 3)     0 3
-?= (v2 3 4)   | caaar  (v2 3 4)   0 4 3
-?= (v3 3 4 5) | caaaar (v3 3 4 5) 0 5 4 3
+!!= (v3 3 4 5) | caaar  (v3 3 4 5) 5 4 3
+!!= (v2 3 4)   | caar   (v2 3 4)   4 3
+!!= (v1 3)     | car    (v1 3)     3
+!!= (v0)       | car    (v0)       0
+!!= (v1 3)     | caar   (v1 3)     0 3
+!!= (v2 3 4)   | caaar  (v2 3 4)   0 4 3
+!!= (v3 3 4 5) | caaaar (v3 3 4 5) 0 5 4 3
 
-?= 3 | len (v3 0 0 0)
-?= 2 | len (v2 0 0)
-?= 1 | len (v1 0)
-?= 0 | len (v0)
+!!= 3 | len (v3 0 0 0)
+!!= 2 | len (v2 0 0)
+!!= 1 | len (v1 0)
+!!= 0 | len (v0)
 
-?= 1 | null (v0)
-?= 0 | null (v1 "x")
+!!= 1 | null (v0)
+!!= 0 | null (v1 "x")
 
 
 """ Generating Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -132,13 +132,13 @@ v1=c1
 
 (ADD x y k)=(k x y)
 
-?= (foldr ADD "z" (v0))       | "z"
-?= (foldl ADD "z" (v0))       | "z"
-?= (foldr ADD "z" (v3 1 2 3)) | ADD 1 | ADD 2 | ADD 3 "z"
-?= (foldl ADD "z" (v3 1 2 3)) | ADD (ADD (ADD "z" 1) 2) 3
-?= (foldl ADD "z" 1)          | "z"
-?= (foldl ADD "z" (0 1))      | ADD "z" 1
-?= (foldl ADD "z" (0 2 1))    | ADD (ADD "z" 1) 2
+!!= (foldr ADD "z" (v0))       | "z"
+!!= (foldl ADD "z" (v0))       | "z"
+!!= (foldr ADD "z" (v3 1 2 3)) | ADD 1 | ADD 2 | ADD 3 "z"
+!!= (foldl ADD "z" (v3 1 2 3)) | ADD (ADD (ADD "z" 1) 2) 3
+!!= (foldl ADD "z" 1)          | "z"
+!!= (foldl ADD "z" (0 1))      | ADD "z" 1
+!!= (foldl ADD "z" (0 2 1))    | ADD (ADD "z" 1) 2
 
 
 """ Concatenation """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -151,10 +151,10 @@ v1=c1
 | if (lthNat i xw) (idx i x)
 | idx (sub i xw) y
 
-?= (v3 1 2 3) | weld (v0) (v3 1 2 3)
-?= (v3 1 2 3) | weld (v1 1) (v2 2 3)
-?= (v3 1 2 3) | weld (v2 1 2) (v1 3)
-?= (v3 1 2 3) | weld (v3 1 2 3) (v0)
+!!= (v3 1 2 3) | weld (v0) (v3 1 2 3)
+!!= (v3 1 2 3) | weld (v1 1) (v2 2 3)
+!!= (v3 1 2 3) | weld (v2 1 2) (v1 3)
+!!= (v3 1 2 3) | weld (v3 1 2 3) (v0)
 
 
 """ More Basic Operations """"""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -165,23 +165,23 @@ v1=c1
 = (rowApply f xs) | foldl apply f xs
 = (rowRepel f xs) | foldr supply f xs
 
-?= 7 | rowApply add (v2 4 3)
-?= 1 | rowApply sub (v2 4 3)
-?= 7 | rowRepel add (v2 3 4)
-?= 1 | rowRepel sub (v2 3 4)
+!!= 7 | rowApply add (v2 4 3)
+!!= 1 | rowApply sub (v2 4 3)
+!!= 7 | rowRepel add (v2 3 4)
+!!= 1 | rowRepel sub (v2 3 4)
 
-?= (ADD 0 1) | rowApply ADD (v2 0 1)
-?= (2 0 1)   | rowApply ADD (v3 0 1 2)
-?= 1         | rowApply add (v2 0 1)
-?= (1 1)     | rowApply add (v3 0 1 1)
-?= (1 1)     | rowApply add (v2 0 1) 1
-?= (1 1 1)   | rowApply add (v2 0 1) 1 1
+!!= (ADD 0 1) | rowApply ADD (v2 0 1)
+!!= (2 0 1)   | rowApply ADD (v3 0 1 2)
+!!= 1         | rowApply add (v2 0 1)
+!!= (1 1)     | rowApply add (v3 0 1 1)
+!!= (1 1)     | rowApply add (v2 0 1) 1
+!!= (1 1 1)   | rowApply add (v2 0 1) 1 1
 
-?= (rowRepel ADD (v2 1 0))   | ADD 0 1
-?= (rowRepel ADD (v3 2 1 0)) | 2 0 1
+!!= (rowRepel ADD (v2 1 0))   | ADD 0 1
+!!= (rowRepel ADD (v3 2 1 0)) | 2 0 1
 
-?= (v3 5 4 3) | rev | v3 3 4 5
-?= (v0)       | rev | v0
+!!= (v3 5 4 3) | rev | v3 3 4 5
+!!= (v0)       | rev | v0
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

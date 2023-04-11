@@ -6,7 +6,7 @@
 
 (bloodline lis)=(listFoldr (i r & rexSetHeir r i) 0 lis)
 
-?= `((a=1)(b=2)(c=3))
+!!= `((a=1)(b=2)(c=3))
         | bloodline ~[`(a=1) `(b=2) `(c=3)]
 
 
@@ -25,8 +25,8 @@
 | strToList
 | strToLower constr
 
-?= 'openPair'     | constrToCamel %open 'PAIR'
-?= 'mkTreeConfig' | constrToCamel %mk 'TREE_CONFIG'
+!!= 'openPair'     | constrToCamel %open 'PAIR'
+!!= 'mkTreeConfig' | constrToCamel %mk 'TREE_CONFIG'
 
 = (defC sig bodyExp)
 | OPEN 0 "=" (sigE sig, bodyExp) 0
@@ -73,7 +73,7 @@
         | ok p ($inc a)
         | $destructureRowE ($gensym a) $$(rowE | map txtE fields) expr body
 
-?= (mkOpenerC %pair [%fst %snd])
+!!= (mkOpenerC %pair [%fst %snd])
        ``
         = ('#openPair' s p e a r err ok)
             : _ expr body
@@ -153,14 +153,14 @@ record#(BOX boxItem)
 
 ex=(PAIR %a %b)
 
-?= (getFst ex)    | %a
-?= (getSnd ex)    | %b
-?= (setFst %x ex) | PAIR %x %b
-?= (setSnd %x ex) | PAIR %a %x
-?= ex             | mkPair %[fst="a" snd="b"]
-?= (BOX UNIT)     | BOX (mkUnit %[])
-?= 3              | openBox#(BOX 3)#boxItem
-?= 5              | openPair#(PAIR 2 3)#(add fst snd)
+!!= (getFst ex)    | %a
+!!= (getSnd ex)    | %b
+!!= (setFst %x ex) | PAIR %x %b
+!!= (setSnd %x ex) | PAIR %a %x
+!!= ex             | mkPair %[fst="a" snd="b"]
+!!= (BOX UNIT)     | BOX (mkUnit %[])
+!!= 3              | openBox#(BOX 3)#boxItem
+!!= 5              | openPair#(PAIR 2 3)#(add fst snd)
 
 
 """ Datatypes """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -192,7 +192,7 @@ ex=(PAIR %a %b)
         | go acc that
 
 
-?=             ,, [0 %FOO [%x]]
+!!=            ,, [0 %FOO [%x]]
                ,, [0 %BAR [%x %y %z]]
                ,, [0 %LOL []]
         ^ v2 I
@@ -249,10 +249,10 @@ ex=(PAIR %a %b)
 | E_LEFT x
 | E_RIGHT x
 
-?= 0 getProp#(E_LEFT.conTag)
-?= 1 getProp#(E_LEFT.conAri)
-?= 1 getProp#(E_RIGHT.conTag)
-?= 1 getProp#(E_RIGHT.conAri)
+!!= 0 getProp#(E_LEFT.conTag)
+!!= 1 getProp#(E_LEFT.conAri)
+!!= 1 getProp#(E_RIGHT.conTag)
+!!= 1 getProp#(E_RIGHT.conAri)
 
 !! eql [0 9] | E_LEFT 9
 !! eql [1 8] | E_RIGHT 8
@@ -315,7 +315,7 @@ ex=(PAIR %a %b)
 ;;;
 | go acc remain
 
-?=     ,, [0 0 []                      `[x "]"]]
+!!=    ,, [0 0 []                      `[x "]"]]
        ,, [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
     ^ v2 I
     | readDatacaseBody
@@ -379,7 +379,7 @@ ex=(PAIR %a %b)
         = LNULL       [x "]"]
         = (LCONS _ _) [x " " (go xs)]
 
-?= '[a b c]'
+!!= '[a b c]'
         | showList | LCONS %a | LCONS %b | LCONS %c LNULL
 
 ;;;

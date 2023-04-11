@@ -277,7 +277,7 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
                 $ N 0 OPEN "!=" [ (joinRex . valRex . resugarVal mempty) vTop
                                 , (joinRex . valRex . resugarVal mempty) wTop
                                 ]
-                $ Just . joinRex . (\rx -> N 0 OPEN "#??=" rx Nothing)
+                $ Just . joinRex . (\rx -> N 0 OPEN "#!!=" rx Nothing)
                 $ fmap (fmap absurd) raw
                     -- TODO Nope, definitly not impossible
         case more of

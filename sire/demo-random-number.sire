@@ -16,9 +16,9 @@
 
 randTest=(RandLoop 5 [call-5])
 
-?= (cdr randTest) [[%rand 0 %byte 5]]
+!!= (cdr randTest) [[%rand 0 %byte 5]]
 
-?= (RandLoop 0 [])
+!!= (RandLoop 0 [])
     | randTest
         %[0=(x#1122334455)]
         %[0=(x#11223344)]

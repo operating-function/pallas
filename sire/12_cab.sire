@@ -30,8 +30,8 @@
 = (cabSingleton x) | 0 0 2 [x]
 = (cabIsEmpty cab) | eql 1 (lawArgs cab)
 
-?= 1 | cabIsEmpty emptyCab
-?= 1 | not (cabIsEmpty | cabSingleton "a")
+!!= 1 | cabIsEmpty emptyCab
+!!= 1 | not (cabIsEmpty | cabSingleton "a")
 
 = (cabFirst cab) | idx 0 (lawBody cab)
 = (cabLen cab)   | len (lawBody cab)
@@ -79,34 +79,34 @@
 | and (chk las cur)
 | go cur (inc i)
 
-?= 1 | ordered lth [0 1 2]
-?= 1 | ordered lte [0 0 1]
-?= 1 | ordered gth [3 2 1]
-?= 1 | ordered gte [3 3 2]
-?= 1 | ordered eql [3 3 3]
-?= 1 | ordered neq [3 4 2]
+!!= 1 | ordered lth [0 1 2]
+!!= 1 | ordered lte [0 0 1]
+!!= 1 | ordered gth [3 2 1]
+!!= 1 | ordered gte [3 3 2]
+!!= 1 | ordered eql [3 3 3]
+!!= 1 | ordered neq [3 4 2]
 
-?= 1 | ordered lth []
-?= 1 | ordered lth [0]
-?= 1 | ordered lth [0 1]
-?= 1 | ordered lth [0 1 [0]]
-?= 1 | ordered lth [0 1 2]
-?= 1 | ordered lth [1]
-?= 1 | ordered lth [1 2]
-?= 1 | ordered lth [1 2 3 4 5 999]
-?= 1 | ordered lth [1 2 K]
-?= 1 | ordered lth [1 2 K (0 0)]
-?= 1 | ordered lth [1 K]
-?= 1 | ordered lth [2]
+!!= 1 | ordered lth []
+!!= 1 | ordered lth [0]
+!!= 1 | ordered lth [0 1]
+!!= 1 | ordered lth [0 1 [0]]
+!!= 1 | ordered lth [0 1 2]
+!!= 1 | ordered lth [1]
+!!= 1 | ordered lth [1 2]
+!!= 1 | ordered lth [1 2 3 4 5 999]
+!!= 1 | ordered lth [1 2 K]
+!!= 1 | ordered lth [1 2 K (0 0)]
+!!= 1 | ordered lth [1 K]
+!!= 1 | ordered lth [2]
 
-?= 0 | ordered lth [0 0]
-?= 0 | ordered lth [0 0 [0]]
-?= 0 | ordered lth [1 1]
-?= 0 | ordered lth [1 2 0]
-?= 0 | ordered lth [2 1]
-?= 0 | ordered lth [2 1 (die 'never evaluated')]
-?= 0 | ordered lth [1 1 (die 'never evaluated')]
-?= 1 | ordered lth []
+!!= 0 | ordered lth [0 0]
+!!= 0 | ordered lth [0 0 [0]]
+!!= 0 | ordered lth [1 1]
+!!= 0 | ordered lth [1 2 0]
+!!= 0 | ordered lth [2 1]
+!!= 0 | ordered lth [2 1 (die 'never evaluated')]
+!!= 0 | ordered lth [1 1 (die 'never evaluated')]
+!!= 1 | ordered lth []
 
 = (isCab cab)
 | and isLaw-cab
@@ -216,10 +216,10 @@
     | ok fan
 | err rex "Invalid Key: Expected a word, text, or an embeded natural"
 
-?= 'a' (readKey `"a"     v2 x&x)
-?= 'a' (readKey `a       v2 x&x)
-?= 9   (readKey `9       v2 x&x)
-?= 9   (readKey (EMBD 9) v2 x&x)
+!!= 'a' (readKey `"a"     v2 x&x)
+!!= 'a' (readKey `a       v2 x&x)
+!!= 9   (readKey `9       v2 x&x)
+!!= 9   (readKey (EMBD 9) v2 x&x)
 
 = (mkCenMacro doCab doTab s p e a r err ok)
 @ fail (err r "% expects something like %foo or %[...]")
@@ -346,72 +346,80 @@
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= 1 | isCab %[]
-?= 1 | isCab %[1]
-?= 1 | isCab %[1 a]
-?= 1 | isCab %[a 9 1]
-?= 1 | isCab (0 0 1 (0 0 1 0))
-?= 0 | isCab (0 1 1 (0 0 1 0))
-?= 0 | isCab (0 0 1 (0 0 1 1))
-?= 0 | isCab (0 0 2 (0 0 1 0))
-?= 1 | isCab (0 0 2 (0 0 2 0 9))
-?= 0 | isCab (0 0 1 (0 0 2 0 9))
+!!= 1 | isCab %[]
+!!= 1 | isCab %[1]
+!!= 1 | isCab %[1 a]
+!!= 1 | isCab %[a 9 1]
+!!= 1 | isCab (0 0 1 (0 0 1 0))
+!!= 0 | isCab (0 1 1 (0 0 1 0))
+!!= 0 | isCab (0 0 1 (0 0 1 1))
+!!= 0 | isCab (0 0 2 (0 0 1 0))
+!!= 1 | isCab (0 0 2 (0 0 2 0 9))
+!!= 0 | isCab (0 0 1 (0 0 2 0 9))
 
-?= %a   | "a"
-?= %3   | "3"
-?= %x_x | "x_x"
+!!= %a   | "a"
+!!= %3   | "3"
+!!= %x_x | "x_x"
 
-?= %[]    | %[]
+!!= %[]    | %[]
 
-?= %[a]   | %[97]
+!!= %[a]   | %[97]
 
-?= %[a]   | %['a']
+!!= %[a]   | %['a']
 
-?= %[a b] | %[98 97]
+!!= %[a b] | %[98 97]
 
-?= %[a b] | %["b" 'a']
+!!= %[a b] | %["b" 'a']
 
-?= %[]        | emptyCab
-?= %['x']     | cabIns 'x' emptyCab
-?= %[x]       | cabIns 'x' emptyCab
-?= %[3]       | cabIns 3  emptyCab
-?= %[3]       | cabSingleton 3
-?= %[3]       | cabIns 3  %[]
-?= %[0 1 2 3] | cabIns 3  %[0 1 2]
-?= %[a b c]   | cabIns %c %[a b]
-?= %[0 1 2 3] | cabIns 3  %[0 1 2 3]
-?= %[a b c]   | cabIns %c %[a b c]
-?= %[0 1 2]   | cabDel 3 %[0 1 2 3]
-?= %[0 1 3]   | cabDel 2 %[0 1 2 3]
-?= %[0 2 3]   | cabDel 1 %[0 1 2 3]
-?= %[1 2 3]   | cabDel 0 %[0 1 2 3]
-?= %[0 1 2]   | cabDel 3 %[0 1 2]
-?= %[0 1 2 3] | cabUnion %[0 2]   %[1 3]
-?= %[a b c]   | cabUnion %[a c]   %[b]
-?= %[a b c]   | cabUnion %[a c]   %[b c]
-?= %[a b c]   | cabUnion %[a c]   %[a b c]
-?= %[a b c]   | cabUnion %[a b c] %[a b c]
+!!= %[]        | emptyCab
+!!= %['x']     | cabIns 'x' emptyCab
+!!= %[x]       | cabIns 'x' emptyCab
+!!= %[3]       | cabIns 3  emptyCab
+!!= %[3]       | cabSingleton 3
+!!= %[3]       | cabIns 3  %[]
+!!= %[0 1 2 3] | cabIns 3  %[0 1 2]
+!!= %[a b c]   | cabIns %c %[a b]
+!!= %[0 1 2 3] | cabIns 3  %[0 1 2 3]
+!!= %[a b c]   | cabIns %c %[a b c]
+!!= %[0 1 2]   | cabDel 3 %[0 1 2 3]
+!!= %[0 1 3]   | cabDel 2 %[0 1 2 3]
+!!= %[0 2 3]   | cabDel 1 %[0 1 2 3]
+!!= %[1 2 3]   | cabDel 0 %[0 1 2 3]
+!!= %[0 1 2]   | cabDel 3 %[0 1 2]
+!!= %[0 1 2 3] | cabUnion %[0 2]   %[1 3]
+!!= %[a b c]   | cabUnion %[a c]   %[b]
+!!= %[a b c]   | cabUnion %[a c]   %[b c]
+!!= %[a b c]   | cabUnion %[a c]   %[a b c]
+!!= %[a b c]   | cabUnion %[a b c] %[a b c]
 
-?= %[]        | cabAscUnions []
-?= %[a]       | cabAscUnions [%[a]]
-?= %[a b c]   | cabAscUnions [%[a] %[b] %[c]]
-?= %[a b]     | cabAscUnions [%[a] %[] %[b]]
+!!= %[]        | cabAscUnions []
+!!= %[a]       | cabAscUnions [%[a]]
+!!= %[a b c]   | cabAscUnions [%[a] %[b] %[c]]
+!!= %[a b]     | cabAscUnions [%[a] %[] %[b]]
 
 ; cabAscUnions deopt behaviour
-?= (a b c d & [7 9 8]) | cabAscUnions [%[7 9] %[8]]
+!!= (a b c d & [7 9 8]) | cabAscUnions [%[7 9] %[8]]
 
-?= %[3]       | %% 3
-?= %[3 4 'a'] | (%%3)(%%4)(%% 'a')
-?= %[3 4 'a'] | (%%3)(%%4)(%% 'a')
-?= %[3 4 'a'] | %% 3
-                %% 4
-                %% a
-?= %[3 4 'a'] | %% 3
-                %% 4
-                %% """a
-?= %[3 4 'a'] | %% 3 4 """a
-?= %[3 4 'a'] | %% 3
-                %% 4 """a
+!!= %[3]       | %% 3
+!!= %[3 4 'a'] | (%%3)(%%4)(%% 'a')
+!!= %[3 4 'a'] | (%%3)(%%4)(%% 'a')
+
+!!= %[3 4 'a']
+     %% 3
+     %% 4
+     %% a
+
+!!= %[3 4 'a']
+     %% 3
+     %% 4
+     %% """a
+
+!!= %[3 4 'a']
+     %% 3 4 """a
+
+!!= %[3 4 'a']
+     %% 3
+     %% 4 """a
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

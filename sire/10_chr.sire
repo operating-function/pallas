@@ -40,16 +40,16 @@
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= 1 | eqlNat 1   (ord "1")
-?= 1 | eqlNat "3" (chr 3)
-?= 1 | eqlNat 5   (ord (chr 5))
-?= 1 | eqlNat "9" (chr (ord "9"))
+!!= 1 | eqlNat 1   (ord "1")
+!!= 1 | eqlNat "3" (chr 3)
+!!= 1 | eqlNat 5   (ord (chr 5))
+!!= 1 | eqlNat "9" (chr (ord "9"))
 
-?= 1 | isLower 'c'
-?= 1 | isUpper 'C'
-?= 1 | not (isAlpha '0')
-?= 1 | isDigit '0'
-?= 1 | not (isDigit 'a')
+!!= 1 | isLower 'c'
+!!= 1 | isUpper 'C'
+!!= 1 | not (isAlpha '0')
+!!= 1 | isDigit '0'
+!!= 1 | not (isDigit 'a')
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

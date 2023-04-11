@@ -123,16 +123,16 @@ hexAlphabet=(natBar "0123456789abcdef")
 | add (bex sSz)
 | lsh bod (inc sSz)
 
-?= (mat 0) | p#1
-?= (mat 1) | p#01
-?= (mat 2) | p#00100
-?= (mat 3) | add (bex 5) 20
-?= (mat 4) | add (bex 6) 12
-?= (mat 5) | add (bex 6) 28
-?= (mat 6) | add (bex 6) 44
-?= (mat 7) | add (bex 6) 60
-?= (mat 8) | add (bex 9) 8
-?= (mat 9) | add (bex 9) 72
+!!= (mat 0) | p#1
+!!= (mat 1) | p#01
+!!= (mat 2) | p#00100
+!!= (mat 3) | add (bex 5) 20
+!!= (mat 4) | add (bex 6) 12
+!!= (mat 5) | add (bex 6) 28
+!!= (mat 6) | add (bex 6) 44
+!!= (mat 7) | add (bex 6) 60
+!!= (mat 8) | add (bex 9) 8
+!!= (mat 9) | add (bex 9) 72
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -225,16 +225,16 @@ hexAlphabet=(natBar "0123456789abcdef")
 | ok p a
 | appE [cnsE-not r]
 
-?= 1 (eql == eql == eql)
+!!= 1 (eql == eql == eql)
 
-?= (##"==" 0 0 0 5 `(eql == eql == eql) die v3)
+!!= (##"==" 0 0 0 5 `(eql == eql == eql) die v3)
         | v3 0 6
        ``
        #@ _g5 eql
         (#| $and (#| $eql _g5 eql) (#| $eql _g5 eql))
 
-?= 1 (eql /= neq)
-?= 0 (eql /= eql)
+!!= 1 (eql /= neq)
+!!= 0 (eql /= eql)
 
 
 
@@ -271,9 +271,9 @@ hexAlphabet=(natBar "0123456789abcdef")
 | if (neq 2 len-sons) | err r "Expected two sons"
 | ok p a (appE [cnsE-gte x y])
 
-?= 0 (3 >= 4)
-?= 1 (4 >= 4)
-?= 1 (4 >= 3)
+!!= 0 (3 >= 4)
+!!= 1 (4 >= 4)
+!!= 1 (4 >= 3)
 
 
 = (showRex expr)
@@ -316,19 +316,19 @@ hexAlphabet=(natBar "0123456789abcdef")
 = "EMBD"
         | showTree (rexEmbd expr)
 
-?= b#'()'                 | showRex `()
-?= b#'3'                  | showRex `3
-?= b#'"3"'                | showRex `"3"
-?= b#'(3 4 5)'            | showRex `(3 4 5)
-?= b#'(+ 3 4 5)'          | showRex `(+ 3 4 5)
-?= b#'(3 + 4 + 5)'        | showRex `(3 + 4 + 5)
-?= b#'(%((3=3) , (4=4)))' | showRex `(%(3=3, 4=4))
-?= b#'((+3) (+4) (+5))'   | showRex `(+3 +4 +5)
-?= b#'(3+4+5)9'           | showRex `((3+4+5)9)
-?= b#'(| p)(q r)s'        | showRex `((| p)(q r)s)
-?= b#'(| p)(q r)s'        | showRex ` | p
-                                      | q r
-                                      s
+!!= b#'()'                 | showRex `()
+!!= b#'3'                  | showRex `3
+!!= b#'"3"'                | showRex `"3"
+!!= b#'(3 4 5)'            | showRex `(3 4 5)
+!!= b#'(+ 3 4 5)'          | showRex `(+ 3 4 5)
+!!= b#'(3 + 4 + 5)'        | showRex `(3 + 4 + 5)
+!!= b#'(%((3=3) , (4=4)))' | showRex `(%(3=3, 4=4))
+!!= b#'((+3) (+4) (+5))'   | showRex `(+3 +4 +5)
+!!= b#'(3+4+5)9'           | showRex `((3+4+5)9)
+!!= b#'(| p)(q r)s'        | showRex `((| p)(q r)s)
+!!= b#'(| p)(q r)s'        | showRex ` | p
+                                       | q r
+                                       s
 
 = showRexExample
 | showRex
@@ -374,9 +374,9 @@ hexAlphabet=(natBar "0123456789abcdef")
 ,, loop (div n 10)
 ,, natWords (mod n 10)
 
-?= %ThreeFourFive natWords-345
-?= %Zero          natWords-0
-?= %OneZero       natWords-10
+!!= %ThreeFourFive natWords-345
+!!= %Zero          natWords-0
+!!= %OneZero       natWords-10
 
 
 ;;;;;;;;;;;;;;;;;;;
@@ -445,36 +445,36 @@ hexAlphabet=(natBar "0123456789abcdef")
 (pinHash val)=(| idx 0 | jar val)
 (pinBytz val)=(| idx 2 | jar val)
 
-?= pinBytz-0       | x#0f
-?= pinBytz-1       | x#1b
-?= pinBytz-2       | x#93
-?= pinBytz-3       | x#d3
-?= pinBytz-(0 0)   | x#fe
-?= pinBytz-(2 0 3) | x#4c3e0d
-?= pinBytz-toNat   | x#f8c043f7e614462f67f2e906
+!!= pinBytz-0       | x#0f
+!!= pinBytz-1       | x#1b
+!!= pinBytz-2       | x#93
+!!= pinBytz-3       | x#d3
+!!= pinBytz-(0 0)   | x#fe
+!!= pinBytz-(2 0 3) | x#4c3e0d
+!!= pinBytz-toNat   | x#f8c043f7e614462f67f2e906
 
 'pinHash add'
-?= (pinHash add)
+!!= (pinHash add)
    x#bdac4dd0f4de34484c4dcf4534845a58545937fa28511977866ca8f2047ef5df
 
 'pinHash mul'
-?= (pinHash mul)
+!!= (pinHash mul)
    x#b74e96e0385dcb18599b1570e3c5807a9284050258766cb7cd10b004713d2032
 
 'pinHash ##"%%"'
-?= x#0400749bb3839eb3a3cb760f6f6dcc674be2ad24d5ac310419e13b32db11f263
+!!= x#0400749bb3839eb3a3cb760f6f6dcc674be2ad24d5ac310419e13b32db11f263
    (pinHash ##"%%")
 
 'pinHash cmp'
-?= (pinHash cmp)
+!!= (pinHash cmp)
    x#48562368fd8806cacab34d017cd9e7ad2d749b04bb1e4c443770ab2f797137a1
 
 'pinHash multiEqlE'
-?= (pinHash multiEqlE)
+!!= (pinHash multiEqlE)
    x#2a710ffed44db3a83c05c27897d9c1ed76bb311c52d1e7d4603f4d03c0fec3ea
 
 'pinHash pinHash'
-?= (pinHash pinHash)
+!!= (pinHash pinHash)
    x#c30da5b61138a7eee3ff9f3facf01bada883b31646669e6093d66a1d6602873e
 
 = (refsTable pin)
@@ -500,7 +500,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 @ acc (CONS [sym rhs] acc)
 | loop acc (rexHeir rex)
 
-?= [[%hi `there] [%bye `here]]
+!!= [[%hi `there] [%bye `here]]
         | readBindPairs `((hi=there)(bye=here)) v2 I
 
 ;;;

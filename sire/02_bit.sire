@@ -55,20 +55,20 @@ FALSE=0
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= 1 | TRUE
-?= 1 | not FALSE
-?= 1 | not (not TRUE)
+!!= 1 | TRUE
+!!= 1 | not FALSE
+!!= 1 | not (not TRUE)
 
-?= 1 | if 1 1 0
-?= 1 | not (if 1 0 1)
-?= 1 | if 0 0 1
-?= 1 | not (if 0 1 0)
+!!= 1 | if 1 1 0
+!!= 1 | not (if 1 0 1)
+!!= 1 | if 0 0 1
+!!= 1 | not (if 0 1 0)
 
-?= 1 | if if 0 1
-?= 1 | not (if if 1 0)
+!!= 1 | if if 0 1
+!!= 1 | not (if if 1 0)
 
 ;; TODO More tests like this one
-?= 0 | and 1 (x&x)
+!!= 0 | and 1 (x&x)
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

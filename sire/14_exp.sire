@@ -99,29 +99,29 @@
         | ret text
 
 
-?= 1  | getDigit "1"  [] I
-?= 5  | getDigit "5"  [] I
-?= 9  | getDigit "9"  [] I
-?= [] | getDigit "a"  [] I
-?= [] | getDigit ""   [] I
-?= [] | getDigit "10" [] I
+!!= 1  | getDigit "1"  [] I
+!!= 5  | getDigit "5"  [] I
+!!= 9  | getDigit "9"  [] I
+!!= [] | getDigit "a"  [] I
+!!= [] | getDigit ""   [] I
+!!= [] | getDigit "10" [] I
 
-?= 123 | getNatStr "123" [] I
-?= []  | getNatStr ""    [] I
-?= 0   | getNatStr "0"   [] I
-?= 1   | getNatStr "1"   [] I
-?= []  | getNatStr "a"   [] I
+!!= 123 | getNatStr "123" [] I
+!!= []  | getNatStr ""    [] I
+!!= 0   | getNatStr "0"   [] I
+!!= 1   | getNatStr "1"   [] I
+!!= []  | getNatStr "a"   [] I
 
-?= 345          | readNat `345 v2 I
-?= 0            | readNat `0   v2 I
-?= [`[] rnWord] | readNat `[]  v2 I
-?= [`a  rnNumb] | readNat `a   v2 I
+!!= 345          | readNat `345 v2 I
+!!= 0            | readNat `0   v2 I
+!!= [`[] rnWord] | readNat `[]  v2 I
+!!= [`a  rnNumb] | readNat `a   v2 I
 
-?= 345               | readAtomLit `345     v2 I
-?= %asdf             | readAtomLit `(%asdf) v2 I
-?= %asdf             | readAtomLit `"asdf"  v2 I
-?= [`(%) cenOneKid]  | readAtomLit `(%)     v2 I
-?= [`(%(.)) cenWord] | readAtomLit `(%(.))   v2 I
+!!= 345               | readAtomLit `345     v2 I
+!!= %asdf             | readAtomLit `(%asdf) v2 I
+!!= %asdf             | readAtomLit `"asdf"  v2 I
+!!= [`(%) cenOneKid]  | readAtomLit `(%)     v2 I
+!!= [`(%(.)) cenWord] | readAtomLit `(%(.))   v2 I
 
 
 """ Expresssions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -152,8 +152,8 @@
   | map varE (drop 1 r)
 | NEST 0 "|" kids 0
 
-?= `(a b c) | sigE [%a %b %c]
-?= `a       | sigE [%a]
+!!= `(a b c) | sigE [%a %b %c]
+!!= `a       | sigE [%a]
 
 
 """ Catch-All Reader """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -184,9 +184,9 @@
 
 = needBar | "Expected a | node"
 
-?= [`3 `4]          | readNodeWithoutHeirButWithRune "," `[3 4] v2 I
-?= [`[3 4] needBar] | readNodeWithoutHeirButWithRune "|" `[3 4] v2 I
-?= [`[3 4] needBar] | readNodeWithoutHeirButWithRune "|" `[3 4] v2 I
+!!= [`3 `4]          | readNodeWithoutHeirButWithRune "," `[3 4] v2 I
+!!= [`[3 4] needBar] | readNodeWithoutHeirButWithRune "|" `[3 4] v2 I
+!!= [`[3 4] needBar] | readNodeWithoutHeirButWithRune "|" `[3 4] v2 I
 
 
 
@@ -287,15 +287,15 @@
 | *else
     | err rex nrBadForm
 
-?= [%x]                | readRowOfNames `x        v2 I
-?= [%x]                | readRowOfNames `(x)      v2 I
-?= []                  | readRowOfNames `[]       v2 I
-?= [%x]                | readRowOfNames `[x]      v2 I
-?= [%x %y]             | readRowOfNames `[x y]    v2 I
-?= [%x %y %z]          | readRowOfNames `[x y z]  v2 I
-?= [`9 badSymChar]     | readRowOfNames `[x y 9]  v2 I
-?= [`() nrBadForm]     | readRowOfNames `()       v2 I
-?= [`([][]) nrBadHeir] | readRowOfNames `([][])   v2 I
+!!= [%x]                | readRowOfNames `x        v2 I
+!!= [%x]                | readRowOfNames `(x)      v2 I
+!!= []                  | readRowOfNames `[]       v2 I
+!!= [%x]                | readRowOfNames `[x]      v2 I
+!!= [%x %y]             | readRowOfNames `[x y]    v2 I
+!!= [%x %y %z]          | readRowOfNames `[x y z]  v2 I
+!!= [`9 badSymChar]     | readRowOfNames `[x y 9]  v2 I
+!!= [`() nrBadForm]     | readRowOfNames `()       v2 I
+!!= [`([][]) nrBadHeir] | readRowOfNames `([][])   v2 I
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

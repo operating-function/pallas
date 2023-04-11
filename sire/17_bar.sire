@@ -137,12 +137,12 @@
 @ bit | foldr fun 0 byt
 | mkBar pad bit
 
-?= (bytesBar [])      | 0 1 1 | 1
-?= (bytesBar [0])     | 0 1 1 | 256
-?= (bytesBar [255])   | 0 1 1 | 511
-?= (bytesBar [0 0])   | 0 1 1 | 65536
-?= (bytesBar [0 255]) | 0 1 1 | add 65536 (mul 255 256)
-?= (bytesBar [255 0]) | 0 1 1 | add 65536 255
+!!= (bytesBar [])      | 0 1 1 | 1
+!!= (bytesBar [0])     | 0 1 1 | 256
+!!= (bytesBar [255])   | 0 1 1 | 511
+!!= (bytesBar [0 0])   | 0 1 1 | 65536
+!!= (bytesBar [0 255]) | 0 1 1 | add 65536 (mul 255 256)
+!!= (bytesBar [255 0]) | 0 1 1 | add 65536 255
 
 = (barGen n f)     | bytesBar (gen n f)
 = (barRep n v)     | barGen n (_ & v)
@@ -279,15 +279,15 @@ emptyBar=(0 1 1 1)
 & bar
 | ok p a (cnsE bar)
 
-?= (natBar-'asdf')       | readBarLit `(b#asdf) v2 I
-?= [`(#b)    blTwoKids]  | readBarLit `(#b)     v2 I
-?= [`(b#b#b) blTwoKids]  | readBarLit `(b#b#b)  v2 I
-?= [`[]      blWantText] | readBarLit `(b#[])   v2 I
+!!= (natBar-'asdf')       | readBarLit `(b#asdf) v2 I
+!!= [`(#b)    blTwoKids]  | readBarLit `(#b)     v2 I
+!!= [`(b#b#b) blTwoKids]  | readBarLit `(b#b#b)  v2 I
+!!= [`[]      blWantText] | readBarLit `(b#[])   v2 I
 
-?= (barFromHex 'asdf')   | readBarLit `(x#asdf) v2 I
-?= [`(#x)    blTwoKids]  | readBarLit `(#x)     v2 I
-?= [`(x#x#x) blTwoKids]  | readBarLit `(x#x#x)  v2 I
-?= [`[]      blWantText] | readBarLit `(x#[])   v2 I
+!!= (barFromHex 'asdf')   | readBarLit `(x#asdf) v2 I
+!!= [`(#x)    blTwoKids]  | readBarLit `(#x)     v2 I
+!!= [`(x#x#x) blTwoKids]  | readBarLit `(x#x#x)  v2 I
+!!= [`[]      blWantText] | readBarLit `(x#[])   v2 I
 
 = (barFlat x)
 | if isBar-x
@@ -307,19 +307,19 @@ newline=(natBar 10)
 | if (eql byte (barIdx ix bar)) ix
 | loop (inc ix)
 
-?= 0 (barElemIndexOff 'c' 0 b#{caca})
-?= 2 (barElemIndexOff 'c' 1 b#{caca})
-?= 2 (barElemIndexOff 'c' 2 b#{caca})
-?= 4 (barElemIndexOff 'c' 3 b#{caca})
-?= 4 (barElemIndexOff 'c' 4 b#{caca})
-?= 4 (barElemIndexOff 'c' 5 b#{caca})
+!!= 0 (barElemIndexOff 'c' 0 b#{caca})
+!!= 2 (barElemIndexOff 'c' 1 b#{caca})
+!!= 2 (barElemIndexOff 'c' 2 b#{caca})
+!!= 4 (barElemIndexOff 'c' 3 b#{caca})
+!!= 4 (barElemIndexOff 'c' 4 b#{caca})
+!!= 4 (barElemIndexOff 'c' 5 b#{caca})
 
-?= 1 (barElemIndexOff 'c' 0 b#{acac})
-?= 1 (barElemIndexOff 'c' 1 b#{acac})
-?= 3 (barElemIndexOff 'c' 2 b#{acac})
-?= 3 (barElemIndexOff 'c' 3 b#{acac})
-?= 4 (barElemIndexOff 'c' 4 b#{acac})
-?= 4 (barElemIndexOff 'c' 5 b#{acac})
+!!= 1 (barElemIndexOff 'c' 0 b#{acac})
+!!= 1 (barElemIndexOff 'c' 1 b#{acac})
+!!= 3 (barElemIndexOff 'c' 2 b#{acac})
+!!= 3 (barElemIndexOff 'c' 3 b#{acac})
+!!= 4 (barElemIndexOff 'c' 4 b#{acac})
+!!= 4 (barElemIndexOff 'c' 5 b#{acac})
 
 
 = (barUnlines lines)
@@ -333,10 +333,10 @@ newline=(natBar 10)
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= [%a [%b [%c 0]]] (barToList b#abc)
-?= [%a %b %c]       (barToRow b#abc)
+!!= [%a [%b [%c 0]]] (barToList b#abc)
+!!= [%a %b %c]       (barToRow b#abc)
 
-?= b#fdsafdsa (barWeld b#fds b#afdsa)
+!!= b#fdsafdsa (barWeld b#fds b#afdsa)
 
 = (checkBar expect pad nat)
 @ actual (barEnc pad nat)
@@ -346,48 +346,48 @@ newline=(natBar 10)
 | and eql-pad-actPad
       eql-nat-actNat
 
-?= 0 (barTrail 0x1ff)
-?= 1 (barTrail 0x100ff)
-?= 2 (barTrail 0x10000ff)
-?= 3 (barTrail 0x1000000ff)
-?= 0 (barTrail 0x2000000ff)
+!!= 0 (barTrail 0x1ff)
+!!= 1 (barTrail 0x100ff)
+!!= 2 (barTrail 0x10000ff)
+!!= 3 (barTrail 0x1000000ff)
+!!= 0 (barTrail 0x2000000ff)
 
-?= 1 | bit (barHas %a b#"abc")
-?= 1 | bit (barHas %b b#"abc")
-?= 1 | bit (barHas %c b#"abc")
-?= 1 | not (barHas %d b#"abc")
+!!= 1 | bit (barHas %a b#"abc")
+!!= 1 | bit (barHas %b b#"abc")
+!!= 1 | bit (barHas %c b#"abc")
+!!= 1 | not (barHas %d b#"abc")
 
-?= 1 | bit (barHas 16 x#"102030")
-?= 1 | bit (barHas 32 x#"102030")
-?= 1 | bit (barHas 48 x#"102030")
-?= 1 | not (barHas 45 x#"102030")
+!!= 1 | bit (barHas 16 x#"102030")
+!!= 1 | bit (barHas 32 x#"102030")
+!!= 1 | bit (barHas 48 x#"102030")
+!!= 1 | not (barHas 45 x#"102030")
 
-?= 1 | checkBar 1     0 0
-?= 1 | checkBar 257   0 1
-?= 1 | checkBar 511   0 255
-?= 1 | checkBar 65792 0 256
-?= 1 | checkBar 256   1 0
-?= 1 | checkBar 65791 1 255
-?= 1 | checkBar 65536 2 0
+!!= 1 | checkBar 1     0 0
+!!= 1 | checkBar 257   0 1
+!!= 1 | checkBar 511   0 255
+!!= 1 | checkBar 65792 0 256
+!!= 1 | checkBar 256   1 0
+!!= 1 | checkBar 65791 1 255
+!!= 1 | checkBar 65536 2 0
 
-?= 1 | barNull b#""
+!!= 1 | barNull b#""
 
-?= [b#a b#zn]           (barSplitAt 1 b#azn)
-?= [b#a b#n]            (barSplitOne %z b#azn)
-?= [b#a b#aba b#n]      (listToRow | barSplit " " b#"a aba n")
-?= [b#a b#aba b#n b#""] (listToRow | barSplit " " b#"a aba n ")
+!!= [b#a b#zn]           (barSplitAt 1 b#azn)
+!!= [b#a b#n]            (barSplitOne %z b#azn)
+!!= [b#a b#aba b#n]      (listToRow | barSplit " " b#"a aba n")
+!!= [b#a b#aba b#n b#""] (listToRow | barSplit " " b#"a aba n ")
 
-?= b#""  (barDropWhile (eql %a) b#"")
-?= b#bcd (barDropWhile (eql %a) b#bcd)
-?= b#bcd (barDropWhile (eql %a) b#aaabcd)
+!!= b#""  (barDropWhile (eql %a) b#"")
+!!= b#bcd (barDropWhile (eql %a) b#bcd)
+!!= b#bcd (barDropWhile (eql %a) b#aaabcd)
 
 
-?= b#bcd (barSlice 1 3 b#abcde)
-?= b#bc  (barSlice 1 5 b#abc)
+!!= b#bcd (barSlice 1 3 b#abcde)
+!!= b#bc  (barSlice 1 5 b#abc)
 
-?= NONE      (barElemIndexEnd "/" b#{})
-?= (SOME 0)  (barElemIndexEnd "/" b#{/})
-?= (SOME 1)  (barElemIndexEnd "/" b#{//})
+!!= NONE      (barElemIndexEnd "/" b#{})
+!!= (SOME 0)  (barElemIndexEnd "/" b#{/})
+!!= (SOME 1)  (barElemIndexEnd "/" b#{//})
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 

@@ -99,15 +99,15 @@
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= 1 | isTab #getenv
+!!= 1 | isTab #getenv
 
-?= 1 | not (tabIsEmpty #getenv)
+!!= 1 | not (tabIsEmpty #getenv)
 
-?= `((foo#bar)zaz) (foo#bar)zaz
+!!= `((foo#bar)zaz) (foo#bar)zaz
 
 ^-^ "#" ',' eql '#quote' tabKeys '#getenv'
 
-?= (tabKeys #getenv) | ['#' ',' 'eql' '#quote' 'tabKeys' '#getenv']
+!!= (tabKeys #getenv) | ['#' ',' 'eql' '#quote' 'tabKeys' '#getenv']
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

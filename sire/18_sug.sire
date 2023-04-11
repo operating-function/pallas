@@ -104,13 +104,13 @@
 & bindings
 | ok (map idx-1 bindings)
 
-?= [%a %b %c]          | readSignature `(a b c) v2 I
-?= [%a]                | readSignature `(a)     v2 I
-?= [%a]                | readSignature `a       v2 I
-?= [`[a b] sigExpect]  | readSignature `[a b]   v2 I
-?= [`([][]) sigNoHeir] | readSignature `([][])  v2 I
+!!= [%a %b %c]          | readSignature `(a b c) v2 I
+!!= [%a]                | readSignature `(a)     v2 I
+!!= [%a]                | readSignature `a       v2 I
+!!= [`[a b] sigExpect]  | readSignature `[a b]   v2 I
+!!= [`([][]) sigNoHeir] | readSignature `([][])  v2 I
 
-?= [[0 %a] [0 %b] [0 %c]] | readKeySignature `(a b c) v2 I
+!!= [[0 %a] [0 %b] [0 %c]] | readKeySignature `(a b c) v2 I
 
 
 """ The Col Macro """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -132,11 +132,11 @@
 | and (eql %WORD rexStyle-rex)
       (strIsCapitalized rexText-rex)
 
-?= 1 | rexIsCapsSymbol `Foo
-?= 0 | rexIsCapsSymbol `foo
-?= 0 | rexIsCapsSymbol `"Foo"
-?= 0 | rexIsCapsSymbol `0
-?= 0 | rexIsCapsSymbol `(hi there)
+!!= 1 | rexIsCapsSymbol `Foo
+!!= 0 | rexIsCapsSymbol `foo
+!!= 0 | rexIsCapsSymbol `"Foo"
+!!= 0 | rexIsCapsSymbol `0
+!!= 0 | rexIsCapsSymbol `(hi there)
 
 ; ?(f x y) | ?!(f x y) | (x y) | .*
 = (readColSig rex err ok)
@@ -159,13 +159,13 @@
 ;
 | ok ['&' (NEST 0 "|" [rex] 0)]
 
-?= ['&' `(| (Foo x))] (readColSig `(Foo x) I I)
+!!= ['&' `(| (Foo x))] (readColSig `(Foo x) I I)
 
-?= ['&' `(Foo x)] (readColSig `(&(Foo x)) I I)
+!!= ['&' `(Foo x)] (readColSig `(&(Foo x)) I I)
 
-?= ['?' `(Foo x)] (readColSig `(?(Foo x)) I I)
+!!= ['?' `(Foo x)] (readColSig `(?(Foo x)) I I)
 
-?= ['?!' `(Foo x)] (readColSig `(?!(Foo x)) I I)
+!!= ['?!' `(Foo x)] (readColSig `(?!(Foo x)) I I)
 
 = colNeedsHeir | "Heir is required"
 = colTwoSons   | "Expected at least two sons"
@@ -205,11 +205,11 @@
 : rune kids heir <- rexGetNode rex fall
 | *ok rune
 
-?= ["+" "+"]
+!!= ["+" "+"]
         : rune <- *rexGetRune `(3 + 4) 99
         , rune rune
 
-?= [`(<* f) cbExpect]
+!!= [`(<* f) cbExpect]
         (##":" 0 0 0 0 `((: x <* f)(, 3)) v2 v3)
 
 
@@ -227,9 +227,9 @@
 | ok p a
 | foldr (x rex & rowE [x rex]) (natE 0) kids
 
-?= ~[3 4 5] | [3 [4 [5 0]]]
-?= ~[3]     | [3 0]
-?= ~[]      | 0
+!!= ~[3 4 5] | [3 [4 [5 0]]]
+!!= ~[3]     | [3 0]
+!!= ~[]      | 0
 
 
 """ Cons Operator """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -242,10 +242,10 @@
 | if (eql 1 len-kids)  | idx 0 kids
 | *else                | rowE (idx 0 kids, go (drop 1 kids))
 
-?= ~[3 4]   (3 :: 4 :: ~[])
-?= ~[3 4 5] (3 :: 4 :: ~[5])
+!!= ~[3 4]   (3 :: 4 :: ~[])
+!!= ~[3 4 5] (3 :: 4 :: ~[5])
 
-?= ~[3 4]
+!!= ~[3 4]
         :: 3
         :: 4
         :: ~[]
@@ -271,9 +271,9 @@
 | ok p a
 | foldr (xs rex & rowE [appE-xs rex]) natE-0 row
 
-?= ~[3 4 5] | [3 [4 [5 0]]]
-?= ~[3]     | ~~ 3
-?= ~[3 4 5]
+!!= ~[3 4 5] | [3 [4 [5 0]]]
+!!= ~[3]     | ~~ 3
+!!= ~[3 4 5]
        ~~ 3
        ~~ 4
        ~~ 5
@@ -321,11 +321,11 @@
 
 four=(WORD 0 "4" 0)
 
-?= `(3 4 5) | ``(3 4 5)
-?= `(3 4 5) | ``($$(WORD 0 "3" 0) 4 5)
+!!= `(3 4 5) | ``(3 4 5)
+!!= `(3 4 5) | ``($$(WORD 0 "3" 0) 4 5)
 
-?= ``(3 $$(cnsE four) 5)
-    ``(3 $four 5)
+!!= ``(3 $$(cnsE four) 5)
+     ``(3 $four 5)
 
 ;; TODO It's stupidly hard to test this quasiquotation stuff.  Best
 ;; evidence I have that this works is that the code downstream from
@@ -348,11 +348,11 @@ four=(WORD 0 "4" 0)
 | ok p a
 | ``($or $$(idx 0 kids) $$(idx 1 kids))
 
-?= 1 | (@ one 1)(@ zero 0)(one && not zero)
-?= 1 | not (1 && 0)
-?= 1 | not (0 && 1)
-?= 1 | not (0 && 0)
-?= 1 | ((0 && 1) || (1 && 1))
+!!= 1 | (@ one 1)(@ zero 0)(one && not zero)
+!!= 1 | not (1 && 0)
+!!= 1 | not (0 && 1)
+!!= 1 | not (0 && 0)
+!!= 1 | ((0 && 1) || (1 && 1))
 
 
 """ Short-Hand Assertion """""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -363,7 +363,7 @@ four=(WORD 0 "4" 0)
 | if (isZero len-sons)
         | err r "At least one son is required."
 | ok p a
-| OPEN 0 "#?=" [natE-1 (appE sons)] heir
+| OPEN 0 "#!!=" [natE-1 (appE sons)] heir
 
 !! add 0 1
 !! add 1 0
@@ -406,7 +406,7 @@ UNIT=0
 @ r (rexSetRune "#|" r)
 | ok p a r
 
-?= UNIT ()
+!!= UNIT ()
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

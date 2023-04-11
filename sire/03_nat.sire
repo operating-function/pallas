@@ -71,9 +71,9 @@ GT=2
 ; check if literally zero, not converted equivalent to 0.
 (isZero x)=(and (isNat x) (eqlNat 0 x))
 
-?= 1 | isZero 0
-?= 0 | isZero 1
-?= 0 | isZero isZero
+!!= 1 | isZero 0
+!!= 0 | isZero 1
+!!= 0 | isZero isZero
 
 
 """ Pad Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -103,35 +103,35 @@ GT=2
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= 1 | inc ( add 0   0   )
-?= 1 | inc ( add 0   0-0 )
-?= 1 | inc ( add 0-0 0   )
-?= 1 | inc ( add 0-0 0-0 )
-?= 1 | add 0 1
-?= 1 | add 1 0
+!!= 1 | inc ( add 0   0   )
+!!= 1 | inc ( add 0   0-0 )
+!!= 1 | inc ( add 0-0 0   )
+!!= 1 | inc ( add 0-0 0-0 )
+!!= 1 | add 0 1
+!!= 1 | add 1 0
 
-?= 1 | eqlNat 5 5
-?= 1 | eqlNat 6 mul-2-3
-?= 1 | eqlNat 2 sub-4-2
-?= 1 | gthNat 4 3
-?= 1 | gteNat 4 3
-?= 1 | gteNat 4 4
-?= 1 | eqlNat 0 (sub 3 4)
-?= 1 | eqlNat 0 (sub 3 3)
-?= 1 | eqlNat 1 (sub 3 2)
+!!= 1 | eqlNat 5 5
+!!= 1 | eqlNat 6 mul-2-3
+!!= 1 | eqlNat 2 sub-4-2
+!!= 1 | gthNat 4 3
+!!= 1 | gteNat 4 3
+!!= 1 | gteNat 4 4
+!!= 1 | eqlNat 0 (sub 3 4)
+!!= 1 | eqlNat 0 (sub 3 3)
+!!= 1 | eqlNat 1 (sub 3 2)
 
-?= 1 | eqlNat 3 (sub 3 0)
-?= 1 | eqlNat 0 (1 2)
-?= 1 | eqlNat (1 2) 0
+!!= 1 | eqlNat 3 (sub 3 0)
+!!= 1 | eqlNat 0 (1 2)
+!!= 1 | eqlNat (1 2) 0
 
-?= 1 | eqlNat 1 (mix 0 1)
-?= 1 | eqlNat 1 (mix 1 0)
-?= 1 | eqlNat 3 (mix 2 1)
-?= 1 | eqlNat 1 (mix 2 3)
+!!= 1 | eqlNat 1 (mix 0 1)
+!!= 1 | eqlNat 1 (mix 1 0)
+!!= 1 | eqlNat 3 (mix 2 1)
+!!= 1 | eqlNat 1 (mix 2 3)
 
-?= 1 | eqlNat 0 (roundUp 0 4)
-?= 1 | eqlNat 4 (roundUp 3 4)
-?= 1 | eqlNat 8 (roundUp 5 4)
+!!= 1 | eqlNat 0 (roundUp 0 4)
+!!= 1 | eqlNat 4 (roundUp 3 4)
+!!= 1 | eqlNat 8 (roundUp 5 4)
 
 = (checkOrd x y)
 @ o (cmpNat x y)
@@ -158,29 +158,29 @@ GT=2
   | and (eqlNat y (minNat x y))
         (eqlNat x (maxNat x y))
 
-?= 1 (checkOrd 0 0)
-?= 1 (checkOrd 0 1)
-?= 1 (checkOrd 1 0)
-?= 1 (checkOrd 1 1)
+!!= 1 (checkOrd 0 0)
+!!= 1 (checkOrd 0 1)
+!!= 1 (checkOrd 1 0)
+!!= 1 (checkOrd 1 1)
 
-?= 1 (checkOrd 1 4)
-?= 1 (checkOrd 2 4)
-?= 1 (checkOrd 3 4)
-?= 1 (checkOrd 4 4)
-?= 1 (checkOrd 5 4)
-?= 1 (checkOrd 6 4)
-?= 1 (checkOrd 7 4)
-?= 1 (checkOrd K 4)
-?= 1 (checkOrd K 0)
+!!= 1 (checkOrd 1 4)
+!!= 1 (checkOrd 2 4)
+!!= 1 (checkOrd 3 4)
+!!= 1 (checkOrd 4 4)
+!!= 1 (checkOrd 5 4)
+!!= 1 (checkOrd 6 4)
+!!= 1 (checkOrd 7 4)
+!!= 1 (checkOrd K 4)
+!!= 1 (checkOrd K 0)
 
 
 """ Check Literal Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-?= 0x10   | 16
-?= 0x0100 | 256
-?= 0x61   | 'a'
-?= 0x7a   | "z"
-?= 0x7a61 | {az}
+!!= 0x10   | 16
+!!= 0x0100 | 256
+!!= 0x61   | 'a'
+!!= 0x7a   | "z"
+!!= 0x7a61 | {az}
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

@@ -20,7 +20,7 @@
     | die "You failed the test!"
 | return ()
 
-?= (newMachine checkIds)
+!!= (newMachine checkIds)
     | KERNEL ~[0 1] 0 [0 0] [0 0]
 
 = (checkIds_v2 return)
@@ -36,7 +36,7 @@
     | die "You failed the test!"
 | return ()
 
-?= (newMachine checkIds_v2)
+!!= (newMachine checkIds_v2)
     | KERNEL ~[0 3] 0 [0 DONE (MV_FULL 9 [(1,10)]) 0] [0 0 0 0]
 
 
@@ -57,7 +57,7 @@
 | assert (rq  == [0])         `(rq == [0])
 | return ()
 
-?= (newMachine checkKernelState)
+!!= (newMachine checkKernelState)
     | KERNEL ~[0] 0 [0] [0]
 
 
@@ -69,7 +69,7 @@
 : v <- newIORef i
 | justAlloc (inc i) return
 
-?= (newMachine justAlloc-0)
+!!= (newMachine justAlloc-0)
    | KERNEL ~[0]
             ~[]
             [0 0 1 2 3 4 5 6 7 8]
@@ -90,7 +90,7 @@
 : v <- newIORef i
 | allocLoop (inc i) return
 
-?= (newMachine allocLoop-0)
+!!= (newMachine allocLoop-0)
     | KERNEL ~[0 0 1 2 3 4 5 6 7 8 9]
              ~[]
              [0 0 0 0 0 0 0 0 0 0]
@@ -103,7 +103,7 @@
 : key <- newEmptyMVar
 | takeMVar key return
 
-?= (newMachine starvedReader)
+!!= (newMachine starvedReader)
     | KERNEL ~[] ~[] (DONE, MV_EMPT [0]) [0 0]
 
 
@@ -116,7 +116,7 @@
 : val <- readIORef key
 | takeMVar key return
 
-?= (newMachine satedReader)
+!!= (newMachine satedReader)
     | KERNEL ~[0 2] ~[] (0, MV_EMPT [], 0) [0 0 0]
 
 
@@ -131,7 +131,7 @@
 | putMVar key (inc nin)
 | return
 
-?= (newMachine satedReader)
+!!= (newMachine satedReader)
     | KERNEL ~[0 2] ~[] (0, MV_FULL 10 [], 0) [0 0 0]
 
 
@@ -145,7 +145,7 @@
 | putMVar key 6
 | return
 
-?= (newMachine starvingWriters)
+!!= (newMachine starvingWriters)
     | KERNEL ~[4 5 6]
              ~[]
              (DONE, MV_FULL 9 [2,8 3,7 0,6], DONE, DONE, 0, 0, 0)
@@ -163,7 +163,7 @@
 : v7  <- takeMVar key
 | return ()
 
-?= (newMachine satedWriters)
+!!= (newMachine satedWriters)
     | KERNEL ~[0 3 2] ~[] (0, MV_EMPT [], DONE, DONE) [0 0 0 0]
 
 
@@ -179,10 +179,10 @@
 : ___ <- cancel zaz
 | return ()
 
-?= (newMachine canceledCalls)
+!!= (newMachine canceledCalls)
     | KERNEL ~[0] ~[4 3 1] [0 0 DONE 0 0] [0 0 [%http 0 %hear] 0 0]
 
-?= ((newMachine canceledCalls) %[2='fake response'])
+!!= ((newMachine canceledCalls) %[2='fake response'])
     | KERNEL ~[2 4 3 1 0]
              ~[]           ;; Canceled list merged into free list
              [0 0 0 0 0]
@@ -202,25 +202,25 @@
 : ___ <- cancel zaz
 | return ()
 
-?= (newMachine compoundEvents)
+!!= (newMachine compoundEvents)
     | KERNEL ~[0]
              ~[5 3 1]
              [0 0 DONE 0 DONE 0]
              [0 0 [%http 0 %hear] 0 [%http 0 %hear] 0]
 
-?= ((newMachine compoundEvents) %[2='fake'])
+!!= ((newMachine compoundEvents) %[2='fake'])
     | KERNEL ~[2 5 3 1 0]
              ~[]           ;; Canceled list merged into free list
              [0 0 0 0 DONE 0]
              [0 0 0 0 [%http 0 %hear] 0]
 
-?= ((newMachine compoundEvents) %[2='fake'] %[4='response'])
+!!= ((newMachine compoundEvents) %[2='fake'] %[4='response'])
     | KERNEL ~[4 2 5 3 1 0]
              ~[]             ;; Canceled list merged into free list
              [0 0 0 0 0 0]
              [0 0 0 0 0 0]
 
-?= ((newMachine compoundEvents) %[2='fake' 4='response'])
+!!= ((newMachine compoundEvents) %[2='fake' 4='response'])
     | KERNEL ~[4 2 5 3 1 0]
              ~[]             ;; Canceled list merged into free list
              [0 0 0 0 0 0]

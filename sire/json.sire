@@ -104,14 +104,14 @@
 @ (okay v extra)  | [v extra]
 | parseLexerStream tokStream fail okay
 
-?= (parseValue b#{"})
+!!= (parseValue b#{"})
     | 'lex error @0: Unexpected EOF (string)'
 
-?= (parseValue b#{[null]})
+!!= (parseValue b#{[null]})
   ,, JSON_VEC [JSON_NULL]
   ,, NIL
 
-?= (parseValue b#{ [null,null,true,false] })
+!!= (parseValue b#{ [null,null,true,false] })
   ,,   | JSON_VEC
       ,, JSON_NULL
       ,, JSON_NULL
@@ -119,15 +119,15 @@
       ,, JSON_FALSE
   ,, [TOK_SPACE 0]
 
-?= (parseValue b#{[[]]})
+!!= (parseValue b#{[[]]})
   ,, JSON_VEC [(JSON_VEC [])]
   ,, NIL
 
-?= (parseValue b#{[[null,null]]})
+!!= (parseValue b#{[[null,null]]})
   ,, JSON_VEC [(JSON_VEC (JSON_NULL, JSON_NULL))]
   ,, NIL
 
-?= (parseValue b#{[[0,0],[0, 0],[0 ,0],[0 , 0]]})
+!!= (parseValue b#{[[0,0],[0, 0],[0 ,0],[0 , 0]]})
   ,,   | JSON_VEC
       ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
       ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
@@ -135,13 +135,13 @@
       ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
   ,, NIL
 
-?= (parseValue b#{[0, ",", 1]})
+!!= (parseValue b#{[0, ",", 1]})
   ,, JSON_VEC (JSON_NUM 0, JSON_STR b#{,}, JSON_NUM 1)
   ,, NIL
 
-?= (parseValue b#{{}})   (JSON_MAP %[], NIL)
-?= (parseValue b#{ { }}) (JSON_MAP %[], NIL)
-?= (parseValue b#{ {"str":"x", "null":null}})
+!!= (parseValue b#{{}})   (JSON_MAP %[], NIL)
+!!= (parseValue b#{ { }}) (JSON_MAP %[], NIL)
+!!= (parseValue b#{ {"str":"x", "null":null}})
   ,,   | JSON_MAP
       %% =str  (JSON_STR b#x)
       %% =null JSON_NULL
