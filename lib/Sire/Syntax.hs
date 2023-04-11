@@ -296,28 +296,6 @@ readExpr = do
         , ENAT <$> (utf8Nat <$> readText)
         , EREF <$> readSymb
 
-        , do (rune "#^" <|> rune "^")
-             (xs, h) <- formN1c readExpr readAppHead
-             pure case h of
-                 Left f  -> ELIN (EREF f :| xs)
-                 Right f -> foldl' EAPP f xs
-
-        , do (rune "#@@" <|> rune "@@")
-             (r,v,b) <- form3c readSymb readExpr readExpr
-             pure (EREC r v b)
-
-        , do (rune "#??" <|> rune "??")
-             ((t,rs),b) <- form2c readSigy readExpr
-             pure (ELAM True (FUN (xtagIdn t) (LN $ xtagTag t) rs b))
-
-        , do (rune "#?" <|> rune "?")
-             ((t,rs),b) <- form2c readSigy readExpr
-             pure (ELAM False (FUN (xtagIdn t) (LN $ xtagTag t) rs b))
-
-        , do (rune "#&" <|> rune "&")
-             (rs, b) <- form2c readArgs readExpr
-             pure (ELAM False (FUN 0 (LN 0) rs b))
-
         , do (rune "#|" <|> rune "|" <|> rune "-")
              (h, xs) <- form1Nc readAppHead readExpr
              pure case h of
@@ -327,6 +305,28 @@ readExpr = do
         , do (rune "#@" <|> rune "@")
              (n, v, b) <- form3c readSymb readExpr readExpr
              pure (ELET n v b)
+
+        , do (rune "#@@" <|> rune "@@")
+             (r,v,b) <- form3c readSymb readExpr readExpr
+             pure (EREC r v b)
+
+        , do (rune "#^" <|> rune "^")
+             (xs, h) <- formN1c readExpr readAppHead
+             pure case h of
+                 Left f  -> ELIN (EREF f :| xs)
+                 Right f -> foldl' EAPP f xs
+
+        , do (rune "#&" <|> rune "&")
+             (rs, b) <- form2c readArgs readExpr
+             pure (ELAM False (FUN 0 (LN 0) rs b))
+
+        , do (rune "#?" <|> rune "?")
+             ((t,rs),b) <- form2c readSigy readExpr
+             pure (ELAM False (FUN (xtagIdn t) (LN $ xtagTag t) rs b))
+
+        , do (rune "#??" <|> rune "??")
+             ((t,rs),b) <- form2c readSigy readExpr
+             pure (ELAM True (FUN (xtagIdn t) (LN $ xtagTag t) rs b))
         ]
 
 readAppHead :: (RexColor, HasMacroEnv) => Red (Either Symb (Exp Fan Symb Symb))
