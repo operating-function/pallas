@@ -7,16 +7,6 @@
 /+  datatype  ["#record" "#datatype" "#datacase"]
 /+  mutrec
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; MUST BE MOVED ELSEWHERE ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; This section is for utility functions which should be in the standard
-;; library, but aren't. In the future, these should be moved there, but the
-;; organization is in flux, so they stay here for now.
-
-(flipUnfoldr b0 f)=(unfoldr f b0)
-
 ;;;;;;;;;;
 ;; Util ;;
 ;;;;;;;;;;
@@ -350,7 +340,7 @@ newRootNode
 = (splitHitchhikersByKeys treeFun keys hh)
 # openTreeFun treeFun
 @ l | len keys
-| flipUnfoldr [0 hh]
+^ unfoldr _ [0 hh]
 & [i hh]
 | if (eqlNat i l) | *SOME [hh [(inc i) hhEmpty]]
 | if (gthNat i l) | NONE
@@ -690,7 +680,7 @@ newRootNode
 ; consolidate : Nat -> Nat -> Row (Cab k) -> Row (Cab k)
 = (consolidate min max row)
 @ rowLen | len row
-| flipUnfoldr [0 0 NIL]
+^ unfoldr _ [0 0 NIL]
 ? (loop [i curSize curOut])
 | if (gth i rowLen) NONE
 | if | eql i rowLen
@@ -754,7 +744,7 @@ newRootNode
   ; at least use integer indexes instead of making a ton of copies of the keys
   ; and vals rows?
   | cat
-  | flipUnfoldr [a (*SOME index)]
+  ^ unfoldr _ [a (*SOME index)]
   ? (loop [leaves mybIdx])
   : [keys vals] <- *maybeCase mybIdx NONE
   | if (cabIsEmpty leaves) NONE
