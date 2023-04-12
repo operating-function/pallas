@@ -19,16 +19,13 @@
 # openDb db
 @ (alter2 c in)
   | *SOME
-  | *maybeCase in
-    | cabSingleton c
-  & cab
+  : cab <- *maybeCase in (cabSingleton c)
   | cabIns c cab
 @ (alter b c in)
   | *SOME
-  | *maybeCase in
-    | tabSingleton b
-    | cabSingleton c
-  & tab
+  : tab <- *maybeCase in
+              | tabSingleton b
+              | cabSingleton c
   | tabAlter (alter2 c) b tab
 @ eav | tabAlter (alter a v) e eav
 @ aev | tabAlter (alter e v) a aev
@@ -39,14 +36,12 @@
 = (rawRm e a v db)
 # openDb db
 @ (alter2 c in)
-  | *maybeCase in NONE
-  & cab
+  : cab <- *maybeCase in NONE
   @ rmed | cabDel c cab
   | if (cabIsEmpty rmed) NONE
   | *SOME rmed
 @ (alter b c in)
-  | *maybeCase in NONE
-  & tab
+  : tab <- *maybeCase in NONE
   @ rmed | tabAlter (alter2 c) b tab
   | if (tabIsEmpty rmed) NONE
   | *SOME rmed
