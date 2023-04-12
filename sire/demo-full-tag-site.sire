@@ -225,10 +225,9 @@ t
 
 = (forceUnpackEvalResult ctx res)
 # switch (len res)
-* 0 (die [%eval_timeout ctx])
-* 2 (die [%eval_crash ctx])
+* 0 (die ('eval-timeout' ctx))
 * 1 (idx 0 res)
-* _ (die [%runtime_gave_bad_eval_result ctx]) ; TODO Remove once stable
+* 2 (die ('eval-crash' ctx))
 
 ; TODO: user #datatype to define the json structure, and use #datacase here.
 = (jsonRow jsonBS)
@@ -455,7 +454,6 @@ NONE
 * 2 | trk [b#"CRASH in /learn" (idx 0 evalResult) (idx 1 evalResult)]
     | syscall (*HTTP_ECHO rid 500 b#error [] b#{})
     | return
-* _ | die 'rts_gave_bad_eval_evalResult' '/learn' ; TODO Remove once stable
 * 1
 ;
 @ parsed (idx 0 evalResult)
