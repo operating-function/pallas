@@ -269,8 +269,8 @@ t
 
 ; List of commands we parse out of the incoming json
 # datatype
-| STATUSCMD
-| SEARCHCMD offset tags
+* STATUSCMD
+* SEARCHCMD offset tags
 
 (bindMaybe mVal k)=(*maybeCase mVal NONE k)
 

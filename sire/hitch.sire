@@ -79,8 +79,8 @@
 
 ;; A node is either [0 index hitchhikers] or [1 leaf]
 # datatype
-| INDEXNODE idx hh
-| LEAFNODE leaf
+* INDEXNODE idx hh
+* LEAFNODE leaf
 
 ;; An index is a row of [a row of keys, a row of subnodes]
 = emptyIndex [[] []]

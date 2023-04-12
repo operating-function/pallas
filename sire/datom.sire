@@ -65,26 +65,26 @@
 
 ;; Resolved transaction changes
 # datatype
-| RESADD entityId attr val
-| RESRETRACT entityId attr val
+* RESADD entityId attr val
+* RESRETRACT entityId attr val
 
 ;; Ident
 # datatype
 ; Specific numeric entity
-| ENT entityId
+* ENT entityId
 ; New entity referred to multiple times by this value
-| TMP val
+* TMP val
 ; Entity id based on an attribute lookup.
-| LOOKUP attr val
+* LOOKUP attr val
 
 ;; TxnItem: Transaction items
 # datatype
 ; Creates a new entity and adds the contents of the tab as a list of e
-| NEWENTITY tab
+* NEWENTITY tab
 ; Adds a specific
-| ADD ident attr val
+* ADD ident attr val
 ; Retracts a specific datom
-| RETRACT eid attr val
+* RETRACT eid attr val
 
 ; Return a new entity id and record the new max in the database.
 = (allocEntity db)

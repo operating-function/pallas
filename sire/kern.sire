@@ -154,8 +154,8 @@
 """ MVar """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 # datatype
-| MV_FULL val writers
-| MV_EMPT readers
+* MV_FULL val writers
+* MV_EMPT readers
 
 (newMVar val)=(newIORef (*MV_FULL val []))
 

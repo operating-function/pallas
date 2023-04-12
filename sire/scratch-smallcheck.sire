@@ -5,8 +5,8 @@
 """ Generators """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 # datatype ;GenStream
-| ITEM item more
-| DONE
+* ITEM item more
+* DONE
 
 = (generate n g)
 | trk %generate,n,g

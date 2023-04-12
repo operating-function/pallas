@@ -113,6 +113,14 @@
   = fields (drop 1 symbols)
 | ok key constr fields
 
+= (readDatatypeSig node err ok)
+@ rune (rexRune node)
+| if (neq "*" rune)
+    | err node "Expecting something like (* CNSTR field ...)"
+; Inglorious hack
+^ readConstructorSig _ err ok
+| rexSetRune "|" node
+
 = (rexToTrip rex)
 @ bad
     | die [%rexToTrip %badArgument rex]
@@ -167,23 +175,21 @@ ex=(PAIR %a %b)
 
 ;;;
 ;;; # datatype
-;;; | LEFT x
-;;; | RYTE x
+;;; * LEFT x
+;;; * RYTE x
 ;;;
 ;;; # datatype
-;;; | NULL
-;;; | CONS item tail
+;;; * NULL
+;;; * CONS item tail
 ;;;
 
 ; readDataBranch/(Rex > MacroMonad (Row (Symbol, Row Symbol)))
 = (readDataBranches r err ok)
 ^ _ NIL r
 ? (go acc r)
-; trk 'WHAAA',[%[=r] (rexSetHeir 0 r)]
 @ = this (rexSetHeir 0 r)
   = that (rexHeir r)
-: key ctr slots <- readConstructorSig this err
-; trk 'Y THO?',(%[=key =ctr =slots])
+: key ctr slots <- readDatatypeSig this err
 @ acc
         | CONS [key ctr slots] acc
 | if (isZero that)
@@ -196,9 +202,9 @@ ex=(PAIR %a %b)
                ,, [0 %BAR [%x %y %z]]
                ,, [0 %LOL []]
         ^ readDataBranches _ v2 I
-        ` | FOO x
-          | BAR x y z
-          | LOL
+        ` * FOO x
+          * BAR x y z
+          * LOL
 
 
 ; / defDataTypeC
@@ -245,8 +251,8 @@ ex=(PAIR %a %b)
 
 
 # datatype
-| E_LEFT x
-| E_RIGHT x
+* E_LEFT x
+* E_RIGHT x
 
 !!= 0 getProp#(E_LEFT.conTag)
 !!= 1 getProp#(E_LEFT.conAri)
@@ -361,8 +367,8 @@ ex=(PAIR %a %b)
 | ok p nex exp
 
 # datatype
-| LNULL
-| LCONS x y
+* LNULL
+* LCONS x y
 
 = (showList xs)
 | strWeld "["
@@ -400,12 +406,12 @@ ex=(PAIR %a %b)
 ;;;     datatype#(Either a b = (Left x/a | Right x/b))
 ;;;
 ;;;     # datatype (Either a b)
-;;;     | LEFT x/a
-;;;     | RYTE x/b
+;;;     * LEFT x/a
+;;;     * RYTE x/b
 ;;;
 ;;;     # datatype (List a)
-;;;     | NULL
-;;;     | CONS item/a tail/(List a)
+;;;     * NULL
+;;;     * CONS item/a tail/(List a)
 ;;;
 
 
