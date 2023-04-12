@@ -3,7 +3,9 @@ syntax region Curl start="{" end="}" contains=Curl oneline
 syntax match BadC /}/
 syntax match Rune /[$!#%&*+,-.\/:<=>?@\\^`|~]\+/
 syntax match Rine /^ *\zs[$!#%&*+,-.\/:<=>?@\\^`|~]\+\ze/
-syntax match Word /[_a-zA-Z0-9]\+/
+syntax match Cnsr /[A-Z][A-Z_0-9]*\ze\($\|[^a-zA-Z0-9_]\)/
+syntax match Name /[A-Z][_a-zA-Z0-9]*[_a-z0-9]\ze\($\|[^a-zA-Z0-9_]\)/
+syntax match Word /[_a-z0-9][_a-zA-Z0-9]*/
 syntax match Nest /[[()\]]/
 syntax match Head /^""".*$/
 syntax match Line /'''.*$/
@@ -21,7 +23,9 @@ highlight Long ctermbg=Red ctermfg=Blue cterm=bold
 highlight Head ctermfg=Gray cterm=bold
 highlight Evil ctermbg=Brown
 highlight Rune ctermfg=Yellow
-highlight Rine ctermfg=Yellow cterm=bold
+highlight Rine ctermfg=Yellow
+highlight Cnsr ctermfg=DarkRed
+highlight Name ctermfg=Blue
 highlight Word ctermfg=LightGreen
 highlight Nest ctermfg=Magenta
 highlight Note ctermfg=Gray
