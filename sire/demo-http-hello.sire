@@ -6,18 +6,18 @@
 
 = (handleReq st [rid method path headers body])
 # switch method
-= %GET
+* %GET
     , st
     @ entry (look st path)
     | if (eql 0 entry)
         | [rid 404 b#{Not Found} [] b#{}]
     @ head | [(b#{Content-Type}, b#{text/plain})]
     | [rid 200 b#gotcha head entry]
-= %PUT
+* %PUT
     @ st (tabMut path body st)
     @ resp [rid 201 b#done [] b#{}]
     | [st resp]
-= _
+* _
     , st
     | [rid 400 b#bad [] b#{}]
 

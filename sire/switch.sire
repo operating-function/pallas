@@ -76,11 +76,11 @@
 ;
 ; See the tests for examples of what syntax is supported.
 ;
-= (unrollSlip2Tis rex parseAlien err ok)
+= (unrollSlip2Rune rune rex parseAlien err ok)
 ^ _ NIL rex
 ? (loop acc form)
 : kids heir
-        < rexGetNodeWithRune "=" form
+        < rexGetNodeWithRune rune form
                 : end <- parseAlien form err
                 | ok (listToRowReversed (CONS end acc))
 @ size (len kids)
@@ -90,12 +90,15 @@
         @ [kid] kids
         | ok (listToRowReversed (CONS [kid heir] acc))
 | if (neq 2 size)
-        | err form "= node expects two parameters"
+        | err form (strWeld rune " node expects two parameters")
 ; = foo body
 @ acc (CONS kids acc)
 | if (isZero heir)
         | ok (listToRowReversed acc)
 | loop acc heir
+
+unrollSlip2Tis=(unrollSlip2Rune '=')
+unrollSlip2Tar=(unrollSlip2Rune '*')
 
 foo=(x e o & o (varE "_", x))
 (try x)=(unrollSlip2Tis x foo v2 I)
@@ -121,7 +124,7 @@ foo=(x e o & o (varE "_", x))
 
 = (readSwitchPats rex err ok)
 : clauses
-       <- unrollSlip2Tis rex (x err ret & ret (varE "_", x)) err
+       <- unrollSlip2Tar rex (x err ret & ret (varE "_", x)) err
 ; trk %[=clauses]
 : cases
         < forRow clauses
@@ -139,13 +142,13 @@ foo=(x e o & o (varE "_", x))
 | foldl f (natE 0, %[]) cases
 
 !!= [`0 %[3=(`4) 5=(`6)]]
-        | readSwitchPats `((= 3 4)(= 5 6)) v2 I
+        | readSwitchPats `((* 3 4)(* 5 6)) v2 I
 
 !!= [`x %[3=(`4) 5=(`6)]]
-        | readSwitchPats `((= 3 4)(= 5 6)(x)) v2 I
+        | readSwitchPats `((* 3 4)(* 5 6)(x)) v2 I
 
 !!= [`x (tabMut [3 3] `6 %[3=(`4)])]
-        | readSwitchPats `((= 3 4)(= [3 3] 6)(x)) v2 I
+        | readSwitchPats `((* 3 4)(* [3 3] 6)(x)) v2 I
 
 
 """ Atomic Switch """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -153,9 +156,9 @@ foo=(x e o & o (varE "_", x))
 ; TODO: Optimize any contiguous sequence by shifting the input:
 ;
 ; # switch x
-; = 5 %hi
-; = 6 %hi
-; = 7 %hi
+; * 5 %hi
+; * 6 %hi
+; * 7 %hi
 ;
 ;  @ fall 0
 ;  | switch (sub x 4) fall
@@ -186,10 +189,10 @@ foo=(x e o & o (varE "_", x))
 
 = (switchTest x)
 # switch x
-= 346    b#346
-= 345    b#345
-= %hi    b#hi
-= "yop"  b#yop
+* 346    b#346
+* 345    b#345
+* %hi    b#hi
+* "yop"  b#yop
 | b#hur
 
 !! eql b#346 switchTest-346
@@ -200,11 +203,11 @@ foo=(x e o & o (varE "_", x))
 
 = (switchTest2 x)
 # switch x
-= _ %Other
-= 0 %Zero
-= 1 %One
-= 2 %Two
-= 3
+* _ %Other
+* 0 %Zero
+* 1 %One
+* 2 %Two
+* 3
 | barNat b#Three
 
 !! eql %Three switchTest2-3
@@ -213,13 +216,13 @@ foo=(x e o & o (varE "_", x))
 
 = (switchTest3 x)
 # switch x
-= 1              | %One
-= [0 0]          | %ZeroZero
-= [%a 'b']       | %AyeBee
-= ['GET' b#{/p}] | %GetPee
-= [b#a]          | %AyeBar
-= [[[%a]]]       | %Ayyye
-= 9              | %Nine
+* 1              | %One
+* [0 0]          | %ZeroZero
+* [%a 'b']       | %AyeBee
+* ['GET' b#{/p}] | %GetPee
+* [b#a]          | %AyeBar
+* [[[%a]]]       | %Ayyye
+* 9              | %Nine
 %Fallback
 
 !! eql %One      | switchTest3 1
@@ -234,6 +237,8 @@ foo=(x e o & o (varE "_", x))
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+^-^ unrollSlip2Rune
 ^-^ unrollSlip2Tis
+^-^ unrollSlip2Tar
 ^-^ switchE
 ^-^ "#switch"

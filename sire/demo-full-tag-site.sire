@@ -225,10 +225,10 @@ t
 
 = (forceUnpackEvalResult ctx res)
 # switch (len res)
-= 0 (die [%eval_timeout ctx])
-= 2 (die [%eval_crash ctx])
-= 1 (idx 0 res)
-= _ (die [%runtime_gave_bad_eval_result ctx]) ; TODO Remove once stable
+* 0 (die [%eval_timeout ctx])
+* 2 (die [%eval_crash ctx])
+* 1 (idx 0 res)
+* _ (die [%runtime_gave_bad_eval_result ctx]) ; TODO Remove once stable
 
 ; TODO: user #datatype to define the json structure, and use #datacase here.
 = (jsonRow jsonBS)
@@ -236,36 +236,36 @@ t
 | if res NONE
 | if (neq 0 leftover) NONE
 # switch (if json json (idx 0 json))
-= 'vec' | SOME (idx 1 json)
-= _     | NONE
+* 'vec' | SOME (idx 1 json)
+* _     | NONE
 
 = (jsonMap jsonBS)
 @ res=[json leftover] (parseValue jsonBS)
 | if res NONE
 | if (neq 0 leftover) NONE
 # switch (if json json (idx 0 json))
-= 'map' | SOME (idx 1 json)
-= _     | NONE
+* 'map' | SOME (idx 1 json)
+* _     | NONE
 
 = (asJsonMap m)
 # switch (idx 0 m)
-= 'map' | SOME (idx 1 m)
-= _     | NONE
+* 'map' | SOME (idx 1 m)
+* _     | NONE
 
 = (asJsonRow m)
 # switch (idx 0 m)
-= 'vec' | SOME (idx 1 m)
-= _     | NONE
+* 'vec' | SOME (idx 1 m)
+* _     | NONE
 
 = (asJsonNum m)
 # switch (idx 0 m)
-= 'num' | SOME (idx 1 m)
-= _     | NONE
+* 'num' | SOME (idx 1 m)
+* _     | NONE
 
 = (asJsonStr m)
 # switch (idx 0 m)
-= 'str' | SOME | barNat (idx 1 m)
-= _     | NONE
+* 'str' | SOME | barNat (idx 1 m)
+* _     | NONE
 
 ; List of commands we parse out of the incoming json
 # datatype
@@ -301,8 +301,8 @@ NONE
 : jt <- *bindMaybe (tabLookup %tag jm)
 : tg <- *bindMaybe (asJsonStr jt)
 # switch tg
-= 'Search' | parseSearch jsonBS
-= 'Status' | *SOME 0 ; STATUSCMD (but #datatype generated [0], not 0)
+* 'Search' | parseSearch jsonBS
+* 'Status' | *SOME 0 ; STATUSCMD (but #datatype generated [0], not 0)
 
 !!= NONE         | parseCmd b#{"}
 !!= NONE         | parseCmd b#{{"x":3}}
@@ -390,22 +390,22 @@ NONE
 = (fileServer pinnedSt [method path headers body])
 @ st (pinItem pinnedSt)
 # switch method
-= _ NONE
-= 'POST'
+* _ NONE
+* 'POST'
   # switch path
-  = b#"/search"
+  * b#"/search"
     : q <- *maybeCase (parseCmd (pinItem body))
              | SOME [400 b#bad [] b#{}]
     # datacase q
-    = STATUSCMD
+    * STATUSCMD
       @ statusJson | *doStatus st
       @ statusBS   | printJSON statusJson
       | SOME [200 b#gotcha [] statusBS]
-    = (SEARCHCMD offset tags)
+    * (SEARCHCMD offset tags)
       @ searchJson | doSearch st [offset tags]
       @ searchBS   | printJSON searchJson
       | SOME [200 b#gotcha [] searchBS]
-= 'GET'
+* 'GET'
   | *fmapMaybe | hmLookup (barNat path) (*getFiles st)
   & [type content]
   @ head | [(b#{content-type}, type)]
@@ -449,14 +449,14 @@ NONE
 : ??(ats_evaled evalResult) <- syscall (*EVAL 1000 [parseLearn jsonPin])
 ;
 # switch (len evalResult)
-= 0 | trk b#"TIMEOUT in /learn"
+* 0 | trk b#"TIMEOUT in /learn"
     | syscall (*HTTP_ECHO rid 408 b#timeout [] b#{})
     | return
-= 2 | trk [b#"CRASH in /learn" (idx 0 evalResult) (idx 1 evalResult)]
+* 2 | trk [b#"CRASH in /learn" (idx 0 evalResult) (idx 1 evalResult)]
     | syscall (*HTTP_ECHO rid 500 b#error [] b#{})
     | return
-= _ | die 'rts_gave_bad_eval_evalResult' '/learn' ; TODO Remove once stable
-= 1
+* _ | die 'rts_gave_bad_eval_evalResult' '/learn' ; TODO Remove once stable
+* 1
 ;
 @ parsed (idx 0 evalResult)
 : ??(ats_learned _) <- addLearningsToState vSt (PIN parsed)
@@ -465,20 +465,20 @@ NONE
 
 = (handleReq vSt [rid method path headers body] return)
 # switch method
-= 'POST'
+* 'POST'
   # switch path
-  = b#"/usecdn"
+  * b#"/usecdn"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
     : _ <- modifyIORef vSt pSt&(| PIN | setLocal FALSE | pinItem pSt)
     | return ()
-  = b#"/uselocal"
+  * b#"/uselocal"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
     : _ <- modifyIORef vSt pSt&(| PIN | setLocal TRUE | pinItem pSt)
     | return ()
-  = b#"/learn"
+  * b#"/learn"
     : _ <- fork (addToState vSt rid body)
     | return ()
-= 'PUT'
+* 'PUT'
   @ barType | *fromSome b#{text/plain}
             | tabLookup b#{content-type}
             | tabFromPairs headers
@@ -495,9 +495,9 @@ NONE
                          | setFiles files
                          | st
   | return ()
-= _
-    : _ <- fork (syscall (*HTTP_ECHO rid 400 b#bad [] b#{}))
-    | return ()
+* _
+  : _ <- fork (syscall (*HTTP_ECHO rid 400 b#bad [] b#{}))
+  | return ()
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

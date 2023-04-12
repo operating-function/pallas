@@ -188,11 +188,11 @@
 = (">>" e n kids heir)
 | if (neq 0 heir) LEFT-"unexpected heir"
 # switch (len kids)
-= 0 | LEFT "Expected node to have at least two kids"
-= 1 | LEFT "Expected node to have at least two kids"
-= 2 @ fst,snd kids
+* 0 | LEFT "Expected node to have at least two kids"
+* 1 | LEFT "Expected node to have at least two kids"
+* 2 @ fst,snd kids
     | RIGHT [0 (appE [cnsE-andThen fst snd])]
-= _ : result <- eitherOpen (##">>" e n (drop 1 kids) 0)
+* _ : result <- eitherOpen (##">>" e n (drop 1 kids) 0)
     @ _,rest result
     | RIGHT [0 (appE [cnsE-andThen idx-0-kids rest])]
 
@@ -202,15 +202,15 @@
 | if (neq 0 heir)
         | err r "unexpected heir"
 # switch (len sons)
-= 0
+* 0
         | err r "Expected node to have at least two sons"
-= 1
+* 1
         | err r "Expected node to have at least two sons"
-= 2
+* 2
         @ [fst snd] sons
         | ok p a
         | appE (cnsE bindIO, fst, snd)
-= _
+* _
         : s p e a result <- (##">>=" s p e a (drop 1 sons) err)
         @ [_ rest] result
         | ok p a
@@ -313,8 +313,8 @@
 
 = (mvarCase var full empty)
 # switch (idx 0 var)
-= 0 (*full (idx 1 var) (idx 2 var))
-= 1 (*empty (idx 1 var))
+* 0 (*full (idx 1 var) (idx 2 var))
+* 1 (*empty (idx 1 var))
 
 = (newMVar val return)
 : var <- newIORef (*MVAR_FULL val [])

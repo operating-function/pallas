@@ -8,9 +8,9 @@
 '''
 '''     = (foo x)
 '''     # mutrec %even_odd (even 9)
-'''     = (even x)
+'''     * (even x)
 '''         | ifNot x TRUE  (odd dec-x)
-'''     = (odd x)
+'''     * (odd x)
 '''         | ifNot x FALSE (even dec-x)
 '''
 ''' Example Output:
@@ -34,7 +34,7 @@
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 /+  boot
-/+  switch  [unrollSlip2Tis]
+/+  switch  [unrollSlip2Rune unrollSlip2Tis]
 
 
 """ Constructing Bloodlines """""'""""""""""""""""""""""""""""""""""""""""""""""
@@ -48,10 +48,10 @@
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (readCoreBody aft rex err ok)
+= (readCoreBody rune aft rex err ok)
 @ parseAlien (x err ret & err x 'Not a core arm')
 : clauses
-    < unrollSlip2Tis rex parseAlien err
+    < unrollSlip2Rune rune rex parseAlien err
 : aft results
     < forRowWithState aft clauses
         & (aft sigBody ret)
@@ -62,7 +62,7 @@
 | ok aft results
 
 !!= 5,[[%f [%x] `x] [%g [%y] `0]]
-        | readCoreBody 5 `((f x = x)(g y = 0)) v2 v2
+        | readCoreBody '=' 5 `((f x = x)(g y = 0)) v2 v2
 
 !!=    ,, 7
        ,,  ,,   | *v3 %f ['_g5']
@@ -70,13 +70,13 @@
                       #@ x (#| $(idx 0) _g6)
                       #@ y (#| $(idx 1) _g6)
                        x
-    | readCoreBody 5 `((f [x y] = x)) v2 v2
+    | readCoreBody '=' 5 `((f [x y] = x)) v2 v2
 
 !!= [`(*) 'Not a core arm']
-        | readCoreBody 5 `((f x = x)(g y = 0)(*)) v2 v2
+        | readCoreBody '=' 5 `((f x = x)(g y = 0)(*)) v2 v2
 
 !!= [`(= f) '= node expects two parameters']
-        | readCoreBody 5 `((= f|x x)(= f)) v2 v2
+        | readCoreBody '=' 5 `((= f|x x)(= f)) v2 v2
 
 ; TODO Move this to `17-exp.sire`
 ; TODO Avoid the ## where necessary.
@@ -113,7 +113,7 @@
 : _ coreTag letBody sigRex
         < rexParseKids r [readAny readAtomLit readAny readAny] err
 : aft sigExpPairs
-        < readCoreBody a sigRex err
+        < readCoreBody '*' a sigRex err
 ;
 @ arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
 @ aft     | add aft 2
@@ -169,7 +169,7 @@
 ;         @ e
 ;                 `
 ;                 # mutrec %loop (*loop start)
-;                 = (loop xx)
+;                 * (loop xx)
 ;                     | ifNot xx 0 (*loop 0)
 ;         (##"#mutrec" 3 3 3 e v2 v4)
 
@@ -182,14 +182,14 @@
 = (foo x)
 # mutrec %even_odd
     (and (*even x 8) (*odd x))
-= (even x y)
+* (even x y)
     | ifNot x TRUE  (*odd dec-x)
-= (odd x)
+* (odd x)
     | ifNot x FALSE (*even dec-x 9)
 
 = (looper start)
 # mutrec %loop (*loop start)
-= (loop xx)
+* (loop xx)
     | ifNot xx 0 (*loop 0)
 
 = loopFun
@@ -206,9 +206,9 @@
 
 = [even odd]
 # mutrec %even_odd [even odd]
-= (even x)
+* (even x)
     | ifNot x TRUE  (*odd dec-x)
-= (odd x)
+* (odd x)
     | ifNot x FALSE (*even dec-x)
 
 !! even 0
@@ -225,7 +225,7 @@
 : _ coreSymbol sigRex
         < rexParseKids r [readAny readAny readAny] err
 : aft sigExpPairs
-       < readCoreBody aft sigRex err
+       < readCoreBody '=' aft sigRex err
 : coreName
         < readSymbol coreSymbol err
 @

@@ -198,10 +198,10 @@ hexAlphabet=(natBar "0123456789abcdef")
 
 = (multiEqlE n exps)
 # switch len-exps
-= 0 , n | natE 1
-= 1 , n | appE (cnsE seq, idx 0 exps, natE 1)
-= 2 , n | appE (cnsE eql, idx 0 exps, idx 1 exps)
-= _
+* 0 , n | natE 1
+* 1 , n | appE (cnsE seq, idx 0 exps, natE 1)
+* 2 , n | appE (cnsE eql, idx 0 exps, idx 1 exps)
+* _
         , (inc n)
         @ tmpVar (gensym n)
         | letE tmpVar (idx 0 exps)
@@ -280,7 +280,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 @ style (rexStyle expr)
 @ type  (rexType expr)
 # switch type
-= "NODE"
+* "NODE"
         @ rune (rexRune expr)
         @ sons (rexSons expr)
         @ heir (rexHeir expr)
@@ -293,27 +293,27 @@ hexAlphabet=(natBar "0123456789abcdef")
             | *else
                 | [b#'(' x b#')' showRex-heir]
         # switch style
-        = "PREF"
+        * "PREF"
                 | barWeld bune showRex-(idx 0 sons)
-        = "SHUT"
+        * "SHUT"
                 | barIntercalate bune (map showRex sons)
-        = "INFX"
+        * "INFX"
                 | barIntercalate (barCat [b#" " bune b#" "])
                 | map showRex sons
         | barIntercalate b#" "
         | if (rune=='|' && (1 != len sons))
             (map showRex sons)
         | weld [bune] (map showRex sons)
-= "LEAF"
+* "LEAF"
         @ t (rexText expr)
         # switch style
-        = "WORD" | natBar t
-        = "CORD" | barCat [b#"'" natBar-t b#"'"]
-        = "TAPE" | barCat [b#'"' natBar-t b#'"']
-        = "LINE" | barCat [b#"'" natBar-t b#"'"]
-        = "PAGE" | barCat [b#'"' natBar-t b#'"']
-        = "CURL" | barCat [b#'{' natBar-t b#'}']
-= "EMBD"
+        * "WORD" | natBar t
+        * "CORD" | barCat [b#"'" natBar-t b#"'"]
+        * "TAPE" | barCat [b#'"' natBar-t b#'"']
+        * "LINE" | barCat [b#"'" natBar-t b#"'"]
+        * "PAGE" | barCat [b#'"' natBar-t b#'"']
+        * "CURL" | barCat [b#'{' natBar-t b#'}']
+* "EMBD"
         | showTree (rexEmbd expr)
 
 !!= b#'()'                 | showRex `()
@@ -356,20 +356,20 @@ hexAlphabet=(natBar "0123456789abcdef")
 
 = (natWords n)
 # switch n
-= 0 %Zero
+* 0 %Zero
 ^ _ n
 ? (loop n)
 # switch n
-= 0 ""
-= 1 %One
-= 2 %Two
-= 3 %Three
-= 4 %Four
-= 5 %Five
-= 6 %Six
-= 7 %Seven
-= 8 %Eight
-= 9 %Nine
+* 0 ""
+* 1 %One
+* 2 %Two
+* 3 %Three
+* 4 %Four
+* 5 %Five
+* 6 %Six
+* 7 %Seven
+* 8 %Eight
+* 9 %Nine
 | strCat
 ,, loop (div n 10)
 ,, natWords (mod n 10)
@@ -389,15 +389,15 @@ hexAlphabet=(natBar "0123456789abcdef")
 # mutrec %loop
     @ [_ _ buf] (*go pos tab top)
     | padFlat buf
-= (nat p t atm)
+* (nat p t atm)
     | (p, t, [p#11 (mat atm)])
-= (backref p t ref)
+* (backref p t ref)
     | (p, t, [p#10 (mat ref)])
-= (cel p t hed tel)
+* (cel p t hed tel)
     @ [p t hBits] (*go (inc p) t hed)
     @ [p t tBits] (*go (inc p) t tel)
     | (p, t, [p#0 hBits tBits])
-= (go p t noun)
+* (go p t noun)
     : ref
        <- *maybeCase (tabLookup noun t)
             @ t (tabMut noun p t)

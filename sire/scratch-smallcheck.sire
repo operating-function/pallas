@@ -12,8 +12,8 @@
 | trk %generate,n,g
 | if (eql 0 n) NIL
 # datacase (g 0)
-= DONE        | NIL
-= (ITEM x g2) | trk [x g2] | CONS x (generate (dec n) g2)
+* DONE        | NIL
+* (ITEM x g2) | trk [x g2] | CONS x (generate (dec n) g2)
 
 = (natsFrom i _)
 | seq i

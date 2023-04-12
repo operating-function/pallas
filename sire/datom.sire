@@ -116,18 +116,18 @@ e
 = (resolveIdent ident txnTmps db)
 # openDb db
 # datacase ident
-= (ENT eid)
+* (ENT eid)
   ,, eid
   ,, txnTmps
   ,, | if (lth eid maxEid) db
      ; user has specified a larger eid than exists by hand.
      [schema eav aev ave (inc eid)]
-= (TMP val)
+* (TMP val)
   : eid <- maybeCase (tabLookup val txnTmps)
              @ [eid db] | allocEntity db
              [eid (tabMut val eid txnTmps) db]
   [eid txnTmps db]
-= (LOOKUP attr val)
+* (LOOKUP attr val)
   @ eids | lookupByAV attr val db
   @ l | cabLen eids
   | if (isZero l) | 'No match for ' %[=attr =val]
@@ -140,14 +140,14 @@ e
 ; resolveTransactionItem : [(List TxnItem) (Map * Nat) DB] -> TxnItem -> _1
 = (resolveTransactionItem [items txnTmps db] item)
 # datacase item
-= (NEWENTITY tab)
+* (NEWENTITY tab)
   @ [eid db] | allocEntity db
   @ adds | listMap ([a v])&(RESADD eid a v) | tabToList tab
   [(listWeld adds items) txnTmps db]
-= (ADD ident attr val)
+* (ADD ident attr val)
   @ [eid txnTmps db] | resolveIdent ident txnTmps db
   [(*CONS (RESADD eid attr val) items) txnTmps db]
-= (RETRACT eid attr val)
+* (RETRACT eid attr val)
   [(*CONS (RESRETRACT eid attr val) items) txnTmps db]
 
 ; User transaction function. Given transaction items, resolve any pending
@@ -165,9 +165,9 @@ e
 @ (step db item)
   | trk [%item item]
   # datacase item
-  = (RESADD eid attr val)
+  * (RESADD eid attr val)
     | rawAdd eid attr val db
-  = (RESRETRACT eid attr val)
+  * (RESRETRACT eid attr val)
     | rawRm eid attr val db
 | listFoldl step db resolved
 

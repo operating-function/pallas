@@ -28,23 +28,23 @@
 = (parseLexerStream inputStream topFail topOkay)
 # mutrec %loop
    | val inputStream topFail topOkay
-= (val stream fail ok)
+* (val stream fail ok)
    @ stream (eatSpace stream)
    : t ts <- *listCase stream (fail "value" stream)
    # switch (if t t (idx 0 t))
-   = 'n'   | ok JSON_NULL ts
-   = 't'   | ok JSON_TRUE ts
-   = 'f'   | ok JSON_FALSE ts
-   = '['   | arr NIL ts fail ok
-   = '{'   | obj %[] ts fail ok
-   = 'str' | ok (*JSON_STR (idx 1 t)) ts
-   = 'num' | ok (*JSON_NUM (idx 2 t)) ts  ; todo: more data.
-   = 'err' @ [_ off why] t
+   * 'n'   | ok JSON_NULL ts
+   * 't'   | ok JSON_TRUE ts
+   * 'f'   | ok JSON_FALSE ts
+   * '['   | arr NIL ts fail ok
+   * '{'   | obj %[] ts fail ok
+   * 'str' | ok (*JSON_STR (idx 1 t)) ts
+   * 'num' | ok (*JSON_NUM (idx 2 t)) ts  ; todo: more data.
+   * 'err' @ [_ off why] t
            @ msg (strCat ["lex error @" showNat-off ": " why])
            | fail msg stream
-   = _     | fail "value" stream
+   * _     | fail "value" stream
 ;
-= (obj acc stream fail ok)
+* (obj acc stream fail ok)
    ;
    @ stream (eatSpace stream)
    ; trk %[s1=(listToRow stream)]
@@ -74,7 +74,7 @@
    | if (eql t TOK_COMMA)  | obj acc ts fail ok
    | complain
 ;
-= (arr acc stream fail ok)
+* (arr acc stream fail ok)
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [end]
    @ stream (eatSpace stream)
    @ complain (fail "space, ']', or value" stream)

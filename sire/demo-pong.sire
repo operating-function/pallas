@@ -76,8 +76,8 @@
 """ ? (ack x i r)
 """ | trk %ack
 """ # switch i
-""" = 0 | die 'wait to send me more'
-""" = 1 | listen [[%recv pongKey sirePub]]
+""" * 0 | die 'wait to send me more'
+""" * 1 | listen [[%recv pongKey sirePub]]
 """
 """ [i r]<-[[%fork replyBot]]
 """ [i r]<-[[%send sireKey pongPub %hi]]

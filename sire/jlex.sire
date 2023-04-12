@@ -24,11 +24,11 @@
 
 = (chomp input off)
 # switch (barIdx off input)
-= 32 | chomp input (inc off)
-= 9  | chomp input (inc off)
-= 10 | chomp input (inc off)
-= 13 | chomp input (inc off)
-= _  | off
+* 32 | chomp input (inc off)
+* 9  | chomp input (inc off)
+* 10 | chomp input (inc off)
+* 13 | chomp input (inc off)
+* _  | off
 
 !!= 7 (chomp b#'	  	   xyz' 0)
 
@@ -197,40 +197,40 @@
 ;
 # switch (barIdx off input)
 ;
-= 0
+* 0
     | NIL
 ;
-= 'n'
+* 'n'
     | ifNot (b#null == barSlice off 4 input) 0
     [TOK_NULL (loop (add 4 off))]
 ;
-= 't'
+* 't'
     | ifNot (b#true == barSlice off 4 input) 0
     [TOK_TRUE (loop (add 4 off))]
 ; false
-= 'f'
+* 'f'
     | ifNot (b#false == barSlice off 5 input) 0
     [TOK_FALSE (loop (add 5 off))]
 ; runes
-= ',' [TOK_COMMA  (loop inc-off)]
-= ':' [TOK_COLON  (loop inc-off)]
-= '[' [TOK_L_BRAK (loop inc-off)]
-= ']' [TOK_R_BRAK (loop inc-off)]
-= '{' [TOK_L_CURL (loop inc-off)]
-= '}' [TOK_R_CURL (loop inc-off)]
+* ',' [TOK_COMMA  (loop inc-off)]
+* ':' [TOK_COLON  (loop inc-off)]
+* '[' [TOK_L_BRAK (loop inc-off)]
+* ']' [TOK_R_BRAK (loop inc-off)]
+* '{' [TOK_L_CURL (loop inc-off)]
+* '}' [TOK_R_CURL (loop inc-off)]
 ;
-= '"'
+* '"'
     @ res (*lexString input (inc off))
     | if res [(*TOK_ERR off res) 0]
     @ [tok off] res
     [tok (loop off)]
 ;
-= 32 [TOK_SPACE loop-(chomp input | inc off)]
-= 9  [TOK_SPACE loop-(chomp input | inc off)]
-= 10 [TOK_SPACE loop-(chomp input | inc off)]
-= 13 [TOK_SPACE loop-(chomp input | inc off)]
+* 32 [TOK_SPACE loop-(chomp input | inc off)]
+* 9  [TOK_SPACE loop-(chomp input | inc off)]
+* 10 [TOK_SPACE loop-(chomp input | inc off)]
+* 13 [TOK_SPACE loop-(chomp input | inc off)]
 ;
-= _
+* _
     @ fst (barIdx off input)
     @ neg (eqlNat '-' fst)
     @ off (add neg off) ; add bit+number to avoid branching.

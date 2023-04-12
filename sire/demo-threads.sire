@@ -5,7 +5,6 @@
 /+  io      [myThreadId getKernelState]
 /+  io      [newIORef readIORef writeIORef]
 /+  io      [newMachine]
-/+  switch  ["#switch"]
 
 
 ;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -24,8 +24,8 @@
 | if (lteNat u l) l
 @ k | rsh (add u l) 1
 # switch | cmp | get r k
-= %lt | go_binfind l k
-= %eq | inc k
+* %lt | go_binfind l k
+* %eq | inc k
 | go_binfind (inc k) u
 
 ;
@@ -284,7 +284,7 @@ newRootNode
   # openTreeConfig treeConfig
   # openTreeFun treeFun
   # datacase (caseNode node)
-  = (INDEXNODE children hitchhikers)
+  * (INDEXNODE children hitchhikers)
     @ !merged | hhMerge hitchhikers toAdd
     | if | gthNat (hhLength merged) maxHitchhikers
       @ !distrib | distributeDownwards treeConfig treeFun merged children
@@ -294,7 +294,7 @@ newRootNode
     ; All we must do is rebuild the node with the new k/v pair added on as a
     ; hitchhiker to this node.
     | *singletonIndex | mkNode children merged
-  = (LEAFNODE items)
+  * (LEAFNODE items)
     @ !inserted (leafInsert items toAdd)
     | splitLeafMany treeFun maxLeafItems inserted
 ;
@@ -356,10 +356,10 @@ newRootNode
 ^ _ hhEmpty node
 ? (go_openTreeFun hh node)
 # datacase (caseImpl node)
-= (LEAFNODE leaves)
+* (LEAFNODE leaves)
   @ !item (leafInsert leaves hh)
   [item]
-= (INDEXNODE [keys vals] hitchhikers)
+* (INDEXNODE [keys vals] hitchhikers)
   @ !merged (hhMerge hitchhikers hh)
   @ splitHH | splitHitchhikersByKeys treeFun keys merged
   | cat
@@ -371,11 +371,11 @@ newRootNode
 ^ _ hhEmpty node
 ? (go_openTreeFun hh node)
 # datacase (caseImpl node)
-= (LEAFNODE leaves)
+* (LEAFNODE leaves)
   | if (isZero | hhLength hh) node
   @ !item (leafInsert leaves hh)
   | mkLeaf item
-= (INDEXNODE [keys vals] hitchhikers)
+* (INDEXNODE [keys vals] hitchhikers)
   @ !merged (hhMerge hitchhikers hh)
   | if (isZero | hhLength merged) node
   @ splitHH | splitHitchhikersByKeys treeFun keys merged
@@ -386,9 +386,9 @@ newRootNode
 # openTreeConfig config
 # openTreeFun treeFun
 # datacase (caseImpl node)
-= (INDEXNODE index hitchhikers)
+* (INDEXNODE index hitchhikers)
   | lthNat (indexKeyLen index) minIdxKeys
-= (LEAFNODE leaves)
+* (LEAFNODE leaves)
   | lthNat (leafLength leaves) minLeafItems
 
 = (mergeNodes config treeFun left middleKey right)
@@ -396,21 +396,21 @@ newRootNode
 # openTreeFun treeFun
 ; wish I could collapse this into a single case like in haskell
 # datacase (caseImpl left)
-= (INDEXNODE leftIdx leftHH)
+* (INDEXNODE leftIdx leftHH)
   # datacase (caseImpl right)
-  = (INDEXNODE rightIdx rightHH)
+  * (INDEXNODE rightIdx rightHH)
     @ !left   | distributeDownwards config treeFun leftHH leftIdx
     @ !right  | distributeDownwards config treeFun rightHH rightIdx
     @ !merged | mergeIndex left middleKey right
     | extendIndex treeFun maxIdxKeys merged
-  = (LEAFNODE _)
+  * (LEAFNODE _)
     | die %nodeMismatch
-= (LEAFNODE leftLeaf)
+* (LEAFNODE leftLeaf)
   # datacase (caseImpl right)
-  = (LEAFNODE rightLeaf)
+  * (LEAFNODE rightLeaf)
     @ !merged | leafMerge leftLeaf rightLeaf
     | splitLeafMany treeFun maxLeafItems merged
-  = (INDEXNODE _ _)
+  * (INDEXNODE _ _)
     | die %nodeMismatch
 
 ; backwards maybeCase is easier in some usage patterns.
@@ -420,9 +420,9 @@ newRootNode
 # openTreeConfig config
 # openTreeFun treeFun
 # datacase (caseImpl node)
-= (LEAFNODE leaves)
+* (LEAFNODE leaves)
   | mkLeaf | leafDelete key mybV leaves
-= (INDEXNODE index hitchhikers)
+* (INDEXNODE index hitchhikers)
   @ [ctx child]     | valView key index
   @ newChild        | deleteRec config treeFun key mybV child
   @ childNeedsMerge | nodeNeedsMerge config treeFun newChild
@@ -514,10 +514,10 @@ newRootNode
 & gr
 @ newRootNode | deleteRec config hhMapTF k NONE gr
 # datacase (caseImpl newRootNode)
-= (LEAFNODE leaves)
+* (LEAFNODE leaves)
   ,, config
   ,, if (tabIsEmpty leaves) NONE (*SOME newRootNode)
-= (INDEXNODE index hitchhikers)
+* (INDEXNODE index hitchhikers)
   | *maybeCase | fromSingletonIndex index
     [config (*SOME newRootNode)]
   & childNode
@@ -530,11 +530,11 @@ newRootNode
 | *maybeCase r NONE
 ? (lookInNode node)
 # datacase (caseImpl node)
-= (INDEXNODE index hitchhikers)
+* (INDEXNODE index hitchhikers)
   : v <- *maybeCase (tabLookup key hitchhikers)
              (lookInNode | findSubnodeByKey key index)
   | (*SOME v)
-= (LEAFNODE items)
+* (LEAFNODE items)
   | tabLookup key items
 
 ;;;;;;;;;;;;;;;;;;;
@@ -612,10 +612,10 @@ newRootNode
 | *maybeCase r FALSE
 ? (lookInNode node)
 # datacase (caseImpl node)
-= (INDEXNODE index hitchhikers)
+* (INDEXNODE index hitchhikers)
   | if (cabHas key hitchhikers) TRUE
   | lookInNode | findSubnodeByKey key index
-= (LEAFNODE items)
+* (LEAFNODE items)
   | cabHas key items
 
 = (hsRawDelete key config r)
@@ -623,9 +623,9 @@ newRootNode
 & gr
 @ newRootNode | deleteRec config hhSetTF key NONE gr
 # datacase (caseImpl newRootNode)
-= (LEAFNODE leaves)
+* (LEAFNODE leaves)
   | if (cabIsEmpty leaves) NONE (*SOME newRootNode)
-= (INDEXNODE index hitchhikers)
+* (INDEXNODE index hitchhikers)
   | *maybeCase (fromSingletonIndex index)
       | *SOME newRootNode
   & !childNode
@@ -725,9 +725,9 @@ newRootNode
 
 = (getLeftmostValue a)
 # datacase (caseImpl a)
-= (LEAFNODE s)
+* (LEAFNODE s)
   | cabMin s
-= (INDEXNODE [keys vals] _)
+* (INDEXNODE [keys vals] _)
   | getLeftmostValue (idx 0 vals)
 
 ; implementation detail of intersection
@@ -735,11 +735,11 @@ newRootNode
 ; checkSetAgainst : Cab k -> SetNode k -> [Cab k]
 = (checkSetAgainst a b)
 # datacase b
-= (LEAFNODE bLeaves)
+* (LEAFNODE bLeaves)
   @ !c | cabIntersection a bLeaves
   | if (cabIsEmpty c) []
   [c]
-= (INDEXNODE index _)
+* (INDEXNODE index _)
   ; todo: i don't think you can rewrite this without the unfoldr, but could you
   ; at least use integer indexes instead of making a ton of copies of the keys
   ; and vals rows?
@@ -813,35 +813,35 @@ newRootNode
 # openTreeConfig aconfig
 # mutrec %impl | top a b
 ;
-= (top a b)
+* (top a b)
   ,, aconfig
   ,, | build
      | consolidate minLeafItems maxLeafItems
      | find (flushDownwards hhSetTF a)
             (flushDownwards hhSetTF b)
 ;
-= (build r)
+* (build r)
   | if | isZero | len r
     | NONE
   @ vals | map hmLeaf r
   @ keys | map cabMin | drop 1 r
   | *SOME | fixup aconfig hhSetTF [keys vals]
 ;
-= (find left right)
+* (find left right)
   # datacase (caseImpl left)
-  = (LEAFNODE leftLeaves)
+  * (LEAFNODE leftLeaves)
     # datacase (caseImpl right)
-    = (LEAFNODE rightLeaves)
+    * (LEAFNODE rightLeaves)
       @ c | cabIntersection leftLeaves rightLeaves
       | if (cabIsEmpty c) []
       [c]
-    = (INDEXNODE rightIdx _)
+    * (INDEXNODE rightIdx _)
       | checkSetAgainst leftLeaves (caseImpl right)
-  = (INDEXNODE leftIdx leftHH)
+  * (INDEXNODE leftIdx leftHH)
     # datacase (caseImpl right)
-    = (LEAFNODE rightLeaves)
+    * (LEAFNODE rightLeaves)
       | checkSetAgainst rightLeaves (caseImpl left)
-    = (INDEXNODE rightIdx rightHH)
+    * (INDEXNODE rightIdx rightHH)
       @ [aIdxKeys aVals] leftIdx
       @ [bIdxKeys bVals] rightIdx
       @ !aLeftmost | getLeftmostValue | idx 0 aVals
@@ -955,11 +955,11 @@ newRootNode
 & gr
 @ newRootNode | deleteRec mapConfig (hhSetMapTF setConfig) k (*SOME v) gr
 # datacase (caseImpl newRootNode)
-= (LEAFNODE leaves)
+* (LEAFNODE leaves)
   ,, mapConfig
   ,, setConfig
   ,, if (tabIsEmpty leaves) NONE (*SOME newRootNode)
-= (INDEXNODE index hitchhikers)
+* (INDEXNODE index hitchhikers)
   | *maybeCase | fromSingletonIndex index
     [mapConfig setConfig (*SOME newRootNode)]
   & childNode
@@ -980,10 +980,10 @@ newRootNode
 ^ _ %[] node
 ? (lookInNode !hh node)
 # datacase (caseImpl node)
-= (INDEXNODE children hitchhikers)
+* (INDEXNODE children hitchhikers)
   @ matched | fromSome %[] (tabLookup k hitchhikers)
   | lookInNode (cabUnion hh matched) | findSubnodeByKey k children
-= (LEAFNODE items)
+* (LEAFNODE items)
   : ret <- *maybeCase (tabLookup k items)
              [setConfig (hsRawFromCab setConfig hh)]
   [setConfig (hsRawInsertMany hh setConfig ret)]
