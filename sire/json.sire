@@ -32,14 +32,14 @@
    @ stream (eatSpace stream)
    : t ts <- *listCase stream (fail "value" stream)
    # switch (if t t (idx 0 t))
-   * 'n'   | ok JSON_NULL ts
-   * 't'   | ok JSON_TRUE ts
-   * 'f'   | ok JSON_FALSE ts
+   * n     | ok JSON_NULL ts
+   * t     | ok JSON_TRUE ts
+   * f     | ok JSON_FALSE ts
    * '['   | arr NIL ts fail ok
    * '{'   | obj %[] ts fail ok
-   * 'str' | ok (*JSON_STR (idx 1 t)) ts
-   * 'num' | ok (*JSON_NUM (idx 2 t)) ts  ; todo: more data.
-   * 'err' @ [_ off why] t
+   * str   | ok (*JSON_STR (idx 1 t)) ts
+   * num   | ok (*JSON_NUM (idx 2 t)) ts  ; todo: more data.
+   * err   @ [_ off why] t
            @ msg (strCat ["lex error @" showNat-off ": " why])
            | fail msg stream
    * _     | fail "value" stream

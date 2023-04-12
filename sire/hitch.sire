@@ -24,9 +24,9 @@
 | if (lteNat u l) l
 @ k | rsh (add u l) 1
 # switch | cmp | get r k
-* %lt | go_binfind l k
-* %eq | inc k
-| go_binfind (inc k) u
+* lt | go_binfind l k
+* eq | inc k
+* _  | go_binfind (inc k) u
 
 ;
 ; Given an index and a hitchhiker object, creates a packed representation.

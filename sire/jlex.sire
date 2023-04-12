@@ -200,15 +200,15 @@
 * 0
     | NIL
 ;
-* 'n'
+* n
     | ifNot (b#null == barSlice off 4 input) 0
     [TOK_NULL (loop (add 4 off))]
 ;
-* 't'
+* t
     | ifNot (b#true == barSlice off 4 input) 0
     [TOK_TRUE (loop (add 4 off))]
 ; false
-* 'f'
+* f
     | ifNot (b#false == barSlice off 5 input) 0
     [TOK_FALSE (loop (add 5 off))]
 ; runes

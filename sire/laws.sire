@@ -280,7 +280,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 @ style (rexStyle expr)
 @ type  (rexType expr)
 # switch type
-* "NODE"
+* NODE
         @ rune (rexRune expr)
         @ sons (rexSons expr)
         @ heir (rexHeir expr)
@@ -293,27 +293,27 @@ hexAlphabet=(natBar "0123456789abcdef")
             | *else
                 | [b#'(' x b#')' showRex-heir]
         # switch style
-        * "PREF"
+        * PREF
                 | barWeld bune showRex-(idx 0 sons)
-        * "SHUT"
+        * SHUT
                 | barIntercalate bune (map showRex sons)
-        * "INFX"
+        * INFX
                 | barIntercalate (barCat [b#" " bune b#" "])
                 | map showRex sons
         | barIntercalate b#" "
         | if (rune=='|' && (1 != len sons))
             (map showRex sons)
         | weld [bune] (map showRex sons)
-* "LEAF"
+* LEAF
         @ t (rexText expr)
         # switch style
-        * "WORD" | natBar t
-        * "CORD" | barCat [b#"'" natBar-t b#"'"]
-        * "TAPE" | barCat [b#'"' natBar-t b#'"']
-        * "LINE" | barCat [b#"'" natBar-t b#"'"]
-        * "PAGE" | barCat [b#'"' natBar-t b#'"']
-        * "CURL" | barCat [b#'{' natBar-t b#'}']
-* "EMBD"
+        * WORD | natBar t
+        * CORD | barCat [b#"'" natBar-t b#"'"]
+        * TAPE | barCat [b#'"' natBar-t b#'"']
+        * LINE | barCat [b#"'" natBar-t b#"'"]
+        * PAGE | barCat [b#'"' natBar-t b#'"']
+        * CURL | barCat [b#'{' natBar-t b#'}']
+* EMBD
         | showTree (rexEmbd expr)
 
 !!= b#'()'                 | showRex `()

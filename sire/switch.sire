@@ -20,7 +20,7 @@
         | ret (rexEmbd rex)
 | if (rexIsLeaf rex)
         | if (eql "WORD" (rexStyle rex))
-                | readNat rex err ret
+                | readKey rex err ret
         | *else
                 | ret (rexText rex)
 ; Here, we know that the value is a node.
@@ -30,7 +30,7 @@
         @ [kid] kids
         | if (neq 1 len-kids)      | err rex cenOneKid
         | if (eql "," rexRune-kid) | err rex "TODO: Support cab and tab literals"
-        | rexGetWord kid | err rex cenWord
+        | rexGetWord kid (err rex cenWord)
         & (text heir)
         | if (neq 0 heir) (err rex cenWord)
         | ret text
@@ -55,13 +55,13 @@
 
 = rnNumb | "Invalid number literal"
 
-!!= %_          | readSwitchPat `_        v2 %_ v1
-!!= [%x]        | readSwitchPat `(%x)     v2 %_ v1
-!!= [[%x]]      | readSwitchPat `[%x]     v2 %_ v1
-!!= [[%x %y]]   | readSwitchPat `[%x 'y'] v2 %_ v1
-!!= [%x]        | readSwitchPat `"x"      v2 %_ v1
-!!= [3]         | readSwitchPat `3        v2 %_ v1
-!!= [`a rnNumb] | readSwitchPat `a        v2 %_ v1
+!!= %_          | readSwitchPat `_        v2 {_} v1
+!!= [%x]        | readSwitchPat `(%x)     v2 {_} v1
+!!= [[%x]]      | readSwitchPat `[%x]     v2 {_} v1
+!!= [[%x %y]]   | readSwitchPat `[%x 'y'] v2 {_} v1
+!!= [%x]        | readSwitchPat `"x"      v2 {_} v1
+!!= [3]         | readSwitchPat `3        v2 {_} v1
+!!= [%a]        | readSwitchPat `a        v2 {_} v1
 
 
 """ Parsing Switch Patterns """"""""""""""""""""""""""""""""""""""""""""""""""""
@@ -191,6 +191,7 @@ foo=(x e o & o (varE "_", x))
 # switch x
 * 346    b#346
 * 345    b#345
+* derp   b#dur
 * %hi    b#hi
 * "yop"  b#yop
 | b#hur
@@ -200,6 +201,7 @@ foo=(x e o & o (varE "_", x))
 !! eql b#hi  switchTest-(%hi)
 !! eql b#yop switchTest-"yop"
 !! eql b#hur switchTest-45
+!! eql b#dur switchTest-"derp"
 
 = (switchTest2 x)
 # switch x
@@ -219,6 +221,7 @@ foo=(x e o & o (varE "_", x))
 * 1              | %One
 * [0 0]          | %ZeroZero
 * [%a 'b']       | %AyeBee
+* [c d]          | %CeeDee
 * ['GET' b#{/p}] | %GetPee
 * [b#a]          | %AyeBar
 * [[[%a]]]       | %Ayyye
@@ -228,6 +231,7 @@ foo=(x e o & o (varE "_", x))
 !! eql %One      | switchTest3 1
 !! eql %ZeroZero | switchTest3 [0 0]
 !! eql %AyeBee   | switchTest3 [{a} %b]
+!! eql %CeeDee   | switchTest3 [{c} {d}]
 !! eql %GetPee   | switchTest3 ['GET' b#{/p}]
 !! eql %AyeBar   | switchTest3 [b#a]
 !! eql %Ayyye    | switchTest3 [[[%a]]]
