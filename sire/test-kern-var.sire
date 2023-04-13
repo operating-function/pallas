@@ -61,12 +61,12 @@
     | KERNEL ~[0] 0 [0] [0]
 
 
-;; Allocate 9 IORefs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Allocate 9 Refs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (justAlloc i return)
 | trk ['justAlloc' i]
 | if (i == 9) (return ())
-: v <- newIORef i
+: v <- newRef i
 | justAlloc (inc i) return
 
 !!= (newMachine justAlloc-0)
@@ -76,18 +76,18 @@
             [0 0 0 0 0 0 0 0 0 0]
 
 
-;; Allocate 9 IORefs and then release them all. ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Allocate 9 Refs and then release them all. ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (freeLoop i return)
 | trk ['freeLoop' i]
-: _ <- freeIORef i
+: _ <- freeRef i
 | if (0 == i) (return ())
 | freeLoop (dec i) return
 
 = (allocLoop i return)
 | trk ['allocloop' i]
 | if (i == 9) (freeLoop 9 return)
-: v <- newIORef i
+: v <- newRef i
 | allocLoop (inc i) return
 
 !!= (newMachine allocLoop-0)
@@ -111,9 +111,9 @@
 
 = (satedReader return)
 : key <- newEmptyMVar
-: val <- readIORef key
+: val <- readRef key
 : ___ <- fork (pure & putMVar key 9 pure)
-: val <- readIORef key
+: val <- readRef key
 | takeMVar key return
 
 !!= (newMachine satedReader)
@@ -124,9 +124,9 @@
 
 = (satedReader return)
 : key <- newEmptyMVar
-: val <- readIORef key
+: val <- readRef key
 : ___ <- fork (pure & putMVar key 9 pure)
-: val <- readIORef key
+: val <- readRef key
 : nin <- takeMVar key
 | putMVar key (inc nin)
 | return

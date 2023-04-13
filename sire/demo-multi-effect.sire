@@ -92,8 +92,8 @@ hexAlphabet=(b#{0123456789abcdef})
 @ [ty hw] req
 | and (eql 0 ty) (eql 1 hw)
 
-(unregisterSocket vConn sock next)=(modifyIORef vConn (cabDel sock) next)
-(registerSocket vConn sock next)=(modifyIORef vConn (cabIns sock) next)
+(unregisterSocket vConn sock next)=(modifyRef vConn (cabDel sock) next)
+(registerSocket vConn sock next)=(modifyRef vConn (cabIns sock) next)
 
 (sockOpen class)=(idx 0 class)
 (sockSend class)=(idx 1 class)
@@ -120,7 +120,7 @@ hexAlphabet=(b#{0123456789abcdef})
 : bar <- syscall (*sockRecv class sock)
 | if (eql 0 bar) (next 0)
 : tid <- fork (PIN-handleSocketInput broadcast class vOpen sock)
-: con <- readIORef vOpen
+: con <- readRef vOpen
 @ conns (listFromRow cabRow-con)
 | broadcast bar next
 
@@ -138,8 +138,8 @@ hexAlphabet=(b#{0123456789abcdef})
 
 = (sendAll vTelnetOpen vWebSocketOpen bar next)
 | trk ["ALL_SEND" bar]
-: tels <- readIORef vTelnetOpen
-: webs <- readIORef vWebSocketOpen
+: tels <- readRef vTelnetOpen
+: webs <- readRef vWebSocketOpen
 | trk ["ALL_SEND" bar %[=tels =webs]]
 : ____ <- sendAllLoop SOCK_SEND (cabList tels) bar
 : ____ <- sendAllLoop WOCK_SEND (cabList webs) bar
@@ -175,7 +175,7 @@ hexAlphabet=(b#{0123456789abcdef})
 ;;; This will generate a random byte, get the current time,
 ;;; wait for $byte seconds, and repeat
 ;;;
-;;; randomWait :: IORef Nat -> IO ()
+;;; randomWait :: Ref Nat -> IO ()
 = (randomWait vCount k)
 : tid <- myThreadId
 : bar <- syscall (RAND_BYTE 1)
@@ -188,8 +188,8 @@ hexAlphabet=(b#{0123456789abcdef})
         | trk [%kid_waited_also then %[tid=me]]
         | cb 0
 : x <- syscall (TIME_WAIT then)
-: n <- readIORef vCount
-: _ <- (@ x inc-n | seq x | writeIORef vCount x)
+: n <- readRef vCount
+: _ <- (@ x inc-n | seq x | writeRef vCount x)
 : s <- getKernelState
 | trk [%STATE s]
 | trk [%waited_until then %[tid=tid child=kd count=n]]
@@ -199,11 +199,11 @@ hexAlphabet=(b#{0123456789abcdef})
 ;; WebSocket Server ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; = (runWebSocket _next)
-; : vOpen <- newIORef %[]
+; : vOpen <- newRef %[]
 ; | forever
 ; & loop
 ; : sock <- webSocketOpen
-; : ____ <- modifyIORef vOpen (cabIns sock)
+; : ____ <- modifyRef vOpen (cabIns sock)
 ; : trak <- fork (trackWebSocketSocket vWebSocketConn sock)
 ; : hand <- fork (forever (handleWebSocketInput vWebSocketConn sock))
 ; | loop 0
@@ -214,9 +214,9 @@ hexAlphabet=(b#{0123456789abcdef})
 | recur vCount k
 
 = (effectDemo done)
-: vCount          <- newIORef 0
-: vTelnetOpen     <- newIORef %[]
-: vWebSockOpen    <- newIORef %[]
+: vCount          <- newRef 0
+: vTelnetOpen     <- newRef %[]
+: vWebSockOpen    <- newRef %[]
 @ bc (sendAll vTelnetOpen vWebSockOpen)
 : telnetThread    <- fork (runSocketLoop bc Telnet vTelnetOpen)
 : webSocketThread <- fork (runSocketLoop bc WebSocket vWebSockOpen)

@@ -130,10 +130,10 @@
 ;
 
 
-""" IORefs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Refs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; newIORef : a -> IO (IORef a)
-= (newIORef val k end me fr kl sl rq)
+; newRef : a -> IO (Ref a)
+= (newRef val k end me fr kl sl rq)
 | if (0 == fr)
     @ key (len sl)
     @ sl  (rowSnoc sl val)
@@ -143,22 +143,22 @@
 @ sl       | put sl key val
 | k key end me fr kl sl rq
 
-; readIORef : IORef a -> IO a
-= (readIORef key k end me fr kl sl rq)
+; readRef : Ref a -> IO a
+= (readRef key k end me fr kl sl rq)
 | k (get sl key) end me fr kl sl rq
 
-; writeIORef : IORef a -> a -> IO ()
-= (writeIORef key val k end me fr kl sl rq)
+; writeRef : Ref a -> a -> IO ()
+= (writeRef key val k end me fr kl sl rq)
 @ sl (put sl key val)
 | k 0 end me fr kl sl rq
 
-; modifyIORef :: IORef a -> (a -> a) -> IO ()
-= (modifyIORef key fun k end me fr kl sl rq)
+; modifyRef :: Ref a -> (a -> a) -> IO ()
+= (modifyRef key fun k end me fr kl sl rq)
 @ sl (| put sl key | fun | get sl key)
 | k 0 end me fr kl sl rq
 
-; freeIORef : IORef a -> IO ()
-= (freeIORef key k end me fr kl sl rq)
+; freeRef : Ref a -> IO ()
+= (freeRef key k end me fr kl sl rq)
 @ sl (put sl key 0)
 @ fr [key fr]
 | k 0 end me fr kl sl rq
@@ -170,9 +170,9 @@
 * MV_FULL val writers
 * MV_EMPT readers
 
-(newMVar val)=(newIORef (*MV_FULL val []))
+(newMVar val)=(newRef (*MV_FULL val []))
 
-newEmptyMVar=(newIORef (*MV_EMPT []))
+newEmptyMVar=(newRef (*MV_EMPT []))
 
 ; putMVar : MVar a -> a -> IO ()
 = (putMVar key newVal k end me fr kl sl rq)

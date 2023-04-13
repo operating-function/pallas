@@ -3,7 +3,7 @@
 /+  io      [syscall RAND_BYTE TIME_WHEN TIME_WAIT]
 /+  io      [fork]
 /+  io      [myThreadId getKernelState]
-/+  io      [newIORef readIORef writeIORef]
+/+  io      [newRef readRef writeRef]
 /+  io      [newMachine]
 
 
@@ -12,7 +12,7 @@
 ;;; This will generate a random byte, get the current time,
 ;;; wait for $byte seconds, and repeat
 ;;;
-;;; randomWait :: IORef Nat -> IO ()
+;;; randomWait :: Ref Nat -> IO ()
 = (randomWait vCount k)
 : tid <- myThreadId
 : bar <- syscall (*RAND_BYTE 1)
@@ -25,8 +25,8 @@
         | trk [%kid_waited_also then %[tid=me]]
         | cb 0
 : x <- syscall (*TIME_WAIT then)
-: n <- readIORef vCount
-: _ <- (@ x inc-n | seq x | writeIORef vCount x)
+: n <- readRef vCount
+: _ <- (@ x inc-n | seq x | writeRef vCount x)
 : s <- getKernelState
 | trk [%STATE s]
 | trk [%waited_until then %[tid=tid child=kd count=n]]
@@ -35,7 +35,7 @@
 = threadDemoTwice
 | newMachine
 & k
-: v <- newIORef 0
+: v <- newRef 0
 ; (randomWait v >> randomWait v) k
 | (forever (randomWait v)) k
 

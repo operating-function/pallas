@@ -47,8 +47,8 @@
 @ free     | [key free]
 | [free slots requests]
 
-; allocateIORef : Any -> State -> (State, IORef Any)
-= (allocateIORef value [free slots requests])
+; allocateRef : Any -> State -> (State, Ref Any)
+= (allocateRef value [free slots requests])
 | ifNot (free == 0)
     @ [key free] | free
     @ slots      | put slots key value
@@ -60,8 +60,8 @@
 @ st       | [free slots requests]
 (st,key)
 
-; releaseIORef :: IORef a -> State -> State
-= (releaseIORef key [free slots requests])
+; releaseRef :: Ref a -> State -> State
+= (releaseRef key [free slots requests])
 @ slots | put slots key 0
 @ free  | [key free]
 | [free slots requests]
@@ -120,35 +120,35 @@
 @ st (act nullThread tid st)
 | k 0 me st
 
-; {newIORef :: a -> IO (IORef a)}
-= (newIORef val k tid st)
-@ st,var (allocateIORef val st)
-; trk %newIORef,var,val
+; {newRef :: a -> IO (Ref a)}
+= (newRef val k tid st)
+@ st,var (allocateRef val st)
+; trk %newRef,var,val
 | k var tid st
 
-; {readIORef :: IORef a -> IO a}
-= (readIORef var k tid st)
+; {readRef :: Ref a -> IO a}
+= (readRef var k tid st)
 @ val (*getSlot var st)
-; trk %readIORef,var,val
+; trk %readRef,var,val
 | k val tid st
 
-; {writeIORef :: IORef a -> a -> IO ()}
-= (writeIORef var val k tid st)
-; trk %writeIORef,var,val
+; {writeRef :: Ref a -> a -> IO ()}
+= (writeRef var val k tid st)
+; trk %writeRef,var,val
 @ st (*setSlot var val st)
 | k 0 tid st
 
-; {modifyIORef :: IORef a -> (a -> a) -> a -> IO ()}
-= (modifyIORef var fun k tid st)
-; trk %modifyIORef,var,fun
+; {modifyRef :: Ref a -> (a -> a) -> a -> IO ()}
+= (modifyRef var fun k tid st)
+; trk %modifyRef,var,fun
 @ val (fun (*getSlot var st))
 | seq val
 @ st (*setSlot var val st)
 | k 0 tid st
 
-; {freeIORef :: IORef a -> IO ()}
-= (freeIORef var k tid st)
-@ st (releaseIORef var st)
+; {freeRef :: Ref a -> IO ()}
+= (freeRef var k tid st)
+@ st (releaseRef var st)
 | k 0 tid st
 
 ;;;
@@ -317,53 +317,53 @@
 * 1 (*empty (idx 1 var))
 
 = (newMVar val return)
-: var <- newIORef (*MVAR_FULL val [])
+: var <- newRef (*MVAR_FULL val [])
 | return var
 
 = (newEmptyMVar return)
-: var <- newIORef (*MVAR_EMPTY [])
+: var <- newRef (*MVAR_EMPTY [])
 | return var
 
 = (putMVar var val return)
-: mvarSt <- readIORef var
+: mvarSt <- readRef var
 ; trk %putMVar,var,mvarSt
 | *mvarCase mvarSt
     ; full
     & (existingVal writers)
     : tid <- myThreadId
     @ writers (rowSnoc writers [tid val])
-    : _ <- writeIORef var (*MVAR_FULL existingVal writers)
+    : _ <- writeRef var (*MVAR_FULL existingVal writers)
     : _ <- block
     | return ()
 ; empty
 & readers
 | ifNot (len readers) ; No readers
-    : _ <- writeIORef var (*MVAR_FULL val [])
+    : _ <- writeRef var (*MVAR_FULL val [])
     | return ()
 ; Readers waiting
 ; trk %PUT,readers,r,rs
-: _ <- writeIORef var (*MVAR_EMPTY (drop 1 readers))
+: _ <- writeRef var (*MVAR_EMPTY (drop 1 readers))
 : _ <- yield (idx 0 readers) val
 | return ()
 
 = (takeMVar var return)
-: mvarSt <- readIORef var
+: mvarSt <- readRef var
 ; trk %takeMVar,var,mvarSt
 | *mvarCase mvarSt
     ; full
     & (filledWith pendingWrites)
     | ifNot (len pendingWrites) ; no writes, make it empty
-        : _ <- writeIORef var (*MVAR_EMPTY [])
+        : _ <- writeRef var (*MVAR_EMPTY [])
         | return filledWith
     ; writes, pop writter from queue
     @ [tid val] (idx 0 pendingWrites)
-    : _ <- writeIORef (*MVAR_FULL val (drop 1 pendingWrites))
+    : _ <- writeRef (*MVAR_FULL val (drop 1 pendingWrites))
     : _ <- yield tid 0
     | return filledWith
 ; empty, append to readers queue
 & readers
 : me <- myThreadId
-: _  <- writeIORef var (*MVAR_EMPTY (rowSnoc readers me))
+: _  <- writeRef var (*MVAR_EMPTY (rowSnoc readers me))
 : rs <- block
 | return rs
 
@@ -442,7 +442,7 @@
 ^-^ TIME_WHEN TIME_WAIT
 ^-^ PORT_SIRE PORT_SEND PORT_RECV
 ^-^
-^-^ newIORef freeIORef readIORef writeIORef modifyIORef
+^-^ newRef freeRef readRef writeRef modifyRef
 ^-^
 ^-^ newMVar newEmptyMVar putMVar takeMVar
 ^-^
