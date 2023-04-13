@@ -2,64 +2,28 @@
 """ Pattern Matching
 """ ================
 """
-""" Extends `@` to support destructuring on rows and tabs.
+""" Extends `@` to support destructuring on:
 """
-""" TODO: Support pin patterns:
+""" - Rows
+""" - Tabs
+""" - Pins
+""" - Laws
 """
-"""     @ (4 addLaw) add
-"""     ...
-"""
-""" TODO: Support list patterns:
-"""
-"""     (@ ~[x y] ~[3 4])
-"""     (@ (x::y) ~[3 4])
-"""     ...
-"""
-""" This require parsers, but they work the same way as row-patterns,
-""" so no additional work is required in codegen or sequencing.
+""" Also supports strictness annotations on bindings.
 """
 """
-""" TODO: Support `:` patterns to get access to value that is also
-""" being destructured:
+""" TODOs
+""" -----
 """
-"""     @ v:[x y z]
-"""            ,, add 2 3
-"""            ,, add 3 4
-"""            ,, add 5 6
-"""    ,, sum v
-"""    ,, | add x
-"""       | mul y z
+""" -   TODO: Don't output `_` bindings.
 """
+""" -   TODO: Don't output trivial rebindings (x=y).
 """
-""" TODO: Don't output `_` bindings.
+""" -   TODO: Implement LAW/PIN patterns in a principled way.
 """
-""" TODO: Don't output trivial rebindings (x=x).
-"""
-""" TODO: Suport lambda-patterns in multi-let
-"""
-"""     @  = (id x) | x
-"""        = nine   | id 9
-"""     | [nine nine nine]
-"""
-"""
-""" TODO: Support pattern matching in lambdas.
-"""
-"""     1.  Write a parser for lambdas.
-"""
-"""         -   One for `?` and another for `&`.
-"""
-"""         -   All of the arguments should be parsed with parseBinder.
-"""
-"""         -   Turn this into a bindSpec somehow.
-"""
-"""         -   Maybe extend the concept to support a top-level sequence
-"""             of binds and associated expressions.
-"""
-"""         -   Generate the binds, output the raw Sire forms.
-"""
-"""     2.  Apply this same thing to (@ (f ...) ...).
-"""
-"""     3.  Apply this same thing to (@ (= x ...)(= y ...)).
+"""     We should register some sort of "destructuror" against the PIN /
+"""     LAW bindings in `01_fan.sire`. You should be able to shaddow
+"""     (or not import) these like anything else.
 """
 
 
