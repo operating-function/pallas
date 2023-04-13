@@ -72,6 +72,8 @@
 = dbIdentStr ":db/ident"
 = dbUniqueId 1
 = dbUniqueStr ":db/unique"
+= dbIndexedId 2
+= dbIndexedStr ":db/indexed"
 
 = emptyDB
 @ db
@@ -96,6 +98,11 @@
 ; to false. When true, and a transaction attempts to commit an already existing
 ; value, errors to the user.
 | rawAdd dbUniqueId dbIdentId dbUniqueStr TRUE
+;
+; :db/indexed is whether values for this attribute are indexed, ie, whether you
+; can look up an eid by their attribute and value. :db/unique implies
+; :db/indexed.
+| rawAdd dbIndexedId dbIdentId dbIndexedStr TRUE
 db
 
 ;; Resolved transaction changes
@@ -130,6 +137,11 @@ db
 | if (neq 1 | cabLen opt) bad
 | *gud (cabFirst opt)
 
+= (singletonCabDefault opt missing next)
+| *next
+| if (neq 1 | cabLen opt) missing
+| cabFirst opt
+
 ; Internal functions on
 = (lookupByEidAid eid aid db)
 # openDb db
@@ -149,22 +161,6 @@ v
 : e  <- *maybeCase (tabLookup val ve) %[]
 e
 
-; User level manual lookup
-= (lookupByEA eid attr db)
-: aid <- *fromSingletonCab (lookupByAidV dbIdentId attr db)
-           | 'unknown attr' attr
-| lookupByEidAid eid aid db
-
-= (lookupByAE attr eid db)
-: aid <- *fromSingletonCab (lookupByAidV dbIdentId attr db)
-           | 'unknown attr' attr
-| lookupByAidEid aid eid db
-
-= (lookupByAV attr val db)
-: aid <- *fromSingletonCab (lookupByAidV dbIdentId attr db)
-           | 'unknown attr' attr
-| lookupByAidV aid val db
-
 ; Given a user level attribute name, translate that to a numeric attribute
 ; number and an 'indexed' boolean which is whether we can use the ave table to
 ; lookup data related to this attribute.
@@ -181,10 +177,30 @@ e
                | 'No attribute name match for ' %[=attrName =db]
 @ isIndex
   ; TODO: lol at looking up unique cardinality with non-unique primitives.
-  @ attrUniq | lookupByAidEid dbUniqueId attrEid db
-  : i <- *fromSingletonCab attrUniq | *FALSE
-  i
+  @ attrUniq    | lookupByAidEid dbUniqueId attrEid db
+  : uniq    <- *singletonCabDefault attrUniq | *FALSE
+  | if uniq | *TRUE
+  @ attrIndexed | lookupByAidEid dbIndexedId attrEid db
+  : indexed <- *singletonCabDefault attrIndexed | *FALSE
+  | if indexed | *TRUE
+  | *FALSE
 [attrEid isIndex]
+
+; User level manual lookup
+= (lookupByEA eid attr db)
+: aid <- *fromSingletonCab (lookupByAidV dbIdentId attr db)
+           | 'unknown attr' attr
+| lookupByEidAid eid aid db
+
+= (lookupByAE attr eid db)
+: aid <- *fromSingletonCab (lookupByAidV dbIdentId attr db)
+           | 'unknown attr' attr
+| lookupByAidEid aid eid db
+
+= (lookupByAV attr val db)
+@ [aid indexed] | resolveAttrName attr db
+| ifNot indexed | 'cannot lookup unindexed attr/val' attr
+| lookupByAidV aid val db
 
 = (lookupByIdentA identAttr identVal attr db)
 @ [aid indexed] | resolveAttrName identAttr db
@@ -277,7 +293,7 @@ e
 
 = emptyContactsDB
 ^ transact _ emptyDB
-,, | NEWENTITY %[":db/ident"=":c/name"]
+,, | NEWENTITY %[":db/ident"=":c/name" ":db/indexed"=TRUE]
 ,, | NEWENTITY %[":db/ident"=":c/email" ":db/unique"=TRUE]
 ,, | NEWENTITY %[":db/ident"=":c/phone"]
 
@@ -294,10 +310,15 @@ e
       ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/phone" "(555) 555"
     | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone" phoneDB
 
+; We should be able to lookup an entity by indexed attribute.
+!!=   %[6]
+    | lookupByAV ":c/name" "Iceman" contactsDB
+
 ; TODO: Once we return errors instead of just dying on exceptions, test:
 ;
 ; - trying to lookup by non-:db/unique attribute errors
 ; - trying to lookup by non-existent attribute errors
+; - trying to looukp an av pair by unindexed attribute.
 
 ; TODO: Once we return errors instead of just dying on exceptions, also
 ;
