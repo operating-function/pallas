@@ -177,27 +177,27 @@
 """ MVar """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 # datatype
-* MV_FULL val writers
-* MV_EMPT readers
+* FULL val writers
+* EMPTY readers
 
-(newMVar val)=(newRef (*MV_FULL val []))
+(newMVar val)=(newRef (*FULL val []))
 
-newEmptyMVar=(newRef (*MV_EMPT []))
+newEmptyMVar=(newRef (*EMPTY []))
 
 > MVar a > a > IO ()
 = (putMVar key newVal k end me fr kl sl rq)
 # datacase (get sl key)
-* (MV_FULL existingVal writers)
+* (FULL existingVal writers)
     @ writers | rowSnoc writers [me newVal]
-    @ sl      | put sl key (*MV_FULL existingVal writers)
+    @ sl      | put sl key (*FULL existingVal writers)
     @ sl      | put sl me k
     | end fr kl sl rq
-* (MV_EMPT readers)
+* (EMPTY readers)
     | if (null readers)
-        @ sl (put sl key (*MV_FULL newVal []))
+        @ sl (put sl key (*FULL newVal []))
         | k 0 end me fr kl sl rq
     | *else
-        @ mvSt | (*MV_EMPT (drop 1 readers))
+        @ mvSt | (*EMPTY (drop 1 readers))
         @ sl   | put sl key mvSt
         @ them | get readers 0
         @ !exe | get sl them
@@ -205,20 +205,20 @@ newEmptyMVar=(newRef (*MV_EMPT []))
 
 = (takeMVar key k end me fr kl sl rq)
 # datacase (get sl key)
-* (MV_EMPT readers)
-    @ mvSt | (*MV_EMPT (rowSnoc readers me))
+* (EMPTY readers)
+    @ mvSt | (*EMPTY (rowSnoc readers me))
     @ sl   | put sl key mvSt
     @ sl   | put sl me  k
     | end fr kl sl rq
-* (MV_FULL val writers)
+* (FULL val writers)
     | if (null writers)                               ; no writers, empty it
-        @ mvSt | (*MV_EMPT [])
+        @ mvSt | (*EMPTY [])
         @ sl   | put sl key mvSt
         (k val end me fr kl sl rq)
     | *else                                           ; writers, pop first in
         @ them,vl | idx 0 writers                     ; queue
         @ writers | drop 1 writers
-        @ mvSt    | (*MV_FULL vl writers)
+        @ mvSt    | (*FULL vl writers)
         @ sl      | put sl key mvSt
         @ !exe    | get sl them
         | exe val (k val end me) them fr kl sl rq

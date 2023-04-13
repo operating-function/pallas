@@ -37,7 +37,7 @@
 | return ()
 
 !!= (newMachine checkIds_v2)
-    | KERNEL ~[0 3] 0 [0 DONE (MV_FULL 9 [(1,10)]) 0] [0 0 0 0]
+    | KERNEL ~[0 3] 0 [0 DONE (FULL 9 [(1,10)]) 0] [0 0 0 0]
 
 
 ;; getKernelState ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -104,7 +104,7 @@
 | takeMVar key return
 
 !!= (newMachine starvedReader)
-    | KERNEL ~[] ~[] (DONE, MV_EMPT [0]) [0 0]
+    | KERNEL ~[] ~[] (DONE, EMPTY [0]) [0 0]
 
 
 ;; Pass a value via an MVar ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -117,7 +117,7 @@
 | takeMVar key return
 
 !!= (newMachine satedReader)
-    | KERNEL ~[0 2] ~[] (0, MV_EMPT [], 0) [0 0 0]
+    | KERNEL ~[0 2] ~[] (0, EMPTY [], 0) [0 0 0]
 
 
 ;; Pass a value via an MVar, leave full ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -132,7 +132,7 @@
 | return
 
 !!= (newMachine satedReader)
-    | KERNEL ~[0 2] ~[] (0, MV_FULL 10 [], 0) [0 0 0]
+    | KERNEL ~[0 2] ~[] (0, FULL 10 [], 0) [0 0 0]
 
 
 ;; Starved Writer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -148,7 +148,7 @@
 !!= (newMachine starvingWriters)
     | KERNEL ~[4 5 6]
              ~[]
-             (DONE, MV_FULL 9 [2,8 3,7 0,6], DONE, DONE, 0, 0, 0)
+             (DONE, FULL 9 [2,8 3,7 0,6], DONE, DONE, 0, 0, 0)
              [0 0 0 0 0 0 0]
 
 
@@ -164,7 +164,7 @@
 | return ()
 
 !!= (newMachine satedWriters)
-    | KERNEL ~[0 3 2] ~[] (0, MV_EMPT [], DONE, DONE) [0 0 0 0]
+    | KERNEL ~[0 3 2] ~[] (0, EMPTY [], DONE, DONE) [0 0 0 0]
 
 
 ;; Canceled threads are not reused until the next input. ;;;;;;;;;;;;;;;;;;;;;;;
