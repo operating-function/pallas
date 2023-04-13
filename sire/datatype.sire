@@ -34,21 +34,21 @@
 = (defKC key sig bodyExp)
 | OPEN 0 "=" (sigKE key sig, bodyExp) 0
 
-; mkGetterC/[Nat Str] -> Cmd
+> (Nat, Str) > Cmd
 = (mkGetterC pair)
 @ ix,field | pair
 @ nam      | strWeld "get" (strCapitalize field)
 | defC (nam, "x")
 | appE (cnsE (idx ix), varE "x")
 
-; mkSetterC/[Nat Str] -> Cmd
+> (Nat, Str) > Cmd
 = (mkSetterC pair)
 @ ix,field | pair
 @ nam      | strWeld "set" (strCapitalize field)
 | defC [nam 'x' 'record']
 | appE (cnsE (mut ix), varE 'x', varE 'record')
 
-; mkNamedC/[Str Row-Str] -> Cmd
+> (Str, Row Str) > Cmd
 = (mkNamedC constr fields)
 @ nam
         | strWeld "mk"
@@ -183,7 +183,7 @@ ex=(PAIR %a %b)
 ;;; * CONS item tail
 ;;;
 
-; readDataBranch/(Rex > MacroMonad (Row (Symbol, Row Symbol)))
+> Rex > MacroMonad (Row (Symbol, Row Symbol))
 = (readDataBranches r err ok)
 ^ _ NIL r
 ? (go acc r)
@@ -207,13 +207,11 @@ ex=(PAIR %a %b)
           * LOL
 
 
-; / defDataTypeC
-; > RexSources
-; > RexProps
-; > Env
-; > Row (Key, Str, Row Str)
-; > (RexProps, Cmd)
-;
+> RexSources
+> RexProps
+> Env
+> Row (Key, Str, Row Str)
+> (RexProps, Cmd)
 = (defDataTypeC src prp env branches)
 ;
 ; trkVal %defDataTypeC
@@ -280,7 +278,7 @@ ex=(PAIR %a %b)
 """     1
 """
 
-; Properties -> Rex -> Macro (Row (Nat, Row Symb, Rex))
+> Properties > Rex > Macro (Row (Nat, Row Symb, Rex))
 = (readDatacaseBody src prp cases err ok)
 ;
 @ onAlien (x err ret & err x 'Not a switch branch')

@@ -139,7 +139,8 @@ hexAlphabet=(natBar "0123456789abcdef")
 ;; Some Monadic Operations on `Option` ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; sequence :: Row (Option a) -> Option (Row a)
+> Row (Opt a)
+> Opt (Row a)
 = (optionRowSequence results)
 ^ _ NIL listFromRow-results
 ? (loop acc rest)
@@ -160,7 +161,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 ;; Parsing Nat Literals ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; (Char > Some Nat)
+> Char > Opt Nat
 = (readDigit char)
 | tabSwitch char NONE
 %% ="0" SOME 0
@@ -174,7 +175,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 %% ="8" SOME 8
 %% ="9" SOME 9
 
-; (Nat > Maybe Nat)
+> Nat > Opt Nat
 = (readNat n)
 @ mDigits (optionRowTraverse readDigit explode-n)
 : nums <- *maybeCase mDigits NONE

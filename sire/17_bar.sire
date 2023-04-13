@@ -33,6 +33,7 @@
 /+  06_cow  [map foldl foldr gen weld v1 v2 v4]
 /+  07_rex  [rexKids rexText '`']
 /+  07_rex  [rexGetLeaf]
+/+  typed
 /+  08_dat  [maybeCase SOME NONE]
 /+  08_dat  ["," rowAnd take all cat]
 /+  08_dat  [CONS NIL listCase]
@@ -227,11 +228,11 @@ emptyBar=(0 1 1 1)
 | add 10 (sub (minNat v %f) %a)
 
 ;
-; barFromHex/(Nat -> Bar)
 ;
 ; This presumes valid input and just returns nonsense if given anything
 ; else.
 ;
+> Nat > Bar
 = (barFromHex nat)
 @ dig | map hexCharToNat explode-nat
 @ pad | if (even len-dig) [] [0]

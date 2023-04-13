@@ -46,7 +46,7 @@
 @ [_ keys nodes hh] node
 [0 [keys nodes] hh]
 
-; Row > Maybe [a Row]
+> Row > Maybe [a Row]
 = (rowUncons r)
 | if (isZero | len r) NONE
 | *SOME [(idx 0 r) (drop 1 r)]
@@ -54,7 +54,7 @@
 !!= NONE               (rowUncons [])
 !!= (SOME [0 [1 2 3]]) (rowUncons [0 1 2 3])
 
-; Row > Maybe [Row a]
+> Row a > Maybe (Row a, a)
 = (rowUnsnoc r)
 @ l | len r
 | if (isZero l) NONE
@@ -88,7 +88,7 @@
 ;
 ; Merges two indexes with the key to put between the two of them.
 ;
-; (Index k v > k > Index k v > Index k v)
+> Index k v > k > Index k v > Index k v
 = (mergeIndex [lKeys lVals] middle [rKeys rVals])
 [(cat [lKeys [middle] rKeys]) (weld lVals rVals)]
 
@@ -96,19 +96,19 @@
    | mergeIndex [[] ["a"]] 5 [[] ["b"]]
 
 
-; (v > Index k v)
+> v > Index k v
 = (singletonIndex val) [[] [val]]
 
 
-; (Index k v > Maybe v)
+> Index k v > Maybe v
 = (fromSingletonIndex [_ vals])
 | if (eqlNat 1 (len vals)) (*SOME (get vals 0)) NONE
 
-; (Index k v > Nat)
+> Index k v > Nat
 = (indexKeyLen [keys _])
 | len keys
 
-; (Index k v > Nat)
+> Index k v > Nat
 = (indexValLen [_ vals])
 | len vals
 
@@ -117,7 +117,7 @@
 ; Given an index, split it into two so the left index has `numLeftKeys`
 ; and the right contains the rest. Also returns the pivot key.
 ;
-; (Int -> Index k v > [(Index k v) k (Index k v)])
+> Int > Index k v > (Index k v, k, Index k v)
 = (splitIndexAt numLeftKeys [keys vals])
 @ leftKeys             | take numLeftKeys keys
 @ middleKeyAndRightKey | drop numLeftKeys keys
@@ -135,7 +135,7 @@
 ;
 ;  Given a pure index with no hitchhikers, create a node.
 ;
-; (TreeFun > Int > Index k v > Index k v)
+> TreeFun > Int > Index k v > Index k v
 = (extendIndex treeFun maxIndexKeys idx)
 # openTreeFun treeFun
 @ maxIndexVals | inc maxIndexKeys
@@ -198,7 +198,7 @@
 ;; Leaf ;;
 ;;;;;;;;;;
 
-; (TreeFun > Int > Index k n)
+> TreeFun > Int > Index k n
 = (splitLeafMany treeFun maxLeafItems items)
 # openTreeFun treeFun
 @ itemLen | leafLength items
@@ -677,7 +677,7 @@ newRootNode
 ; takes a list of sets and compacts them down so each is in a range between
 ; `min` and `max`.
 ;
-; consolidate : Nat -> Nat -> Row (Cab k) -> Row (Cab k)
+> Nat > Nat > Row (Cab k) > Row (Cab k)
 = (consolidate min max row)
 @ rowLen | len row
 ^ unfoldr _ [0 0 NIL]
@@ -732,7 +732,7 @@ newRootNode
 
 ; implementation detail of intersection
 ;
-; checkSetAgainst : Cab k -> SetNode k -> [Cab k]
+> Cab k > SetNode k > [Cab k]
 = (checkSetAgainst a b)
 # datacase b
 * (LEAFNODE bLeaves)
@@ -868,7 +868,7 @@ newRootNode
 ; In SetMap, hitchhikers are a normal map of sets, but leaves are maps of
 ; raw hitchhikersets.
 ;
-; TreeConfig > Tab (HitchhikerSet Nat) > Tab Cab > Tab (Hitchhiker Set Nat)
+> TreeConfig > Tab (HSet Nat) > Tab Cab > Tab (HSet Nat)
 = (hsmLeafInsertImpl setConfig leaf hh)
 @ (alt new m)
   | *SOME

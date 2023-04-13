@@ -16,6 +16,7 @@
 /+  05_eql  [eql neq]
 /+  06_cow
 /+  07_rex
+/+  typed
 
 
 """ Basic Row Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -362,7 +363,7 @@
 & (x xs)
 | *CONS x (listWeld xs b)
 
-; Lis (Lis a) > Lis a
+> List (List a) > List a
 = (listCat ls)
 | *listCase ls NIL
 & (x xs)
@@ -552,7 +553,7 @@
 | CONS x (listCatMaybes xs)
 
 ; TODO: Fold from the left using an accumulator and remember the output length.
-; TODO: Jet (fillRowFromAccList : Nat > List a > Row a), which creates a
+; TODO: Jet fillRowFromAccList:(Nat > List a > Row a), which creates a
 ;       row from a list, in reverse order with a-prioiri knowledge of
 ;       the size of the resulting row.  This allows the jet to preallocate
 ;       an array fill it by walking the list, no need for realloc.
@@ -620,7 +621,7 @@
 
 """ Traversing Lists """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; traverseList::((a -> (b -> r)) -> Row a -> m (Row b))
+> (a > (b>r)) > Row a > m (Row b)
 = (traverseList f xs return)
 ^ _ NIL xs
 ? (go acc remain)
@@ -638,12 +639,11 @@
 !!= [4 [6 0]] | traverseList (x ret)&(if even-x ret-x 0) [4 [6 0]] I
 
 
-; :: traverseListWithState
-; -> st
-; -> (st -> b -> r))
-; -> st
-; -> List a
-; -> m st (List b)
+> st
+> (st > b > r)
+> st
+> List a
+> m st (List b)
 = (traverseListWithState st f xs return)
 ^ _ st NIL xs
 ? (go st acc remain)
@@ -664,7 +664,7 @@
 
 """ Traversing Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; traverseRow::((a -> (b -> r)) -> Row a -> m (Row b))
+> (a > (b>r)) > Row a > m (Row b)
 = (traverseRow f xs return)
 | traverseList f (listFromRow xs)
 & out
@@ -677,7 +677,7 @@
 !!= [4 6] | traverseRow (x ret)&(if even-x ret-x 0) [4 6] I
 
 
-; traverseRow::((a -> (st -> b -> r)) -> st -> Row a -> m st (Row b))
+> (a > (st>b>r)) > st > Row a > m st (Row b)
 = (traverseRowWithState st f xs return)
 | traverseListWithState st f (listFromRow xs)
 & (st out)

@@ -15,6 +15,7 @@
 /+  05_eql  [eql neq lte lth gth gte]
 /+  06_cow  [null weld v2 isRow map foldl]
 /+  07_rex
+/+  typed
 /+  08_dat  [CONS NIL listCase listFromRow listToRowReversed sort delete cat]
 /+  08_dat  [listAll listFoldl listRev listToRow]
 /+  08_dat  ["," drop take span has]
@@ -185,13 +186,13 @@
 (chr c)=(add c 48)
 (ord c)=(sub c 48)
 
-; loadDecimal/(Str -> Nat)
+> Str > Nat
 = (loadDecimal n)
 ^ listFoldl _ 0 (strToList n)
 & (acc c)
 | add (mul 10 acc) (ord c)
 
-; loadKeyWord/(Str -> Nat)
+> Str > Nat
 = (loadKeyWord str)
 | if (listAll isDigit strToList-str)
     | loadDecimal str

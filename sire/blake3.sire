@@ -77,7 +77,7 @@ st
 | u8weld get-v-2
          get-v-3
 
-; Row W8 > Row W32
+> Row U8 > Row U32
 = (bytesToWords bv)
 | if (mod len-bv 4)
     | die "byte-row length not a multiple of 4"
@@ -89,7 +89,7 @@ st
 | loop next inc-j
 | acc | u32weld | slice bv i next
 
-; Row W8 > Row W32
+> Row U8 > Row U32
 = (bytesToWords bv)
 | if (mod len-bv 4)
     | die "byte-row length not a multiple of 4"
@@ -104,12 +104,12 @@ st
 (wordToBytes a)=(gen 4 i&(dis 0xff (rsh a (mul 8 i))))
 
 ; Little Endian Byte order
-; (Row W32 > Row W8)
+> Row U32 > Row U8
 = (wordsToBytes wv)
 | catMap wordToBytes wv
 
-; > (V8 u32, V16 u32, u64, u32, u32)
-; > V16 u32
+> (Row8 U32, Row16 U32, U64, U32, U32)
+> Row16 U32
 = (b3Compress tupl)
 @       , chainingValue ;; TODO Support `,,` in patterns in `*` macro.
           blockWords
@@ -247,7 +247,7 @@ st
      b3ChunkStart
      0
 
-; b3ChunkstUpdate/(Chunk -> Row u8 -> Chunk)
+> Chunk > Row u8 > Chunk
 = (b3ChunkstUpdate c input)
 | if (isZero (len input)) c
 @ c | if (| neq b3BlockLen | b3ChunkstGetBlockLen c)
@@ -346,12 +346,12 @@ st
 
 ; Punting: newKeyed, newDeriveKey.
 
-; (h > cv > h)
+> h > CV > h
 = (b3HasherPushStack h cv)
 @ st | *CONS cv (b3HasherGetCvStack h)
 | b3HasherPutCvStack h st
 
-; (hashState > [cv hashState])
+> HashState > [CV HashState]
 = (b3HasherPopStack hSt)
 | *listCase (b3HasherGetCvStack hSt)
     | die """Trying to pop empty stack
@@ -419,7 +419,7 @@ st
       b3HasherGetFlags-h
 | final h input
 
-; (Hasher > Nat > Row u8)
+> Hasher > Nat > Row U8
 = (b3Finalize h outHashSize)
 @ out (b3ChunkstOutput b3HasherGetChunkst-h)
 ^ _ out b3HasherGetCvStack-h

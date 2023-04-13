@@ -192,7 +192,7 @@ e
 ; Given a user level entity identity, translate that to a numeric database
 ; identity.
 ;
-; resolveIdent : Ident -> Map * Nat -> DB -> [Nat (Map * Nat) DB]
+> Ident > (Map * Nat) > DB > [Nat (Map * Nat) DB]
 = (resolveIdent ident txnTmps db)
 # openDb db
 # datacase ident
@@ -219,7 +219,7 @@ e
 ; Given input items, assign numeric entity ids to everything for loading into
 ; the actual db.
 ;
-; resolveTransactionItem : [(List TxnItem) (Map * Nat) DB] -> TxnItem -> _1
+> [(List TxnItem) (Map * Nat) DB] > TxnItem > _1
 = (resolveTransactionItem [items txnTmps db] item)
 # datacase item
 * (NEWENTITY tab)
@@ -242,7 +242,7 @@ e
 ; TODO: The type is wrong. It should be `Either Error DB`, since a ton of
 ; things can error and `die` is wrong in this case.
 ;
-; transact : [TxnItem] -> DB -> DB
+> Row TxnItem > DB > DB
 = (transact items db)
 @ [resolved _ db]
   | listFoldl resolveTransactionItem [NIL %[] db]

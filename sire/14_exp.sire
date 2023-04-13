@@ -24,6 +24,7 @@
 /+  07_rex  [rexGetWord rexKids rexStyle '`']
 /+  07_rex  [rexGetNodeWithRune rexGetKidsOfNodeWithRune]
 /+  07_rex  [rexGetWordNoHeir]
+/+  typed
 /+  08_dat  ["," all zip zipWith appE rowE rowCons drop]
 /+  08_dat  [CONS NIL listCase digits]
 /+  08_dat  [listToRow listFromRow listToRowReversed listRev]

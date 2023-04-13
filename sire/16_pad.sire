@@ -44,6 +44,7 @@
 /+  05_eql  [eql neq]
 /+  06_cow  [map weld foldl]
 /+  07_rex  [rexKids rexText rexIsLeaf]
+/+  typed
 /+  08_dat  [","]
 /+  08_dat  [listFromRow listCase]
 /+  09_sci  []

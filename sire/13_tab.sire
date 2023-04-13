@@ -15,6 +15,7 @@
 /+  05_eql  [eql neq lth lte gte gth]
 /+  06_cow  [map weld rowRepel rowApply rev foldl]
 /+  07_rex  [rexKids rexGetNodeWithRune EMBD]
+/+  typed
 /+  08_dat  ["," findIdx elemIdx has rowCons cat drop take span insert]
 /+  08_dat  [appE]
 /+  08_dat  [SOME NONE maybeCase]
@@ -199,7 +200,7 @@ emptyTab=emptyCab
 @ tails | drop idx pairs
 [(tabFromPairs head) (tabFromPairs tails)]
 
-; Nat > Tab v > [(Tab v) (Tab v)]
+> Nat > Tab v > (Tab v, Tab v)
 = (tabSplitLT key t)
 @ pairs | tabToPairs t
 @ s | span p&(lth (idx 0 p) key) pairs
@@ -223,7 +224,7 @@ emptyTab=emptyCab
 & new
 | mut ix new tab
 
-; (Nat > v > v) > Tab v > Tab v
+> (Nat > v > v) > Tab v > Tab v
 = (tabMap fun tab)
 @ pairs | tabToPairs tab
 @ do
@@ -234,7 +235,7 @@ emptyTab=emptyCab
   [k nv]
 | tabFromPairs | map do pairs
 
-; (a > a > a) > Tab a > Tab a > Tab a
+> (a > a > a) > Tab a > Tab a > Tab a
 = (tabUnionWith fun ar br)
 @ a | tabToList ar
 @ b | tabToList br
@@ -262,7 +263,7 @@ emptyTab=emptyCab
 @ pairs | tabToPairs t
 | idx 0 | idx 0 pairs
 
-; (a > Nat > b > a) > a > Tab b > a
+> (a > Nat > b > a) > a > Tab b > a
 = (tabFoldlWithKey fun start tab)
 @ do
   ? (do i pair)
@@ -271,7 +272,7 @@ emptyTab=emptyCab
 
 """ Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; Tab Exp -> Exp
+> Tab Exp > Exp
 = (tabE tab)
 | appE
 | rowCons (EMBD | tabKeysCab tab)

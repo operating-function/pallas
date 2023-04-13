@@ -12,7 +12,7 @@
 ;;; This will generate a random byte, get the current time,
 ;;; wait for $byte seconds, and repeat
 ;;;
-;;; randomWait :: Ref Nat -> IO ()
+> Ref Nat > IO ()
 = (randomWait vCount k)
 : tid <- myThreadId
 : bar <- syscall (*RAND_BYTE 1)

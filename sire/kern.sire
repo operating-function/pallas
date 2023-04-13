@@ -29,16 +29,8 @@
 ;;          corespond 1-1 with the callbacks in `sl`.  For values in
 ;;          `sl` that are not pending syscalls, rq[key]=0
 ;;
-;;     type IO a = (a -> Thread) -> Thread
-;;
-;;     type Thread
-;;         = end/Action   -- What should we do when we're done?
-;;        -> me/ThreadId  -- What thread is this?
-;;        -> Action
-;;
-;;     type Action = fr/(List Nat) -> sl/(Row Any) -> rq/(Row Req) -> Void
-;;
-;; ### Strictness
+;; Strictness
+;; ----------
 ;;
 ;; In theory, we should be using strictness annotations everywhere in
 ;; this code.  We are accumulating lazy state, and that creates a lot
@@ -57,9 +49,27 @@
 /+ datatype
 
 
+""" Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+# typedef (IO a)
+    > (a > Thread)
+    > Thread
+
+# typedef Thread
+    > end:Action   ;; What should we do when we're done?
+    > me:ThreadId  ;; What thread is this?
+    > Action
+
+# typedef Action
+    > fr:(List Nat)
+    > sl:(Row Any)
+    > rq:(Row Req)
+    > Void
+
+
 """ Basic Control Flow """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; DONE : Any -> Thread
+> Any > Thread
 = (DONE _ end me fr kl sl rq)
 | end [me fr] kl sl rq
 ; This is called when a thread reaches the end of its program.  This does
@@ -79,29 +89,29 @@
 @ [key fr] | fr
 | k key fr kl sl rq
 
-; myThreadId : IO ThreadId
+> IO ThreadId
 = (myThreadId k end me fr kl sl rq)
 | k me end me fr kl sl rq
 
-; getKernelState : IO KernelState
+> IO KernelState
 = (getKernelState k end me fr kl sl rq)
 | k (end,me,fr,kl,sl,rq) end me fr kl sl rq
 
-; fork : IO a -> IO ThreadId
+> IO a > IO ThreadId
 = (fork act k end me fr kl sl rq)
 : tid fr kl sl rq <- allocateSlot fr kl sl rq
 | act DONE (k tid end me) tid fr kl sl rq
 
-; prepareFork :: IO ThreadId
+> IO ThreadId
 = (prepareFork k end me fr kl sl rq)
 : tid fr kl sl rq <- allocateSlot fr kl sl rq
 | k tid end me fr kl sl rq
 
-; finalizeFork :: ThreadId -> IO a -> IO ()
+> ThreadId > IO a > IO ()
 = (finalizeFork tid act k end me fr kl sl rq)
 | act DONE (k 0 end me) tid fr kl sl rq
 
-; cancelFork : ThreadId -> IO () -> IO ()
+> ThreadId > IO () > IO ()
 = (cancelFork tid act k end me fr kl sl rq)
 | if (tid == me)
     | die 'TODO: cancelfork should support canceling the current thread'
@@ -114,7 +124,7 @@
 ; a response in-flight on this thread.  Only use this if that case
 ; is impossible).
 
-; cancel :: ThreadId -> IO ()
+> ThreadId > IO ()
 = (cancel tid k end me fr kl sl rq)
 @ sl (put sl tid 0)
 @ rq (put rq tid 0)
@@ -132,7 +142,7 @@
 
 """ Refs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; newRef : a -> IO (Ref a)
+> a > IO (Ref a)
 = (newRef val k end me fr kl sl rq)
 | if (0 == fr)
     @ key (len sl)
@@ -143,21 +153,21 @@
 @ sl       | put sl key val
 | k key end me fr kl sl rq
 
-; readRef : Ref a -> IO a
+> Ref a > IO a
 = (readRef key k end me fr kl sl rq)
 | k (get sl key) end me fr kl sl rq
 
-; writeRef : Ref a -> a -> IO ()
+> Ref a > a > IO ()
 = (writeRef key val k end me fr kl sl rq)
 @ sl (put sl key val)
 | k 0 end me fr kl sl rq
 
-; modifyRef :: Ref a -> (a -> a) -> IO ()
+> Ref a > (a > a) > IO ()
 = (modifyRef key fun k end me fr kl sl rq)
 @ sl (| put sl key | fun | get sl key)
 | k 0 end me fr kl sl rq
 
-; freeRef : Ref a -> IO ()
+> Ref a > IO ()
 = (freeRef key k end me fr kl sl rq)
 @ sl (put sl key 0)
 @ fr [key fr]
@@ -174,7 +184,7 @@
 
 newEmptyMVar=(newRef (*MV_EMPT []))
 
-; putMVar : MVar a -> a -> IO ()
+> MVar a > a > IO ()
 = (putMVar key newVal k end me fr kl sl rq)
 # datacase (get sl key)
 * (MV_FULL existingVal writers)
@@ -216,7 +226,7 @@ newEmptyMVar=(newRef (*MV_EMPT []))
 
 """ The Kernel """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; syscall : Request -> IO Response
+> Request > IO Response
 = (syscall request k end me fr kl sl rq)
 @ rq (put rq me request)
 @ sl (put sl me k)
@@ -260,7 +270,7 @@ cog
 @ kl | ~[]
 | STEP KERNEL (tabToPairList event) fr kl sl rq
 
-; newMachine :: IO a -> Machine
+> IO a > Machine
 = (newMachine startUp)
 @ k   | DONE
 @ end | KERNEL

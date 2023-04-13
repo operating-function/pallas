@@ -273,9 +273,10 @@ t
 
 (bindMaybe mVal k)=(*maybeCase mVal NONE k)
 
-; bs > Maybe Row Cord
 ;
 ; the json here being parsed is `{tag: "Search", contents: [array of str]}`.
+;
+> Bar > Opt (Row Cord)
 = (parseSearch jsonBS)
 : m <- *bindMaybe (jsonMap jsonBS)
 | if | not | eql (SOME [%str b#{Search}]) | tabLookup %tag m

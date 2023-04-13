@@ -28,7 +28,7 @@
 
 ;; Core Thread Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; {allocateThread : State -> (State, ThreadId)}
+> State > (State, ThreadId)
 = (allocateThread [free slots requests])
 | ifNot (0 == free)
     @ [key free] | free
@@ -40,14 +40,14 @@
 @ st [free slots requests]
 (st,key)
 
-; releaseThread : ThreadId -> State -> State
+> ThreadId > State > State
 = (releaseThread key [free slots requests])
 @ slots    | put slots    key 0
 @ requests | put requests key 0
 @ free     | [key free]
 | [free slots requests]
 
-; allocateRef : Any -> State -> (State, Ref Any)
+> Any > State > (State, Ref Any)
 = (allocateRef value [free slots requests])
 | ifNot (free == 0)
     @ [key free] | free
@@ -60,7 +60,7 @@
 @ st       | [free slots requests]
 (st,key)
 
-; releaseRef :: Ref a -> State -> State
+> Ref a > State > State
 = (releaseRef key [free slots requests])
 @ slots | put slots key 0
 @ free  | [key free]
@@ -81,25 +81,25 @@
 ;; longer have an existing thread.  Similarly, a thread can terminate
 ;; itself by deleting itself from the state.
 ;;
-;; Action = (ThreadId -> State -> State)
-;; Thread = Response -> Action
-;; Effect = Thread -> Action
-;;
 
-; {nullThread :: Thread}
+# typedef Action (> ThreadId > State > State)
+# typedef Thread (> Response > Action)
+# typedef Effect (> Thread > Action)
+
+> Thread
 (nullThread _resp tid st)=(releaseThread tid st)
 
 (pure val k t s)=(k val t s)
 (myThreadId k t s)=(k t t s)
 (getKernelState k t s)=(k s t s)
 
-; {fork :: IO a -> IO ThreadId}
+> IO a > IO ThreadId
 = (fork act k tid st)
 @ st,newTid | allocateThread st
 @ st        | act nullThread newTid st
 | k newTid tid st
 
-; cancelFork : ThreadId -> IO () -> IO ()
+> ThreadId > IO () > IO ()
 = (cancelFork tid act k me [free slots requests])
 @ slots    | put slots    tid 0
 @ requests | put requests tid 0
@@ -110,35 +110,35 @@
 ; (cancel+fork) except that the result is guarenteed to use the same
 ; threadId
 
-; {prepareFork :: IO ThreadId}
+> IO ThreadId
 = (prepareFork k me st)
 @ st,newTid | allocateThread st
 | k newTid me st
 
-; {finalizeFork :: ThreadId -> IO a -> IO ()}
+> ThreadId > IO a > IO ()
 = (finalizeFork tid act k me st)
 @ st (act nullThread tid st)
 | k 0 me st
 
-; {newRef :: a -> IO (Ref a)}
+> a > IO (Ref a)
 = (newRef val k tid st)
 @ st,var (allocateRef val st)
 ; trk %newRef,var,val
 | k var tid st
 
-; {readRef :: Ref a -> IO a}
+> Ref a > IO a
 = (readRef var k tid st)
 @ val (*getSlot var st)
 ; trk %readRef,var,val
 | k val tid st
 
-; {writeRef :: Ref a -> a -> IO ()}
+> Ref a > a > IO ()
 = (writeRef var val k tid st)
 ; trk %writeRef,var,val
 @ st (*setSlot var val st)
 | k 0 tid st
 
-; {modifyRef :: Ref a -> (a -> a) -> a -> IO ()}
+> Ref a > (a>a) > a > IO ()
 = (modifyRef var fun k tid st)
 ; trk %modifyRef,var,fun
 @ val (fun (*getSlot var st))
@@ -146,7 +146,7 @@
 @ st (*setSlot var val st)
 | k 0 tid st
 
-; {freeRef :: Ref a -> IO ()}
+> Ref a > IO ()
 = (freeRef var k tid st)
 @ st (releaseRef var st)
 | k 0 tid st
@@ -154,7 +154,7 @@
 ;;;
 ;;; TODO Testing
 ;;;
-;;; {cancel :: ThreadId -> IO ()}
+> ThreadId > IO ()
 = (cancel targetThread k me st)
 | if (eql targetThread me)
     | releaseThread me st
@@ -163,17 +163,17 @@
 ;;;
 ;;; TODO Testing
 ;;;
-;;; {exit :: IO a}
+> IO a
 (exit k me st)=(cancel me k me st)
 
 
-; andThen : IO a -> IO b -> IO b
+> IO a > IO b > IO b
 = (andThen x y k)
 : xr <- x
 : yr <- y
 | k yr
 
-; bindIO : IO a -> (a -> IO b) -> IO b
+> IO a > (a > IO b) > IO b
 = (bindIO x y k)
 : xr <- x
 : yr <- y xr
@@ -182,7 +182,7 @@
 = (foreverCycle act resp tid st)
 | act (foreverCycle act) tid st
 
-; forever : IO a -> IO b
+> IO a > IO b
 (forever act k tid st)=(foreverCycle act 0 tid st)
 
 = (">>" e n kids heir)
@@ -225,7 +225,7 @@
 ; trk %[requests=(getRequestsRow st_)]
 | ioLoop st_ (*getRequestsRow st_)
 
-; newMachine :: IO a -> Machine
+> IO a > Machine
 = (newMachine act)
 ; trk (%newMachine),act
 @ st,tid (allocateThread emptyState)
@@ -272,9 +272,9 @@
 ;;;
 ;;; First we fetch `targetThread` from the kernel state.
 ;;;
-;;;    targetThread : Thread
-;;;    targetThread : Any -> Action
-;;;    targetThread : Any -> ThreadId -> State -> State
+;;;    \ targetThread > Thread
+;;;    \ targetThread > Any > Action
+;;;    \ targetThread > Any > ThreadId > State > State
 ;;;
 ;;; Then we run this function, allowing it to update
 ;;; the state.  It will replace it's request/continuation
@@ -287,14 +287,14 @@
 ;;; for this thread and waits to be explicitly resumed via `yield`.
 ;;;
 
-; yield : ThreadId -> Any -> IO ()
+> ThreadId > Any > IO ()
 = (yield targetThreadId val return ourThreadId st)
 @ targetThread (*getSlot targetThreadId st)
 @ st (targetThread val targetThreadId st)
 | seq st
 | return () ourThreadId st
 
-; block : IO a
+> IO a
 = (block return tid st)
 | *setRequest tid 0
 | *setSlot tid return
@@ -398,7 +398,7 @@
 
 ;; Concurency ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; concurrently : IO a -> IO b -> IO (a, b)
+> IO a > IO b > IO (a, b)
 = (concurrently x y return)
 : xMVar   <- newEmptyMVar
 : yMVar   <- newEmptyMVar
@@ -412,7 +412,7 @@
 ; trk %[=yVal]
 | return [xVal yVal]
 
-; mapConcurrently : (a -> IO b) -> Row a -> IO (Row b)
+> (a > IO b) > Row a > IO (Row b)
 = (mapConcurrently f xs return)
 : pending <- for xs & (x return)
                     : xMVar   <- newEmptyMVar
@@ -421,7 +421,7 @@
 : results <- for pending takeMVar
 | return results
 
-; forConcurrently : Row a -> (a -> IO b) -> IO (Row b)
+> Row a > (a > IO b) > IO (Row b)
 (forConcurrently xs f return)=(*mapConcurrently f xs return)
 
 

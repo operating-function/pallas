@@ -133,7 +133,7 @@
 """ ; wait :: Time                       -> IO ()
 """ ; serv :: Text -> Noun -> Hash       -> IO ()
 """ ; fork :: (PrivKey -> Addr -> IO ()) -> IO PubKey
-""" ; rand ::                               IO Word128
+""" ; rand ::                               IO U128
 """ ; when ::                               IO Time
 """
 """ ;, %GOT_REPLY_FROM_CHILD

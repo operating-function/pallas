@@ -6,7 +6,9 @@
 """
 """
 
-/+ boot
+/+ 02_bit
+/+ 03_nat
+/+ 07_rex
 
 = (">" s p e a r err ok)
 @ heir (rexHeir r)

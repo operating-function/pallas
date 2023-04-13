@@ -110,7 +110,7 @@
 ; in the body of a let-binding, so all of the branches become calls to
 ; `if` instead of being a part of the law's code.
 ;
-; lexDecimal/(Bar -> Nat -> (| Or Zero | Or Nat | [Nat Nat Nat])
+> Bar > Nat > (| Or Zero | Or Nat | [Nat Nat Nat])
 = (lexDecimal input off)
 @ c (barIdx off input)
 ;
@@ -150,8 +150,7 @@
 ; because it's used in the body of a let-binding, so all of the branches
 ; become calls to `if` instead of being a part of the law's code.
 ;
-; lexDecimal/(Bar -> Nat -> (| Or Zero | Or Nat | [Nat Nat Nat])
-; lexExponent/(Bar -> Nat -> (Or Nat (Or Zero [Nat Nat], Nat))
+> Bar > Nat > (Or Nat (Or Zero (Nat,Nat), Nat))
 = (lexExponent input off)
 ;
 @ chr    (barIdx off input)

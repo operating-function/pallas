@@ -77,6 +77,7 @@
 /+  07_rex  [rexGetNodeWithRune]
 /+  07_rex  [NEST OPEN WORD]
 /+  07_rex  [rexIdnt]
+/+  typed
 /+  08_dat  [switch all tag drop rowCons cat take zip bapE]
 /+  08_dat  [CONS NIL listCase]
 /+  08_dat  [listToRowReversed listZip listEnumFrom listToRow listFromRow]
@@ -565,13 +566,13 @@
 = symSigNoHeir | "name-sequence cannot have an heir"
 
 ;
-; readDestroyer :: Rex -> RexParser2 Key (Row Pat)
 ;
 ; `readDestroyer` parsing something with the same shape as a function
 ; signature:
 ;
 ;     (| Key Pat*)
 ;
+> Rex > RexParser2 Key (Row Pat)
 = (readDestroyer rex err ok)
 : sons heir
         < rexGetNodeWithRune "|" rex
