@@ -1,0 +1,29 @@
+"""
+""" typed.sire
+"""
+""" This contains stub definitions of type-annotation runes.  These don't
+""" do anything, they simply ignore the type annotations.
+"""
+"""
+
+/+ boot
+
+= (">" s p e a r err ok)
+@ heir (rexHeir r)
+| if (isZero heir)
+    | err r "> annotations require an heir to annotate"
+| ok p a heir
+
+= ("\" s p e a r err ok)
+@ placeholder (`0)
+| ok p a placeholder
+
+= ("#typedef" s p e a r err ok)
+@ placeholder (`0)
+| ok p a placeholder
+
+^-^
+^-^ ">"
+^-^
+^-^ "#typedef" "\"
+^-^
