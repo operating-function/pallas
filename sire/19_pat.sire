@@ -75,6 +75,7 @@
 /+  07_rex  [rexIsNode rexIsLeaf]
 /+  07_rex  [rexGetKidsOfNodeWithRune rexGetWord]
 /+  07_rex  [rexGetNodeWithRune]
+/+  07_rex  [rexSetRune rexSetSons]
 /+  07_rex  [NEST OPEN WORD]
 /+  07_rex  [rexIdnt]
 /+  typed
@@ -228,14 +229,43 @@
              | ret [k v]
 | ok (%t, tabFromPairs result)
 
+; =x
 ; x=[a b c]
+; TODO: support x=y=z, just for completeness (zero, one, or many)
 = (parseAliasedBinder parseBinder rex err ok)
 : kids <- readNodeWithoutHeirButWithRune "=" rex err
+| if (eql 1 len-kids)
+        | parseBinder (idx 0 kids) err ok
 | if (neq 2 len-kids)
         | err rex "Alias-Patterns expect two kids: x=y"
 : foo < parseBinder (idx 0 kids) err
 : bar < parseBinder (idx 1 kids) err
 | ok [%a foo bar]
+
+
+; =(PIN x)
+= (parsePinBinder parseBinder rex err ok)
+: kids <- readNodeWithoutHeirButWithRune "|" rex err
+| if (neq 2 len-kids)
+        | err rex "Pin-Pattern expects two kids: (PIN x)"
+| ifNot (rexEql `PIN | idx 0 kids)
+        | err rex "Pin-Pattern expects rex-head to be `PIN"
+: item < parseBinder (idx 1 kids) err
+| ok [%pin item]
+
+
+; =(LAW n a b)
+= (parseLawBinder parseBinder rex err ok)
+: kids <- readNodeWithoutHeirButWithRune "|" rex err
+| if (neq 4 len-kids)
+        | err rex "Law-Pattern expects four kids: (LAW n a b)"
+| ifNot (rexEql `LAW | idx 0 kids)
+        | err rex "Law-Pattern expects rex-head to be `LAW"
+: n < parseBinder (idx 1 kids) err
+: a < parseBinder (idx 2 kids) err
+: b < parseBinder (idx 3 kids) err
+| ok [%law n a b]
+
 
 = (parseBinder rex err ok)
 | if (rexIsLeaf rex)
@@ -250,6 +280,26 @@
         | parseTabBinder parseBinder rex err ok
 | if (eql rune "=")
         | parseAliasedBinder parseBinder rex err ok
+| if (eql rune "|")
+        ;
+        ; TODO: Gnarly hack, don't keep
+        ;
+        ; This just makes any unknown constror pattern works as if it
+        ; was a row.  This mostly works but is extremely jank.  The right
+        ; way involves looking up meta-information to verify that this
+        ; is a #record, checking the arity, etc.
+        ;
+        @ sons | rexSons rex
+        @ numb | len sons
+        @ head | idx 0 sons
+        | if (rexEql head `LAW)
+            | parseLawBinder parseBinder rex err ok
+        | if (rexEql head `PIN)
+            | parsePinBinder parseBinder rex err ok
+        ^ parseBinder _ err ok
+        | rexSetRune ","
+        | rexSetSons (drop 1 | rexSons rex)
+        | rex
 | *else
         | err rex "Unknown binding pattern"
 
@@ -332,6 +382,17 @@
         @ acc [tey tmp exp []]::acc
         : nex acc <- go (varE tmp) (idx 1 bindSpec) nex acc
         : nex acc <- go (varE tmp) (idx 2 bindSpec) nex acc
+        | ok nex acc
+| if (eql 'pin' typ)
+        @ acc [tey tmp exp []]::acc
+        @ exp (appE (cnsE pinItem, varE tmp))
+        : nex acc <- go exp (idx 1 bindSpec) nex acc
+        | ok nex acc
+| if (eql 'law' typ)
+        @ acc [tey tmp exp []]::acc
+        : nex acc <- go appE|(cnsE lawName, varE tmp) (idx 1 bindSpec) nex acc
+        : nex acc <- go appE|(cnsE lawArgs, varE tmp) (idx 2 bindSpec) nex acc
+        : nex acc <- go appE|(cnsE lawBody, varE tmp) (idx 3 bindSpec) nex acc
         | ok nex acc
 @ dat (idx 1 bindSpec)
 @ acc [tey tmp exp []]::acc
@@ -742,11 +803,6 @@
      | foldr ([k v] t & tabMut k v t) %[] [[%x 0] [%y 1] [%z 2]]
 
 
-""" Col Sugar with Destroy """""""""""""""""""""""""""""""""""""""""""""""""""""
-
-'TODO'
-
-
 """ Top-Level Definitions with Destroy """""""""""""""""""""""""""""""""""""""""
 
 = (keyE k)
@@ -835,6 +891,20 @@
     : ??(self x) <- (k & k 'self')
     | and (eql x 'self')
           (| eql x | lawName | pinItem self)
+
+
+!!= 5
+        @ =(PIN five)  (4 5)
+        | five
+
+!!= ('f', 1, 1)
+        @ =(LAW n a b)  (f x ? x)
+        [n a b]
+
+!!= [6 5]
+        @ =(CELL x y)  [5 6]
+        [y x]
+
 
 ;;  : (sigRex bodyExpr) <- rexParseKids r [readAny readAny] err
 ;;  : (sym    binds  )  <- readDestroyer sigRex err
