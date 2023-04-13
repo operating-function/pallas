@@ -1,18 +1,30 @@
+;;
 ;; Simple OS Kernel based on the Haskell IO Monad.
 ;;
 ;; This is probably not the ideal kernel paradigm in the long run,
 ;; since there's no good way to upgrade running code, but it works great
 ;; for demos.
 ;;
+;;
+;; Kernel State
+;; ------------
+;;
 ;; This implementation is in continuation passing style, where each step
-;; passes around five values:
+;; passes around six values:
 ;;
 ;; -  `end`: What to do when this thread is done executing for now?
+;;
 ;; -  `me`: What is the thread-id of the current thread?
+;;
 ;; -  `fr`: A list of unused slots in the `sl` array.
+;;
 ;; -  `kl`: A list of slots that house canceled requests.  They are not
-;;          re-used until the next event.
-;; -  `sl`: An array of "state slots", used for paused threads, IORefs, etc.
+;;          re-used until the next event.  Each event has multiple
+;;          syscall responses.  If a slot was re-used before it's response
+;;          was handled, then it will be handled by the wrong handler.
+;;
+;; -  `sl`: An array of "state slots", used for paused threads, Refs, etc.
+;;
 ;; -  `rq`: An array of live requests to the runtime system.  These
 ;;          corespond 1-1 with the callbacks in `sl`.  For values in
 ;;          `sl` that are not pending syscalls, rq[key]=0
@@ -30,15 +42,16 @@
 ;;
 ;; In theory, we should be using strictness annotations everywhere in
 ;; this code.  We are accumulating lazy state, and that creates a lot
-;; of useless thunks and leaks space.
+;; of useless thunks that need to be forced at the end of the event.
 ;;
 ;; However, the these space leaks are small and short-lived (because
 ;; each event is short-lived).  Using strictness annotations actually
 ;; slows things down.
 ;;
 ;; Eventually, when the interpreter is smarter, strictness annotations
-;; will have zero (actually negative) overhead, and then this code should
-;; be made strict.
+;; should have negative overhead.  At that point, this code should be
+;; made fully strict.
+;;
 
 /+ boot
 /+ datatype
@@ -50,7 +63,7 @@
 = (DONE _ end me fr kl sl rq)
 | end [me fr] kl sl rq
 ; This is called when a thread reaches the end of its program.  This does
-; nothing, it simply yields control back to the kernel.
+; nothing and never returns, it simply yields control back to the kernel.
 ;
 ; The rest of the kernel enforces the invariant that
 ; requests/continuations are zeros as soon as they are used/canceled.

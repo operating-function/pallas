@@ -84,7 +84,7 @@
 = sigNoHeir | "name-sequence cannot have an heir"
 
 = (readKeySignature rex err ok)
-| if (neq 0 rexHeir-rex)
+| ifNot (isZero rexHeir-rex)
         | err rex sigNoHeir
 | if (rexIsNode rex)
         | if (neq "|" rexRune-rex)

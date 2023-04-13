@@ -350,9 +350,9 @@ NONE
 ;
 ;| trk [%ids ids]
 @ targetIds
-  | cabList
-  | cabTake 25
-  | cabDrop offset ids
+    | cabList
+    | cabTake 25
+    | cabDrop offset ids
 @ records
     | listToRow
     | listTurnMaybe targetIds
@@ -432,15 +432,13 @@ NONE
 @ [nuImgs nuTags nuImgCount nuPairCount]
     (forceUnpackEvalResult %learn res)
 ;
-: __ <- modifyState vSt & st
-                        | setImgCount nuImgCount
-                        | setPairCount nuPairCount
-                        | setImgs nuImgs
-                        | setTags nuTags
-                        | st
-;
+: _ <- modifyState vSt & st
+                       | setImgCount nuImgCount
+                       | setPairCount nuPairCount
+                       | setImgs nuImgs
+                       | setTags nuTags
+                       | st
 ; Release the lock (This wont block, since there are no other writers)
-;
 | putMVar learnLock () return
 
 = (addToState vSt rid jsonPin return)
