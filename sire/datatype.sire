@@ -378,7 +378,10 @@ ex=(PAIR %a %b)
 """     1
 """
 
-> Properties > Rex > Macro (Row (Nat, Row Symb, Rex))
+> Map Symbol Nat
+> Properties
+> Rex
+> Macro2 Rex (Row (Nat, Row Symb, Rex))
 = (readDatacaseBody src prp cases err ok)
 ;;;;;
 : clauses
@@ -386,12 +389,18 @@ ex=(PAIR %a %b)
       ? (onAlien x err ret)
       | err x 'Not a switch branch'
 ;;;;;
-^ _ NIL (listFromRow clauses)
-? (go acc remain)
+^ _ NONE NIL (listFromRow clauses)
+? (go oFallback acc remain)
 : [sigRex bodyRex] remain
     < *listCase remain
-        | ok | listToRowReversed acc
-;
+        | ok (fromSome (natE 0) oFallback)
+        | listToRowReversed acc
+;;;;;
+| if (rexEql `_ sigRex)
+    | ifNot (isZero oFallback)
+        | err cases "Only one fallback-pattern is allowed"
+    | go (SOME bodyRex) acc remain
+;;;;;
 : constr fields
     < & k
       | if (rexIsLeaf sigRex)
@@ -428,22 +437,40 @@ ex=(PAIR %a %b)
     | err sigRex
     ^ strWeld _ (showNat ari)
     | 'This constructor requires arity='
-;
-| go acc remain
+;;;;;
+| go oFallback acc remain
 
-!!=    ,, [0 0 []                      `[x "]"]]
-       ,, [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
-    ^ _ v2 I
-    | readDatacaseBody
-           %% =LNULL 3
-           %% =LCONS 4
-       %% =conTag [3=0 4=1]
-       %% =conAri [3=0 4=2]
-   ``
-    * LNULL       [x "]"]
-    * (LCONS _ _) [x " " (go xs)]
+!!=    ,, (natE 0)
+       ,,  ,, [0 0 []                      `[x "]"]]
+           ,, [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
+    ^ _ v2 v2
+    @ xpr `` * LNULL       [x "]"]
+             * (LCONS _ _) [x " " (go xs)]
+    @ src %% =LNULL 3
+          %% =LCONS 4
+    @ prp %% =conTag %[3=0 4=1]
+          %% =conAri %[3=0 4=2]
+    | readDatacaseBody src prp xpr
 
-= (makeDatacaseExpr aft valExp cases return)
+!!=    ,, `[x " " (go xs)]
+       ,,  ,, [0 0 [] `[x "]"]]
+    ^ _ v2 v2
+    @ xpr `` * LNULL [x "]"]
+             * _     [x " " (go xs)]
+    @ src %% =LNULL 3
+          %% =LCONS 4
+    @ prp %% =conTag %[3=0 4=1]
+          %% =conAri %[3=0 4=2]
+    | readDatacaseBody src prp xpr
+
+= xpr `` * _ 0
+         * _ 0
+
+!!=    ,, xpr
+       ,, "Only one fallback-pattern is allowed"
+    | readDatacaseBody %[] %[] xpr v2 v2
+
+= (makeDatacaseExpr aft valExp fallback cases return)
 @ !tmpVar (gensym aft)
 @ !tmpExp (varE tmpVar)
 @ !aft (inc aft)
@@ -457,7 +484,7 @@ ex=(PAIR %a %b)
 @ tagExp (appE (cnsE dataTag, tmpExp))
 @ result
     | OPEN 0 '@' [tmpExp valExp]
-    | switchE tagExp (natE 0)
+    | switchE tagExp fallback
     | tabFromPairs
     | pairs
 | return aft result
@@ -474,8 +501,8 @@ ex=(PAIR %a %b)
         | err r '#datacase requires one son plus an heir.'
 ;;;
 @ [_ valExp] sons
-: cases   < readDatacaseBody s p heir err
-: nex exp < makeDatacaseExpr nex valExp cases
+: fb cases < readDatacaseBody s p heir err
+: nex exp  < makeDatacaseExpr nex valExp fb cases
 | ok p nex exp
 
 # datatype (List a)
@@ -497,6 +524,20 @@ ex=(PAIR %a %b)
 
 !!= '[a b c]'
         | showList | LCONS %a | LCONS %b | LCONS %c LNULL
+
+!!= 'hi' # datacase (LCONS 3 4)
+         * LNULL 'bye'
+         * _     'hi'
+
+!!= 'hi' # datacase (LCONS 3 4)
+         * LNULL 'byte'
+         * _
+         | 'hi'
+
+; TODO
+; !!= 'hi' # datacase (LCONS 3 4)
+;          * LNULL 'bye'
+;          | 'hi'
 
 
 """ Backfills """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
