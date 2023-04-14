@@ -1,6 +1,7 @@
 /+  boot
 /+  switch  ['#switch' switchE unrollSlip2Tar]
 
+
 """ Getting that tag from an object """"""""""""""""""""""""""""""""""""""""""""
 
 ;;; TODO: Jet this and OP1 this.
@@ -379,41 +380,55 @@ ex=(PAIR %a %b)
 
 > Properties > Rex > Macro (Row (Nat, Row Symb, Rex))
 = (readDatacaseBody src prp cases err ok)
-;
-@ onAlien (x err ret & err x 'Not a switch branch')
-: clauses <- unrollSlip2Tar cases onAlien err
-;
+;;;;;
+: clauses
+    < ^ unrollSlip2Tar cases _ err
+      ? (onAlien x err ret)
+      | err x 'Not a switch branch'
+;;;;;
 ^ _ NIL (listFromRow clauses)
 ? (go acc remain)
 : [sigRex bodyRex] remain
-       <- *listCase remain (ok | listToRowReversed acc)
+    < *listCase remain
+        | ok | listToRowReversed acc
 ;
-: constr fields < & k
-                    | if (rexIsLeaf sigRex)
-                        : sym < readKey sigRex err
-                        | k sym []
-                    | readDestroyer sigRex err k
-; trk [=constr =fields]
+: constr fields
+    < & k
+      | if (rexIsLeaf sigRex)
+          : sym < readKey sigRex err
+          | k sym []
+      | *else
+          | readDestroyer sigRex err k
 ;
 | ifNot (hasKey constr src)
-        | err sigRex (strWeld "Undefined Pattern: " constr)
+    | err sigRex
+    ^ strWeld _ constr
+    | "Undefined Pattern: "
 ;
 @ key (look src constr)
 | if (isZero key)
-        | err sigRex (strWeld "Pattern defined without identity: " constr)
+    | err sigRex
+    ^ strWeld _ constr
+    | "Pattern defined without identity: "
 ;
-| if (not (hasProperty key 'conTag' prp))
-        | err sigRex (strWeld "Unknown constructor(tag): " constr)
-| if (not (hasProperty key 'conAri' prp))
-        | err sigRex (strWeld "Unknown constructor(ari): " constr)
+| ifNot (hasProperty key 'conTag' prp)
+    | err sigRex
+    ^ strWeld _ constr
+    | "Unknown constructor(tag): "
+| ifNot (hasProperty key 'conAri' prp)
+    | err sigRex
+    ^ strWeld _ constr
+    | "Unknown constructor(ari): "
 ;
-@ = tag (getProperty key 'conTag' prp)
-  = ari (getProperty key 'conAri' prp)
-  = acc (CONS [tag ari fields bodyRex] acc)
+@ tag | getProperty key 'conTag' prp
+@ ari | getProperty key 'conAri' prp
+@ acc | CONS [tag ari fields bodyRex] acc
 ;
 | if (neq ari len-fields)
-    | err sigRex | strWeld 'This constructor requires arity=' (showNat ari)
-;;;
+    | err sigRex
+    ^ strWeld _ (showNat ari)
+    | 'This constructor requires arity='
+;
 | go acc remain
 
 !!=    ,, [0 0 []                      `[x "]"]]
