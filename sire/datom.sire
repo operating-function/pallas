@@ -29,27 +29,43 @@
 ; rschema
 
 ; raw operation to add a resolved tuple to the database
-= (rawAdd e a v doIndex db)
+= (rawAdd e a v indexed many db)
 # openDb db
-@ (alter2 c in)
+; only usable for tuples which end in [v] (eav, aev)
+@ (alterEndVal c in)
   | *SOME
   : cab <- *maybeCase in (cabSingleton c)
-  | cabIns c cab
-@ (alter b c in)
+  | if many | cabIns c cab
+  | cabSingleton c
+; only usable for tuples whose middle is not v (eav, aev)
+@ (alterNotVal b c in)
   | *SOME
   : tab <- *maybeCase in
               | tabSingleton b
               | cabSingleton c
-  | tabAlter (alter2 c) b tab
-@ eav | tabAlter (alter a v) e eav
-@ aev | tabAlter (alter e v) a aev
+  | tabAlter (alterEndVal c) b tab
+; only usable for tuples whose middle IS v (ave)
+@ (alterEndNonV c in)
+  | *SOME
+  : cab <- *maybeCase in (cabSingleton c)
+  | cabIns c cab
+; only usable for tuples whose middle IS v (ave)
+@ (alterMiddleV b c in)
+  | *SOME
+  : tab <- *maybeCase in
+              | tabSingleton b
+              | cabSingleton c
+  | tabAlter (alterEndNonV c) b tab
+@ eav | tabAlter (alterNotVal a v) e eav
+@ aev | tabAlter (alterNotVal e v) a aev
 @ ave
-  | ifNot doIndex ave
-  | tabAlter (alter v e) a ave
+  | ifNot indexed ave
+  | tabAlter (alterMiddleV v e) a ave
 | DB eav aev ave maxEid
 
 ; raw remove
-= (rawRm e a v db)
+= (rawRm e a v many db)
+; TODO: obey `many`.
 # openDb db
 @ (alter2 c in)
   : cab <- *maybeCase in NONE
@@ -70,9 +86,11 @@
 
 = dbIdentId 0
 = dbIdentStr ":db/ident"
-= dbUniqueId 1
+= dbCardinalityId 1
+= dbCardinalityStr ":db/cardinality"
+= dbUniqueId 2
 = dbUniqueStr ":db/unique"
-= dbIndexedId 2
+= dbIndexedId 3
 = dbIndexedStr ":db/indexed"
 
 = emptyDB
@@ -81,7 +99,7 @@
   @ aev    %[]
   @ ave    %[]
   ; todo: add vae table when I implement :db/ref.
-  @ maxEid 3
+  @ maxEid 4
   | DB eav aev ave maxEid
 ; an "empty" db still needs to have some "built-in" tuples to allow for
 ; attribute resolution. each attribute still has an eid.
@@ -91,24 +109,31 @@
 ; [":db/ident" ":my/attr"] and will use the entity number in storage.
 ;
 ; TODO: Must validate that incoming data type is a cord when I add value types.
-| rawAdd dbIdentId dbIdentId dbIdentStr TRUE
-| rawAdd dbIdentId dbUniqueId TRUE TRUE
+| rawAdd dbIdentId dbIdentId dbIdentStr TRUE TRUE
+| rawAdd dbIdentId dbUniqueId TRUE TRUE TRUE
 ;
 ; :db/unique is whether values for this attribute must be unique. It defaults
 ; to false. When true, and a transaction attempts to commit an already existing
 ; value, errors to the user.
-| rawAdd dbUniqueId dbIdentId dbUniqueStr TRUE
+| rawAdd dbUniqueId dbIdentId dbUniqueStr TRUE TRUE
 ;
 ; :db/indexed is whether values for this attribute are indexed, ie, whether you
 ; can look up an eid by their attribute and value. :db/unique implies
 ; :db/indexed.
-| rawAdd dbIndexedId dbIdentId dbIndexedStr TRUE
+| rawAdd dbIndexedId dbIdentId dbIndexedStr TRUE TRUE
+;
+; :db/cardinality is "one" or "many". When adding a tuple whose attribute has
+; cardinality "one", the value is overwritten. When "many", multiple values
+; accumulate.
+;
+; TODO: validate the values "one" or "many" once I implement :db/attr.preds.
+| rawAdd dbCardinalityId dbIdentId dbCardinalityStr TRUE TRUE
 db
 
 ;; Resolved transaction changes
 # datatype TxOper
-* RESADD entityId:Any attr:Any val:Any indexed:Any
-* RESRETRACT entityId:Any attr:Any val:Any
+* RESADD entityId:Any attr:Any val:Any indexed:Any many:Any
+* RESRETRACT entityId:Any attr:Any val:Any many:Any
 
 # datatype Ident
 ; Specific numeric entity
@@ -167,24 +192,28 @@ e
 ;
 ; TODO: Return an Either once Either is smoothed over a bit.
 ;
-; resolveAttrName : Nat -> DB -> [entityId indexed]
+; resolveAttrName : Nat -> DB -> [entityId indexed many]
 = (resolveAttrName attrName db)
-; TODO: Once cardinality is in, change the structure so the v in the eav and
-; aev maps is a value, not a %[value], make lookupByAidV return SOME instead of
-; %[].
 @ attrsCab | lookupByAidV dbIdentId attrName db
 : attrEid <- *fromSingletonCab attrsCab
                | 'No attribute name match for ' %[=attrName =db]
 @ isIndex
   ; TODO: lol at looking up unique cardinality with non-unique primitives.
   @ attrUniq    | lookupByAidEid dbUniqueId attrEid db
-  : uniq    <- *singletonCabDefault attrUniq | *FALSE
-  | if uniq | *TRUE
+  : uniq    <- *singletonCabDefault attrUniq FALSE
+  | if uniq TRUE
   @ attrIndexed | lookupByAidEid dbIndexedId attrEid db
-  : indexed <- *singletonCabDefault attrIndexed | *FALSE
-  | if indexed | *TRUE
-  | *FALSE
-[attrEid isIndex]
+  : indexed <- *singletonCabDefault attrIndexed FALSE
+  | if indexed TRUE
+  FALSE
+@ isMany
+  @ attrMany | lookupByAidEid dbCardinalityId attrEid db
+  : many <- *singletonCabDefault attrMany "many"
+  # switch many
+  * one  FALSE
+  * many TRUE
+  * _    | 'unknown many value: ' many
+[attrEid isIndex isMany]
 
 ; User level manual lookup
 = (lookupByEA eid attr db)
@@ -198,12 +227,12 @@ e
 | lookupByAidEid aid eid db
 
 = (lookupByAV attr val db)
-@ [aid indexed] | resolveAttrName attr db
+@ [aid indexed _] | resolveAttrName attr db
 | ifNot indexed | 'cannot lookup unindexed attr/val' attr
 | lookupByAidV aid val db
 
 = (lookupByIdentA identAttr identVal attr db)
-@ [aid indexed] | resolveAttrName identAttr db
+@ [aid indexed _] | resolveAttrName identAttr db
 | ifNot indexed | 'cannot lookup unindexed attribute ' identAttr
 @ eidCab | lookupByAidV aid identVal db
 : eid <- *fromSingletonCab eidCab | 'invalid eid for aid?! ' aid
@@ -228,7 +257,7 @@ e
              [eid (tabMut val eid txnTmps) db]
   [eid txnTmps db]
 * (LOOKUP attrName val)
-  @ [aid indexed] | resolveAttrName attrName db
+  @ [aid indexed _] | resolveAttrName attrName db
   | ifNot indexed | 'Attribute not indexed or unique: ' attrName
   @ eids | lookupByAidV aid val db
   @ l | cabLen eids
@@ -245,15 +274,16 @@ e
 * (NEWENTITY tab)
   @ [eid db] | allocEntity db
   @ (mkRes [attrName v])
-    @ [aid indexed] | resolveAttrName attrName db
-    | RESADD eid aid v indexed
+    @ [aid indexed many] | resolveAttrName attrName db
+    | RESADD eid aid v indexed many
   @ adds | listMap mkRes | tabToList tab
   [(listWeld adds items) txnTmps db]
 * (ADD ident attr val)
   @ [eid txnTmps db] | resolveIdent ident txnTmps db
-  @ [aid indexed] | resolveAttrName attr db
-  [(*CONS (RESADD eid aid val indexed) items) txnTmps db]
+  @ [aid indexed many] | resolveAttrName attr db
+  [(*CONS (RESADD eid aid val indexed many) items) txnTmps db]
 * (RETRACT eid attr val)
+  @ [aid indexed many] | resolveAttrName attr db
   [(*CONS (RESRETRACT eid attr val) items) txnTmps db]
 
 ; User transaction function. Given transaction items, resolve any pending
@@ -270,16 +300,18 @@ e
 ^ listFoldl _ db resolved
 & (db item)
 # datacase item
-* (RESADD eid attr val indexed)
-  | rawAdd eid attr val indexed db
-* (RESRETRACT eid attr val)
-  | rawRm eid attr val db
+* (RESADD eid attr val indexed many)
+  | rawAdd eid attr val indexed many db
+* (RESRETRACT eid attr val many)
+  | rawRm eid attr val many db
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = postDB
 ^ transact _ emptyDB
-,, | NEWENTITY %[":db/ident"=":b/post"]
-,, | NEWENTITY %[":db/ident"=":b/author"]
-,, | NEWENTITY %[":db/ident"=":b/title"]
+,, | NEWENTITY %[":db/ident"=":b/post" ":db/cardinality"="one"]
+,, | NEWENTITY %[":db/ident"=":b/author" ":db/cardinality"="one"]
+,, | NEWENTITY %[":db/ident"=":b/title" ":db/cardinality"="one"]
 
 ; Check that NEWENTITY and ADD forms are equivalent.
 !!=     ^ transact _ postDB
@@ -293,9 +325,19 @@ e
 
 = emptyContactsDB
 ^ transact _ emptyDB
-,, | NEWENTITY %[":db/ident"=":c/name" ":db/indexed"=TRUE]
-,, | NEWENTITY %[":db/ident"=":c/email" ":db/unique"=TRUE]
-,, | NEWENTITY %[":db/ident"=":c/phone"]
+,, | NEWENTITY %% =":db/ident" ":c/name"
+               %% =":db/indexed" TRUE
+               %% =":db/cardinality" "one"
+               %% =":db/unique" TRUE
+; In this contrived testing scenario, you can have many emails, but only one
+; phone number and that phone number can be shared between people.
+,, | NEWENTITY %% =":db/ident" ":c/email"
+               %% =":db/unique" TRUE
+               %% =":db/cardinality" "many"
+,, | NEWENTITY %% =":db/ident" ":c/phone"
+               %% =":db/indexed" TRUE
+               %% =":db/unique" FALSE
+               %% =":db/cardinality" "one"
 
 = contactsDB
   ^ transact _ emptyContactsDB
@@ -304,14 +346,39 @@ e
 
 ; If we try set the contacts up so you can reference entities by their email,
 ; we should be able to set someone's phone number by their email.
+= phoneDB
+  ^ transact _ contactsDB
+  ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/phone" "(555) 555"
+
 !!=     %["(555) 555"]
-    @ phoneDB
-      ^ transact _ contactsDB
-      ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/phone" "(555) 555"
     | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone" phoneDB
 
+; For cardinality one attributes, setting the attribute twice should change the
+; singular attribute value.
+= changedPhoneDB
+  ^ transact _ contactsDB
+  ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/phone" "(111) 111"
+
+!!=     %["(111) 111"]
+    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone" changedPhoneDB
+
+; Cardinality many interacts with the ave table: make sure in cardinality one
+; scenarios, the old value isn't retrievable from the ave table.
+!!=     %[]
+    | lookupByAV ":c/phone" "(555) 555" changedPhoneDB
+
+= changedEmailDB
+  ^ transact _ contactsDB
+  ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/email"
+           "alias@example.com"
+
+; For cardinality many attributes, setting the attribute twice should add
+; another value.
+!!=     %["iceman@plunder.tech" "alias@example.com"]
+    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/email" changedEmailDB
+
 ; We should be able to lookup an entity by indexed attribute.
-!!=   %[6]
+!!=   %[7]
     | lookupByAV ":c/name" "Iceman" contactsDB
 
 ; TODO: Once we return errors instead of just dying on exceptions, test:
@@ -323,6 +390,9 @@ e
 ; TODO: Once we return errors instead of just dying on exceptions, also
 ;
 ; - validate uniqueness during a new validation pass.
+
+; TODO: Retraction is entirely untested and might not work. Pound on that code
+; path with tests.
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
