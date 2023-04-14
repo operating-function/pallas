@@ -192,8 +192,7 @@ t
 = (imgRowToPair imgRow=[id _ _])
 [id imgRow]
 
-= (parseLearn jsonBS)
-@ jsonBS (pinItem jsonBS)
+= (parseLearn (PIN jsonBS))
 @ [!json _]
   | trk %parse
   | parseValue jsonBS
@@ -213,10 +212,9 @@ t
   | map imgRowToPair rows
 [rows addImgs addTags]
 
-= (calcLearnSt pSt pBundle)
-@ [rows addImgs addTags] (pinItem pBundle)
+= (calcLearnSt (PIN st) (PIN [rows addImgs addTags]))
 | trk [%calcLearnSt (len rows) %rows]
-# openState (pinItem pSt)
+# openState st
 @ !nuImgs   | hmInsertMany addImgs imgs
 @ !nuTags   | hsmInsertMany addTags tags
 @ imgCount  | add imgCount  | len rows
@@ -387,14 +385,13 @@ NONE
 
 (emptyFileServer req)=NONE
 
-= (fileServer pinnedSt [method path headers body])
-@ st (pinItem pinnedSt)
+= (fileServer (PIN st) [method path headers (PIN body)])
 # switch method
 * _ | NONE
 * POST
   # switch path
   * b#"/search"
-    : q <- *maybeCase (parseCmd (pinItem body))
+    : q <- *maybeCase (parseCmd body)
              | SOME [400 b#bad [] b#{}]
     # datacase q
     * STATUSCMD
@@ -407,24 +404,23 @@ NONE
       | SOME [200 b#gotcha [] searchBS]
 * GET
   | *fmapMaybe | hmLookup (barNat path) (*getFiles st)
-  & [type content]
+  & [type (PIN content)]
   @ head | [(b#{content-type}, type)]
-  [200 b#gotcha head (pinItem content)]
+  [200 b#gotcha head content]
 
 = (modifyState vSt fun return)
-: pOld < readRef vSt
-@ old  | pinItem pOld
-@ srv  | (*getServThread old)
-@ pNew | PIN (fun old)
-: ____ < writeRef vSt pNew
-: ____ < cancelFork srv (syscall (*HTTP_SERV | fileServer pNew))
+: (PIN old) < readRef vSt
+@ srv       | *getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+: _         < cancelFork srv (syscall (*HTTP_SERV | fileServer pNew))
 | return ()
 
 = (addLearningsToState vSt pBundle return)
 ;
 ; Take the lock, and inject the stuff
-: tmp <- readRef vSt
-@ learnLock (*getLearnLock pinItem-tmp)
+: (PIN tmp) <- readRef vSt
+@ learnLock (*getLearnLock tmp)
 ;
 : ??(alts_locked _)   <- takeMVar learnLock
 : pOld                <- readRef vSt
@@ -460,32 +456,31 @@ NONE
 | syscall (*HTTP_ECHO rid 200 b#ok [] b#{})
 | return
 
-= (handleReq vSt [rid method path headers body] return)
+= (handleReq vSt [rid method path headers pBody=(PIN body)] return)
 # switch method
 * POST
   # switch path
   * b#"/usecdn"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
-    : _ <- modifyRef vSt pSt&(| PIN | setLocal FALSE | pinItem pSt)
+    : _ <- modifyRef vSt =(PIN st)&(| PIN | setLocal FALSE st)
     | return ()
   * b#"/uselocal"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
-    : _ <- modifyRef vSt pSt&(| PIN | setLocal TRUE | pinItem pSt)
+    : _ <- modifyRef vSt =(PIN st)&(| PIN | setLocal TRUE st)
     | return ()
   * b#"/learn"
-    : _ <- fork (addToState vSt rid body)
+    : _ <- fork (addToState vSt rid pBody)
     | return ()
 * PUT
   @ barType | *fromSome b#{text/plain}
             | tabLookup b#{content-type}
             | tabFromPairs headers
-  : pSt <- readRef vSt
-  @ st (pinItem pSt)
-  @ newTotalSize | add (barLen | pinItem body) | getFileBytes st
+  : (PIN st) <- readRef vSt
+  @ newTotalSize | add (barLen body) | getFileBytes st
   ; TODO: Currently inserting paths as nats instead of bars because bars put in
   ; don't get looked up later despite showing up with hmKeys? Somehow? wat?
   @ files (*getFiles st)
-  @ files | hmInsert (barNat path) [barType body] files
+  @ files | hmInsert (barNat path) [barType pBody] files
   : _ <- fork (syscall (*HTTP_ECHO rid 201 b#done [] b#{}))
   : _ <- modifyState vSt & st
                          | setFileBytes newTotalSize
