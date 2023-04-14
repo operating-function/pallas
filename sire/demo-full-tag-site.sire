@@ -94,17 +94,17 @@
 ; TODO: Figure out tuned config for files.
 | hmSingleton largeConfig "/favicon.ico" [b#{image/x-icon} favicon]
 
-# record
+# record CogState
 | STATE
-  files
-  fileBytes
-  local
-  imgCount
-  pairCount
-  imgs
-  tags
-  servThread
-  learnLock
+* files      : Any
+* fileBytes  : Any
+* local      : Any
+* imgCount   : Any
+* pairCount  : Any
+* imgs       : Any
+* tags       : Any
+* servThread : Any
+* learnLock  : Any
 
 = (newState servThread learnLock)
 | mkState
@@ -265,16 +265,16 @@ t
 * _   | NONE
 
 ; List of commands we parse out of the incoming json
-# datatype
+# datatype Cmd
 * STATUSCMD
-* SEARCHCMD offset tags
+* SEARCHCMD offset:Nat tags:Any
 
 (bindMaybe mVal k)=(*maybeCase mVal NONE k)
 
 ;
 ; the json here being parsed is `{tag: "Search", contents: [array of str]}`.
 ;
-> Bar > Opt (Row Cord)
+> Bar > Opt (Row Str)
 = (parseSearch jsonBS)
 : m <- *bindMaybe (jsonMap jsonBS)
 | if | not | eql (SOME [%str b#{Search}]) | tabLookup %tag m
@@ -462,7 +462,7 @@ NONE
   # switch path
   * b#"/usecdn"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
-    : _ <- modifyRef vSt =(PIN st)&(| PIN | setLocal FALSE st)
+    : _ <- modifyRef vSt =(PIN st)&(PIN (setLocal FALSE st))
     | return ()
   * b#"/uselocal"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))

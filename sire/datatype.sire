@@ -4,6 +4,8 @@
 
 """ Constructing Bloodlines """""'""""""""""""""""""""""""""""""""""""""""""""""
 
+; Given a list of rex nodes, make each one the heir of the last.
+> List Rex > Rex
 (bloodline lis)=(listFoldr (i r & rexSetHeir r i) 0 lis)
 
 !!= `((a=1)(b=2)(c=3))
@@ -86,7 +88,7 @@
 """
 """ This example:
 """
-"""     record#(PAIR fst snd)
+"""     record#(Pair a b)#(PAIR fst:a snd:b)
 """
 """ Expands to:
 """
@@ -99,25 +101,110 @@
 """
 """ This input format works too:
 """
-"""     # record
-"""     | PAIR fst snd
+"""     # record (Pair a b)
+"""     | PAIR fst:a snd:b
 """
+""" And also this:
+"""
+"""     # record (Pair a b)
+"""     | PAIR
+"""     * fst : a
+"""     * snd : b
 
-= (readConstructorSig node err ok)
-: bindings <- readKeySignature node err
-@ symbols (map idx-1 bindings)
-@ key (idx 0 | idx 0 bindings)
-| if (isZero len-symbols)
-    | err node 'Non-sense empty constructor signature.'
-@ = constr (idx 0 symbols)
-  = fields (drop 1 symbols)
-| ok key constr fields
+= sigExpect | "Expected `x` or signature `(x y z)`"
+
+; = (readConstructorSig rex err ok)
+; ^ traverseRow _ (rexSons rex) ok
+; ? (step son ret)
+; | readSymbol son err
+; & sym
+; | ret (rexIdnt son, sym)
+
+fieldExpect="Expected something like (field:type)"
+
+= (parseField rex err ret)
+@ sKids (rexKids rex)
+@ sRune (rexRune rex)
+| ifNot (":" == sRune)   | err rex fieldExpect
+| ifNot (2 == len-sKids) | err rex fieldExpect
+: sym <- readSymbol (idx 0 sKids) err
+@ typ (idx 1 sKids)
+; Ignoring the type for now.
+| ret (rexIdnt rex, sym, typ)
+
+= (parseManyFields rexes err ret)
+^ traverseRow _ rexes ret
+& (rex ret)
+| parseField rex err ret
+
+  = fieldItemExpect
+""" * field : type
+""" * field : type
+
+= (parseItemizedFields rex err ret)
+^ _ NIL rex
+? (go acc rex)
+| if (isZero rex)
+    | ret (listToRowReversed acc)
+| ifNot (rexRune rex == '*')
+    | err rex fieldItemExpect
+@ sons    (rexSons rex)
+@ numSons (len sons)
+| if (numSons == 1)
+    : field <- parseField (idx 0 sons) err
+    | go (field :: acc) (rexHeir rex)
+| ifNot (numSons == 2)
+    | err rex fieldItemExpect
+: sym   < readSymbol (idx 0 sons) err
+@ typ   | idx 1 sons
+@ field | (rexIdnt rex, sym, typ)
+| go (field :: acc) (rexHeir rex)
+
+; CNSTR
+; (CNSTR (field:type)*)
+; (CNSTR (* field : type)(* field : type)
+; (|CNSTR)(* field : type)(* field : type)
+= (readConstructorSig r err ok)
+| ifNot (rexIsNode r)
+    | trk 'just symbol'
+    : cnstr <- readSymbol r err
+    | ok rexIdnt-r cnstr []
+;
+| trk '| node'
+@ kids    | rexKids r
+@ numKids | len kids
+| if (neq "|" rexRune-r)
+        | err r sigExpect
+| if (isZero numKids)
+        | err r "Expected at least one kid"
+;
+@ cnstrRex (idx 0 kids)
+: cnstr   < readSymbol cnstrRex err
+@ cnstrId | rexIdnt cnstrRex
+;
+| if (eql 1 numKids)
+        | trk '|-rune but no fields'
+        | ok cnstrId cnstr []
+;
+| trk 'there are fields'
+@ fields     | drop 1 kids
+| trk %[=fields]
+@ firstField | idx 0 fields
+;
+| if (eql 2 numKids && ("*" == rexRune firstField))
+    : fields <- parseItemizedFields (idx 1 kids) err
+    | ok cnstrId cnstr fields
+: fields <- parseManyFields (drop 1 kids) err
+| ok cnstrId cnstr fields
 
 = (readDatatypeSig node err ok)
 @ rune (rexRune node)
 | if (neq "*" rune)
-    | err node "Expecting something like (* CNSTR field ...)"
-; Inglorious hack
+    | err node "Expecting something like (* CNSTR field:type ...)"
+;
+; Inglorious short-term hack: just re-using the record parser with
+; fudged input TODO.
+;
 ^ readConstructorSig _ err ok
 | rexSetRune "|" node
 
@@ -132,11 +219,15 @@
 
 ; '#record'/Macro
 = ('#record' s p e a r err ok)
-@ kids (rexKids r)
-| if (neq (len kids) 2)
-        | err r '#record requires exactly one son.'
+@ kids    (rexKids r)
+@ numKids (len kids)
+;
+; We ignore the first kid, because it's the type, which we don't yet
+; actually do anything with.
+;
 : key constr fields
-       <- *readConstructorSig (idx 1 kids) err
+       <- *readConstructorSig (idx 2 kids) err
+| trk %[=key =constr =fields]
 | ok p a
 | if (isZero len-fields)
         | bloodline
@@ -145,6 +236,7 @@
        ~~ @ nam (| strWeld "mk" | strCapitalize | strToLower constr)
           | defC [nam '_'] (natE 0)
 ; trkVal %bloodline
+@ fields (map (idx 1) fields)  ;;  (Row (RexId, Symbol, Type)) -> Row Symbol
 | bloodline
 | listCat
 ~~ ~~ mkConstrC constr fields
@@ -153,11 +245,11 @@
 ~~ listMap mkGetterC (listIndexed (listFromRow fields))
 ~~ listMap mkSetterC (listIndexed (listFromRow fields))
 
-record#UNIT
-record#(BOX boxItem)
+record#Unit#UNIT
+record#(Box a)#(BOX boxItem:a)
 
-# record
-| PAIR fst snd
+# record (Pair a b)
+| PAIR fst:a snd:b
 
 ex=(PAIR %a %b)
 
@@ -174,13 +266,13 @@ ex=(PAIR %a %b)
 """ Datatypes """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ;;;
-;;; # datatype
-;;; * LEFT x
-;;; * RYTE x
+;;; # datatype (Either a b)
+;;; * LEFT a
+;;; * RYTE b
 ;;;
-;;; # datatype
+;;; # datatype (List a)
 ;;; * NULL
-;;; * CONS item tail
+;;; * CONS item:a tail:(List a)
 ;;;
 
 > Rex > MacroMonad (Row (Symbol, Row Symbol))
@@ -198,12 +290,12 @@ ex=(PAIR %a %b)
         | go acc that
 
 
-!!=            ,, [0 %FOO [%x]]
-               ,, [0 %BAR [%x %y %z]]
+!!=            ,, [0 %FOO [(0, 'x', `a)]]
+               ,, [0 %BAR [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
                ,, [0 %LOL []]
         ^ readDataBranches _ v2 I
-        ` * FOO x
-          * BAR x y z
+        ` * FOO x:a
+          * BAR x:b y:c z:d
           * LOL
 
 
@@ -222,35 +314,38 @@ ex=(PAIR %a %b)
 | seq ix
 ; trk %loop,(%[=ix =prp =acc =remain])
 ;
-: kca xs <- *listCase remain (prp, bloodline acc)
+: kca remain <- *listCase remain (prp, bloodline acc)
 @ [key cns arg] kca
 ;
 @ prp (setProperty key 'conTag' ix      prp)
 @ prp (setProperty key 'conAri' len-arg prp)
 ;
+@ arg (map idx-1 arg)
 @ bod (| rowE | rowCons natE-ix | map varE arg)
 @ cmd (defKC key (rowCons cns arg) bod)
 @ acc (CONS cmd acc)
 ;
-| loop (inc ix) prp acc xs
+| loop (inc ix) prp acc remain
 
 
 ; '#datatype'/Macro
 = ('#datatype' s p e a r err ok)
-@ = heir (rexHeir r)
-  = sons (rexSons r)
-| if (gteNat len-sons 2)
-        | err r '#datatype requires only an heir (no sons)'
-| if (isZero heir)
-        | err r '#datatype an heir'
-: branches  < readDataBranches heir err
+@ = kids (rexKids r)
+| ifNot (len-kids == 3)
+        | err r
+      """Expected something like
+      """
+      """    # datatype Type
+      """    * CONSTR
+      """    * CONSTR field:type ...
+: branches < readDataBranches (idx 2 kids) err
 @ [prp rex] | defDataTypeC s p e branches
 | ok prp a rex
 
 
-# datatype
-* E_LEFT x
-* E_RIGHT x
+# datatype (Either a b)
+* E_LEFT x:a
+* E_RIGHT x:b
 
 !!= 0 getProp#(E_LEFT.conTag)
 !!= 1 getProp#(E_LEFT.conAri)
@@ -364,9 +459,9 @@ ex=(PAIR %a %b)
 : nex exp < makeDatacaseExpr nex valExp cases
 | ok p nex exp
 
-# datatype
+# datatype (List a)
 * LNULL
-* LCONS x y
+* LCONS x:a y:(List a)
 
 = (showList xs)
 | strWeld "["
@@ -374,76 +469,16 @@ ex=(PAIR %a %b)
 ? (go xs)
 # datacase xs
 * LNULL
-        | "]"
+    | "]"
 * (LCONS x xs)
-        | strCat
-        # datacase xs
-        * LNULL       [x "]"]
-        * (LCONS _ _) [x " " (go xs)]
+    | strCat
+    # datacase xs
+    * LNULL       [x "]"]
+    * (LCONS _ _) [x " " (go xs)]
 
 !!= '[a b c]'
         | showList | LCONS %a | LCONS %b | LCONS %c LNULL
 
-;;;
-;;; TODO: Parse type-aware syntax, but ignore the type.
-;;;
-;;;     record#(Unit = UNIT)
-;;;
-;;;     record#(Box a = BOX boxItem/a)
-;;;
-;;;     record#(Pair a b = PAIR fst/a snd/b)
-;;;
-;;;     # record
-;;;     = (Pair a b)
-;;;     | PAIR
-;;;       fst/a
-;;;       snd/b
-;;;
-;;;     datatype#(Either a b = (Left a | Right b))
-;;;
-;;;     datatype#(Either a b = (Left x/a | Right x/b))
-;;;
-;;;     # datatype (Either a b)
-;;;     * LEFT x/a
-;;;     * RYTE x/b
-;;;
-;;;     # datatype (List a)
-;;;     * NULL
-;;;     * CONS item/a tail/(List a)
-;;;
-
-
-;;;  How to build support for deconstruction of destructors?
-;;;
-;;;  (PIN x @ 4 3 @ [x x])
-;;;
-;;;      =>
-;;;
-;;;  @ _tmp px
-;;;  @ x (pinItem _tmp)
-;;;  [x x]
-;;;
-;;;  ========
-;;;
-;;;  (LAW n a b @ (f x ? x) @ loot %[=n =a =b])
-;;;
-;;;      =>
-;;;
-;;;  @ _tmp (f x ? x)
-;;;  @ n (lawName n)
-;;;  @ a (lawArgs a)
-;;;  @ b (lawBody b)
-;;;  (loot %[=n =a =b])
-;;;
-;;;  ========
-;;;
-;;;  # record (PAIR fst snd)
-;;;
-;;;  (PAIR x y @ PAIR 3 4 @ [x y])
-;;;
-;;;      =>
-;;;
-;;;  @ _tmp (PAIR 3 4)
-;;;  @ x (idx 0 _tmp)
-;;;  @ y (idx 1 _tmp)
-;;;  [x y]
+^-^ '#datacase'
+^-^ '#datatype'
+^-^ '#record'

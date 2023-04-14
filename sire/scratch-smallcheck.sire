@@ -4,8 +4,8 @@
 
 """ Generators """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-# datatype ;GenStream
-* ITEM item more
+# datatype (GenStream a)
+* ITEM item:a more:(Unit > GenStream a)
 * DONE
 
 = (generate n g)

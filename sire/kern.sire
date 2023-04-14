@@ -176,9 +176,12 @@
 
 """ MVar """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-# datatype
-* FULL val writers
-* EMPTY readers
+# datatype (Mvar a)
+* FULL
+  * val     : a
+  * writers : (Row (a, ThreadId))
+* EMPTY
+  * readers : Row ThreadId
 
 (newMVar val)=(newRef (*FULL val []))
 

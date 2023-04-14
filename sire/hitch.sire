@@ -68,9 +68,23 @@
 ;; TreeFun ;;
 ;;;;;;;;;;;;;
 
-# record
-| TREE_FUN mkNode mkLeaf caseNode leafInsert leafMerge leafLength leafSplitAt
-  leafFirstKey leafEmpty leafDelete hhMerge hhLength hhSplit hhEmpty hhDelete
+# record TreeFun
+| TREE_FUN
+* mkNode       : Any
+* mkLeaf       : Any
+* caseNode     : Any
+* leafInsert   : Any
+* leafMerge    : Any
+* leafLength   : Any
+* leafSplitAt  : Any
+* leafFirstKey : Any
+* leafEmpty    : Any
+* leafDelete   : Any
+* hhMerge      : Any
+* hhLength     : Any
+* hhSplit      : Any
+* hhEmpty      : Any
+* hhDelete     : Any
 
 
 ;;;;;;;;;;;
@@ -78,9 +92,9 @@
 ;;;;;;;;;;;
 
 ;; A node is either [0 index hitchhikers] or [1 leaf]
-# datatype
-* INDEXNODE idx hh
-* LEAFNODE leaf
+# datatype HitchNode
+* INDEXNODE idx:Any hh:Any
+* LEAFNODE leaf:Any
 
 ;; An index is a row of [a row of keys, a row of subnodes]
 = emptyIndex [[] []]
@@ -234,9 +248,15 @@
 ;; TreeConfig ;;
 ;;;;;;;;;;;;;;;;
 
-# record
-| TREE_CONFIG minFanout maxFanout minIdxKeys maxIdxKeys minLeafItems
-  maxLeafItems maxHitchhikers
+# record TreeConfig
+| TREE_CONFIG
+* minFanout      : Any
+* maxFanout      : Any
+* minIdxKeys     : Any
+* maxIdxKeys     : Any
+* minLeafItems   : Any
+* maxLeafItems   : Any
+* maxHitchhikers : Any
 
 ;
 ; Testing TreeConfig which overflows quickly.

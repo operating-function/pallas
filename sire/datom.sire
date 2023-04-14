@@ -19,9 +19,14 @@
 
 ;; The toplevel DB type.
 ;;
-;; for v0, all tables are (Tab * (Tab * (Cab *))).
-# record
-| DB eav aev ave maxEid ; rschema
+;; for v0, all tables are (Tab Any (Tab Any (Cab Any))).
+# record Db
+| DB
+* eav    : Any
+* aev    : Any
+* ave    : Any
+* maxEid : Nat
+; rschema
 
 ; raw operation to add a resolved tuple to the database
 = (rawAdd e a v doIndex db)
@@ -94,27 +99,26 @@
 db
 
 ;; Resolved transaction changes
-# datatype
-* RESADD entityId attr val indexed
-* RESRETRACT entityId attr val
+# datatype TxOper
+* RESADD entityId:Any attr:Any val:Any indexed:Any
+* RESRETRACT entityId:Any attr:Any val:Any
 
-;; Ident
-# datatype
+# datatype Ident
 ; Specific numeric entity
-* ENT entityId
+* ENT entityId:Any
 ; New entity referred to multiple times by this value
-* TMP val
+* TMP val:Any
 ; Entity id based on an attribute lookup.
-* LOOKUP attr val
+* LOOKUP attr:Any val:Any
 
-;; TxnItem: Transaction items
-# datatype
+;; Transaction items
+# datatype TxnItem
 ; Creates a new entity and adds the contents of the tab as a list of e
-* NEWENTITY tab
+* NEWENTITY tab:Any
 ; Adds a specific
-* ADD ident attr val
+* ADD ident:Any attr:Any val:Any
 ; Retracts a specific datom
-* RETRACT eid attr val
+* RETRACT eid:Any attr:Any val:Any
 
 ; Return a new entity id and record the new max in the database.
 = (allocEntity db)
@@ -192,7 +196,7 @@ e
 ; Given a user level entity identity, translate that to a numeric database
 ; identity.
 ;
-> Ident > (Map * Nat) > DB > [Nat (Map * Nat) DB]
+> Ident > (Map Any Nat) > DB > [Nat (Map Any Nat) DB]
 = (resolveIdent ident txnTmps db)
 # openDb db
 # datacase ident
@@ -219,7 +223,7 @@ e
 ; Given input items, assign numeric entity ids to everything for loading into
 ; the actual db.
 ;
-> [(List TxnItem) (Map * Nat) DB] > TxnItem > _1
+> [(List TxnItem) (Map Any Nat) DB] > TxnItem > _1
 = (resolveTransactionItem [items txnTmps db] item)
 # datacase item
 * (NEWENTITY tab)
