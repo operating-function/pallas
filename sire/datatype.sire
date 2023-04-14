@@ -1,6 +1,20 @@
 /+  boot
 /+  switch  ['#switch' switchE unrollSlip2Tar]
 
+""" Getting that tag from an object """"""""""""""""""""""""""""""""""""""""""""
+
+;;; TODO: Jet this and OP1 this.
+(_DataTag x)=(if x x (idx 0 x))
+
+dataTag=_DataTag
+
+(0     !!= dataTag 0)
+(1     !!= dataTag 1)
+(2     !!= dataTag 2)
+('foo' !!= dataTag 'foo')
+('bar' !!= dataTag ['bar' 9])
+(0     !!= dataTag [0 1 2 3])
+
 
 """ Constructing Bloodlines """""'""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -267,8 +281,8 @@ ex=(PAIR %a %b)
 
 ;;;
 ;;; # datatype (Either a b)
-;;; * LEFT a
-;;; * RYTE b
+;;; * LEFT x:a
+;;; * RYTE x:b
 ;;;
 ;;; # datatype (List a)
 ;;; * NULL
@@ -435,7 +449,7 @@ ex=(PAIR %a %b)
         @ binds [(rowPat, valExp)]
         @ [aft bSeq deps] (sequenceBinds aft binds)
         | continue aft (tag, bindSeqE bSeq body deps)
-@ tagExp (appE (cnsE (idx 0), tmpExp))
+@ tagExp (appE (cnsE dataTag, tmpExp))
 @ result
     | OPEN 0 '@' [tmpExp valExp]
     | switchE tagExp (natE 0)
@@ -479,6 +493,47 @@ ex=(PAIR %a %b)
 !!= '[a b c]'
         | showList | LCONS %a | LCONS %b | LCONS %c LNULL
 
+
+""" Backfills """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+zero=0
+one=1
+
+''' Bit ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+setProp#(TRUE.conTag)#one
+setProp#(TRUE.conAri)#zero
+
+setProp#(FALSE.conTag)#zero
+setProp#(FALSE.conAri)#zero
+
+!!=     'true'
+    # datacase TRUE
+    * TRUE  'true'
+    * FALSE 'false'
+
+
+''' Either '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+setProp#(LEFT.conTag)#zero
+setProp#(LEFT.conAri)#one
+
+setProp#(RIGHT.conTag)#one
+setProp#(RIGHT.conAri)#one
+
+= (showEither eat)
+| trk %[=eat]
+# datacase eat
+* (LEFT x)  ['left' x]
+* (RIGHT x) ['right' x]
+
+!!= [%left  %x] | showEither | LEFT  | {x}
+!!= [%right %y] | showEither | RIGHT | {y}
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^ dataTag
 ^-^ '#datacase'
 ^-^ '#datatype'
 ^-^ '#record'

@@ -38,7 +38,7 @@ b#'{"type":"application","elm-version":"0.19.1","dependencies":{"direct":{"elm/t
 
 %start
 
-!!= 116 (| len | cdr | jsonLexAll | barCat | rep example 1)
+!!= 116 (| len | unpackRight | jsonLexAll | barCat | rep example 1)
 
 %did_1
 
@@ -46,7 +46,7 @@ b#'{"type":"application","elm-version":"0.19.1","dependencies":{"direct":{"elm/t
 
 %did_round_trip
 
-!!= 231 (| len | cdr | jsonLexAll | barCat | rep example 2)
+!!= 231 (| len | unpackRight | jsonLexAll | barCat | rep example 2)
 
 %did_2
 
@@ -59,7 +59,7 @@ b#'{"type":"application","elm-version":"0.19.1","dependencies":{"direct":{"elm/t
 ''' ,, (| barLen | barCat | rep example 1817)
 ''' ,, %bytes
 '''
-''' !!= 208956 (| len | cdr | jsonLexAll | barCat | rep example 1817)
+''' !!= 208956 (| len | unpackRight | jsonLexAll | barCat | rep example 1817)
 '''
 ''' %did_3
 '''
