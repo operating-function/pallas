@@ -294,24 +294,25 @@ e
 # datacase item
 * (NEWENTITY tab)
   @ [eid db] | allocEntity db
-  @ (mkRes [attrName v])
+  @ [newErrs newItems]
+    ^ foldl _ [NIL NIL] | tabToPairs tab
+    & ([errs items] [attrName v])
     # datacase | resolveAttrName attrName db
-    * (LEFT err) | 'todo: partition ' err
+    * (LEFT err) [(*CONS err errs) items]
     * (RIGHT [aid indexed many])
-      | RESADD eid aid v indexed many
-  @ adds | listMap mkRes | tabToList tab
-  [errs (listWeld adds items) txnTmps db]
+        [errs (*CONS (RESADD eid aid v indexed many) items)]
+  [(listWeld newErrs errs) (listWeld newItems items) txnTmps db]
 * (ADD ident attr val)
   # datacase | resolveIdent ident txnTmps db
   * (LEFT err) (*CONS err errs, items, txnTmps, db)
   * (RIGHT [eid txnTmps db])
     # datacase | resolveAttrName attr db
-    * (LEFT err) | 'todo: partition ' err
+    * (LEFT err) (*CONS err errs, items, txnTmps, db)
     * (RIGHT [aid indexed many])
       [errs (*CONS (RESADD eid aid val indexed many) items) txnTmps db]
 * (RETRACT eid attr val)
   # datacase | resolveAttrName attr db
-  * (LEFT err) | 'todo: partition ' err
+  * (LEFT err) (*CONS err errs, items, txnTmps, db)
   * (RIGHT [aid indexed many])
     [errs (*CONS (RESRETRACT eid attr val) items) txnTmps db]
 
@@ -386,6 +387,16 @@ e
 !!=   | LEFT [(LOOKUP_NO_MATCH ":c/name" "Bob")]
     ^ transact _ emptyContactsDB
     ,, | ADD (LOOKUP ":c/name" "Bob") ":c/email" "bob@plunder.tech"
+
+; NEWENTITY with nonexistent attributes fails.
+!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/b") (LOOKUP_NO_ATTRIBUTE ":bad/a")]
+    ^ transact _ emptyContactsDB
+    ,, | NEWENTITY %[":bad/a"="bad" ":bad/b"="bad"]
+
+; ADD with nonexistent attributes fails.
+!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/a")]
+    ^ transact _ emptyContactsDB
+    ,, | ADD (ENT 5) ":bad/a" "bad"
 
 ; If we try set the contacts up so you can reference entities by their email,
 ; we should be able to set someone's phone number by their email.
