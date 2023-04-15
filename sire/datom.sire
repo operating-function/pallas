@@ -18,6 +18,7 @@
 ;; typw.
 
 # datatype Error
+* LOOKUP_NO_ATTRIBUTE attrName:Any
 * LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName:Any
 * LOOKUP_NO_MATCH attrName:Any val:Any
 
@@ -194,13 +195,11 @@ e
 ; number and an 'indexed' boolean which is whether we can use the ave table to
 ; lookup data related to this attribute.
 ;
-; TODO: Return an Either once Either is smoothed over a bit.
-;
-; resolveAttrName : Nat -> DB -> [entityId indexed many]
+> Str > DB > Either Error [Nat Bool Bool]
 = (resolveAttrName attrName db)
 @ attrsCab | lookupByAidV dbIdentId attrName db
 : attrEid <- *fromSingletonCab attrsCab
-               | 'No attribute name match for ' %[=attrName =db]
+               | *LEFT | *LOOKUP_NO_ATTRIBUTE attrName
 @ isIndex
   ; TODO: lol at looking up unique cardinality with non-unique primitives.
   @ attrUniq    | lookupByAidEid dbUniqueId attrEid db
@@ -217,7 +216,7 @@ e
   * one  FALSE
   * many TRUE
   * _    | 'unknown many value: ' many
-[attrEid isIndex isMany]
+| *RIGHT [attrEid isIndex isMany]
 
 ; User level manual lookup
 = (lookupByEA eid attr db)
@@ -231,16 +230,21 @@ e
 | lookupByAidEid aid eid db
 
 = (lookupByAV attr val db)
-@ [aid indexed _] | resolveAttrName attr db
-| ifNot indexed | 'cannot lookup unindexed attr/val' attr
-| lookupByAidV aid val db
+# datacase (resolveAttrName attr db)
+* (LEFT errs) | 'could not lookup. errors: ' errs
+* (RIGHT [aid indexed _])
+  | ifNot indexed | 'cannot lookup unindexed attr/val' attr
+  | lookupByAidV aid val db
 
+> Any > Any > Nat > DB > Cab Nat
 = (lookupByIdentA identAttr identVal attr db)
-@ [aid indexed _] | resolveAttrName identAttr db
-| ifNot indexed | 'cannot lookup unindexed attribute ' identAttr
-@ eidCab | lookupByAidV aid identVal db
-: eid <- *fromSingletonCab eidCab | 'invalid eid for aid?! ' aid
-| lookupByEA eid attr db
+# datacase | resolveAttrName identAttr db
+* (LEFT err) | 'could not lookup. error: ' err
+* (RIGHT [aid indexed _])
+  | ifNot indexed | 'cannot lookup unindexed attribute ' identAttr
+  @ eidCab | lookupByAidV aid identVal db
+  : eid <- *fromSingletonCab eidCab | 'invalid eid for aid?! ' aid
+  | lookupByEA eid attr db
 
 ; Given a user level entity identity, translate that to a numeric database
 ; identity.
@@ -266,17 +270,19 @@ e
   ; todo: separate out indexed and unique: we can only operate on unique
   ; attributes, trying to work on indexed ones could lead to duplicate lookup
   ; resolutions.
-  @ [aid indexed _] | resolveAttrName attrName db
-  | ifNot indexed
-    | *LEFT | *LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
-  @ eids | lookupByAidV aid val db
-  @ l | cabLen eids
-  | if (isZero l)
-    | *LEFT | *LOOKUP_NO_MATCH attrName val
-  ; todo: make this case impossible:
-  | if (gth l 1)  | 'Not unique for ' %[=attrName =val]
-  | *RIGHT
-  [(cabFirst eids) txnTmps db]
+  # datacase | resolveAttrName attrName db
+  * (LEFT err) | *LEFT err
+  * (RIGHT [aid indexed _])
+    | ifNot indexed
+      | *LEFT | *LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
+    @ eids | lookupByAidV aid val db
+    @ l | cabLen eids
+    | if (isZero l)
+      | *LEFT | *LOOKUP_NO_MATCH attrName val
+    ; todo: make this case impossible:
+    | if (gth l 1)  | 'Not unique for ' %[=attrName =val]
+    | *RIGHT
+    [(cabFirst eids) txnTmps db]
 
 ; Given input items, assign numeric entity ids to everything for loading into
 ; the actual db.
@@ -289,19 +295,25 @@ e
 * (NEWENTITY tab)
   @ [eid db] | allocEntity db
   @ (mkRes [attrName v])
-    @ [aid indexed many] | resolveAttrName attrName db
-    | RESADD eid aid v indexed many
+    # datacase | resolveAttrName attrName db
+    * (LEFT err) | 'todo: partition ' err
+    * (RIGHT [aid indexed many])
+      | RESADD eid aid v indexed many
   @ adds | listMap mkRes | tabToList tab
   [errs (listWeld adds items) txnTmps db]
 * (ADD ident attr val)
   # datacase | resolveIdent ident txnTmps db
   * (LEFT err) (*CONS err errs, items, txnTmps, db)
   * (RIGHT [eid txnTmps db])
-    @ [aid indexed many] | resolveAttrName attr db
-    [errs (*CONS (RESADD eid aid val indexed many) items) txnTmps db]
+    # datacase | resolveAttrName attr db
+    * (LEFT err) | 'todo: partition ' err
+    * (RIGHT [aid indexed many])
+      [errs (*CONS (RESADD eid aid val indexed many) items) txnTmps db]
 * (RETRACT eid attr val)
-  @ [aid indexed many] | resolveAttrName attr db
-  [errs (*CONS (RESRETRACT eid attr val) items) txnTmps db]
+  # datacase | resolveAttrName attr db
+  * (LEFT err) | 'todo: partition ' err
+  * (RIGHT [aid indexed many])
+    [errs (*CONS (RESRETRACT eid attr val) items) txnTmps db]
 
 ; User transaction function. Given transaction items, resolve any pending
 ; entity numbers in them and then apply them to the database.
@@ -365,6 +377,11 @@ e
   ,, | NEWENTITY %[":c/name"="Iceman" ":c/email"="iceman@plunder.tech"]
   ,, | NEWENTITY %[":c/name"="Sol" ":c/email"="sol@plunder.tech"]
 
+; Lookup by nonexistent attributes fail.
+!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":d/blah")]
+    ^ transact _ emptyContactsDB
+    ,, | ADD (LOOKUP ":d/blah" "51") ":c/email" "blah@plunder.tech"
+
 ; Lookup by nonexistent values fail.
 !!=   | LEFT [(LOOKUP_NO_MATCH ":c/name" "Bob")]
     ^ transact _ emptyContactsDB
@@ -410,7 +427,6 @@ e
 ; TODO: Once we return errors instead of just dying on exceptions, test:
 ;
 ; - trying to lookup by non-:db/unique attribute errors
-; - trying to lookup by non-existent attribute errors
 ; - trying to looukp an av pair by unindexed attribute.
 
 ; TODO: Once we return errors instead of just dying on exceptions, also
