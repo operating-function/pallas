@@ -17,6 +17,10 @@
 ;; stuff will require adding a `Multimap a b c -> Map a (Map b (MapSet c))`
 ;; typw.
 
+# datatype Error
+* LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName:Any
+* LOOKUP_NO_MATCH attrName:Any val:Any
+
 ;; The toplevel DB type.
 ;;
 ;; for v0, all tables are (Tab Any (Tab Any (Cab Any))).
@@ -241,35 +245,46 @@ e
 ; Given a user level entity identity, translate that to a numeric database
 ; identity.
 ;
-> Ident > (Map Any Nat) > DB > [Nat (Map Any Nat) DB]
+> Ident > (Map Any Nat) > DB > Either Error [Nat (Map Any Nat) DB]
 = (resolveIdent ident txnTmps db)
 # openDb db
 # datacase ident
 * (ENT eid)
+  | *RIGHT
   ,, eid
   ,, txnTmps
   ,, | if (lth eid maxEid) db
      ; user has specified a larger eid than exists by hand.
      [eav aev ave (inc eid)]
 * (TMP val)
+  | *RIGHT
   : eid <- maybeCase (tabLookup val txnTmps)
              @ [eid db] | allocEntity db
              [eid (tabMut val eid txnTmps) db]
   [eid txnTmps db]
 * (LOOKUP attrName val)
+  ; todo: separate out indexed and unique: we can only operate on unique
+  ; attributes, trying to work on indexed ones could lead to duplicate lookup
+  ; resolutions.
   @ [aid indexed _] | resolveAttrName attrName db
-  | ifNot indexed | 'Attribute not indexed or unique: ' attrName
+  | ifNot indexed
+    | *LEFT | *LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
   @ eids | lookupByAidV aid val db
   @ l | cabLen eids
-  | if (isZero l) | 'No match for ' %[=attrName =val]
+  | if (isZero l)
+    | *LEFT | *LOOKUP_NO_MATCH attrName val
+  ; todo: make this case impossible:
   | if (gth l 1)  | 'Not unique for ' %[=attrName =val]
+  | *RIGHT
   [(cabFirst eids) txnTmps db]
 
 ; Given input items, assign numeric entity ids to everything for loading into
 ; the actual db.
 ;
-> [(List TxnItem) (Map Any Nat) DB] > TxnItem > _1
-= (resolveTransactionItem [items txnTmps db] item)
+> [(List Err) (List TxnItem) (Map Any Nat) DB]
+> TxnItem
+> [(List Err) (List TxnItem) (Map Any Nat) DB]
+= (resolveTransactionItem [errs items txnTmps db] item)
 # datacase item
 * (NEWENTITY tab)
   @ [eid db] | allocEntity db
@@ -277,26 +292,26 @@ e
     @ [aid indexed many] | resolveAttrName attrName db
     | RESADD eid aid v indexed many
   @ adds | listMap mkRes | tabToList tab
-  [(listWeld adds items) txnTmps db]
+  [errs (listWeld adds items) txnTmps db]
 * (ADD ident attr val)
-  @ [eid txnTmps db] | resolveIdent ident txnTmps db
-  @ [aid indexed many] | resolveAttrName attr db
-  [(*CONS (RESADD eid aid val indexed many) items) txnTmps db]
+  # datacase | resolveIdent ident txnTmps db
+  * (LEFT err) (*CONS err errs, items, txnTmps, db)
+  * (RIGHT [eid txnTmps db])
+    @ [aid indexed many] | resolveAttrName attr db
+    [errs (*CONS (RESADD eid aid val indexed many) items) txnTmps db]
 * (RETRACT eid attr val)
   @ [aid indexed many] | resolveAttrName attr db
-  [(*CONS (RESRETRACT eid attr val) items) txnTmps db]
+  [errs (*CONS (RESRETRACT eid attr val) items) txnTmps db]
 
 ; User transaction function. Given transaction items, resolve any pending
 ; entity numbers in them and then apply them to the database.
 ;
-; TODO: The type is wrong. It should be `Either Error DB`, since a ton of
-; things can error and `die` is wrong in this case.
-;
-> Row TxnItem > DB > DB
+> Row TxnItem > DB > (Either (Row Error) DB)
 = (transact items db)
-@ [resolved _ db]
-  | listFoldl resolveTransactionItem [NIL %[] db]
-  | listFromRow items
+@ [errs resolved _ db]
+  | foldl resolveTransactionItem [NIL NIL %[] db] items
+| ifNot (listNull errs) | *LEFT | listToRow errs
+| *RIGHT
 ^ listFoldl _ db resolved
 & (db item)
 # datacase item
@@ -305,26 +320,32 @@ e
 * (RESRETRACT eid attr val many)
   | rawRm eid attr val many db
 
+> Row TxnItem > DB > DB
+= (assertTransact items db)
+# datacase (transact items db)
+* (LEFT l)  | 'transaction failed: ' l
+* (RIGHT r) r
+
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = postDB
-^ transact _ emptyDB
+^ assertTransact _ emptyDB
 ,, | NEWENTITY %[":db/ident"=":b/post" ":db/cardinality"="one"]
 ,, | NEWENTITY %[":db/ident"=":b/author" ":db/cardinality"="one"]
 ,, | NEWENTITY %[":db/ident"=":b/title" ":db/cardinality"="one"]
 
 ; Check that NEWENTITY and ADD forms are equivalent.
-!!=     ^ transact _ postDB
+!!=     ^ assertTransact _ postDB
         ,, | ADD (TMP "newpost") ":b/post" "mai poast"
         ,, | ADD (TMP "newpost") ":b/author" "Iceman"
         ,, | ADD (TMP "other") ":b/post" "Other post"
         ,, | ADD (TMP "other") ":b/author" "Sol"
-   ^ transact _ postDB
+   ^ assertTransact _ postDB
    ,, | NEWENTITY %[":b/post"="mai poast" ":b/author"="Iceman"]
    ,, | NEWENTITY %[":b/post"="Other post" ":b/author"="Sol"]
 
 = emptyContactsDB
-^ transact _ emptyDB
+^ assertTransact _ emptyDB
 ,, | NEWENTITY %% =":db/ident" ":c/name"
                %% =":db/indexed" TRUE
                %% =":db/cardinality" "one"
@@ -340,14 +361,19 @@ e
                %% =":db/cardinality" "one"
 
 = contactsDB
-  ^ transact _ emptyContactsDB
+  ^ assertTransact _ emptyContactsDB
   ,, | NEWENTITY %[":c/name"="Iceman" ":c/email"="iceman@plunder.tech"]
   ,, | NEWENTITY %[":c/name"="Sol" ":c/email"="sol@plunder.tech"]
+
+; Lookup by nonexistent values fail.
+!!=   | LEFT [(LOOKUP_NO_MATCH ":c/name" "Bob")]
+    ^ transact _ emptyContactsDB
+    ,, | ADD (LOOKUP ":c/name" "Bob") ":c/email" "bob@plunder.tech"
 
 ; If we try set the contacts up so you can reference entities by their email,
 ; we should be able to set someone's phone number by their email.
 = phoneDB
-  ^ transact _ contactsDB
+  ^ assertTransact _ contactsDB
   ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/phone" "(555) 555"
 
 !!=     %["(555) 555"]
@@ -356,7 +382,7 @@ e
 ; For cardinality one attributes, setting the attribute twice should change the
 ; singular attribute value.
 = changedPhoneDB
-  ^ transact _ contactsDB
+  ^ assertTransact _ contactsDB
   ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/phone" "(111) 111"
 
 !!=     %["(111) 111"]
@@ -368,7 +394,7 @@ e
     | lookupByAV ":c/phone" "(555) 555" changedPhoneDB
 
 = changedEmailDB
-  ^ transact _ contactsDB
+  ^ assertTransact _ contactsDB
   ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/email"
            "alias@example.com"
 
