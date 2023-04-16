@@ -13,7 +13,7 @@
 /+  03_nat  [add sub mul dec gteNat isZero]
 /+  04_app  [idx get len]
 /+  05_eql  [eql neq lte lth gth gte]
-/+  06_cow  [null weld v2 isRow map foldl]
+/+  06_cow  [null weld v2 isRow map foldl foldr]
 /+  07_rex
 /+  typed
 /+  08_dat  [CONS NIL listCase listFromRow listToRowReversed sort delete cat]
@@ -342,6 +342,17 @@
 | (*mkCenCenMacro cenCenCab cenCenTabStub s p e a r err ok)
 
 
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (cabFromRow row)
+| foldr cabIns emptyCab row
+
+!!= %[a] (cabFromRow [%a %a])
+!!= %[a b] (cabFromRow [%a %b])
+!!= %[a b] (cabFromRow [%b %a])
+!!= %[a b] (cabFromRow [%b %a %b])
+
+
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 !!= 1 | isCab %[]
@@ -427,6 +438,7 @@
 ^-^ cabFirst cabLen cabPop cabRow cabList cabIns cabDel cabUnion cabAscUnions
 ^-^ cabKeys cabHas cabMin cabSingleton cabDrop cabTake cabSplitAt cabSplitLT
 ^-^ cabIntersection cabElem
+^-^ cabFromRow
 ^-^
 ^-^ "%" "%%"
 ^-^ loadKeyWord readKey
