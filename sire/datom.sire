@@ -31,11 +31,13 @@
 * eav    : Any
 * aev    : Any
 * ave    : Any
+* vae    : Any
 * maxEid : Nat
 ; rschema
 
 ; raw operation to add a resolved tuple to the database
-= (rawAdd e a v indexed many db)
+= (rawAdd e a v indexed many isRef db)
+;| trk [%rawAdd e a v indexed many isRef db]
 # openDb db
 ; only usable for tuples which end in [v] (eav, aev)
 @ (alterEndVal c in)
@@ -56,7 +58,7 @@
   : cab <- *maybeCase in (cabSingleton c)
   | cabIns c cab
 ; only usable for tuples whose middle IS v (ave)
-@ (alterMiddleV b c in)
+@ (alterMiddleEndNonV b c in)
   | *SOME
   : tab <- *maybeCase in
               | tabSingleton b
@@ -66,8 +68,11 @@
 @ aev | tabAlter (alterNotVal e v) a aev
 @ ave
   | ifNot indexed ave
-  | tabAlter (alterMiddleV v e) a ave
-| DB eav aev ave maxEid
+  | tabAlter (alterMiddleEndNonV v e) a ave
+@ vae
+  | ifNot isRef vae
+  | tabAlter (alterMiddleEndNonV a e) v vae
+| DB eav aev ave vae maxEid
 
 ; raw remove
 = (rawRm e a v db)
@@ -87,7 +92,7 @@
 ; always try to purge values from the ave table; the user might have changed
 ; the value of :db/unique between add and retract.
 @ ave | tabAlter (alter v e) a ave
-| DB eav aev ave maxEid
+| DB eav aev ave vae maxEid
 
 = dbIdentId 0
 = dbIdentStr ":db/ident"
@@ -97,15 +102,19 @@
 = dbUniqueStr ":db/unique"
 = dbIndexedId 3
 = dbIndexedStr ":db/indexed"
+= dbValueTypeId 4
+= dbValueTypeStr ":db/valueType"
 
 = emptyDB
 @ db
   @ eav    %[]
   @ aev    %[]
   @ ave    %[]
-  ; todo: add vae table when I implement :db/ref.
-  @ maxEid 4
-  | DB eav aev ave maxEid
+  @ vae    %[]
+  @ maxEid 5
+  | DB eav aev ave vae maxEid
+@ (baseAdd e a v db)
+  | rawAdd e a v TRUE TRUE FALSE db
 ; an "empty" db still needs to have some "built-in" tuples to allow for
 ; attribute resolution. each attribute still has an eid.
 ;
@@ -114,30 +123,34 @@
 ; [":db/ident" ":my/attr"] and will use the entity number in storage.
 ;
 ; TODO: Must validate that incoming data type is a cord when I add value types.
-| rawAdd dbIdentId dbIdentId dbIdentStr TRUE TRUE
-| rawAdd dbIdentId dbUniqueId TRUE TRUE TRUE
+| baseAdd dbIdentId dbIdentId dbIdentStr
+| baseAdd dbIdentId dbUniqueId TRUE
 ;
 ; :db/unique is whether values for this attribute must be unique. It defaults
 ; to false. When true, and a transaction attempts to commit an already existing
 ; value, errors to the user.
-| rawAdd dbUniqueId dbIdentId dbUniqueStr TRUE TRUE
+| baseAdd dbUniqueId dbIdentId dbUniqueStr
 ;
 ; :db/indexed is whether values for this attribute are indexed, ie, whether you
 ; can look up an eid by their attribute and value. :db/unique implies
 ; :db/indexed.
-| rawAdd dbIndexedId dbIdentId dbIndexedStr TRUE TRUE
+| baseAdd dbIndexedId dbIdentId dbIndexedStr
 ;
 ; :db/cardinality is "one" or "many". When adding a tuple whose attribute has
 ; cardinality "one", the value is overwritten. When "many", multiple values
 ; accumulate.
 ;
 ; TODO: validate the values "one" or "many" once I implement :db/attr.preds.
-| rawAdd dbCardinalityId dbIdentId dbCardinalityStr TRUE TRUE
+| baseAdd dbCardinalityId dbIdentId dbCardinalityStr
+;
+; :db/valueType is a string describing the type. For now, the values are nat,
+; any and ref.
+| baseAdd dbValueTypeId dbIdentId dbValueTypeStr
 db
 
 ;; Resolved transaction changes
 # datatype TxOper
-* RESADD eid:Nat aid:Nat attrName:Any val:Any indexed:Any unique:Any many:Any
+* RESADD eid:Nat aid:Nat attrName:Any val:Any indexed:Bool unique:Bool many:Bool isRef:Bool
 * RESRETRACT entityId:Any attr:Any val:Any
 
 # datatype Ident
@@ -160,7 +173,8 @@ db
 ; Return a new entity id and record the new max in the database.
 = (allocEntity db)
 # openDb db
-[maxEid [eav aev ave (inc maxEid)]]
+,, maxEid
+,, | DB eav aev ave vae (inc maxEid)
 
 ; Passes the single item to `gud` or runs `bad`.
 = (fromSingletonCab opt bad gud)
@@ -195,7 +209,7 @@ e
 ; number and an 'indexed' boolean which is whether we can use the ave table to
 ; lookup data related to this attribute.
 ;
-> Str > DB > Either Error [Nat Bool Bool Bool]
+> Str > DB > Either Error [Nat Bool Bool Bool Bool]
 = (resolveAttrName attrName db)
 @ attrsCab | lookupByAidV dbIdentId attrName db
 : attrEid <- *fromSingletonCab attrsCab
@@ -215,7 +229,14 @@ e
   * one  FALSE
   * many TRUE
   * _    | 'unknown many value: ' many
-| *RIGHT [attrEid isIndex isUnique isMany]
+@ isRef
+  @ attrValType | lookupByAidEid dbValueTypeId attrEid db
+  : t <- *singletonCabDefault attrValType "any"
+  | trk [%isRef attrName attrValType]
+  # switch t
+  * ref TRUE
+  * _   FALSE
+| *RIGHT [attrEid isIndex isUnique isMany isRef]
 
 ; User level manual lookup
 = (lookupByEA eid attr db)
@@ -258,7 +279,7 @@ e
   ,, txnTmps
   ,, | if (lth eid maxEid) db
      ; user has specified a larger eid than exists by hand.
-     [eav aev ave (inc eid)]
+     | DB eav aev ave vae (inc eid)
 * (TMP val)
   | *RIGHT
   : eid <- maybeCase (tabLookup val txnTmps)
@@ -268,7 +289,7 @@ e
 * (LOOKUP attrName val)
   # datacase | resolveAttrName attrName db
   * (LEFT err) | *LEFT err
-  * (RIGHT [aid _ unique _])
+  * (RIGHT [aid _ unique _ _])
     | ifNot unique
       | *LEFT | *LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
     @ eids | lookupByAidV aid val db
@@ -292,11 +313,12 @@ e
     ^ foldl _ [NIL NIL] | tabToPairs tab
     & ([errs items] [attrName v])
     # datacase | resolveAttrName attrName db
-    * (LEFT err) [(*CONS err errs) items]
-    * (RIGHT [aid indexed unique many])
+    * (LEFT err)
+      [(*CONS err errs) items]
+    * (RIGHT [aid indexed unique many isRef])
         @ writeAve | or indexed unique
         ,, errs
-        ,, (*CONS (RESADD eid aid attrName v writeAve unique many) items)
+        ,, (*CONS (RESADD eid aid attrName v writeAve unique many isRef) items)
   [(listWeld newErrs errs) (listWeld newItems items) txnTmps db]
 * (ADD ident attr val)
   # datacase | resolveIdent ident txnTmps db
@@ -304,10 +326,10 @@ e
   * (RIGHT [eid txnTmps db])
     # datacase | resolveAttrName attr db
     * (LEFT err) (*CONS err errs, items, txnTmps, db)
-    * (RIGHT [aid indexed unique many])
+    * (RIGHT [aid indexed unique many isRef])
       @ writeAve | or indexed unique
       ,, errs
-      ,, (*CONS (RESADD eid aid attr val writeAve unique many) items)
+      ,, (*CONS (RESADD eid aid attr val writeAve unique many isRef) items)
       ,, txnTmps
       ,, db
 * (RETRACT ident attr val)
@@ -316,7 +338,7 @@ e
   * (RIGHT [eid txnTmps db])
     # datacase | resolveAttrName attr db
     * (LEFT err) (*CONS err errs, items, txnTmps, db)
-    * (RIGHT [aid indexed unique many])
+    * (RIGHT [aid indexed unique many isRef])
       [errs (*CONS (RESRETRACT eid aid val) items) txnTmps db]
 
 ; User transaction function. Given transaction items, resolve any pending
@@ -331,16 +353,16 @@ e
   ^ listFoldl _ [errs db] resolved
   & ([errs db] item)
   # datacase item
-  * (RESADD eid aid attrName val indexed unique many)
+  * (RESADD eid aid attrName val indexed unique many isRef)
     | ifNot unique
       ; simple case, cannot error
-      [errs (rawAdd eid aid val indexed many db)]
+      [errs (rawAdd eid aid val indexed many isRef db)]
     ;
     ; check for uniqueness violations.
     @ oldEidCab | lookupByAidV aid val db
     | if (cabIsEmpty oldEidCab)
       ; no previous value
-      [errs (rawAdd eid aid val indexed many db)]
+      [errs (rawAdd eid aid val indexed many isRef db)]
     ,, | *CONS (UNIQUE_VIOLATION attrName val (cabFirst oldEidCab) eid) errs
     ,, db
   * (RESRETRACT eid attr val)
@@ -355,6 +377,8 @@ e
 * (RIGHT r) r
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+emptyDB
 
 = postDB
 ^ assertTransact _ emptyDB
@@ -471,7 +495,7 @@ e
                  "(555) 555"
 
 ; We should be able to lookup an entity by indexed attribute.
-!!=   %[7]
+!!=   %[8]
     | lookupByAV ":c/name" "Iceman" contactsDB
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
