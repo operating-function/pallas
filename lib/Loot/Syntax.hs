@@ -1104,6 +1104,7 @@ readCord :: Red v Text
 readCord = matchLeaf "cord" \case
     (THIN_CORD,t) -> Just t
     (THIC_CORD,t) -> Just t
+    (CURL_CORD,t) -> Just t
     _             -> Nothing
 
 readPage :: Red v Text

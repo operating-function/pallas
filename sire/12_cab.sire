@@ -207,6 +207,7 @@
 | if    | or (eql "TAPE" style)
         | or (eql "CORD" style)
         | or (eql "LINE" style)
+        | or (eql "CURL" style)
              (eql "PAGE" style)
     | ok (rexText rex)
 | if (eql "EMBD" style)
