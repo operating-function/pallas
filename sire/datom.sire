@@ -70,8 +70,7 @@
 | DB eav aev ave maxEid
 
 ; raw remove
-= (rawRm e a v many db)
-; TODO: obey `many`.
+= (rawRm e a v db)
 # openDb db
 @ (alter2 c in)
   : cab <- *maybeCase in NONE
@@ -139,7 +138,7 @@ db
 ;; Resolved transaction changes
 # datatype TxOper
 * RESADD eid:Nat aid:Nat attrName:Any val:Any indexed:Any unique:Any many:Any
-* RESRETRACT entityId:Any attr:Any val:Any many:Any
+* RESRETRACT entityId:Any attr:Any val:Any
 
 # datatype Ident
 ; Specific numeric entity
@@ -311,11 +310,14 @@ e
       ,, (*CONS (RESADD eid aid attr val writeAve unique many) items)
       ,, txnTmps
       ,, db
-* (RETRACT eid attr val)
-  # datacase | resolveAttrName attr db
+* (RETRACT ident attr val)
+  # datacase | resolveIdent ident txnTmps db
   * (LEFT err) (*CONS err errs, items, txnTmps, db)
-  * (RIGHT [aid indexed unique many])
-    [errs (*CONS (RESRETRACT eid attr val) items) txnTmps db]
+  * (RIGHT [eid txnTmps db])
+    # datacase | resolveAttrName attr db
+    * (LEFT err) (*CONS err errs, items, txnTmps, db)
+    * (RIGHT [aid indexed unique many])
+      [errs (*CONS (RESRETRACT eid aid val) items) txnTmps db]
 
 ; User transaction function. Given transaction items, resolve any pending
 ; entity numbers in them and then apply them to the database.
@@ -341,8 +343,8 @@ e
       [errs (rawAdd eid aid val indexed many db)]
     ,, | *CONS (UNIQUE_VIOLATION attrName val (cabFirst oldEidCab) eid) errs
     ,, db
-  * (RESRETRACT eid attr val many)
-    [errs (rawRm eid attr val many db)]
+  * (RESRETRACT eid attr val)
+    [errs (rawRm eid attr val db)]
 | ifNot (listNull errs) | *LEFT | listToRow errs
 | *RIGHT newDB
 
@@ -461,12 +463,16 @@ e
 !!=     %["iceman@plunder.tech" "alias@example.com"]
     | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/email" changedEmailDB
 
+; Retract removes the data from the tables:
+!!=     %[]
+    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone"
+    ^ assertTransact _ phoneDB
+    ,, | RETRACT (LOOKUP ":c/email" "iceman@plunder.tech") ":c/phone"
+                 "(555) 555"
+
 ; We should be able to lookup an entity by indexed attribute.
 !!=   %[7]
     | lookupByAV ":c/name" "Iceman" contactsDB
-
-; TODO: Retraction is entirely untested and might not work. Pound on that code
-; path with tests.
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
