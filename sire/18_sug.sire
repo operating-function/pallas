@@ -395,6 +395,18 @@ four=(WORD 0 "4" 0)
 @ r  | idx 1 ar
 | ok p a r
 
+= ("/=" s p e a r err ok)
+@ kids (rexKids r)
+| if (neq 2 (len kids))
+    | err r "Expected: (x /= y)"
+@ x (idx 1 kids)
+@ y (idx 0 kids)
+| ok p a
+| appE (cnsE neq, x, y)
+
+!!= 1 (3 /= 4)
+!!= 0 (3 /= 3)
+
 
 """ UNIT Hack (This should live elsewhere) """""""""""""""""""""""""""""""""""""
 
@@ -418,6 +430,7 @@ UNIT=0
 ^-^ ":"
 ^-^ "~" "~~" "::"
 ^-^ "``"
-^-^ "&&" "||" "=="
+^-^ "&&" "||"
+^-^ "==" "/="
 ^-^ "!!"
 ^-^
