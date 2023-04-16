@@ -18,6 +18,7 @@
 ;; typw.
 
 # datatype Error
+* UNIQUE_VIOLATION attrName:Any attrVal:Any oldEid:Nat newEid:Nat
 * LOOKUP_NO_ATTRIBUTE attrName:Any
 * LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName:Any
 * LOOKUP_NO_MATCH attrName:Any val:Any
@@ -137,7 +138,7 @@ db
 
 ;; Resolved transaction changes
 # datatype TxOper
-* RESADD entityId:Any attr:Any val:Any indexed:Any many:Any
+* RESADD eid:Nat aid:Nat attrName:Any val:Any indexed:Any unique:Any many:Any
 * RESRETRACT entityId:Any attr:Any val:Any many:Any
 
 # datatype Ident
@@ -269,7 +270,6 @@ e
   # datacase | resolveAttrName attrName db
   * (LEFT err) | *LEFT err
   * (RIGHT [aid _ unique _])
-    | trk [%lookup attrName aid unique]
     | ifNot unique
       | *LEFT | *LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
     @ eids | lookupByAidV aid val db
@@ -296,7 +296,8 @@ e
     * (LEFT err) [(*CONS err errs) items]
     * (RIGHT [aid indexed unique many])
         @ writeAve | or indexed unique
-        [errs (*CONS (RESADD eid aid v writeAve many) items)]
+        ,, errs
+        ,, (*CONS (RESADD eid aid attrName v writeAve unique many) items)
   [(listWeld newErrs errs) (listWeld newItems items) txnTmps db]
 * (ADD ident attr val)
   # datacase | resolveIdent ident txnTmps db
@@ -306,7 +307,10 @@ e
     * (LEFT err) (*CONS err errs, items, txnTmps, db)
     * (RIGHT [aid indexed unique many])
       @ writeAve | or indexed unique
-      [errs (*CONS (RESADD eid aid val writeAve many) items) txnTmps db]
+      ,, errs
+      ,, (*CONS (RESADD eid aid attr val writeAve unique many) items)
+      ,, txnTmps
+      ,, db
 * (RETRACT eid attr val)
   # datacase | resolveAttrName attr db
   * (LEFT err) (*CONS err errs, items, txnTmps, db)
@@ -321,14 +325,26 @@ e
 @ [errs resolved _ db]
   | foldl resolveTransactionItem [NIL NIL %[] db] items
 | ifNot (listNull errs) | *LEFT | listToRow errs
-| *RIGHT
-^ listFoldl _ db resolved
-& (db item)
-# datacase item
-* (RESADD eid attr val indexed many)
-  | rawAdd eid attr val indexed many db
-* (RESRETRACT eid attr val many)
-  | rawRm eid attr val many db
+@ [errs newDB]
+  ^ listFoldl _ [errs db] resolved
+  & ([errs db] item)
+  # datacase item
+  * (RESADD eid aid attrName val indexed unique many)
+    | ifNot unique
+      ; simple case, cannot error
+      [errs (rawAdd eid aid val indexed many db)]
+    ;
+    ; check for uniqueness violations.
+    @ oldEidCab | lookupByAidV aid val db
+    | if (cabIsEmpty oldEidCab)
+      ; no previous value
+      [errs (rawAdd eid aid val indexed many db)]
+    ,, | *CONS (UNIQUE_VIOLATION attrName val (cabFirst oldEidCab) eid) errs
+    ,, db
+  * (RESRETRACT eid attr val many)
+    [errs (rawRm eid attr val many db)]
+| ifNot (listNull errs) | *LEFT | listToRow errs
+| *RIGHT newDB
 
 > Row TxnItem > DB > DB
 = (assertTransact items db)
@@ -395,6 +411,18 @@ e
     ^ transact _ emptyContactsDB
     ,, | ADD (ENT 5) ":bad/a" "bad"
 
+; Transaction which tries to duplicate a unique value fail. (Tries to add sol's
+; email to iceman's entity).
+!!=    @ icemanEid | cabFirst
+                   | lookupByAV ":c/email" "iceman@plunder.tech" contactsDB
+       @ solEid    | cabFirst
+                   | lookupByAV ":c/email" "sol@plunder.tech" contactsDB
+       | *LEFT ,, | UNIQUE_VIOLATION ":c/email" "sol@plunder.tech"
+                                     solEid icemanEid
+    ^ transact _ contactsDB
+    ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/email"
+             "sol@plunder.tech"
+
 ; If we try set the contacts up so you can reference entities by their email,
 ; we should be able to set someone's phone number by their email.
 = phoneDB
@@ -436,10 +464,6 @@ e
 ; We should be able to lookup an entity by indexed attribute.
 !!=   %[7]
     | lookupByAV ":c/name" "Iceman" contactsDB
-
-; TODO: Once we return errors instead of just dying on exceptions, also
-;
-; - validate uniqueness during a new validation pass.
 
 ; TODO: Retraction is entirely untested and might not work. Pound on that code
 ; path with tests.
