@@ -232,7 +232,6 @@ e
 @ isRef
   @ attrValType | lookupByAidEid dbValueTypeId attrEid db
   : t <- *singletonCabDefault attrValType "any"
-  | trk [%isRef attrName attrValType]
   # switch t
   * ref TRUE
   * _   FALSE
@@ -378,8 +377,6 @@ e
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-emptyDB
-
 = postDB
 ^ assertTransact _ emptyDB
 ,, | NEWENTITY [":db/ident"=":b/post" ":db/cardinality"="one"]
@@ -498,13 +495,216 @@ emptyDB
 !!=   %[8]
     | lookupByAV ":c/name" "Iceman" contactsDB
 
+= emptyMusicDB
+  ^ assertTransact _ emptyDB
+  ,, | NEWENTITY %% =":db/ident" ":artist/name"
+                 %% =":db/cardinality" "one"
+  ,, | NEWENTITY %% =":db/ident" ":album/name"
+                 %% =":db/cardinality" "one"
+                 %% =":db/valueType" "ref"
+
+
+""" NEW PARSING """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= dbIdId 100  ; TODO: should be 0
+= dbIdStr ":db/id"
+
+# datatype EntIdent
+; Specific numeric entity
+* ENT entityId:Any
+; New entity referred to multiple times by this value
+* TMP val:Any
+; Entity id based on an attribute lookup.
+* LOOKUP attr:Any val:Any
+
+# datatype TxnAction
+* ACTADD eid:Nat aid:Nat attrName:Any val:Any indexed:Bool unique:Bool
+         many:Bool isRef:Bool
+* ACTRM  eid:Any aid:Any val:Any
+
+# mutual parse_everything
+; Immediately resolves an entity to a numeric entity id.
+;
+; 5               -> RIGHT [5 ...]
+; [":b/first" 5]  -> RIGHT [9 ...] (assuming underlying LOOKUP succeeds)
+; [":b/second" 6] -> LEFT err (assuming lookup fails)
+; %["tmpid"]      -> RIGHT [2 ...] (assigns a tmpid and adds it to the map)
+;
+;> Map Str Nat > DB > Any > Either Error [Nat (Map Str Nat) DB]
+= (parseEntityId txnTmpIds db i)
+  | if (isNat i)
+    | *RIGHT [i txnTmpIds db]
+  | if (and (isRow i) (eql 2 | len i))
+    # datacase | performLookup (idx 0 i) (idx 1 i) db
+    * (LEFT l)    | *LEFT l
+    * (RIGHT eid) | *RIGHT [eid txnTmpIds db]
+  ; temporarily, we're going to wrap temporary identifiers in cabs for ease of
+  ; typing
+  | if | rowAnd ,, isCab i
+                ,, eql 1 | cabLen i
+                ,, isNat | cabFirst i
+    @ val | cabFirst i
+    : eid <- maybeCase (tabLookup val txnTmpIds)
+               @ [eid db] | allocEntity db
+               | *RIGHT [eid (tabMut val eid txnTmpIds) db]
+    | *RIGHT [eid txnTmpIds db]
+  | *LEFT "Couldn't parse"
+; Resolve a lookup ref into an eid or error.
+;
+;> Str > Any > DB > Either Error Nat
+= (performLookup attrName val db)
+  # datacase | resolveAttrName attrName db
+  * (LEFT err) | *LEFT err
+  * (RIGHT [aid _ unique _ _])
+    | ifNot unique
+      | *LEFT | *LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
+    @ eids | lookupByAidV aid val db
+    @ l | cabLen eids
+    | if (isZero l)
+      | *LEFT | *LOOKUP_NO_MATCH attrName val
+    | *RIGHT | cabFirst eids
+; Given a map, parse it into a series of actions and return the numeric eid
+; parsed or assigned.
+;
+; We have to perform all numeric entity resolution immediately since we want to
+; pass the eid upwards to participate in other parts of the transaction.
+;
+;> DB > Tab Any Any > [[Error] [TxnAction] (Tab Any Any) DB]
+= (parseMapForm txnTmpIds db tab)
+  | trk [%parseMapForm txnTmpIds db tab]
+  ; if there's a :db/id, than use that. But if there's not, we have to assign a
+  ; new temporary id.
+  @ eitherEident
+    : entVal <- *maybeCase (tabLookup dbIdStr tab)
+                  @ [eid db] | allocEntity db
+                  | *RIGHT [eid txnTmpIds db]
+    | parseEntityId txnTmpIds db entVal
+  ;
+  | trk [%rawEither eitherEident]
+  # datacase eitherEident
+  * (LEFT l)
+    | trk [%couldntGetEID l]
+    [(*CONS l NIL) NIL txnTmpIds db]
+  * (RIGHT [eid txnTmpIds db])
+    | trk [%eiddb eid txnTmpIds db]
+    ^ foldl _ [NIL NIL txnTmpIds db] | tabToPairs | tabDel dbIdStr tab
+    & ([errs items txnTmpIds db] [aVal vVal])
+    | trk [%try [errs items db] [aVal vVal]]
+    ;
+    # datacase (resolveAttrName aVal db)
+    * (LEFT err)
+      | trk [%couldntResolve aVal db]
+      [(*CONS err errs) items db]
+    * (RIGHT [aid indexed unique isMany isRef])
+      | if isRef
+        ; this value type is a ref. parse
+        | if isMany
+          ; this might be a list of refs
+          | 'todo: isRef/isMany case' aid
+        # datacase | parseEntityId txnTmpIds db vVal
+        * (LEFT err)
+          | trk [%failedToParseEntityId vVal]
+          ,, (*CONS err errs)
+          ,, items
+          ,, txnTmpIds
+          ,, db
+        * (RIGHT [rightEid txnTmpIds db])
+          ,, errs
+          ,, | *CONS (ACTADD eid aid aVal rightEid indexed unique isMany isRef)
+                     items
+          ,, txnTmpIds
+          ,, db
+      | if isMany
+        ; many, but not references. So if this is a row, parse each item as a
+        ; value, otherwise
+        | if | isRow vVal
+          | 'todo: isMany case' aid
+        ,, errs
+        ,, | *CONS (ACTADD eid aid aVal vVal indexed unique isMany isRef)
+                   items
+        ,, txnTmpIds
+        ,, db
+      ; sometimes a val is just a val
+      ,, errs
+      ,, | *CONS (ACTADD eid aid aVal vVal indexed unique isMany isRef)
+                 items
+      ,, txnTmpIds
+      ,, db
+
+; Given a user-level structure of rows and tabs, parse it into a series of adds
+; and retracts.
+;
+; Parsing depends on a database value because the query has attributes in it
+; and we have to lookup the properties of those attributes to know how to parse
+; them.
+;
+;> DB > Any > [[Error] [TxnAction] (Tab Any Any) DB]
+= (parseItem txnTmpIds db item)
+  | if (isTab item)
+    | parseMapForm txnTmpIds db item
+  ;
+  | *LEFT "1) What"
+; > DB > Row Any > Either [Error] [[TxnAction] DB]
+= (parseTransact db items)
+  @ [errs actions txnTmpIds db]
+    ^ foldl _ [NIL NIL %[] db] items
+    & ([errs actions txnTmpIds db] i)
+    @ [newErrs newActions txnTmpIds db] | parseItem txnTmpIds db i
+    ,, | listWeld newErrs errs
+    ,, | listWeld newActions actions
+    ,, txnTmpIds
+    ,, db
+  | trk [%ret errs actions txnTmpIds db]
+  | ifNot (listNull errs) | *LEFT | listToRow errs
+  | *RIGHT [actions db]
+
+;; What do we need? What we really want is to be able to write the equivalent
+;; of the Clojure:
+;;
+;; [{:db/id "bobid"
+;;   :person/name "Bob"
+;;   :person/spouse "aliceid"}
+;;  {:db/id "aliceid"
+;;   :person/name "Alice"
+;;   :person/spouse "bobid"}]
+
+= emptySpouseDB
+  ^ assertTransact _ emptyDB
+  ,, | NEWENTITY %% =":db/ident" ":person/name"
+                 %% =":db/cardinality" "one"
+  ,, | NEWENTITY %% =":db/ident" ":person/spouse"
+                 %% =":db/cardinality" "one"
+                 %% =":db/valueType" "ref"
+
+= aliceAndBob
+  | parseTransact emptySpouseDB
+  ,, %% =":db/id" %["bobid"]
+     %% =":person/name" "Bob"
+     %% =":person/spouse" %["aliceid"]
+  ,, %% =":db/id" %["aliceid"]
+     %% =":person/name" "Alice"
+     %% =":person/spouse" %["bobid"]
+
+
+
+
+
+
+
+
+
+
+
+
+
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-^-^
-^-^ DB emptyDB
-^-^
-^-^ ENT TMP LOOKUP
-^-^ NEWENTITY ADD RETRACT
-^-^
-^-^ lookupByEA lookupByAE lookupByAV transact
+;  ^-^
+;  ^-^ DB emptyDB
+;  ^-^
+;  ^-^ ENT TMP LOOKUP
+;  ^-^ NEWENTITY ADD RETRACT
+;  ^-^
+;  ^-^ lookupByEA lookupByAE lookupByAV transact
+
 
