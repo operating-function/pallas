@@ -39,8 +39,8 @@
 ; rschema
 
 ; raw operation to add a resolved tuple to the database
-= (rawAdd e a v indexed many isRef db)
-;| trk [%rawAdd e a v indexed many isRef db]
+= (rawAdd e a v writeAve many isRef db)
+;| trk [%rawAdd e a v writeAve many isRef db]
 # openDb db
 ; only usable for tuples which end in [v] (eav, aev)
 @ (alterEndVal c in)
@@ -70,7 +70,7 @@
 @ eav | tabAlter (alterNotVal a v) e eav
 @ aev | tabAlter (alterNotVal e v) a aev
 @ ave
-  | ifNot indexed ave
+  | ifNot writeAve ave
   | tabAlter (alterMiddleEndNonV v e) a ave
 @ vae
   | ifNot isRef vae
@@ -107,6 +107,9 @@
 = dbIndexedStr ":db/indexed"
 = dbValueTypeId 4
 = dbValueTypeStr ":db/valueType"
+
+= dbIdId 100  ; TODO: should be 0
+= dbIdStr ":db/id"
 
 = emptyDB
 @ db
@@ -151,12 +154,7 @@
 | baseAdd dbValueTypeId dbIdentId dbValueTypeStr
 db
 
-;; Resolved transaction changes
-# datatype TxOper
-* RESADD eid:Nat aid:Nat attrName:Any val:Any indexed:Bool unique:Bool many:Bool isRef:Bool
-* RESRETRACT entityId:Any attr:Any val:Any
-
-# datatype Ident
+# datatype EntIdent
 ; Specific numeric entity
 * ENT entityId:Any
 ; New entity referred to multiple times by this value
@@ -164,16 +162,13 @@ db
 ; Entity id based on an attribute lookup.
 * LOOKUP attr:Any val:Any
 
-;; Transaction items
-# datatype TxnItem
-; Creates a new entity and adds the contents of the tab as a list of e
-* NEWENTITY tab:Any
-; Adds a specific
-* ADD ident:Any attr:Any val:Any
-; Retracts a specific datom
-* RETRACT eid:Any attr:Any val:Any
+# datatype TxnAction
+* ACTADD eid:Nat aid:Nat attrName:Any val:Any writeAve:Bool unique:Bool
+         many:Bool isRef:Bool
+* ACTRM  eid:Any aid:Any val:Any
 
 ; Return a new entity id and record the new max in the database.
+> DB > [Nat DB]
 = (allocEntity db)
 # openDb db
 ,, maxEid
@@ -206,6 +201,13 @@ v
 # openDb db
 : ve <- *maybeCase (tabLookup aid ave) %[]
 : e  <- *maybeCase (tabLookup val ve) %[]
+e
+
+= (lookupByVAid val aid db)
+# openDb db
+| trk [%lookup val vae]
+: ae <- *maybeCase (tabLookup val vae) %[]
+: e  <- *maybeCase (tabLookup aid ae) %[]
 e
 
 ; Given a user level attribute name, translate that to a numeric attribute
@@ -268,262 +270,6 @@ e
   : eid <- *fromSingletonCab eidCab | 'invalid eid for aid?! ' aid
   | lookupByEA eid attr db
 
-; Given a user level entity identity, translate that to a numeric database
-; identity.
-;
-> Ident > (Map Any Nat) > DB > Either Error [Nat (Map Any Nat) DB]
-= (resolveIdent ident txnTmps db)
-# openDb db
-# datacase ident
-* (ENT eid)
-  | *RIGHT
-  ,, eid
-  ,, txnTmps
-  ,, | if (lth eid maxEid) db
-     ; user has specified a larger eid than exists by hand.
-     | DB eav aev ave vae (inc eid)
-* (TMP val)
-  | *RIGHT
-  : eid <- maybeCase (tabLookup val txnTmps)
-             @ [eid db] | allocEntity db
-             [eid (tabMut val eid txnTmps) db]
-  [eid txnTmps db]
-* (LOOKUP attrName val)
-  # datacase | resolveAttrName attrName db
-  * (LEFT err) | *LEFT err
-  * (RIGHT [aid _ unique _ _])
-    | ifNot unique
-      | *LEFT | *LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
-    @ eids | lookupByAidV aid val db
-    @ l | cabLen eids
-    | if (isZero l)
-      | *LEFT | *LOOKUP_NO_MATCH attrName val
-    | *RIGHT
-    [(cabFirst eids) txnTmps db]
-
-; Given input items, assign numeric entity ids to everything for loading into
-; the actual db.
-;
-> [(List Err) (List TxnItem) (Map Any Nat) DB]
-> TxnItem
-> [(List Err) (List TxnItem) (Map Any Nat) DB]
-= (resolveTransactionItem [errs items txnTmps db] item)
-# datacase item
-* (NEWENTITY tab)
-  @ [eid db] | allocEntity db
-  @ [newErrs newItems]
-    ^ foldl _ [NIL NIL] | tabToPairs tab
-    & ([errs items] [attrName v])
-    # datacase | resolveAttrName attrName db
-    * (LEFT err)
-      [(*CONS err errs) items]
-    * (RIGHT [aid indexed unique many isRef])
-        @ writeAve | or indexed unique
-        ,, errs
-        ,, (*CONS (RESADD eid aid attrName v writeAve unique many isRef) items)
-  [(listWeld newErrs errs) (listWeld newItems items) txnTmps db]
-* (ADD ident attr val)
-  # datacase | resolveIdent ident txnTmps db
-  * (LEFT err) (*CONS err errs, items, txnTmps, db)
-  * (RIGHT [eid txnTmps db])
-    # datacase | resolveAttrName attr db
-    * (LEFT err) (*CONS err errs, items, txnTmps, db)
-    * (RIGHT [aid indexed unique many isRef])
-      @ writeAve | or indexed unique
-      ,, errs
-      ,, (*CONS (RESADD eid aid attr val writeAve unique many isRef) items)
-      ,, txnTmps
-      ,, db
-* (RETRACT ident attr val)
-  # datacase | resolveIdent ident txnTmps db
-  * (LEFT err) (*CONS err errs, items, txnTmps, db)
-  * (RIGHT [eid txnTmps db])
-    # datacase | resolveAttrName attr db
-    * (LEFT err) (*CONS err errs, items, txnTmps, db)
-    * (RIGHT [aid indexed unique many isRef])
-      [errs (*CONS (RESRETRACT eid aid val) items) txnTmps db]
-
-; User transaction function. Given transaction items, resolve any pending
-; entity numbers in them and then apply them to the database.
-;
-> Row TxnItem > DB > (Either (Row Error) DB)
-= (transact items db)
-@ [errs resolved _ db]
-  | foldl resolveTransactionItem [NIL NIL %[] db] items
-| ifNot (listNull errs) | *LEFT | listToRow errs
-@ [errs newDB]
-  ^ listFoldl _ [errs db] resolved
-  & ([errs db] item)
-  # datacase item
-  * (RESADD eid aid attrName val indexed unique many isRef)
-    | ifNot unique
-      ; simple case, cannot error
-      [errs (rawAdd eid aid val indexed many isRef db)]
-    ;
-    ; check for uniqueness violations.
-    @ oldEidCab | lookupByAidV aid val db
-    | if (cabIsEmpty oldEidCab)
-      ; no previous value
-      [errs (rawAdd eid aid val indexed many isRef db)]
-    ,, | *CONS (UNIQUE_VIOLATION attrName val (cabFirst oldEidCab) eid) errs
-    ,, db
-  * (RESRETRACT eid attr val)
-    [errs (rawRm eid attr val db)]
-| ifNot (listNull errs) | *LEFT | listToRow errs
-| *RIGHT newDB
-
-> Row TxnItem > DB > DB
-= (assertTransact items db)
-# datacase (transact items db)
-* (LEFT l)  | 'transaction failed: ' l
-* (RIGHT r) r
-
-""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-= postDB
-^ assertTransact _ emptyDB
-,, | NEWENTITY [":db/ident"=":b/post" ":db/cardinality"="one"]
-,, | NEWENTITY [":db/ident"=":b/author" ":db/cardinality"="one"]
-,, | NEWENTITY [":db/ident"=":b/title" ":db/cardinality"="one"]
-
-; Check that NEWENTITY and ADD forms are equivalent.
-!!=     ^ assertTransact _ postDB
-        ,, | ADD (TMP "newpost") ":b/post" "mai poast"
-        ,, | ADD (TMP "newpost") ":b/author" "Iceman"
-        ,, | ADD (TMP "other") ":b/post" "Other post"
-        ,, | ADD (TMP "other") ":b/author" "Sol"
-   ^ assertTransact _ postDB
-   ,, | NEWENTITY [":b/post"="mai poast" ":b/author"="Iceman"]
-   ,, | NEWENTITY [":b/post"="Other post" ":b/author"="Sol"]
-
-= emptyContactsDB
-^ assertTransact _ emptyDB
-,, | NEWENTITY %% =":db/ident" ":c/name"
-               %% =":db/indexed" TRUE
-               %% =":db/cardinality" "one"
-               %% =":db/unique" TRUE
-; In this contrived testing scenario, you can have many emails, but only one
-; phone number and that phone number can be shared between people.
-,, | NEWENTITY %% =":db/ident" ":c/email"
-               %% =":db/unique" TRUE
-               %% =":db/cardinality" "many"
-,, | NEWENTITY %% =":db/ident" ":c/phone"
-               %% =":db/indexed" TRUE
-               %% =":db/unique" FALSE
-               %% =":db/cardinality" "one"
-
-= contactsDB
-  ^ assertTransact _ emptyContactsDB
-  ,, | NEWENTITY [":c/name"="Iceman" ":c/email"="iceman@plunder.tech"]
-  ,, | NEWENTITY [":c/name"="Sol" ":c/email"="sol@plunder.tech"]
-
-; Lookup by nonexistent attributes fail.
-!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":d/blah")]
-    ^ transact _ emptyContactsDB
-    ,, | ADD (LOOKUP ":d/blah" "51") ":c/email" "blah@plunder.tech"
-
-; Lookup by nonexistent values fail.
-!!=   | LEFT [(LOOKUP_NO_MATCH ":c/name" "Bob")]
-    ^ transact _ emptyContactsDB
-    ,, | ADD (LOOKUP ":c/name" "Bob") ":c/email" "bob@plunder.tech"
-
-; NEWENTITY with nonexistent attributes fails.
-!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/b") (LOOKUP_NO_ATTRIBUTE ":bad/a")]
-    ^ transact _ emptyContactsDB
-    ,, | NEWENTITY [":bad/a"="bad" ":bad/b"="bad"]
-
-; ADD with nonexistent attributes fails.
-!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/a")]
-    ^ transact _ emptyContactsDB
-    ,, | ADD (ENT 5) ":bad/a" "bad"
-
-; Transaction which tries to duplicate a unique value fail. (Tries to add sol's
-; email to iceman's entity).
-!!=    @ icemanEid | cabFirst
-                   | lookupByAV ":c/email" "iceman@plunder.tech" contactsDB
-       @ solEid    | cabFirst
-                   | lookupByAV ":c/email" "sol@plunder.tech" contactsDB
-       | *LEFT ,, | UNIQUE_VIOLATION ":c/email" "sol@plunder.tech"
-                                     solEid icemanEid
-    ^ transact _ contactsDB
-    ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/email"
-             "sol@plunder.tech"
-
-; If we try set the contacts up so you can reference entities by their email,
-; we should be able to set someone's phone number by their email.
-= phoneDB
-  ^ assertTransact _ contactsDB
-  ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/phone" "(555) 555"
-
-!!=     %["(555) 555"]
-    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone" phoneDB
-
-; Can't lookup by non-unique attributes:
-!!=    | LEFT [(LOOKUP_ATTRIBUTE_NOT_UNIQUE ":c/phone")]
-    ^ transact _ phoneDB
-    ,, | ADD (LOOKUP ":c/phone" "(555) 555") ":c/email" "other@plunder.tech"
-
-; For cardinality one attributes, setting the attribute twice should change the
-; singular attribute value.
-= changedPhoneDB
-  ^ assertTransact _ contactsDB
-  ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/phone" "(111) 111"
-
-!!=     %["(111) 111"]
-    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone" changedPhoneDB
-
-; Cardinality many interacts with the ave table: make sure in cardinality one
-; scenarios, the old value isn't retrievable from the ave table.
-!!=     %[]
-    | lookupByAV ":c/phone" "(555) 555" changedPhoneDB
-
-= changedEmailDB
-  ^ assertTransact _ contactsDB
-  ,, | ADD (LOOKUP ":c/email" "iceman@plunder.tech") ":c/email"
-           "alias@example.com"
-
-; For cardinality many attributes, setting the attribute twice should add
-; another value.
-!!=     %["iceman@plunder.tech" "alias@example.com"]
-    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/email" changedEmailDB
-
-; Retract removes the data from the tables:
-!!=     %[]
-    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone"
-    ^ assertTransact _ phoneDB
-    ,, | RETRACT (LOOKUP ":c/email" "iceman@plunder.tech") ":c/phone"
-                 "(555) 555"
-
-; We should be able to lookup an entity by indexed attribute.
-!!=   %[8]
-    | lookupByAV ":c/name" "Iceman" contactsDB
-
-= emptyMusicDB
-  ^ assertTransact _ emptyDB
-  ,, | NEWENTITY %% =":db/ident" ":artist/name"
-                 %% =":db/cardinality" "one"
-  ,, | NEWENTITY %% =":db/ident" ":album/name"
-                 %% =":db/cardinality" "one"
-                 %% =":db/valueType" "ref"
-
-
-""" NEW PARSING """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-= dbIdId 100  ; TODO: should be 0
-= dbIdStr ":db/id"
-
-# datatype EntIdent
-; Specific numeric entity
-* ENT entityId:Any
-; New entity referred to multiple times by this value
-* TMP val:Any
-; Entity id based on an attribute lookup.
-* LOOKUP attr:Any val:Any
-
-# datatype TxnAction
-* ACTADD eid:Nat aid:Nat attrName:Any val:Any indexed:Bool unique:Bool
-         many:Bool isRef:Bool
-* ACTRM  eid:Any aid:Any val:Any
 
 ; Resolve a lookup ref into an eid or error.
 ;
@@ -575,7 +321,6 @@ e
 ;
 ;> DB > Tab Any Any > [[Error] [TxnAction] (Tab Any Any) DB]
 = (parseMapForm txnTmpIds db tab)
-  | trk [%parseMapForm txnTmpIds db tab]
   ; if there's a :db/id, than use that. But if there's not, we have to assign a
   ; new temporary id.
   @ eitherEident
@@ -584,22 +329,18 @@ e
                   | *RIGHT [eid txnTmpIds db]
     | parseEntityId txnTmpIds db entVal
   ;
-  | trk [%rawEither eitherEident]
   # datacase eitherEident
   * (LEFT l)
-    | trk [%couldntGetEID l]
     [(*CONS l NIL) NIL txnTmpIds db]
   * (RIGHT [eid txnTmpIds db])
-    | trk [%eiddb eid txnTmpIds db]
     ^ foldl _ [NIL NIL txnTmpIds db] | tabToPairs | tabDel dbIdStr tab
     & ([errs items txnTmpIds db] [aVal vVal])
-    | trk [%try [errs items db] [aVal vVal]]
     ;
     # datacase (resolveAttrName aVal db)
     * (LEFT err)
-      | trk [%couldntResolve aVal db]
       [(*CONS err errs) items db]
     * (RIGHT [aid indexed unique isMany isRef])
+      @ writeAve | or indexed unique
       | if isRef
         ; this value type is a ref. parse
         | if isMany
@@ -607,14 +348,13 @@ e
           | 'todo: isRef/isMany case' aid
         # datacase | parseEntityId txnTmpIds db vVal
         * (LEFT err)
-          | trk [%failedToParseEntityId vVal]
           ,, (*CONS err errs)
           ,, items
           ,, txnTmpIds
           ,, db
         * (RIGHT [rightEid txnTmpIds db])
           ,, errs
-          ,, | *CONS (ACTADD eid aid aVal rightEid indexed unique isMany isRef)
+          ,, | *CONS (ACTADD eid aid aVal rightEid writeAve unique isMany isRef)
                      items
           ,, txnTmpIds
           ,, db
@@ -624,13 +364,13 @@ e
         | if | isRow vVal
           | 'todo: isMany case' aid
         ,, errs
-        ,, | *CONS (ACTADD eid aid aVal vVal indexed unique isMany isRef)
+        ,, | *CONS (ACTADD eid aid aVal vVal writeAve unique isMany isRef)
                    items
         ,, txnTmpIds
         ,, db
       ; sometimes a val is just a val
       ,, errs
-      ,, | *CONS (ACTADD eid aid aVal vVal indexed unique isMany isRef)
+      ,, | *CONS (ACTADD eid aid aVal vVal writeAve unique isMany isRef)
                  items
       ,, txnTmpIds
       ,, db
@@ -645,15 +385,14 @@ e
     ,, txnTmpIds
     ,, db
   @ op | idx 0 row
-  | ifNot | or | eql %add op
-               | eql %rm op
+  | if | and | neq %add op
+             | neq %rm op
     ,, (*CONS (INVALID_ROW_OP op) NIL)
     ,, NIL
     ,, txnTmpIds
     ,, db
   # datacase | parseEntityId txnTmpIds db (idx 1 row)
   * (LEFT err)
-    | trk [%failedToParseEntityId (idx 1 row)]
     ,, (*CONS err NIL)
     ,, NIL
     ,, txnTmpIds
@@ -666,9 +405,9 @@ e
     @ attrName | idx 2 row
     # datacase (resolveAttrName attrName db)
     * (LEFT err)
-      | trk [%couldntResolve attrName db]
       [(*CONS err NIL) NIL txnTmpIds db]
     * (RIGHT [aid indexed unique isMany isRef])
+      @ writeAve | or indexed unique
       ; In list form, we don't do arity resolution. We treat the value
       ; literally.
       @ val | idx 3 row
@@ -678,7 +417,7 @@ e
         ,, txnTmpIds
         ,, db
       ,, NIL
-      ,, | *CONS | ACTADD eid aid attrName val indexed unique isMany isRef
+      ,, | *CONS (ACTADD eid aid attrName val writeAve unique isMany isRef)
                  NIL
       ,, txnTmpIds
       ,, db
@@ -690,7 +429,7 @@ e
 ; and we have to lookup the properties of those attributes to know how to parse
 ; them.
 ;
-;> DB > Any > [[Error] [TxnAction] (Tab Any Any) DB]
+> DB > Any > [[Error] [TxnAction] (Tab Any Any) DB]
 = (parseItem txnTmpIds db item)
   | if (isTab item)
     | parseMapForm txnTmpIds db item
@@ -699,19 +438,178 @@ e
   ;
   | *LEFT "1) What"
 
-; > DB > Row Any > Either [Error] [[TxnAction] DB]
+> DB > Row Any > Either [Error] [[TxnAction] DB]
 = (parseAllItems db items)
-  @ [errs actions txnTmpIds db]
-    ^ foldl _ [NIL NIL %[] db] items
-    & ([errs actions txnTmpIds db] i)
-    @ [newErrs newActions txnTmpIds db] | parseItem txnTmpIds db i
-    ,, | listWeld newErrs errs
-    ,, | listWeld newActions actions
-    ,, txnTmpIds
+  ^ foldl _ [NIL NIL %[] db] items
+  & ([errs actions txnTmpIds db] i)
+  @ [newErrs newActions txnTmpIds db] | parseItem txnTmpIds db i
+  ,, | listWeld newErrs errs
+  ,, | listWeld newActions actions
+  ,, txnTmpIds
+  ,, db
+
+; User transaction function. Given transaction items, resolve any pending
+; entity numbers in them and then apply them to the database.
+;
+> Row Any > DB > (Either (Row Error) DB)
+= (transact items db)
+@ [errs actions _ db] | parseAllItems db items
+| ifNot (listNull errs) | *LEFT | listToRow errs
+@ [errs newDB]
+  ^ listFoldl _ [errs db] actions
+  & ([errs db] item)
+  # datacase item
+  * (ACTADD eid aid attrName val writeAve unique many isRef)
+    | ifNot unique
+      ; simple case, cannot error
+      [errs (rawAdd eid aid val writeAve many isRef db)]
+    ;
+    ; check for uniqueness violations.
+    @ oldEidCab | lookupByAidV aid val db
+    | if (cabIsEmpty oldEidCab)
+      ; no previous value
+      [errs (rawAdd eid aid val writeAve many isRef db)]
+    ,, | *CONS (UNIQUE_VIOLATION attrName val (cabFirst oldEidCab) eid) errs
     ,, db
-  | trk [%ret errs actions txnTmpIds db]
-  | ifNot (listNull errs) | *LEFT | listToRow errs
-  | *RIGHT [actions db]
+  * (ACTRM eid attr val)
+    [errs (rawRm eid attr val db)]
+| ifNot (listNull errs) | *LEFT | listToRow errs
+| *RIGHT newDB
+
+> Row TxnItem > DB > DB
+= (assertTransact items db)
+# datacase (transact items db)
+* (LEFT l)  | 'transaction failed: ' l
+* (RIGHT r) r
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= postDB
+^ assertTransact _ emptyDB
+,, %[":db/ident"=":b/post" ":db/cardinality"="one"]
+,, %[":db/ident"=":b/author" ":db/cardinality"="one"]
+,, %[":db/ident"=":b/title" ":db/cardinality"="one"]
+
+
+; Check that map form and a list form of adds are equivalent.
+!!=     ^ assertTransact _ postDB
+        ,, [%add %["newpost"] ":b/post" "mai poast"]
+        ,, [%add %["newpost"] ":b/author" "Iceman"]
+        ,, [%add %["other"] ":b/post" "Other post"]
+        ,, [%add %["other"] ":b/author" "Sol"]
+   ^ assertTransact _ postDB
+   ,, %[":b/post"="mai poast" ":b/author"="Iceman"]
+   ,, %[":b/post"="Other post" ":b/author"="Sol"]
+
+= emptyContactsDB
+^ assertTransact _ emptyDB
+,, %% =":db/ident" ":c/name"
+   %% =":db/indexed" TRUE
+   %% =":db/cardinality" "one"
+   %% =":db/unique" TRUE
+; In this contrived testing scenario, you can have many emails, but only one
+; phone number and that phone number can be shared between people.
+,, %% =":db/ident" ":c/email"
+   %% =":db/unique" TRUE
+   %% =":db/cardinality" "many"
+,, %% =":db/ident" ":c/phone"
+   %% =":db/indexed" TRUE
+   %% =":db/unique" FALSE
+   %% =":db/cardinality" "one"
+
+= contactsDB
+  ^ assertTransact _ emptyContactsDB
+  ,, %[":c/name"="Iceman" ":c/email"="iceman@plunder.tech"]
+  ,, %[":c/name"="Sol" ":c/email"="sol@plunder.tech"]
+
+; Lookup by nonexistent attributes fail.
+!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":d/blah")]
+    ^ transact _ emptyContactsDB
+    ,, [%add [":d/blah" "51"] ":c/email" "blah@plunder.tech"]
+
+; Lookup by nonexistent values fail.
+!!=   | LEFT [(LOOKUP_NO_MATCH ":c/name" "Bob")]
+    ^ transact _ emptyContactsDB
+    ,, [%add [":c/name" "Bob"] ":c/email" "bob@plunder.tech"]
+
+; NEWENTITY with nonexistent attributes fails.
+!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/b") (LOOKUP_NO_ATTRIBUTE ":bad/a")]
+    ^ transact _ emptyContactsDB
+    ,, %[":bad/a"="bad" ":bad/b"="bad"]
+
+; ADD with nonexistent attributes fails.
+!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/a")]
+    ^ transact _ emptyContactsDB
+    ,, [%add 5 ":bad/a" "bad"]
+
+; Transaction which tries to duplicate a unique value fail. (Tries to add sol's
+; email to iceman's entity).
+!!=    @ icemanEid | cabFirst
+                   | lookupByAV ":c/email" "iceman@plunder.tech" contactsDB
+       @ solEid    | cabFirst
+                   | lookupByAV ":c/email" "sol@plunder.tech" contactsDB
+       | *LEFT ,, | UNIQUE_VIOLATION ":c/email" "sol@plunder.tech"
+                                     solEid icemanEid
+    ^ transact _ contactsDB
+    ,, [%add [":c/email" "iceman@plunder.tech"] ":c/email" "sol@plunder.tech"]
+
+; If we try set the contacts up so you can reference entities by their email,
+; we should be able to set someone's phone number by their email.
+= phoneDB
+  ^ assertTransact _ contactsDB
+  ,, [%add [":c/email" "iceman@plunder.tech"] ":c/phone" "(555) 555"]
+
+!!=     %["(555) 555"]
+    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone" phoneDB
+
+; Can't lookup by non-unique attributes:
+!!=    | LEFT [(LOOKUP_ATTRIBUTE_NOT_UNIQUE ":c/phone")]
+    ^ transact _ phoneDB
+    ,, [%add [":c/phone" "(555) 555"] ":c/email" "other@plunder.tech"]
+
+; For cardinality one attributes, setting the attribute twice should change the
+; singular attribute value.
+= changedPhoneDB
+  ^ assertTransact _ contactsDB
+  ,, [%add [":c/email" "iceman@plunder.tech"] ":c/phone" "(111) 111"]
+
+!!=     %["(111) 111"]
+    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone" changedPhoneDB
+
+; Cardinality many interacts with the ave table: make sure in cardinality one
+; scenarios, the old value isn't retrievable from the ave table.
+!!=     %[]
+    | lookupByAV ":c/phone" "(555) 555" changedPhoneDB
+
+= changedEmailDB
+  ^ assertTransact _ contactsDB
+  ,, [%add [":c/email" "iceman@plunder.tech"] ":c/email" "alias@example.com"]
+
+; For cardinality many attributes, setting the attribute twice should add
+; another value.
+!!=     %["iceman@plunder.tech" "alias@example.com"]
+    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/email" changedEmailDB
+
+; Retract removes the data from the tables:
+!!=     %[]
+    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone"
+    ^ assertTransact _ phoneDB
+    ,, [%rm [":c/email" "iceman@plunder.tech"] ":c/phone" "(555) 555"]
+
+; We should be able to lookup an entity by indexed attribute.
+!!=   %[8]
+    | lookupByAV ":c/name" "Iceman" contactsDB
+
+= emptyMusicDB
+  ^ assertTransact _ emptyDB
+  ,, %% =":db/ident" ":artist/name"
+     %% =":db/cardinality" "one"
+  ,, %% =":db/ident" ":album/name"
+     %% =":db/cardinality" "one"
+     %% =":db/valueType" "ref"
+
+
+""" NEW PARSING """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ;; What do we need? What we really want is to be able to write the equivalent
 ;; of the Clojure:
@@ -725,20 +623,37 @@ e
 
 = emptySpouseDB
   ^ assertTransact _ emptyDB
-  ,, | NEWENTITY %% =":db/ident" ":person/name"
-                 %% =":db/cardinality" "one"
-  ,, | NEWENTITY %% =":db/ident" ":person/spouse"
-                 %% =":db/cardinality" "one"
-                 %% =":db/valueType" "ref"
+  ,, %% =":db/ident" ":person/name"
+     %% =":db/cardinality" "one"
+     %% =":db/indexed" TRUE
+  ,, %% =":db/ident" ":person/spouse"
+     %% =":db/cardinality" "one"
+     %% =":db/valueType" "ref"
 
 = aliceAndBob
-  | parseAllItems emptySpouseDB
+  ^ assertTransact _ emptySpouseDB
   ,, %% =":db/id" %["bobid"]
      %% =":person/name" "Bob"
      %% =":person/spouse" %["aliceid"]
   ,, %% =":db/id" %["aliceid"]
      %% =":person/name" "Alice"
      %% =":person/spouse" %["bobid"]
+
+; Test that the mutual references in value position were resolved:
+!!=    | lookupByAV ":person/name" "Alice" aliceAndBob
+     @ bobCab | lookupByAV ":person/name" "Bob" aliceAndBob
+     : bobId <- *fromSingletonCab bobCab ('failed to find Bob' 0)
+     | trk [%bobId bobId]
+     : aid <- *fromSingletonCab
+                (lookupByAidV dbIdentId ":person/spouse" aliceAndBob)
+              | 'unknown attr' 0
+     | lookupByVAid bobId aid aliceAndBob
+
+
+;
+; Next actions: testing all the new many/ref cases, starting with testing the
+; mutual eid references above.
+;
 
 
 
