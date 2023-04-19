@@ -25,6 +25,8 @@
 ;
 * INVALID_ROW row:(Row Any)
 * INVALID_ROW_OP op:Any
+;
+* BAD_MAP_VAL val:Any
 
 ;; The toplevel DB type.
 ;;
@@ -205,7 +207,6 @@ e
 
 = (lookupByVAid val aid db)
 # openDb db
-| trk [%lookup val vae]
 : ae <- *maybeCase (tabLookup val vae) %[]
 : e  <- *maybeCase (tabLookup aid ae) %[]
 e
@@ -216,6 +217,7 @@ e
 ;
 > Str > DB > Either Error [Nat Bool Bool Bool Bool]
 = (resolveAttrName attrName db)
+;| trk [%resolve attrName]
 @ attrsCab | lookupByAidV dbIdentId attrName db
 : attrEid <- *fromSingletonCab attrsCab
                | *LEFT | *LOOKUP_NO_ATTRIBUTE attrName
@@ -260,6 +262,13 @@ e
   | ifNot (or indexed unique) | 'cannot lookup unindexed attr/val' attr
   | lookupByAidV aid val db
 
+= (lookupByVA val attr db)
+# datacase (resolveAttrName attr db)
+* (LEFT errs) | 'could not lookup. errors: ' errs
+* (RIGHT [aid _ _ _ ref])
+  | ifNot ref | 'cannot lookup non-ref values' attr
+  | lookupByVAid val aid db
+
 > Any > Any > Nat > DB > Cab Nat
 = (lookupByIdentA identAttr identVal attr db)
 # datacase | resolveAttrName identAttr db
@@ -270,6 +279,8 @@ e
   : eid <- *fromSingletonCab eidCab | 'invalid eid for aid?! ' aid
   | lookupByEA eid attr db
 
+
+""" User Transact Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; Resolve a lookup ref into an eid or error.
 ;
@@ -319,7 +330,7 @@ e
 ; We have to perform all numeric entity resolution immediately since we want to
 ; pass the eid upwards to participate in other parts of the transaction.
 ;
-;> DB > Tab Any Any > [[Error] [TxnAction] (Tab Any Any) DB]
+> DB > Tab Any Any > [(Maybe Nat) [Error] [TxnAction] (Tab Any Any) DB]
 = (parseMapForm txnTmpIds db tab)
   ; if there's a :db/id, than use that. But if there's not, we have to assign a
   ; new temporary id.
@@ -331,47 +342,82 @@ e
   ;
   # datacase eitherEident
   * (LEFT l)
-    [(*CONS l NIL) NIL txnTmpIds db]
+    [NONE (*LEFT | *CONS l NIL) NIL txnTmpIds db]
   * (RIGHT [eid txnTmpIds db])
+    | rowCons (SOME eid)
     ^ foldl _ [NIL NIL txnTmpIds db] | tabToPairs | tabDel dbIdStr tab
-    & ([errs items txnTmpIds db] [aVal vVal])
+    & ([errs actions txnTmpIds db] [aVal vVal])
     ;
     # datacase (resolveAttrName aVal db)
     * (LEFT err)
-      [(*CONS err errs) items db]
+      [(*CONS err errs) actions db]
     * (RIGHT [aid indexed unique isMany isRef])
       @ writeAve | or indexed unique
       | if isRef
-        ; this value type is a ref. parse
-        | if isMany
-          ; this might be a list of refs
-          | 'todo: isRef/isMany case' aid
+        ; TODO: This is super complex code. It's ugly, it's long, and I don't
+        ; know how to effectively factor this in sire.
+        | if (rowAnd [isMany (not | isCab vVal) (isRow vVal)])
+          ; we have a list here, each value needs to be treated as a map form.
+          @ [suberrs subactions subeids txnTmpIds db]
+            ^ foldl _ [NIL NIL NIL txnTmpIds db] vVal
+            & ([errs actions eids txnTmpIds db] i)
+            | ifNot | isTab i
+              ,, (*CONS (BAD_MAP_VAL i) errs)
+              ,, actions
+              ,, eids
+              ,, txnTmpIds
+              ,, db
+            ; we need to reparse map errors
+            @ [mybEid suberrs subactions txnTmpIds db]
+              | parseMapForm txnTmpIds db i
+            ,, | listWeld suberrs errs
+            ,, | listWeld subactions actions
+            ,, : eid <- *maybeCase mybEid eids
+               | *CONS eid eids
+            ,, txnTmpIds
+            ,, db
+          ; at this point, we have a list of our subeids or errors.
+          | ifNot (listNull errs)
+            ,, (listWeld suberrs errs)
+            ,, actions
+            ,, txnTmpIds
+            ,, db
+          @ newActions
+            ^ listMap _ subeids
+            & subeid
+            (ACTADD eid aid aVal subeid writeAve unique isMany isRef)
+          ,, errs
+          ,, (listWeld newActions | listWeld subactions actions)
+          ,, txnTmpIds
+          ,, db
+        ; we have one value.
         # datacase | parseEntityId txnTmpIds db vVal
         * (LEFT err)
           ,, (*CONS err errs)
-          ,, items
+          ,, actions
           ,, txnTmpIds
           ,, db
         * (RIGHT [rightEid txnTmpIds db])
           ,, errs
           ,, | *CONS (ACTADD eid aid aVal rightEid writeAve unique isMany isRef)
-                     items
+                     actions
           ,, txnTmpIds
           ,, db
       | if isMany
         ; many, but not references. So if this is a row, parse each item as a
         ; value, otherwise
         | if | isRow vVal
+          | trk [%isManyRowCase]
           | 'todo: isMany case' aid
         ,, errs
         ,, | *CONS (ACTADD eid aid aVal vVal writeAve unique isMany isRef)
-                   items
+                   actions
         ,, txnTmpIds
         ,, db
       ; sometimes a val is just a val
       ,, errs
       ,, | *CONS (ACTADD eid aid aVal vVal writeAve unique isMany isRef)
-                 items
+                 actions
       ,, txnTmpIds
       ,, db
 
@@ -432,7 +478,7 @@ e
 > DB > Any > [[Error] [TxnAction] (Tab Any Any) DB]
 = (parseItem txnTmpIds db item)
   | if (isTab item)
-    | parseMapForm txnTmpIds db item
+    | drop 1 | parseMapForm txnTmpIds db item
   | if (isRow item)
     | parseListForm txnTmpIds db item
   ;
@@ -600,19 +646,8 @@ e
 !!=   %[8]
     | lookupByAV ":c/name" "Iceman" contactsDB
 
-= emptyMusicDB
-  ^ assertTransact _ emptyDB
-  ,, %% =":db/ident" ":artist/name"
-     %% =":db/cardinality" "one"
-  ,, %% =":db/ident" ":album/name"
-     %% =":db/cardinality" "one"
-     %% =":db/valueType" "ref"
 
-
-""" NEW PARSING """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-;; What do we need? What we really want is to be able to write the equivalent
-;; of the Clojure:
+;; Test the mutual reference case in map form:
 ;;
 ;; [{:db/id "bobid"
 ;;   :person/name "Bob"
@@ -643,17 +678,46 @@ e
 !!=    | lookupByAV ":person/name" "Alice" aliceAndBob
      @ bobCab | lookupByAV ":person/name" "Bob" aliceAndBob
      : bobId <- *fromSingletonCab bobCab ('failed to find Bob' 0)
-     | trk [%bobId bobId]
      : aid <- *fromSingletonCab
                 (lookupByAidV dbIdentId ":person/spouse" aliceAndBob)
               | 'unknown attr' 0
      | lookupByVAid bobId aid aliceAndBob
 
 
-;
-; Next actions: testing all the new many/ref cases, starting with testing the
-; mutual eid references above.
-;
+; Test that we can resolve complex many/ref cases.
+= emptyOrderDB
+  ^ assertTransact _ emptyDB
+  ,, %% =":db/ident" ":order/name"
+     %% =":db/cardinality" "one"
+     %% =":db/indexed" TRUE
+  ,, %% =":db/ident" ":order/lineItems"
+     %% =":db/cardinality" "many"
+     %% =":db/valueType" "ref"
+  ,, %% =":db/ident" ":item/product"
+     %% =":db/cardinality" "one"
+     %% =":db/indexed" TRUE
+  ,, %% =":db/ident" ":item/quantity"
+     %% =":db/cardinality" "one"
+
+
+= withOrders
+  ^ assertTransact _ emptyOrderDB
+  ,, %% =":order/name" "Bob"
+     %% =":order/lineItems" ,, %% =":item/product" "Hamburger"
+                               %% =":item/quantity" 1
+                            ,, %% =":item/product" "Guinness"
+                               %% =":item/quantity" 1
+  ,, %% =":order/name" "James"
+     %% =":order/lineItems" ,, %% =":item/product" "Tendies"
+                               %% =":item/quantity" 1
+                            ,, %% =":item/product" "Kirin"
+                               %% =":item/quantity" 1
+
+; Who ordered the tendies?
+!!=     | lookupByAV ":order/name" "James" withOrders
+    @ tendiesEid | cabFirst | lookupByAV ":item/product" "Tendies" withOrders
+    | lookupByVA tendiesEid ":order/lineItems" withOrders
+
 
 
 
@@ -675,6 +739,6 @@ e
 ;  ^-^ ENT TMP LOOKUP
 ;  ^-^ NEWENTITY ADD RETRACT
 ;  ^-^
-;  ^-^ lookupByEA lookupByAE lookupByAV transact
+;  ^-^ lookupByEA lookupByAE lookupByAV lookupByVA transact
 
 
