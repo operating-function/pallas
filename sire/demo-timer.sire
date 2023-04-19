@@ -8,7 +8,7 @@
 | if (isZero count)
         | return ()
 : ??(td_got_time now) <- syscall TIME_WHEN
-| trk %[current_time=now]
+| trk [current_time=now]
 : ??(td_waited _) <- syscall (*TIME_WAIT (inc now))
 | timeDemo (dec count) return
 

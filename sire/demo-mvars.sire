@@ -27,7 +27,7 @@
 ;
 : forTime <- for [2 1 0 1 2]
            & (off return)
-           | trk [%TIME_WHEN %[=off]]
+           | trk [%TIME_WHEN [=off]]
            : tim <- syscall TIME_WHEN
            : _   <- syscall (*TIME_WAIT (add off tim))
            | return tim
@@ -36,15 +36,15 @@
 ;
 : forPar <- forConcurrently [2 1 0 1 2]
           & (off return)
-          | trk [%TIME_WHEN %[=off]]
+          | trk [%TIME_WHEN [=off]]
           : tim <- syscall TIME_WHEN
           : _   <- syscall (*TIME_WAIT (add off tim))
           | return tim
 ;
 | die
-   ,, %[=curTime]
-   ,, %[=forTime]
-   ,, %[=forPar]
+   ,, [=curTime]
+   ,, [=forTime]
+   ,, [=forPar]
 | return ()
 
 

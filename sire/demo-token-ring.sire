@@ -29,7 +29,7 @@
 @ bob_white | cabSingleton ali_addr
 @ chr_white | cabSingleton bob_addr
 ;
-; trk %[=ali_seed =ali_addr =bob_seed =bob_addr]
+; trk [=ali_seed =ali_addr =bob_seed =bob_addr]
 ;
 @ ali_msg b#"Hi, bob.  What's good?"
 @ bob_msg b#"Life is good.  Charlie?"

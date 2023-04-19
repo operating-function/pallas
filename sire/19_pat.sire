@@ -53,6 +53,7 @@
 /+  11_str  [strWeld strCat]
 /+  12_cab  [readKey]
 /+  13_tab  ["%" "%%" tabToPairs tabFromPairs tabIdx tabToList tabMut]
+/+  13_tab  [isTabSugar desugarTab]
 /+  14_exp
 /+  15_hax  ['#']
 /+  16_pad  []
@@ -102,7 +103,7 @@
 ; ( VAR k n   = [%v k n]   )  ==>  x
 ; ( ALI k n p = [%a k n p] )  ==>  x@p
 ; ( SEQ x y   = [%s x y]   )  ==>  !x
-; ( TAB x     = [%t x]     )  ==>  %[a=b c=d]
+; ( TAB x     = [%t x]     )  ==>  %[a=b c=d] || [a=b c=d]
 ; ( ROW x     = [%r x]     )  ==>  [a b c]
 ;
 ; First parse patterns into data structures.
@@ -230,7 +231,6 @@
 : b < parseBinder (idx 3 kids) err
 | ok [%law n a b]
 
-
 = (parseBinder rex err ok)
 | if (rexIsLeaf rex)
         : sym <- readSymbol rex err
@@ -239,6 +239,8 @@
 | if (eql rune "!")
         | parseSeqBinder rex err ok
 | if (eql rune ",")
+        | if (isTabSugar rex)
+            | parseBinder (desugarTab rex) err ok
         | parseRowBinder parseBinder rex err ok
 | if (eql rune "%")
         | parseTabBinder parseBinder rex err ok
@@ -280,6 +282,11 @@
           ,, [%s 0 %z]
 
 !!= (parseBinder `(%[=x y=b]) v2 I)
+       ,, %t
+       ,, %% =x [%v 0 %x]
+          %% =y [%v 0 %b]
+
+!!= (parseBinder `[=x y=b] v2 I)
        ,, %t
        ,, %% =x [%v 0 %x]
           %% =y [%v 0 %b]

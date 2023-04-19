@@ -182,7 +182,7 @@
 !!= (newMachine canceledCalls)
     | KERNEL ~[0] ~[4 3 1] [0 0 DONE 0 0] [0 0 [%http 0 %hear] 0 0]
 
-!!= ((newMachine canceledCalls) %[2='fake response'])
+!!= ((newMachine canceledCalls) [2='fake response'])
     | KERNEL ~[2 4 3 1 0]
              ~[]           ;; Canceled list merged into free list
              [0 0 0 0 0]
@@ -208,19 +208,19 @@
              [0 0 DONE 0 DONE 0]
              [0 0 [%http 0 %hear] 0 [%http 0 %hear] 0]
 
-!!= ((newMachine compoundEvents) %[2='fake'])
+!!= ((newMachine compoundEvents) [2='fake'])
     | KERNEL ~[2 5 3 1 0]
              ~[]           ;; Canceled list merged into free list
              [0 0 0 0 DONE 0]
              [0 0 0 0 [%http 0 %hear] 0]
 
-!!= ((newMachine compoundEvents) %[2='fake'] %[4='response'])
+!!= ((newMachine compoundEvents) [2='fake'] [4='response'])
     | KERNEL ~[4 2 5 3 1 0]
              ~[]             ;; Canceled list merged into free list
              [0 0 0 0 0 0]
              [0 0 0 0 0 0]
 
-!!= ((newMachine compoundEvents) %[2='fake' 4='response'])
+!!= ((newMachine compoundEvents) [2='fake' 4='response'])
     | KERNEL ~[4 2 5 3 1 0]
              ~[]             ;; Canceled list merged into free list
              [0 0 0 0 0 0]

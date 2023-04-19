@@ -202,7 +202,7 @@ fieldExpect="Expected something like (field:type)"
 ;
 | trk 'there are fields'
 @ fields     | drop 1 kids
-| trk %[=fields]
+| trk [=fields]
 @ firstField | idx 0 fields
 ;
 | if (eql 2 numKids && ("*" == rexRune firstField))
@@ -241,7 +241,7 @@ fieldExpect="Expected something like (field:type)"
 ;
 : key constr fields
        <- *readConstructorSig (idx 2 kids) err
-| trk %[=key =constr =fields]
+| trk [=key =constr =fields]
 | ok p a
 | if (isZero len-fields)
         | bloodline
@@ -271,7 +271,7 @@ ex=(PAIR %a %b)
 !!= (getSnd ex)    | %b
 !!= (setFst %x ex) | PAIR %x %b
 !!= (setSnd %x ex) | PAIR %a %x
-!!= ex             | mkPair %[fst="a" snd="b"]
+!!= ex             | mkPair [fst="a" snd="b"]
 !!= (BOX UNIT)     | BOX (mkUnit %[])
 !!= 3              | openBox#(BOX 3)#boxItem
 !!= 5              | openPair#(PAIR 2 3)#(add fst snd)
@@ -326,7 +326,7 @@ ex=(PAIR %a %b)
 ? (loop ix prp acc remain)
 ;
 | seq ix
-; trk %loop,(%[=ix =prp =acc =remain])
+; trk %loop,[=ix =prp =acc =remain]
 ;
 : kca remain <- *listCase remain (prp, bloodline acc)
 @ [key cns arg] kca
@@ -403,7 +403,7 @@ ex=(PAIR %a %b)
                         : sym < readKey sigRex err
                         | k sym []
                     | readDestroyer sigRex err k
-; trk %[=constr =fields]
+; trk [=constr =fields]
 ;
 | ifNot (hasKey constr src)
         | err sigRex (strWeld "Undefined Pattern: " constr)
@@ -432,8 +432,8 @@ ex=(PAIR %a %b)
     | readDatacaseBody
            %% =LNULL 3
            %% =LCONS 4
-       %% =conTag %[3=0 4=1]
-       %% =conAri %[3=0 4=2]
+       %% =conTag [3=0 4=1]
+       %% =conAri [3=0 4=2]
    ``
     * LNULL       [x "]"]
     * (LCONS _ _) [x " " (go xs)]
@@ -522,7 +522,7 @@ setProp#(RIGHT.conTag)#one
 setProp#(RIGHT.conAri)#one
 
 = (showEither eat)
-| trk %[=eat]
+| trk [=eat]
 # datacase eat
 * (LEFT x)  ['left' x]
 * (RIGHT x) ['right' x]

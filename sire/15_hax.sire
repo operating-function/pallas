@@ -73,16 +73,16 @@
 
 = ("#" s p e a r err ok)
 @ kids rexKids-r
-; trk %[=kids]
+; trk [=kids]
 | if (null kids)           | (err r haxNeedKid)
 | *rexGetWord (idx 0 kids) | (err r haxFstWord)
 & (name heir)
-; trk %[=name =heir]
+; trk [=name =heir]
 @ key (strWeld "#" name)
-; trk %[=key]
+; trk [=key]
 | ifNot (hasKey key e)    | (err r haxBadSymb-key)
 @ fun (look e key)
-; trk %[fun=(pinItem fun)]
+; trk [fun=(pinItem fun)]
 | fun s p e a r err ok
 
 = ("#foo" s p e a r err ok) ; envr next kids heir)

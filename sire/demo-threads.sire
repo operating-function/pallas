@@ -22,14 +22,14 @@
 : kd <- : cb <- fork
         : me <- myThreadId
         : _  <- syscall (*TIME_WAIT then)
-        | trk [%kid_waited_also then %[tid=me]]
+        | trk [%kid_waited_also then [tid=me]]
         | cb 0
 : x <- syscall (*TIME_WAIT then)
 : n <- readRef vCount
 : _ <- (@ x inc-n | seq x | writeRef vCount x)
 : s <- getKernelState
 | trk [%STATE s]
-| trk [%waited_until then %[tid=tid child=kd count=n]]
+| trk [%waited_until then [tid=tid child=kd count=n]]
 | k x
 
 = threadDemoTwice

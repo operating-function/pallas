@@ -47,7 +47,7 @@
 * (obj acc stream fail ok)
    ;
    @ stream (eatSpace stream)
-   ; trk %[s1=(listToRow stream)]
+   ; trk [s1=(listToRow stream)]
    : t ts <- *listCase stream (fail "'}', or key" stream)
    | if (eql t TOK_R_CURL)
        | ok (*JSON_MAP acc) ts
@@ -57,13 +57,13 @@
    @ newKey barNat-v
    ;
    @ stream (eatSpace ts)
-   ; trk %[s2=(listToRow stream)]
+   ; trk [s2=(listToRow stream)]
    @ complain (fail 'Expecting :' stream)
    : t ts <- *listCase stream complain
    | if (neq TOK_COLON t) complain
    ;
    @ stream (eatSpace ts)
-   ; trk %[s3=(listToRow stream)]
+   ; trk [s3=(listToRow stream)]
    : newVal stream <- val stream fail
    @ !acc (tabMut newKey newVal acc)
    ;

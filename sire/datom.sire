@@ -358,9 +358,9 @@ e
 
 = postDB
 ^ assertTransact _ emptyDB
-,, | NEWENTITY %[":db/ident"=":b/post" ":db/cardinality"="one"]
-,, | NEWENTITY %[":db/ident"=":b/author" ":db/cardinality"="one"]
-,, | NEWENTITY %[":db/ident"=":b/title" ":db/cardinality"="one"]
+,, | NEWENTITY [":db/ident"=":b/post" ":db/cardinality"="one"]
+,, | NEWENTITY [":db/ident"=":b/author" ":db/cardinality"="one"]
+,, | NEWENTITY [":db/ident"=":b/title" ":db/cardinality"="one"]
 
 ; Check that NEWENTITY and ADD forms are equivalent.
 !!=     ^ assertTransact _ postDB
@@ -369,8 +369,8 @@ e
         ,, | ADD (TMP "other") ":b/post" "Other post"
         ,, | ADD (TMP "other") ":b/author" "Sol"
    ^ assertTransact _ postDB
-   ,, | NEWENTITY %[":b/post"="mai poast" ":b/author"="Iceman"]
-   ,, | NEWENTITY %[":b/post"="Other post" ":b/author"="Sol"]
+   ,, | NEWENTITY [":b/post"="mai poast" ":b/author"="Iceman"]
+   ,, | NEWENTITY [":b/post"="Other post" ":b/author"="Sol"]
 
 = emptyContactsDB
 ^ assertTransact _ emptyDB
@@ -390,8 +390,8 @@ e
 
 = contactsDB
   ^ assertTransact _ emptyContactsDB
-  ,, | NEWENTITY %[":c/name"="Iceman" ":c/email"="iceman@plunder.tech"]
-  ,, | NEWENTITY %[":c/name"="Sol" ":c/email"="sol@plunder.tech"]
+  ,, | NEWENTITY [":c/name"="Iceman" ":c/email"="iceman@plunder.tech"]
+  ,, | NEWENTITY [":c/name"="Sol" ":c/email"="sol@plunder.tech"]
 
 ; Lookup by nonexistent attributes fail.
 !!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":d/blah")]
@@ -406,7 +406,7 @@ e
 ; NEWENTITY with nonexistent attributes fails.
 !!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/b") (LOOKUP_NO_ATTRIBUTE ":bad/a")]
     ^ transact _ emptyContactsDB
-    ,, | NEWENTITY %[":bad/a"="bad" ":bad/b"="bad"]
+    ,, | NEWENTITY [":bad/a"="bad" ":bad/b"="bad"]
 
 ; ADD with nonexistent attributes fails.
 !!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/a")]

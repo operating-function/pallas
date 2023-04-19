@@ -85,7 +85,7 @@ b#'{"type":"application","elm-version":"0.19.1","dependencies":{"direct":{"elm/t
 | listAlternate
     | listMap (x & JSON_VEC [x])
     | allJSON _
-| listMap (x & JSON_MAP %[=x])
+| listMap (x & JSON_MAP [=x])
 | allJSON _
 
 = (chk x)

@@ -165,7 +165,7 @@
 @ signed (nega || posi)
 @ off    (add off signed)
 ;
-; trk %[=input =off =nega =posi =signed]
+; trk [=input =off =nega =posi =signed]
 ; trk 'REST',(barDrop off input)
 ;
 @ [nat dof] (*consumeDigits input off)

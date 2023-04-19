@@ -222,7 +222,7 @@
     ; trk %FINAL_STATE,st
     | die "Impossible: response does not match any thread"
 @ st_ (exe response tid st)
-; trk %[requests=(getRequestsRow st_)]
+; trk [requests=(getRequestsRow st_)]
 | ioLoop st_ (*getRequestsRow st_)
 
 > IO a > Machine
@@ -230,8 +230,8 @@
 ; trk (%newMachine),act
 @ st,tid (allocateThread emptyState)
 @ st     (act nullThread tid st)
-; trk %[=st]
-; trk %[requests=(getRequestsRow st)]
+; trk [=st]
+; trk [requests=(getRequestsRow st)]
 | ioLoop st (*getRequestsRow st)
 
 
@@ -403,13 +403,13 @@
 : xMVar   <- newEmptyMVar
 : yMVar   <- newEmptyMVar
 : xThread <- fork (x >>= putMVar xMVar)
-; trk %[=xThread]
+; trk [=xThread]
 : yThread <- fork (y >>= putMVar yMVar)
-; trk %[=yThread]
+; trk [=yThread]
 : xVal    <- takeMVar xMVar
-; trk %[=xVal]
+; trk [=xVal]
 : yVal    <- takeMVar yMVar
-; trk %[=yVal]
+; trk [=yVal]
 | return [xVal yVal]
 
 > (a > IO b) > Row a > IO (Row b)

@@ -129,10 +129,7 @@
 """ Row Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = ("," s p e a rex err ok)
-@ sons (rexSons rex)
-@ heir (rexHeir rex)
-@ kids (if (isZero heir) sons (weld sons (c1 heir)))
-| ok p a (rowE kids)
+| ok p a (rowE | rexKids rex)
 
 !!= []    v0
 !!= [3]   (v1 3)

@@ -13,11 +13,11 @@
 /+  03_nat  [toNat isZero]
 /+  04_app  [len idx head mut]
 /+  05_eql  [eql neq lth lte gte gth]
-/+  06_cow  [map weld rowRepel rowApply rev foldl]
-/+  07_rex  [rexKids rexGetNodeWithRune EMBD]
+/+  06_cow  [null map weld rowRepel rowApply rev foldl]
+/+  07_rex  [rexKids rexRune rexGetNodeWithRune EMBD PREF]
 /+  typed
 /+  08_dat  ["," findIdx elemIdx has rowCons cat drop take span insert]
-/+  08_dat  [appE]
+/+  08_dat  [appE rowE]
 /+  08_dat  [SOME NONE maybeCase]
 /+  08_dat  [sortOn listFromRow listToRow listNull listZip listMap listWeld]
 /+  08_dat  [listRev filter CONS NIL]
@@ -363,6 +363,21 @@ emptyTab=emptyCab
 = ("%%" s p e a r err ok)
 | *mkCenCenMacro cenCenCab cenCenTab s p e a r err ok
 
+= (isTabSugar rex)
+@ kids (rexKids rex)
+| and (not null-kids)
+      (| eql "=" | rexRune | idx 0 kids)
+
+= (desugarTab rex)
+| PREF 0 "%" [rex] 0
+
+; Same as the previous version except that things like [x=3] get rewritten
+; as %[x=3] (and therefore treated as tabs).
+= ("," s p e a rex err ok)
+| if (isTabSugar rex)
+    | ok p a (desugarTab rex)
+| ok p a (rowE | rexKids rex)
+
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -370,16 +385,18 @@ emptyTab=emptyCab
 !!= 1 | isTab %[0=0]
 !!= 1 | isTab %[x=3]
 !!= 1 | isTab %[x=3 y=4]
+!!= 1 | isTab [x=3 y=4]
+!!= 1 | isTab [=isTab]
 
 !!= 0 | isTab []
 !!= 0 | isTab %[x y]
 !!= 0 | isTab (%[x y] 3)
 !!= 1 | isTab (%[x y] 3 4)
 
-!!= %[a=0]     | %[97=0]
-!!= %[a=0]     | %['a'=0]
-!!= %[a=0 b=1] | %[98=1 97=0]
-!!= %[a=0 b=1] | %["b"=1 'a'=0]
+!!= [a=0]     | %[97=0]
+!!= [a=0]     | %['a'=0]
+!!= [a=0 b=1] | %[98=1 97=0]
+!!= [a=0 b=1] | %["b"=1 'a'=0]
 
 !!= 0 | tabLen %[]
 !!= 1 | tabLen %[x=0]
@@ -407,21 +424,18 @@ emptyTab=emptyCab
 !!= %[a=(0 1)] | (%% =a 0 1)
 
 ;
-; TODO Support this form also.
+; TODO Support things like:
 ;
-; %% x=3
-; %% y=4
-; %% =z
+; %% x=3 y=4
+; %% p=0 q=1 r=2
+; %% =s
 ;    | strToBar
 ;    | renderNat
 ;    | bex
 ;    | add 3 4
 ;
 
-!!= %["a"=1 b=2] | (%% =b 2)(%% ="a" 1)
-
-;; eql 8 | tabIdx 0 %(0=8)
-;; TODO This should work too.
+!!= ["a"=1 b=2 {c}=3] | (%% =b 2)(%% ="a" 1)(%% ={c} 3)
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -434,7 +448,9 @@ emptyTab=emptyCab
 ^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter tabMap tabUnionWith
 ^-^ tabLookup tabMinKey tabFoldlWithKey tabElem
 ^-^
+^-^ isTabSugar desugarTab
+^-^
 ^-^ tabE
 ^-^
-^-^ "%" "%%"
+^-^ "," "%" "%%"
 ^-^

@@ -126,7 +126,7 @@ hexAlphabet=(b#{0123456789abcdef})
 
 = (runLocalFileServer next)
 : tid <- myThreadId
-| trk %serv,(%[=tid])
+| trk %serv,[=tid]
 : res <- syscall HTTP_SERV files
 | die "Impossible: File Server does not respond"
 | next res
@@ -140,7 +140,7 @@ hexAlphabet=(b#{0123456789abcdef})
 | trk ["ALL_SEND" bar]
 : tels <- readRef vTelnetOpen
 : webs <- readRef vWebSocketOpen
-| trk ["ALL_SEND" bar %[=tels =webs]]
+| trk ["ALL_SEND" bar [=tels =webs]]
 : ____ <- sendAllLoop SOCK_SEND (cabList tels) bar
 : ____ <- sendAllLoop WOCK_SEND (cabList webs) bar
 | next 0
@@ -185,14 +185,14 @@ hexAlphabet=(b#{0123456789abcdef})
 : kd <- : cb <- fork
         : me <- myThreadId
         : _  <- syscall (TIME_WAIT then)
-        | trk [%kid_waited_also then %[tid=me]]
+        | trk [%kid_waited_also then [tid=me]]
         | cb 0
 : x <- syscall (TIME_WAIT then)
 : n <- readRef vCount
 : _ <- (@ x inc-n | seq x | writeRef vCount x)
 : s <- getKernelState
 | trk [%STATE s]
-| trk [%waited_until then %[tid=tid child=kd count=n]]
+| trk [%waited_until then [tid=tid child=kd count=n]]
 | k x
 
 

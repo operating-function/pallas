@@ -125,14 +125,14 @@ foo=(x e o & o (varE "_", x))
 = (readSwitchPats rex err ok)
 : clauses
        <- unrollSlip2Tar rex (x err ret & ret (varE "_", x)) err
-; trk %[=clauses]
+; trk [=clauses]
 : cases
         < forRow clauses
         & (keyExp ret)
         @ [key exp] keyExp
         : nat <- (pure & readSwitchPat key err (pure NONE) (x & pure SOME-x))
         | ret [nat exp]
-; trk %[=cases]
+; trk [=cases]
 @ f
         & ([wild acc] [mKey exp])
         | *maybeCase mKey [exp acc]
@@ -141,13 +141,13 @@ foo=(x e o & o (varE "_", x))
 | ok
 | foldl f (natE 0, %[]) cases
 
-!!= [`0 %[3=(`4) 5=(`6)]]
+!!= [`0 [3=(`4) 5=(`6)]]
         | readSwitchPats `((* 3 4)(* 5 6)) v2 I
 
-!!= [`x %[3=(`4) 5=(`6)]]
+!!= [`x [3=(`4) 5=(`6)]]
         | readSwitchPats `((* 3 4)(* 5 6)(x)) v2 I
 
-!!= [`x (tabMut [3 3] `6 %[3=(`4)])]
+!!= [`x (tabMut [3 3] `6 [3=(`4)])]
         | readSwitchPats `((* 3 4)(* [3 3] 6)(x)) v2 I
 
 

@@ -35,7 +35,7 @@
 : req <- syscall HTTP_HEAR
 @ [st resp] (handleReq st req)
 @ effect    (syscall | rowApply HTTP_ECHO resp)
-| trk %[=effect]
+| trk [=effect]
 : _ <- effect
 | httpHello st done
 
