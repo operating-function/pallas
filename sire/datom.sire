@@ -22,6 +22,9 @@
 * LOOKUP_NO_ATTRIBUTE attrName:Any
 * LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName:Any
 * LOOKUP_NO_MATCH attrName:Any val:Any
+;
+* INVALID_ROW row:(Row Any)
+* INVALID_ROW_OP op:Any
 
 ;; The toplevel DB type.
 ;;
@@ -522,7 +525,21 @@ e
          many:Bool isRef:Bool
 * ACTRM  eid:Any aid:Any val:Any
 
-# mutual parse_everything
+; Resolve a lookup ref into an eid or error.
+;
+;> Str > Any > DB > Either Error Nat
+= (performLookup attrName val db)
+  # datacase | resolveAttrName attrName db
+  * (LEFT err) | *LEFT err
+  * (RIGHT [aid _ unique _ _])
+    | ifNot unique
+      | *LEFT | *LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
+    @ eids | lookupByAidV aid val db
+    @ l | cabLen eids
+    | if (isZero l)
+      | *LEFT | *LOOKUP_NO_MATCH attrName val
+    | *RIGHT | cabFirst eids
+
 ; Immediately resolves an entity to a numeric entity id.
 ;
 ; 5               -> RIGHT [5 ...]
@@ -549,20 +566,7 @@ e
                | *RIGHT [eid (tabMut val eid txnTmpIds) db]
     | *RIGHT [eid txnTmpIds db]
   | *LEFT "Couldn't parse"
-; Resolve a lookup ref into an eid or error.
-;
-;> Str > Any > DB > Either Error Nat
-= (performLookup attrName val db)
-  # datacase | resolveAttrName attrName db
-  * (LEFT err) | *LEFT err
-  * (RIGHT [aid _ unique _ _])
-    | ifNot unique
-      | *LEFT | *LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
-    @ eids | lookupByAidV aid val db
-    @ l | cabLen eids
-    | if (isZero l)
-      | *LEFT | *LOOKUP_NO_MATCH attrName val
-    | *RIGHT | cabFirst eids
+
 ; Given a map, parse it into a series of actions and return the numeric eid
 ; parsed or assigned.
 ;
@@ -631,6 +635,54 @@ e
       ,, txnTmpIds
       ,, db
 
+;
+;> DB > Tab Any Any > [[Error] [TxnAction] (Tab Any Any) DB]
+= (parseListForm txnTmpIds db row)
+  ; rows are a tuple of [op espec attr val]
+  | ifNot | eql 4 | len row
+    ,, (*CONS (INVALID_ROW row) NIL)
+    ,, NIL
+    ,, txnTmpIds
+    ,, db
+  @ op | idx 0 row
+  | ifNot | or | eql %add op
+               | eql %rm op
+    ,, (*CONS (INVALID_ROW_OP op) NIL)
+    ,, NIL
+    ,, txnTmpIds
+    ,, db
+  # datacase | parseEntityId txnTmpIds db (idx 1 row)
+  * (LEFT err)
+    | trk [%failedToParseEntityId (idx 1 row)]
+    ,, (*CONS err NIL)
+    ,, NIL
+    ,, txnTmpIds
+    ,, db
+  * (RIGHT [eid txnTmpIds db])
+    ; todo: in list form, attr is not just an attrName, but can also be a raw
+    ; eid or a lookupref. we completely punt on this: it should be easy to add
+    ; back later when there's a more complete type system and we aren't going
+    ; to use this for now.
+    @ attrName | idx 2 row
+    # datacase (resolveAttrName attrName db)
+    * (LEFT err)
+      | trk [%couldntResolve attrName db]
+      [(*CONS err NIL) NIL txnTmpIds db]
+    * (RIGHT [aid indexed unique isMany isRef])
+      ; In list form, we don't do arity resolution. We treat the value
+      ; literally.
+      @ val | idx 3 row
+      | if (eql op %rm)
+        ,, NIL
+        ,, | *CONS | ACTRM eid aid val
+        ,, txnTmpIds
+        ,, db
+      ,, NIL
+      ,, | *CONS | ACTADD eid aid attrName val indexed unique isMany isRef
+                 NIL
+      ,, txnTmpIds
+      ,, db
+
 ; Given a user-level structure of rows and tabs, parse it into a series of adds
 ; and retracts.
 ;
@@ -642,10 +694,13 @@ e
 = (parseItem txnTmpIds db item)
   | if (isTab item)
     | parseMapForm txnTmpIds db item
+  | if (isRow item)
+    | parseListForm txnTmpIds db item
   ;
   | *LEFT "1) What"
+
 ; > DB > Row Any > Either [Error] [[TxnAction] DB]
-= (parseTransact db items)
+= (parseAllItems db items)
   @ [errs actions txnTmpIds db]
     ^ foldl _ [NIL NIL %[] db] items
     & ([errs actions txnTmpIds db] i)
@@ -677,7 +732,7 @@ e
                  %% =":db/valueType" "ref"
 
 = aliceAndBob
-  | parseTransact emptySpouseDB
+  | parseAllItems emptySpouseDB
   ,, %% =":db/id" %["bobid"]
      %% =":person/name" "Bob"
      %% =":person/spouse" %["aliceid"]
