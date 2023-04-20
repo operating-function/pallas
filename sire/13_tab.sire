@@ -290,7 +290,7 @@ emptyTab=emptyCab
 & (thisPair morePairs)
 ;
 @ unexpect
-    | err thisPair "Every element of a tab literals must be a = node."
+    | err thisPair "Every element of a tab literal must be an `=` node."
 ;
 @ okay
     ? (okay newKey newValue)

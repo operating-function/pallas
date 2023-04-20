@@ -857,6 +857,8 @@
           (| eql x | lawName | pinItem self)
 
 
+;; TODO: consider removing the law-binding pattern: @ (f x) x ...
+
 !!= 5
         @ =(PIN five)  (4 5)
         | five
@@ -868,36 +870,6 @@
 !!= [6 5]
         @ =(CELL x y)  [5 6]
         [y x]
-
-
-;;  : (sigRex bodyExpr) <- rexParseKids r [readAny readAny] err
-;;  : (sym    binds  )  <- readDestroyer sigRex err
-;;  : (n sig  bodyExpr) <- makeDestroyer n binds bodyExpr
-;;  | ok p a
-;;  | wutE (rowCons sym sig)
-;;  | bodyExpr
-
-
-; TODO
-;
-; [[x y] z]=[[3 4] 5]
-;
-;   =>
-;
-;     = _g0 [[3 4] 5]
-;     = _g1 (idx 0 _g0)
-;     = x   (idx 0 _g1)
-;     = y   (idx 1 _g1)
-;     = z   (idx 0 _g0)
-;
-; (uncurry f [x y])=(f x y)
-;
-;   =>
-;
-;     = (uncurry f _g0)
-;     @ (idx 0 _g0)
-;     @ (idx 1 _g0)
-;     | f x y
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
