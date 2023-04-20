@@ -322,7 +322,7 @@ e
                @ [eid db] | allocEntity db
                | *RIGHT [eid (tabMut val eid txnTmpIds) db]
     | *RIGHT [eid txnTmpIds db]
-  | *LEFT "Couldn't parse"
+  | *LEFT ["Couldn't parse" i]
 
 ; Given a map, parse it into a series of actions and return the numeric eid
 ; parsed or assigned.
@@ -390,7 +390,21 @@ e
           ,, (listWeld newActions | listWeld subactions actions)
           ,, txnTmpIds
           ,, db
-        ; we have one value.
+        | if ((isTab vVal) && (not | isCab vVal))
+          @ [mybEid suberrs subactions txnTmpIds db]
+            | trk [%subval vVal]
+            | parseMapForm txnTmpIds db vVal
+          : subeid <- *maybeCase mybEid
+                     ,, | listWeld suberrs errs
+                     ,, | listWeld subactions actions
+                     ,, txnTmpIds
+                     ,, db
+          @ topAdd | ACTADD eid aid aVal subeid writeAve unique isMany isRef
+          ,, | listWeld suberrs errs
+          ,, | *CONS topAdd | listWeld subactions actions
+          ,, txnTmpIds
+          ,, db
+        ; we have one entity id as the rhs.
         # datacase | parseEntityId txnTmpIds db vVal
         * (LEFT err)
           ,, (*CONS err errs)
@@ -699,8 +713,17 @@ e
   ,, %% =":db/ident" ":item/quantity"
      %% =":db/cardinality" "one"
 
+= orders
+  ^ assertTransact _ emptyOrderDB
+  ,, %% =":order/name" "Bob"
+     %% =":order/lineItems" %% =":item/product" "Hamburger"
 
-= withOrders
+; Who ordered the hamburger?
+!!=     | lookupByAV ":order/name" "Bob" orders
+    @ tendiesEid | cabFirst | lookupByAV ":item/product" "Hamburger" orders
+    | lookupByVA tendiesEid ":order/lineItems" orders
+
+= multiOrders
   ^ assertTransact _ emptyOrderDB
   ,, %% =":order/name" "Bob"
      %% =":order/lineItems" ,, %% =":item/product" "Hamburger"
@@ -714,9 +737,9 @@ e
                                %% =":item/quantity" 1
 
 ; Who ordered the tendies?
-!!=     | lookupByAV ":order/name" "James" withOrders
-    @ tendiesEid | cabFirst | lookupByAV ":item/product" "Tendies" withOrders
-    | lookupByVA tendiesEid ":order/lineItems" withOrders
+!!=     | lookupByAV ":order/name" "James" multiOrders
+    @ tendiesEid | cabFirst | lookupByAV ":item/product" "Tendies" multiOrders
+    | lookupByVA tendiesEid ":order/lineItems" multiOrders
 
 
 
