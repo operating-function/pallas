@@ -193,11 +193,11 @@
              | ret [k v]
 | ok (%t, tabFromPairs result)
 
-; =x
-; x=[a b c]
-; TODO: support x=y=z, just for completeness (zero, one, or many)
+; @x
+; x@[a b c]
+; TODO: support x@y@z, just for completeness (zero, one, or many)
 = (parseAliasedBinder parseBinder rex err ok)
-: kids <- readNodeWithoutHeirButWithRune "=" rex err
+: kids <- readNodeWithoutHeirButWithRune "@" rex err
 | if (eql 1 len-kids)
         | parseBinder (idx 0 kids) err ok
 | if (neq 2 len-kids)
@@ -218,7 +218,7 @@
 | ok [%pin item]
 
 
-; =(LAW n a b)
+; @(LAW n a b)
 = (parseLawBinder parseBinder rex err ok)
 : kids <- readNodeWithoutHeirButWithRune "|" rex err
 | if (neq 4 len-kids)
@@ -242,7 +242,7 @@
         | parseRowBinder parseBinder rex err ok
 | if (eql rune "%")
         | parseTabBinder parseBinder rex err ok
-| if (eql rune "=")
+| if (eql rune "@")
         | parseAliasedBinder parseBinder rex err ok
 | if (eql rune "|")
         ;
@@ -290,7 +290,7 @@
           ,, [%r [[%v 0 %y]]]
 
 
-!!= (parseBinder `(foo=[%[=x] [y]]) v2 I)
+!!= (parseBinder `(foo@[%[=x] [y]]) v2 I)
        ,, 'a'
        ,, ['v' 0 'foo']
        ,,  ,, 'r'
@@ -828,21 +828,21 @@
 !!= a 3
 !!= b 4
 
-= x=[a b c] [9 8 7]
+= x@[a b c] [9 8 7]
 
 !!= x [9 8 7]
 !!= a 9
 !!= b 8
 !!= c 7
 
-= !p=[q r s] [9 8 7]
+= !p@[q r s] [9 8 7]
 
 !!= p [9 8 7]
 !!= q 9
 !!= r 8
 !!= s 7
 
-= [n o _]=[_ _ w] [9 8 7]
+= [n o _]@[_ _ w] [9 8 7]
 
 !!= [n o w] [9 8 7]
 
@@ -860,15 +860,15 @@
 ;; TODO: consider removing the law-binding pattern: @ (f x) x ...
 
 !!= 5
-        @ =(PIN five)  (4 5)
+        @ @(PIN five)  (4 5)
         | five
 
 !!= ('f', 1, 1)
-        @ =(LAW n a b)  (f x ? x)
+        @ @(LAW n a b)  (f x ? x)
         [n a b]
 
 !!= [6 5]
-        @ =(CELL x y)  [5 6]
+        @ @(CELL x y)  [5 6]
         [y x]
 
 

@@ -17,7 +17,7 @@
 ;
 ; - POST /count -> application/json back.
 ;
-; - POST /search 'tags=x,y,z' -> application/json back.
+; - POST /search 'tags@[x y z]' -> application/json back.
 ;
 ; - GET / -> frontpage
 
@@ -149,11 +149,11 @@
 | if x | rest
 | die msg
 
-= (assertMap jsonBS m=[h t])
+= (assertMap jsonBS m@[h t])
 | *assertThat (eqlNat h %map) [%notAMap jsonBS m]
 t
 
-= (assertNum n=[h t])
+= (assertNum n@[h t])
 | *assertThat (eqlNat h %num) [%notANum n]
 t
 
@@ -162,11 +162,11 @@ t
 & (v)
 v
 
-= (assertVec v=[h t])
+= (assertVec v@[h t])
 | *assertThat (eqlNat h %vec) [%notAVec v]
 t
 
-= (assertStr s=[h t])
+= (assertStr s@[h t])
 | *assertThat (eqlNat h %str) [%notAStr s]
 t
 
@@ -189,7 +189,7 @@ t
 | tabFromPairs
 | map tag&(barNat tag, cabSingleton id) tags
 
-= (imgRowToPair imgRow=[id _ _])
+= (imgRowToPair imgRow@[id _ _])
 [id imgRow]
 
 = (parseLearn (PIN jsonBS))
@@ -229,7 +229,7 @@ t
 
 ; TODO: user #datatype to define the json structure, and use #datacase here.
 = (jsonRow jsonBS)
-@ res=[json leftover] (parseValue jsonBS)
+@ res@[json leftover] (parseValue jsonBS)
 | if res NONE
 | if (neq 0 leftover) NONE
 # switch (if json json (idx 0 json))
@@ -237,7 +237,7 @@ t
 * _   | NONE
 
 = (jsonMap jsonBS)
-@ res=[json leftover] (parseValue jsonBS)
+@ res@[json leftover] (parseValue jsonBS)
 | if res NONE
 | if (neq 0 leftover) NONE
 # switch (if json json (idx 0 json))
@@ -456,17 +456,17 @@ NONE
 | syscall (*HTTP_ECHO rid 200 b#ok [] b#{})
 | return
 
-= (handleReq vSt [rid method path headers pBody=(PIN body)] return)
+= (handleReq vSt [rid method path headers pBody@(PIN body)] return)
 # switch method
 * POST
   # switch path
   * b#"/usecdn"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
-    : _ <- modifyRef vSt =(PIN st)&(PIN (setLocal FALSE st))
+    : _ <- modifyRef vSt @(PIN st)&(PIN (setLocal FALSE st))
     | return ()
   * b#"/uselocal"
     : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
-    : _ <- modifyRef vSt =(PIN st)&(| PIN | setLocal TRUE st)
+    : _ <- modifyRef vSt @(PIN st)&(| PIN | setLocal TRUE st)
     | return ()
   * b#"/learn"
     : _ <- fork (addToState vSt rid pBody)
