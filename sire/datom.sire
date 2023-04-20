@@ -420,12 +420,14 @@ e
       | if isMany
         ; many, but not references. So if this is a row, parse each item as a
         ; value, otherwise
-        | if | isRow vVal
-          | trk [%isManyRowCase]
-          | 'todo: isMany case' aid
+        @ adds
+          | if | isRow vVal
+            | listMap v&(ACTADD eid aid aVal v writeAve unique isMany isRef)
+            | listFromRow vVal
+          | *CONS | ACTADD eid aid aVal vVal writeAve unique isMany isRef
+            NIL
         ,, errs
-        ,, | *CONS (ACTADD eid aid aVal vVal writeAve unique isMany isRef)
-                   actions
+        ,, listWeld adds actions
         ,, txnTmpIds
         ,, db
       ; sometimes a val is just a val
@@ -678,6 +680,8 @@ e
   ,, %% =":db/ident" ":person/spouse"
      %% =":db/cardinality" "one"
      %% =":db/valueType" "ref"
+  ,, %% =":db/ident" ":person/alias"
+     %% =":db/cardinality" "many"
 
 = aliceAndBob
   ^ assertTransact _ emptySpouseDB
@@ -696,6 +700,18 @@ e
                 (lookupByAidV dbIdentId ":person/spouse" aliceAndBob)
               | 'unknown attr' 0
      | lookupByVAid bobId aid aliceAndBob
+
+
+; Test that setting a person's alias with a list works.
+= aliasDB
+    ^ assertTransact _ emptySpouseDB
+    ,, %% =":db/id" 500
+       %% =":person/name" "Bob"
+       %% =":person/alias" ["Bobby" "Robert"]
+
+; Both aliases recorded.
+!!=    %["Bobby" "Robert"]
+    | lookupByEA 500 ":person/alias" aliasDB
 
 
 ; Test that we can resolve complex many/ref cases.
