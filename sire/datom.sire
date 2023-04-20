@@ -38,9 +38,9 @@
 * ave    : Any
 * vae    : Any
 * maxEid : Nat
-; rschema
 
 ; raw operation to add a resolved tuple to the database
+> Nat > Nat > Any > Bool > Bool > Bool > DB > DB
 = (rawAdd e a v writeAve many isRef db)
 ;| trk [%rawAdd e a v writeAve many isRef db]
 # openDb db
@@ -80,6 +80,7 @@
 | DB eav aev ave vae maxEid
 
 ; raw remove
+> Nat > Nat > Any > DB > DB
 = (rawRm e a v db)
 # openDb db
 @ (alter2 c in)
@@ -176,35 +177,34 @@ db
 ,, maxEid
 ,, | DB eav aev ave vae (inc maxEid)
 
-; Passes the single item to `gud` or runs `bad`.
-= (fromSingletonCab opt bad gud)
-| if (neq 1 | cabLen opt) bad
-| *gud (cabFirst opt)
-
 = (singletonCabDefault opt missing next)
 | *next
 | if (neq 1 | cabLen opt) missing
 | cabFirst opt
 
 ; Internal functions on
+> Nat > Nat > DB > Cab Any
 = (lookupByEidAid eid aid db)
 # openDb db
 : av <- *maybeCase (tabLookup eid eav) %[]
 : v  <- *maybeCase (tabLookup aid av) %[]
 v
 
+> Nat > Nat > DB > Cab Any
 = (lookupByAidEid aid eid db)
 # openDb db
 : ev <- *maybeCase (tabLookup aid aev) %[]
 : v  <- *maybeCase (tabLookup eid ev) %[]
 v
 
+> Nat > Nat > DB > Cab Nat
 = (lookupByAidV aid val db)
 # openDb db
 : ve <- *maybeCase (tabLookup aid ave) %[]
 : e  <- *maybeCase (tabLookup val ve) %[]
 e
 
+> Any > Nat > DB > Cab Nat
 = (lookupByVAid val aid db)
 # openDb db
 : ae <- *maybeCase (tabLookup val vae) %[]
@@ -245,16 +245,19 @@ e
 | *RIGHT [attrEid isIndex isUnique isMany isRef]
 
 ; User level manual lookup
+> Nat > Any > DB > Cab Any
 = (lookupByEA eid attr db)
 : aid <- *fromSingletonCab (lookupByAidV dbIdentId attr db)
            | 'unknown attr' attr
 | lookupByEidAid eid aid db
 
+> Any > Nat > DB > Cab Any
 = (lookupByAE attr eid db)
 : aid <- *fromSingletonCab (lookupByAidV dbIdentId attr db)
            | 'unknown attr' attr
 | lookupByAidEid aid eid db
 
+> Any > Any > DB > Cab Nat
 = (lookupByAV attr val db)
 # datacase (resolveAttrName attr db)
 * (LEFT errs) | 'could not lookup. errors: ' errs
@@ -262,6 +265,7 @@ e
   | ifNot (or indexed unique) | 'cannot lookup unindexed attr/val' attr
   | lookupByAidV aid val db
 
+> Any > Any > DB > Cab Nat
 = (lookupByVA val attr db)
 # datacase (resolveAttrName attr db)
 * (LEFT errs) | 'could not lookup. errors: ' errs
@@ -284,7 +288,7 @@ e
 
 ; Resolve a lookup ref into an eid or error.
 ;
-;> Str > Any > DB > Either Error Nat
+> Str > Any > DB > Either Error Nat
 = (performLookup attrName val db)
   # datacase | resolveAttrName attrName db
   * (LEFT err) | *LEFT err
@@ -304,7 +308,7 @@ e
 ; [":b/second" 6] -> LEFT err (assuming lookup fails)
 ; %["tmpid"]      -> RIGHT [2 ...] (assigns a tmpid and adds it to the map)
 ;
-;> Map Str Nat > DB > Any > Either Error [Nat (Map Str Nat) DB]
+> Tab Str Nat > DB > Any > Either Error [Nat (Tab Str Nat) DB]
 = (parseEntityId txnTmpIds db i)
   | if (isNat i)
     | *RIGHT [i txnTmpIds db]
@@ -437,8 +441,7 @@ e
       ,, txnTmpIds
       ,, db
 
-;
-;> DB > Tab Any Any > [[Error] [TxnAction] (Tab Any Any) DB]
+> DB > Tab Any Any > [[Error] [TxnAction] (Tab Any Any) DB]
 = (parseListForm txnTmpIds db row)
   ; rows are a tuple of [op espec attr val]
   | ifNot | eql 4 | len row
@@ -538,246 +541,16 @@ e
 | ifNot (listNull errs) | *LEFT | listToRow errs
 | *RIGHT newDB
 
-> Row TxnItem > DB > DB
-= (assertTransact items db)
-# datacase (transact items db)
-* (LEFT l)  | 'transaction failed: ' l
-* (RIGHT r) r
-
-""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-= postDB
-^ assertTransact _ emptyDB
-,, %[":db/ident"=":b/post" ":db/cardinality"="one"]
-,, %[":db/ident"=":b/author" ":db/cardinality"="one"]
-,, %[":db/ident"=":b/title" ":db/cardinality"="one"]
-
-
-; Check that map form and a list form of adds are equivalent.
-!!=     ^ assertTransact _ postDB
-        ,, [%add %["newpost"] ":b/post" "mai poast"]
-        ,, [%add %["newpost"] ":b/author" "Iceman"]
-        ,, [%add %["other"] ":b/post" "Other post"]
-        ,, [%add %["other"] ":b/author" "Sol"]
-   ^ assertTransact _ postDB
-   ,, %[":b/post"="mai poast" ":b/author"="Iceman"]
-   ,, %[":b/post"="Other post" ":b/author"="Sol"]
-
-= emptyContactsDB
-^ assertTransact _ emptyDB
-,, %% =":db/ident" ":c/name"
-   %% =":db/indexed" TRUE
-   %% =":db/cardinality" "one"
-   %% =":db/unique" TRUE
-; In this contrived testing scenario, you can have many emails, but only one
-; phone number and that phone number can be shared between people.
-,, %% =":db/ident" ":c/email"
-   %% =":db/unique" TRUE
-   %% =":db/cardinality" "many"
-,, %% =":db/ident" ":c/phone"
-   %% =":db/indexed" TRUE
-   %% =":db/unique" FALSE
-   %% =":db/cardinality" "one"
-
-= contactsDB
-  ^ assertTransact _ emptyContactsDB
-  ,, %[":c/name"="Iceman" ":c/email"="iceman@plunder.tech"]
-  ,, %[":c/name"="Sol" ":c/email"="sol@plunder.tech"]
-
-; Lookup by nonexistent attributes fail.
-!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":d/blah")]
-    ^ transact _ emptyContactsDB
-    ,, [%add [":d/blah" "51"] ":c/email" "blah@plunder.tech"]
-
-; Lookup by nonexistent values fail.
-!!=   | LEFT [(LOOKUP_NO_MATCH ":c/name" "Bob")]
-    ^ transact _ emptyContactsDB
-    ,, [%add [":c/name" "Bob"] ":c/email" "bob@plunder.tech"]
-
-; NEWENTITY with nonexistent attributes fails.
-!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/b") (LOOKUP_NO_ATTRIBUTE ":bad/a")]
-    ^ transact _ emptyContactsDB
-    ,, %[":bad/a"="bad" ":bad/b"="bad"]
-
-; ADD with nonexistent attributes fails.
-!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/a")]
-    ^ transact _ emptyContactsDB
-    ,, [%add 5 ":bad/a" "bad"]
-
-; Transaction which tries to duplicate a unique value fail. (Tries to add sol's
-; email to iceman's entity).
-!!=    @ icemanEid | cabFirst
-                   | lookupByAV ":c/email" "iceman@plunder.tech" contactsDB
-       @ solEid    | cabFirst
-                   | lookupByAV ":c/email" "sol@plunder.tech" contactsDB
-       | *LEFT ,, | UNIQUE_VIOLATION ":c/email" "sol@plunder.tech"
-                                     solEid icemanEid
-    ^ transact _ contactsDB
-    ,, [%add [":c/email" "iceman@plunder.tech"] ":c/email" "sol@plunder.tech"]
-
-; If we try set the contacts up so you can reference entities by their email,
-; we should be able to set someone's phone number by their email.
-= phoneDB
-  ^ assertTransact _ contactsDB
-  ,, [%add [":c/email" "iceman@plunder.tech"] ":c/phone" "(555) 555"]
-
-!!=     %["(555) 555"]
-    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone" phoneDB
-
-; Can't lookup by non-unique attributes:
-!!=    | LEFT [(LOOKUP_ATTRIBUTE_NOT_UNIQUE ":c/phone")]
-    ^ transact _ phoneDB
-    ,, [%add [":c/phone" "(555) 555"] ":c/email" "other@plunder.tech"]
-
-; For cardinality one attributes, setting the attribute twice should change the
-; singular attribute value.
-= changedPhoneDB
-  ^ assertTransact _ contactsDB
-  ,, [%add [":c/email" "iceman@plunder.tech"] ":c/phone" "(111) 111"]
-
-!!=     %["(111) 111"]
-    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone" changedPhoneDB
-
-; Cardinality many interacts with the ave table: make sure in cardinality one
-; scenarios, the old value isn't retrievable from the ave table.
-!!=     %[]
-    | lookupByAV ":c/phone" "(555) 555" changedPhoneDB
-
-= changedEmailDB
-  ^ assertTransact _ contactsDB
-  ,, [%add [":c/email" "iceman@plunder.tech"] ":c/email" "alias@example.com"]
-
-; For cardinality many attributes, setting the attribute twice should add
-; another value.
-!!=     %["iceman@plunder.tech" "alias@example.com"]
-    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/email" changedEmailDB
-
-; Retract removes the data from the tables:
-!!=     %[]
-    | lookupByIdentA ":c/email" "iceman@plunder.tech" ":c/phone"
-    ^ assertTransact _ phoneDB
-    ,, [%rm [":c/email" "iceman@plunder.tech"] ":c/phone" "(555) 555"]
-
-; We should be able to lookup an entity by indexed attribute.
-!!=   %[8]
-    | lookupByAV ":c/name" "Iceman" contactsDB
-
-
-;; Test the mutual reference case in map form:
-;;
-;; [{:db/id "bobid"
-;;   :person/name "Bob"
-;;   :person/spouse "aliceid"}
-;;  {:db/id "aliceid"
-;;   :person/name "Alice"
-;;   :person/spouse "bobid"}]
-
-= emptySpouseDB
-  ^ assertTransact _ emptyDB
-  ,, %% =":db/ident" ":person/name"
-     %% =":db/cardinality" "one"
-     %% =":db/indexed" TRUE
-  ,, %% =":db/ident" ":person/spouse"
-     %% =":db/cardinality" "one"
-     %% =":db/valueType" "ref"
-  ,, %% =":db/ident" ":person/alias"
-     %% =":db/cardinality" "many"
-
-= aliceAndBob
-  ^ assertTransact _ emptySpouseDB
-  ,, %% =":db/id" %["bobid"]
-     %% =":person/name" "Bob"
-     %% =":person/spouse" %["aliceid"]
-  ,, %% =":db/id" %["aliceid"]
-     %% =":person/name" "Alice"
-     %% =":person/spouse" %["bobid"]
-
-; Test that the mutual references in value position were resolved:
-!!=    | lookupByAV ":person/name" "Alice" aliceAndBob
-     @ bobCab | lookupByAV ":person/name" "Bob" aliceAndBob
-     : bobId <- *fromSingletonCab bobCab ('failed to find Bob' 0)
-     : aid <- *fromSingletonCab
-                (lookupByAidV dbIdentId ":person/spouse" aliceAndBob)
-              | 'unknown attr' 0
-     | lookupByVAid bobId aid aliceAndBob
-
-
-; Test that setting a person's alias with a list works.
-= aliasDB
-    ^ assertTransact _ emptySpouseDB
-    ,, %% =":db/id" 500
-       %% =":person/name" "Bob"
-       %% =":person/alias" ["Bobby" "Robert"]
-
-; Both aliases recorded.
-!!=    %["Bobby" "Robert"]
-    | lookupByEA 500 ":person/alias" aliasDB
-
-
-; Test that we can resolve complex many/ref cases.
-= emptyOrderDB
-  ^ assertTransact _ emptyDB
-  ,, %% =":db/ident" ":order/name"
-     %% =":db/cardinality" "one"
-     %% =":db/indexed" TRUE
-  ,, %% =":db/ident" ":order/lineItems"
-     %% =":db/cardinality" "many"
-     %% =":db/valueType" "ref"
-  ,, %% =":db/ident" ":item/product"
-     %% =":db/cardinality" "one"
-     %% =":db/indexed" TRUE
-  ,, %% =":db/ident" ":item/quantity"
-     %% =":db/cardinality" "one"
-
-= orders
-  ^ assertTransact _ emptyOrderDB
-  ,, %% =":order/name" "Bob"
-     %% =":order/lineItems" %% =":item/product" "Hamburger"
-
-; Who ordered the hamburger?
-!!=     | lookupByAV ":order/name" "Bob" orders
-    @ tendiesEid | cabFirst | lookupByAV ":item/product" "Hamburger" orders
-    | lookupByVA tendiesEid ":order/lineItems" orders
-
-= multiOrders
-  ^ assertTransact _ emptyOrderDB
-  ,, %% =":order/name" "Bob"
-     %% =":order/lineItems" ,, %% =":item/product" "Hamburger"
-                               %% =":item/quantity" 1
-                            ,, %% =":item/product" "Guinness"
-                               %% =":item/quantity" 1
-  ,, %% =":order/name" "James"
-     %% =":order/lineItems" ,, %% =":item/product" "Tendies"
-                               %% =":item/quantity" 1
-                            ,, %% =":item/product" "Kirin"
-                               %% =":item/quantity" 1
-
-; Who ordered the tendies?
-!!=     | lookupByAV ":order/name" "James" multiOrders
-    @ tendiesEid | cabFirst | lookupByAV ":item/product" "Tendies" multiOrders
-    | lookupByVA tendiesEid ":order/lineItems" multiOrders
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-;  ^-^
-;  ^-^ DB emptyDB
-;  ^-^
-;  ^-^ ENT TMP LOOKUP
-;  ^-^ NEWENTITY ADD RETRACT
-;  ^-^
-;  ^-^ lookupByEA lookupByAE lookupByAV lookupByVA transact
-
-
+^-^ UNIQUE_VIOLATION LOOKUP_NO_ATTRIBUTE LOOKUP_ATTRIBUTE_NOT_UNIQUE
+^-^ LOOKUP_NO_MATCH INVALID_ROW INVALID_ROW_OP BAD_MAP_VAL
+^-^
+^-^ DB emptyDB
+^-^
+^-^ lookupByEA lookupByAE lookupByAV lookupByVA transact
+^-^
+; These shouldn't be exported, but are for testing. Remove these when there's
+; a proper complete pull api implementation.
+^-^ lookupByAidV lookupByVAid lookupByIdentA dbIdentId

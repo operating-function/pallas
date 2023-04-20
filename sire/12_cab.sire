@@ -175,6 +175,10 @@
 = (cabElem i cab)
 | idx i | lawBody cab
 
+= (fromSingletonCab opt bad gud)
+| if (neq 1 | cabLen opt) bad
+| *gud (cabFirst opt)
+
 """ % Rune: Atoms, Tabs, and Cabs """"""""""""""""""""""""""""""""""""""""""""""
 
 ;
@@ -437,7 +441,7 @@
 ^-^ emptyCab cabIsEmpty
 ^-^ cabFirst cabLen cabPop cabRow cabList cabIns cabDel cabUnion cabAscUnions
 ^-^ cabKeys cabHas cabMin cabSingleton cabDrop cabTake cabSplitAt cabSplitLT
-^-^ cabIntersection cabElem
+^-^ cabIntersection cabElem fromSingletonCab
 ^-^ cabFromRow
 ^-^
 ^-^ "%" "%%"
