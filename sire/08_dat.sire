@@ -280,6 +280,10 @@
 | if isNat-xs nil
 | *cons idx-0-xs idx-1-xs
 
+;; TODO s/([a-z])Singleton/\1Sing/g
+
+(listSing x)=(*CONS x 0)
+
 = (listMap f l)
 | *listCase l NIL
 & (x xs)
@@ -718,6 +722,7 @@
 ^-^
 ^-^ NIL CONS
 ^-^ listCase
+^-^ listSing
 ^-^ listMap listTurn
 ^-^ listHead listSafeHead listUnsafeHead listLast
 ^-^
