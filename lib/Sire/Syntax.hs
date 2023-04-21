@@ -195,6 +195,22 @@ readFilter = do
         (is, Nothing)   -> is
         (is, Just more) -> is <> more
 
+readAssert :: (RexColor, HasMacroEnv) => Red XCmd
+readAssert = ASSERT <$> go
+  where
+    go = do
+        (rune "#!!=" <|> rune "!!=")
+        ((pr,p), (qr,q), mor) <-
+            let x = withRex readExpr
+            in (form2C x x go <&> \(a,b,c) -> (a,b,c))
+           <|> (form2c x x    <&> \(a,b)   -> (a,b,[]))
+        pure (TEST_EQL [pr, qr] p q : mor)
+
+    withRex :: Red v -> Red (Rex, v)
+    withRex red = (,) <$> getRex <*> red
+      where
+       getRex = fmap (const $ error "impossible") <$> readRex
+
 readCmd :: (RexColor, HasMacroEnv) => Red XCmd
 readCmd = do
     let doMacro (r,h) = (rune r >> runMacro readCmd h)
@@ -205,21 +221,11 @@ readCmd = do
         [ (rune "#=" <|> rune "=") >> readDefine
         , IMPORT <$> readImports
         , FILTER <$> readFilter
-        , do (rune "#!!=" <|> rune "!!=")
-             ((pr,p), (qr,q), mC) <-
-                 let x = withRex readExpr
-                 in (form2C x x readCmd <&> \(a,b,c) -> (a,b,Just c))
-                <|> (form2 x x          <&> \(a,b)   -> (a,b,Nothing))
-             pure (ASSERT [pr,qr] p q mC)
+        , readAssert
         , do (rune "#<" <|> rune "<")
              (v,vs) <- form1Nc readExpr readExpr
              pure (DUMPIT $ foldl' EAPP v vs)
         ]
-
-    withRex :: Red v -> Red (Rex, v)
-    withRex red = (,) <$> getRex <*> red
-      where
-       getRex = fmap (const $ error "impossible") <$> readRex
 
     readDefine = do
         ((t,args), b, andThen) <- readTopBinder

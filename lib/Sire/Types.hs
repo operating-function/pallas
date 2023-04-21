@@ -9,6 +9,7 @@
 module Sire.Types
     ( Symb
     , Cmd(..)
+    , TestEql(..)
     , Fun(..)
     , Exp(..)
     , XCmd
@@ -84,6 +85,10 @@ data Req a
 -- REPL Commands --
 -------------------
 
+data TestEql z v a =
+    TEST_EQL [Rex] (Exp z v a) (Exp z v a)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
+
 -- |Sire input commands.
 data Cmd z v a
     = IMPORT [(Text, Maybe (Set Symb))]
@@ -98,7 +103,7 @@ data Cmd z v a
     | DUMPIT (Exp z v a)
        -- ^ @(<e)@ Eval+print @e@ and it's environment.
 
-    | ASSERT [Rex] (Exp z v a) (Exp z v a) (Maybe (Cmd z v a))
+    | ASSERT [TestEql z v a]
        -- ^ @!!= e f@ Assert that e==f
 
     | DEFINE (Defn z v a)

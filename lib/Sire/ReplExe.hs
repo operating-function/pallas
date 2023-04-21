@@ -265,7 +265,8 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
             liftIO $ printValue h False Nothing pln
             pure scope
 
-    ASSERT raw v w more -> do
+    ASSERT [] -> pure scope
+    ASSERT (TEST_EQL raw v w : more) -> do
         let tag = "==" <> (tagify itxt)
         profTrace tag "repl" do
             G val _ <- resolveAndInjectExp scope v
@@ -280,9 +281,7 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
                 $ Just . joinRex . (\rx -> N 0 OPEN "#!!=" rx Nothing)
                 $ fmap (fmap absurd) raw
                     -- TODO Nope, definitly not impossible
-        case more of
-            Nothing -> pure scope
-            Just nx -> runCmd h scope vSrc vPrp vGen vMac itxt nx
+        runCmd h scope vSrc vPrp vGen vMac itxt (ASSERT more)
 
     DEFINE (BIND_EXP key nam _docstr e) more -> do
         let tag = "=" <> (natBytes nam)

@@ -37,15 +37,6 @@
 /+  switch  [unrollSlip2Rune unrollSlip2Tis]
 
 
-""" Constructing Bloodlines """""'""""""""""""""""""""""""""""""""""""""""""""""
-
-(bloodline lis)=(listFoldr (i r & rexSetHeir r i) 0 lis)
-
-!!= `((a=1)(b=2)(c=3))
-        | bloodline ~[`(a=1) `(b=2) `(c=3)]
-
-
-
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (readCoreBody rune aft rex err ok)
@@ -62,21 +53,21 @@
 | ok aft results
 
 !!= 5,[[%f [%x] `x] [%g [%y] `0]]
-        | readCoreBody '=' 5 `((f x = x)(g y = 0)) v2 v2
+  | readCoreBody '=' 5 `((f x = x)(g y = 0)) v2 v2
 
-!!=    ,, 7
-       ,,  ,,   | *v3 %f ['_g5']
-                   `` #@ $$(varKE 6 '_g6') _g5
-                      #@ x (#| $(idx 0) _g6)
-                      #@ y (#| $(idx 1) _g6)
-                       x
-    | readCoreBody '=' 5 `((f [x y] = x)) v2 v2
+!!=  ,, 7
+     ,,  ,,   | *v3 %f ['_g5']
+                 `` #@ $$(varKE 6 '_g6') _g5
+                    #@ x (#| $(idx 0) _g6)
+                    #@ y (#| $(idx 1) _g6)
+                     x
+  | readCoreBody '=' 5 `((f [x y] = x)) v2 v2
 
 !!= [`(*) 'Not a core arm']
-        | readCoreBody '=' 5 `((f x = x)(g y = 0)(*)) v2 v2
+  | readCoreBody '=' 5 `((f x = x)(g y = 0)(*)) v2 v2
 
 !!= [`(= f) '= node expects two parameters']
-        | readCoreBody '=' 5 `((= f|x x)(= f)) v2 v2
+  | readCoreBody '=' 5 `((= f|x x)(= f)) v2 v2
 
 ; TODO Move this to `17-exp.sire`
 ; TODO Avoid the ## where necessary.
@@ -86,8 +77,8 @@
 | OPEN 0 "#?" [sig] body
 
 !!= (taggedLamE %f 2 [`x `y `z] `x)
-        ` #? (f##2 x y z)
-           x
+  ` #? (f##2 x y z)
+     x
 
 = (matchE x wildExp patExps)
 | OPEN 0 "#|"
@@ -97,9 +88,9 @@
 | bowE patExps
 
 !!= (matchE `[0 1 2] `0 [`1 `2 `3])
-       ``
-       #| $switch (#| $idx 0 [0 1 2]) 0
-       #| $(cow 3) 3 2 1
+ ``
+ #| $switch (#| $idx 0 [0 1 2]) 0
+ #| $(cow 3) 3 2 1
 
 (maxRow x)=(foldl max (idx 0 x) x)
 

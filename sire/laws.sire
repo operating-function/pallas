@@ -229,10 +229,10 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= 1 (eql == eql == eql)
 
 !!= (##"==" 0 0 0 5 `(eql == eql == eql) die v3)
-        | v3 0 6
-       ``
-       #@ _g5 eql
-        (#| $and (#| $eql _g5 eql) (#| $eql _g5 eql))
+  | v3 0 6
+ ``
+ #@ _g5 eql
+  (#| $and (#| $eql _g5 eql) (#| $eql _g5 eql))
 
 !!= 1 (eql /= neq)
 !!= 0 (eql /= eql)
@@ -455,28 +455,28 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= pinBytz-toNat   | x#f8c043f7e614462f67f2e906
 
 'pinHash add'
-!!= (pinHash add)
-   x#bdac4dd0f4de34484c4dcf4534845a58545937fa28511977866ca8f2047ef5df
+!!= x#{bdac4dd0f4de34484c4dcf4534845a58545937fa28511977866ca8f2047ef5df}
+  | pinHash add
 
 'pinHash mul'
-!!= (pinHash mul)
-   x#b74e96e0385dcb18599b1570e3c5807a9284050258766cb7cd10b004713d2032
+!!= x#{b74e96e0385dcb18599b1570e3c5807a9284050258766cb7cd10b004713d2032}
+  | pinHash mul
 
 'pinHash ##"%%"'
-!!= x#5813ae7d1b638d8bd049e6c2fff3def2a6d5f402def0593d757bc6e1e229cffe
-   (pinHash ##"%%")
+!!= x#{5813ae7d1b638d8bd049e6c2fff3def2a6d5f402def0593d757bc6e1e229cffe}
+  | pinHash ##"%%"
 
 'pinHash cmp'
-!!= (pinHash cmp)
-   x#48562368fd8806cacab34d017cd9e7ad2d749b04bb1e4c443770ab2f797137a1
+!!= x#{48562368fd8806cacab34d017cd9e7ad2d749b04bb1e4c443770ab2f797137a1}
+  | pinHash cmp
 
 'pinHash multiEqlE'
-!!= (pinHash multiEqlE)
-   x#2a710ffed44db3a83c05c27897d9c1ed76bb311c52d1e7d4603f4d03c0fec3ea
+!!= x#{2a710ffed44db3a83c05c27897d9c1ed76bb311c52d1e7d4603f4d03c0fec3ea}
+  | pinHash multiEqlE
 
 'pinHash pinHash'
-!!= (pinHash pinHash)
-   x#c30da5b61138a7eee3ff9f3facf01bada883b31646669e6093d66a1d6602873e
+!!= x#{c30da5b61138a7eee3ff9f3facf01bada883b31646669e6093d66a1d6602873e}
+  | pinHash pinHash
 
 = (refsTable pin)
 | tabFromPairs
@@ -502,7 +502,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 | loop acc (rexHeir rex)
 
 !!= [[%hi `there] [%bye `here]]
-        | readBindPairs `((hi=there)(bye=here)) v2 I
+  | readBindPairs `((hi=there)(bye=here)) v2 I
 
 ;;;
 ;;; TODO Broken macro.  Unit test the SHIT out of all of this macro code.

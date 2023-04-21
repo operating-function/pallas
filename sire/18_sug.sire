@@ -55,18 +55,18 @@
 /+  03_nat  [add div inc dec isZero lthNat]
 /+  04_app  [idx len]
 /+  05_eql  [eql neq]
-/+  06_cow  [weld map foldr v2 v3]
+/+  06_cow  [weld map foldr null v1 v2 v3 v4]
 /+  07_rex  [rexConstr rexIdnt rexRune rexSons rexHeir rexKids]
 /+  07_rex  [rexIsNode rexGetNode]
 /+  07_rex  ["`" rexGetKidsOfNodeWithRune rexVal]
 /+  07_rex  [R PREF NEST EMBD OPEN WORD CORD]
 /+  07_rex  [rexGetNodeWithRune]
 /+  07_rex  [rexStyle rexText rexEql]
-/+  07_rex  [rexSetRune]
+/+  07_rex  [rexSetRune rexSetHeir]
 /+  typed
 /+  08_dat  ["," ",," take drop switch]
 /+  08_dat  [CONS NIL listToRowReversed listCase listFromRow]
-/+  08_dat  [traverseRow]
+/+  08_dat  [traverseRow listMap]
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld strIsCapitalized]
@@ -74,6 +74,7 @@
 /+  13_tab  ["%" look tabPut]
 /+  14_exp  [readAny readSymbol rexParseKids]
 /+  14_exp  [rowE natE letE cnsE txtE appE varE gensym]
+/+  14_exp  [bloodline]
 /+  15_hax  []
 /+  16_pad  []
 /+  17_bar  []
@@ -357,17 +358,44 @@ four=(WORD 0 "4" 0)
 
 """ Short-Hand Assertion """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+= (parseAssert more rex err ok)
+@ kids (rexKids rex)
+| if (null kids) (ok more)
+| ok (appE kids :: more)
+
+= (assertE exps)
+| if (isZero exps) `0 ; TODO Use (#*) once available.
+| bloodline
+^ listMap _ exps
+& exp (OPEN 0 "#!!=" (natE 1, exp) 0)
+
+!!=   | assertE
+     ~~ `(eql 3 (add 1 2))
+     ~~ `(eql 4 (add 3 1))
+  `
+  #!!= 1 (eql 3 (add 1 2))
+  #!!= 1 (eql 4 (add 3 1))
+
 = ("!!" s p e a r err ok)
-@ sons (rexSons r)
+^ : exps <- _ r
+  | ok p a (assertE exps)
+? (loop r ret)
 @ heir (rexHeir r)
-| if (isZero len-sons)
-        | err r "At least one son is required."
-| ok p a
-| OPEN 0 "#!!=" [natE-1 (appE sons)] heir
+| if (not (isZero heir) && eql "!!" (rexRune heir))
+    : more <- loop heir
+    : exps <- parseAssert more (rexSetHeir 0 r) err
+    | ret exps
+: exps <- parseAssert NIL r err
+| ret exps
 
 !! add 0 1
+!!
 !! add 1 0
+!!
 !! not (add 0 0)
+
+!! eql 3
+ | 3
 
 
 """ Equality """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

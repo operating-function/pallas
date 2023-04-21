@@ -23,12 +23,12 @@
 /+  07_rex  [WORD EMBD NEST OPEN CORD]
 /+  07_rex  [rexGetWord rexKids rexStyle '`']
 /+  07_rex  [rexGetNodeWithRune rexGetKidsOfNodeWithRune]
-/+  07_rex  [rexGetWordNoHeir]
+/+  07_rex  [rexGetWordNoHeir rexSetHeir]
 /+  typed
 /+  08_dat  ["," all zip zipWith appE rowE rowCons drop]
 /+  08_dat  [CONS NIL listCase digits]
 /+  08_dat  [listToRow listFromRow listToRowReversed listRev]
-/+  08_dat  [traverseRow]
+/+  08_dat  [traverseRow listFoldr]
 /+  08_dat  [",,"]
 /+  09_sci  []
 /+  10_chr  [isAlpha isDigit]
@@ -155,6 +155,16 @@
 
 !!= `(a b c) | sigE [%a %b %c]
 !!= `a       | sigE [%a]
+
+
+""" Bloodlines """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; Given a list of rex nodes, make each one the heir of the last.
+> List Rex > Rex
+(bloodline lis)=(listFoldr (i r & rexSetHeir r i) 0 lis)
+
+!!= `((a=1)(b=2)(c=3))
+  | bloodline [`(a=1) [`(b=2) [`(c=3) 0]]]
 
 
 """ Catch-All Reader """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -308,6 +318,8 @@
 ^-^ isSymbolChar strIsSymbol rexIsSymbol readSymbol
 ^-^ natE litE varE varKE cnsE barE letE letKE recE recKE sigKE sigE lamE wutE
 ^-^ txtE txtKE appE
+^-^
+^-^ bloodline
 ^-^
 ^-^ showNat getNatStr readNat
 ^-^ showDigit loadDigit getDigit

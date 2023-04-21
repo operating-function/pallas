@@ -16,16 +16,6 @@ dataTag=_DataTag
 (0     !!= dataTag [0 1 2 3])
 
 
-""" Constructing Bloodlines """""'""""""""""""""""""""""""""""""""""""""""""""""
-
-; Given a list of rex nodes, make each one the heir of the last.
-> List Rex > Rex
-(bloodline lis)=(listFoldr (i r & rexSetHeir r i) 0 lis)
-
-!!= `((a=1)(b=2)(c=3))
-        | bloodline ~[`(a=1) `(b=2) `(c=3)]
-
-
 """ Opening Records """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (constrToCamel prefix constr)

@@ -413,8 +413,8 @@
 
 (listZip a b)=(listZipWith (0 0 3 0) b a)
 
-!!= (*CONS [3 4] (*CONS [4 5] NIL))
-    (listZip listFromRow-[3 4] listFromRow-[4 5])
+!!= | *CONS [3 4] | *CONS [4 5] NIL
+  | listZip listFromRow-[3 4] listFromRow-[4 5]
 
 (listIndexed l)=(listZip (listEnumFrom 0) l)
 
@@ -457,11 +457,11 @@
 
 (listElemIndex e xs)=(listFindIndex (eql e) xs)
 
-!!= (0 0) (listElemIndex 0 (, 0 , 1 , 2 , 3 0))
-!!= (0 1) (listElemIndex 1 (, 0 , 1 , 2 , 3 0))
-!!= (0 2) (listElemIndex 2 (, 0 , 1 , 2 , 3 0))
-!!= (0 3) (listElemIndex 3 (, 0 , 1 , 2 , 3 0))
-!!= 0     (listElemIndex 4 (, 0 , 1 , 2 , 3 0))
+!!= (0 0) | listElemIndex 0 (, 0 , 1 , 2 , 3 0)
+!!= (0 1) | listElemIndex 1 (, 0 , 1 , 2 , 3 0)
+!!= (0 2) | listElemIndex 2 (, 0 , 1 , 2 , 3 0)
+!!= (0 3) | listElemIndex 3 (, 0 , 1 , 2 , 3 0)
+!!= 0     | listElemIndex 4 (, 0 , 1 , 2 , 3 0)
 
 = (listSortOn f lis)
 | *listCase lis NIL
@@ -493,7 +493,8 @@
 
 (elemIdxMany key row)=(findIdxMany (eql key) row)
 
-!!= [0 [2 0]] | elemIdxMany 5 [5 0 5]
+!!= [0 [2 0]]
+  | elemIdxMany 5 [5 0 5]
 
 = (listIntersperse sep lis)
 | *listCase lis lis
@@ -549,7 +550,7 @@
 | map listToRow | foldr check [NIL NIL] r
 
 !!= [[0 3] [1 2]]
-   | partition [LEFT-0 RIGHT-1 RIGHT-2 LEFT-3]
+  | partition [LEFT-0 RIGHT-1 RIGHT-2 LEFT-3]
 
 """ Maybe utils that depend on list """""""""""""""""""""""""""""""""""""""""""
 
@@ -622,9 +623,9 @@
 !!= [3 4 5] (,,3)(,, 3 3)5
 
 !!= [3 4 5]
-     ,, 3
-     ,, 4
-     ,, 5
+ ,, 3
+ ,, 4
+ ,, 5
 
 
 """ Traversing Lists """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -665,9 +666,9 @@
 (forListWithState st xs f return)=(*traverseListWithState st f xs return)
 
 !!= 17,(, 3 , 4 , 5 0)
-          ^ forListWithState 5 [3 [4 [5 0]]] _ v2
-          ? (step st item pure)
-          | pure (add st item) item
+  ^ forListWithState 5 [3 [4 [5 0]]] _ v2
+  ? (step st item pure)
+  | pure (add st item) item
 
 
 """ Traversing Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -694,9 +695,9 @@
 (forRowWithState st xs f return)=(*traverseRowWithState st f xs return)
 
 !!= 17,[4 5 6]
-          ^ forRowWithState 5 [3 4 5] _ v2
-          ? (step st item pure)
-          | pure (add st item) (inc item)
+  ^ forRowWithState 5 [3 4 5] _ v2
+  ? (step st item pure)
+  | pure (add st item) (inc item)
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

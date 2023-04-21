@@ -344,17 +344,18 @@ shut=SHUT
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-!!= (OPEN 0 "&" v0 0)
-    (OPEN 0 "&" v0 0)
+!!= | OPEN 0 "&" v0 0
+  | OPEN 0 "&" v0 0
 
-!!= (| OPEN 0 "*" v0 0)
-    (| rexSetRune "*" | OPEN 0 "-" v0 0)
+!!= | OPEN 0 "*" v0 0
+  | rexSetRune "*"
+  | OPEN 0 "-" v0 0
 
-!!= (| OPEN 5 "-" v0 0)
-    (| rexSetIdnt 5 | OPEN 0 "-" v0 0)
+!!= | OPEN 5 "-" v0 0
+  | rexSetIdnt 5 | OPEN 0 "-" v0 0
 
-!!= (| CORD 9 "hi" | CORD 5 "bye" 0)
-    (| rexSetIdnt 9 | CORD 4 "hi" | CORD 5 "bye" 0)
+!!= | CORD 9 "hi" | CORD 5 "bye" 0
+  | rexSetIdnt 9 | CORD 4 "hi" | CORD 5 "bye" 0
 
 wx=(WORD 2 "x" 0)
 w9=(WORD 3 "9" 0)
@@ -390,15 +391,15 @@ sx=(OPEN 1 "=" (v2 wx w9) 0)
 !!= 1 | rexEql `([a][b]) | nestAnd "," (v1 (w "a"))
                          | nestNod "," (v1 (w "b"))
 !!= 1
-    | rexEql
-        | NEST 1 "*" (v2 (WORD 2 "hi" 0) (WORD 3 "yo" 0))
-        | WORD 4 ""
-        | WORD 8 "heh"
-        | 0
-    | NEST 2 "*" (v2 (WORD 3 "hi" 0) (WORD 3 "yo" 0))
-    | WORD 5 ""
-    | WORD 9 "heh"
-    | 0
+  | rexEql
+      | NEST 1 "*" (v2 (WORD 2 "hi" 0) (WORD 3 "yo" 0))
+      | WORD 4 ""
+      | WORD 8 "heh"
+      | 0
+  | NEST 2 "*" (v2 (WORD 3 "hi" 0) (WORD 3 "yo" 0))
+  | WORD 5 ""
+  | WORD 9 "heh"
+  | 0
 
 !!= "NEST" | rexStyle ` []
 !!= "WORD" | rexStyle ` hi
