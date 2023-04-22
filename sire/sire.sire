@@ -1,0 +1,200 @@
+""" Parsing Sire
+
+; TODO: Read commands
+
+/+  boot
+/+  datatype
+/+  switch
+
+# record Fun
+| FUN self:Sym tag:Nat args:(Row Sym) body:Exp
+
+# datatype Exp
+* EBED b:Any
+* EREF r:Sym
+* ENAT n:Nat
+* EAPP x:Exp y:Exp
+* EKET xs:(Row Exp) v:Exp
+* ELET n:Sym x:Exp b:Exp
+* EREC n:Sym x:Exp b:Exp
+* ELAM pin:Bit fun:Fun
+* ELIN f:Sym xs:(Row Exp)
+* EWUT r:rex
+
+= (showSig syms)
+| if (len syms == 1)
+    | varE (idx 0 syms)
+| NEST 0 "|" (map varE syms) 0
+
+= (showFun go pin (FUN self tag args body))
+| if pin
+    | 'todo' 'show pinned lambdas'
+| if (self /= tag)
+    | 'todo' 'show lambdas where name is different from tag'
+| if (isZero tag)
+    | INFX 0 "&" (showSig args, go body) 0
+| INFX 0 "?" (showSig (rowCons self args), go body) 0
+
+
+= (showSire exp)
+@ go showSire
+@ (niceApp e)
+    ^ _ e ~[]
+    ? (loop e acc)
+    | trk %niceApp,[=e =acc]
+    # datacase e
+    * (EAPP f x) | loop f (go x)::acc
+    * _          | NEST 0 '|' (listToRow (go e)::acc) 0
+# datacase exp
+* (EBED x)       | EMBD x
+* (EREF x)       | WORD 0 x 0
+* (ENAT n)       | WORD 0 showNat-n 0
+* (EAPP x y)     | niceApp exp
+* (EKET xs v)    | NEST 0 "^" (map go xs) (go v)
+* (ELET n x b)   | INFX 0 '@'  (go EREF-n, go x) (go b)
+* (EREC n x b)   | INFX 0 '@@' (go EREF-n, go x) (go b)
+* (ELAM pin fun) | showFun go pin fun
+* (EWUT rex)     ^ PREF 0 '???' [rex] 0
+* (ELIN f xs)    ^ NEST 0 '|' _ 0
+                 | rowCons (PREF 0 '*' [(go EREF-f)] 0)
+                 | map go xs
+
+!!=     ` (n @ 6516329)(fanc @ *mkLaw n a b)(0 0 0 (2 fanc))
+    | showSire
+    | ELET %n (ENAT %inc)
+    | ELET %fanc
+        | ELIN %mkLaw
+       ,, EREF %n
+       ,, EREF %a
+       ,, EREF %b
+    | EAPP
+        | EAPP
+            | EAPP (ENAT 0) (ENAT 0)
+        | ENAT 0
+    | EAPP (ENAT 2)
+    | EREF %fanc
+
+!!=     ` (x y & x)
+    | showSire
+    | ELAM FALSE
+    | FUN 0 0 [%x %y] (EREF %x)
+
+!!=     ` (K x y ? x)
+    | showSire
+    | ELAM FALSE
+    | FUN "K" "K" [%x %y] (EREF %x)
+
+!!=     ` (^ f _ y)x
+    | showSire
+    | EKET (EREF %f, EREF %_, EREF %y)
+    | EREF %x
+
+> (Sym -> Exp -> Exp -> Exp)
+> (Rex > Parser Exp)
+> Rex
+> Parser Exp
+= (parseLet con readSire rex err ok)
+@ kids (rexKids rex)
+| if (len kids /= 3) (err rex 'Bad let')
+@ [varRex expRex bodRex] kids
+: var < readSymbol varRex err
+: exp < readSire expRex err
+: bod < readSire bodRex err
+| ok | con var exp bod
+
+> (Rex > Parser Sire)
+> Rex
+> Parser (Either Symbol Sire)
+= (readAppHead readSire rex err ok)
+| if (rexRune rex == "*")
+    @ kids (rexKids rex)
+    | if (len kids /= 1)
+        | err rex "bad inline syntax, must be '*foo'"
+    : sym <- readSymbol (idx 0 kids) err
+    | ok (LEFT sym)
+: exp <- readSire rex err
+| ok (RIGHT exp)
+
+> Rex > Parser Exp
+= (readSire rex err ok)
+@ style (rexStyle rex)
+@ rune  (rexRune rex)
+@ kids  (rexKids rex)
+# switch rune
+* 0
+    # switch style
+    * EMBD | ok | EBED | rexEmbd rex
+    * WORD | ok | EREF | rexText rex ;; TODO: nat literals
+    * CORD | ok | ENAT | rexText rex
+    * TAPE | ok | ENAT | rexText rex
+    * LINE | ok | ENAT | rexText rex
+    * PAGE | ok | ENAT | rexText rex
+    * CURL | ok | ENAT | rexText rex
+* '^'
+    @ sons (rexSons rex)
+    @ heir (rexHeir rex)
+    | if (null sons && isZero heir)
+        | err rex "Bad ^ must be:  (^ f _ y)x"
+    : exp <- traverseRow (x k & readSire x err k) sons
+    : cab <- readSire heir err
+    | ok | EKET exp cab
+* '|'
+    | if isZero-(len kids) (err rex "| with no kids")
+    @ funcRex | idx 0 kids
+    @ argsRex | drop 1 kids
+    : fHead   < readAppHead readSire funcRex err
+    : args    < traverseRow (x k & readSire x err k) argsRex
+    | trk [=fHead]
+    # datacase fHead
+    * (LEFT func) | ok | ELIN func args
+    * (RIGHT exp) | ok | foldl EAPP exp args
+* '&'
+    @ kids (rexKids rex)
+    | if (len kids /= 2) (err rex 'Bad lambda')
+    @ [sigRex bodRex] kids
+    : args <- readSignature sigRex err
+    : body <- readSire bodRex err
+    | ok | ELAM FALSE | FUN 0 0 args body
+* '?'
+    @ kids (rexKids rex)
+    | if (len kids /= 2) (err rex 'Bad lambda.')
+    @ [sigRex bodRex] kids
+    : names <- readSignature sigRex err
+    | if (lth (len names) 2) (err rex 'Bad lambda.')
+    @ func (idx 0 names)
+    @ args (drop 1 names)
+    : body <- readSire bodRex err
+    | ok | ELAM FALSE | FUN func func args body
+* '@'  | parseLet ELET readSire rex err ok
+* '@@' | parseLet EREC readSire rex err ok
+* _
+    | err rex (strWeld 'Unknown rune: ' rune)
+
+; Assumes that the input formatting matches the printers formatting.
+= (sireRound rex)
+@ out (readSire rex v2 showSire)
+| if (rexEql rex out) 1
+| out
+
+!! sireRound ` x
+!! sireRound ` 0
+!! sireRound ` (f x y)
+!! sireRound ` (*f x y)
+!! sireRound ` (x & x)
+!! sireRound ` (x y & x)
+!! sireRound ` (I x ? x)
+!! sireRound ` (K x y ? x)
+!! sireRound ` (x @ 3)(x x x)
+!! sireRound ` (x @@ 3)x
+!! sireRound ` (^ f _ y)x
+
+!!=     ` (span f r ? (l @ len r)(^ _ 0)(loop i ? if (eql i l) (v2 r v0) (if (f (idx i r)) (loop (inc i)) (v2 (take i r) (drop i r)))))
+    ^ readSire _ v2 showSire
+    ` ? (span f r)
+      @ l | len r
+      ^ _ 0
+      ? (loop i)
+      | if (eql i l) (v2 r v0)
+      | if (f (idx i r))
+          | loop (inc i)
+      (v2 (take i r) (drop i r))
