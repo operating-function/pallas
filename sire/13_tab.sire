@@ -77,6 +77,8 @@ ex=(mkTab [1 2 3] [4 5 6])
 = (hasKey k t)     | cabHas k tabKeysCab-t
 = (tabLookup k t)  | if (hasKey k t) (SOME | tabIdx k t) NONE
 
+;; TODO: Rename hasKey to tabHas.
+
 
 """ Tab Insertion """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 

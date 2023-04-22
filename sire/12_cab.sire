@@ -61,6 +61,12 @@
 @ arg | inc (len bod)
 | 0 0 arg bod
 
+; cabWeld=cabUnion (?) TODO
+
+(cabCatList lis)=(listFoldl cabUnion emptyCab lis)
+
+(cabCat row)=(foldl cabUnion emptyCab row)
+
 ; when cabs are not in strictly ascending order, we deop into not a set.
 = (cabAscUnions cabs)
 @ bod | cat | map lawBody cabs
@@ -435,12 +441,16 @@
  %% 3
  %% 4 """a
 
+!!= %[a b c] | cabCat [%[a] %[b] %[c]]
+!!= %[a b c] | cabCatList [%[a] [%[b] [%[c] 0]]]
+
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^ isCab
 ^-^ emptyCab cabIsEmpty
 ^-^ cabFirst cabLen cabPop cabRow cabList cabIns cabDel cabUnion cabAscUnions
+^-^ cabCat cabCatList
 ^-^ cabKeys cabHas cabMin cabSingleton cabDrop cabTake cabSplitAt cabSplitLT
 ^-^ cabIntersection cabElem fromSingletonCab
 ^-^ cabFromRow
