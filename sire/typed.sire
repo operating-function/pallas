@@ -17,12 +17,10 @@
 | ok p a heir
 
 = ("\" s p e a r err ok)
-@ placeholder (`0)
-| ok p a placeholder
+| ok p a `(#*)
 
 = ("#typedef" s p e a r err ok)
-@ placeholder (`0)
-| ok p a placeholder
+| ok p a `(#*)
 
 ^-^
 ^-^ ">"

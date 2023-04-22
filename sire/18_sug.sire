@@ -364,7 +364,7 @@ four=(WORD 0 "4" 0)
 | ok (appE kids :: more)
 
 = (assertE exps)
-| if (isZero exps) `0 ; TODO Use (#*) once available.
+| if (isZero exps) `(#*)
 | bloodline
 ^ listMap _ exps
 & exp (OPEN 0 "#!!=" (natE 1, exp) 0)
