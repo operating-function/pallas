@@ -58,7 +58,8 @@ emptyTab=emptyCab
 
 = (look tab key)   | tabIdx key tab
 
-  = ex | mkTab [1 2 3] [4 5 6]
+ex=(mkTab [1 2 3] [4 5 6])
+
 !!= 4  | look ex 1
 !!= 5  | look ex 2
 !!= 6  | look ex 3
@@ -134,8 +135,9 @@ emptyTab=emptyCab
 @ vs | listFromRow tab
 | listToRow | listZip ks vs
 
-  = par | [[1 4] [2 5] [3 6]]
-  = tab | tabFromAscPairs par
+par=[[1 4] [2 5] [3 6]]
+tab=(tabFromAscPairs par)
+
 !!= 4   | look ex 1
 !!= 5   | look ex 2
 !!= 6   | look ex 3

@@ -106,8 +106,7 @@ data Cmd z v a
     | ASSERT [TestEql z v a]
        -- ^ @!!= e f@ Assert that e==f
 
-    | DEFINE (Defn z v a)
-             (Maybe (Cmd z v a))
+    | DEFINE [Defn z v a]
        -- ^ @(x=y)@, @((f x)=x)@ Bind a value or function in the global
        --   namespace.
 

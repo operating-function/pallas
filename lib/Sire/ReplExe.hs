@@ -283,7 +283,8 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
                     -- TODO Nope, definitly not impossible
         runCmd h scope vSrc vPrp vGen vMac itxt (ASSERT more)
 
-    DEFINE (BIND_EXP key nam _docstr e) more -> do
+    DEFINE [] -> pure scope
+    DEFINE (BIND_EXP key nam _docstr e : more) -> do
         let tag = "=" <> (natBytes nam)
         scope' <- profTrace tag "repl" do
             glo@(G pln _) <- resolveAndInjectExp scope e
@@ -294,13 +295,11 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
                 _ -> pure ()
             pure (insertMap nam glo scope)
         modifyIORef vSrc (insertMap nam key)
-        case more of
-            Nothing -> pure scope'
-            Just nx -> runCmd h scope' vSrc vPrp vGen vMac itxt nx
+        runCmd h scope' vSrc vPrp vGen vMac itxt (DEFINE more)
 
     -- TODO This should just literally expand to f=(4 (f x ? ...)) and
     -- that should support inlining correctly.
-    DEFINE (BIND_FUN key nam _docstr f) more -> do
+    DEFINE (BIND_FUN key nam _docstr f : more) -> do
         let tag = "=" <> (natBytes nam)
         scope' <- profTrace tag "repl" do
             raw <- liftIO $ resolveTopFun f
@@ -314,9 +313,7 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
                 _ -> pure ()
             pure (insertMap nam (G pln (Just fun)) scope)
         modifyIORef vSrc (insertMap nam key)
-        case more of
-            Nothing -> pure scope'
-            Just nx -> runCmd h scope' vSrc vPrp vGen vMac itxt nx
+        runCmd h scope' vSrc vPrp vGen vMac itxt (DEFINE more)
 
 envVal :: ∀a. Eq a => Map Symb a -> Val a
 envVal =

@@ -39,15 +39,17 @@
 /+  07_rex  [rexIsNode rexIsLeaf]
 /+  07_rex  [rexGetKidsOfNodeWithRune rexGetWord]
 /+  07_rex  [rexGetNodeWithRune]
-/+  07_rex  [rexSetRune rexSetSons]
+/+  07_rex  [rexSetRune rexSetSons rexSetHeir]
 /+  07_rex  [NEST OPEN WORD]
 /+  07_rex  [rexIdnt]
 /+  typed
 /+  08_dat  [switch all tag drop rowCons cat take zip bapE]
 /+  08_dat  [CONS NIL listCase]
 /+  08_dat  [listToRowReversed listZip listEnumFrom listToRow listFromRow]
+/+  08_dat  [listSing listCat]
 /+  08_dat  [',' ',,']
-/+  08_dat  [traverseRow forRowWithState]
+/+  08_dat  [listFoldr traverseRow forRowWithState]
+/+  08_dat  [traverseList traverseListWithState]
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld strCat]
@@ -58,7 +60,7 @@
 /+  15_hax  ['#']
 /+  16_pad  []
 /+  17_bar  []
-/+  18_sug  ['``' ':' '~' '::']
+/+  18_sug  [{``} {:} {~} {::} {~~} {==}]
 
 
 """ Pattern Matching On Rows """""""""""""""""""""""""""""""""""""""""""""""""""
@@ -788,32 +790,83 @@
 = (sogKE k f rs)
 | (NEST 0 "|" (rowCons (keyKE k f) (map varE rs)) 0)
 
-= ("=" s p e a r err ok)
-@ rune (rexRune r)
-@ sons (rexSons r)
-@ heir (rexHeir r)
-@ [sons heir]
-    | if (neq 1 | len sons) [sons heir]
-    | [(rexKids r) 0]
-| if (neq 2 | len sons)
-    | err r "Expected two sons"
-@ [brex bodyExpr] sons
-@ bune (rexRune brex)
-| if (eql "|" bune)
-    : sym binds <- readDestroyer brex err
-    : a sig bod <- makeDestroyer a binds bodyExpr
-    @ key rexIdnt-(idx 0 rexKids-brex)
-    | ok p a
-    | OPEN 0 "#=" (sogKE key sym sig, bod)
-    | heir
+= (parseDefine rex err ok)
+@ kids            | rexKids rex
+@ [sigRex bodRex] | kids
+@ sigRune         | rexRune sigRex
+| if (neq 2 | len kids)
+    | err rex "Expected two kids"
+| if (eql "|" sigRune)
+    : sym binds < readDestroyer sigRex err
+    @ key       | rexIdnt (idx 0 | rexKids sigRex)
+    | ok (key, sym, binds, bodRex)
 | *else
-    : spec <- parseBinder brex err
-    @ [a bSeq] (sequenceBinds a [[spec bodyExpr]])
-    | ok p a
-    ^ foldr _ heir bSeq
-    & ([key var exp] heir)
-    | OPEN 0 "#=" (keyKE key var, exp) heir
+    : bind <- parseBinder sigRex err
+    | ok (bind, bodRex)
 
+!!=  ,, [%v 0 %x]
+     ,, `3
+  ^ parseDefine _ v2 I
+  ` = x 3
+
+!!=  ,, [%r [%v 0 %x],[%v 0 %y]]
+     ,, `3
+  ^ parseDefine _ v2 I
+  ` = [x y] 3
+
+;; TODO: Should there be a %f binder for the binding of a function?
+;;
+;;     That way these two cases would slot right together, and we must
+;;     do something like that already with `@ (f x) ...` patterns?
+
+!!=  ,, 0
+     ,, %f
+     ,, ([%v 0 %x], [%r ([%v 0 %y], [%v 0 %z])])
+     ,, `y
+  ^ parseDefine _ v2 I
+  ` = (f x [y z]) y
+
+= (unrollTis rex)
+@ heir (rexHeir rex)
+| if (isZero heir)            | ~[rex]
+| if (neq (rexRune heir) "=") | ~[rex]
+| *CONS (rexSetHeir 0 rex)
+| unrollTis heir
+
+!!=  ~~ ` = x     3
+     ~~ ` = (f x) 3
+     ~~ ` = [x y]
+          , 1 2
+  | unrollTis
+  ` = x 3
+    = (f x) 3
+    = [x y]
+    , 1 2
+
+; Input must be non-empty
+= (mkDefsC a defBinds)
+^ listFoldr _ (a, 0) defBinds
+& (def [a acc])
+| if (len def == 4)
+    @ [key sym binds bodRex] def
+    : a sig bod <- makeDestroyer a binds bodRex
+    , a
+    | OPEN 0 "#=" (sogKE key sym sig, bod) acc
+| *else
+    @ [bind bodRex] def
+    @ [a bSeq] (sequenceBinds a [[bind bodRex]])
+    ^ foldr _ [a acc] bSeq
+    & ([key var exp] [a acc])
+    , a
+    | OPEN 0 "#=" (keyKE key var, exp) acc
+
+= ("=" s p e a r err ok)
+@ defRexes | unrollTis r
+: defBinds < ^ traverseList _ defRexes
+             ? (step defRex ret)
+             | parseDefine defRex err ret
+@ a,r (mkDefsC a defBinds)
+| ok p a r
 
 = (weird [[[x]] %[=y a=z]]) [x y z]
 

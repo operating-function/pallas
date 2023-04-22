@@ -218,7 +218,7 @@ readCmd = do
     asum (macros <> fixed <> [OUTPUT <$> readExpr])
   where
     fixed =
-        [ (rune "#=" <|> rune "=") >> readDefine
+        [ DEFINE <$> readDefine
         , IMPORT <$> readImports
         , FILTER <$> readFilter
         , readAssert
@@ -227,38 +227,30 @@ readCmd = do
              pure (DUMPIT $ foldl' EAPP v vs)
         ]
 
-    readDefine = do
-        ((t,args), b, andThen) <- readTopBinder
-        let nm = xtagIdn t
-            ky = xtagKey t
-            tg = xtagTag t
-            c  = Nothing
-            res = case args of
-                    []   -> BIND_EXP ky nm c b
-                    r:rs -> BIND_FUN ky nm c (FUN nm (LN tg) (r:|rs) b)
-        pure $ DEFINE res andThen
+readDefine :: (RexColor, HasMacroEnv) => Red [Defn Fan Symb Symb]
+readDefine = do
+    rune "#=" <|> rune "="
+    ((t,args), f, andThen) <- go
+    let nm = xtagIdn t
+        ky = xtagKey t
+        tg = xtagTag t
+        k  = Nothing
+        res = case args of
+                []   -> BIND_EXP ky nm k f
+                r:rs -> BIND_FUN ky nm k (FUN nm (LN tg) (r:|rs) f)
+    pure (res : andThen)
+  where
+    go = asum
+           [ form2C b x c >>= \(bv, xv, cv) -> pure (bv ,xv, cv)
+           , form1C b x   >>= \(bv, xv)     -> pure (bv, xv, [])
+           , form2  b x   >>= \(bv, xv)     -> pure (bv, xv, [])
+           ]
 
-readTopBinder
-    :: (RexColor, HasMacroEnv)
-    => Red ( (XTag, [Symb])
-           , Exp Fan Symb Symb
-           , Maybe (Cmd Fan Symb Symb)
-           )
-readTopBinder =
-    asum
-    [ form2C b x c >>= \(bv, xv, cv) -> pure (bv ,xv, Just cv)
-    , form1C b x   >>= \(bv, xv)     -> pure (bv, xv, Nothing)
-    , form2  b x   >>= \(bv, xv)     -> pure (bv, xv, Nothing)
-    ]
- where
-  (b, x, c) = (readBinder, readExpr, readCmd)
+    (b, x, c) = (simple <|> complex, readExpr, readDefine)
 
-  readBinder :: Red (XTag, [Symb])
-  readBinder = simple <|> complex
-    where
-      simple = (,[]) . Loot.simpleTag <$> withIdent Loot.readBymb
-      complex = rune "|" >> form1N Loot.readXTag Loot.readSymb
+    simple = (,[]) . Loot.simpleTag <$> withIdent Loot.readBymb
 
+    complex = rune "|" >> form1N Loot.readXTag Loot.readSymb
 
 
 -- Functions -------------------------------------------------------------------
