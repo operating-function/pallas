@@ -225,3 +225,8 @@
 !!=     | lookupByAV ":order/name" "James" multiOrders
     @ tendiesEid | cabFirst | lookupByAV ":item/product" "Tendies" multiOrders
     | lookupByVA tendiesEid ":order/lineItems" multiOrders
+
+""" Pull """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+!!=    | RIGHT | %[':item/product'=(%Hamburger) ':item/quantity'=1]
+    | pull [":item/product" ":item/quantity"] 10 multiOrders

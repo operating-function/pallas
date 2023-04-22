@@ -27,6 +27,9 @@
 * INVALID_ROW_OP op:Any
 ;
 * BAD_MAP_VAL val:Any
+;
+* PULL_NOT_ROW val:Any
+* BAD_PULL_TERM val:Any
 
 ;; The toplevel DB type.
 ;;
@@ -283,7 +286,6 @@ e
   : eid <- *fromSingletonCab eidCab | 'invalid eid for aid?! ' aid
   | lookupByEA eid attr db
 
-
 """ User Transact Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; Resolve a lookup ref into an eid or error.
@@ -396,7 +398,6 @@ e
           ,, db
         | if ((isTab vVal) && (not | isCab vVal))
           @ [mybEid suberrs subactions txnTmpIds db]
-            | trk [%subval vVal]
             | parseMapForm txnTmpIds db vVal
           : subeid <- *maybeCase mybEid
                      ,, | listWeld suberrs errs
@@ -541,6 +542,82 @@ e
 | ifNot (listNull errs) | *LEFT | listToRow errs
 | *RIGHT newDB
 
+""" Pull """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; todo: maybe wrong structure. probably want to have each option as a maybe
+; in PULL_ATTR.
+# datatype AttrOption
+* OPTION_AS name:Str
+
+# datatype ParsedPull
+* PULL_WILDCARD
+* PULL_ATTR attrName:String options:(Row AttrOption)
+
+> DB > Any > Either Error ParsedPull
+= (parse db val)
+| if | isRow val
+  ; TODO: all non simple list forms.
+  | *LEFT "todo: any map term"
+; TODO: map terms
+; TODO: reverse lookups
+| if (val == "*")
+  | *RIGHT PULL_WILDCARD
+| if (isNat val)
+  | *RIGHT | *PULL_ATTR val []
+| *LEFT | *BAD_PULL_TERM val
+
+> [(List Error) (Tab Any Any) Nat DB]
+> ParsedPull
+> [(List Error) (Tab Any Any) Nat DB]
+= (lookupSpec [errs t eid db] item)
+# datacase item
+* PULL_WILDCARD
+  ; We have to return a map of all attributes to their values, including
+  ; recursively, which is hard. We need to already have individual
+  | 'pull wildcard unimplemented' 0
+* (PULL_ATTR name options)
+  | trk [%pullattr name db]
+  # datacase (resolveAttrName name db)
+  * (LEFT err)
+    | trk [%resolveErr err]
+    [(*CONS err errs) t eid db]
+  * (RIGHT [aid indexed unique isMany isRef])
+    ; TODO: Check for %as in syntax.
+    @ outputKey name
+    ;
+    | if isRef
+      | 'todo: isRef' 0
+    | if isMany
+      ; always return a list
+      | 'todo: isMany' 0
+    ;
+    | trk [%check eid aid]
+    @ cab | lookupByEidAid eid aid db
+    | trk [%res cab]
+    | if | cabIsEmpty cab
+      [errs t eid db]
+    [errs (tabMut outputKey (cabFirst cab) t) eid db]
+
+
+; General lookup function which returns information starting at an entity.
+;
+; Given an entity number, produces a tab with attributes as keys as described
+; by `pullSpec`. This tab can recurse downwards into linked attributes, but
+; does cannot do arbitrary higher complexity queries.
+;
+> Any > Any > DB > Either [Error] (Tab Any Any)
+= (pull pullSpec eidSpec db)
+: [eid _ _] <- *eitherCase | parseEntityId %[] db eidSpec
+                 'error in eid spec: '
+| ifNot | isRow pullSpec
+  | *LEFT [(*PULL_NOT_ROW pullSpec)]
+@ [errs specs] | partition | map (parse db) pullSpec
+| ifNot | isZero | len errs
+  | *LEFT errs
+@ [errs result] | foldl lookupSpec [NIL %[] eid db] specs
+| ifNot | listNull errs
+  | *LEFT | listToRow errs
+| *RIGHT result
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -550,6 +627,7 @@ e
 ^-^ DB emptyDB
 ^-^
 ^-^ lookupByEA lookupByAE lookupByAV lookupByVA transact
+^-^ pull
 ^-^
 ; These shouldn't be exported, but are for testing. Remove these when there's
 ; a proper complete pull api implementation.
