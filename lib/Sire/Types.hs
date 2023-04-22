@@ -91,7 +91,10 @@ data TestEql z v a =
 
 -- |Sire input commands.
 data Cmd z v a
-    = IMPORT [(Text, Maybe (Set Symb))]
+    = CMDSEQ [Cmd z v a]
+        -- ^ @(* = x 3)(* = y 4)@ Multiple commands in block.
+
+    | IMPORT [(Text, Maybe (Set Symb))]
         -- ^ @(/+ foo [x y])@ Import @x@ and @y@ from `sire/foo.sire`
 
     | FILTER [Symb]

@@ -283,6 +283,11 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
                     -- TODO Nope, definitly not impossible
         runCmd h scope vSrc vPrp vGen vMac itxt (ASSERT more)
 
+    CMDSEQ []       -> pure scope
+    CMDSEQ (c:more) -> do
+        scope' <- runCmd h scope vSrc vPrp vGen vMac itxt c
+        runCmd h scope' vSrc vPrp vGen vMac itxt (CMDSEQ more)
+
     DEFINE [] -> pure scope
     DEFINE (BIND_EXP key nam _docstr e : more) -> do
         let tag = "=" <> (natBytes nam)

@@ -219,6 +219,7 @@ readCmd = do
   where
     fixed =
         [ DEFINE <$> readDefine
+        , CMDSEQ <$> readCmdSeq
         , IMPORT <$> readImports
         , FILTER <$> readFilter
         , readAssert
@@ -226,6 +227,12 @@ readCmd = do
              (v,vs) <- form1Nc readExpr readExpr
              pure (DUMPIT $ foldl' EAPP v vs)
         ]
+
+readCmdSeq :: (RexColor, HasMacroEnv) => Red [Cmd Fan Symb Symb]
+readCmdSeq = do
+    rune "#*" <|> rune "*"
+    cmds <- formNc readCmd
+    pure cmds
 
 readDefine :: (RexColor, HasMacroEnv) => Red [Defn Fan Symb Symb]
 readDefine = do
