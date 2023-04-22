@@ -1,0 +1,22 @@
+#! /usr/bin/env nix-shell
+#! nix-shell -i bash -p inotify-tools
+
+run () {
+    if
+        clear
+        [ $# -gt 0 ]
+    then
+        sire "$@" </dev/null
+    else
+        sh/sire-load-all </dev/null
+    fi
+}
+
+run
+
+while
+        inotifywait -e modify -e close_write -e move -e create sire/*.sire
+        true
+do
+        run
+done
