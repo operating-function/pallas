@@ -228,5 +228,20 @@
 
 """ Pull """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-!!=    | RIGHT | %[':item/product'=(%Hamburger) ':item/quantity'=1]
+!!=    | RIGHT [':item/product'='Hamburger' ':item/quantity'=1]
     | pull [":item/product" ":item/quantity"] 10 multiOrders
+
+!!=    | RIGHT [':person/alias'=["Bobby" "Robert"] ':person/name'='Bob']
+    | pull [":person/alias" ":person/name"] 500 aliasDB
+
+; What was Bob's order?
+!!=    | RIGHT %% =":order/name" "Bob"
+               %% =":order/lineItems" ,, %% =":item/product" "Guinness"
+                                         %% =":item/quantity" 1
+                                      ,, %% =":item/product" "Hamburger"
+                                         %% =":item/quantity" 1
+    @ bobId | cabFirst | lookupByAV ":order/name" "Bob" multiOrders
+    ^ pull _ bobId multiOrders
+    ,, ":order/name"
+    ,, %% =":order/lineItems" ,, ":item/product"
+                              ,, ":item/quantity"

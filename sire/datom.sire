@@ -549,22 +549,58 @@ e
 # datatype AttrOption
 * OPTION_AS name:Str
 
+# datatype AttrExpr
+* ATTR_EXPR name:String options:(Tab String Any)
+
 # datatype ParsedPull
 * PULL_WILDCARD
-* PULL_ATTR attrName:String options:(Row AttrOption)
+* PULL_ATTR expr:AttrExpr
+* PULL_MAP spec:(Row [AttrExpr (Row ParsedPull)])
 
-> DB > Any > Either Error ParsedPull
+> DB > Any > Either [Error] ParsedPull
 = (parse db val)
 | if | isRow val
   ; TODO: all non simple list forms.
   | *LEFT "todo: any map term"
-; TODO: map terms
+| if | isTab val
+  @ [errs specs]
+    | partition
+    ^ map _ | tabToPairs val
+    & [k v]
+    # datacase | parse db k
+    * (LEFT new) | LEFT new
+    * (RIGHT parsed)
+      # datacase parsed
+      * (PULL_ATTR keyExpr)
+        @ [errs parsedVals]
+          | partition
+          | map (parse db) v
+        | ifNot | isZero | len errs
+          | *LEFT errs
+        | *RIGHT [keyExpr parsedVals]
+      * _ | *LEFT | *BAD_MAP_VAL parsed
+  | ifNot | isZero | len errs
+    | *LEFT errs
+  | *RIGHT | PULL_MAP specs
 ; TODO: reverse lookups
 | if (val == "*")
   | *RIGHT PULL_WILDCARD
 | if (isNat val)
-  | *RIGHT | *PULL_ATTR val []
+  | *RIGHT | *PULL_ATTR (ATTR_EXPR val %[])
 | *LEFT | *BAD_PULL_TERM val
+
+> Either Error [Str (Cab Any) [Nat Bool Bool Bool Bool]]
+= (lookupAttr db eid expr)
+# datacase expr
+* (ATTR_EXPR name options)
+  # datacase (resolveAttrName name db)
+  * (LEFT err)
+    | *LEFT err
+  * (RIGHT [aid indexed unique isMany isRef])
+    @ outputKey | fromSome name | tabLookup ":as" options
+    @ rawCab | lookupByEidAid eid aid db
+    ; TODO: handle limits in rawCab.
+    | *RIGHT [outputKey rawCab [indexed unique isMany isRef]]
 
 > [(List Error) (Tab Any Any) Nat DB]
 > ParsedPull
@@ -575,29 +611,42 @@ e
   ; We have to return a map of all attributes to their values, including
   ; recursively, which is hard. We need to already have individual
   | 'pull wildcard unimplemented' 0
-* (PULL_ATTR name options)
-  | trk [%pullattr name db]
-  # datacase (resolveAttrName name db)
+* (PULL_ATTR expr)
+  # datacase | lookupAttr db eid expr
   * (LEFT err)
-    | trk [%resolveErr err]
     [(*CONS err errs) t eid db]
-  * (RIGHT [aid indexed unique isMany isRef])
-    ; TODO: Check for %as in syntax.
-    @ outputKey name
+  * (RIGHT [outputKey cab [indexed unique isMany isRef]])
+    | if | cabIsEmpty cab
+      [errs t eid db]
     ;
     | if isRef
       | 'todo: isRef' 0
     | if isMany
-      ; always return a list
-      | 'todo: isMany' 0
+      ; many/non-ref
+      [errs (tabMut outputKey (cabRow cab) t) eid db]
     ;
-    | trk [%check eid aid]
-    @ cab | lookupByEidAid eid aid db
-    | trk [%res cab]
-    | if | cabIsEmpty cab
-      [errs t eid db]
     [errs (tabMut outputKey (cabFirst cab) t) eid db]
-
+* (PULL_MAP spec)
+  ; Need to process the map here. This is a key from a eid ref to all the values
+  ; which match it.
+  ^ foldl _ [errs t eid db] spec
+  & ([errs t eid db] [k v])
+  # datacase | lookupAttr db eid k
+  * (LEFT err)
+    [(*CONS err errs) t eid db]
+  * (RIGHT [outputKey cab [indexed unique isMany isRef]])
+    @ [newErrs result]
+      ^ foldl _ [errs NIL db] | cabRow cab
+      ? (lookupSubEid [errs subres db] subeid)
+      @ [suberrs result] | foldl lookupSpec [NIL %[] subeid db] v
+      [errs (*CONS result subres) db]
+    | ifNot | isZero | len newErrs
+      [(*CONS newErrs errs) t eid db]
+    @ o | tabMut outputKey (listToRow result) t
+    ,, errs
+    ,, o
+    ,, eid
+    ,, db
 
 ; General lookup function which returns information starting at an entity.
 ;
@@ -622,7 +671,7 @@ e
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^ UNIQUE_VIOLATION LOOKUP_NO_ATTRIBUTE LOOKUP_ATTRIBUTE_NOT_UNIQUE
-^-^ LOOKUP_NO_MATCH INVALID_ROW INVALID_ROW_OP BAD_MAP_VAL
+^-^ LOOKUP_NO_MATCH INVALID_ROW INVALID_ROW_OP BAD_MAP_VAL BAD_PULL_TERM
 ^-^
 ^-^ DB emptyDB
 ^-^
