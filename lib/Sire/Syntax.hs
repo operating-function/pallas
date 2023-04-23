@@ -228,13 +228,13 @@ readCmd = do
              pure (DUMPIT $ foldl' EAPP v vs)
         ]
 
-readCmdSeq :: (RexColor, HasMacroEnv) => Red [Cmd Fan Symb Symb]
+readCmdSeq :: (RexColor, HasMacroEnv) => Red [Cmd Symb Symb]
 readCmdSeq = do
     rune "#*" <|> rune "*"
     cmds <- formNc readCmd
     pure cmds
 
-readDefine :: (RexColor, HasMacroEnv) => Red [Defn Fan Symb Symb]
+readDefine :: (RexColor, HasMacroEnv) => Red [Defn Symb Symb]
 readDefine = do
     rune "#=" <|> rune "="
     ((t,args), f, andThen) <- go
@@ -334,7 +334,7 @@ readExpr = do
              pure (ELAM True (FUN (xtagIdn t) (LN $ xtagTag t) rs b))
         ]
 
-readAppHead :: (RexColor, HasMacroEnv) => Red (Either Symb (Exp Fan Symb Symb))
+readAppHead :: (RexColor, HasMacroEnv) => Red (Either Symb (Exp Symb Symb))
 readAppHead =
   (Left <$> (rune "*" >> form1 readSymb)) <|> (Right <$> readExpr)
 

@@ -320,7 +320,7 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
         modifyIORef vSrc (insertMap nam key)
         runCmd h scope' vSrc vPrp vGen vMac itxt (DEFINE more)
 
-envVal :: ∀a. Eq a => Map Symb a -> Val a
+envVal :: Eq a => Map Symb a -> Val a
 envVal =
     TAB . mapFromList . fmap f . mapToList
   where
@@ -349,7 +349,7 @@ resolveAndInjectExp scope ast = do
     (_, _, mInline) <- expBod (1, mempty) expr
     pure $ G (valFan (REF pln `APP` NAT 0)) mInline
 
-injectFun :: Fun Fan Refr Global -> ExceptT Text IO Fan
+injectFun :: Fun Refr Global -> ExceptT Text IO Fan
 injectFun (FUN self nam args exr) = do
     (_, b, _) <- expBod (nexVar, tab) exr
     let rul = RUL nam (fromIntegral ari) b
@@ -360,7 +360,7 @@ injectFun (FUN self nam args exr) = do
     tab = mapFromList $ zip ((.key) <$> (self : toList args))
                             ((\v -> (0,v,Nothing)) . BVAR <$> [0..])
 
-numRefs :: Int -> Exp a Refr b -> Int
+numRefs :: Int -> Exp Refr b -> Int
 numRefs k = \case
     EVAR r               -> if r.key == k then 1 else 0
     EBED{}               -> 0
@@ -377,10 +377,10 @@ numRefs k = \case
     go = numRefs k
 
 optimizeLet
-    :: (Int, IntMap (Int, Bod Global, Maybe (Fun Fan Refr Global)))
+    :: (Int, IntMap (Int, Bod Global, Maybe (Fun Refr Global)))
     -> Refr
-    -> Exp Fan Refr Global
-    -> Exp Fan Refr Global
+    -> Exp Refr Global
+    -> Exp Refr Global
     -> ExceptT Text IO (Int, Bod Global, Inliner)
 optimizeLet s@(nex, tab) refNam expr body = do
   let recurRef = numRefs k expr > 0
@@ -415,7 +415,8 @@ optimizeLet s@(nex, tab) refNam expr body = do
     var = BVAR . fromIntegral
 
 -- Trivial if duplicating is cheaper than a let-reference.
-trivialExp :: Exp v a b -> Bool
+-- TODO: All atom literals should be considered trivial.
+trivialExp :: Exp a b -> Bool
 trivialExp = \case
     ENAT n -> n < 4294967296
     EREF _ -> True
@@ -425,15 +426,15 @@ trivialExp = \case
 atomArity :: Nat -> Int
 atomArity = fromIntegral . F.natArity
 
-freeVars :: ∀a b. Fun a Refr b -> Set Refr
+freeVars :: ∀b. Fun Refr b -> Set Refr
 freeVars = goFun mempty
  where
-    goFun :: Set Refr -> Fun a Refr b -> Set Refr
+    goFun :: Set Refr -> Fun Refr b -> Set Refr
     goFun ours (FUN self _ args body) =
       let keyz = setFromList (self : toList args)
       in go (ours <> keyz) body
 
-    go :: Set Refr -> Exp a Refr b -> Set Refr
+    go :: Set Refr -> Exp Refr b -> Set Refr
     go ours = \case
         EBED{}     -> mempty
         ENAT{}     -> mempty
@@ -456,7 +457,7 @@ instance Show Global where
   show (G (F.NAT n) _) = "(AT " <> show n <> ")"
   show (G pln _)       = "(G " <> show (F.valName pln) <> ")"
 
-type Inliner = Maybe (Fun Fan Refr Global)
+type Inliner = Maybe (Fun Refr Global)
 
 
 --  TODO Don't lift trivial aliases, just inline them (small atom, law)
@@ -465,8 +466,8 @@ type Inliner = Maybe (Fun Fan Refr Global)
 lambdaLift
     :: (Int, IntMap (Int, Bod Global, Inliner))
     -> Bool
-    -> Fun Fan Refr Global
-    -> ExceptT Text IO (Exp Fan Refr Global)
+    -> Fun Refr Global
+    -> ExceptT Text IO (Exp Refr Global)
 lambdaLift _s pinned f@(FUN self tag args body) = do
     let lifts = toList (freeVars f) :: [Refr]
     let liftV = EVAR <$> lifts
@@ -489,8 +490,8 @@ lambdaLift _s pinned f@(FUN self tag args body) = do
 -- `uniplate` or whatever.
 inlineTrivial
     :: (b, IntMap (Int, Bod Global, Inliner))
-    -> Fun Fan Refr Global
-    -> Fun Fan Refr Global
+    -> Fun Refr Global
+    -> Fun Refr Global
 inlineTrivial s@(_, tab) (FUN self tag args body) =
     FUN self tag args (go body)
   where
@@ -514,7 +515,7 @@ inlineTrivial s@(_, tab) (FUN self tag args body) =
 
 expBod
     :: (Int, IntMap (Int, Bod Global, Inliner))
-    -> Exp Fan Refr Global
+    -> Exp Refr Global
     -> ExceptT Text IO (Int, Bod Global, Inliner)
 expBod s@(_, tab) = \case
     EBED b         -> do let ari = F.trueArity b
@@ -563,6 +564,8 @@ expBod s@(_, tab) = \case
 
 vCompilerGenSym :: IORef Int
 vCompilerGenSym = unsafePerformIO (newIORef 0)
+  -- TODO: Input should already have a unique identity assigned to
+  -- each symbol.  Use that and make this stateless.
 
 data Refr = REFR {name :: !Symb, key  :: !Int}
 
@@ -585,7 +588,7 @@ gensym nam = do
     writeIORef vCompilerGenSym nex
     pure (REFR nam key)
 
-resolveFun :: Map Symb Refr -> Fun v Symb Symb -> IO (Fun v Refr Symb)
+resolveFun :: Map Symb Refr -> Fun Symb Symb -> IO (Fun Refr Symb)
 resolveFun env (FUN self tag args body) = do
     selfR <- gensym self
     argsR <- traverse gensym args
@@ -597,7 +600,7 @@ resolveFun env (FUN self tag args body) = do
     bodyR <- resolveExp envir body
     pure (FUN selfR tag argsR bodyR)
 
-resolveTopFun :: Fun v Symb Symb -> IO (Fun v Refr Symb)
+resolveTopFun :: Fun Symb Symb -> IO (Fun Refr Symb)
 resolveTopFun = resolveFun mempty
 
 refreshRef
@@ -623,26 +626,23 @@ refreshBinder ref = do
             pure r
 
 duplicateFun
-    :: Fun a Refr b
-    -> StateT (Int, Map Int Refr) IO (Fun a Refr b)
+    :: Fun Refr b
+    -> StateT (Int, Map Int Refr) IO (Fun Refr b)
 duplicateFun (FUN self name args body) = do
     self' <- refreshBinder self
     args' <- traverse refreshBinder args
     body' <- duplicateExp body
     pure (FUN self' name args' body')
 
-duplicateExpTop :: Exp a Refr b -> IO (Exp a Refr b)
+duplicateExpTop :: Exp Refr b -> IO (Exp Refr b)
 duplicateExpTop e = evalStateT (duplicateExp e) (0, mempty)
 
 -- Duplicates an expression, creating fresh Refrs for each binding.
-duplicateExp
-    :: ∀a b
-     . Exp a Refr b
-    -> StateT (Int, Map Int Refr) IO (Exp a Refr b)
+duplicateExp :: Exp Refr b -> StateT (Int, Map Int Refr) IO (Exp Refr b)
 duplicateExp = go
   where
-    go  :: Exp a Refr b
-        -> StateT (Int, Map Int Refr) IO (Exp a Refr b)
+    go  :: Exp Refr b
+        -> StateT (Int, Map Int Refr) IO (Exp Refr b)
     go expr = case expr of
         EVAR x     -> EVAR <$> refreshRef x
         EREC v e b -> EREC <$> refreshBinder v <*> go e <*> go b
@@ -655,10 +655,10 @@ duplicateExp = go
         ENAT{}     -> pure expr
 
 inlineFun
-    :: (Show a, Show b)
-    => Fun a Refr b
-    -> NonEmpty (Exp a Refr b)
-    -> ExceptT Text IO (Exp a Refr b)
+    :: Show b
+    => Fun Refr b
+    -> NonEmpty (Exp Refr b)
+    -> ExceptT Text IO (Exp Refr b)
 inlineFun (FUN self _ args body) params = do
     case ( compare (length params) (length args)
          , numRefs self.key body
@@ -677,9 +677,9 @@ noInline = throwError
 
 inlineExp
     :: IntMap (Int, Bod Global, Inliner)
-    -> Exp Fan Refr Global
-    -> NonEmpty (Exp Fan Refr Global)
-    -> ExceptT Text IO (Exp Fan Refr Global)
+    -> Exp Refr Global
+    -> NonEmpty (Exp Refr Global)
+    -> ExceptT Text IO (Exp Refr Global)
 inlineExp tab f xs =
     case f of
         ELAM _ l ->
@@ -698,8 +698,8 @@ inlineExp tab f xs =
 resolveExp
     :: MonadIO m
     => Map Symb Refr
-    -> Exp a Symb Symb
-    -> m (Exp a Refr Symb)
+    -> Exp Symb Symb
+    -> m (Exp Refr Symb)
 resolveExp e = liftIO . \case
     EBED b     -> pure (EBED b)
     ENAT n     -> pure (ENAT n)

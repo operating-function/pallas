@@ -31,9 +31,9 @@ import Rex        (Rex)
 -- Functions --
 ---------------
 
-type XFun = Fun Fan Symb Symb
-type XExp = Exp Fan Symb Symb
-type XCmd = Cmd Fan Symb Symb
+type XFun = Fun Symb Symb
+type XExp = Exp Symb Symb
+type XCmd = Cmd Symb Symb
 
 {-|
     A Sire function has an identifier for self-reference, a `LawName,
@@ -45,27 +45,27 @@ type XCmd = Cmd Fan Symb Symb
     outside scope, and @w@ is use for self-references.  The difference
     doesn't matter during parsing, but it matters in code transformations.
 -}
-data Fun z v a = FUN v LawName (NonEmpty v) (Exp z v a)
+data Fun v a
+    = FUN v LawName (NonEmpty v) (Exp v a)
  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
 {-|
-    Sire Expressions. @z@ is the type of raw embedded Plunder values
-    (created through macro-expansion), @v@ is the type of local variables,
-    and @a@ is the type of free variables.
+    Sire Expressions.  @v@ is the type of local variables, and @a@
+    is the type of free variables.
 
     The parser just treats all references as free variables.  Later on,
     name resolution splits them apart.
 -}
-data Exp z v a
-    = EBED z                          -- ^ An embedded plunder value
-    | EREF a                          -- ^ A free variable.
-    | EVAR v                          -- ^ A bound variable.
-    | ENAT Nat                        -- ^ A natural-number literal.
-    | EAPP (Exp z v a) (Exp z v a)    -- ^ Function application
-    | ELET v (Exp z v a) (Exp z v a)  -- ^ Let-binding
-    | EREC v (Exp z v a) (Exp z v a)  -- ^ Self-recursive let binding.
-    | ELAM Bool (Fun z v a)           -- ^ Nested Function (Closure)
-    | ELIN (NonEmpty (Exp z v a))     -- ^ Explicit Inline Application
+data Exp v a
+    = EBED Fan                    -- ^ An embedded plunder value
+    | EREF a                      -- ^ A free variable.
+    | EVAR v                      -- ^ A bound variable.
+    | ENAT Nat                    -- ^ A natural-number literal.
+    | EAPP (Exp v a) (Exp v a)    -- ^ Function application
+    | ELET v (Exp v a) (Exp v a)  -- ^ Let-binding
+    | EREC v (Exp v a) (Exp v a)  -- ^ Self-recursive let binding.
+    | ELAM Bool (Fun v a)         -- ^ Nested Function (Closure)
+    | ELIN (NonEmpty (Exp v a))   -- ^ Explicit Inline Application
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
 {-
@@ -85,13 +85,13 @@ data Req a
 -- REPL Commands --
 -------------------
 
-data TestEql z v a =
-    TEST_EQL [Rex] (Exp z v a) (Exp z v a)
+data TestEql  v a =
+    TEST_EQL [Rex] (Exp v a) (Exp v a)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
 -- |Sire input commands.
-data Cmd z v a
-    = CMDSEQ [Cmd z v a]
+data Cmd v a
+    = CMDSEQ [Cmd v a]
         -- ^ @(* = x 3)(* = y 4)@ Multiple commands in block.
 
     | IMPORT [(Text, Maybe (Set Symb))]
@@ -100,16 +100,16 @@ data Cmd z v a
     | FILTER [Symb]
        -- ^ @(^-^ x y)@ Restrict the namespace to just x and y.
 
-    | OUTPUT (Exp z v a)
+    | OUTPUT (Exp v a)
        -- ^ @(e)@ Eval+print @e@
 
-    | DUMPIT (Exp z v a)
+    | DUMPIT (Exp v a)
        -- ^ @(<e)@ Eval+print @e@ and it's environment.
 
-    | ASSERT [TestEql z v a]
+    | ASSERT [TestEql v a]
        -- ^ @!!= e f@ Assert that e==f
 
-    | DEFINE [Defn z v a]
+    | DEFINE [Defn v a]
        -- ^ @(x=y)@, @((f x)=x)@ Bind a value or function in the global
        --   namespace.
 
@@ -119,7 +119,7 @@ type Doc = Maybe Text
 
 -- |A binder.  It's either a function (takes arguments) or a value
 -- (does not).
-data Defn z v a
-    = BIND_FUN !Nat a Doc (Fun z v a)
-    | BIND_EXP !Nat a Doc (Exp z v a)
+data Defn v a
+    = BIND_FUN !Nat a Doc (Fun v a)
+    | BIND_EXP !Nat a Doc (Exp v a)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
