@@ -103,11 +103,9 @@ data Cmd v a
 
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
-type Doc = Maybe Text
-
 -- |A binder.  It's either a function (takes arguments) or a value
 -- (does not).
 data Defn v a
-    = BIND_FUN !Nat a Doc (Fun v a)
-    | BIND_EXP !Nat a Doc (Exp v a)
+    = BIND_FUN !Nat a (Fun v a)
+    | BIND_EXP !Nat a (Exp v a)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)

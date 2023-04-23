@@ -289,7 +289,7 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
         runCmd h scope' vSrc vPrp vGen vMac itxt (CMDSEQ more)
 
     DEFINE [] -> pure scope
-    DEFINE (BIND_EXP key nam _docstr e : more) -> do
+    DEFINE (BIND_EXP key nam e : more) -> do
         let tag = "=" <> (natBytes nam)
         scope' <- profTrace tag "repl" do
             glo@(G pln _) <- resolveAndInjectExp scope e
@@ -304,7 +304,7 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
 
     -- TODO This should just literally expand to f=(4 (f x ? ...)) and
     -- that should support inlining correctly.
-    DEFINE (BIND_FUN key nam _docstr f : more) -> do
+    DEFINE (BIND_FUN key nam f : more) -> do
         let tag = "=" <> (natBytes nam)
         scope' <- profTrace tag "repl" do
             raw <- liftIO $ resolveTopFun f

@@ -241,10 +241,9 @@ readDefine = do
     let nm = xtagIdn t
         ky = xtagKey t
         tg = xtagTag t
-        k  = Nothing
         res = case args of
-                []   -> BIND_EXP ky nm k f
-                r:rs -> BIND_FUN ky nm k (FUN nm (LN tg) (r:|rs) f)
+                []   -> BIND_EXP ky nm f
+                r:rs -> BIND_FUN ky nm (FUN nm (LN tg) (r:|rs) f)
     pure (res : andThen)
   where
     go = asum
