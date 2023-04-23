@@ -25,14 +25,15 @@ import Sire.Syntax
 import Sire.Types
 import Sire.Compile
 
-import Control.Monad.State  (StateT, execStateT, modify')
-import Control.Monad.Except (ExceptT(..), runExceptT)
-import Data.Text.IO         (hPutStr, hPutStrLn)
-import Loot.ReplExe         (dieFan, printValue, showFan, trkFan)
-import Loot.Sugar           (resugarVal)
-import Loot.Syntax          (joinRex, valRex)
-import Loot.Types           (Val(..))
-import Rex.Lexer            (isRuneChar)
+import Control.Monad.Except       (ExceptT(..), runExceptT)
+import Control.Monad.State        (StateT, execStateT, modify')
+import Control.Monad.Trans.Except (catchE, throwE)
+import Data.Text.IO               (hPutStr, hPutStrLn)
+import Loot.ReplExe               (dieFan, printValue, showFan, trkFan)
+import Loot.Sugar                 (resugarVal)
+import Loot.Syntax                (joinRex, valRex)
+import Loot.Types                 (Val(..))
+import Rex.Lexer                  (isRuneChar)
 
 import qualified Data.Char      as C
 import qualified Data.Map       as M
@@ -40,6 +41,7 @@ import qualified Data.Set       as S
 import qualified Data.Text      as T
 import qualified Fan            as F
 import qualified Rex.Print.Prim
+import qualified Fan.Prof as Prof
 
 --------------------------------------------------------------------------------
 
@@ -286,6 +288,22 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
             pure (insertMap nam glo scope)
         modifyIORef vSrc (insertMap nam key)
         runCmd h scope' vSrc vPrp vGen vMac itxt (DEFINE more)
+
+tryE :: Monad m => ExceptT e m a -> ExceptT e m (Either e a)
+tryE m = catchE (liftM Right m) (return . Left)
+
+finallyE :: Monad m => ExceptT e m a -> ExceptT e m () -> ExceptT e m a
+finallyE m closer = do
+    res <- tryE m
+    closer
+    either throwE return res
+{-# INLINE finallyE #-}
+
+profTrace :: MonadIO m => Prof.Name -> Text -> ExceptT e m a -> ExceptT e m a
+profTrace tag cat action = do
+  Prof.startEvent tag cat
+  finallyE action $ do
+    Prof.popEvent False mempty
 
 envVal :: Eq a => Map Symb a -> Val a
 envVal =

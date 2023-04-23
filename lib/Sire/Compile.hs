@@ -5,12 +5,11 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Sire.Compile
-    ( compileSire
-    , Inliner
+    ( Inliner
     , Refr(..)
     , Global(..)
+    , compileSire
     , showSymb
-    , profTrace
     )
 where
 
@@ -21,32 +20,14 @@ import Sire.Types
 
 import Control.Monad.Except       (ExceptT(..), runExceptT)
 import Control.Monad.State        (StateT(..), evalStateT, get)
-import Control.Monad.Trans.Except (catchE, throwE)
 import Loot.Syntax                (symbRex)
 import Loot.Types                 (Bod(..), LawName(LN), Rul(..), Val(..))
 import Optics.Zoom                (zoom)
 
 import qualified Data.Map as M
 import qualified Fan      as F
-import qualified Fan.Prof as Prof
 
 --------------------------------------------------------------------------------
-
-tryE :: Monad m => ExceptT e m a -> ExceptT e m (Either e a)
-tryE m = catchE (liftM Right m) (return . Left)
-
-finallyE :: Monad m => ExceptT e m a -> ExceptT e m () -> ExceptT e m a
-finallyE m closer = do
-    res <- tryE m
-    closer
-    either throwE return res
-{-# INLINE finallyE #-}
-
-profTrace :: MonadIO m => Prof.Name -> Text -> ExceptT e m a -> ExceptT e m a
-profTrace tag cat action = do
-  Prof.startEvent tag cat
-  finallyE action $ do
-    Prof.popEvent False mempty
 
 getRef :: Map Symb Global -> Symb -> ExceptT Text IO Global
 getRef env nam = do
