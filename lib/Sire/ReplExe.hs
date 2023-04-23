@@ -267,12 +267,25 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
                 $ fmap (fmap absurd) raw
         runCmd h scope vSrc vPrp vGen vMac itxt (ASSERT more)
 
-    CMDSEQ []       -> pure scope
+    CMDSEQ [] -> pure scope
+
     CMDSEQ (c:more) -> do
         scope' <- runCmd h scope vSrc vPrp vGen vMac itxt c
         runCmd h scope' vSrc vPrp vGen vMac itxt (CMDSEQ more)
 
-    DEFINE binds -> define h scope vSrc vPrp vGen vMac itxt binds
+    DEFINE [] -> pure scope
+
+    DEFINE (BIND key nam e : more) -> do
+        scope' <- profTrace ("=" <> natBytes nam) "repl" do
+            glo@(G pln _) <- compileSire scope e
+            liftIO $ printValue h True (Just nam) pln
+            case natUtf8 nam of
+                Right txt | (not (null txt) && all isRuneChar txt) ->
+                    modifyIORef' vMac (insertMap txt pln)
+                _ -> pure ()
+            pure (insertMap nam glo scope)
+        modifyIORef vSrc (insertMap nam key)
+        runCmd h scope' vSrc vPrp vGen vMac itxt (DEFINE more)
 
 envVal :: Eq a => Map Symb a -> Val a
 envVal =

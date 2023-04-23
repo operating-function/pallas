@@ -16,7 +16,7 @@ module Sire.Types
     , XExp
     , XFun
     , Fan
-    , Defn(..)
+    , Bind(..)
     )
 where
 
@@ -97,7 +97,7 @@ data Cmd v a
     | ASSERT [TestEql v a]
        -- ^ @!!= e f@ Assert that e==f
 
-    | DEFINE [Defn v a]
+    | DEFINE [Bind v a]
        -- ^ @(x=y)@, @((f x)=x)@ Bind a value or function in the global
        --   namespace.
 
@@ -105,7 +105,5 @@ data Cmd v a
 
 -- |A binder.  It's either a function (takes arguments) or a value
 -- (does not).
-data Defn v a
-    = BIND_FUN !Nat a (Fun v a)
-    | BIND_EXP !Nat a (Exp v a)
+data Bind v a = BIND !Nat a (Exp v a)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)

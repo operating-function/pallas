@@ -6,7 +6,6 @@
 
 module Sire.Compile
     ( compileSire
-    , define
     , Inliner
     , Refr(..)
     , Global(..)
@@ -23,11 +22,9 @@ import Sire.Types
 import Control.Monad.Except       (ExceptT(..), runExceptT)
 import Control.Monad.State        (StateT(..), evalStateT, get)
 import Control.Monad.Trans.Except (catchE, throwE)
-import Loot.ReplExe               (printValue)
 import Loot.Syntax                (symbRex)
 import Loot.Types                 (Bod(..), LawName(LN), Rul(..), Val(..))
 import Optics.Zoom                (zoom)
-import Rex.Lexer                  (isRuneChar)
 
 import qualified Data.Map as M
 import qualified Fan      as F
@@ -50,55 +47,6 @@ profTrace tag cat action = do
   Prof.startEvent tag cat
   finallyE action $ do
     Prof.popEvent False mempty
-
-define
-    :: RexColor
-    => Handle
-    -> Map Symb Global
-    -> IORef (Map Symb Nat)
-    -> d
-    -> e
-    -> IORef (Map Text Fan)
-    -> g
-    -> [Defn Symb Symb]
-    -> ExceptT Text IO (Map Symb Global)
-define _ scope _ _ _ _ _ [] = pure scope
-
-define h scope vSrc vPrp vGen vMac itxt (BIND_EXP key nam e : more) = do
-    let tag = "=" <> (natBytes nam)
-    scope' <- profTrace tag "repl" do
-        glo@(G pln _) <- compileSire scope e
-        liftIO $ printValue h True (Just nam) pln
-        case natUtf8 nam of
-            Right txt | (not (null txt) && all isRuneChar txt) ->
-                modifyIORef' vMac (insertMap txt pln)
-            _ -> pure ()
-        pure (insertMap nam glo scope)
-    modifyIORef vSrc (insertMap nam key)
-    define h scope' vSrc vPrp vGen vMac itxt more
-
--- TODO This should just literally expand to f=(4 (f x ? ...)) and
--- that should support inlining correctly.
---
--- In other words, `define` should just call something like:
---
---     compile : Exp -> State MacroState (Fan, Maybe Inliner)
---
-define h scope vSrc vPrp vGen vMac itxt (BIND_FUN key nam f : more) = do
-    let tag = "=" <> (natBytes nam)
-    scope' <- profTrace tag "repl" do
-        raw <- liftIO $ resolveTopFun f
-        fun <- traverse (getRef scope) raw
-        lam <- injectFun fun
-        let pln = F.mkPin lam
-        liftIO $ printValue h True (Just nam) pln
-        case natUtf8 nam of
-            Right txt | (not (null txt) && all isRuneChar txt) ->
-                modifyIORef' vMac (insertMap txt pln)
-            _ -> pure ()
-        pure (insertMap nam (G pln (Just fun)) scope)
-    modifyIORef vSrc (insertMap nam key)
-    define h scope' vSrc vPrp vGen vMac itxt more
 
 getRef :: Map Symb Global -> Symb -> ExceptT Text IO Global
 getRef env nam = do
@@ -371,9 +319,6 @@ resolveFun env (FUN self tag args body) = do
                       env)
     bodyR <- resolveExp envir body
     pure (FUN selfR tag argsR bodyR)
-
-resolveTopFun :: Fun Symb Symb -> IO (Fun Refr Symb)
-resolveTopFun = resolveFun mempty
 
 refreshRef
     :: Refr

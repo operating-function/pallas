@@ -234,7 +234,7 @@ readCmdSeq = do
     cmds <- formNc readCmd
     pure cmds
 
-readDefine :: (RexColor, HasMacroEnv) => Red [Defn Symb Symb]
+readDefine :: (RexColor, HasMacroEnv) => Red [Bind Symb Symb]
 readDefine = do
     rune "#=" <|> rune "="
     ((t,args), f, andThen) <- go
@@ -242,8 +242,8 @@ readDefine = do
         ky = xtagKey t
         tg = xtagTag t
         res = case args of
-                []   -> BIND_EXP ky nm f
-                r:rs -> BIND_FUN ky nm (FUN nm (LN tg) (r:|rs) f)
+                []   -> BIND ky nm f
+                r:rs -> BIND ky nm $ ELAM True $ FUN nm (LN tg) (r:|rs) f
     pure (res : andThen)
   where
     go = asum
