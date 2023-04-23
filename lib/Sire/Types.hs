@@ -4,7 +4,7 @@
 {-|
     Types for Sire syntax trees (`Cmd`, `Exp`, etc).  "Sire.Syntax"
     parses `Rex` into concrete syntax trees, and "Sire.ReplExe"
-    does... everything else (TODO)
+    does... everything else (TODO: modularize)
 -}
 module Sire.Types
     ( Symb
@@ -17,7 +17,6 @@ module Sire.Types
     , XFun
     , Fan
     , Defn(..)
-    , Req(..)
     )
 where
 
@@ -55,6 +54,8 @@ data Fun v a
 
     The parser just treats all references as free variables.  Later on,
     name resolution splits them apart.
+
+    TODO: Can ENAT be merged with EBED?  Does the difference ever matter?
 -}
 data Exp v a
     = EBED Fan                    -- ^ An embedded plunder value
@@ -66,19 +67,6 @@ data Exp v a
     | EREC v (Exp v a) (Exp v a)  -- ^ Self-recursive let binding.
     | ELAM Bool (Fun v a)         -- ^ Nested Function (Closure)
     | ELIN (NonEmpty (Exp v a))   -- ^ Explicit Inline Application
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
-
-{-
-    REQ_BLOCK  :: Set Nat -> IO (Nat, Val, Val)
-    REQ_SUBMIT :: Nat -> Any -> IO ()
-    REQ_CANCEL :: Nat -> IO ()
-    REQ_FETCH  :: IO (Map Nat (Val, Maybe Val))
--}
-data Req a
-    = REQ_FETCH Symb
-    | REQ_CANCEL Symb
-    | REQ_SUBMIT (Symb, a)
-    | REQ_BLOCK (Symb,Symb,Symb) (Set Symb)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
 -------------------
