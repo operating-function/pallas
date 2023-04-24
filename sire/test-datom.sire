@@ -128,7 +128,7 @@
     ,, [%rm [":c/email" "iceman@plunder.tech"] ":c/phone" "(555) 555"]
 
 ; We should be able to lookup an entity by indexed attribute.
-!!=   %[8]
+!!=   %[9]
     | lookupByAV ":c/name" "Iceman" contactsDB
 
 
@@ -229,7 +229,7 @@
 """ Pull """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 !!=    | RIGHT [':item/product'='Hamburger' ':item/quantity'=1]
-    | pull [":item/product" ":item/quantity"] 10 multiOrders
+    | pull [":item/product" ":item/quantity"] 11 multiOrders
 
 !!=    | RIGHT [':person/alias'=["Bobby" "Robert"] ':person/name'='Bob']
     | pull [":person/alias" ":person/name"] 500 aliasDB

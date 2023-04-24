@@ -113,6 +113,8 @@
 = dbIndexedStr ":db/indexed"
 = dbValueTypeId 4
 = dbValueTypeStr ":db/valueType"
+= dbDocId 5
+= dbDocStr ":db/doc"
 
 = dbIdId 100  ; TODO: should be 0
 = dbIdStr ":db/id"
@@ -123,7 +125,7 @@
   @ aev    %[]
   @ ave    %[]
   @ vae    %[]
-  @ maxEid 5
+  @ maxEid 6
   | DB eav aev ave vae maxEid
 @ (baseAdd e a v db)
   | rawAdd e a v TRUE TRUE FALSE db
@@ -158,6 +160,9 @@
 ; :db/valueType is a string describing the type. For now, the values are nat,
 ; any and ref.
 | baseAdd dbValueTypeId dbIdentId dbValueTypeStr
+;
+; :db/doc is a user visible documentation string.
+| baseAdd dbDocId dbIdentId dbDocStr
 db
 
 # datatype EntIdent
