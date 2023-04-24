@@ -104,7 +104,7 @@ symbBox symb =
       where
         wid = do
             (width, rex) <- b.boxWide
-            pure $ ((1+width), N 0 SHUT_PREFIX "##" [rex] NONE)
+            pure $ ((1+width), N 0 SHUT_PREFIX "." [rex] NONE)
 
 
 textBox :: TextShape -> Text -> Box
@@ -579,13 +579,13 @@ xtagBox = \case
         BOX wid tal
       where
         tal =
-            N 0 OPEN "^" (C <$> [keyBox n, keyBox t]) NONE
+            N 0 OPEN "@" (C <$> [keyBox n, keyBox t]) NONE
 
         wid = do
             (nw, nr) <- (keyBox n).boxWide
             (tw, tr) <- (keyBox t).boxWide
             Just ( nw + 1 + tw
-                 , N 0 SHUT_INFIX "^" [nr,tr] NONE
+                 , N 0 SHUT_INFIX "@" [nr,tr] NONE
                  )
 
 joinRex :: GRex (GRex v) -> GRex v
@@ -647,14 +647,18 @@ bodApply exprs =
                 case span (\((w,_),_) -> w < 10) (reverse (zip sons boxes)) of
                     ([], _) -> boxApply boxes
                     (_, []) -> boxApply boxes
-                    (r, b)  -> dotBox (reverse $ snd <$> r) (reverse $ snd <$> b)
+                    (r, b)  -> ketBox (reverse $ snd <$> r) (reverse $ snd <$> b)
 
-dotBox :: [Box] -> [Box] -> Box
-dotBox args body =
+{-
+    TODO: Adopt ^ rune from Sire and adjust pretty-printer to take
+    full advantage.
+-}
+ketBox :: [Box] -> [Box] -> Box
+ketBox args body =
     foo { boxTall = tal }
   where
     foo = boxApply (body <> args)
-    tal = N 0 OPEN "." (C <$> args) (Just $ C $ boxApply body)
+    tal = N 0 OPEN "^" (C <$> args) (Just $ C $ boxApply body)
 
 boxApply :: [Box] -> Box
 boxApply [] =
@@ -744,7 +748,7 @@ xtagApp t as = parens (xtagRex t : fmap symbRex (toList as))
 xtagRex :: XTag -> Rex
 xtagRex = \case
     XTAG n Nothing  _ -> keyRex n
-    XTAG n (Just t) _ -> N 0 SHUT_INFIX "##" [keyRex n, keyRex t] NONE
+    XTAG n (Just t) _ -> N 0 SHUT_INFIX "@" [keyRex n, keyRex t] NONE
 
 boxCoerceWideRex :: Box -> Rex
 boxCoerceWideRex (BOX (Just(_, wid)) _) = wid
@@ -761,7 +765,7 @@ symbRex symb =
         (_, Right nm) | okTxt nm -> haxHax (cordRex nm)
         _                        -> haxHax (nameRex (tshow symb))
   where
-    haxHax n = N 0 SHUT_PREFIX "##" [n] Nothing
+    haxHax n = N 0 SHUT_PREFIX "." [n] Nothing
     cordRex = boxCoerceWideRex . cordBox
 
 -- Parsing ---------------------------------------------------------------------
@@ -1056,7 +1060,8 @@ readBod = asum
     anon as     c = XRAW $ XVLAW (XLAM as c)
 
 readTag :: Red v XTag
-readTag = (simpleTag <$> withIdent readIdnt) <|> (rune "##" >> haxTag)
+readTag = (simpleTag <$> withIdent readIdnt)
+      <|> ((rune "." <|> rune "#.") >> haxTag)
   where
     haxTag = keyTag <|> explicitTag
     keyTag = simpleTag <$> readKEY
@@ -1070,7 +1075,7 @@ readKEY = withIdent readKey
 readXTag :: Red v XTag
 readXTag = asum
     [ idnXTag <$> readKEY
-    , rune "##" >> asum
+    , rune "@" >> asum
           [ form2 readKEY readKey <&> \((n,k),t) -> XTAG n (Just t) k
           , form1 readKEY         <&> \(n,k)     -> XTAG n Nothing k
           ]
@@ -1090,10 +1095,10 @@ readIdnTxt = matchLeaf "symbol" \case
     _                       -> Nothing
 
 readSymb :: Red v Symb
-readSymb = readIdnt <|> (rune "##" >> form1 readKey)
+readSymb = readIdnt <|> ((rune "." <|> rune "#.") >> form1 readKey)
 
 readBymb :: Red v Symb
-readBymb = readKey <|> (rune "##" >> form1 readKey)
+readBymb = readKey <|> ((rune "." <|> rune "#.") >> form1 readKey)
 
 readName :: Red v Text
 readName = matchLeaf "name" \case

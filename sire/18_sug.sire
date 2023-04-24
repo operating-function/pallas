@@ -145,17 +145,17 @@
 ;
 | if (eql '&' ryn)
     | ifNot | and (isZero rexHeir-rex) (eql 1 | len rexSons-rex)
-        | err rex '?(form ##":" signature)  <- has strange shape'
+        | err rex '?(form .{:} signature)  <- has strange shape'
     | ok ['&' (idx 0 rexSons-rex)]
 ;
 | if (eql '?' ryn)
     | ifNot | and (isZero rexHeir-rex) (eql 1 | len rexSons-rex)
-        | err rex '?(form ##":" signature)  <- has strange shape'
+        | err rex '?(form .{:} signature)  <- has strange shape'
     | ok ['?' (idx 0 rexSons-rex)]
 ;
 | if (eql '??' ryn)
     | ifNot | and (isZero rexHeir-rex) (eql 1 | len rexSons-rex)
-        | err rex '??(form ##":" signature)  <- has strange shape'
+        | err rex '??(form .{:} signature)  <- has strange shape'
     | ok ['??' (idx 0 rexSons-rex)]
 ;
 | ok ['&' (NEST 0 "|" [rex] 0)]
@@ -211,7 +211,7 @@
         , rune rune
 
 !!= [`(<* f) cbExpect]
-        (##":" 0 0 0 0 `((: x <* f)(, 3)) v2 v3)
+        (.{:} 0 0 0 0 `((: x <* f)(, 3)) v2 v3)
 
 
 """ Closed List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""

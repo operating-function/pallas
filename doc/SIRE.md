@@ -106,7 +106,7 @@ Table of Runes
 
     ```
     x      ;; Variable "x"
-    ##"x"  ;; Variable "x" (useful to refer to runes and other bindings
+    ."x"   ;; Variable "x" (useful to refer to runes and other bindings
            ;;               that have non-symbol names)
     ```
 
@@ -232,5 +232,4 @@ the basic syntactic forms also work if prefixed with a #.
     #? (x y)
     #| apply x y
 
-So, macros generally expand to the stable '#'-previxed versions of the
-base syntax.
+Macros typically expand to the stable '#'-prefixed runes.

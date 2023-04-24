@@ -256,7 +256,7 @@ readDefine = do
 
     simple = (,[]) . Loot.simpleTag <$> withIdent Loot.readBymb
 
-    complex = rune "|" >> form1N Loot.readXTag Loot.readSymb
+    complex = rune "|" >> form1N Loot.readXTag Loot.readKey
 
 
 -- Functions -------------------------------------------------------------------
@@ -270,7 +270,8 @@ valFanRex = fmap absurd
 
 readSymb :: Red Symb
 readSymb = Loot.readIdnt
-       <|> (rune "##" >> form1 Loot.readKey)
+       <|> (rune "#." >> form1 Loot.readKey)
+       <|> (rune "." >> form1 Loot.readKey)
 
 readText :: Red Text
 readText = matchLeaf "page" \case

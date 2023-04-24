@@ -238,6 +238,9 @@
         : sym <- readSymbol rex err
         | ok [%v (rexIdnt rex) sym]
 @ rune (rexRune rex)
+| if (eql rune ".")
+        : sym <- readSymbol rex err
+        | ok [%v (rexIdnt rex) sym]
 | if (eql rune "!")
         | parseSeqBinder rex err ok
 | if (eql rune ",")

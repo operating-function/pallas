@@ -72,12 +72,12 @@
 ; TODO Move this to `17-exp.sire`
 ; TODO Avoid the ## where necessary.
 = (taggedLamE nam tag args body)
-@ idn (SHUT 0 "##" (varE nam, litE tag) 0)
+@ idn (SHUT 0 "@" (varE nam, litE tag) 0)
 @ sig (NEST 0 "|" (rowCons idn args) 0)
 | OPEN 0 "#?" [sig] body
 
 !!= (taggedLamE %f 2 [`x `y `z] `x)
-  ` #? (f##2 x y z)
+  ` #? (f@2 x y z)
      x
 
 = (matchE x wildExp patExps)
@@ -162,13 +162,13 @@
 ;                 # mutrec %loop (*loop start)
 ;                 * (loop xx)
 ;                     | ifNot xx 0 (*loop 0)
-;         (##"#mutrec" 3 3 3 e v2 v4)
+;         (.{#mutrec} 3 3 3 e v2 v4)
 
 
 ; !!= 1
 ;         @ e
 ;                 `(#mutrec %loop (f 3) (f x = x)(g a e = g a e))
-;         (##"#mutrec" 3 3 3 e v2 v4)
+;         (.{#mutrec} 3 3 3 e v2 v4)
 
 = (foo x)
 # mutrec %even_odd

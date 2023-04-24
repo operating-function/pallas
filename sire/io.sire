@@ -192,7 +192,7 @@
 * 1 | LEFT "Expected node to have at least two kids"
 * 2 @ fst,snd kids
     | RIGHT [0 (appE [cnsE-andThen fst snd])]
-* _ : result <- eitherOpen (##">>" e n (drop 1 kids) 0)
+* _ : result <- eitherOpen (.{>>} e n (drop 1 kids) 0)
     @ _,rest result
     | RIGHT [0 (appE [cnsE-andThen idx-0-kids rest])]
 
@@ -211,7 +211,7 @@
         | ok p a
         | appE (cnsE bindIO, fst, snd)
 * _
-        : s p e a result <- (##">>=" s p e a (drop 1 sons) err)
+        : s p e a result <- (.{>>=} s p e a (drop 1 sons) err)
         @ [_ rest] result
         | ok p a
         | appE (cnsE bindIO, idx 0 sons, rest)

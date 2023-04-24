@@ -228,16 +228,35 @@
 = (readWord rex err ok)
 | rexGetWord rex (err rex "Expected a word") ok
 
+symTodo='todo: support .foo and .234'
+
 = (readSymbol rex err ok)
+@ rune (rexRune rex)
+@ kids (rexKids rex)
+@ nKid (len kids)
+| if (eql "." rune)
+    | if (neq 1 nKid)
+        | err rex "Should be .x, .5, .{x}, etc"
+    @ kid (idx 0 kids)
+    | ifNot (rexIsLeaf kid)
+        | err rex "Should be .x, .5, .{x}, etc"
+    | if (eql "WORD" | rexStyle kid)
+        | err rex symTodo
+    | ok (rexText kid)
 | rexGetWord rex | (err rex badSymBare)
 & (word heir)
 | if (neq 0 heir) | (err rex badSymHeir)
 | ifNot strIsSymbol-word | (err rex badSymChar)
 | ok word
 
+!!= ["asdf"]        ^ readSymbol _ v2 v1 | `(.{asdf})
+!!= [" "]           ^ readSymbol _ v2 v1 | `(.' ')
+!!= [""]            ^ readSymbol _ v2 v1 | `(."")
+!!= [`(.x) symTodo] ^ readSymbol _ v2 v1 | `(.x)
+!!= [`(.1) symTodo] ^ readSymbol _ v2 v1 | `(.1)
+
 = (litE nat)
-| if (strIsSymbol nat)
-    | txtE nat
+| if (strIsSymbol nat) (txtE nat)
 | natE nat
 
 

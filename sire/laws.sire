@@ -228,7 +228,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 
 !!= 1 (eql == eql == eql)
 
-!!= (##"==" 0 0 0 5 `(eql == eql == eql) die v3)
+!!= (.{==} 0 0 0 5 `(eql == eql == eql) die v3)
   | v3 0 6
  ``
  #@ _g5 eql
@@ -462,9 +462,9 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= x#{b74e96e0385dcb18599b1570e3c5807a9284050258766cb7cd10b004713d2032}
   | pinHash mul
 
-'pinHash ##"%%"'
+'pinHash .{%%}'
 !!= x#{5813ae7d1b638d8bd049e6c2fff3def2a6d5f402def0593d757bc6e1e229cffe}
-  | pinHash ##"%%"
+  | pinHash .{%%}
 
 'pinHash cmp'
 !!= x#{48562368fd8806cacab34d017cd9e7ad2d749b04bb1e4c443770ab2f797137a1}
