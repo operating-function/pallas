@@ -361,7 +361,7 @@ e
     ;
     # datacase (resolveAttrName aVal db)
     * (LEFT err)
-      [(*CONS err errs) actions db]
+      [(*CONS err errs) actions txnTmpIds db]
     * (RIGHT [aid indexed unique isMany isRef])
       @ writeAve | or indexed unique
       | if isRef
@@ -387,17 +387,11 @@ e
                | *CONS eid eids
             ,, txnTmpIds
             ,, db
-          ; at this point, we have a list of our subeids or errors.
-          | ifNot (listNull errs)
-            ,, (listWeld suberrs errs)
-            ,, actions
-            ,, txnTmpIds
-            ,, db
           @ newActions
             ^ listMap _ subeids
             & subeid
             (ACTADD eid aid aVal subeid writeAve unique isMany isRef)
-          ,, errs
+          ,, (listWeld suberrs errs)
           ,, (listWeld newActions | listWeld subactions actions)
           ,, txnTmpIds
           ,, db
