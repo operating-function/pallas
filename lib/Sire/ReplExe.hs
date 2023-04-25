@@ -40,8 +40,8 @@ import qualified Data.Map       as M
 import qualified Data.Set       as S
 import qualified Data.Text      as T
 import qualified Fan            as F
+import qualified Fan.Prof       as Prof
 import qualified Rex.Print.Prim
-import qualified Fan.Prof as Prof
 
 --------------------------------------------------------------------------------
 
@@ -148,36 +148,31 @@ runFile
     -> Text
     -> ExceptT Text IO (Map Symb Global)
 runFile vSrc vPrp vGen baseName = do
-    olFs <- readIORef vFileState
-    writeIORef vFileState (FILE_STATE False baseName)
+    oldSt <- readIORef vFileState
+    stack  <- readIORef vFileStack
 
-    stk <- readIORef vFileStack
-    when (elem baseName stk) do
+    writeIORef vFileState (FILE_STATE False baseName)
+    writeIORef vFileStack (baseName : stack)
+
+    when (elem baseName stack) do
         error $ ("Recurive import: " <>)
               $ unpack
               $ intercalate " -> "
-              $ reverse (baseName:stk)
+              $ reverse (baseName:stack)
 
-    fil <- readIORef vFiles
-    writeIORef vFileStack (baseName:stk)
+    env <- do
+        let fn = unpack ("sire/" <> baseName <> ".sire")
+        vEnv <- newIORef mempty
+        vMac <- newIORef mempty
+        liftIO $ replFile fn
+               $ runBlockFan stdout False vSrc vPrp vGen vEnv vMac
+        readIORef vEnv
 
-    res <- case lookup baseName fil of
-        Just {} -> error ("Already loaded: " <> unpack baseName)
-        Nothing -> do
-            let fn = unpack ("sire/" <> baseName <> ".sire")
-            vEnv <- newIORef mempty
-            vMac <- newIORef mempty
-            liftIO $ replFile fn
-                   $ runBlockFan stdout False vSrc vPrp vGen vEnv vMac
-            env <- readIORef vEnv
-            modifyIORef vFiles (insertMap baseName env)
-            pure env
+    modifyIORef vFiles (insertMap baseName env)
+    writeIORef vFileState oldSt
+    writeIORef vFileStack stack
 
-    writeIORef vFileState olFs
-
-    writeIORef vFileStack stk
-
-    pure res
+    pure env
 
 openModule
     :: IORef (Map Text Fan)
