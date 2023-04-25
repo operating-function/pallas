@@ -669,6 +669,34 @@ e
   | *LEFT | listToRow errs
 | *RIGHT result
 
+; General lookup function which returns information for multiple entities.
+;
+> Any > Row Any > DB > Either [Error] [(Tab Any Any)]
+= (pullMany pullSpec rowEidSpec db)
+@ [errs eids]
+  | partition
+  ^ map _ rowEidSpec
+  & eidSpec
+  # datacase | parseEntityId %[] db eidSpec
+  * (LEFT l)          | *LEFT l
+  * (RIGHT [eid _ _]) | *RIGHT eid
+| ifNot | isZero | len errs
+  | *LEFT errs
+@ [errs specs] | partition | map (parse db) pullSpec
+| ifNot | isZero | len errs
+  | *LEFT errs
+@ [errs results]
+  | partition
+  ^ map _ eids
+  & eid
+  @ [errs result] | foldl lookupSpec [NIL %[] eid db] specs
+  | ifNot | listNull errs
+    | *LEFT | listToRow errs
+  | *RIGHT result
+| ifNot | isZero | len errs
+  | *LEFT | cat errs
+| *RIGHT results
+
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^ UNIQUE_VIOLATION LOOKUP_NO_ATTRIBUTE LOOKUP_ATTRIBUTE_NOT_UNIQUE
@@ -677,7 +705,7 @@ e
 ^-^ DB emptyDB
 ^-^
 ^-^ lookupByEA lookupByAE lookupByAV lookupByVA transact
-^-^ pull
+^-^ pull pullMany
 ^-^
 ; These shouldn't be exported, but are for testing. Remove these when there's
 ; a proper complete pull api implementation.
