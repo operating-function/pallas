@@ -1,3 +1,5 @@
+### hitch <- gen
+
 ;;;
 ;;; The shared code for hitchhiker trees
 ;;;
@@ -991,7 +993,7 @@ newRootNode
 ;
 ; TODO: hsmLookup does a bunch of work each time which gets thrown away. We are
 ; likely to lookup the same items multiple times in a row, so a stateful,
-; modifying hsmFlushAndLookup which modified itself so hitchhikers for that one 
+; modifying hsmFlushAndLookup which modified itself so hitchhikers for that one
 ;
 = (hsmLookup k [mapConfig setConfig r])
 # openTreeConfig mapConfig

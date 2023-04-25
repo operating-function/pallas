@@ -1,0 +1,17 @@
+### prelude <- datom
+
+/+ boot
+/+ w32
+/+ w48
+/+ switch
+/+ mutrec
+/+ datatype
+/+ blake3
+/+ gen
+/+ hitch
+/+ io
+/+ jlex
+/+ json
+/+ kern
+/+ sire
+/+ datom

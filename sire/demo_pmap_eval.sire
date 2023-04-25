@@ -1,3 +1,5 @@
+### demo_pmap_eval <- demo_parallel_mandelbrot
+
 /+  boot
 
 = (pmap ms f args)

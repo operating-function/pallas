@@ -82,6 +82,8 @@ data Cmd v a
     = CMDSEQ [Cmd v a]
         -- ^ @(* = x 3)(* = y 4)@ Multiple commands in block.
 
+    | MODULE Text (Maybe Text)
+
     | IMPORT [(Text, Maybe (Set Symb))]
         -- ^ @(/+ foo [x y])@ Import @x@ and @y@ from `sire/foo.sire`
 

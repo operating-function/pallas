@@ -1,3 +1,5 @@
+### w48 <- w32
+
 ;;; TODO Use `sed` to generate these for different word sizes (32,
 ;;; 48, 64).
 ;;;

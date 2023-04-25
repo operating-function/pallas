@@ -1,3 +1,5 @@
+### test_ordering <- test_laws
+
 /+  boot
 
 = (flipOrd o)

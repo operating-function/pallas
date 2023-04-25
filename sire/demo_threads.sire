@@ -1,3 +1,5 @@
+### demo_threads <- demo_telnet_hello_listen
+
 /+  boot
 /+  io      [">>" forever]
 /+  io      [syscall RAND_BYTE TIME_WHEN TIME_WAIT]

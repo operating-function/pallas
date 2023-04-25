@@ -122,8 +122,20 @@ runBlockFan h okErr vSrc vPrp vGen vEnv vMac block = do
 cab :: Symb
 cab = utf8Nat "_"
 
+vModule :: IORef (Maybe Text)
+vModule = unsafePerformIO (newIORef Nothing)
+
 vFiles :: IORef (Map Text (Map Symb Global))
 vFiles = unsafePerformIO (newIORef mempty)
+
+data FileState = FILE_STATE
+    { declared :: Bool
+    , filename :: Text -- module name
+    }
+  deriving Show
+
+vFileState :: IORef FileState
+vFileState = unsafePerformIO $ newIORef $ FILE_STATE False ""
 
 vFileStack :: IORef [Text]
 vFileStack = unsafePerformIO (newIORef [])
@@ -136,6 +148,9 @@ runFile
     -> Text
     -> ExceptT Text IO (Map Symb Global)
 runFile vSrc vPrp vGen baseName = do
+    olFs <- readIORef vFileState
+    writeIORef vFileState (FILE_STATE False baseName)
+
     stk <- readIORef vFileStack
     when (elem baseName stk) do
         error $ ("Recurive import: " <>)
@@ -147,15 +162,18 @@ runFile vSrc vPrp vGen baseName = do
     writeIORef vFileStack (baseName:stk)
 
     res <- case lookup baseName fil of
-        Just pln -> pure pln
+        Just {} -> error ("Already loaded: " <> unpack baseName)
         Nothing -> do
             let fn = unpack ("sire/" <> baseName <> ".sire")
             vEnv <- newIORef mempty
             vMac <- newIORef mempty
-            liftIO $ replFile fn (runBlockFan stdout False vSrc vPrp vGen vEnv vMac)
+            liftIO $ replFile fn
+                   $ runBlockFan stdout False vSrc vPrp vGen vEnv vMac
             env <- readIORef vEnv
             modifyIORef vFiles (insertMap baseName env)
             pure env
+
+    writeIORef vFileState olFs
 
     writeIORef vFileStack stk
 
@@ -210,7 +228,24 @@ runCmd
     -> Text
     -> XCmd
     -> ExceptT Text IO (Map Symb Global)
-runCmd h scope vSrc vPrp vGen vMac itxt = \case
+runCmd h scope vSrc vPrp vGen vMac itxt cmd = do
+  fs <- readIORef vFileState
+  unless (fs.filename == "") do
+    case cmd of
+      MODULE md _ -> do
+        unless (fs.declared == False) do
+          throwError ("Only one declaration per file: " <> tshow fs)
+        unless (fs.filename == md) do
+          throwError ( "Module declaration does not match file name: "
+                    <> tshow (fs.filename, md)
+                     )
+        writeIORef vFileState (fs { declared = True } )
+      _ -> do
+        unless (fs.declared == True) do
+          print cmd
+          throwError "Module declaration needs to be first thing in a file"
+
+  case cmd of
     FILTER symbs -> do
         for_ symbs \s -> do
             unless (M.member s scope) do
@@ -218,13 +253,50 @@ runCmd h scope vSrc vPrp vGen vMac itxt = \case
         let f k _ = S.member k (setFromList symbs)
         pure (M.filterWithKey f scope)
 
+    MODULE md befo -> do
+        case befo of
+          Nothing -> pure ()
+          Just bf -> void (runFile vSrc vPrp vGen bf)
+
+        unless (null scope) do
+           throwError "Module must be declared at the beginning of the file"
+
+        old <- readIORef vModule
+        case (old, befo) of
+            (Just prior, Nothing) -> do
+                let m ="### with no prior, but prior is: "
+                throwError (m <> prior)
+            (Nothing, Just expected) -> do
+                let m ="There is no prior module, but ### expected: "
+                throwError (m <> expected)
+            (Just prior, Just expected) -> do
+                when (prior /= expected) do
+                    throwError
+                      $ unlines
+                        [ "Prior does not match what ### expected: "
+                        , ""
+                        , "    Prior: " <> prior
+                        , ""
+                        , "    Expected: " <> expected
+                        , ""
+                        ]
+            (Nothing, Nothing) -> do
+                pure ()
+
+        writeIORef vModule (Just md)
+
+        pure scope
+
     IMPORT [] -> do
         pure scope
 
     IMPORT ((modu, whyt):more) -> do
         let tag = "/+" <> encodeUtf8 modu
         scope' <- profTrace tag "repl" do
-            tab <- runFile vSrc vPrp vGen modu
+            fil <- readIORef vFiles
+            tab <- case lookup modu fil of
+                     Nothing -> throwError ("Module not loaded: " <> modu)
+                     Just tb -> pure tb
             let tab' = case whyt of
                          Nothing -> tab
                          Just sm -> tab & (M.filterWithKey (\k _ -> elem k sm))

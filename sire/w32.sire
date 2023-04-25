@@ -1,3 +1,5 @@
+### w32 <- boot
+
 ;;; TODO Use `sed` to generate identical modules for different words
 ;;; sizes? (8, 16, 32, 48, 64, 128, 256).
 ;;;

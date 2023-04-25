@@ -1,3 +1,5 @@
+### demo_poke <- demo_pmap_eval
+
 ;;; This is an example of a raw program.  This runs directly against
 ;;; the Cog interface without even using the `kern.sire` exokernel.
 ;;;

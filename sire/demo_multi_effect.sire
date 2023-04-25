@@ -1,7 +1,9 @@
+### demo_multi_effect <- demo_multi_effect_html
+
 /+ boot
 /+ io
 
-/+ 'demo-multi-effect-html' [multi_demo_index_html]
+/+ demo_multi_effect_html [multi_demo_index_html]
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

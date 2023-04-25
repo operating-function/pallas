@@ -1,3 +1,5 @@
+### demo_loop_val <- demo_laws
+
 /+ boot
 
 [5 "hello" (add 5)]

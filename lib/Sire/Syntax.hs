@@ -195,6 +195,15 @@ readFilter = do
         (is, Nothing)   -> is
         (is, Just more) -> is <> more
 
+readModule :: Red XCmd
+readModule = do
+    rune "###"
+    asum [ form1 readModuleName     <&> \m     -> MODULE m Nothing
+         , form2 readModuleName dep <&> \(m,d) -> MODULE m (Just d)
+         ]
+  where
+    dep = rune "<-" >> form1 readModuleName
+
 readAssert :: (RexColor, HasMacroEnv) => Red XCmd
 readAssert = ASSERT <$> go
   where
@@ -218,7 +227,8 @@ readCmd = do
     asum (macros <> fixed <> [OUTPUT <$> readExpr])
   where
     fixed =
-        [ DEFINE <$> readDefine
+        [ readModule
+        , DEFINE <$> readDefine
         , CMDSEQ <$> readCmdSeq
         , IMPORT <$> readImports
         , FILTER <$> readFilter

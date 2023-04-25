@@ -1,3 +1,5 @@
+### datatype <- mutrec
+
 /+  boot
 /+  switch  ['#switch' switchE unrollSlip2Tar]
 
