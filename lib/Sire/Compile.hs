@@ -414,11 +414,8 @@ compileSire :: Map Symb Global -> XExp -> ExceptT Text IO Global
 compileSire scope ast = do
     body <- resolveExp mempty ast
     expr <- traverse (getRef scope) body
-    (_, _, inliner) <- expBod (1, mempty) expr
-                         -- TODO: Why 1?
-    self <- gensym (utf8Nat "self")
-    func <- traverse (getRef scope) (FUN self (LN 0) mempty body)
-    fan  <- injectFun func
+    (_, b, inliner) <- expBod (1, mempty) expr -- TODO: Why 1?
+    let fan = ruleFanOpt $ RUL (LN 0) 0 $ fmap (.val) b
     pure (G fan inliner)
   where
     getRef :: Map Symb Global -> Symb -> ExceptT Text IO Global
