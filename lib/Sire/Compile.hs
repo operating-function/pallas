@@ -187,16 +187,22 @@ lambdaLift _s pinned f@(FUN self tag args body) = do
                            []   -> error "Not possible"
                            z:zs -> z :| zs
 
--- TODO This only looks at `EVAR`, would be much shorter to write using
--- `uniplate` or whatever.
+{-
+    Variables that simply rebind constant values are replaced by constant
+    values.
+
+    TODO: When does this matter?
+
+    TODO This only looks at `EVAR`, would be much shorter to write using
+    `uniplate` or whatever.
+-}
 inlineTrivial
-    :: (b, IntMap (Int, Bod Global, Inliner))
+    :: IntMap (Int, Bod Global, Inliner)
     -> Fun Refr Global
     -> Fun Refr Global
-inlineTrivial s@(_, tab) (FUN self tag args body) =
+inlineTrivial tab (FUN self tag args body) =
     FUN self tag args (go body)
   where
-    goFun = inlineTrivial s
     go = \case
         EBED b     -> EBED b
         ENAT n     -> ENAT n
@@ -208,7 +214,7 @@ inlineTrivial s@(_, tab) (FUN self tag args body) =
                         Just (_, BCNS (REF x), _)                -> EREF x
                         Just (_, BCNS (NAT n), _) | n<4294967296 -> ENAT n
                         _                                        -> EVAR v
-        ELAM p f   -> ELAM p (goFun f)
+        ELAM p f   -> ELAM p (inlineTrivial tab f)
         EAPP f x   -> EAPP (go f) (go x)
         ELIN xs    -> ELIN (go <$> xs)
         EREC n v b -> EREC n (go v) (go b)
@@ -225,7 +231,7 @@ expBod s@(_, tab) = \case
                               , Nothing
                               )
     ENAT n         -> pure (atomArity n, BCNS (NAT n), Nothing)
-    ELAM p f       -> do lifted <- lambdaLift s p (inlineTrivial s f)
+    ELAM p f       -> do lifted <- lambdaLift s p (inlineTrivial tab f)
                          bodied <- expBod s lifted
                          let (arity, bod, _) = bodied
                          pure (arity, bod, Just f)
