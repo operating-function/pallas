@@ -306,9 +306,9 @@ readExpr = do
     asum (macros <> fixed)
   where
     fixed =
-        [ EBED <$> readExtra
-        , ENAT <$> readNumb
-        , ENAT <$> (utf8Nat <$> readText)
+        [ EVAL <$> readExtra
+        , EVAL . Fan.NAT <$> readNumb
+        , EVAL . Fan.NAT <$> (utf8Nat <$> readText)
         , EREF <$> readSymb
 
         , do (rune "#|" <|> rune "|" <|> rune "-")

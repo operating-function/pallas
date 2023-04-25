@@ -64,9 +64,8 @@ injectFun (FUN self nam args exr) = do
 numRefs :: Int -> Exp Refr b -> Int
 numRefs k = \case
     EVAR r               -> if r.key == k then 1 else 0
-    EBED{}               -> 0
+    EVAL{}               -> 0
     EREF{}               -> 0
-    ENAT{}               -> 0
     EAPP f x             -> go f + go x
     ELIN xs              -> sum (go <$> xs)
     EREC _ v b           -> go v + go b
@@ -119,13 +118,10 @@ optimizeLet s@(nex, tab) refNam expr body = do
 -- TODO: All atom literals should be considered trivial.
 trivialExp :: Exp a b -> Bool
 trivialExp = \case
-    ENAT n -> n < 4294967296
-    EREF _ -> True
-    EVAR _ -> True
+    EVAL{} -> True
+    EREF{} -> True
+    EVAR{} -> True
     _      -> False
-
-atomArity :: Nat -> Int
-atomArity = fromIntegral . F.natArity
 
 freeVars :: ∀b. Fun Refr b -> Set Refr
 freeVars = goFun mempty
@@ -137,8 +133,7 @@ freeVars = goFun mempty
 
     go :: Set Refr -> Exp Refr b -> Set Refr
     go ours = \case
-        EBED{}     -> mempty
-        ENAT{}     -> mempty
+        EVAL{}     -> mempty
         EREF{}     -> mempty
         EVAR r     -> if (r `elem` ours)
                       then mempty
@@ -204,33 +199,29 @@ inlineTrivial tab (FUN self tag args body) =
     FUN self tag args (go body)
   where
     go = \case
-        EBED b     -> EBED b
-        ENAT n     -> ENAT n
+        EVAL b     -> EVAL b
         EREF r     -> EREF r
-        EVAR v     -> case lookup v.key tab of
-                        Nothing                                  -> EVAR v
-                        Just (0, _, _)                           -> EVAR v
-                        Just (_, BVAR{}, _)                      -> EVAR v
-                        Just (_, BCNS (REF x), _)                -> EREF x
-                        Just (_, BCNS (NAT n), _) | n<4294967296 -> ENAT n
-                        _                                        -> EVAR v
         ELAM p f   -> ELAM p (inlineTrivial tab f)
         EAPP f x   -> EAPP (go f) (go x)
         ELIN xs    -> ELIN (go <$> xs)
         EREC n v b -> EREC n (go v) (go b)
         ELET n v b -> ELET n (go v) (go b)
+        EVAR v     -> case lookup v.key tab of
+                        Just (0, _, _)      -> EVAR v -- TODO: does this matter?
+                        Just (_, BCNS c, _) -> EVAL (valFan ((.val) <$> c))
+                        _                   -> EVAR v
+
 
 expBod
     :: (Int, IntMap (Int, Bod Global, Inliner))
     -> Exp Refr Global
     -> ExceptT Text IO (Int, Bod Global, Inliner)
 expBod s@(_, tab) = \case
-    EBED b         -> do let ari = F.trueArity b
+    EVAL b         -> do let ari = F.trueArity b
                          pure ( fromIntegral ari
                               , BCNS (REF (G b Nothing))
                               , Nothing
                               )
-    ENAT n         -> pure (atomArity n, BCNS (NAT n), Nothing)
     ELAM p f       -> do lifted <- lambdaLift s p (inlineTrivial tab f)
                          bodied <- expBod s lifted
                          let (arity, bod, _) = bodied
@@ -354,9 +345,8 @@ duplicateExp = go
         EAPP f x   -> EAPP <$> go f <*> go x
         ELAM p f   -> ELAM p <$> duplicateFun f
         ELIN xs    -> ELIN <$> traverse go xs
-        EBED{}     -> pure expr
+        EVAL{}     -> pure expr
         EREF{}     -> pure expr
-        ENAT{}     -> pure expr
 
 inlineFun
     :: Show b
@@ -405,8 +395,7 @@ resolveExp
     -> Exp Symb Symb
     -> m (Exp Refr Symb)
 resolveExp e = liftIO . \case
-    EBED b     -> pure (EBED b)
-    ENAT n     -> pure (ENAT n)
+    EVAL b     -> pure (EVAL b)
     EREF r     -> pure (maybe (EREF r) EVAR (lookup r e))
     EVAR v     -> pure (maybe (EREF v) EVAR (lookup v e))
     EAPP f x   -> EAPP <$> go e f <*> go e x

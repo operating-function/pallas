@@ -54,14 +54,11 @@ data Fun v a
 
     The parser just treats all references as free variables.  Later on,
     name resolution splits them apart.
-
-    TODO: Can ENAT be merged with EBED?  Does the difference ever matter?
 -}
 data Exp v a
-    = EBED Fan                    -- ^ An embedded plunder value
+    = EVAL Fan                    -- ^ An embedded plunder value
     | EREF a                      -- ^ A free variable.
     | EVAR v                      -- ^ A bound variable.
-    | ENAT Nat                    -- ^ A natural-number literal.
     | EAPP (Exp v a) (Exp v a)    -- ^ Function application
     | ELET v (Exp v a) (Exp v a)  -- ^ Let-binding
     | EREC v (Exp v a) (Exp v a)  -- ^ Self-recursive let binding.
