@@ -161,7 +161,7 @@ resolveExp e = liftIO . \case
         con r <$> go vEnv v <*> go e2 b
 
 
--- Optimization ----------------------------------------------------------------
+-- How many times is a variable referenced? ------------------------------------
 
 numRefs :: Int -> Exp Refr b -> Int
 numRefs k = \case
@@ -178,14 +178,8 @@ numRefs k = \case
   where
     go = numRefs k
 
--- Trivial if duplicating is cheaper than a let-reference.
--- TODO: All atom literals should be considered trivial.
-trivialExp :: Exp a b -> Bool
-trivialExp = \case
-    EVAL{} -> True
-    EREF{} -> True
-    EVAR{} -> True
-    _      -> False
+
+-- Optimization ----------------------------------------------------------------
 
 optimizeLet
     :: (Int, IntMap (Int, Bod Global, Maybe (Fun Refr Global)))
@@ -225,85 +219,78 @@ optimizeLet s@(nex, tab) refNam expr body = do
     k = refNam.key
     var = BVAR . fromIntegral
 
+    -- Trivial if duplicating is cheaper than a let-reference.
+    -- TODO: All atom literals should be considered trivial.
+    trivialExp :: Exp a b -> Bool
+    trivialExp = \case
+        EVAL{} -> True
+        EREF{} -> True
+        EVAR{} -> True
+        _      -> False
+
 
 -- Lambda Lifting --------------------------------------------------------------
 
-freeVars :: forall b. Fun Refr b -> Set Refr
-freeVars = goFun mempty
- where
-    goFun :: Set Refr -> Fun Refr b -> Set Refr
-    goFun ours (FUN self _ args body) =
-      let keyz = setFromList (self : toList args)
-      in go (ours <> keyz) body
 
-    go :: Set Refr -> Exp Refr b -> Set Refr
-    go ours = \case
-        EVAL{}     -> mempty
-        EREF{}     -> mempty
-        EVAR r     -> if (r `elem` ours)
-                      then mempty
-                      else singleton r
-        ELAM _ f   -> goFun ours f
-        EAPP f x   -> go ours f <> go ours x
-        ELIN xs    -> concat (go ours <$> xs)
-        EREC n v b -> let ours' = insertSet n ours
-                      in go ours' v <> go ours' b
-        ELET n v b -> let ours' = insertSet n ours
-                      in go ours' v <> go ours' b
+{-
+    TODO Don't lift trivial aliases, just inline them (small atom, law)
 
+        TODO: Doesn't the normal let-optimization pass already inline
+        all of thoese?
 
---  TODO Don't lift trivial aliases, just inline them (small atom, law)
---  TODO If we lifted anything, need to replace self-reference with a
---       new binding.
-lambdaLift
-    :: (Int, IntMap (Int, Bod Global, Inliner))
-    -> Bool
-    -> Fun Refr Global
-    -> ExceptT Text IO (Exp Refr Global)
-lambdaLift _s pinned f@(FUN self tag args body) = do
-    let lifts = toList (freeVars f) :: [Refr]
-    let liftV = EVAR <$> lifts
-    let self' = self {key=2348734}
-    let body' = EREC self (app (EVAR self') liftV)  body
-    let funct = FUN self' tag (lifts <> args) body'
-    lam <- injectFun funct
-    let pln = if pinned then F.mkPin lam else lam
-    pure $ app (EREF (G pln Nothing)) liftV
+    TODO If we lifted anything, need to replace self-reference with a
+         new binding.
+-}
+lambdaLift :: Bool -> Fun Refr Global -> ExceptT Text IO (Exp Refr Global)
+lambdaLift = doLift
   where
+    doLift pinned f@(FUN self tag args body) = do
+        let lifts = toList (freeVars f) :: [Refr]
+        let liftV = EVAR <$> lifts
+        let self' = self {key=234873455} -- TODO gensym
+        let body' = EREC self (app (EVAR self') liftV)  body
+        let funct = FUN self' tag (lifts <> args) body'
+        fan <- injectFun pinned funct
+        pure $ app (EREF (G fan Nothing)) liftV
+
     app fn []     = fn
     app fn (x:xs) = app (EAPP fn x) xs
 
+    injectFun :: Bool -> Fun Refr Global -> ExceptT Text IO Fan
+    injectFun pinned (FUN self nam args exr) = do
+        (_, b, _) <- expBod (nexVar, environ) exr
+        let rul = RUL nam (fromIntegral ari) b
+        let fan = ruleFanOpt $ fmap (.val) rul
+        pure (if pinned then F.mkPin fan else fan)
+      where
+        ari = length args
+        nexVar = ari+1
+        argKeys = (.key) <$> (self : toList args)
+        argRefs = ((0,,Nothing) . BVAR <$> [0..])
+        environ = mapFromList (zip argKeys argRefs)
 
-{-
-    Variables that simply rebind constant values are replaced by constant
-    values.
+    freeVars :: forall b. Fun Refr b -> Set Refr
+    freeVars = goFun mempty
+     where
+        goFun :: Set Refr -> Fun Refr b -> Set Refr
+        goFun ours (FUN self _ args body) =
+          let keyz = setFromList (self : toList args)
+          in go (ours <> keyz) body
 
-    TODO: When does this matter?
-
-    TODO: Doesn't the normal optimization pass eliminate these?
-
-    TODO This only looks at `EVAR`, would be much shorter to write using
-    `uniplate` or whatever.
--}
-inlineTrivial
-    :: IntMap (Int, Bod Global, Inliner)
-    -> Fun Refr Global
-    -> Fun Refr Global
-inlineTrivial tab (FUN self tag args body) =
-    FUN self tag args (go body)
-  where
-    go = \case
-        EVAL b     -> EVAL b
-        EREF r     -> EREF r
-        ELAM p f   -> ELAM p (inlineTrivial tab f)
-        EAPP f x   -> EAPP (go f) (go x)
-        ELIN xs    -> ELIN (go <$> xs)
-        EREC n v b -> EREC n (go v) (go b)
-        ELET n v b -> ELET n (go v) (go b)
-        EVAR v     -> case lookup v.key tab of
-                        Just (0, _, _)      -> EVAR v -- TODO: does this matter?
-                        Just (_, BCNS c, _) -> EVAL (valFan ((.val) <$> c))
-                        _                   -> EVAR v
+        go :: Set Refr -> Exp Refr b -> Set Refr
+        go ours = \case
+            EVAL{}     -> mempty
+            EREF{}     -> mempty
+            EVAR r     -> if (r `elem` ours)
+                          then mempty
+                          else singleton r
+            ELAM _ f   -> goFun ours f
+            EAPP f x   -> go ours f <> go ours x
+            ELIN xs    -> concat (go ours <$> xs)
+            EREC n v b -> let ours' = insertSet n ours
+                          in go ours' v <> go ours' b
+            ELET n v b -> let ours' = insertSet n ours
+                          in go ours' v <> go ours' b
 
 
 -- Inlining --------------------------------------------------------------------
@@ -351,61 +338,79 @@ expBod
     :: (Int, IntMap (Int, Bod Global, Inliner))
     -> Exp Refr Global
     -> ExceptT Text IO (Int, Bod Global, Inliner)
-expBod s@(_nex, tab) = \case
-    EVAL b         -> do let ari = F.trueArity b
-                         pure ( fromIntegral ari
-                              , BCNS (REF (G b Nothing))
-                              , Nothing
-                              )
-    ELAM p f       -> do lifted <- lambdaLift s p (inlineTrivial tab f)
-                         bodied <- expBod s lifted
-                         let (arity, bod, _) = bodied
-                         pure (arity, bod, Just f)
-                           -- TODO Inlining Flag
-    EVAR r         -> pure $ fromMaybe (error "Internal Error")
-                           $ lookup r.key tab
-    EREF (G t i)   -> pure ( fromIntegral (F.trueArity t)
-                           , BCNS (REF (G t i))
-                           , i
-                           )
-
-    EAPP f x -> do
-        fR <- expBod s f
-        xR <- expBod s x
-        pure $ case (fR, xR) of
-            ((_, fv, _),     (0,xv,_)     ) -> (0,   BAPP fv xv,       Nothing)
-            ((0, fv, _),     (_,xv,_)     ) -> (0,   BAPP fv xv,       Nothing)
-            ((1, fv, _),     (_,xv,_)     ) -> (0,   BAPP fv xv,       Nothing)
-            ((a, BCNS fk, _),(_,BCNS xk,_)) -> (a-1, BCNS (APP fk xk), Nothing)
-            ((a, fv, _),     (_,xv,_)     ) -> (a-1, BAPP fv xv,       Nothing)
-
-    ELIN (f :| []) -> expBod s f
-
-    ELIN (f :| (x:xs)) ->
-        (lift $ runExceptT $ inlineExp tab f (x:xs)) >>= \case
-            Left _  -> expBod s (apple f (x:xs))
-            Right e -> expBod s e
-
-    EREC n v b -> optimizeLet s n v b
-    ELET n v b -> optimizeLet s n v b
+expBod = go
   where
+    go s@(_nex, tab) = \case
+        EVAL b         -> do let ari = F.trueArity b
+                             pure ( fromIntegral ari
+                                  , BCNS (REF (G b Nothing))
+                                  , Nothing
+                                  )
+        ELAM p f       -> do lifted <- lambdaLift p (inlineTrivial tab f)
+                             bodied <- go s lifted
+                             let (arity, bod, _) = bodied
+                             pure (arity, bod, Just f)
+                               -- TODO Inlining Flag
+        EVAR r         -> pure $ fromMaybe (error "Internal Error")
+                               $ lookup r.key tab
+        EREF (G t i)   -> pure ( fromIntegral (F.trueArity t)
+                               , BCNS (REF (G t i))
+                               , i
+                               )
+
+        EAPP f x -> do
+            fR <- go s f
+            xR <- go s x
+            pure $ case (fR, xR) of
+                ((_, fv, _),     (0,xv,_)     ) -> (0,   BAPP fv xv,       Nothing)
+                ((0, fv, _),     (_,xv,_)     ) -> (0,   BAPP fv xv,       Nothing)
+                ((1, fv, _),     (_,xv,_)     ) -> (0,   BAPP fv xv,       Nothing)
+                ((a, BCNS fk, _),(_,BCNS xk,_)) -> (a-1, BCNS (APP fk xk), Nothing)
+                ((a, fv, _),     (_,xv,_)     ) -> (a-1, BAPP fv xv,       Nothing)
+
+        ELIN (f :| []) -> go s f
+
+        ELIN (f :| (x:xs)) ->
+            (lift $ runExceptT $ inlineExp tab f (x:xs)) >>= \case
+                Left _  -> go s (apple f (x:xs))
+                Right e -> go s e
+
+        EREC n v b -> optimizeLet s n v b
+        ELET n v b -> optimizeLet s n v b
+
     apple f []    = f
     apple f (b:c) = apple (EAPP f b) c
 
+    {-
+        Variables that simply rebind constant values are replaced by constant
+        values.
 
--- Sire Function to PLAN Value -------------------------------------------------
+        TODO: When does this matter?
 
-injectFun :: Fun Refr Global -> ExceptT Text IO Fan
-injectFun (FUN self nam args exr) = do
-    (_, b, _) <- expBod (nexVar, environ) exr
-    let rul = RUL nam (fromIntegral ari) b
-    pure (ruleFanOpt ((.val) <$> rul))
-  where
-    ari = length args
-    nexVar = ari+1
-    argKeys = (.key) <$> (self : toList args)
-    argRefs = ((0,,Nothing) . BVAR <$> [0..])
-    environ = mapFromList (zip argKeys argRefs)
+        TODO: Doesn't the normal optimization pass eliminate these?
+
+        TODO This only looks at `EVAR`, would be much shorter to write using
+        `uniplate` or whatever.
+    -}
+    inlineTrivial
+        :: IntMap (Int, Bod Global, Inliner)
+        -> Fun Refr Global
+        -> Fun Refr Global
+    inlineTrivial tab (FUN self tag args body) =
+        FUN self tag args (loop body)
+      where
+        loop = \case
+            EVAL b     -> EVAL b
+            EREF r     -> EREF r
+            ELAM p f   -> ELAM p (inlineTrivial tab f)
+            EAPP f x   -> EAPP (loop f) (loop x)
+            ELIN xs    -> ELIN (loop <$> xs)
+            EREC n v b -> EREC n (loop v) (loop b)
+            ELET n v b -> ELET n (loop v) (loop b)
+            EVAR v     -> case lookup v.key tab of
+                            Just (0, _, _)      -> EVAR v -- TODO: does this matter?
+                            Just (_, BCNS c, _) -> EVAL (valFan ((.val) <$> c))
+                            _                   -> EVAR v
 
 
 -- The Sire Compiler -----------------------------------------------------------
