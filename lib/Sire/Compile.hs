@@ -18,48 +18,150 @@ import PlunderPrelude
 import Rex
 import Sire.Types
 
-import Control.Monad.Except       (ExceptT(..), runExceptT)
-import Control.Monad.State        (StateT(..), evalStateT, get)
-import Loot.Syntax                (symbRex)
-import Loot.Types                 (Bod(..), LawName(LN), Rul(..), Val(..))
-import Optics.Zoom                (zoom)
+import Control.Monad.Except (ExceptT(..), runExceptT)
+import Control.Monad.State  (StateT(..), evalStateT, get)
+import Loot.Syntax          (symbRex)
+import Loot.Types           (Bod(..), LawName(LN), Rul(..), Val(..))
+import Optics               (_3)
+import Optics.Zoom          (zoom)
 
 import qualified Data.Map as M
 import qualified Fan      as F
 
---------------------------------------------------------------------------------
 
-getRef :: Map Symb Global -> Symb -> ExceptT Text IO Global
-getRef env nam = do
-    maybe unresolved pure (lookup nam env)
+-- Utils -----------------------------------------------------------------------
+
+showSymb :: Symb -> Text
+showSymb =
+    let ?rexColors = NoColors
+    in rexLine . symbRex
+
+
+-- Types -----------------------------------------------------------------------
+
+data Global = G { val :: Fan, inliner :: Inliner }
+  deriving (Generic, Eq)
+
+instance Show Global where
+  show (G (F.NAT n) _) = "(AT " <> show n <> ")"
+  show (G pln _)       = "(G " <> show (F.valName pln) <> ")"
+
+type Inliner = Maybe (Fun Refr Global)
+
+data Refr = REFR {name :: !Symb, key  :: !Int}
+
+instance Eq  Refr where (==)    x y = (==)    x.key y.key
+instance Ord Refr where compare x y = compare x.key y.key
+
+instance Show Refr where
+    show r = unpack (showSymb r.name) <> "_" <> show r.key
+    -- TODO Doesn't handle all cases correctly
+
+
+-- Gensym ----------------------------------------------------------------------
+
+vCompilerGenSym :: IORef Int
+vCompilerGenSym = unsafePerformIO (newIORef 0)
+  -- TODO: Input should already have a unique identity assigned to
+  -- each symbol.  Use that and make this stateless.
+
+gensym :: MonadIO m => Symb -> m Refr
+gensym nam = do
+    key <- readIORef vCompilerGenSym
+    nex <- evaluate (key+1)
+    writeIORef vCompilerGenSym nex
+    pure (REFR nam key)
+
+refreshRef
+    :: Refr
+    -> StateT (Int, Map Int Refr) IO Refr
+refreshRef ref =
+    (lookup ref.key . snd <$> get) >>= \case
+        Just r  -> pure r
+        Nothing -> pure ref
+
+refreshBinder
+    :: Refr
+    -> StateT (Int, Map Int Refr) IO Refr
+refreshBinder ref = do
+    tab <- snd <$> get
+    let key = ref.key
+    case lookup key tab of
+        Just r ->
+            pure r
+        Nothing -> do
+            r <- zoom _1 (gensym ref.name)
+            modifying _2 (insertMap key r)
+            pure r
+
+duplicateFun
+    :: Fun Refr b
+    -> StateT (Int, Map Int Refr) IO (Fun Refr b)
+duplicateFun (FUN self name args body) = do
+    self' <- refreshBinder self
+    args' <- traverse refreshBinder args
+    body' <- duplicateExp body
+    pure (FUN self' name args' body')
+
+-- Duplicates an expression, creating fresh Refrs for each binding.
+duplicateExp :: Exp Refr b -> StateT (Int, Map Int Refr) IO (Exp Refr b)
+duplicateExp = go
   where
-    unresolved = throwError ("Unresolved Reference: " <> showSymb nam)
+    go  :: Exp Refr b
+        -> StateT (Int, Map Int Refr) IO (Exp Refr b)
+    go expr = case expr of
+        EVAR x     -> EVAR <$> refreshRef x
+        EREC v e b -> EREC <$> refreshBinder v <*> go e <*> go b
+        ELET v e b -> ELET <$> refreshBinder v <*> go e <*> go b
+        EAPP f x   -> EAPP <$> go f <*> go x
+        ELAM p f   -> ELAM p <$> duplicateFun f
+        ELIN xs    -> ELIN <$> traverse go xs
+        EVAL{}     -> pure expr
+        EREF{}     -> pure expr
 
-compileSire
-    :: Map Symb Global
-    -> XExp
-    -> ExceptT Text IO Global
-compileSire scope ast = do
-    self <- gensym (utf8Nat "self")
-    argu <- gensym (utf8Nat "argu")
-    body <- resolveExp mempty ast
-    let rawFun = FUN self (LN 0) (argu:|[]) body
-    func <- traverse (getRef scope) rawFun
-    expr <- traverse (getRef scope) body
-    pln <- injectFun func
-    (_, _, mInline) <- expBod (1, mempty) expr
-    pure $ G (valFan (REF pln `APP` NAT 0)) mInline
+duplicateExpTop :: Exp Refr b -> IO (Exp Refr b)
+duplicateExpTop e = evalStateT (duplicateExp e) (0, mempty)
 
-injectFun :: Fun Refr Global -> ExceptT Text IO Fan
-injectFun (FUN self nam args exr) = do
-    (_, b, _) <- expBod (nexVar, tab) exr
-    let rul = RUL nam (fromIntegral ari) b
-    pure (ruleFanOpt ((.val) <$> rul))
+
+-- Name Resolution -------------------------------------------------------------
+
+resolveFun :: Map Symb Refr -> Fun Symb Symb -> IO (Fun Refr Symb)
+resolveFun env (FUN self tag args body) = do
+    selfR <- gensym self
+    argsR <- traverse gensym args
+    envir <- pure (M.union
+                   (mapFromList
+                    (zip (self : toList args)
+                         (selfR : toList argsR)))
+                      env)
+    bodyR <- resolveExp envir body
+    pure (FUN selfR tag argsR bodyR)
+
+resolveExp
+    :: MonadIO m
+    => Map Symb Refr
+    -> Exp Symb Symb
+    -> m (Exp Refr Symb)
+resolveExp e = liftIO . \case
+    EVAL b     -> pure (EVAL b)
+    EREF r     -> pure (maybe (EREF r) EVAR (lookup r e))
+    EVAR v     -> pure (maybe (EREF v) EVAR (lookup v e))
+    EAPP f x   -> EAPP <$> go e f <*> go e x
+    ELIN xs    -> ELIN <$> traverse (go e) xs
+    ELAM p f   -> ELAM p <$> resolveFun e f
+    EREC n v b -> goLet True n v b
+    ELET n v b -> goLet False n v b
   where
-    ari = length args
-    nexVar = succ ari
-    tab = mapFromList $ zip ((.key) <$> (self : toList args))
-                            ((\v -> (0,v,Nothing)) . BVAR <$> [0..])
+    go = resolveExp
+    goLet isRec n v b = do
+        r <- gensym n
+        let e2   = insertMap n r e
+        let con  = if isRec then EREC else ELET
+        let vEnv = if isRec then e2 else e
+        con r <$> go vEnv v <*> go e2 b
+
+
+-- Optimization ----------------------------------------------------------------
 
 numRefs :: Int -> Exp Refr b -> Int
 numRefs k = \case
@@ -75,6 +177,15 @@ numRefs k = \case
     --- it will be lambda-lifted (hence only used once).
   where
     go = numRefs k
+
+-- Trivial if duplicating is cheaper than a let-reference.
+-- TODO: All atom literals should be considered trivial.
+trivialExp :: Exp a b -> Bool
+trivialExp = \case
+    EVAL{} -> True
+    EREF{} -> True
+    EVAR{} -> True
+    _      -> False
 
 optimizeLet
     :: (Int, IntMap (Int, Bod Global, Maybe (Fun Refr Global)))
@@ -114,14 +225,8 @@ optimizeLet s@(nex, tab) refNam expr body = do
     k = refNam.key
     var = BVAR . fromIntegral
 
--- Trivial if duplicating is cheaper than a let-reference.
--- TODO: All atom literals should be considered trivial.
-trivialExp :: Exp a b -> Bool
-trivialExp = \case
-    EVAL{} -> True
-    EREF{} -> True
-    EVAR{} -> True
-    _      -> False
+
+-- Lambda Lifting --------------------------------------------------------------
 
 freeVars :: ∀b. Fun Refr b -> Set Refr
 freeVars = goFun mempty
@@ -145,15 +250,6 @@ freeVars = goFun mempty
                       in go ours' v <> go ours' b
         ELET n v b -> let ours' = insertSet n ours
                       in go ours' v <> go ours' b
-
-data Global = G { val :: Fan, inliner :: Inliner }
-  deriving (Generic, Eq)
-
-instance Show Global where
-  show (G (F.NAT n) _) = "(AT " <> show n <> ")"
-  show (G pln _)       = "(G " <> show (F.valName pln) <> ")"
-
-type Inliner = Maybe (Fun Refr Global)
 
 
 --  TODO Don't lift trivial aliases, just inline them (small atom, law)
@@ -188,6 +284,8 @@ lambdaLift _s pinned f@(FUN self tag args body) = do
 
     TODO: When does this matter?
 
+    TODO: Doesn't the normal optimization pass eliminate these?
+
     TODO This only looks at `EVAR`, would be much shorter to write using
     `uniplate` or whatever.
 -}
@@ -211,6 +309,47 @@ inlineTrivial tab (FUN self tag args body) =
                         Just (_, BCNS c, _) -> EVAL (valFan ((.val) <$> c))
                         _                   -> EVAR v
 
+
+-- Inlining --------------------------------------------------------------------
+
+inlineExp
+    :: IntMap (Int, Bod Global, Inliner)
+    -> Exp Refr Global
+    -> NonEmpty (Exp Refr Global)
+    -> ExceptT Text IO (Exp Refr Global)
+inlineExp tab f xs =
+    case f of
+        ELAM _ l             -> doFunc l xs
+        EREF (G _ Nothing)   -> noInline "Not inlinable"
+        EREF (G _ (Just fn)) -> doFunc fn xs
+        EVAR v               -> doVar v
+        _                    -> unknownFunction
+  where
+    noInline = throwError
+
+    unknownFunction =
+        noInline "Head of ! expression is not a known function"
+
+    doVar v =
+        case (lookup v.key tab >>= view _3) of
+            Nothing -> noInline "Not a function"
+            Just fn -> doFunc fn xs
+
+    doFunc (FUN self _ args body) params = do
+        case ( compare (length params) (length args)
+             , numRefs self.key body
+             )
+          of
+            (EQ, 0) -> do res <- liftIO $ duplicateExpTop
+                                        $ foldr (uncurry ELET) body
+                                        $ zip args params
+                          pure res
+            (EQ, _) -> noInline "Cannot inline recursive functions"
+            (GT, _) -> noInline "Inline Expression has too many arguments"
+            (LT, _) -> noInline "Inline Expression has too few arguments"
+
+
+-- Sire Expression to Law Body -------------------------------------------------
 
 expBod
     :: (Int, IntMap (Int, Bod Global, Inliner))
@@ -258,156 +397,42 @@ expBod s@(_, tab) = \case
     apple f (b:c) = apple (EAPP f b) c
 
 
--- Name Resolution -------------------------------------------------------------
+-- Sire Function to PLAN Value -------------------------------------------------
 
-vCompilerGenSym :: IORef Int
-vCompilerGenSym = unsafePerformIO (newIORef 0)
-  -- TODO: Input should already have a unique identity assigned to
-  -- each symbol.  Use that and make this stateless.
-
-data Refr = REFR {name :: !Symb, key  :: !Int}
-
-instance Eq  Refr where (==)    x y = (==)    x.key y.key
-instance Ord Refr where compare x y = compare x.key y.key
-
-showSymb :: Symb -> Text
-showSymb =
-    let ?rexColors = NoColors
-    in rexLine . symbRex
-
-instance Show Refr where
-    show r = unpack (showSymb r.name) <> "_" <> show r.key
-    -- TODO Doesn't handle all cases correctly
-
-gensym :: MonadIO m => Symb -> m Refr
-gensym nam = do
-    key <- readIORef vCompilerGenSym
-    nex <- evaluate (key+1)
-    writeIORef vCompilerGenSym nex
-    pure (REFR nam key)
-
-resolveFun :: Map Symb Refr -> Fun Symb Symb -> IO (Fun Refr Symb)
-resolveFun env (FUN self tag args body) = do
-    selfR <- gensym self
-    argsR <- traverse gensym args
-    envir <- pure (M.union
-                   (mapFromList
-                    (zip (self : toList args)
-                         (selfR : toList argsR)))
-                      env)
-    bodyR <- resolveExp envir body
-    pure (FUN selfR tag argsR bodyR)
-
-refreshRef
-    :: Refr
-    -> StateT (Int, Map Int Refr) IO Refr
-refreshRef ref =
-    (lookup ref.key . snd <$> get) >>= \case
-        Just r  -> pure r
-        Nothing -> pure ref
-
-refreshBinder
-    :: Refr
-    -> StateT (Int, Map Int Refr) IO Refr
-refreshBinder ref = do
-    tab <- snd <$> get
-    let key = ref.key
-    case lookup key tab of
-        Just r ->
-            pure r
-        Nothing -> do
-            r <- zoom _1 (gensym ref.name)
-            modifying _2 (insertMap key r)
-            pure r
-
-duplicateFun
-    :: Fun Refr b
-    -> StateT (Int, Map Int Refr) IO (Fun Refr b)
-duplicateFun (FUN self name args body) = do
-    self' <- refreshBinder self
-    args' <- traverse refreshBinder args
-    body' <- duplicateExp body
-    pure (FUN self' name args' body')
-
-duplicateExpTop :: Exp Refr b -> IO (Exp Refr b)
-duplicateExpTop e = evalStateT (duplicateExp e) (0, mempty)
-
--- Duplicates an expression, creating fresh Refrs for each binding.
-duplicateExp :: Exp Refr b -> StateT (Int, Map Int Refr) IO (Exp Refr b)
-duplicateExp = go
+injectFun :: Fun Refr Global -> ExceptT Text IO Fan
+injectFun (FUN self nam args exr) = do
+    (_, b, _) <- expBod (nexVar, environ) exr
+    let rul = RUL nam (fromIntegral ari) b
+    pure (ruleFanOpt ((.val) <$> rul))
   where
-    go  :: Exp Refr b
-        -> StateT (Int, Map Int Refr) IO (Exp Refr b)
-    go expr = case expr of
-        EVAR x     -> EVAR <$> refreshRef x
-        EREC v e b -> EREC <$> refreshBinder v <*> go e <*> go b
-        ELET v e b -> ELET <$> refreshBinder v <*> go e <*> go b
-        EAPP f x   -> EAPP <$> go f <*> go x
-        ELAM p f   -> ELAM p <$> duplicateFun f
-        ELIN xs    -> ELIN <$> traverse go xs
-        EVAL{}     -> pure expr
-        EREF{}     -> pure expr
+    ari = length args
+    nexVar = ari+1
+    argKeys = (.key) <$> (self : toList args)
+    argRefs = ((0,,Nothing) . BVAR <$> [0..])
+    environ = mapFromList (zip argKeys argRefs)
 
-inlineFun
-    :: Show b
-    => Fun Refr b
-    -> NonEmpty (Exp Refr b)
-    -> ExceptT Text IO (Exp Refr b)
-inlineFun (FUN self _ args body) params = do
-    case ( compare (length params) (length args)
-         , numRefs self.key body
-         )
-      of
-        (EQ, 0) -> do res <- liftIO $ duplicateExpTop
-                                    $ foldr (uncurry ELET) body
-                                    $ zip args params
-                      pure res
-        (EQ, _) -> noInline "Cannot inline recursive functions"
-        (GT, _) -> noInline "Inline Expression has too many arguments"
-        (LT, _) -> noInline "Inline Expression has too few arguments"
 
-noInline :: MonadError Text m => Text -> m a
-noInline = throwError
+-- The Sire Compiler -----------------------------------------------------------
 
-inlineExp
-    :: IntMap (Int, Bod Global, Inliner)
-    -> Exp Refr Global
-    -> NonEmpty (Exp Refr Global)
-    -> ExceptT Text IO (Exp Refr Global)
-inlineExp tab f xs =
-    case f of
-        ELAM _ l ->
-            inlineFun l xs
-        EREF (G _ Nothing) ->
-            noInline "Not inlinable"
-        EREF (G _ (Just fn)) ->
-            inlineFun fn xs
-        EVAR v ->
-            case (do{ (_,_,mL) <- lookup v.key tab; mL }) of
-                Nothing -> noInline "Not a function"
-                Just fn -> inlineFun fn xs
-        _  ->
-            noInline "Head of ! expression is not a known function"
+compileSire :: Map Symb Global -> XExp -> ExceptT Text IO Global
+compileSire scope ast = do
+    body <- resolveExp mempty ast
+    expr <- traverse (getRef scope) body
+    (_, _, inliner) <- expBod (1, mempty) expr
 
-resolveExp
-    :: MonadIO m
-    => Map Symb Refr
-    -> Exp Symb Symb
-    -> m (Exp Refr Symb)
-resolveExp e = liftIO . \case
-    EVAL b     -> pure (EVAL b)
-    EREF r     -> pure (maybe (EREF r) EVAR (lookup r e))
-    EVAR v     -> pure (maybe (EREF v) EVAR (lookup v e))
-    EAPP f x   -> EAPP <$> go e f <*> go e x
-    ELIN xs    -> ELIN <$> traverse (go e) xs
-    ELAM p f   -> ELAM p <$> resolveFun e f
-    EREC n v b -> goLet True n v b
-    ELET n v b -> goLet False n v b
+    self <- gensym (utf8Nat "self")
+    argu <- gensym (utf8Nat "argu")
+    let rawFun = FUN self (LN 0) (argu:|[]) body
+    func <- traverse (getRef scope) rawFun
+    fanFun <- injectFun func
+    let fan = (fanFun F.%% 0)
+
+    pure (G fan inliner)
   where
-    go = resolveExp
-    goLet isRec n v b = do
-        r <- gensym n
-        let e2   = insertMap n r e
-        let con  = if isRec then EREC else ELET
-        let vEnv = if isRec then e2 else e
-        con r <$> go vEnv v <*> go e2 b
+    getRef :: Map Symb Global -> Symb -> ExceptT Text IO Global
+    getRef env nam = do
+        maybe (unresolved nam) pure (lookup nam env)
+
+    unresolved :: Symb -> ExceptT Text IO a
+    unresolved nam =
+        throwError ("Unresolved Reference: " <> showSymb nam)

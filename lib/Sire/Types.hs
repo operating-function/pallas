@@ -35,7 +35,7 @@ type XExp = Exp Symb Symb
 type XCmd = Cmd Symb Symb
 
 {-|
-    A Sire function has an identifier for self-reference, a `LawName,
+    A Sire function has an identifier for self-reference, a `LawName`,
     a non-empty list of arguments, and an body expression.
 
     Note that when a function is bound (say with

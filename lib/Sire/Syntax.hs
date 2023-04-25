@@ -26,38 +26,6 @@ import qualified Loot.Syntax  as Loot
 
 -- Types -----------------------------------------------------------------------
 
-{-
-    TODO: (.env) should be (Map Nat Fan)
-
-        If it isn't a tab, coerce it.
-
-    TODO: (.sources) should map from bindings to their identities:
-
-        (.sources) should map from identifiers to the source-node that
-        was used to define it (the identity of the rex-node leaf of the
-        name of the binding):
-
-            %% =mkLaw  3
-            %% =rexVal 23
-            %% =map    2352
-
-        This should be updated every time we update the env table.
-
-    TODO: Eliminate (.macros) and just use (.env)
-
-        If it isn't a tab, coerce it.
-
-        Current thing is *WRONG* even, since having macros that explicitly
-        add a rune-named binding to the globals object really should
-        have that work as a macro.
-
-    TODO: Add (attrs :: Map Nat (Map Nat Fan))
-
-        Make sure that the conversion when moving in between Haskell
-        and Sire is lazy, don't rebuild the whole structure every time.
-
--}
-
 data MacroEnv = MACRO_ENV
     { sources  :: Map Nat Nat
     , props    :: IORef Fan
@@ -65,37 +33,6 @@ data MacroEnv = MACRO_ENV
     , attrNext :: IORef Nat
     , macros   :: Map Text Fan
     }
-
---
--- Also, how can we have inlining work, if every macro-expansion is
--- allowed to freely alter these values?
---
--- I suppose we can use caching?  Inlining uses the %src and %env
--- properties.
---
--- That is "compiled into an internal AST", and that value is cached?
--- Wont those lookups be expensive?  Comparing whole environments, etc.
---
--- Yes, the Ord instance is pretty slow.  The `Eq` instance at least
--- short-circuits on size.
---
--- Hashing also seems expensive.
---
--- We could define a newtype wrapper that has better instances.
---
--- (Source, Environment) -> ResolvedAST
---
--- Alternately, we could change the interface so that each expansion
--- produces a *diff* instead of a new value.
---
--- The returned environment is all the new bindings (or zero to remove
--- a binding).
---
--- The returned properties table is merged in (no deletions are allowed).
---
--- The returned `nex` value is the number of allocations made?  Or still
--- a state?
---
 
 type HasMacroEnv = (?macEnv :: MacroEnv)
 
@@ -357,8 +294,6 @@ sourcesTable = Fan.TAB . mapFromList . fmap f . mapToList
     f :: (Nat, Nat) -> (Fan, Fan)
     f (k, v) = (Fan.NAT k, Fan.NAT v)
 
--- TODO Better to just use a parameter instead of IO monad?
--- TODO This can be simplified even more.
 runMacro :: (RexColor, HasMacroEnv) => Red a -> Fan -> Red a
 runMacro reader macroVal = do
     aft <- readIORef ?macEnv.attrNext
