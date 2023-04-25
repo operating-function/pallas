@@ -190,7 +190,7 @@ readDefine = do
         tg = xtagTag t
         res = case args of
                 []   -> BIND ky nm f
-                r:rs -> BIND ky nm $ ELAM True $ FUN nm (LN tg) (r:|rs) f
+                r:rs -> BIND ky nm $ ELAM True $ FUN nm (LN tg) (r:rs) f
     pure (res : andThen)
   where
     go = asum
@@ -270,15 +270,15 @@ readExpr = do
 
         , do (rune "#&" <|> rune "&")
              (rs, b) <- form2c readArgs readExpr
-             pure (ELAM False (FUN 0 (LN 0) rs b))
+             pure (ELAM False (FUN 0 (LN 0) (toList rs) b))
 
         , do (rune "#?" <|> rune "?")
              ((t,rs),b) <- form2c readSigy readExpr
-             pure (ELAM False (FUN (xtagIdn t) (LN $ xtagTag t) rs b))
+             pure (ELAM False (FUN (xtagIdn t) (LN $ xtagTag t) (toList rs) b))
 
         , do (rune "#??" <|> rune "??")
              ((t,rs),b) <- form2c readSigy readExpr
-             pure (ELAM True (FUN (xtagIdn t) (LN $ xtagTag t) rs b))
+             pure (ELAM True (FUN (xtagIdn t) (LN $ xtagTag t) (toList rs) b))
         ]
 
 readAppHead :: (RexColor, HasMacroEnv) => Red (Either Symb (Exp Symb Symb))

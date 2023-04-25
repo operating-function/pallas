@@ -228,7 +228,7 @@ optimizeLet s@(nex, tab) refNam expr body = do
 
 -- Lambda Lifting --------------------------------------------------------------
 
-freeVars :: ∀b. Fun Refr b -> Set Refr
+freeVars :: forall b. Fun Refr b -> Set Refr
 freeVars = goFun mempty
  where
     goFun :: Set Refr -> Fun Refr b -> Set Refr
@@ -265,7 +265,7 @@ lambdaLift _s pinned f@(FUN self tag args body) = do
     let liftV = EVAR <$> lifts
     let self' = self {key=2348734}
     let body' = EREC self (app (EVAR self') liftV)  body
-    let funct = FUN self' tag (derpConcat lifts args) body'
+    let funct = FUN self' tag (lifts <> args) body'
     lam <- injectFun funct
     let pln = if pinned then F.mkPin lam else lam
     pure $ app (EREF (G pln Nothing)) liftV
@@ -273,10 +273,6 @@ lambdaLift _s pinned f@(FUN self tag args body) = do
     app fn []     = fn
     app fn (x:xs) = app (EAPP fn x) xs
 
-    derpConcat :: [a] -> NonEmpty a -> NonEmpty a
-    derpConcat xs ys = case xs <> toList ys of
-                           []   -> error "Not possible"
-                           z:zs -> z :| zs
 
 {-
     Variables that simply rebind constant values are replaced by constant
@@ -315,7 +311,7 @@ inlineTrivial tab (FUN self tag args body) =
 inlineExp
     :: IntMap (Int, Bod Global, Inliner)
     -> Exp Refr Global
-    -> NonEmpty (Exp Refr Global)
+    -> [Exp Refr Global]
     -> ExceptT Text IO (Exp Refr Global)
 inlineExp tab f xs =
     case f of
@@ -355,7 +351,7 @@ expBod
     :: (Int, IntMap (Int, Bod Global, Inliner))
     -> Exp Refr Global
     -> ExceptT Text IO (Int, Bod Global, Inliner)
-expBod s@(_, tab) = \case
+expBod s@(_nex, tab) = \case
     EVAL b         -> do let ari = F.trueArity b
                          pure ( fromIntegral ari
                               , BCNS (REF (G b Nothing))
@@ -386,7 +382,7 @@ expBod s@(_, tab) = \case
     ELIN (f :| []) -> expBod s f
 
     ELIN (f :| (x:xs)) ->
-        (lift $ runExceptT $ inlineExp tab f (x:|xs)) >>= \case
+        (lift $ runExceptT $ inlineExp tab f (x:xs)) >>= \case
             Left _  -> expBod s (apple f (x:xs))
             Right e -> expBod s e
 
@@ -419,14 +415,10 @@ compileSire scope ast = do
     body <- resolveExp mempty ast
     expr <- traverse (getRef scope) body
     (_, _, inliner) <- expBod (1, mempty) expr
-
+                         -- TODO: Why 1?
     self <- gensym (utf8Nat "self")
-    argu <- gensym (utf8Nat "argu")
-    let rawFun = FUN self (LN 0) (argu:|[]) body
-    func <- traverse (getRef scope) rawFun
-    fanFun <- injectFun func
-    let fan = (fanFun F.%% 0)
-
+    func <- traverse (getRef scope) (FUN self (LN 0) mempty body)
+    fan  <- injectFun func
     pure (G fan inliner)
   where
     getRef :: Map Symb Global -> Symb -> ExceptT Text IO Global

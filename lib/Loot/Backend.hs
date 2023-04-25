@@ -121,29 +121,10 @@ ruleFanOpt :: Rul Fan -> Fan
 ruleFanOpt = valFan . rulVal . optimizeRul
 
 rulVal :: Rul a -> Val a
-rulVal (RUL (LN _)  0  bd) = zeroArgRule bd
 rulVal (RUL (LN nm) ar bd) =
     NAT 0 `APP` (NAT $ fromIntegral nm)
           `APP` (NAT ar)
           `APP` (bodVal bd)
-
-{-
-    Zero arity rule is fudged into a one arity rule pre-applied to `0`.
-    All variable references are bumped and self-references return `NAT-0`.
-
-    This is basically a hack to make the `[foo]:=3` syntax work, which
-    should probably be handled in the parser instead.
--}
-zeroArgRule :: Bod a -> Val a
-zeroArgRule bd =
-    APP (rulVal $ RUL (LN 0) 1 $ go bd) (NAT 0)
-  where
-    go (BCNS v)   = BCNS v
-    go (BBAD v)   = BBAD v
-    go (BVAR 0)   = BCNS (NAT 0)
-    go (BVAR n)   = BVAR (n+1)
-    go (BAPP x y) = BAPP (go x) (go y)
-    go (BLET v b) = BLET (go v) (go b)
 
 
 {-

@@ -45,7 +45,7 @@ type XCmd = Cmd Symb Symb
     doesn't matter during parsing, but it matters in code transformations.
 -}
 data Fun v a
-    = FUN v LawName (NonEmpty v) (Exp v a)
+    = FUN v LawName [v] (Exp v a)
  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
 {-|
