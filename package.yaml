@@ -5,8 +5,8 @@ author:              "Plunder Authors"
 maintainer:          "plun@pqrs.me"
 copyright:           "2021 Plunder Authors"
 
-ghc-options: -O2 -j
-# ghc-options: -O -j
+# ghc-options: -O2 -j
+ghc-options: -O -j
 
 cc-options: -Wall -O3
 
