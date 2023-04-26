@@ -187,6 +187,7 @@
 | if (neq 1 | cabLen opt) bad
 | *gud (cabFirst opt)
 
+
 """ % Rune: Atoms, Tabs, and Cabs """"""""""""""""""""""""""""""""""""""""""""""
 
 ;
@@ -347,7 +348,7 @@
     | *err r "%% rune must be given sons"
 | if (rexIsNode (idx 0 sons))
     | *doTab s p e a r err ok
-| *else
+| else
     | *doCab s p e a r err ok
 
 = ("%%" s p e a r err ok)

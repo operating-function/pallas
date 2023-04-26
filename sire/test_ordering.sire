@@ -5,7 +5,7 @@
 = (flipOrd o)
 | if (eql o EQ) EQ
 | if (eql o LT) GT
-| *else         LT
+| else          LT
 
 raw=(pinItem cmp)
 

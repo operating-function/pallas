@@ -201,7 +201,7 @@ newEmptyMVar=(newRef (*EMPTY []))
     | if (null readers)
         @ sl (put sl key (*FULL newVal []))
         | k 0 end me fr kl sl rq
-    | *else
+    | else
         @ mvSt | (*EMPTY (drop 1 readers))
         @ sl   | put sl key mvSt
         @ them | get readers 0
@@ -220,7 +220,7 @@ newEmptyMVar=(newRef (*EMPTY []))
         @ mvSt | (*EMPTY [])
         @ sl   | put sl key mvSt
         (k val end me fr kl sl rq)
-    | *else                                           ; writers, pop first in
+    | else                                            ; writers, pop first in
         @ them,vl | idx 0 writers                     ; queue
         @ writers | drop 1 writers
         @ mvSt    | (*FULL vl writers)

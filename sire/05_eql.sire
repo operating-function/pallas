@@ -38,7 +38,7 @@
         | and isApp-y
         | and (eql car-x car-y)
               (eql cdr-x cdr-y)
-| *else
+| else
         | and isNat-y eqlNat-x-y
 
 (neq x y)=(not eql-x-y)
@@ -110,7 +110,7 @@
 | if (isPin y) | GT
 | if (isLaw x) | ifNot (isLaw y) LT (*cmpLaw cmp x y)
 | if (isLaw y) | GT
-| *else
+| else
     | ordWeld (cmpNat (len x) (len y))
     | ordWeld (cmp (car x) (car y))
               (cmp (cdr x) (cdr y))

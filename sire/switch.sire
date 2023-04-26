@@ -23,7 +23,7 @@
 | if (rexIsLeaf rex)
         | if (eql "WORD" (rexStyle rex))
                 | readKey rex err ret
-        | *else
+        | else
                 | ret (rexText rex)
 ; Here, we know that the value is a node.
 @ kids (rexKids rex)
@@ -43,7 +43,7 @@
                 & (kid ret)
                 | readFanLit kid err ret
         | ret vals
-| *else
+| else
         | err rex (strWeld "Unexpected rune: " ryn)
 
 (try x)=(readFanLit x v2 v1)
@@ -176,7 +176,7 @@ foo=(x e o & o (varE "_", x))
         | listFromRow (tabKeys pats)
 | if canUseRowIndex
         | bopE (cnsE switch,    expr, wild, bowE (tabVals pats))
-| *else
+| else
         | bopE (cnsE tabSwitch, expr, wild, tabE pats)
 
 

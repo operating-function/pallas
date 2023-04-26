@@ -127,7 +127,7 @@
         | ok (rexKids rex)
 | if (eql rune "<")
         | ok (rexKids rex)
-| *else
+| else
         | err rex cbExpect
 
 = (rexIsCapsSymbol rex)
@@ -243,7 +243,7 @@
 ? (go kids)
 | if (isZero len-kids) | natE 0
 | if (eql 1 len-kids)  | idx 0 kids
-| *else                | rowE (idx 0 kids, go (drop 1 kids))
+| else                 | rowE (idx 0 kids, go (drop 1 kids))
 
 !!= ~[3 4]   (3 :: 4 :: ~[])
 !!= ~[3 4 5] (3 :: 4 :: ~[5])
@@ -266,7 +266,7 @@
 @ acc (CONS kids acc)
 | if (isZero heir)
         | ok | listToRowReversed acc
-| *else
+| else
         | loop acc heir
 
 = ("~~" s p e a r err ok)

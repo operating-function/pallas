@@ -48,7 +48,7 @@
 @ numSlashes | *countSlashes (dec off) 0
 | if (and (gth numSlashes 0) (mod numSlashes 2))
     | lexStringLoop input top (inc off)
-| *else
+| else
         @ tok (*TOK_STR (barSlice top (sub off top) input))
         | (tok, inc off)
 

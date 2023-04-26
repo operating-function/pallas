@@ -293,7 +293,7 @@ ex=(PAIR %a %b)
         | CONS [key ctr slots] acc
 | if (isZero that)
         | ok (listToRowReversed acc)
-| *else
+| else
         | go acc that
 
 
@@ -408,7 +408,7 @@ ex=(PAIR %a %b)
       | if (rexIsLeaf sigRex)
           : sym < readKey sigRex err
           | k sym []
-      | *else
+      | else
           | readDestroyer sigRex err k
 ;
 | ifNot (hasKey constr src)

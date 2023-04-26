@@ -69,7 +69,7 @@
 ? (loop_eqs_tab idx)
 | if (eql idx checkLen) TRUE
 @ [key val] | tabElem idx tab
-| if (neq (*SOME val) | lookup key hm)
+| if (neq (SOME val) | lookup key hm)
     | trk [%couldntlookup key %expected val %got (lookup key hm)]
     | trk [%inpairs inPairs]
     | trk [%tab tab]
@@ -88,7 +88,7 @@
 @ delIdx        | mod raw | dec count
 ; step 1: verify that item exists
 @ [key val] | tabElem delIdx tab
-| if (neq (*SOME val) | lookup key hm)
+| if (neq (SOME val) | lookup key hm)
     | trk [%couldntlookup key %expected val %got (lookup key hm)]
     | trk [%inpairs inPairs]
     | trk [%tab tab]
@@ -106,7 +106,7 @@
 ? (loop_eqs_tab idx)
 | if (eql idx checkLen) TRUE
 @ [key val] | tabElem idx tab
-| if (neq (*SOME val) | lookup key hm)
+| if (neq (SOME val) | lookup key hm)
     | trk [%couldntlookup key %expected val %got (lookup key hm)]
     | trk [%inpairs inPairs]
     | trk [%tab tab]

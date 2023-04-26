@@ -151,7 +151,7 @@ GT=2
   | and (bit (eqlNat x y))
   | and (bit (gteNat x y))
         (not (gthNat x y))
-| *else
+| else
   | and (not (lthNat x y))
   | and (not (lteNat x y))
   | and (not (eqlNat x y))

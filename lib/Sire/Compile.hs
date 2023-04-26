@@ -8,66 +8,29 @@ module Sire.Compile
     ( Inliner
     , Refr(..)
     , Global(..)
+    , Expr
+    , Func
     , compileSire
     , showSymb
+    , gensym
+    , duplicateExpTop
     )
 where
 
 import Loot.Backend
 import PlunderPrelude
-import Rex
+import Sire.Compile.Types
 import Sire.Types
+import Sire.Inline (inlineGlobals)
 
 import Control.Monad.Except (ExceptT(..), runExceptT)
-import Control.Monad.State  (StateT(..), evalStateT, get)
-import Loot.Syntax          (symbRex)
 import Loot.Types           (Bod(..), LawName(LN), Rul(..), Val(..))
-import Optics.Zoom          (zoom)
 
 import qualified Data.Map as M
 import qualified Fan      as F
 
 
--- Utils -----------------------------------------------------------------------
-
-showSymb :: Symb -> Text
-showSymb =
-    let ?rexColors = NoColors
-    in rexLine . symbRex
-
-
--- Types -----------------------------------------------------------------------
-
-type Expr = Exp Refr Global
-type Func = Fun Refr Global
-
-type Inliner = Maybe Func
-
-data Global = G
-    { val     :: Fan
-    , inliner :: Inliner
-    }
-  deriving (Generic, Eq)
-
-instance Show Global where
-  show (G (F.NAT n) _) = "(AT " <> show n <> ")"
-  show (G pln _)       = "(G " <> show (F.valName pln) <> ")"
-
-data Refr = REFR
-    { name :: !Symb
-    , key  :: !Int
-    }
-
-instance Eq  Refr where (==)    x y = (==)    x.key y.key
-instance Ord Refr where compare x y = compare x.key y.key
-
-instance Show Refr where
-    show r = unpack (showSymb r.name) <> "_" <> show r.key
-    -- TODO Doesn't handle all cases correctly
-
-
---------------------------------------------------------------------------------
-
+-- Internal Types --------------------------------------------------------------
 
 {-
     The compilation result:
@@ -91,63 +54,22 @@ data CRes = CR
     }
 
 
--- Gensym ----------------------------------------------------------------------
+-- How many times is a variable referenced? ------------------------------------
 
-vCompilerGenSym :: IORef Int
-vCompilerGenSym = unsafePerformIO (newIORef 0)
-  -- TODO: Input should already have a unique identity assigned to
-  -- each symbol.  Use that and make this stateless.
-
-gensym :: MonadIO m => Symb -> m Refr
-gensym nam = do
-    key <- readIORef vCompilerGenSym
-    nex <- evaluate (key+1)
-    writeIORef vCompilerGenSym nex
-    pure (REFR nam key)
-
-refreshRef :: Refr -> StateT (Int, Map Int Refr) IO Refr
-refreshRef ref =
-    (lookup ref.key . snd <$> get) >>= \case
-        Just r  -> pure r
-        Nothing -> pure ref
-
-refreshBinder :: Refr -> StateT (Int, Map Int Refr) IO Refr
-refreshBinder ref = do
-    tab <- snd <$> get
-    let key = ref.key
-    case lookup key tab of
-        Just r ->
-            pure r
-        Nothing -> do
-            r <- zoom _1 (gensym ref.name)
-            modifying _2 (insertMap key r)
-            pure r
-
-duplicateFun :: Fun Refr b -> StateT (Int, Map Int Refr) IO (Fun Refr b)
-duplicateFun (FUN iline self name args body) = do
-    self' <- refreshBinder self
-    args' <- traverse refreshBinder args
-    body' <- duplicateExp body
-    pure (FUN iline self' name args' body')
-
--- Duplicates an expression, creating fresh Refrs for each binding.
-duplicateExp :: Exp Refr b -> StateT (Int, Map Int Refr) IO (Exp Refr b)
-duplicateExp = go
+numRefs :: Int -> Exp Refr b -> Int
+numRefs k = \case
+    EVAR r                 -> if r.key == k then 1 else 0
+    EVAL{}                 -> 0
+    EREF{}                 -> 0
+    EAPP f x               -> go f + go x
+    ELIN xs                -> sum (go <$> xs)
+    EREC _ v b             -> go v + go b
+    ELET _ v b             -> go v + go b
+    ELAM _ (FUN _ _ _ _ b) -> min 1 (go b)
+    --- Multiple references from a sub-functions only counts as one because
+    --- it will be lambda-lifted (hence only used once).
   where
-    go  :: Exp Refr b
-        -> StateT (Int, Map Int Refr) IO (Exp Refr b)
-    go expr = case expr of
-        EVAR x     -> EVAR <$> refreshRef x
-        EREC v e b -> EREC <$> refreshBinder v <*> go e <*> go b
-        ELET v e b -> ELET <$> refreshBinder v <*> go e <*> go b
-        EAPP f x   -> EAPP <$> go f <*> go x
-        ELAM p f   -> ELAM p <$> duplicateFun f
-        ELIN xs    -> ELIN <$> traverse go xs
-        EVAL{}     -> pure expr
-        EREF{}     -> pure expr
-
-duplicateExpTop :: Exp Refr b -> IO (Exp Refr b)
-duplicateExpTop e = evalStateT (duplicateExp e) (0, mempty)
+    go = numRefs k
 
 
 -- Name Resolution -------------------------------------------------------------
@@ -182,24 +104,6 @@ resolveExp e = liftIO . \case
         let con  = if isRec then EREC else ELET
         let vEnv = if isRec then e2 else e
         con r <$> go vEnv v <*> go e2 b
-
-
--- How many times is a variable referenced? ------------------------------------
-
-numRefs :: Int -> Exp Refr b -> Int
-numRefs k = \case
-    EVAR r                 -> if r.key == k then 1 else 0
-    EVAL{}                 -> 0
-    EREF{}                 -> 0
-    EAPP f x               -> go f + go x
-    ELIN xs                -> sum (go <$> xs)
-    EREC _ v b             -> go v + go b
-    ELET _ v b             -> go v + go b
-    ELAM _ (FUN _ _ _ _ b) -> min 1 (go b)
-    --- Multiple references from a sub-functions only counts as one because
-    --- it will be lambda-lifted (hence only used once).
-  where
-    go = numRefs k
 
 
 -- Optimization ----------------------------------------------------------------
@@ -435,9 +339,9 @@ compileSire :: Map Symb Global -> XExp -> ExceptT Text IO Global
 compileSire scope ast = do
     body <- resolveExp mempty ast
     expr <- traverse (getRef scope) body
-    cRes <- expBod (1, mempty) expr
+    cRes <- expBod (1, mempty) (inlineGlobals expr)
     let fan = ruleFanOpt $ RUL (LN 0) 0
-                         $ fmap (.val) cRes.code
+                         $ ((.val) <$> cRes.code)
     pure (G fan cRes.inline)
   where
     getRef :: Map Symb Global -> Symb -> ExceptT Text IO Global

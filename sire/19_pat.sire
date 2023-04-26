@@ -183,7 +183,7 @@
         : k <- readKey (idx 0 kids) err
         : v <- parseBinder (idx 1 kids) err
         | ok k v
-| *else
+| else
         | err rex "Tab-Binder must have form (= k) or (= k v)"
 
 = (parseTabBinder parseBinder rex err ok)
@@ -273,7 +273,7 @@
         | rexSetRune ","
         | rexSetSons (drop 1 | rexSons rex)
         | rex
-| *else
+| else
         | err rex "Unknown binding pattern"
 
 !!= (parseBinder `[x y z] v2 I)
@@ -395,7 +395,7 @@
                 @ exp (appE (cnsE idx-i, varE tmp))
                 : nex acc <- go exp pat nex acc
                 | [nex acc]
-        | *else
+        | else
             | die ['bad bind spec' bindSpec]
 @ nex (idx 0 res)
 @ acc (idx 1 res)
@@ -591,7 +591,7 @@
     ^ traverseRow _ sons ok
     ? (step son ret)
     | parseBinder son err ret
-| *else
+| else
     : bin <- parseBinder rex err
     | ok [bin]
 
@@ -805,7 +805,7 @@
     : sym binds < readDestroyer sigRex err
     @ key       | rexIdnt (idx 0 | rexKids sigRex)
     | ok (key, sym, binds, bodRex)
-| *else
+| else
     : bind <- parseBinder sigRex err
     | ok (bind, bodRex)
 
@@ -835,7 +835,7 @@
 @ heir (rexHeir rex)
 | if (isZero heir)            | ~[rex]
 | if (neq (rexRune heir) "=") | ~[rex]
-| *CONS (rexSetHeir 0 rex)
+| CONS (rexSetHeir 0 rex)
 | unrollTis heir
 
 !!=  ~~ ` = x     3
@@ -857,7 +857,7 @@
     : a sig bod <- makeDestroyer a binds bodRex
     , a
     | OPEN 0 "#=" (sogKE key sym sig, bod) acc
-| *else
+| else
     @ [bind bodRex] def
     @ [a bSeq] (sequenceBinds a [[bind bodRex]])
     ^ foldr _ [a acc] bSeq

@@ -82,8 +82,8 @@
 | gen (inc len-row)
 & i
 | if (lthNat i ix) | idx i row
-| if (eql i ix) | val
-| *else         | idx (dec i) row
+| if (eql i ix)    | val
+| else             | idx (dec i) row
 
 !!= (v2 9 0)   | insert 0 9 (v1 0)
 !!= (v2 0 9)   | insert 1 9 (v1 0)
@@ -143,8 +143,8 @@
 
 ''' TODO Use (0 | [x])
 
-= NONE     0
-= (SOME x) (0 x)
+= NONE      0
+= (*SOME x) (0 x)
 
 = (maybeCase opt non som)
 | if isNat-opt non
@@ -275,8 +275,8 @@
 
 """ Lists """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= NIL         0
-= (CONS x xs) [x xs]
+= NIL          | 0
+= (*CONS x xs) | [x xs]
 
 = (listCase xs nil cons)
 | if isNat-xs nil
@@ -284,12 +284,12 @@
 
 ;; TODO s/([a-z])Singleton/\1Sing/g
 
-(listSing x)=(*CONS x 0)
+(listSing x)=(CONS x 0)
 
 = (listMap f l)
 | *listCase l NIL
 & (x xs)
-| *CONS f-x listMap-f-xs
+| CONS f-x listMap-f-xs
 
 (listTurn l f)=(listMap f l)
 
@@ -339,7 +339,7 @@
 = (listMap f l)
 | *listCase l NIL
 & (x xs)
-| *CONS f-x listMap-f-xs
+| CONS f-x listMap-f-xs
 
 (listTurn l f)=(listMap f l)
 
@@ -362,12 +362,12 @@
 = (listAll f v)         | listAnd listMap-f-v
 = (listAny f v)         | listOr listMap-f-v
 = (listHas e xs)        | listAny eql-e xs
-= (listEnumFrom n)      | *CONS n (listEnumFrom inc-n)
+= (listEnumFrom n)      | CONS n (listEnumFrom inc-n)
 
 = (listWeld a b)
 | *listCase a b
 & (x xs)
-| *CONS x (listWeld xs b)
+| CONS x (listWeld xs b)
 
 > List (List a) > List a
 = (listCat ls)
@@ -380,7 +380,7 @@
 | ifNot num NIL
 | *listCase lis NIL
 & (x xs)
-| *CONS x
+| CONS x
 | listTake dec-num xs
 
 = (listDrop num lis)
@@ -399,7 +399,7 @@
 | ifNot mor acc
 @ char (add (mod mor 10) "0")
 @ left (div mor 10)
-| loop left (*CONS char acc)
+| loop left (CONS char acc)
 
 ; Convert a nat into a row of digits.
 = (digits num) (listToRow listDigits-num)
@@ -410,12 +410,12 @@
 & (a as)
 | *listCase bl NIL
 & (b bs)
-| *CONS f-a-b
+| CONS f-a-b
   (listZipWith f as bs)
 
 (listZip a b)=(listZipWith (0 0 3 0) b a)
 
-!!= | *CONS [3 4] | *CONS [4 5] NIL
+!!= | CONS [3 4] | CONS [4 5] NIL
   | listZip listFromRow-[3 4] listFromRow-[4 5]
 
 (listIndexed l)=(listZip (listEnumFrom 0) l)
@@ -426,7 +426,7 @@
 = (listFilter f lis)
 | *listCase lis NIL
 & (x xs)
-| if f-x (*CONS x listFilter-f-xs)
+| if f-x (CONS x listFilter-f-xs)
 | listFilter f xs
 
 (listNull xs)=(isNat xs)
@@ -473,7 +473,7 @@
 @ rst | listSortOn f
       | listFilter x&(not (eql fky f-x))
       | lis
-| *CONS fst rst
+| CONS fst rst
 
 ; TODO This is out of place!
 = (sortOn f row)
@@ -503,8 +503,8 @@
 & (x xs)
 | *listCase xs lis
 & (y ys)
-| *CONS x
-| *CONS sep
+| CONS x
+| CONS sep
 | listIntersperse sep xs
 
 = (listRev a)
@@ -515,8 +515,8 @@
 
 """ Either """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (LEFT x)  [0 x]
-= (RIGHT x) [1 x]
+= (*LEFT x)  [0 x]
+= (*RIGHT x) [1 x]
 
 = (eitherCase x l r)     (if (idx 0 x) (*r idx-1-x) (*l idx-1-x))
 = (fromRight l x)        (*eitherCase x l I)
@@ -602,7 +602,7 @@
 = (readOpenRow rex err ok)
 ; trk 'readOpenRow',rex,err
 | rexGetNodeWithRune ",," rex
-    | ok (*CONS rex NIL)
+    | ok (CONS rex NIL)
 & (sons heir)
 | if (null sons)
     | err rex "At least one kid is required"

@@ -81,7 +81,7 @@
                    | lookupByAV ":c/email" "iceman@plunder.tech" contactsDB
        @ solEid    | cabFirst
                    | lookupByAV ":c/email" "sol@plunder.tech" contactsDB
-       | *LEFT ,, | UNIQUE_VIOLATION ":c/email" "sol@plunder.tech"
+       | LEFT ,, | UNIQUE_VIOLATION ":c/email" "sol@plunder.tech"
                                      solEid icemanEid
     ^ transact _ contactsDB
     ,, [%add [":c/email" "iceman@plunder.tech"] ":c/email" "sol@plunder.tech"]

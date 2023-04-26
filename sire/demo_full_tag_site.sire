@@ -287,7 +287,7 @@ t
 : offset    <- *bindMaybe (asJsonNum joffset)
 : jr        <- *bindMaybe (tabLookup %tags content)
 : r         <- *bindMaybe (asJsonRow jr)
-^ forRow r _ t&(*SOME (*SEARCHCMD offset t))
+^ forRow r _ t&(SOME (*SEARCHCMD offset t))
 ? (step [h t] pure)
 | if | eqlNat h %str
   | pure | barNat t
@@ -302,7 +302,7 @@ NONE
 : tg <- *bindMaybe (asJsonStr jt)
 # switch tg
 * Search | parseSearch jsonBS
-* Status | *SOME 0 ; STATUSCMD (but #datatype generated [0], not 0)
+* Status | SOME 0 ; STATUSCMD (but #datatype generated [0], not 0)
 
 !!= NONE         | parseCmd b#{"}
 !!= NONE         | parseCmd b#{{"x":3}}
@@ -316,7 +316,7 @@ NONE
 !!= SOME-[1 8 [%x %y]]
    | parseCmd
    b#{{"tag": "Search", "contents": {"offset":8, "tags":["x", "y"]}}}
-!!= (*SOME 0)
+!!= (SOME 0)
    | parseCmd b#{{"tag": "Status"}}
 
 (tagToStr t)=(*JSON_STR (natBar t))

@@ -293,7 +293,7 @@ hexAlphabet=(natBar "0123456789abcdef")
             | barCat
             | if (heir == 0)
                 | [b#'(' x b#')']
-            | *else
+            | else
                 | [b#'(' x b#')' showRex-heir]
         # switch style
         * PREF
@@ -465,7 +465,7 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash mul
 
 'pinHash .{%%}'
-!!= x#{5813ae7d1b638d8bd049e6c2fff3def2a6d5f402def0593d757bc6e1e229cffe}
+!!= x#{b51f0eb3e792c038494087a0a4ea65d26cca20d31766fa3a0f2a5d4f470ff503}
   | pinHash .{%%}
 
 'pinHash cmp'
@@ -473,11 +473,11 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash cmp
 
 'pinHash multiEqlE'
-!!= x#{2a710ffed44db3a83c05c27897d9c1ed76bb311c52d1e7d4603f4d03c0fec3ea}
+!!= x#{4c3b4dbfed62acad54965ca842c953fcc4288ce3cc8dc23700dbdfeb605a8ce9}
   | pinHash multiEqlE
 
 'pinHash pinHash'
-!!= x#{c30da5b61138a7eee3ff9f3facf01bada883b31646669e6093d66a1d6602873e}
+!!= x#{b04a5288cba284f867b921f76e1de0d1ebc0106e164fab100da6d914a1c214f4}
   | pinHash pinHash
 
 = (refsTable pin)

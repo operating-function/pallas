@@ -51,7 +51,7 @@
 > Row > Maybe [a Row]
 = (rowUncons r)
 | if (isZero | len r) NONE
-| *SOME [(idx 0 r) (drop 1 r)]
+| SOME [(idx 0 r) (drop 1 r)]
 
 !!= NONE               (rowUncons [])
 !!= (SOME [0 [1 2 3]]) (rowUncons [0 1 2 3])
@@ -61,7 +61,7 @@
 @ l | len r
 | if (isZero l) NONE
 @ minusOne | dec l
-| *SOME [(take minusOne r) (idx minusOne r)]
+| SOME [(take minusOne r) (idx minusOne r)]
 
 !!= NONE               (rowUnsnoc [])
 !!= (SOME [[0 1 2] 3]) (rowUnsnoc [0 1 2 3])
@@ -118,7 +118,7 @@
 
 > Index k v > Maybe v
 = (fromSingletonIndex [_ vals])
-| if (eqlNat 1 (len vals)) (*SOME (get vals 0)) NONE
+| if (eqlNat 1 (len vals)) (SOME (get vals 0)) NONE
 
 > Index k v > Nat
 = (indexKeyLen [keys _])
@@ -185,7 +185,7 @@
 | *maybeCase (rowUnsnoc leftKeys) NONE
 & [leftKeys leftKey]
 @ newCtx  [leftKeys leftVals rightKeys rightVals]
-| *SOME [newCtx leftVal leftKey]
+| SOME [newCtx leftVal leftKey]
 
 = (rightView [leftKeys leftVals rightKeys rightVals])
 | *maybeCase (rowUncons rightVals) NONE
@@ -193,7 +193,7 @@
 | *maybeCase (rowUncons rightKeys) NONE
 & [rightKey rightKeys]
 @ newCtx  [leftKeys leftVals rightKeys rightVals]
-| *SOME [rightKey rightVal newCtx]
+| SOME [rightKey rightVal newCtx]
 
 = (putVal [leftKeys leftVals rightKeys rightVals] val)
 ,, weld leftKeys rightKeys
@@ -236,12 +236,12 @@
 | if (gthNat itemLen | mul 2 maxLeafItems)
     @ [leaf rem]   | leafSplitAt maxLeafItems items
     @ key          | leafFirstKey rem
-    | loop rem (*CONS key keys) (*CONS leaf leafs)
+    | loop rem (CONS key keys) (CONS leaf leafs)
 | if (gthNat itemLen maxLeafItems)
     @ numLeft      | div itemLen 2
     @ [left right] | leafSplitAt numLeft items
     @ key          | leafFirstKey right
-    | loop leafEmpty (*CONS key keys) (*CONS right (*CONS left leafs))
+    | loop leafEmpty (CONS key keys) (CONS right (CONS left leafs))
 | if (isZero itemLen)
     [(listToRowReversed keys) (listToRowReversed leafs)]
 | die %leafConstraintViolation
@@ -339,7 +339,7 @@ newRootNode
   : key keys <- *listCase l ~[hh]
   # openTreeFun treeFun
   @ [!toAdd !rest] | hhSplit key hh
-  | *CONS toAdd | downSplit treeFun keys rest
+  | CONS toAdd | downSplit treeFun keys rest
 ;
 = (downPush treeConfig treeFun [hh node])
   # openTreeFun treeFun
@@ -353,8 +353,8 @@ newRootNode
                 [(listFromRow keys) ~[vals]]
   : [keys vals] ts <- *listCase il (die "missing index in joinIndex")
   @ [keyrest valrest] | joinIndex ks ts
-  @ !kout | listWeld (listFromRow keys) (*CONS k keyrest)
-  @ !vout | *CONS vals valrest
+  @ !kout | listWeld (listFromRow keys) (CONS k keyrest)
+  @ !vout | CONS vals valrest
   [kout vout]
 
 ;;;;;;;;;;;;;;;;;;;;
@@ -364,10 +364,10 @@ newRootNode
 @ l | len keys
 ^ unfoldr _ [0 hh]
 & [i hh]
-| if (eqlNat i l) | *SOME [hh [(inc i) hhEmpty]]
+| if (eqlNat i l) | SOME [hh [(inc i) hhEmpty]]
 | if (gthNat i l) | NONE
 @ [!cur !rest] | hhSplit (idx i keys) hh
-| *SOME [cur [(inc i) rest]]
+| SOME [cur [(inc i) rest]]
 
 ;
 ; Forces a flush of all hitchhikers down to the leaf levels and return the
@@ -475,7 +475,7 @@ newRootNode
 
 = (hmSingleton config k v)
 @ node | hmLeaf | tabSingleton k v
-[config (*SOME node)]
+[config (SOME node)]
 
 = hhMapTF
 ,, packIndexNode                 ; mkNode
@@ -510,12 +510,12 @@ newRootNode
 = (hmInsert k v [config r])
 @ p | tabSingleton k v
 | *maybeCase r
-    [config (*SOME (PIN [1 p]))]
+    [config (SOME (PIN [1 p]))]
 & gr
 @ !index | insertRec config hhMapTF p gr
 @ !fixed | fixup config hhMapTF index
 ,, config
-,, *SOME fixed
+,, SOME fixed
 
 = (hmInsertMany tab [config r])
 | if | tabIsEmpty tab
@@ -528,7 +528,7 @@ newRootNode
   | insertRec config hhMapTF tab top
 @ !fixed | fixup config hhMapTF index
 ,, config
-,, *SOME fixed
+,, SOME fixed
 
 ; TODO: case guard statements would make this much more readable.
 = (hmDelete k [config r])
@@ -538,12 +538,12 @@ newRootNode
 # datacase (caseImpl newRootNode)
 * (LEAFNODE leaves)
   ,, config
-  ,, if (tabIsEmpty leaves) NONE (*SOME newRootNode)
+  ,, if (tabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
   | *maybeCase | fromSingletonIndex index
-    [config (*SOME newRootNode)]
+    [config (SOME newRootNode)]
   & childNode
-  @ base [config (*SOME childNode)]
+  @ base [config (SOME childNode)]
   | if (tabIsEmpty hitchhikers) base
   | hmInsertMany hitchhikers base
 
@@ -555,7 +555,7 @@ newRootNode
 * (INDEXNODE index hitchhikers)
   : v <- *maybeCase (tabLookup key hitchhikers)
              (lookInNode | findSubnodeByKey key index)
-  | (*SOME v)
+  | (SOME v)
 * (LEAFNODE items)
   | tabLookup key items
 
@@ -573,7 +573,7 @@ newRootNode
 
 = (hsRawSingleton v)
 @ node (PIN [1 (cabSingleton v)])
-| *SOME node
+| SOME node
 
 (hsSingleton config v)=[config (hsRawSingleton v)]
 
@@ -597,11 +597,11 @@ newRootNode
 = (hsRawInsert i config r)
 @ is | cabSingleton i
 | *maybeCase r
-    (*SOME (PIN [1 is]))
+    (SOME (PIN [1 is]))
 & gr
 @ !index | insertRec config hhSetTF is gr
 @ !fixed | fixup config hhSetTF index
-| *SOME fixed
+| SOME fixed
 
 (hsInsert i [config r])=[config (hsRawInsert i config r)]
 
@@ -614,7 +614,7 @@ newRootNode
   & top
   | insertRec config hhSetTF cab top
 @ !fixed | fixup config hhSetTF index
-| *SOME fixed
+| SOME fixed
 
 (hsInsertMany cab [config r])=[config (hsRawInsertMany cab config r)]
 
@@ -646,12 +646,12 @@ newRootNode
 @ newRootNode | deleteRec config hhSetTF key NONE gr
 # datacase (caseImpl newRootNode)
 * (LEAFNODE leaves)
-  | if (cabIsEmpty leaves) NONE (*SOME newRootNode)
+  | if (cabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
   | *maybeCase (fromSingletonIndex index)
-      | *SOME newRootNode
+      | SOME newRootNode
   & !childNode
-  @ base | *SOME childNode
+  @ base | SOME childNode
   | if (cabIsEmpty hitchhikers) base
   | hsRawInsertMany hitchhikers config base
 
@@ -709,7 +709,7 @@ newRootNode
   | if (listNull curOut) NONE
   @ !u | cabAscUnions | listToRowReversed curOut
   | if (cabIsEmpty u) NONE
-  | *SOME [u [(inc i) 0 NIL]]
+  | SOME [u [(inc i) 0 NIL]]
 ;
 @ next    | idx i row
 @ nextLen | cabLen next
@@ -721,17 +721,17 @@ newRootNode
     ; under the minimum, so split the set.
     @ off | sub max curSize
     @ [head tail] | cabSplitAt off next
-    @ !u | cabAscUnions | listToRowReversed | *CONS head curOut
-    @ nextStep [(inc i) (cabLen tail) (*CONS tail NIL)]
+    @ !u | cabAscUnions | listToRowReversed | CONS head curOut
+    @ nextStep [(inc i) (cabLen tail) (CONS tail NIL)]
     | if (cabIsEmpty u) | loop nextStep
-    | *SOME [u nextStep]
+    | SOME [u nextStep]
   ; we can just combine and be done.
   @ !u | cabAscUnions | listToRowReversed curOut
-  @ nextStep [(inc i) 0 (*CONS next NIL)]
+  @ nextStep [(inc i) 0 (CONS next NIL)]
   | if (cabIsEmpty u) | loop nextStep
-  | *SOME [u nextStep]
+  | SOME [u nextStep]
 ;
-| loop [(inc i) (add nextLen curSize) (*CONS next curOut)]
+| loop [(inc i) (add nextLen curSize) (CONS next curOut)]
 
 
 ; test minimize splitting, between min and max
@@ -766,7 +766,7 @@ newRootNode
   ; at least use integer indexes instead of making a ton of copies of the keys
   ; and vals rows?
   | cat
-  ^ unfoldr _ [a (*SOME index)]
+  ^ unfoldr _ [a (SOME index)]
   ? (loop [leaves mybIdx])
   : [keys vals] <- *maybeCase mybIdx NONE
   | if (cabIsEmpty leaves) NONE
@@ -776,14 +776,14 @@ newRootNode
       | die "invalid treeindex in checkSetAgainst"
     | if | (eql 1 l)
       | [[leaves %[]] (idx 0 vals) NONE]
-    | *else
+    | else
       ,, cabSplitLT (idx 0 keys) leaves
       ,, idx 0 vals
-      ,, *SOME [(drop 1 keys) (drop 1 vals)]
+      ,, SOME [(drop 1 keys) (drop 1 vals)]
   | if (cabIsEmpty tryLeaves) | loop [restLeaves restIndex]
   @ !result | checkSetAgainst tryLeaves (caseImpl subNode)
   | if (isZero | len result) | loop [restLeaves restIndex]
-  | *SOME [result [restLeaves restIndex]]
+  | SOME [result [restLeaves restIndex]]
 
 !!= [%[1] %[5]]
    | checkSetAgainst %[1 5]
@@ -801,7 +801,7 @@ newRootNode
 @ bsNil | *listNull bs
 ; both ranges at end.
 | if (and asNil bsNil)
-  | *SOME [(find a b) [NIL NIL NIL NIL]]
+  | SOME [(find a b) [NIL NIL NIL NIL]]
 ;
 : amin aminxs <- *listCase arange NONE
 : bmin bminxs <- *listCase brange NONE
@@ -809,13 +809,13 @@ newRootNode
 | if bsNil
   : amax arest <- *listCase aminxs (die "missing a range")
   | if (lteNat bmin amax)
-    | *SOME [(find a b) [aminxs as brange bnode]]
+    | SOME [(find a b) [aminxs as brange bnode]]
   | findIntersectStep find [aminxs as brange bnode]
 ; left range at end.
 | if asNil
   : bmax brest <- *listCase bminxs (die "missing b range")
   | if (lteNat amin bmax)
-    | *SOME [(find a b) [arange anode bminxs bs]]
+    | SOME [(find a b) [arange anode bminxs bs]]
   | findIntersectStep find [arange anode bminxs bs]
 ; both ranges.
 : amax arest <- *listCase aminxs (die "missing a range")
@@ -824,7 +824,7 @@ newRootNode
            | if (gthNat amax bmax) [arange anode bminxs bs]
            [aminxs as brange bnode]
 | if (and (lthNat amin bmax) (lthNat bmin amax))
-  | *SOME [(find a b) advances]
+  | SOME [(find a b) advances]
 | findIntersectStep find advances
 
 = (hsIntersection as bs)
@@ -847,7 +847,7 @@ newRootNode
     | NONE
   @ vals | map hmLeaf r
   @ keys | map cabMin | drop 1 r
-  | *SOME | fixup aconfig hhSetTF [keys vals]
+  | SOME | fixup aconfig hhSetTF [keys vals]
 ;
 * (find left right)
   # datacase (caseImpl left)
@@ -870,8 +870,8 @@ newRootNode
       @ !bLeftmost | getLeftmostValue | idx 0 bVals
       @ !aRestList | listFromRow aIdxKeys
       @ !bRestList | listFromRow bIdxKeys
-      @ !aKeys | *CONS aLeftmost aRestList
-      @ !bKeys | *CONS bLeftmost bRestList
+      @ !aKeys | CONS aLeftmost aRestList
+      @ !bKeys | CONS bLeftmost bRestList
       | cat
       | unfoldr (findIntersectStep find)
       ,, aKeys
@@ -893,7 +893,7 @@ newRootNode
 > TreeConfig > Tab (HSet Nat) > Tab Cab > Tab (HSet Nat)
 = (hsmLeafInsertImpl setConfig leaf hh)
 @ (alt new m)
-  | *SOME
+  | SOME
   | *maybeCase m | hsRawFromCab setConfig new
   & old
   | hsRawInsertMany new setConfig old
@@ -907,7 +907,7 @@ newRootNode
 @ (update in)
   | *maybeCase in NONE
   & set
-  | *SOME | hsRawDelete v setConfig set
+  | SOME | hsRawDelete v setConfig set
 | tabAlter update k hsm
 
 = (hsmHHDeleteImpl k mybV sm)
@@ -916,7 +916,7 @@ newRootNode
 @ (update in)
   | *maybeCase in NONE
   & set
-  | *SOME | cabDel v set
+  | SOME | cabDel v set
 | tabAlter update k sm
 
 = (hhSetMapTF setConfig)
@@ -946,7 +946,7 @@ newRootNode
    @ leaf | tabSingleton k raw
    ,, mapConfig
    ,, setConfig
-   ,, | *SOME (PIN [1 leaf])
+   ,, | SOME (PIN [1 leaf])
 & gr
 @ tf | hhSetMapTF setConfig
 @ hh | tabSingleton k (cabSingleton v)
@@ -954,7 +954,7 @@ newRootNode
 @ !fixed | fixup mapConfig tf index
 ,, mapConfig
 ,, setConfig
-,, *SOME fixed
+,, SOME fixed
 
 = (hsmInsertMany tabcab [mapConfig setConfig r])
 | if | tabIsEmpty tabcab
@@ -970,22 +970,22 @@ newRootNode
 @ !fixed | fixup mapConfig tf index
 ,, mapConfig
 ,, setConfig
-,, | *SOME fixed
+,, | SOME fixed
 
 = (hsmDelete k v [mapConfig setConfig r])
 | *maybeCase r [mapConfig setConfig r]
 & gr
-@ newRootNode | deleteRec mapConfig (hhSetMapTF setConfig) k (*SOME v) gr
+@ newRootNode | deleteRec mapConfig (hhSetMapTF setConfig) k (SOME v) gr
 # datacase (caseImpl newRootNode)
 * (LEAFNODE leaves)
   ,, mapConfig
   ,, setConfig
-  ,, if (tabIsEmpty leaves) NONE (*SOME newRootNode)
+  ,, if (tabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
   | *maybeCase | fromSingletonIndex index
-    [mapConfig setConfig (*SOME newRootNode)]
+    [mapConfig setConfig (SOME newRootNode)]
   & childNode
-  @ base [mapConfig setConfig (*SOME childNode)]
+  @ base [mapConfig setConfig (SOME childNode)]
   | if (tabIsEmpty hitchhikers) base
   | hsmInsertMany hitchhikers base
 

@@ -350,7 +350,7 @@ st
 
 > h > CV > h
 = (b3HasherPushStack h cv)
-@ st | *CONS cv (b3HasherGetCvStack h)
+@ st | CONS cv (b3HasherGetCvStack h)
 | b3HasherPutCvStack h st
 
 > HashState > [CV HashState]

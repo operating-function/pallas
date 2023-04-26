@@ -88,9 +88,9 @@
 | if (rexIsLeaf rex)
         | if (eql "WORD" (rexStyle rex))
                 | readNat rex err ret
-        | *else
+        | else
                 | ret (rexText rex)
-| *else
+| else
         | rexGetKidsOfNodeWithRune "%" rex
                 | err rex "Expected a %234 literal"
         & kids
@@ -315,7 +315,7 @@ symTodo='todo: support .foo and .234'
     | readSymbol rex err
     & sym
     | ok [sym]
-| *else
+| else
     | err rex nrBadForm
 
 !!= [%x]                | readRowOfNames `x        v2 I

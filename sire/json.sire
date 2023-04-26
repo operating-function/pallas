@@ -92,11 +92,11 @@
    : m ms <- *listCase more complain
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [final]
    | if (eql TOK_R_BRAK m)
-       @ acc (*CONS val acc)
+       @ acc (CONS val acc)
        @ !res (*JSON_VEC (listToRowReversed acc))
        | ok res ms
    | if (eql TOK_COMMA m)
-       @ acc (*CONS val acc)
+       @ acc (CONS val acc)
        | arr acc ms fail ok
    | fail "space or ',' or ']'" more
 
