@@ -38,16 +38,25 @@ showSymb =
 
 -- Types -----------------------------------------------------------------------
 
-data Global = G { val :: Fan, inliner :: Inliner }
+type Expr = Exp Refr Global
+type Func = Fun Refr Global
+
+type Inliner = Maybe Func
+
+data Global = G
+    { val     :: Fan
+    , inliner :: Inliner
+    }
   deriving (Generic, Eq)
 
 instance Show Global where
   show (G (F.NAT n) _) = "(AT " <> show n <> ")"
   show (G pln _)       = "(G " <> show (F.valName pln) <> ")"
 
-type Inliner = Maybe (Fun Refr Global)
-
-data Refr = REFR {name :: !Symb, key  :: !Int}
+data Refr = REFR
+    { name :: !Symb
+    , key  :: !Int
+    }
 
 instance Eq  Refr where (==)    x y = (==)    x.key y.key
 instance Ord Refr where compare x y = compare x.key y.key
@@ -96,17 +105,13 @@ gensym nam = do
     writeIORef vCompilerGenSym nex
     pure (REFR nam key)
 
-refreshRef
-    :: Refr
-    -> StateT (Int, Map Int Refr) IO Refr
+refreshRef :: Refr -> StateT (Int, Map Int Refr) IO Refr
 refreshRef ref =
     (lookup ref.key . snd <$> get) >>= \case
         Just r  -> pure r
         Nothing -> pure ref
 
-refreshBinder
-    :: Refr
-    -> StateT (Int, Map Int Refr) IO Refr
+refreshBinder :: Refr -> StateT (Int, Map Int Refr) IO Refr
 refreshBinder ref = do
     tab <- snd <$> get
     let key = ref.key
@@ -118,9 +123,7 @@ refreshBinder ref = do
             modifying _2 (insertMap key r)
             pure r
 
-duplicateFun
-    :: Fun Refr b
-    -> StateT (Int, Map Int Refr) IO (Fun Refr b)
+duplicateFun :: Fun Refr b -> StateT (Int, Map Int Refr) IO (Fun Refr b)
 duplicateFun (FUN self name args body) = do
     self' <- refreshBinder self
     args' <- traverse refreshBinder args
@@ -161,11 +164,7 @@ resolveFun env (FUN self tag args body) = do
     bodyR <- resolveExp envir body
     pure (FUN selfR tag argsR bodyR)
 
-resolveExp
-    :: MonadIO m
-    => Map Symb Refr
-    -> Exp Symb Symb
-    -> m (Exp Refr Symb)
+resolveExp :: MonadIO m => Map Symb Refr -> Exp Symb Symb -> m (Exp Refr Symb)
 resolveExp e = liftIO . \case
     EVAL b     -> pure (EVAL b)
     EREF r     -> pure (maybe (EREF r) EVAR (lookup r e))
@@ -205,12 +204,7 @@ numRefs k = \case
 
 -- Optimization ----------------------------------------------------------------
 
-optimizeLet
-    :: (Int, IntMap CRes)
-    -> Refr
-    -> Exp Refr Global
-    -> Exp Refr Global
-    -> ExceptT Text IO CRes
+optimizeLet :: (Int, IntMap CRes) -> Refr -> Expr -> Expr -> ExceptT Text IO CRes
 optimizeLet s@(nex, tab) refNam expr body = do
   let recurRef = numRefs k expr > 0
       multiRef = numRefs k body >= 2
@@ -268,7 +262,7 @@ optimizeLet s@(nex, tab) refNam expr body = do
     TODO If we lifted anything, need to replace self-reference with a
          new binding.
 -}
-lambdaLift :: Bool -> Fun Refr Global -> ExceptT Text IO (Exp Refr Global)
+lambdaLift :: Bool -> Func -> ExceptT Text IO Expr
 lambdaLift = doLift
   where
     doLift pinned f@(FUN self tag args body) = do
@@ -283,7 +277,7 @@ lambdaLift = doLift
     app fn []     = fn
     app fn (x:xs) = app (EAPP fn x) xs
 
-    injectFun :: Bool -> Fun Refr Global -> ExceptT Text IO Fan
+    injectFun :: Bool -> Func -> ExceptT Text IO Fan
     injectFun pinned (FUN self nam args exr) = do
         x <- expBod (nexVar, environ) exr
         let rul = RUL nam (fromIntegral ari) x.code
@@ -322,11 +316,7 @@ lambdaLift = doLift
 
 -- Inlining --------------------------------------------------------------------
 
-inlineExp
-    :: IntMap CRes
-    -> Exp Refr Global
-    -> [Exp Refr Global]
-    -> ExceptT Text IO (Exp Refr Global)
+inlineExp :: IntMap CRes -> Expr -> [Expr] -> ExceptT Text IO Expr
 inlineExp tab f xs =
     case f of
         ELAM _ l             -> doFunc l xs
@@ -361,10 +351,10 @@ inlineExp tab f xs =
 
 -- Sire Expression to Law Body -------------------------------------------------
 
-expBod :: (Int, IntMap CRes) -> Exp Refr Global -> ExceptT Text IO CRes
+expBod :: (Int, IntMap CRes) -> Expr -> ExceptT Text IO CRes
 expBod = go
   where
-    go :: (Int, IntMap CRes) -> Exp Refr Global -> ExceptT Text IO CRes
+    go :: (Int, IntMap CRes) -> Expr -> ExceptT Text IO CRes
     go s@(_nex, tab) = \case
         EVAL b         -> pure CR{ arity  = fromIntegral (F.trueArity b)
                                  , code   = BCNS $ REF $ G b Nothing
@@ -419,10 +409,7 @@ expBod = go
         TODO This only looks at `EVAR`, would be much shorter to write using
         `uniplate` or whatever.
     -}
-    inlineTrivial
-        :: IntMap CRes
-        -> Fun Refr Global
-        -> Fun Refr Global
+    inlineTrivial :: IntMap CRes -> Func -> Func
     inlineTrivial tab (FUN self tag args body) =
         FUN self tag args (loop body)
       where
