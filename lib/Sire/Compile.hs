@@ -22,7 +22,6 @@ import Control.Monad.Except (ExceptT(..), runExceptT)
 import Control.Monad.State  (StateT(..), evalStateT, get)
 import Loot.Syntax          (symbRex)
 import Loot.Types           (Bod(..), LawName(LN), Rul(..), Val(..))
-import Optics               (_3)
 import Optics.Zoom          (zoom)
 
 import qualified Data.Map as M
@@ -56,6 +55,31 @@ instance Ord Refr where compare x y = compare x.key y.key
 instance Show Refr where
     show r = unpack (showSymb r.name) <> "_" <> show r.key
     -- TODO Doesn't handle all cases correctly
+
+
+--------------------------------------------------------------------------------
+
+
+{-
+    The compilation result:
+
+    -   [args]: If the expression is a constant, this is the number
+        of extra arguments that can be applied before the expression is
+        no longer constant.  If the expression is not constant, this is
+        set to 0.
+
+    -   [code]: The actual PLAN law-code that this compiles into.
+
+    -   [inline]: This it the function that would be used for inlining
+        if inlining were requested against this.  If this is a reference
+        to a known function (local or global), then the value will be
+        set to (Just fun) otherwise Nothing.
+-}
+data CRes = CR
+    { arity  :: Nat
+    , code   :: Bod Global
+    , inline :: Inliner
+    }
 
 
 -- Gensym ----------------------------------------------------------------------
@@ -182,39 +206,42 @@ numRefs k = \case
 -- Optimization ----------------------------------------------------------------
 
 optimizeLet
-    :: (Int, IntMap (Int, Bod Global, Maybe (Fun Refr Global)))
+    :: (Int, IntMap CRes)
     -> Refr
     -> Exp Refr Global
     -> Exp Refr Global
-    -> ExceptT Text IO (Int, Bod Global, Inliner)
+    -> ExceptT Text IO CRes
 optimizeLet s@(nex, tab) refNam expr body = do
   let recurRef = numRefs k expr > 0
       multiRef = numRefs k body >= 2
   if
     trivialExp expr || (not recurRef && not multiRef)
   then do
-    (varg, vv, mBodLin) <- expBod s expr
-    let s' = (nex, insertMap k (varg, vv, mBodLin) tab)
-    (barg, bb, mArgLin) <- expBod s' body
-    let rarg = if (varg == 0) then 0 else barg
-    pure (rarg, bb, mArgLin)
+    v <- expBod s expr
+    let s' = (nex, insertMap k v tab)
+    b <- expBod s' body
+    pure if (v.arity==0) then b{arity=0} else b
   else
     if not recurRef
     then do
-      let s' = (nex+1, insertMap k (0, var nex, Nothing) tab)
-      (varg, vv, mBodLin) <- expBod s' expr
-      let s'' = (nex+1, insertMap k (0, var nex, mBodLin) tab)
-      (barg, bb, _) <- expBod s'' body
-      let rarg = if (varg == 0 || barg == 0) then 0 else barg-1
-          -- TODO Why barg-1?  Shouldn't it just be `barg`?
-      pure (rarg, BLET vv bb, Nothing)
+      let s' = (nex+1, insertMap k (CR 0 (var nex) Nothing) tab)
+      v <- expBod s' expr
+      let s'' = (nex+1, insertMap k (CR 0 (var nex) v.inline) tab)
+      b <- expBod s'' body
+      pure CR { arity  = if (v.arity == 0 || b.arity == 0) then 0 else b.arity-1
+              , code   = BLET v.code b.code
+              , inline = Nothing
+              }
+          -- TODO Why b.arity-1?  Shouldn't it just be `b.arity`?
     else do
-      let s' = (nex+1, insertMap k (0, var nex, Nothing) tab)
-      (varg, vv, _) <- expBod s' expr
-      (barg, bb, _) <- expBod s' body
-      let rarg = if (varg == 0 || barg == 0) then 0 else barg-1
-          -- TODO Why barg-1?  Shouldn't it just be `barg`?
-      pure (rarg, BLET vv bb, Nothing)
+      let s' = (nex+1, insertMap k (CR 0 (var nex) Nothing) tab)
+      v <- expBod s' expr
+      b <- expBod s' body
+      pure CR { arity  = if (v.arity == 0 || b.arity == 0) then 0 else b.arity-1
+              , code   = BLET v.code b.code
+              , inline = Nothing
+              }
+          -- TODO Why b.arity-1?  Shouldn't it just be `b.arity`?
   where
     k = refNam.key
     var = BVAR . fromIntegral
@@ -258,15 +285,15 @@ lambdaLift = doLift
 
     injectFun :: Bool -> Fun Refr Global -> ExceptT Text IO Fan
     injectFun pinned (FUN self nam args exr) = do
-        (_, b, _) <- expBod (nexVar, environ) exr
-        let rul = RUL nam (fromIntegral ari) b
+        x <- expBod (nexVar, environ) exr
+        let rul = RUL nam (fromIntegral ari) x.code
         let fan = ruleFanOpt $ fmap (.val) rul
         pure (if pinned then F.mkPin fan else fan)
       where
         ari = length args
         nexVar = ari+1
         argKeys = (.key) <$> (self : toList args)
-        argRefs = ((0,,Nothing) . BVAR <$> [0..])
+        argRefs = (\k -> CR 0 k Nothing) . BVAR <$> [0..]
         environ = mapFromList (zip argKeys argRefs)
 
     freeVars :: forall b. Fun Refr b -> Set Refr
@@ -296,7 +323,7 @@ lambdaLift = doLift
 -- Inlining --------------------------------------------------------------------
 
 inlineExp
-    :: IntMap (Int, Bod Global, Inliner)
+    :: IntMap CRes
     -> Exp Refr Global
     -> [Exp Refr Global]
     -> ExceptT Text IO (Exp Refr Global)
@@ -314,7 +341,7 @@ inlineExp tab f xs =
         noInline "Head of ! expression is not a known function"
 
     doVar v =
-        case (lookup v.key tab >>= view _3) of
+        case (lookup v.key tab >>= (.inline)) of
             Nothing -> noInline "Not a function"
             Just fn -> doFunc fn xs
 
@@ -334,39 +361,39 @@ inlineExp tab f xs =
 
 -- Sire Expression to Law Body -------------------------------------------------
 
-expBod
-    :: (Int, IntMap (Int, Bod Global, Inliner))
-    -> Exp Refr Global
-    -> ExceptT Text IO (Int, Bod Global, Inliner)
+expBod :: (Int, IntMap CRes) -> Exp Refr Global -> ExceptT Text IO CRes
 expBod = go
   where
+    go :: (Int, IntMap CRes) -> Exp Refr Global -> ExceptT Text IO CRes
     go s@(_nex, tab) = \case
-        EVAL b         -> do let ari = F.trueArity b
-                             pure ( fromIntegral ari
-                                  , BCNS (REF (G b Nothing))
-                                  , Nothing
-                                  )
+        EVAL b         -> pure CR{ arity  = fromIntegral (F.trueArity b)
+                                 , code   = BCNS $ REF $ G b Nothing
+                                 , inline = Nothing
+                                 }
         ELAM p f       -> do lifted <- lambdaLift p (inlineTrivial tab f)
                              bodied <- go s lifted
-                             let (arity, bod, _) = bodied
-                             pure (arity, bod, Just f)
+                             pure bodied{inline=Just f}
                                -- TODO Inlining Flag
         EVAR r         -> pure $ fromMaybe (error "Internal Error")
                                $ lookup r.key tab
-        EREF (G t i)   -> pure ( fromIntegral (F.trueArity t)
-                               , BCNS (REF (G t i))
-                               , i
-                               )
+        EREF (G t i)   -> pure CR{ arity  = fromIntegral (F.trueArity t)
+                                 , code   = BCNS $ REF $ G t i
+                                 , inline = i
+                                 }
 
-        EAPP f x -> do
-            fR <- go s f
-            xR <- go s x
-            pure $ case (fR, xR) of
-                ((_, fv, _),     (0,xv,_)     ) -> (0,   BAPP fv xv,       Nothing)
-                ((0, fv, _),     (_,xv,_)     ) -> (0,   BAPP fv xv,       Nothing)
-                ((1, fv, _),     (_,xv,_)     ) -> (0,   BAPP fv xv,       Nothing)
-                ((a, BCNS fk, _),(_,BCNS xk,_)) -> (a-1, BCNS (APP fk xk), Nothing)
-                ((a, fv, _),     (_,xv,_)     ) -> (a-1, BAPP fv xv,       Nothing)
+        EAPP fRaw xRaw -> do
+          f <- go s fRaw
+          x <- go s xRaw
+
+          let dynApp arity     = CR arity (BAPP f.code x.code) Nothing
+          let cnsApp arity a b = CR arity (BCNS $ APP a b)     Nothing
+
+          pure case (f, x) of
+              ( _               , CR{arity=0}     ) -> dynApp 0
+              ( CR{arity=0}     , _               ) -> dynApp 0
+              ( CR{arity=1}     , _               ) -> dynApp 0
+              ( CR{code=BCNS a} , CR{code=BCNS b} ) -> cnsApp (f.arity - 1) a b
+              ( _               , _               ) -> dynApp (f.arity - 1)
 
         ELIN (f :| []) -> go s f
 
@@ -393,7 +420,7 @@ expBod = go
         `uniplate` or whatever.
     -}
     inlineTrivial
-        :: IntMap (Int, Bod Global, Inliner)
+        :: IntMap CRes
         -> Fun Refr Global
         -> Fun Refr Global
     inlineTrivial tab (FUN self tag args body) =
@@ -407,21 +434,24 @@ expBod = go
             ELIN xs    -> ELIN (loop <$> xs)
             EREC n v b -> EREC n (loop v) (loop b)
             ELET n v b -> ELET n (loop v) (loop b)
-            EVAR v     -> case lookup v.key tab of
-                            Just (0, _, _)      -> EVAR v -- TODO: does this matter?
-                            Just (_, BCNS c, _) -> EVAL (valFan ((.val) <$> c))
-                            _                   -> EVAR v
+            EVAR v     ->
+                case lookup v.key tab of
+                   Just CR{arity=0}     -> EVAR v -- TODO: does this matter?
+                   Just CR{code=BCNS c} -> EVAL (valFan ((.val) <$> c))
+                   _                    -> EVAR v
 
 
 -- The Sire Compiler -----------------------------------------------------------
 
+-- TODO: Why do we pass 1 in @expBod (1, mempty) expr@?
 compileSire :: Map Symb Global -> XExp -> ExceptT Text IO Global
 compileSire scope ast = do
     body <- resolveExp mempty ast
     expr <- traverse (getRef scope) body
-    (_, b, inliner) <- expBod (1, mempty) expr -- TODO: Why 1?
-    let fan = ruleFanOpt $ RUL (LN 0) 0 $ fmap (.val) b
-    pure (G fan inliner)
+    cRes <- expBod (1, mempty) expr
+    let fan = ruleFanOpt $ RUL (LN 0) 0
+                         $ fmap (.val) cRes.code
+    pure (G fan cRes.inline)
   where
     getRef :: Map Symb Global -> Symb -> ExceptT Text IO Global
     getRef env nam = do
