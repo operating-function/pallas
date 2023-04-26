@@ -558,30 +558,36 @@ e
 * PULL_ATTR expr:AttrExpr
 * PULL_MAP spec:(Row [AttrExpr (Row ParsedPull)])
 
+; cps
+> [Either [e] a] > ([a] > Either [e] b) > Either [e] b
+= (traverseForErrors vals cont)
+@ [errs parsedVals] | partition vals
+| ifNot | isZero | len errs
+  | *LEFT errs
+| cont parsedVals
+
+; On error, return the error and don't progress further.
+> Either e a > (a > Either e b) > Either e b
+= (doRight val cont)
+# datacase val
+* (LEFT l)  | LEFT l
+* (RIGHT r) | cont r
+
 > DB > Any > Either [Error] ParsedPull
 = (parse db val)
 | if | isRow val
   ; TODO: all non simple list forms.
   | *LEFT "todo: any map term"
 | if | isTab val
-  @ [errs specs]
-    | partition
-    ^ map _ | tabToPairs val
-    & [k v]
-    # datacase | parse db k
-    * (LEFT new) | LEFT new
-    * (RIGHT parsed)
-      # datacase parsed
-      * (PULL_ATTR keyExpr)
-        @ [errs parsedVals]
-          | partition
-          | map (parse db) v
-        | ifNot | isZero | len errs
-          | *LEFT errs
-        | *RIGHT [keyExpr parsedVals]
-      * _ | *LEFT | *BAD_MAP_VAL parsed
-  | ifNot | isZero | len errs
-    | *LEFT errs
+  : specs <- traverseForErrors
+               ^ map _ | tabToPairs val
+               & [k v]
+               : parsed <- doRight | parse db k
+               # datacase parsed
+               * (PULL_ATTR keyExpr)
+                 : parsedVals <- traverseForErrors | map (parse db) v
+                 | *RIGHT [keyExpr parsedVals]
+               * _ | *LEFT | *BAD_MAP_VAL parsed
   | *RIGHT | PULL_MAP specs
 ; TODO: reverse lookups
 | if (val == "*")
@@ -594,60 +600,54 @@ e
 = (lookupAttr db eid expr)
 # datacase expr
 * (ATTR_EXPR name options)
-  # datacase (resolveAttrName name db)
-  * (LEFT err)
-    | *LEFT err
-  * (RIGHT [aid indexed unique isMany isRef])
-    @ outputKey | fromSome name | tabLookup ":as" options
-    @ rawCab | lookupByEidAid eid aid db
-    ; TODO: handle limits in rawCab.
-    | *RIGHT [outputKey rawCab [indexed unique isMany isRef]]
+  : [aid indexed unique isMany isRef] <- doRight | resolveAttrName name db
+  @ outputKey | fromSome name | tabLookup ":as" options
+  @ rawCab | lookupByEidAid eid aid db
+  ; TODO: handle limits in rawCab.
+  | *RIGHT [outputKey rawCab [indexed unique isMany isRef]]
 
-> [(List Error) (Tab Any Any) Nat DB]
+> Nat
+> DB
 > ParsedPull
-> [(List Error) (Tab Any Any) Nat DB]
-= (lookupSpec [errs t eid db] item)
+> Either Error [Any Any]
+= (lookupSpec eid db item)
 # datacase item
 * PULL_WILDCARD
   ; We have to return a map of all attributes to their values, including
   ; recursively, which is hard. We need to already have individual
   | 'pull wildcard unimplemented' 0
 * (PULL_ATTR expr)
-  # datacase | lookupAttr db eid expr
-  * (LEFT err)
-    [(*CONS err errs) t eid db]
-  * (RIGHT [outputKey cab [indexed unique isMany isRef]])
-    | if | cabIsEmpty cab
-      [errs t eid db]
-    ;
-    | if isRef
-      | 'todo: isRef' 0
-    | if isMany
-      ; many/non-ref
-      [errs (tabMut outputKey (cabRow cab) t) eid db]
-    ;
-    [errs (tabMut outputKey (cabFirst cab) t) eid db]
+  : [outputKey cab [indexed unique isMany isRef]]
+    <- doRight | lookupAttr db eid expr
+  | if | cabIsEmpty cab
+    | trk [%empty]
+    | *RIGHT []
+  ;
+  | if isRef
+    | 'todo: isRef' 0
+  | if isMany
+    ; many/non-ref
+    | *RIGHT [outputKey (cabRow cab)]
+  ;
+  | *RIGHT [outputKey (cabFirst cab)]
 * (PULL_MAP spec)
   ; Need to process the map here. This is a key from a eid ref to all the values
   ; which match it.
-  ^ foldl _ [errs t eid db] spec
-  & ([errs t eid db] [k v])
-  # datacase | lookupAttr db eid k
-  * (LEFT err)
-    [(*CONS err errs) t eid db]
-  * (RIGHT [outputKey cab [indexed unique isMany isRef]])
-    @ [newErrs result]
-      ^ foldl _ [errs NIL db] | cabRow cab
-      ? (lookupSubEid [errs subres db] subeid)
-      @ [suberrs result] | foldl lookupSpec [NIL %[] subeid db] v
-      [errs (*CONS result subres) db]
-    | ifNot | isZero | len newErrs
-      [(*CONS newErrs errs) t eid db]
-    @ o | tabMut outputKey (listToRow result) t
-    ,, errs
-    ,, o
-    ,, eid
-    ,, db
+  : result <- traverseForErrors
+                 ^ map _ spec
+                 & ([k v])
+                 : [outputKey cab [indexed unique isMany isRef]]
+                   <- doRight | lookupAttr db eid k
+                 : result <- traverseForErrors
+                               @ lookupSpecRawOut
+                                 ^ map _ | cabRow cab
+                                 ? (lookupSubEid subeid)
+                                 : result <- traverseForErrors
+                                               | map (lookupSpec subeid db) v
+                                 | *RIGHT | tabFromPairs result
+                               lookupSpecRawOut
+                 | *RIGHT [outputKey result]
+  | *RIGHT | cat result
 
 ; General lookup function which returns information starting at an entity.
 ;
@@ -658,43 +658,28 @@ e
 > Any > Any > DB > Either [Error] (Tab Any Any)
 = (pull pullSpec eidSpec db)
 : [eid _ _] <- *eitherCase | parseEntityId %[] db eidSpec
-                 'error in eid spec: '
+                 l&(*LEFT [l])
 | ifNot | isRow pullSpec
   | *LEFT [(*PULL_NOT_ROW pullSpec)]
-@ [errs specs] | partition | map (parse db) pullSpec
-| ifNot | isZero | len errs
-  | *LEFT errs
-@ [errs result] | foldl lookupSpec [NIL %[] eid db] specs
-| ifNot | listNull errs
-  | *LEFT | listToRow errs
-| *RIGHT result
+: specs  <- traverseForErrors | map (parse db) pullSpec
+: result <- traverseForErrors | map (lookupSpec eid db) specs
+| *RIGHT | tabFromPairs result
 
 ; General lookup function which returns information for multiple entities.
 ;
 > Any > Row Any > DB > Either [Error] [(Tab Any Any)]
 = (pullMany pullSpec rowEidSpec db)
-@ [errs eids]
-  | partition
-  ^ map _ rowEidSpec
-  & eidSpec
-  # datacase | parseEntityId %[] db eidSpec
-  * (LEFT l)          | *LEFT l
-  * (RIGHT [eid _ _]) | *RIGHT eid
-| ifNot | isZero | len errs
-  | *LEFT errs
-@ [errs specs] | partition | map (parse db) pullSpec
-| ifNot | isZero | len errs
-  | *LEFT errs
-@ [errs results]
-  | partition
-  ^ map _ eids
-  & eid
-  @ [errs result] | foldl lookupSpec [NIL %[] eid db] specs
-  | ifNot | listNull errs
-    | *LEFT | listToRow errs
-  | *RIGHT result
-| ifNot | isZero | len errs
-  | *LEFT | cat errs
+: eids <- traverseForErrors
+            ^ map _ rowEidSpec
+            & eidSpec
+            : [eid _ _] <- doRight | parseEntityId %[] db eidSpec
+            | *RIGHT eid
+: specs <- traverseForErrors | map (parse db) pullSpec
+: results <- traverseForErrors
+               ^ map _ eids
+               & eid
+               : result <- traverseForErrors | map (lookupSpec eid db) specs
+               | *RIGHT | tabFromPairs result
 | *RIGHT results
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

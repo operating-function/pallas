@@ -238,9 +238,9 @@
 
 ; What was Bob's order?
 !!=    | RIGHT %% =":order/name" "Bob"
-               %% =":order/lineItems" ,, %% =":item/product" "Guinness"
+               %% =":order/lineItems" ,, %% =":item/product" "Hamburger"
                                          %% =":item/quantity" 1
-                                      ,, %% =":item/product" "Hamburger"
+                                      ,, %% =":item/product" "Guinness"
                                          %% =":item/quantity" 1
     @ bobId | cabFirst | lookupByAV ":order/name" "Bob" multiOrders
     ^ pull _ bobId multiOrders
