@@ -31,6 +31,7 @@ module Loot.Syntax
     , bodRex
     , joinRex
     , readKey
+    , readKEY
     , readName
     , readNumb
     , readNat

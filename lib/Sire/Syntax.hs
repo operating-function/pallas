@@ -16,7 +16,7 @@ import Control.Monad.State
 import Fan.Print    (dent)
 import Loot.Backend (plunVal, valFan)
 import Loot.Types   (LawName(..), Val(..), XTag(..), xtagTag)
-import Loot.Syntax  (readArgs, readSigy)
+import Loot.Syntax  (readArgs, readSymb)
 
 import qualified Fan
 import qualified Loot.ReplExe as Loot
@@ -184,13 +184,13 @@ readCmdSeq = do
 readDefine :: (RexColor, HasMacroEnv) => Red [Bind Symb Symb]
 readDefine = do
     rune "#=" <|> rune "="
-    ((t,args), f, andThen) <- go
+    (((i,t),args), f, andThen) <- go
     let nm = xtagIdn t
         ky = xtagKey t
         tg = xtagTag t
         res = case args of
                 []   -> BIND ky nm f
-                r:rs -> BIND ky nm $ ELAM True $ FUN nm (LN tg) (r:rs) f
+                r:rs -> BIND ky nm $ ELAM True $ FUN i nm (LN tg) (r:rs) f
     pure (res : andThen)
   where
     go = asum
@@ -201,9 +201,10 @@ readDefine = do
 
     (b, x, c) = (simple <|> complex, readExpr, readDefine)
 
-    simple = (,[]) . Loot.simpleTag <$> withIdent Loot.readBymb
+    simple = withIdent Loot.readBymb <&> \a  ->
+                ((False, Loot.simpleTag a), [])
 
-    complex = rune "|" >> form1N Loot.readXTag Loot.readKey
+    complex = rune "|" >> form1N readSigHead Loot.readKey
 
 
 -- Functions -------------------------------------------------------------------
@@ -214,11 +215,6 @@ valFanRex = fmap absurd
           . Loot.valRex
           . Loot.resugarVal mempty
           . fmap (utf8Nat . rexLine . Loot.plunRex)
-
-readSymb :: Red Symb
-readSymb = Loot.readIdnt
-       <|> (rune "#." >> form1 Loot.readKey)
-       <|> (rune "." >> form1 Loot.readKey)
 
 readText :: Red Text
 readText = matchLeaf "page" \case
@@ -270,20 +266,41 @@ readExpr = do
 
         , do (rune "#&" <|> rune "&")
              (rs, b) <- form2c readArgs readExpr
-             pure (ELAM False (FUN 0 (LN 0) (toList rs) b))
+             pure (ELAM False (FUN False 0 (LN 0) (toList rs) b))
 
         , do (rune "#?" <|> rune "?")
-             ((t,rs),b) <- form2c readSigy readExpr
-             pure (ELAM False (FUN (xtagIdn t) (LN $ xtagTag t) (toList rs) b))
+             ((i,t,rs),b) <- form2c readSigy readExpr
+             pure (ELAM False (FUN i (xtagIdn t) (LN $ xtagTag t) (toList rs) b))
 
         , do (rune "#??" <|> rune "??")
-             ((t,rs),b) <- form2c readSigy readExpr
-             pure (ELAM True (FUN (xtagIdn t) (LN $ xtagTag t) (toList rs) b))
+             ((i,t,rs),b) <- form2c readSigy readExpr
+             pure (ELAM True (FUN i (xtagIdn t) (LN $ xtagTag t) (toList rs) b))
         ]
 
 readAppHead :: (RexColor, HasMacroEnv) => Red (Either Symb (Exp Symb Symb))
 readAppHead =
   (Left <$> (rune "*" >> form1 readSymb)) <|> (Right <$> readExpr)
+
+
+-- Function Signatures ---------------------------------------------------------
+
+readSigy :: Red (Bool, XTag, NonEmpty Symb)
+readSigy = do
+    rune "|"
+    ((inline, t), x, xs) <- form2N readSigHead readSymb readSymb
+    pure (inline, t, x:|xs)
+
+readSigHead :: Red (Bool, XTag)
+readSigHead = (rune "*" >> form1 ((True,) <$> normal))
+          <|> (False,) <$> normal
+  where
+    normal = asum
+        [ Loot.readKEY <&> \(n,k) -> XTAG n Nothing k
+        , rune "@" >> asum
+              [ form2 Loot.readKEY Loot.readKey <&> \((n,k),t) -> XTAG n (Just t) k
+              , form1 Loot.readKEY              <&> \(n,k)     -> XTAG n Nothing k
+              ]
+        ]
 
 
 -- Macro Runner ----------------------------------------------------------------

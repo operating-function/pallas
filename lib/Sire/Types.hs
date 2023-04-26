@@ -44,8 +44,13 @@ type XCmd = Cmd Symb Symb
     outside scope, and @w@ is use for self-references.  The difference
     doesn't matter during parsing, but it matters in code transformations.
 -}
-data Fun v a
-    = FUN v LawName [v] (Exp v a)
+data Fun v a = FUN
+    { inlinePls :: Bool
+    , self      :: v
+    , lawTag    :: LawName
+    , args      :: [v]
+    , body      :: Exp v a
+    }
  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
 {-|

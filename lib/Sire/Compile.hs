@@ -124,11 +124,11 @@ refreshBinder ref = do
             pure r
 
 duplicateFun :: Fun Refr b -> StateT (Int, Map Int Refr) IO (Fun Refr b)
-duplicateFun (FUN self name args body) = do
+duplicateFun (FUN iline self name args body) = do
     self' <- refreshBinder self
     args' <- traverse refreshBinder args
     body' <- duplicateExp body
-    pure (FUN self' name args' body')
+    pure (FUN iline self' name args' body')
 
 -- Duplicates an expression, creating fresh Refrs for each binding.
 duplicateExp :: Exp Refr b -> StateT (Int, Map Int Refr) IO (Exp Refr b)
@@ -153,7 +153,7 @@ duplicateExpTop e = evalStateT (duplicateExp e) (0, mempty)
 -- Name Resolution -------------------------------------------------------------
 
 resolveFun :: Map Symb Refr -> Fun Symb Symb -> IO (Fun Refr Symb)
-resolveFun env (FUN self tag args body) = do
+resolveFun env (FUN iline self tag args body) = do
     selfR <- gensym self
     argsR <- traverse gensym args
     envir <- pure (M.union
@@ -162,7 +162,7 @@ resolveFun env (FUN self tag args body) = do
                          (selfR : toList argsR)))
                       env)
     bodyR <- resolveExp envir body
-    pure (FUN selfR tag argsR bodyR)
+    pure (FUN iline selfR tag argsR bodyR)
 
 resolveExp :: MonadIO m => Map Symb Refr -> Exp Symb Symb -> m (Exp Refr Symb)
 resolveExp e = liftIO . \case
@@ -188,14 +188,14 @@ resolveExp e = liftIO . \case
 
 numRefs :: Int -> Exp Refr b -> Int
 numRefs k = \case
-    EVAR r               -> if r.key == k then 1 else 0
-    EVAL{}               -> 0
-    EREF{}               -> 0
-    EAPP f x             -> go f + go x
-    ELIN xs              -> sum (go <$> xs)
-    EREC _ v b           -> go v + go b
-    ELET _ v b           -> go v + go b
-    ELAM _ (FUN _ _ _ b) -> min 1 (go b)
+    EVAR r                 -> if r.key == k then 1 else 0
+    EVAL{}                 -> 0
+    EREF{}                 -> 0
+    EAPP f x               -> go f + go x
+    ELIN xs                -> sum (go <$> xs)
+    EREC _ v b             -> go v + go b
+    ELET _ v b             -> go v + go b
+    ELAM _ (FUN _ _ _ _ b) -> min 1 (go b)
     --- Multiple references from a sub-functions only counts as one because
     --- it will be lambda-lifted (hence only used once).
   where
@@ -265,12 +265,12 @@ optimizeLet s@(nex, tab) refNam expr body = do
 lambdaLift :: Bool -> Func -> ExceptT Text IO Expr
 lambdaLift = doLift
   where
-    doLift pinned f@(FUN self tag args body) = do
+    doLift pinned f@(FUN iline self tag arity body) = do
         let lifts = toList (freeVars f) :: [Refr]
         let liftV = EVAR <$> lifts
         let self' = self {key=234873455} -- TODO gensym
         let body' = EREC self (app (EVAR self') liftV)  body
-        let funct = FUN self' tag (lifts <> args) body'
+        let funct = FUN iline self' tag (lifts <> arity) body'
         fan <- injectFun pinned funct
         pure $ app (EREF (G fan Nothing)) liftV
 
@@ -278,15 +278,15 @@ lambdaLift = doLift
     app fn (x:xs) = app (EAPP fn x) xs
 
     injectFun :: Bool -> Func -> ExceptT Text IO Fan
-    injectFun pinned (FUN self nam args exr) = do
+    injectFun pinned (FUN _iline self nam arity exr) = do
         x <- expBod (nexVar, environ) exr
         let rul = RUL nam (fromIntegral ari) x.code
         let fan = ruleFanOpt $ fmap (.val) rul
         pure (if pinned then F.mkPin fan else fan)
       where
-        ari = length args
+        ari = length arity
         nexVar = ari+1
-        argKeys = (.key) <$> (self : toList args)
+        argKeys = (.key) <$> (self : toList arity)
         argRefs = (\k -> CR 0 k Nothing) . BVAR <$> [0..]
         environ = mapFromList (zip argKeys argRefs)
 
@@ -294,8 +294,8 @@ lambdaLift = doLift
     freeVars = goFun mempty
      where
         goFun :: Set Refr -> Fun Refr b -> Set Refr
-        goFun ours (FUN self _ args body) =
-          let keyz = setFromList (self : toList args)
+        goFun ours (FUN _ self _ arity body) =
+          let keyz = setFromList (self : toList arity)
           in go (ours <> keyz) body
 
         go :: Set Refr -> Exp Refr b -> Set Refr
@@ -335,7 +335,7 @@ inlineExp tab f xs =
             Nothing -> noInline "Not a function"
             Just fn -> doFunc fn xs
 
-    doFunc (FUN self _ args body) params = do
+    doFunc (FUN _ self _ args body) params = do
         case ( compare (length params) (length args)
              , numRefs self.key body
              )
@@ -410,8 +410,8 @@ expBod = go
         `uniplate` or whatever.
     -}
     inlineTrivial :: IntMap CRes -> Func -> Func
-    inlineTrivial tab (FUN self tag args body) =
-        FUN self tag args (loop body)
+    inlineTrivial tab (FUN iline self tag args body) =
+        FUN iline self tag args (loop body)
       where
         loop = \case
             EVAL b     -> EVAL b
