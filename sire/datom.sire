@@ -566,6 +566,7 @@ e
 
 # datatype AttrExpr
 * ATTR_EXPR name:String options:(Tab String Any)
+* ATTR_BACKWARDS name:String options:(Tab String Any)
 
 # datatype ParsedPull
 * PULL_WILDCARD
@@ -587,6 +588,24 @@ e
 * (LEFT l)  | LEFT l
 * (RIGHT r) | cont r
 
+; If nat is a backwards lookup, return the real attribute name in a SOME.
+;
+; Datomic and its descendants represent backward lookups by just changing the
+; last component of the attribute name to start with a '_'. We should find a
+; better way to represent this, but for now, literally clone.
+;
+> Nat > Some Nat
+= (isBackwardsAttribute n)
+@ bar | natBar n
+: lastIdx < maybeCase (barElemIndexEnd "/" bar) NONE
+@ [first last] | barSplitAt (inc lastIdx) bar
+| if (neq '_' | barGet last 0)
+    | NONE
+| *SOME
+| barNat
+| barWeld first
+| barDrop 1 last
+
 > DB > Any > Either [Error] ParsedPull
 = (parse db val)
 | if | isRow val
@@ -604,22 +623,35 @@ e
             | RIGHT [keyExpr parsedVals]
         * _ | LEFT | *BAD_MAP_VAL parsed
     | RIGHT | PULL_MAP specs
-; TODO: reverse lookups
 | if (val == "*")
     | RIGHT PULL_WILDCARD
 | if (isNat val)
-    | RIGHT | *PULL_ATTR (ATTR_EXPR val %[])
+    | RIGHT
+    | *PULL_ATTR
+    : realName
+        < maybeCase | isBackwardsAttribute val
+        | ATTR_EXPR val %[]
+    | ATTR_BACKWARDS realName %[]
 | LEFT | *BAD_PULL_TERM val
 
 > Either Error [Str (Cab Any) [Nat Bool Bool Bool Bool]]
 = (lookupAttr db eid expr)
-# datacase expr
-* (ATTR_EXPR name options)
-    : [aid indexed unique isMany isRef] <- doRight | resolveAttrName name db
-    @ outputKey | fromSome name | tabLookup ":as" options
-    @ rawCab | lookupByEidAid eid aid db
-    ; TODO: handle limits in rawCab.
-    | RIGHT [outputKey rawCab [indexed unique isMany isRef]]
+@ [name options lookup]
+    # datacase expr
+    * (ATTR_EXPR name options)
+        ,, name
+        ,, options
+        ,, aid&(lookupByEidAid eid aid db)
+    * (ATTR_BACKWARDS name options)
+        ,, name
+        ,, options
+        ,, aid&(lookupByVAid eid aid db)
+;
+: [aid indexed unique isMany isRef] <- doRight | resolveAttrName name db
+@ outputKey | fromSome name | tabLookup ":as" options
+@ rawCab | lookup aid
+; TODO: handle limits in rawCab.
+| RIGHT [outputKey rawCab [indexed unique isMany isRef]]
 
 > Nat
 > DB

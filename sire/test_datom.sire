@@ -247,3 +247,9 @@
     ,, ":order/name"
     ,, %% =":order/lineItems" ,, ":item/product"
                               ,, ":item/quantity"
+
+; Test backwards lookups, ie whose orders included tendies?
+!!=    | RIGHT %% =":order/lineItems" ,, %% =":order/name" "James"
+    @ tendiesId | cabFirst | lookupByAV ":item/product" "Tendies" multiOrders
+    ^ pull _ tendiesId multiOrders
+    ,, %% =":order/_lineItems" ,, ":order/name"
