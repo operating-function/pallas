@@ -126,7 +126,7 @@
    b#{/a/b}
 
 = (getFilename path)
-| *maybeCase (barElemIndexEnd "/" path)
+| **maybeCase (barElemIndexEnd "/" path)
     | die "weird filename"
 & lastIdx
 | barDrop (inc lastIdx) path
@@ -152,24 +152,24 @@
 | die msg
 
 = (assertMap jsonBS m@[h t])
-| *assertThat (eqlNat h %map) [%notAMap jsonBS m]
+| **assertThat (eqlNat h %map) [%notAMap jsonBS m]
 t
 
 = (assertNum n@[h t])
-| *assertThat (eqlNat h %num) [%notANum n]
+| **assertThat (eqlNat h %num) [%notANum n]
 t
 
 = (assertTabLookup key t)
-| *maybeCase (tabLookup key t) (die [%missingKey key])
+| **maybeCase (tabLookup key t) (die [%missingKey key])
 & (v)
 v
 
 = (assertVec v@[h t])
-| *assertThat (eqlNat h %vec) [%notAVec v]
+| **assertThat (eqlNat h %vec) [%notAVec v]
 t
 
 = (assertStr s@[h t])
-| *assertThat (eqlNat h %str) [%notAStr s]
+| **assertThat (eqlNat h %str) [%notAStr s]
 t
 
 = (jsonImgToRow jsonBS m)
@@ -271,23 +271,23 @@ t
 * STATUSCMD
 * SEARCHCMD offset:Nat tags:Any
 
-(bindMaybe mVal k)=(*maybeCase mVal NONE k)
+(bindMaybe mVal k)=(**maybeCase mVal NONE k)
 
 ;
 ; the json here being parsed is `{tag: "Search", contents: [array of str]}`.
 ;
 > Bar > Opt (Row Str)
 = (parseSearch jsonBS)
-: m <- *bindMaybe (jsonMap jsonBS)
+: m <- **bindMaybe (jsonMap jsonBS)
 | if | not | eql (SOME [%str b#{Search}]) | tabLookup %tag m
   NONE
-: jcontents <- *bindMaybe (tabLookup %contents m)
-: content   <- *bindMaybe (asJsonMap jcontents)
-: joffset   <- *bindMaybe (tabLookup %offset content)
-: offset    <- *bindMaybe (asJsonNum joffset)
-: jr        <- *bindMaybe (tabLookup %tags content)
-: r         <- *bindMaybe (asJsonRow jr)
-^ forRow r _ t&(SOME (*SEARCHCMD offset t))
+: jcontents <- **bindMaybe (tabLookup %contents m)
+: content   <- **bindMaybe (asJsonMap jcontents)
+: joffset   <- **bindMaybe (tabLookup %offset content)
+: offset    <- **bindMaybe (asJsonNum joffset)
+: jr        <- **bindMaybe (tabLookup %tags content)
+: r         <- **bindMaybe (asJsonRow jr)
+^ forRow r _ t&(SOME (**SEARCHCMD offset t))
 ? (step [h t] pure)
 | if | eqlNat h %str
   | pure | barNat t
@@ -297,9 +297,9 @@ NONE
 ; think all of this should be rewritten when we have more user friendly json
 ; usage components.
 = (parseCmd jsonBS)
-: jm <- *bindMaybe (jsonMap jsonBS)
-: jt <- *bindMaybe (tabLookup %tag jm)
-: tg <- *bindMaybe (asJsonStr jt)
+: jm <- **bindMaybe (jsonMap jsonBS)
+: jt <- **bindMaybe (tabLookup %tag jm)
+: tg <- **bindMaybe (asJsonStr jt)
 # switch tg
 * Search | parseSearch jsonBS
 * Status | SOME 0 ; STATUSCMD (but #datatype generated [0], not 0)
@@ -319,14 +319,14 @@ NONE
 !!= (SOME 0)
    | parseCmd b#{{"tag": "Status"}}
 
-(tagToStr t)=(*JSON_STR (natBar t))
+(tagToStr t)=(**JSON_STR (natBar t))
 
 = (buildStatus st)
 # openState st
-| *JSON_MAP
-%% =bytes | *JSON_NUM fileBytes
-%% =imgs  | *JSON_NUM imgCount
-%% =pairs | *JSON_NUM pairCount
+| **JSON_MAP
+%% =bytes | **JSON_NUM fileBytes
+%% =imgs  | **JSON_NUM imgCount
+%% =pairs | **JSON_NUM pairCount
 
 ; [hm hsm] [cord] > bar
 = (doSearch st [offset searchTags])
@@ -340,10 +340,10 @@ NONE
 ;| trk [%results missing idsets]
 | if | not | isZero | len missing
   ; send back the missing tags
-  | *JSON_MAP
- %% =tag      | *JSON_STR b#{BadTag}
- %% =contents | *JSON_VEC (map tagToStr missing)
- %% =status   | *buildStatus st
+  | **JSON_MAP
+ %% =tag      | **JSON_STR b#{BadTag}
+ %% =contents | **JSON_VEC (map tagToStr missing)
+ %% =status   | **buildStatus st
 ;
 @ ids
   | hsToCab
@@ -358,29 +358,29 @@ NONE
     | listToRow
     | listTurnMaybe targetIds
     & id
-    | *fmapMaybe (hmLookup id imgs)
+    | **fmapMaybe (hmLookup id imgs)
     & [_ _ url]
     @ path
       | ifNot local url
       ; generate a local server path from the id and the filename
       @ filename | getFilename url
       | mkBarPath [b#{img} (natBar | showNat id) filename]
-    | *JSON_VEC
-   ,, *JSON_NUM id
-   ,, *JSON_STR path
-| *JSON_MAP
-%% =tag      | *JSON_STR b#{OK}
-%% =contents | *JSON_MAP
-            %% =total  | *JSON_NUM | cabLen ids
-            %% =offset | *JSON_NUM offset
-            %% =query  | *JSON_VEC | map tagToStr searchTags
-            %% =slice  | *JSON_VEC records
-%% =status   | *buildStatus st
+    | **JSON_VEC
+   ,, **JSON_NUM id
+   ,, **JSON_STR path
+| **JSON_MAP
+%% =tag      | **JSON_STR b#{OK}
+%% =contents | **JSON_MAP
+            %% =total  | **JSON_NUM | cabLen ids
+            %% =offset | **JSON_NUM offset
+            %% =query  | **JSON_VEC | map tagToStr searchTags
+            %% =slice  | **JSON_VEC records
+%% =status   | **buildStatus st
 
 = (doStatus st)
-| *JSON_MAP
-%% =tag      | *JSON_STR b#{Status}
-%% =contents | *buildStatus st
+| **JSON_MAP
+%% =tag      | **JSON_STR b#{Status}
+%% =contents | **buildStatus st
 
 
 """ Website """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -393,11 +393,11 @@ NONE
 * POST
   # switch path
   * b#"/search"
-    : q <- *maybeCase (parseCmd body)
+    : q <- **maybeCase (parseCmd body)
              | SOME [400 b#bad [] b#{}]
     # datacase q
     * STATUSCMD
-      @ statusJson | *doStatus st
+      @ statusJson | **doStatus st
       @ statusBS   | printJSON statusJson
       | SOME [200 b#gotcha [] statusBS]
     * (SEARCHCMD offset tags)
@@ -405,28 +405,28 @@ NONE
       @ searchBS   | printJSON searchJson
       | SOME [200 b#gotcha [] searchBS]
 * GET
-  | *fmapMaybe | hmLookup (barNat path) (*getFiles st)
+  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
   & [type (PIN content)]
   @ head | [(b#{content-type}, type)]
   [200 b#gotcha head content]
 
 = (modifyState vSt fun return)
 : (PIN old) < readRef vSt
-@ srv       | *getServThread old
+@ srv       | **getServThread old
 @ pNew      | PIN (fun old)
 : _         < writeRef vSt pNew
-: _         < cancelFork srv (syscall (*HTTP_SERV | fileServer pNew))
+: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
 | return ()
 
 = (addLearningsToState vSt pBundle return)
 ;
 ; Take the lock, and inject the stuff
 : (PIN tmp) <- readRef vSt
-@ learnLock (*getLearnLock tmp)
+@ learnLock (**getLearnLock tmp)
 ;
 : ??(alts_locked _)   <- takeMVar learnLock
 : pOld                <- readRef vSt
-: ??(alts_evaled res) <- syscall (*EVAL 1000 [calcLearnSt pOld pBundle])
+: ??(alts_evaled res) <- syscall (**EVAL 1000 [calcLearnSt pOld pBundle])
 ;
 @ [nuImgs nuTags nuImgCount nuPairCount]
     (forceUnpackEvalResult %learn res)
@@ -442,20 +442,20 @@ NONE
 
 = (addToState vSt rid jsonPin return)
 ;
-: ??(ats_evaled evalResult) <- syscall (*EVAL 1000 [parseLearn jsonPin])
+: ??(ats_evaled evalResult) <- syscall (**EVAL 1000 [parseLearn jsonPin])
 ;
 # switch (len evalResult)
 * 0 | trk b#"TIMEOUT in /learn"
-    | syscall (*HTTP_ECHO rid 408 b#timeout [] b#{})
+    | syscall (**HTTP_ECHO rid 408 b#timeout [] b#{})
     | return
 * 2 | trk [b#"CRASH in /learn" (idx 0 evalResult) (idx 1 evalResult)]
-    | syscall (*HTTP_ECHO rid 500 b#error [] b#{})
+    | syscall (**HTTP_ECHO rid 500 b#error [] b#{})
     | return
 * 1
 ;
 @ parsed (idx 0 evalResult)
 : ??(ats_learned _) <- addLearningsToState vSt (PIN parsed)
-| syscall (*HTTP_ECHO rid 200 b#ok [] b#{})
+| syscall (**HTTP_ECHO rid 200 b#ok [] b#{})
 | return
 
 = (handleReq vSt [rid method path headers pBody@(PIN body)] return)
@@ -463,34 +463,34 @@ NONE
 * POST
   # switch path
   * b#"/usecdn"
-    : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
+    : _ <- fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
     : _ <- modifyRef vSt @(PIN st)&(PIN (setLocal FALSE st))
     | return ()
   * b#"/uselocal"
-    : _ <- fork (syscall (*HTTP_ECHO rid 200 b#ok [] b#{}))
+    : _ <- fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
     : _ <- modifyRef vSt @(PIN st)&(| PIN | setLocal TRUE st)
     | return ()
   * b#"/learn"
     : _ <- fork (addToState vSt rid pBody)
     | return ()
 * PUT
-  @ barType | *fromSome b#{text/plain}
+  @ barType | **fromSome b#{text/plain}
             | tabLookup b#{content-type}
             | tabFromPairs headers
   : (PIN st) <- readRef vSt
   @ newTotalSize | add (barLen body) | getFileBytes st
   ; TODO: Currently inserting paths as nats instead of bars because bars put in
   ; don't get looked up later despite showing up with hmKeys? Somehow? wat?
-  @ files (*getFiles st)
+  @ files (**getFiles st)
   @ files | hmInsert (barNat path) [barType pBody] files
-  : _ <- fork (syscall (*HTTP_ECHO rid 201 b#done [] b#{}))
+  : _ <- fork (syscall (**HTTP_ECHO rid 201 b#done [] b#{}))
   : _ <- modifyState vSt & st
                          | setFileBytes newTotalSize
                          | setFiles files
                          | st
   | return ()
 * _
-  : _ <- fork (syscall (*HTTP_ECHO rid 400 b#bad [] b#{}))
+  : _ <- fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
   | return ()
 
 
@@ -502,7 +502,7 @@ NONE
 | runHttpServer vSt return
 
 = (launchFullTagDemo return)
-: servThread  <- fork (syscall (*HTTP_SERV emptyFileServer))
+: servThread  <- fork (syscall (**HTTP_SERV emptyFileServer))
 : learnLock   <- newMVar ()
 : vSt         <- newRef (PIN | newState servThread learnLock)
 : httpThread1 <- fork (runHttpServer vSt)

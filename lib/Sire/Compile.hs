@@ -21,10 +21,10 @@ import Loot.Backend
 import PlunderPrelude
 import Sire.Compile.Types
 import Sire.Types
-import Sire.Inline (inlineGlobals)
 
 import Control.Monad.Except (ExceptT(..), runExceptT)
 import Loot.Types           (Bod(..), LawName(LN), Rul(..), Val(..))
+import Sire.Inline          (inlineGlobals)
 
 import qualified Data.Map as M
 import qualified Fan      as F
@@ -62,7 +62,7 @@ numRefs k = \case
     EVAL{}                 -> 0
     EREF{}                 -> 0
     EAPP f x               -> go f + go x
-    ELIN xs                -> sum (go <$> xs)
+    ELIN f                 -> go f
     EREC _ v b             -> go v + go b
     ELET _ v b             -> go v + go b
     ELAM _ (FUN _ _ _ _ b) -> min 1 (go b)
@@ -92,7 +92,7 @@ resolveExp e = liftIO . \case
     EREF r     -> pure (maybe (EREF r) EVAR (lookup r e))
     EVAR v     -> pure (maybe (EREF v) EVAR (lookup v e))
     EAPP f x   -> EAPP <$> go e f <*> go e x
-    ELIN xs    -> ELIN <$> traverse (go e) xs
+    ELIN f     -> ELIN <$> go e f
     ELAM p f   -> ELAM p <$> resolveFun e f
     EREC n v b -> goLet True n v b
     ELET n v b -> goLet False n v b
@@ -211,7 +211,7 @@ lambdaLift = doLift
                           else singleton r
             ELAM _ f   -> goFun ours f
             EAPP f x   -> go ours f <> go ours x
-            ELIN xs    -> concat (go ours <$> xs)
+            ELIN f     -> go ours f
             EREC n v b -> let ours' = insertSet n ours
                           in go ours' v <> go ours' b
             ELET n v b -> let ours' = insertSet n ours
@@ -220,12 +220,12 @@ lambdaLift = doLift
 
 -- Inlining --------------------------------------------------------------------
 
-inlineExp :: IntMap CRes -> Expr -> [Expr] -> ExceptT Text IO Expr
+inlineExp :: IntMap CRes -> Expr -> [Expr] -> ExceptT Text IO (Expr, [Expr])
 inlineExp tab f xs =
     case f of
-        ELAM _ l             -> doFunc l xs
+        ELAM _ l             -> doFunc l
         EREF (G _ Nothing)   -> noInline "Not inlinable"
-        EREF (G _ (Just fn)) -> doFunc fn xs
+        EREF (G _ (Just fn)) -> doFunc fn
         EVAR v               -> doVar v
         _                    -> unknownFunction
   where
@@ -237,70 +237,80 @@ inlineExp tab f xs =
     doVar v =
         case (lookup v.key tab >>= (.inline)) of
             Nothing -> noInline "Not a function"
-            Just fn -> doFunc fn xs
+            Just fn -> doFunc fn
 
-    doFunc (FUN _ self _ args body) params = do
-        case ( compare (length params) (length args)
-             , numRefs self.key body
-             )
-          of
-            (EQ, 0) -> do res <- liftIO $ duplicateExpTop
-                                        $ foldr (uncurry ELET) body
-                                        $ zip args params
-                          pure res
-            (EQ, _) -> noInline "Cannot inline recursive functions"
-            (GT, _) -> noInline "Inline Expression has too many arguments"
-            (LT, _) -> noInline "Inline Expression has too few arguments"
+    doFunc (FUN _ self _ args body) =
+        if numParams < arity || isRecursive
+        then
+            noInline "too few params or is recursive"
+        else do
+            res <- liftIO $ duplicateExpTop
+                          $ foldr (uncurry ELET) body
+                          $ zip args usedParams
+            pure (res, extraParams)
+      where
+        usedParams  = take arity xs
+        extraParams = drop arity xs
+        isRecursive = numRefs self.key body > 0
+        arity       = length args
+        numParams   = length xs
 
 
 -- Sire Expression to Law Body -------------------------------------------------
 
 expBod :: (Int, IntMap CRes) -> Expr -> ExceptT Text IO CRes
-expBod = go
+expBod = flip go []
   where
-    go :: (Int, IntMap CRes) -> Expr -> ExceptT Text IO CRes
-    go s@(_nex, tab) = \case
-        EVAL b         -> pure CR{ arity  = fromIntegral (F.trueArity b)
-                                 , code   = BCNS $ REF $ G b Nothing
-                                 , inline = Nothing
-                                 }
-        ELAM p f       -> do lifted <- lambdaLift p (inlineTrivial tab f)
-                             bodied <- go s lifted
-                             pure bodied{inline=Just f}
-                               -- TODO Inlining Flag
-        EVAR r         -> pure $ fromMaybe (error "Internal Error")
-                               $ lookup r.key tab
-        EREF (G t i)   -> pure CR{ arity  = fromIntegral (F.trueArity t)
-                                 , code   = BCNS $ REF $ G t i
-                                 , inline = i
-                                 }
+    bap :: (Int, IntMap CRes) -> [Expr] -> CRes -> ExceptT Text IO CRes
+    bap _ []        f = pure f
+    bap s (xRaw:xs) f = do
+        x <- go s [] xRaw
 
-        EAPP fRaw xRaw -> do
-          f <- go s fRaw
-          x <- go s xRaw
+        let dynApp arity     = CR arity (BAPP f.code x.code) Nothing
+        let cnsApp arity a b = CR arity (BCNS $ APP a b)     Nothing
 
-          let dynApp arity     = CR arity (BAPP f.code x.code) Nothing
-          let cnsApp arity a b = CR arity (BCNS $ APP a b)     Nothing
-
-          pure case (f, x) of
+        bap s xs $ case (f, x) of
               ( _               , CR{arity=0}     ) -> dynApp 0
               ( CR{arity=0}     , _               ) -> dynApp 0
               ( CR{arity=1}     , _               ) -> dynApp 0
               ( CR{code=BCNS a} , CR{code=BCNS b} ) -> cnsApp (f.arity - 1) a b
               ( _               , _               ) -> dynApp (f.arity - 1)
 
-        ELIN (f :| []) -> go s f
+    go :: (Int, IntMap CRes) -> [Expr] -> Expr -> ExceptT Text IO CRes
+    go s@(_nex, tab) xs xpr = do
+      case xpr of
+        EVAL b ->
+            bap s xs CR{ arity  = fromIntegral (F.trueArity b)
+                       , code   = BCNS $ REF $ G b Nothing
+                       , inline = Nothing
+                       }
 
-        ELIN (f :| (x:xs)) ->
-            (lift $ runExceptT $ inlineExp tab f (x:xs)) >>= \case
-                Left _  -> go s (apple f (x:xs))
-                Right e -> go s e
+        ELAM p f -> do
+            lifted <- lambdaLift p (inlineTrivial tab f)
+            bodied <- go s [] lifted
+            bap s xs $ bodied{inline=Just f}
 
-        EREC n v b -> optimizeLet s n v b
-        ELET n v b -> optimizeLet s n v b
+        EVAR r ->
+            bap s xs $ fromMaybe (error "Internal Error")
+                     $ lookup r.key tab
 
-    apple f []    = f
-    apple f (b:c) = apple (EAPP f b) c
+        EREF (G t i) ->
+            bap s xs CR{ arity  = fromIntegral (F.trueArity t)
+                       , code   = BCNS $ REF $ G t i
+                       , inline = i
+                       }
+
+        EAPP f x -> go s (x:xs) f
+
+        ELIN (ELIN f) -> go s xs (ELIN f)
+
+        ELIN f -> do
+            lift (runExceptT $ inlineExp tab f xs) >>= \case
+                Left _reason    -> go s xs f
+                Right (e,extra) -> go s extra e
+
+        EREC n v b -> optimizeLet s n v b >>= bap s xs
+        ELET n v b -> optimizeLet s n v b >>= bap s xs
 
     {-
         Variables that simply rebind constant values are replaced by constant
@@ -322,7 +332,7 @@ expBod = go
             EREF r     -> EREF r
             ELAM p f   -> ELAM p (inlineTrivial tab f)
             EAPP f x   -> EAPP (loop f) (loop x)
-            ELIN xs    -> ELIN (loop <$> xs)
+            ELIN f     -> ELIN (loop f)
             EREC n v b -> EREC n (loop v) (loop b)
             ELET n v b -> ELET n (loop v) (loop b)
             EVAR v     ->

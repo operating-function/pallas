@@ -17,16 +17,16 @@
 > Ref Nat > IO ()
 = (randomWait vCount k)
 : tid <- myThreadId
-: bar <- syscall (*RAND_BYTE 1)
+: bar <- syscall (**RAND_BYTE 1)
 : now <- syscall TIME_WHEN
 @ off (mod (barIdx 0 bar) 5)
 @ then (add now off)
 : kd <- : cb <- fork
         : me <- myThreadId
-        : _  <- syscall (*TIME_WAIT then)
+        : _  <- syscall (**TIME_WAIT then)
         | trk [%kid_waited_also then [tid=me]]
         | cb 0
-: x <- syscall (*TIME_WAIT then)
+: x <- syscall (**TIME_WAIT then)
 : n <- readRef vCount
 : _ <- (@ x inc-n | seq x | writeRef vCount x)
 : s <- getKernelState

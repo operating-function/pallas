@@ -16,16 +16,16 @@
 (getSlotsRow st)=(idx 1 st)
 (setSlotsRow val st)=(mut 1 val st)
 (putSlotsRow st val)=(mut 1 val st)
-(modifySlotsRow f st)=(*putSlotsRow st (f (*getSlotsRow st)))
-(getSlot key st)=(idx key (*getSlotsRow st))
-(setSlot key val st)=(*modifySlotsRow (mut key val) st)
+(modifySlotsRow f st)=(**putSlotsRow st (f (**getSlotsRow st)))
+(getSlot key st)=(idx key (**getSlotsRow st))
+(setSlot key val st)=(**modifySlotsRow (mut key val) st)
 
 (getRequestsRow st)=(idx 2 st)
 (setRequestsRow val st)=(mut 2 val st)
 (putRequestsRow st val)=(mut 2 val st)
-(modifyRequestsRow f st)=(*putRequestsRow st (f (*getRequestsRow st)))
-(getRequest key st)=(idx key (*getRequestsRow st))
-(setRequest key val st)=(*modifyRequestsRow (mut key val) st)
+(modifyRequestsRow f st)=(**putRequestsRow st (f (**getRequestsRow st)))
+(getRequest key st)=(idx key (**getRequestsRow st))
+(setRequest key val st)=(**modifyRequestsRow (mut key val) st)
 
 
 ;; Core Thread Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -130,22 +130,22 @@
 
 > Ref a > IO a
 = (readRef var k tid st)
-@ val (*getSlot var st)
+@ val (**getSlot var st)
 ; trk %readRef,var,val
 | k val tid st
 
 > Ref a > a > IO ()
 = (writeRef var val k tid st)
 ; trk %writeRef,var,val
-@ st (*setSlot var val st)
+@ st (**setSlot var val st)
 | k 0 tid st
 
 > Ref a > (a>a) > a > IO ()
 = (modifyRef var fun k tid st)
 ; trk %modifyRef,var,fun
-@ val (fun (*getSlot var st))
+@ val (fun (**getSlot var st))
 | seq val
-@ st (*setSlot var val st)
+@ st (**setSlot var val st)
 | k 0 tid st
 
 > Ref a > IO ()
@@ -219,13 +219,13 @@
         | appE (cnsE bindIO, idx 0 sons, rest)
 
 = (ioLoop st _requests tid response)
-@ exe (*getSlot tid st)
+@ exe (**getSlot tid st)
 | if (isZero exe)
     ; trk %FINAL_STATE,st
     | die "Impossible: response does not match any thread"
 @ st_ (exe response tid st)
 ; trk [requests=(getRequestsRow st_)]
-| ioLoop st_ (*getRequestsRow st_)
+| ioLoop st_ (**getRequestsRow st_)
 
 > IO a > Machine
 = (newMachine act)
@@ -234,14 +234,14 @@
 @ st     (act nullThread tid st)
 ; trk [=st]
 ; trk [requests=(getRequestsRow st)]
-| ioLoop st (*getRequestsRow st)
+| ioLoop st (**getRequestsRow st)
 
 
 ;; IO Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (syscall req exe tid st)
-| *setSlot tid exe
-| *setRequest tid req
+| **setSlot tid exe
+| **setRequest tid req
 | st
 
 = (EVAL tim f x)        | [%eval tim f x]
@@ -291,15 +291,15 @@
 
 > ThreadId > Any > IO ()
 = (yield targetThreadId val return ourThreadId st)
-@ targetThread (*getSlot targetThreadId st)
+@ targetThread (**getSlot targetThreadId st)
 @ st (targetThread val targetThreadId st)
 | seq st
 | return () ourThreadId st
 
 > IO a
 = (block return tid st)
-| *setRequest tid 0
-| *setSlot tid return
+| **setRequest tid 0
+| **setSlot tid return
 | st
 
 
@@ -315,57 +315,57 @@
 
 = (mvarCase var full empty)
 # switch (idx 0 var)
-* 0 (*full (idx 1 var) (idx 2 var))
-* 1 (*empty (idx 1 var))
+* 0 (**full (idx 1 var) (idx 2 var))
+* 1 (**empty (idx 1 var))
 
 = (newMVar val return)
-: var <- newRef (*MVAR_FULL val [])
+: var <- newRef (**MVAR_FULL val [])
 | return var
 
 = (newEmptyMVar return)
-: var <- newRef (*MVAR_EMPTY [])
+: var <- newRef (**MVAR_EMPTY [])
 | return var
 
 = (putMVar var val return)
 : mvarSt <- readRef var
 ; trk %putMVar,var,mvarSt
-| *mvarCase mvarSt
+| **mvarCase mvarSt
     ; full
     & (existingVal writers)
     : tid <- myThreadId
     @ writers (rowSnoc writers [tid val])
-    : _ <- writeRef var (*MVAR_FULL existingVal writers)
+    : _ <- writeRef var (**MVAR_FULL existingVal writers)
     : _ <- block
     | return ()
 ; empty
 & readers
 | ifNot (len readers) ; No readers
-    : _ <- writeRef var (*MVAR_FULL val [])
+    : _ <- writeRef var (**MVAR_FULL val [])
     | return ()
 ; Readers waiting
 ; trk %PUT,readers,r,rs
-: _ <- writeRef var (*MVAR_EMPTY (drop 1 readers))
+: _ <- writeRef var (**MVAR_EMPTY (drop 1 readers))
 : _ <- yield (idx 0 readers) val
 | return ()
 
 = (takeMVar var return)
 : mvarSt <- readRef var
 ; trk %takeMVar,var,mvarSt
-| *mvarCase mvarSt
+| **mvarCase mvarSt
     ; full
     & (filledWith pendingWrites)
     | ifNot (len pendingWrites) ; no writes, make it empty
-        : _ <- writeRef var (*MVAR_EMPTY [])
+        : _ <- writeRef var (**MVAR_EMPTY [])
         | return filledWith
     ; writes, pop writter from queue
     @ [tid val] (idx 0 pendingWrites)
-    : _ <- writeRef (*MVAR_FULL val (drop 1 pendingWrites))
+    : _ <- writeRef (**MVAR_FULL val (drop 1 pendingWrites))
     : _ <- yield tid 0
     | return filledWith
 ; empty, append to readers queue
 & readers
 : me <- myThreadId
-: _  <- writeRef var (*MVAR_EMPTY (rowSnoc readers me))
+: _  <- writeRef var (**MVAR_EMPTY (rowSnoc readers me))
 : rs <- block
 | return rs
 
@@ -378,10 +378,10 @@
 | forList_ xs f return
 
 (for_ row f return)=(forList_ (listFromRow row) f return)
-(forCab_ cab f return)=(*for_ (cabRow cab) f return)
+(forCab_ cab f return)=(**for_ (cabRow cab) f return)
 (traverseList_ f cab return)=(forList_ cab f return)
-(traverse_ f cab return)=(*for_ cab f return)
-(traverseCab_ f cab return)=(*forCab_ cab f return)
+(traverse_ f cab return)=(**for_ cab f return)
+(traverseCab_ f cab return)=(**forCab_ cab f return)
 
 = (forList list f return)
 : x xs <- listCase list (return ())
@@ -395,7 +395,7 @@
 : res <- forList (listFromRow row) f
 | return (listToRow res)
 
-(traverse f cab return)=(*for cab f return)
+(traverse f cab return)=(**for cab f return)
 
 
 ;; Concurency ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -424,7 +424,7 @@
 | return results
 
 > Row a > (a > IO b) > IO (Row b)
-(forConcurrently xs f return)=(*mapConcurrently f xs return)
+(forConcurrently xs f return)=(**mapConcurrently f xs return)
 
 
 ;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -36,7 +36,7 @@
 = (buildTabFrom pairs)
 ^ _ pairs %[]
 ? (build pairs t)
-| *listCase pairs
+| **listCase pairs
   t
 & ([key val] xs)
 | build xs (tabMut key val t)
@@ -45,7 +45,7 @@
 @ empty | hmEmpty twoThreeConfig
 ^ _ pairs empty
 ? (build pairs hm)
-| *listCase pairs
+| **listCase pairs
   hm
 & ([key val] xs)
 | build xs (hmInsert key val hm)
@@ -202,12 +202,12 @@
 = (buildTabCabFrom pairs)
 @ (alt val prev)
   | SOME
-  | *maybeCase prev | cabSingleton val
+  | **maybeCase prev | cabSingleton val
   & c
   | cabIns val c
 ^ _ pairs %[]
 ? (build pairs t)
-| *listCase pairs
+| **listCase pairs
   t
 & ([key val] xs)
 | build xs (tabAlter (alt val) key t)
@@ -216,7 +216,7 @@
 @ empty | hsmEmpty twoThreeConfig twoThreeConfig
 ^ _ pairs empty
 ? (build pairs hm)
-| *listCase pairs
+| **listCase pairs
   hm
 & ([key val] xs)
 | build xs (hsmInsert key val hm)

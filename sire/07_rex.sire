@@ -339,8 +339,8 @@ shut=SHUT
 = ("`" s p e a r err ok)
 @ args (rexKids r)
 | if (neq 1 len-args)
-    | *err r "Expected 1 Parameter"
-| *ok p a
+    | **err r "Expected 1 Parameter"
+| **ok p a
 | EMBD (rexVal (idx 0 args))
 
 

@@ -70,8 +70,8 @@ b#'{"type":"application","elm-version":"0.19.1","dependencies":{"direct":{"elm/t
 """ SmallCheck Testing """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (listAlternate aInput bInput)
-: a as <- *listCase aInput bInput
-: b bs <- *listCase bInput aInput
+: a as <- **listCase aInput bInput
+: b bs <- **listCase bInput aInput
 | CONS a
 | CONS b
 | listAlternate as bs

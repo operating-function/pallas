@@ -166,10 +166,10 @@
 ; Test that the mutual references in value position were resolved:
 !!=    | lookupByAV ":person/name" "Alice" aliceAndBob
      @ bobCab | lookupByAV ":person/name" "Bob" aliceAndBob
-     : bobId <- *fromSingletonCab bobCab ('failed to find Bob' 0)
-     : aid <- *fromSingletonCab
-                (lookupByAidV dbIdentId ":person/spouse" aliceAndBob)
-              | 'unknown attr' 0
+     : bobId <- **fromSingletonCab bobCab ('failed to find Bob' 0)
+     : aid   <- **fromSingletonCab
+                  (lookupByAidV dbIdentId ":person/spouse" aliceAndBob)
+                | 'unknown attr' 0
      | lookupByVAid bobId aid aliceAndBob
 
 

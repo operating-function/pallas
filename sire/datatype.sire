@@ -219,7 +219,7 @@ fieldExpect="Expected something like (field:type)"
 @ bad
     | die [%rexToTrip %badArgument rex]
 : rune sons heir
-   <- *rexGetNode rex bad
+   <- **rexGetNode rex bad
 | if (neq 0 heir)
     | bad
 | rowCons rune sons
@@ -233,7 +233,7 @@ fieldExpect="Expected something like (field:type)"
 ; actually do anything with.
 ;
 : key constr fields
-       <- *readConstructorSig (idx 2 kids) err
+       <- **readConstructorSig (idx 2 kids) err
 | trk [=key =constr =fields]
 | ok p a
 | if (isZero len-fields)
@@ -321,7 +321,7 @@ ex=(PAIR %a %b)
 | seq ix
 ; trk %loop,[=ix =prp =acc =remain]
 ;
-: kca remain <- *listCase remain (prp, bloodline acc)
+: kca remain <- **listCase remain (prp, bloodline acc)
 @ [key cns arg] kca
 ;
 @ prp (setProperty key 'conTag' ix      prp)
@@ -394,7 +394,7 @@ ex=(PAIR %a %b)
 ^ _ NONE NIL (listFromRow clauses)
 ? (go oFallback acc remain)
 : [sigRex bodyRex] remain
-    < *listCase remain
+    < **listCase remain
         | ok (fromSome (natE 0) oFallback)
         | listToRowReversed acc
 ;;;;;

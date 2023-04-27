@@ -244,11 +244,13 @@ readExpr = do
         , EVAL . Fan.NAT <$> (utf8Nat <$> readText)
         , EREF <$> readSymb
 
+        , do (rune "#**" <|> rune "**")
+             x <- form1 readExpr
+             pure (ELIN x)
+
         , do (rune "#|" <|> rune "|" <|> rune "-")
-             (h, xs) <- form1Nc readAppHead readExpr
-             pure case h of
-                 Left f  -> ELIN (EREF f :| xs)
-                 Right f -> foldl' EAPP f xs
+             (f, xs) <- form1Nc readExpr readExpr
+             pure (foldl' EAPP f xs)
 
         , do (rune "#@" <|> rune "@")
              (n, v, b) <- form3c readSymb readExpr readExpr
@@ -259,10 +261,8 @@ readExpr = do
              pure (EREC r v b)
 
         , do (rune "#^" <|> rune "^")
-             (ef, xs, h) <- form1N1c readAppHead readExpr readExpr
-             pure case ef of
-                 Left f  -> ELET "_" h (ELIN (EREF f :| xs))
-                 Right f -> ELET "_" h (foldl' EAPP f xs)
+             (f, xs, h) <- form1N1c readExpr readExpr readExpr
+             pure $ ELET "_" h (foldl' EAPP f xs)
 
         , do (rune "#&" <|> rune "&")
              (rs, b) <- form2c readArgs readExpr
@@ -277,10 +277,6 @@ readExpr = do
              pure (ELAM True (FUN i (xtagIdn t) (LN $ xtagTag t) (toList rs) b))
         ]
 
-readAppHead :: (RexColor, HasMacroEnv) => Red (Either Symb (Exp Symb Symb))
-readAppHead =
-  (Left <$> (rune "*" >> form1 readSymb)) <|> (Right <$> readExpr)
-
 
 -- Function Signatures ---------------------------------------------------------
 
@@ -291,7 +287,7 @@ readSigy = do
     pure (inline, t, x:|xs)
 
 readSigHead :: Red (Bool, XTag)
-readSigHead = (rune "*" >> form1 ((True,) <$> normal))
+readSigHead = (rune "**" >> form1 ((True,) <$> normal))
           <|> (False,) <$> normal
   where
     normal = asum

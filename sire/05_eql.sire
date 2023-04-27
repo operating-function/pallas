@@ -108,7 +108,7 @@
 | if (isNat y) | GT
 | if (isPin x) | ifNot (isPin y) LT (cmp (pinItem x) (pinItem y))
 | if (isPin y) | GT
-| if (isLaw x) | ifNot (isLaw y) LT (*cmpLaw cmp x y)
+| if (isLaw x) | ifNot (isLaw y) LT (**cmpLaw cmp x y)
 | if (isLaw y) | GT
 | else
     | ordWeld (cmpNat (len x) (len y))

@@ -58,10 +58,10 @@
 * (ELAM pin fun) | showFun go pin fun
 * (EWUT rex)     ^ PREF 0 '???' [rex] 0
 * (ELIN f xs)    ^ NEST 0 '|' _ 0
-                 | rowCons (PREF 0 '*' [(go EREF-f)] 0)
+                 | rowCons (PREF 0 '**' [(go EREF-f)] 0)
                  | map go xs
 
-!!=     ` (n @ 6516329)(fanc @ *mkLaw n a b)(0 0 0 (2 fanc))
+!!=     ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 0 0 (2 fanc))
     | showSire
     | ELET %n (ENAT %inc)
     | ELET %fanc
@@ -108,10 +108,10 @@
 > Rex
 > Parser (Either Symbol Sire)
 = (readAppHead readSire rex err ok)
-| if (rexRune rex == "*")
+| if (rexRune rex == "**")
     @ kids (rexKids rex)
     | if (len kids /= 1)
-        | err rex "bad inline syntax, must be '*foo'"
+        | err rex "bad inline syntax, must be '**foo'"
     : sym <- readSymbol (idx 0 kids) err
     | ok (LEFT sym)
 : exp <- readSire rex err
@@ -181,7 +181,7 @@
 !! sireRound ` x
 !! sireRound ` 0
 !! sireRound ` (f x y)
-!! sireRound ` (*f x y)
+!! sireRound ` (**f x y)
 !! sireRound ` (x & x)
 !! sireRound ` (x y & x)
 !! sireRound ` (I x ? x)

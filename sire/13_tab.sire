@@ -55,7 +55,7 @@ emptyTab=emptyCab
 ;; That would eliminate the need for `tabSwitch`.
 = (tabIdx key tab)
 @ keys (lawBody head-tab)
-| *maybeCase (elemIdx key keys) 0
+| **maybeCase (elemIdx key keys) 0
 (ix & idx ix tab)
 
 = (look tab key)   | tabIdx key tab
@@ -86,7 +86,7 @@ ex=(mkTab [1 2 3] [4 5 6])
 
 = (findInsIdx key keys)
 @ midx (findIdx lte-key keys)
-| *maybeCase midx (len keys) (ix & ix)
+| **maybeCase midx (len keys) (ix & ix)
 
 !!= 0 (findInsIdx 0 [1 2 3])
 !!= 0 (findInsIdx 1 [1 2 3])
@@ -96,7 +96,7 @@ ex=(mkTab [1 2 3] [4 5 6])
 
 = (tabMut key val tab)
 @ keys (tabKeys tab)
-| *maybeCase (elemIdx key keys)
+| **maybeCase (elemIdx key keys)
     @ ix (findInsIdx key keys)
     | mkTab (insert ix key keys) (insert ix val tab)
 & ix
@@ -216,8 +216,8 @@ tab=(tabFromAscPairs par)
 
 = (tabAlter fun key tab)
 @ keys (lawBody head-tab)
-| *maybeCase (elemIdx key keys)
-    | *maybeCase (fun NONE)
+| **maybeCase (elemIdx key keys)
+    | **maybeCase (fun NONE)
       tab
     & val
     | tabFromPairs
@@ -225,7 +225,7 @@ tab=(tabFromAscPairs par)
     | tabToPairs tab
 & ix
 @ prev | idx ix tab
-| *maybeCase (fun (SOME prev))
+| **maybeCase (fun (SOME prev))
     | tabDel key tab
 & new
 | mut ix new tab
@@ -292,7 +292,7 @@ tab=(tabFromAscPairs par)
 ^ _ emptyTab (listFromRow kids)
 ? (go acc pairs)
 ; trk [%go acc pairs]
-| *listCase pairs (ok p a tabE-acc)
+| **listCase pairs (ok p a tabE-acc)
 & (thisPair morePairs)
 ;
 @ unexpect
@@ -359,15 +359,15 @@ tab=(tabFromAscPairs par)
     | if (eql 2 len-sons) (idx 1 sons)
     | appE (drop 1 sons)
 ; trk [%keyRex,keyRex %valExp,valExp]
-| *readKey keyRex err
+| **readKey keyRex err
 & k
 | okay k valExp
 
 = ("%" s p e a r err ok)
-| *mkCenMacro cenCab cenTab s p e a r err ok
+| **mkCenMacro cenCab cenTab s p e a r err ok
 
 = ("%%" s p e a r err ok)
-| *mkCenCenMacro cenCenCab cenCenTab s p e a r err ok
+| **mkCenCenMacro cenCenCab cenCenTab s p e a r err ok
 
 = (isTabSugar rex)
 @ kids (rexKids rex)

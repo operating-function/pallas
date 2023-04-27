@@ -185,7 +185,7 @@
 
 = (fromSingletonCab opt bad gud)
 | if (neq 1 | cabLen opt) bad
-| *gud (cabFirst opt)
+| **gud (cabFirst opt)
 
 
 """ % Rune: Atoms, Tabs, and Cabs """"""""""""""""""""""""""""""""""""""""""""""
@@ -260,7 +260,7 @@
 = (cenCab s p e a r kids err ok)
 ^ _ emptyCab (listFromRow kids)
 ? (go acc kidList)
-| *listCase kidList (ok p a (EMBD acc))
+| **listCase kidList (ok p a (EMBD acc))
 & (thisKid moreKids)
 @ unexpected
    | err thisKid
@@ -298,7 +298,7 @@
 | err "Import the % macro from `17_tab`, not from `16_cab`."
 
 = ("%" s p e a r err ok)
-| *mkCenMacro cenCab cenTabStub s p e a r err ok
+| **mkCenMacro cenCab cenTabStub s p e a r err ok
 
 
 """ %% Rune: Tall-Form Tabs and Cabs """""""""""""""""""""""""""""""""""""""""""
@@ -327,7 +327,7 @@
 ^ _ emptyCab rex
 ? (go acc rex)
 | if (isZero rex) (ok acc)
-| *readCenCenCabLine rex err
+| **readCenCenCabLine rex err
 & (newKeys heir)
 ^ go _ heir
 ^ foldl _ acc newKeys
@@ -345,14 +345,14 @@
 = (mkCenCenMacro doCab doTab s p e a r err ok)
 @ sons (rexSons r)
 | if (null sons)
-    | *err r "%% rune must be given sons"
+    | **err r "%% rune must be given sons"
 | if (rexIsNode (idx 0 sons))
-    | *doTab s p e a r err ok
+    | **doTab s p e a r err ok
 | else
-    | *doCab s p e a r err ok
+    | **doCab s p e a r err ok
 
 = ("%%" s p e a r err ok)
-| (*mkCenCenMacro cenCenCab cenCenTabStub s p e a r err ok)
+| (**mkCenCenMacro cenCenCab cenCenTabStub s p e a r err ok)
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

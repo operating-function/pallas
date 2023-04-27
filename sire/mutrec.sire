@@ -23,14 +23,14 @@
 '''         #@ even (x #& _core1 0 x)
 '''         #@ odd  (x #& _core1 1 x)
 '''         #| switch _tag2 0
-'''         #|      *v2
+'''         #|      **v2
 '''             #@ n _g3
-'''              | ifNot n TRUE (*odd dec-n)
+'''              | ifNot n TRUE (**odd dec-n)
 '''         #@ m _g3
-'''          | ifNot m FALSE (*even dec-m)
+'''          | ifNot m FALSE (**even dec-m)
 '''     #@ even (n & _core1 0 n)
 '''     #@ odd  (m & _core1 1 m)
-'''      (*even x)
+'''      (**even x)
 '''
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -58,7 +58,7 @@
   | readCoreBody '=' 5 `((f x = x)(g y = 0)) v2 v2
 
 !!=  ,, 7
-     ,,  ,,   | *v3 %f ['_g5']
+     ,,  ,,   | **v3 %f ['_g5']
                  `` #@ $$(varKE 6 '_g6') _g5
                     #@ x (#| $(idx 0) _g6)
                     #@ y (#| $(idx 1) _g6)
@@ -117,7 +117,7 @@
     | len args
 ;
 @ (bindArms body arms)
-    | *listCase arms body
+    | **listCase arms body
     & (item rest)
     @ [key arm] item
     @ [fun args _] arm
@@ -161,9 +161,9 @@
 ; !!= 1
 ;         @ e
 ;                 `
-;                 # mutrec %loop (*loop start)
+;                 # mutrec %loop (**loop start)
 ;                 * (loop xx)
-;                     | ifNot xx 0 (*loop 0)
+;                     | ifNot xx 0 (**loop 0)
 ;         (.{#mutrec} 3 3 3 e v2 v4)
 
 
@@ -174,16 +174,16 @@
 
 = (foo x)
 # mutrec %even_odd
-    (and (*even x 8) (*odd x))
+    (and (**even x 8) (**odd x))
 * (even x y)
-    | ifNot x TRUE  (*odd dec-x)
+    | ifNot x TRUE  (**odd dec-x)
 * (odd x)
-    | ifNot x FALSE (*even dec-x 9)
+    | ifNot x FALSE (**even dec-x 9)
 
 = (looper start)
-# mutrec %loop (*loop start)
+# mutrec %loop (**loop start)
 * (loop xx)
-    | ifNot xx 0 (*loop 0)
+    | ifNot xx 0 (**loop 0)
 
 = loopFun
 ? (looper start)
@@ -200,9 +200,9 @@
 = [even odd]
 # mutrec %even_odd [even odd]
 * (even x)
-    | ifNot x TRUE  (*odd dec-x)
+    | ifNot x TRUE  (**odd dec-x)
 * (odd x)
-    | ifNot x FALSE (*even dec-x)
+    | ifNot x FALSE (**even dec-x)
 
 !! even 0
 !! even 2
@@ -234,7 +234,7 @@
               | len args
 @
     (bindArms body arms)
-        | *listCase arms body
+        | **listCase arms body
         & (item rest)
         @ key,arm item
         @ [fun args _] arm
@@ -292,9 +292,9 @@
 
 # mutual even_odd
 = (even x)
-    | ifNot x TRUE  (*odd dec-x)
+    | ifNot x TRUE  (**odd dec-x)
 = (odd x)
-    | ifNot x FALSE (*even dec-x)
+    | ifNot x FALSE (**even dec-x)
 
 !! even 0
 !! even 2

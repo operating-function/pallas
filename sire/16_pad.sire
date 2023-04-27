@@ -106,7 +106,7 @@ emptyPad=1
 ^ _ 0 buf 1
 ? (loop acc lis pos)
 | seq acc
-| *listCase lis acc
+| **listCase lis acc
 & (b bs)
 @ acc | if b (add pos acc) acc
 | loop acc bs (mul 2 pos)

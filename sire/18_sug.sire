@@ -206,10 +206,10 @@
 
 = (rexGetRune rex fall ok)
 : rune kids heir <- rexGetNode rex fall
-| *ok rune
+| **ok rune
 
 !!= ["+" "+"]
-        : rune <- *rexGetRune `(3 + 4) 99
+        : rune <- **rexGetRune `(3 + 4) 99
         , rune rune
 
 !!= [`(<* f) cbExpect]
@@ -409,8 +409,8 @@ four=(WORD 0 "4" 0)
     | letE tmpVar (idx 0 exps)
     ^ _ (listFromRow | drop 1 exps)
     ? (loop more)
-    : x xs <- *listCase more (die "impossible")
-    : y ys <- *listCase xs appE-[cnsE-eql varE-tmpVar x]
+    : x xs <- **listCase more (die "impossible")
+    : y ys <- **listCase xs appE-[cnsE-eql varE-tmpVar x]
     | appE
    ,, cnsE-and
    ,, appE [cnsE-eql varE-tmpVar x]

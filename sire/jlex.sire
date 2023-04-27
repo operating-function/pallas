@@ -45,11 +45,11 @@
     | if (eql '\' | barIdx off input)
       | countSlashes (dec off) (inc count)
     count
-@ numSlashes | *countSlashes (dec off) 0
+@ numSlashes | **countSlashes (dec off) 0
 | if (and (gth numSlashes 0) (mod numSlashes 2))
     | lexStringLoop input top (inc off)
 | else
-        @ tok (*TOK_STR (barSlice top (sub off top) input))
+        @ tok (**TOK_STR (barSlice top (sub off top) input))
         | (tok, inc off)
 
 (lexString input off)=(lexStringLoop input off off)
@@ -119,8 +119,8 @@
 | ifNot (eqlNat '.' c) [0 off]
 @ off (inc off)
 ;
-@ [numZeros zof] (*consumeZeros input off)
-@ [nat dof]      (*consumeDigits input zof)
+@ [numZeros zof] (**consumeZeros input off)
+@ [nat dof]      (**consumeDigits input zof)
 ;
 | if (dof == off) noDig
 ;
@@ -170,7 +170,7 @@
 ; trk [=input =off =nega =posi =signed]
 ; trk 'REST',(barDrop off input)
 ;
-@ [nat dof] (*consumeDigits input off)
+@ [nat dof] (**consumeDigits input off)
 ;
 | if (dof == off) noDig
 ;
@@ -221,8 +221,8 @@
 * '}' [TOK_R_CURL (loop inc-off)]
 ;
 * '"'
-    @ res (*lexString input (inc off))
-    | if res [(*TOK_ERR off res) 0]
+    @ res (**lexString input (inc off))
+    | if res [(**TOK_ERR off res) 0]
     @ [tok off] res
     [tok (loop off)]
 ;
@@ -237,21 +237,21 @@
     @ off (add neg off) ; add bit+number to avoid branching.
     ;
     @ chr (barIdx off input)
-    @ [nat dof] (*consumeDigits input off)
+    @ [nat dof] (**consumeDigits input off)
     | if (dof == off)
-            | if neg [(*TOK_ERR off 'Bad number, no digits') 0]
-            | [(*TOK_ERR off 'Unexpected Character') 0]
+            | if neg [(**TOK_ERR off 'Bad number, no digits') 0]
+            | [(**TOK_ERR off 'Unexpected Character') 0]
     @ off dof
     ;
     @ decRes (lexDecimal input off)
-    | if decRes [(*TOK_ERR off decRes) 0]
+    | if decRes [(**TOK_ERR off decRes) 0]
     @ [deci off] decRes
     ;
     @ expRes (lexExponent input off)
-    | if expRes [(*TOK_ERR off expRes) 0]
+    | if expRes [(**TOK_ERR off expRes) 0]
     @ [expi off] expRes
     ;
-    | [(*TOK_NUM neg nat deci expi) (loop off)]
+    | [(**TOK_NUM neg nat deci expi) (loop off)]
 
 !!=     | listToRow | lexJson b#'{"x":999}'
     ('{', [%str b#x], ':', [%num 0 999 0 0], '}')

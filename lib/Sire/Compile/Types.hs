@@ -117,7 +117,7 @@ duplicateExp = go
         ELET v e b -> ELET <$> refreshBinder v <*> go e <*> go b
         EAPP f x   -> EAPP <$> go f <*> go x
         ELAM p f   -> ELAM p <$> duplicateFun f
-        ELIN xs    -> ELIN <$> traverse go xs
+        ELIN x     -> ELIN <$> go x
         EVAL{}     -> pure expr
         EREF{}     -> pure expr
 

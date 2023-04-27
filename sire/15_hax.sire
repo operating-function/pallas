@@ -77,7 +77,7 @@
 @ kids rexKids-r
 ; trk [=kids]
 | if (null kids)           | (err r haxNeedKid)
-| *rexGetWord (idx 0 kids) | (err r haxFstWord)
+| **rexGetWord (idx 0 kids) | (err r haxFstWord)
 & (name heir)
 ; trk [=name =heir]
 @ key (strWeld "#" name)

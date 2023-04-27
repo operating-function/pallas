@@ -31,7 +31,7 @@
            & (off return)
            | trk [%TIME_WHEN [=off]]
            : tim <- syscall TIME_WHEN
-           : _   <- syscall (*TIME_WAIT (add off tim))
+           : _   <- syscall (**TIME_WAIT (add off tim))
            | return tim
 ;
 ;;; All at the same time ;;
@@ -40,7 +40,7 @@
           & (off return)
           | trk [%TIME_WHEN [=off]]
           : tim <- syscall TIME_WHEN
-          : _   <- syscall (*TIME_WAIT (add off tim))
+          : _   <- syscall (**TIME_WAIT (add off tim))
           | return tim
 ;
 | die

@@ -49,8 +49,8 @@ hexAlphabet=(natBar "0123456789abcdef")
 ^ _ 0 buf 1
 ? (loop acc lis pos)
 | seq acc
-: a as <- *listCase lis (0 1 1 acc)
-: b bs <- *listCase as (die %impossible)
+: a as <- **listCase lis (0 1 1 acc)
+: b bs <- **listCase as (die %impossible)
 @ acc (| add acc | add mul-pos-b | mul-pos | mul 16 a)
 | loop acc bs (mul 256 pos)
 
@@ -105,7 +105,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 ; Lookup into a map encoded as a list
 ; of [k v] pairs.
 = (listLookup key l)
-: x xs <- *listCase l NONE
+: x xs <- **listCase l NONE
 @ [k v] x
 | if (eql k key) (SOME v)
 | listLookup key xs
@@ -146,8 +146,8 @@ hexAlphabet=(natBar "0123456789abcdef")
 = (optionRowSequence results)
 ^ _ NIL listFromRow-results
 ? (loop acc rest)
-: mX more <- *listCase rest SOME-(listToRowReversed acc)
-: x <- *maybeCase mX NONE
+: mX more <- **listCase rest SOME-(listToRowReversed acc)
+: x <- **maybeCase mX NONE
 | loop (CONS x acc) more
 
 (optionRowTraverse f xs)=(optionRowSequence map-f-xs)
@@ -180,7 +180,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 > Nat > Opt Nat
 = (readNat n)
 @ mDigits (optionRowTraverse readDigit explode-n)
-: nums <- *maybeCase mDigits NONE
+: nums <- **maybeCase mDigits NONE
 @ f
     & (elem rest)
     @ [pos acc] rest
@@ -210,8 +210,8 @@ hexAlphabet=(natBar "0123456789abcdef")
         | letE tmpVar (idx 0 exps)
         ^ _ (listFromRow | drop 1 exps)
         ? (loop more)
-        : x xs <- *listCase more (die "impossible")
-        : y ys <- *listCase xs appE-[cnsE-eql varE-tmpVar x]
+        : x xs <- **listCase more (die "impossible")
+        : y ys <- **listCase xs appE-[cnsE-eql varE-tmpVar x]
         | appE
        ,, cnsE-and
        ,, appE [cnsE-eql varE-tmpVar x]
@@ -337,7 +337,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 | showRex
        ``
         = (showRex expr)
-        | *rexCase expr
+        | **rexCase expr
             & (r x k)
             @ hed | barCat
                  ,, b#"("
@@ -390,32 +390,32 @@ hexAlphabet=(natBar "0123456789abcdef")
 @ pos | len external
 @ tab | tabFromPairs (gen len-external i&(idx i external, i))
 # mutrec %loop
-    @ [_ _ buf] (*go pos tab top)
+    @ [_ _ buf] (**go pos tab top)
     | padFlat buf
 * (nat p t atm)
     | (p, t, [p#11 (mat atm)])
 * (backref p t ref)
     | (p, t, [p#10 (mat ref)])
 * (cel p t hed tel)
-    @ [p t hBits] (*go (inc p) t hed)
-    @ [p t tBits] (*go (inc p) t tel)
+    @ [p t hBits] (**go (inc p) t hed)
+    @ [p t tBits] (**go (inc p) t tel)
     | (p, t, [p#0 hBits tBits])
 * (go p t noun)
     : ref
-       <- *maybeCase (tabLookup noun t)
+       <- **maybeCase (tabLookup noun t)
             @ t (tabMut noun p t)
-            | if isNat-noun (*nat p t noun)
-            | if isApp-noun (*cel p t car-noun cdr-noun)
+            | if isNat-noun (**nat p t noun)
+            | if isApp-noun (**cel p t car-noun cdr-noun)
             @ hed (0 lawName-noun lawArgs-noun)
             @ tel (lawBody noun)
-            | *cel p t hed tel
+            | **cel p t hed tel
     | if | and isNat-noun
          | lteNat met-noun met-ref
-      (*nat p t noun)
-    (*backref p t ref)
+      (**nat p t noun)
+    (**backref p t ref)
 
 = (jarMemo cache pin)
-| *maybeCase (tabLookup pin cache)
+| **maybeCase (tabLookup pin cache)
     @ depz | pinRefs pin
     : cache head
         < forRowWithState cache depz

@@ -143,19 +143,19 @@
 
 ''' TODO Use (0 | [x])
 
-= NONE      0
-= (*SOME x) (0 x)
+= NONE       0
+= (**SOME x) (0 x)
 
 = (maybeCase opt non som)
 | if isNat-opt non
-| *som cdr-opt
+| **som cdr-opt
 
 (isNone x)=(isZero x)
 (isSome x)=(neq 0 x)
 
-(fromSome n x)=(*maybeCase x n I)
+(fromSome n x)=(**maybeCase x n I)
 
-(unpackSome x)=(*fromSome (die 'Unexpected NONE') x)
+(unpackSome x)=(**fromSome (die 'Unexpected NONE') x)
 
 !!= 1 | maybeCase SOME-0 0 inc
 !!= 1 | maybeCase SOME-1 0 I
@@ -163,7 +163,7 @@
 !!= 1 | maybeCase NONE   1 die
 
 = (fmapMaybe myb fun)
-| *maybeCase myb NONE
+| **maybeCase myb NONE
 & v
 | SOME | fun v
 
@@ -199,7 +199,7 @@
 = (unfoldr f b)
 ^ _ 0 b
 ? (go idx b)
-| *maybeCase (f b) (cow idx)
+| **maybeCase (f b) (cow idx)
 & xs
 @ a | get xs 0
 @ newB | get xs 1
@@ -275,31 +275,31 @@
 
 """ Lists """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= NIL          | 0
-= (*CONS x xs) | [x xs]
+= NIL           | 0
+= (**CONS x xs) | [x xs]
 
 = (listCase xs nil cons)
 | if isNat-xs nil
-| *cons idx-0-xs idx-1-xs
+| **cons idx-0-xs idx-1-xs
 
 ;; TODO s/([a-z])Singleton/\1Sing/g
 
 (listSing x)=(CONS x 0)
 
 = (listMap f l)
-| *listCase l NIL
+| **listCase l NIL
 & (x xs)
 | CONS f-x listMap-f-xs
 
 (listTurn l f)=(listMap f l)
 
 = (listHead l)
-| *listCase l NONE
+| **listCase l NONE
 & (h _)
 | SOME h
 
 = (listSafeHead fb l)
-| *listCase l fb
+| **listCase l fb
 & (x _)
 | x
 
@@ -312,9 +312,9 @@
 !!= 4      | fromSome 4 NONE
 
 = (listLast l)
-| *listCase l NONE
+| **listCase l NONE
 & (h t)
-| *listCase t (SOME h)
+| **listCase t (SOME h)
 & (_ _)
 | listLast t
 
@@ -325,19 +325,19 @@
 """ Operations With Lists """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (listFoldl f z l)
-| *listCase l z
+| **listCase l z
 & (x xs)
 @ fzx (f z x)
 | seq fzx
 | listFoldl f fzx xs
 
 = (listFoldr f z l)
-| *listCase l z
+| **listCase l z
 & (x xs)
 | f x (listFoldr f z xs)
 
 = (listMap f l)
-| *listCase l NIL
+| **listCase l NIL
 & (x xs)
 | CONS f-x listMap-f-xs
 
@@ -365,27 +365,27 @@
 = (listEnumFrom n)      | CONS n (listEnumFrom inc-n)
 
 = (listWeld a b)
-| *listCase a b
+| **listCase a b
 & (x xs)
 | CONS x (listWeld xs b)
 
 > List (List a) > List a
 = (listCat ls)
-| *listCase ls NIL
+| **listCase ls NIL
 & (x xs)
 | listWeld x
 | listCat xs
 
 = (listTake num lis)
 | ifNot num NIL
-| *listCase lis NIL
+| **listCase lis NIL
 & (x xs)
 | CONS x
 | listTake dec-num xs
 
 = (listDrop num lis)
 | ifNot num lis
-| *listCase lis NIL
+| **listCase lis NIL
 | (x xs & listDrop dec-num xs)
 
 ; TODO This does not belong here
@@ -406,9 +406,9 @@
 ; TODO This really belongs elsewhere!  Maybe in `sci` or `out`?
 
 = (listZipWith f al bl)
-| *listCase al NIL
+| **listCase al NIL
 & (a as)
-| *listCase bl NIL
+| **listCase bl NIL
 & (b bs)
 | CONS f-a-b
   (listZipWith f as bs)
@@ -424,7 +424,7 @@
         (, [0 "a"] , [1 "b"] , [2 "c"] 0)
 
 = (listFilter f lis)
-| *listCase lis NIL
+| **listCase lis NIL
 & (x xs)
 | if f-x (CONS x listFilter-f-xs)
 | listFilter f xs
@@ -432,7 +432,7 @@
 (listNull xs)=(isNat xs)
 
 = (listMinimumOn f a bs)
-| *listCase bs a
+| **listCase bs a
 & (x xs)
 | listMinimumOn f
     | if (lthNat f-x f-a) x a
@@ -452,7 +452,7 @@
 ^ _ 0 xs
 ? (loop ix rest)
 | seq ix
-| *listCase rest NONE
+| **listCase rest NONE
 & (x xs)
 | if (f x) (SOME ix)
 | loop (inc ix) xs
@@ -466,7 +466,7 @@
 !!= 0     | listElemIndex 4 (, 0 , 1 , 2 , 3 0)
 
 = (listSortOn f lis)
-| *listCase lis NIL
+| **listCase lis NIL
 & (x xs)
 @ fst | listMinimumOn f x xs
 @ fky | f fst
@@ -499,9 +499,9 @@
   | elemIdxMany 5 [5 0 5]
 
 = (listIntersperse sep lis)
-| *listCase lis lis
+| **listCase lis lis
 & (x xs)
-| *listCase xs lis
+| **listCase xs lis
 & (y ys)
 | CONS x
 | CONS sep
@@ -515,20 +515,20 @@
 
 """ Either """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (*LEFT x)  [0 x]
-= (*RIGHT x) [1 x]
+= (**LEFT x)  [0 x]
+= (**RIGHT x) [1 x]
 
-= (eitherCase x l r)     (if (idx 0 x) (*r idx-1-x) (*l idx-1-x))
-= (fromRight l x)        (*eitherCase x l I)
-= (unpackRight x)        (*fromRight (die 'Unexpected LEFT') x)
-= (eitherCaseLeft x r l) (if (idx 0 x) (*r idx-1-x) (*l idx-1-x))
-= (eitherOpen x r)       (*eitherCase x _&x r)
-= (eitherOpenLeft x l)   (*eitherCase x l _&x)
-= (fromLeft r x)         (*eitherCase x I r)
-= (unpackLeft x)         (*fromLeft (die 'Unexpected RIGHT') x)
-= (eitherGetRight x k)   (*eitherCase x _&x k)
-= (eitherGetLeft x k)    (*eitherCase x k _&x)
-= (eitherMap f val)      (*eitherCase val 0 (x & 1 f-x))
+= (eitherCase x l r)     (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
+= (fromRight l x)        (**eitherCase x l I)
+= (unpackRight x)        (**fromRight (die 'Unexpected LEFT') x)
+= (eitherCaseLeft x r l) (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
+= (eitherOpen x r)       (**eitherCase x _&x r)
+= (eitherOpenLeft x l)   (**eitherCase x l _&x)
+= (fromLeft r x)         (**eitherCase x I r)
+= (unpackLeft x)         (**fromLeft (die 'Unexpected RIGHT') x)
+= (eitherGetRight x k)   (**eitherCase x _&x k)
+= (eitherGetLeft x k)    (**eitherCase x k _&x)
+= (eitherMap f val)      (**eitherCase val 0 (x & 1 f-x))
 
 !!= 1 | eitherCase RIGHT-0 K-0 inc
 !!= 1 | eitherCase RIGHT-1 K-0 I
@@ -557,9 +557,9 @@
 """ Maybe utils that depend on list """""""""""""""""""""""""""""""""""""""""""
 
 = (listCatMaybes top)
-| *listCase top NIL
+| **listCase top NIL
 & (mX xs)
-| *maybeCase mX (listCatMaybes xs)
+| **maybeCase mX (listCatMaybes xs)
 & x
 | CONS x (listCatMaybes xs)
 
@@ -574,7 +574,7 @@
 | seq acc
 | if (eql i | len row) acc
 | loop (inc i)
-| *maybeCase (law | idx i row) acc
+| **maybeCase (law | idx i row) acc
 & item
 | CONS item acc
 
@@ -636,14 +636,14 @@
 = (traverseList f xs return)
 ^ _ NIL xs
 ? (go acc remain)
-| *listCase remain
+| **listCase remain
     (return (listRev acc))
 & (head tail)
 | f head
 & newHead
 | go (CONS newHead acc) tail
 
-(forList xs f return)=(*traverseList f xs return)
+(forList xs f return)=(**traverseList f xs return)
 
 !!= 0         | traverseList (x ret)&(if even-x ret-x 0) [3 [4 0]] I
 !!= 0         | traverseList (x ret)&(if even-x ret-x 0) [4 [5 0]] I
@@ -665,7 +665,7 @@
 @ acc (CONS newHead acc)
 | go st acc tail
 
-(forListWithState st xs f return)=(*traverseListWithState st f xs return)
+(forListWithState st xs f return)=(**traverseListWithState st f xs return)
 
 !!= 17,(, 3 , 4 , 5 0)
   ^ forListWithState 5 [3 [4 [5 0]]] _ v2
@@ -681,7 +681,7 @@
 & out
 | return (listToRow out)
 
-(forRow xs f return)=(*traverseRow f xs return)
+(forRow xs f return)=(**traverseRow f xs return)
 
 !!= 0     | traverseRow (x ret)&(if even-x ret-x 0) [3 4] I
 !!= 0     | traverseRow (x ret)&(if even-x ret-x 0) [4 5] I
@@ -694,7 +694,7 @@
 & (st out)
 | return st (listToRow out)
 
-(forRowWithState st xs f return)=(*traverseRowWithState st f xs return)
+(forRowWithState st xs f return)=(**traverseRowWithState st f xs return)
 
 !!= 17,[4 5 6]
   ^ forRowWithState 5 [3 4 5] _ v2

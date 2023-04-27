@@ -199,7 +199,7 @@ emptyBar=(0 1 1 1)
 | loop (dec i)
 
 = (barSplitOneWith fun b)
-| *maybeCase (barFindIndex fun b) [b emptyBar]
+| **maybeCase (barFindIndex fun b) [b emptyBar]
 & i
 | [(barTake i b) (barDrop (inc i) b)]
 
@@ -207,7 +207,7 @@ emptyBar=(0 1 1 1)
 | if (barNull bar) NIL
 ^ _ bar
 ? (loop bar)
-| *maybeCase (barFindIndex fun bar) (CONS bar NIL)
+| **maybeCase (barFindIndex fun bar) (CONS bar NIL)
 & i
 | CONS (barTake i bar)
 | loop (barDrop (inc i) bar)
@@ -219,9 +219,9 @@ emptyBar=(0 1 1 1)
 = (barIntercalate sep vals)
 ^ _ emptyBar listFromRow-vals
 ? (go acc res)
-| *listCase res acc
+| **listCase res acc
 & (x xs)
-| *listCase xs (barWeld acc x)
+| **listCase xs (barWeld acc x)
 & (_ _)
 | go (barCat acc,x,sep) xs
 
@@ -242,9 +242,9 @@ emptyBar=(0 1 1 1)
 ^ _ 0 buf 1
 ? (loop acc lis pos)
 | seq acc
-| *listCase lis (0 1 1 acc)
+| **listCase lis (0 1 1 acc)
 & (a as)
-| *listCase as (die %impossible)
+| **listCase as (die %impossible)
         ; ^ This will always succeed because the input was manipulated to
         ; guarentee an even-length character sequence.
 & (b bs)

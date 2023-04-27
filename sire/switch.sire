@@ -137,7 +137,7 @@ foo=(x e o & o (varE "_", x))
 ; trk [=cases]
 @ f
         & ([wild acc] [mKey exp])
-        | *maybeCase mKey [exp acc]
+        | **maybeCase mKey [exp acc]
         & key
         [wild (tabPut acc key exp)]
 | ok

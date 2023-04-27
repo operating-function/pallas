@@ -43,7 +43,7 @@ TRUE=1
 FALSE=0
 
 = (if x t e)    | 2 e _&t x
-= (*else x)     | x
+= (**else x)    | x
 = (not x)       | if x 0 1
 = (bit x)       | if x 1 0
 = (and x y)     | if x (bit y) 0

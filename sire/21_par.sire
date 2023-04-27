@@ -23,7 +23,7 @@
 """ parList """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (parList l)
-| *listCase l NIL
+| **listCase l NIL
 & (x xs)
 @ l | parList xs
 | par x | pseq l | CONS x l

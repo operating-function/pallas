@@ -52,27 +52,27 @@
 ; only usable for tuples which end in [v] (eav, aev)
 @ (alterEndVal c in)
     | SOME
-    : cab <- *maybeCase in (cabSingleton c)
+    : cab <- **maybeCase in (cabSingleton c)
     | if many | cabIns c cab
     | cabSingleton c
 ; only usable for tuples whose middle is not v (eav, aev)
 @ (alterNotVal b c in)
     | SOME
     : tab
-        < *maybeCase in
+        < **maybeCase in
         | tabSingleton b
         | cabSingleton c
     | tabAlter (alterEndVal c) b tab
 ; only usable for tuples whose middle IS v (ave)
 @ (alterEndNonV c in)
     | SOME
-    : cab <- *maybeCase in (cabSingleton c)
+    : cab <- **maybeCase in (cabSingleton c)
     | cabIns c cab
 ; only usable for tuples whose middle IS v (ave)
 @ (alterMiddleEndNonV b c in)
     | SOME
     : tab
-        < *maybeCase in
+        < **maybeCase in
         | tabSingleton b
         | cabSingleton c
     | tabAlter (alterEndNonV c) b tab
@@ -91,12 +91,12 @@
 = (rawRm e a v db)
 # openDb db
 @ (alter2 c in)
-    : cab <- *maybeCase in NONE
+    : cab <- **maybeCase in NONE
     @ rmed | cabDel c cab
     | if (cabIsEmpty rmed) NONE
     | SOME rmed
 @ (alter b c in)
-    : tab <- *maybeCase in NONE
+    : tab <- **maybeCase in NONE
     @ rmed | tabAlter (alter2 c) b tab
     | if (tabIsEmpty rmed) NONE
     | SOME rmed
@@ -190,7 +190,7 @@ db
 ,, | DB eav aev ave vae (inc maxEid)
 
 = (singletonCabDefault opt missing next)
-| *next
+| **next
 | if (neq 1 | cabLen opt) missing
 | cabFirst opt
 
@@ -198,29 +198,29 @@ db
 > Nat > Nat > DB > Cab Any
 = (lookupByEidAid eid aid db)
 # openDb db
-: av <- *maybeCase (tabLookup eid eav) %[]
-: v  <- *maybeCase (tabLookup aid av) %[]
+: av <- **maybeCase (tabLookup eid eav) %[]
+: v  <- **maybeCase (tabLookup aid av) %[]
 v
 
 > Nat > Nat > DB > Cab Any
 = (lookupByAidEid aid eid db)
 # openDb db
-: ev <- *maybeCase (tabLookup aid aev) %[]
-: v  <- *maybeCase (tabLookup eid ev) %[]
+: ev <- **maybeCase (tabLookup aid aev) %[]
+: v  <- **maybeCase (tabLookup eid ev) %[]
 v
 
 > Nat > Nat > DB > Cab Nat
 = (lookupByAidV aid val db)
 # openDb db
-: ve <- *maybeCase (tabLookup aid ave) %[]
-: e  <- *maybeCase (tabLookup val ve) %[]
+: ve <- **maybeCase (tabLookup aid ave) %[]
+: e  <- **maybeCase (tabLookup val ve) %[]
 e
 
 > Any > Nat > DB > Cab Nat
 = (lookupByVAid val aid db)
 # openDb db
-: ae <- *maybeCase (tabLookup val vae) %[]
-: e  <- *maybeCase (tabLookup aid ae) %[]
+: ae <- **maybeCase (tabLookup val vae) %[]
+: e  <- **maybeCase (tabLookup aid ae) %[]
 e
 
 ; Given a user level attribute name, translate that to a numeric attribute
@@ -232,26 +232,26 @@ e
 ;| trk [%resolve attrName]
 @ attrsCab | lookupByAidV dbIdentId attrName db
 : attrEid
-    < *fromSingletonCab attrsCab
-    | LEFT | *LOOKUP_NO_ATTRIBUTE attrName
+    < **fromSingletonCab attrsCab
+    | LEFT | **LOOKUP_NO_ATTRIBUTE attrName
 @ isIndex
     @ attrIndexed | lookupByAidEid dbIndexedId attrEid db
-    : indexed <- *singletonCabDefault attrIndexed FALSE
+    : indexed <- **singletonCabDefault attrIndexed FALSE
     indexed
 @ isUnique
     @ attrUniq    | lookupByAidEid dbUniqueId attrEid db
-    : uniq    <- *singletonCabDefault attrUniq FALSE
+    : uniq    <- **singletonCabDefault attrUniq FALSE
     uniq
 @ isMany
     @ attrMany | lookupByAidEid dbCardinalityId attrEid db
-    : many <- *singletonCabDefault attrMany "many"
+    : many <- **singletonCabDefault attrMany "many"
     # switch many
     * one  FALSE
     * many TRUE
     * _    | 'unknown many value: ' many
 @ isRef
     @ attrValType | lookupByAidEid dbValueTypeId attrEid db
-    : t <- *singletonCabDefault attrValType "any"
+    : t <- **singletonCabDefault attrValType "any"
     # switch t
     * ref TRUE
     * _   FALSE
@@ -261,14 +261,14 @@ e
 > Nat > Any > DB > Cab Any
 = (lookupByEA eid attr db)
 : aid
-    < *fromSingletonCab (lookupByAidV dbIdentId attr db)
+    < **fromSingletonCab (lookupByAidV dbIdentId attr db)
     | 'unknown attr' attr
 | lookupByEidAid eid aid db
 
 > Any > Nat > DB > Cab Any
 = (lookupByAE attr eid db)
 : aid
-    < *fromSingletonCab (lookupByAidV dbIdentId attr db)
+    < **fromSingletonCab (lookupByAidV dbIdentId attr db)
     | 'unknown attr' attr
 | lookupByAidEid aid eid db
 
@@ -299,7 +299,7 @@ e
 * (RIGHT [aid _ unique _])
     | ifNot unique | 'cannot lookup unindexed attribute ' identAttr
     @ eidCab | lookupByAidV aid identVal db
-    : eid <- *fromSingletonCab eidCab | 'invalid eid for aid?! ' aid
+    : eid <- **fromSingletonCab eidCab | 'invalid eid for aid?! ' aid
     | lookupByEA eid attr db
 
 """ User Transact Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -312,11 +312,11 @@ e
 * (LEFT err) | LEFT err
 * (RIGHT [aid _ unique _ _])
     | ifNot unique
-        | LEFT | *LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
+        | LEFT | **LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
     @ eids | lookupByAidV aid val db
     @ l | cabLen eids
     | if (isZero l)
-        | LEFT | *LOOKUP_NO_MATCH attrName val
+        | LEFT | **LOOKUP_NO_MATCH attrName val
     | RIGHT | cabFirst eids
 
 ; Immediately resolves an entity to a numeric entity id.
@@ -362,7 +362,7 @@ e
 ; a new temporary id.
 @ eitherEident
   : entVal
-      < *maybeCase (tabLookup dbIdStr tab)
+      < **maybeCase (tabLookup dbIdStr tab)
       @ [eid db] | allocEntity db
       | RIGHT [eid txnTmpIds db]
   | parseEntityId txnTmpIds db entVal
@@ -399,7 +399,7 @@ e
             | parseMapForm txnTmpIds db i
           ,, | listWeld suberrs errs
           ,, | listWeld subactions actions
-          ,, : eid <- *maybeCase mybEid eids
+          ,, : eid <- **maybeCase mybEid eids
              | CONS eid eids
           ,, txnTmpIds
           ,, db
@@ -414,7 +414,7 @@ e
       | if ((isTab vVal) && (not | isCab vVal))
         @ [mybEid suberrs subactions txnTmpIds db]
           | parseMapForm txnTmpIds db vVal
-        : subeid <- *maybeCase mybEid
+        : subeid <- **maybeCase mybEid
                    ,, | listWeld suberrs errs
                    ,, | listWeld subactions actions
                    ,, txnTmpIds
@@ -601,7 +601,7 @@ e
 @ [first last] | barSplitAt (inc lastIdx) bar
 | if (neq '_' | barGet last 0)
     | NONE
-| *SOME
+| SOME
 | barNat
 | barWeld first
 | barDrop 1 last
@@ -621,18 +621,18 @@ e
         * (PULL_ATTR keyExpr)
             : parsedVals <- collectErrors | map (parse db) v
             | RIGHT [keyExpr parsedVals]
-        * _ | LEFT | *BAD_MAP_VAL parsed
+        * _ | LEFT | **BAD_MAP_VAL parsed
     | RIGHT | PULL_MAP specs
 | if (val == "*")
     | RIGHT PULL_WILDCARD
 | if (isNat val)
     | RIGHT
-    | *PULL_ATTR
+    | **PULL_ATTR
     : realName
         < maybeCase | isBackwardsAttribute val
         | ATTR_EXPR val %[]
     | ATTR_BACKWARDS realName %[]
-| LEFT | *BAD_PULL_TERM val
+| LEFT | **BAD_PULL_TERM val
 
 > Either Error [Str (Cab Any) [Nat Bool Bool Bool Bool]]
 = (lookupAttr db eid expr)
@@ -709,7 +709,7 @@ e
 * (LEFT l) (LEFT [l])
 * (RIGHT [eid _ _ _])
 | ifNot | isRow pullSpec
-    | LEFT [(*PULL_NOT_ROW pullSpec)]
+    | LEFT [(**PULL_NOT_ROW pullSpec)]
 : specs  < collectErrors | map (parse db) pullSpec
 : result < collectErrors | map (lookupSpec eid db) specs
 | RIGHT | tabFromPairs result

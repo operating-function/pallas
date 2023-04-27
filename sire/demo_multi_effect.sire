@@ -14,10 +14,10 @@
 | forList_ xs f next
 
 (forRow_ row f next)=(forList_ (listFromRow row) f next)
-(forCab_ cab f next)=(*forRow_ (cabRow cab) f next)
+(forCab_ cab f next)=(**forRow_ (cabRow cab) f next)
 (traverseList_ f cab next)=(forList_ cab f next)
-(traverseRow_ f cab next)=(*forRow_ cab f next)
-(traverseCab_ f cab next)=(*forCab_ cab f next)
+(traverseRow_ f cab next)=(**forRow_ cab f next)
+(traverseCab_ f cab next)=(**forCab_ cab f next)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -119,7 +119,7 @@ hexAlphabet=(b#{0123456789abcdef})
 
 = (handleSocketInput broadcast class vOpen sock next)
 : stt <- getKernelState
-: bar <- syscall (*sockRecv class sock)
+: bar <- syscall (**sockRecv class sock)
 | if (eql 0 bar) (next 0)
 : tid <- fork (PIN-handleSocketInput broadcast class vOpen sock)
 : con <- readRef vOpen
@@ -134,8 +134,8 @@ hexAlphabet=(b#{0123456789abcdef})
 | next res
 
 = (sendAllLoop send conns bar next)
-: c cs <- *listCase conns (next 0)
-: _    <- fork (syscall (*send c bar))
+: c cs <- **listCase conns (next 0)
+: _    <- fork (syscall (**send c bar))
 | sendAllLoop send cs bar next
 
 = (sendAll vTelnetOpen vWebSocketOpen bar next)
@@ -149,8 +149,8 @@ hexAlphabet=(b#{0123456789abcdef})
 
 = (runSocketLoop broadcast class vOpen next)
 @ recur (PIN runSocketLoop)
-| trk %WAITING_FOR_SOCKET,(*sockOpen class)
-: sock <- syscall (*sockOpen class)
+| trk %WAITING_FOR_SOCKET,(**sockOpen class)
+: sock <- syscall (**sockOpen class)
 | trk %NEW_SOCKET,sock
 : _ <- registerSocket vOpen sock
 | trk %registered,sock
@@ -159,8 +159,8 @@ hexAlphabet=(b#{0123456789abcdef})
 : _ <- fork
         & done
         | trk %loopThread,_
-        : _ <- syscall (*sockWait class sock)
-        : _ <- syscall (*sockKill class sock)
+        : _ <- syscall (**sockWait class sock)
+        : _ <- syscall (**sockKill class sock)
         : _ <- unregisterSocket vOpen sock
         : s <- getKernelState
         | trk %socked_end,sock

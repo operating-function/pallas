@@ -68,7 +68,7 @@ data Exp v a
     | ELET v (Exp v a) (Exp v a)  -- ^ Let-binding
     | EREC v (Exp v a) (Exp v a)  -- ^ Self-recursive let binding.
     | ELAM Bool (Fun v a)         -- ^ Nested Function (Closure)
-    | ELIN (NonEmpty (Exp v a))   -- ^ Explicit Inline Application
+    | ELIN (Exp v a)              -- ^ Explicit Inline Application
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
 -------------------

@@ -157,9 +157,9 @@
 @ maxIndexVals | inc maxIndexKeys
 ^ _ idx
 ? (loop idx)
-@ numVals      | *indexValLen idx
+@ numVals      | **indexValLen idx
 | if (lteNat numVals maxIndexVals)
-    | *singletonIndex | mkNode idx hhEmpty
+    | **singletonIndex | mkNode idx hhEmpty
 | if (lteNat numVals | mul 2 maxIndexVals)
     @ pos | dec | div numVals 2
     @ [lIdx middleKey rIdx] | splitIndexAt pos idx
@@ -167,30 +167,30 @@
     @ !rightNode | mkNode rIdx hhEmpty
     [[middleKey] [leftNode rightNode]]
 @ [lIdx middleKey rIdx] | splitIndexAt maxIndexVals idx
-@ ls | *singletonIndex | mkNode lIdx hhEmpty
+@ ls | **singletonIndex | mkNode lIdx hhEmpty
 | mergeIndex ls middleKey | loop rIdx
 
 = (valView key [keys vals])
 @ [leftKeys rightKeys]       | span a&(lte a key) keys
 @ n                          | len leftKeys
 @ [leftVals valAndRightVals] | splitAt n vals
-| *maybeCase | rowUncons valAndRightVals
+| **maybeCase | rowUncons valAndRightVals
     | die "valView: can't split empty index"
 & [val rightVals]
 [[leftKeys leftVals rightKeys rightVals] val]
 
 = (leftView [leftKeys leftVals rightKeys rightVals])
-| *maybeCase (rowUnsnoc leftVals) NONE
+| **maybeCase (rowUnsnoc leftVals) NONE
 & [leftVals leftVal]
-| *maybeCase (rowUnsnoc leftKeys) NONE
+| **maybeCase (rowUnsnoc leftKeys) NONE
 & [leftKeys leftKey]
 @ newCtx  [leftKeys leftVals rightKeys rightVals]
 | SOME [newCtx leftVal leftKey]
 
 = (rightView [leftKeys leftVals rightKeys rightVals])
-| *maybeCase (rowUncons rightVals) NONE
+| **maybeCase (rowUncons rightVals) NONE
 & [rightVal rightVals]
-| *maybeCase (rowUncons rightKeys) NONE
+| **maybeCase (rowUncons rightKeys) NONE
 & [rightKey rightKeys]
 @ newCtx  [leftKeys leftVals rightKeys rightVals]
 | SOME [rightKey rightVal newCtx]
@@ -208,7 +208,7 @@
 ;
 = (findSubnodeByKey key [keys vals])
 | get vals
-| binFindIdxLte (*compare key) keys
+| binFindIdxLte (**compare key) keys
 
 ;;;;;;;;;;
 ;; Leaf ;;
@@ -220,7 +220,7 @@
 @ itemLen | leafLength items
 ; leaf items don't overflow a single node
 | if (lteNat itemLen maxLeafItems)
-    | *singletonIndex | mkLeaf items
+    | **singletonIndex | mkLeaf items
 ; we have to split, but only into two nodes
 | if (lteNat itemLen | mul 2 maxLeafItems)
     @ numLeft        | div itemLen 2
@@ -296,7 +296,7 @@
 # openTreeConfig treeConfig
 @ !mybNode | fromSingletonIndex index
 : newRootNode
-    <- *maybeCase mybNode
+    <- **maybeCase mybNode
          @ !index | extendIndex treeFun maxLeafItems index
          | fixup treeConfig treeFun index
 newRootNode
@@ -315,7 +315,7 @@ newRootNode
       | extendIndex treeFun maxLeafItems distrib
     ; All we must do is rebuild the node with the new k/v pair added on as a
     ; hitchhiker to this node.
-    | *singletonIndex | mkNode children merged
+    | **singletonIndex | mkNode children merged
   * (LEAFNODE items)
     @ !inserted (leafInsert items toAdd)
     | splitLeafMany treeFun maxLeafItems inserted
@@ -336,7 +336,7 @@ newRootNode
 ; implementation details of insertRec/distributeDownwards
 ;
 = (downSplit treeFun l hh)
-  : key keys <- *listCase l ~[hh]
+  : key keys <- **listCase l ~[hh]
   # openTreeFun treeFun
   @ [!toAdd !rest] | hhSplit key hh
   | CONS toAdd | downSplit treeFun keys rest
@@ -344,14 +344,14 @@ newRootNode
 = (downPush treeConfig treeFun [hh node])
   # openTreeFun treeFun
   | if (isZero | hhLength hh)
-    | *singletonIndex node
+    | **singletonIndex node
   | insertRec treeConfig treeFun hh node
 ;
 = (joinIndex kl il)
-  : k ks <- *listCase kl
-                : [keys vals] _ <- *listCase il [NIL NIL]
+  : k ks <- **listCase kl
+                : [keys vals] _ <- **listCase il [NIL NIL]
                 [(listFromRow keys) ~[vals]]
-  : [keys vals] ts <- *listCase il (die "missing index in joinIndex")
+  : [keys vals] ts <- **listCase il (die "missing index in joinIndex")
   @ [keyrest valrest] | joinIndex ks ts
   @ !kout | listWeld (listFromRow keys) (CONS k keyrest)
   @ !vout | CONS vals valrest
@@ -451,12 +451,12 @@ newRootNode
   @ prunedHH        | hhDelete key mybV hitchhikers
   | if | not childNeedsMerge
     | mkNode (putVal ctx newChild) prunedHH
-  | *maybeCaseBack | rightView ctx
+  | **maybeCaseBack | rightView ctx
     & [rKey rChild rCtx]
     | mkNode
         | putIdx rCtx | mergeNodes config treeFun newChild rKey rChild
     prunedHH
-  | *maybeCaseBack | leftView ctx
+  | **maybeCaseBack | leftView ctx
     & [lCtx lChild lKey]
     | mkNode
         | putIdx lCtx | mergeNodes config treeFun lChild lKey newChild
@@ -495,21 +495,21 @@ newRootNode
 ,, hhDeleteKey                   ; hhDelete
 
 = (hmSize [config r])
-| *maybeCase r 0
+| **maybeCase r 0
 & top
 | sum
 | map tabLen
 | getLeafRow hhMapTF top
 
 = (hmKeys [config r])
-| *maybeCase r %[]
+| **maybeCase r %[]
 & top
 | map tabKeys
 | getLeafRow hhMapTF top
 
 = (hmInsert k v [config r])
 @ p | tabSingleton k v
-| *maybeCase r
+| **maybeCase r
     [config (SOME (PIN [1 p]))]
 & gr
 @ !index | insertRec config hhMapTF p gr
@@ -522,7 +522,7 @@ newRootNode
   [config r]
 # openTreeConfig config
 @ !index
-  | *maybeCase r
+  | **maybeCase r
       | splitLeafMany hhMapTF maxLeafItems tab
   & top
   | insertRec config hhMapTF tab top
@@ -532,7 +532,7 @@ newRootNode
 
 ; TODO: case guard statements would make this much more readable.
 = (hmDelete k [config r])
-| *maybeCase r [config r]
+| **maybeCase r [config r]
 & gr
 @ newRootNode | deleteRec config hhMapTF k NONE gr
 # datacase (caseImpl newRootNode)
@@ -540,7 +540,7 @@ newRootNode
   ,, config
   ,, if (tabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
-  | *maybeCase | fromSingletonIndex index
+  | **maybeCase | fromSingletonIndex index
     [config (SOME newRootNode)]
   & childNode
   @ base [config (SOME childNode)]
@@ -549,11 +549,11 @@ newRootNode
 
 
 = (hmLookup key [config r])
-| *maybeCase r NONE
+| **maybeCase r NONE
 ? (lookInNode node)
 # datacase (caseImpl node)
 * (INDEXNODE index hitchhikers)
-  : v <- *maybeCase (tabLookup key hitchhikers)
+  : v <- **maybeCase (tabLookup key hitchhikers)
              (lookInNode | findSubnodeByKey key index)
   | (SOME v)
 * (LEAFNODE items)
@@ -569,7 +569,7 @@ newRootNode
 [config NONE]
 
 = (hsNull [config r])
-| (*isNone r)
+| (**isNone r)
 
 = (hsRawSingleton v)
 @ node (PIN [1 (cabSingleton v)])
@@ -596,7 +596,7 @@ newRootNode
 
 = (hsRawInsert i config r)
 @ is | cabSingleton i
-| *maybeCase r
+| **maybeCase r
     (SOME (PIN [1 is]))
 & gr
 @ !index | insertRec config hhSetTF is gr
@@ -609,7 +609,7 @@ newRootNode
 | if (cabIsEmpty cab) r
 # openTreeConfig config
 @ !index
-  | *maybeCase r
+  | **maybeCase r
       | splitLeafMany hhSetTF maxLeafItems cab
   & top
   | insertRec config hhSetTF cab top
@@ -625,13 +625,13 @@ newRootNode
 (hsFromCab config c)=[config (hsRawFromCab config c)]
 
 = (hsToCab [config r])
-| *maybeCase r %[]
+| **maybeCase r %[]
 & top
 | cabAscUnions
 | getLeafRow hhSetTF top
 
 = (hsMember key [config r])
-| *maybeCase r FALSE
+| **maybeCase r FALSE
 ? (lookInNode node)
 # datacase (caseImpl node)
 * (INDEXNODE index hitchhikers)
@@ -641,14 +641,14 @@ newRootNode
   | cabHas key items
 
 = (hsRawDelete key config r)
-| *maybeCase r r
+| **maybeCase r r
 & gr
 @ newRootNode | deleteRec config hhSetTF key NONE gr
 # datacase (caseImpl newRootNode)
 * (LEAFNODE leaves)
   | if (cabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
-  | *maybeCase (fromSingletonIndex index)
+  | **maybeCase (fromSingletonIndex index)
       | SOME newRootNode
   & !childNode
   @ base | SOME childNode
@@ -678,8 +678,8 @@ newRootNode
 ; faster everywhere else, but I'd have to double check...)
 ;
 = (hsRawUnion aconfig ar br)
-: a <- *maybeCase ar br
-: b <- *maybeCase br ar
+: a <- **maybeCase ar br
+: b <- **maybeCase br ar
 @ as | cabAscUnions | getLeafRow hhSetTF a
 @ bs | cabAscUnions | getLeafRow hhSetTF b
 | hsRawFromCab aconfig
@@ -768,7 +768,7 @@ newRootNode
   | cat
   ^ unfoldr _ [a (SOME index)]
   ? (loop [leaves mybIdx])
-  : [keys vals] <- *maybeCase mybIdx NONE
+  : [keys vals] <- **maybeCase mybIdx NONE
   | if (cabIsEmpty leaves) NONE
   @ [[tryLeaves restLeaves] subNode restIndex]
     @ l | len vals
@@ -794,32 +794,32 @@ newRootNode
    (INDEXNODE [[5] [(hmLeaf %[1 2]) (hmLeaf %[5 7])]] %[])
 
 = (findIntersectStep find [arange anode brange bnode])
-: a as <- *listCase anode  NONE
-: b bs <- *listCase bnode  NONE
+: a as <- **listCase anode  NONE
+: b bs <- **listCase bnode  NONE
 ;
-@ asNil | *listNull as
-@ bsNil | *listNull bs
+@ asNil | **listNull as
+@ bsNil | **listNull bs
 ; both ranges at end.
 | if (and asNil bsNil)
   | SOME [(find a b) [NIL NIL NIL NIL]]
 ;
-: amin aminxs <- *listCase arange NONE
-: bmin bminxs <- *listCase brange NONE
+: amin aminxs <- **listCase arange NONE
+: bmin bminxs <- **listCase brange NONE
 ; right range at end.
 | if bsNil
-  : amax arest <- *listCase aminxs (die "missing a range")
+  : amax arest <- **listCase aminxs (die "missing a range")
   | if (lteNat bmin amax)
     | SOME [(find a b) [aminxs as brange bnode]]
   | findIntersectStep find [aminxs as brange bnode]
 ; left range at end.
 | if asNil
-  : bmax brest <- *listCase bminxs (die "missing b range")
+  : bmax brest <- **listCase bminxs (die "missing b range")
   | if (lteNat amin bmax)
     | SOME [(find a b) [arange anode bminxs bs]]
   | findIntersectStep find [arange anode bminxs bs]
 ; both ranges.
-: amax arest <- *listCase aminxs (die "missing a range")
-: bmax brest <- *listCase bminxs (die "missing b range")
+: amax arest <- **listCase aminxs (die "missing a range")
+: bmax brest <- **listCase bminxs (die "missing b range")
 @ advances | if (eqlNat amax bmax) [aminxs as bminxs bs]
            | if (gthNat amax bmax) [arange anode bminxs bs]
            [aminxs as brange bnode]
@@ -830,8 +830,8 @@ newRootNode
 = (hsIntersection as bs)
 @ [aconfig ar] as
 @ [_ br] bs
-: a <- *maybeCase ar bs
-: b <- *maybeCase br as
+: a <- **maybeCase ar bs
+: b <- **maybeCase br as
 # openTreeConfig aconfig
 # mutrec %impl | top a b
 ;
@@ -894,7 +894,7 @@ newRootNode
 = (hsmLeafInsertImpl setConfig leaf hh)
 @ (alt new m)
   | SOME
-  | *maybeCase m | hsRawFromCab setConfig new
+  | **maybeCase m | hsRawFromCab setConfig new
   & old
   | hsRawInsertMany new setConfig old
 @ (merge items k vset)
@@ -902,19 +902,19 @@ newRootNode
 | tabFoldlWithKey merge leaf hh
 
 = (hsmLeafDeleteImpl setConfig k mybV hsm)
-| *maybeCase mybV (die %cantDeleteNoValue)
+| **maybeCase mybV (die %cantDeleteNoValue)
 & v
 @ (update in)
-  | *maybeCase in NONE
+  | **maybeCase in NONE
   & set
   | SOME | hsRawDelete v setConfig set
 | tabAlter update k hsm
 
 = (hsmHHDeleteImpl k mybV sm)
-| *maybeCase mybV (die %cantDeleteNoValue)
+| **maybeCase mybV (die %cantDeleteNoValue)
 & v
 @ (update in)
-  | *maybeCase in NONE
+  | **maybeCase in NONE
   & set
   | SOME | cabDel v set
 | tabAlter update k sm
@@ -941,7 +941,7 @@ newRootNode
 ,, hsmHHDeleteImpl                     ; hhDelete
 
 = (hsmInsert k v [mapConfig setConfig r])
-| *maybeCase r
+| **maybeCase r
    @ raw  | hsRawSingleton v
    @ leaf | tabSingleton k raw
    ,, mapConfig
@@ -961,7 +961,7 @@ newRootNode
   [mapConfig setConfig r]
 @ tf | hhSetMapTF setConfig
 @ !index
-  | *maybeCase r
+  | **maybeCase r
       # openTreeConfig mapConfig
       | splitLeafMany tf maxLeafItems
       | tabMap (k v)&(hsRawFromCab setConfig v) tabcab
@@ -973,7 +973,7 @@ newRootNode
 ,, | SOME fixed
 
 = (hsmDelete k v [mapConfig setConfig r])
-| *maybeCase r [mapConfig setConfig r]
+| **maybeCase r [mapConfig setConfig r]
 & gr
 @ newRootNode | deleteRec mapConfig (hhSetMapTF setConfig) k (SOME v) gr
 # datacase (caseImpl newRootNode)
@@ -982,7 +982,7 @@ newRootNode
   ,, setConfig
   ,, if (tabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
-  | *maybeCase | fromSingletonIndex index
+  | **maybeCase | fromSingletonIndex index
     [mapConfig setConfig (SOME newRootNode)]
   & childNode
   @ base [mapConfig setConfig (SOME childNode)]
@@ -997,7 +997,7 @@ newRootNode
 ;
 = (hsmLookup k [mapConfig setConfig r])
 # openTreeConfig mapConfig
-| *maybeCase r (hsEmpty setConfig)
+| **maybeCase r (hsEmpty setConfig)
 & node
 ^ _ %[] node
 ? (lookInNode !hh node)
@@ -1006,7 +1006,7 @@ newRootNode
   @ matched | fromSome %[] (tabLookup k hitchhikers)
   | lookInNode (cabUnion hh matched) | findSubnodeByKey k children
 * (LEAFNODE items)
-  : ret <- *maybeCase (tabLookup k items)
+  : ret <- **maybeCase (tabLookup k items)
              [setConfig (hsRawFromCab setConfig hh)]
   [setConfig (hsRawInsertMany hh setConfig ret)]
 

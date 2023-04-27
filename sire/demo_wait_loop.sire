@@ -7,7 +7,7 @@
 | trk %waitLoop,k
 : now <- syscall TIME_WHEN
 | trk %now,now
-: _ <- syscall (*TIME_WAIT (add now 1))
+: _ <- syscall (**TIME_WAIT (add now 1))
 | trk %waited
 | waitLoop k
 
