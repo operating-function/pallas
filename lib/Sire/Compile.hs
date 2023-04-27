@@ -20,11 +20,12 @@ where
 import Loot.Backend
 import PlunderPrelude
 import Sire.Compile.Types
+import Sire.Compile.Common
+import Sire.Compile.Inline
 import Sire.Types
 
 import Control.Monad.Except (ExceptT(..), runExceptT)
 import Loot.Types           (Bod(..), LawName(LN), Rul(..), Val(..))
-import Sire.Inline          (inlineGlobals)
 
 import qualified Data.Map as M
 import qualified Fan      as F
@@ -52,24 +53,6 @@ data CRes = CR
     , code   :: Bod Global
     , inline :: Inliner
     }
-
-
--- How many times is a variable referenced? ------------------------------------
-
-numRefs :: Int -> Exp Refr b -> Int
-numRefs k = \case
-    EVAR r                 -> if r.key == k then 1 else 0
-    EVAL{}                 -> 0
-    EREF{}                 -> 0
-    EAPP f x               -> go f + go x
-    ELIN f                 -> go f
-    EREC _ v b             -> go v + go b
-    ELET _ v b             -> go v + go b
-    ELAM _ (FUN _ _ _ _ b) -> min 1 (go b)
-    --- Multiple references from a sub-functions only counts as one because
-    --- it will be lambda-lifted (hence only used once).
-  where
-    go = numRefs k
 
 
 -- Name Resolution -------------------------------------------------------------
@@ -217,33 +200,6 @@ lambdaLift = doLift
                           in go ours' v <> go ours' b
 
 
--- Inlining --------------------------------------------------------------------
-
-inlineExp :: IntMap CRes -> [Expr] -> Expr -> ExceptT Text IO (Expr, [Expr])
-inlineExp tab xs = \case
-    ELAM _ l -> fn l
-    EREF g   -> maybe who fn g.inliner
-    EVAR v   -> maybe who fn (lookup v.key tab >>= (.inline))
-    _        -> who
-  where
-    who = throwError "Not a known function"
-
-    fn func = do
-        when (numParams < arity || isRecursive) do
-            throwError "too few params or is recursive"
-
-        liftIO $ fmap (,extraParams)
-               $ duplicateExpTop
-               $ foldr (uncurry ELET) func.body
-               $ zip func.args usedParams
-      where
-        usedParams  = take arity xs
-        extraParams = drop arity xs
-        isRecursive = numRefs func.self.key func.body > 0
-        arity       = length func.args
-        numParams   = length xs
-
-
 -- Sire Expression to Law Body -------------------------------------------------
 
 expBod :: (Int, IntMap CRes) -> Expr -> ExceptT Text IO CRes
@@ -295,7 +251,8 @@ expBod = flip go []
         ELIN (ELIN f) -> go s xs (ELIN f)
 
         ELIN f -> do
-            lift (runExceptT $ inlineExp tab xs f) >>= \case
+            let varFunc k = lookup k tab >>= (.inline)
+            lift (runExceptT $ inlineExp varFunc xs f) >>= \case
                 Left _reason    -> go s xs f
                 Right (e,extra) -> go s extra e
 
