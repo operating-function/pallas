@@ -156,7 +156,6 @@ optimizeLet s@(nex, tab) refNam expr body = do
 
 -- Lambda Lifting --------------------------------------------------------------
 
-
 {-
     TODO Don't lift trivial aliases, just inline them (small atom, law)
 
@@ -220,39 +219,28 @@ lambdaLift = doLift
 
 -- Inlining --------------------------------------------------------------------
 
-inlineExp :: IntMap CRes -> Expr -> [Expr] -> ExceptT Text IO (Expr, [Expr])
-inlineExp tab f xs =
-    case f of
-        ELAM _ l             -> doFunc l
-        EREF (G _ Nothing)   -> noInline "Not inlinable"
-        EREF (G _ (Just fn)) -> doFunc fn
-        EVAR v               -> doVar v
-        _                    -> unknownFunction
+inlineExp :: IntMap CRes -> [Expr] -> Expr -> ExceptT Text IO (Expr, [Expr])
+inlineExp tab xs = \case
+    ELAM _ l -> fn l
+    EREF g   -> maybe who fn g.inliner
+    EVAR v   -> maybe who fn (lookup v.key tab >>= (.inline))
+    _        -> who
   where
-    noInline = throwError
+    who = throwError "Not a known function"
 
-    unknownFunction =
-        noInline "Head of ! expression is not a known function"
+    fn func = do
+        when (numParams < arity || isRecursive) do
+            throwError "too few params or is recursive"
 
-    doVar v =
-        case (lookup v.key tab >>= (.inline)) of
-            Nothing -> noInline "Not a function"
-            Just fn -> doFunc fn
-
-    doFunc (FUN _ self _ args body) =
-        if numParams < arity || isRecursive
-        then
-            noInline "too few params or is recursive"
-        else do
-            res <- liftIO $ duplicateExpTop
-                          $ foldr (uncurry ELET) body
-                          $ zip args usedParams
-            pure (res, extraParams)
+        liftIO $ fmap (,extraParams)
+               $ duplicateExpTop
+               $ foldr (uncurry ELET) func.body
+               $ zip func.args usedParams
       where
         usedParams  = take arity xs
         extraParams = drop arity xs
-        isRecursive = numRefs self.key body > 0
-        arity       = length args
+        isRecursive = numRefs func.self.key func.body > 0
+        arity       = length func.args
         numParams   = length xs
 
 
@@ -307,7 +295,7 @@ expBod = flip go []
         ELIN (ELIN f) -> go s xs (ELIN f)
 
         ELIN f -> do
-            lift (runExceptT $ inlineExp tab f xs) >>= \case
+            lift (runExceptT $ inlineExp tab xs f) >>= \case
                 Left _reason    -> go s xs f
                 Right (e,extra) -> go s extra e
 
