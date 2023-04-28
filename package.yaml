@@ -2,7 +2,6 @@ name:                plunder
 version:             0.1.0.0
 license:             AGPL
 author:              "Plunder Authors"
-maintainer:          "plun@pqrs.me"
 copyright:           "2021 Plunder Authors"
 
 # ghc-options: -O2 -j
