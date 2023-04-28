@@ -557,6 +557,12 @@ e
 | ifNot (listNull errs) | LEFT | listToRow errs
 | RIGHT newDB
 
+> Row TxnItem > DB > DB
+= (assertTransact items db)
+# datacase (transact items db)
+* (LEFT l)  | 'transaction failed: ' l
+* (RIGHT r) r
+
 """ Pull """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; todo: maybe wrong structure. probably want to have each option as a maybe
@@ -741,7 +747,7 @@ e
 ^-^
 ^-^ DB emptyDB
 ^-^
-^-^ lookupByEA lookupByAE lookupByAV lookupByVA transact
+^-^ lookupByEA lookupByAE lookupByAV lookupByVA transact assertTransact
 ^-^ pull pullMany
 ^-^
 ; These shouldn't be exported, but are for testing. Remove these when there's

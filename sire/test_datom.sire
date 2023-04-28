@@ -1,19 +1,9 @@
 ### test_datom <- test_hitch
 
-
 /+  boot
 /+  switch    ["#switch"]
 /+  datatype  ["#record" "#datatype" "#datacase"]
 /+  datom
-
-""" Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-> Row TxnItem > DB > DB
-= (assertTransact items db)
-# datacase (transact items db)
-* (LEFT l)  | 'transaction failed: ' l
-* (RIGHT r) r
-
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
