@@ -19,12 +19,11 @@ where
 
 import Loot.Backend
 import PlunderPrelude
-import Sire.Compile.Types
 import Sire.Compile.Common
 import Sire.Compile.Inline
 import Sire.Types
 
-import Control.Monad.Except (ExceptT(..), runExceptT)
+import Control.Monad.Except (ExceptT(..))
 import Loot.Types           (Bod(..), LawName(LN), Rul(..), Val(..))
 
 import qualified Data.Map as M
@@ -211,7 +210,7 @@ expBod = flip go []
 
         ELIN f -> do
             let varFunc k = lookup k tab >>= (.inline)
-            lift (runExceptT $ inlineExp varFunc xs f) >>= \case
+            liftIO (inlineExp varFunc xs f) >>= \case
                 Left _reason    -> go s xs f
                 Right (e,extra) -> go s extra e
 
