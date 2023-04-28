@@ -77,16 +77,23 @@ resolveExp e = liftIO . \case
     EAPP f x   -> EAPP <$> go e f <*> go e x
     ELIN f     -> ELIN <$> go e f
     ELAM p f   -> ELAM p <$> resolveFun e f
-    EREC n v b -> goLet True n v b
-    ELET n v b -> goLet False n v b
+    EREC n v b -> goRec n v b
+    ELET n v b -> goLet n v b
   where
     go = resolveExp
-    goLet isRec n v b = do
+
+    goRec n v b = do
         r <- gensym n
-        let e2   = insertMap n r e
-        let con  = if isRec then EREC else ELET
-        let vEnv = if isRec then e2 else e
-        con r <$> go vEnv v <*> go e2 b
+        let e2 = insertMap n r e
+        v2 <- go e2 v
+        if numRefs r.key v2 > 0
+        then EREC r v2 <$> go e2 b
+        else ELET r v2 <$> go e2 b
+
+    goLet n v b = do
+        r <- gensym n
+        let e2 = insertMap n r e
+        ELET r <$> go e v <*> go e2 b
 
 
 -- Optimization ----------------------------------------------------------------
