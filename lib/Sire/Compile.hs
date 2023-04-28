@@ -96,54 +96,6 @@ resolveExp e = liftIO . \case
         ELET r <$> go e v <*> go e2 b
 
 
--- Optimization ----------------------------------------------------------------
-
-optimizeLet :: (Int, IntMap CRes) -> Refr -> Expr -> Expr -> ExceptT Text IO CRes
-optimizeLet s@(nex, tab) refNam expr body = do
-  let recurRef = numRefs k expr > 0
-      multiRef = numRefs k body >= 2
-  if
-    trivialExp expr || (not recurRef && not multiRef)
-  then do
-    v <- expBod s expr
-    let s' = (nex, insertMap k v tab)
-    b <- expBod s' body
-    pure if (v.arity==0) then b{arity=0} else b
-  else
-    if not recurRef
-    then do
-      let s' = (nex+1, insertMap k (CR 0 (var nex) Nothing) tab)
-      v <- expBod s' expr
-      let s'' = (nex+1, insertMap k (CR 0 (var nex) v.inline) tab)
-      b <- expBod s'' body
-      pure CR { arity  = if (v.arity == 0 || b.arity == 0) then 0 else b.arity-1
-              , code   = BLET v.code b.code
-              , inline = Nothing
-              }
-          -- TODO Why b.arity-1?  Shouldn't it just be `b.arity`?
-    else do
-      let s' = (nex+1, insertMap k (CR 0 (var nex) Nothing) tab)
-      v <- expBod s' expr
-      b <- expBod s' body
-      pure CR { arity  = if (v.arity == 0 || b.arity == 0) then 0 else b.arity-1
-              , code   = BLET v.code b.code
-              , inline = Nothing
-              }
-          -- TODO Why b.arity-1?  Shouldn't it just be `b.arity`?
-  where
-    k = refNam.key
-    var = BVAR . fromIntegral
-
-    -- Trivial if duplicating is cheaper than a let-reference.
-    -- TODO: All atom literals should be considered trivial.
-    trivialExp :: Exp a b -> Bool
-    trivialExp = \case
-        EVAL{} -> True
-        EREF{} -> True
-        EVAR{} -> True
-        _      -> False
-
-
 -- Lambda Lifting --------------------------------------------------------------
 
 {-
@@ -294,6 +246,50 @@ expBod = flip go []
                    Just CR{arity=0}     -> EVAR v -- TODO: does this matter?
                    Just CR{code=BCNS c} -> EVAL (valFan ((.val) <$> c))
                    _                    -> EVAR v
+
+    -- Trivial if duplicating is cheaper than a let-reference.
+    trivialExp :: Exp a b -> Bool
+    trivialExp = \case
+        EVAL{} -> True
+        EREF{} -> True
+        EVAR{} -> True
+        _      -> False
+
+    optimizeLet :: (Int, IntMap CRes) -> Refr -> Expr -> Expr -> ExceptT Text IO CRes
+    optimizeLet s@(nex, tab) refNam expr body = do
+      let recurRef = numRefs k expr > 0
+          multiRef = numRefs k body >= 2
+      if
+        trivialExp expr || (not recurRef && not multiRef)
+      then do
+        v <- expBod s expr
+        let s' = (nex, insertMap k v tab)
+        b <- expBod s' body
+        pure if (v.arity==0) then b{arity=0} else b
+      else
+        if not recurRef
+        then do
+          let s' = (nex+1, insertMap k (CR 0 (var nex) Nothing) tab)
+          v <- expBod s' expr
+          let s'' = (nex+1, insertMap k (CR 0 (var nex) v.inline) tab)
+          b <- expBod s'' body
+          pure CR { arity  = if (v.arity == 0 || b.arity == 0) then 0 else b.arity-1
+                  , code   = BLET v.code b.code
+                  , inline = Nothing
+                  }
+              -- TODO Why b.arity-1?  Shouldn't it just be `b.arity`?
+        else do
+          let s' = (nex+1, insertMap k (CR 0 (var nex) Nothing) tab)
+          v <- expBod s' expr
+          b <- expBod s' body
+          pure CR { arity  = if (v.arity == 0 || b.arity == 0) then 0 else b.arity-1
+                  , code   = BLET v.code b.code
+                  , inline = Nothing
+                  }
+              -- TODO Why b.arity-1?  Shouldn't it just be `b.arity`?
+      where
+        k = refNam.key
+        var = BVAR . fromIntegral
 
 
 -- The Sire Compiler -----------------------------------------------------------
