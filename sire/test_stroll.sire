@@ -1,0 +1,148 @@
+### test_stroll <- test_datom
+
+/+  boot
+/+  switch    ["#switch"]
+/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  datom
+/+  stroll
+
+""" Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (assertRight x)
+| fromRight ('assertion failed' 0) x
+
+= notesDB
+^ assertTransact _ strollSchema
+,, %% =":db/id" %["plunder page"]
+   %% =":page/title" "Plunder"
+   %% =":block/uid" "TtzFH-Ym1"
+   %% =":block/children"
+      ,, %% =":block/string" "Members"
+         %% =":block/uid" "r0wrZ2qQL"
+         %% =":block/order" 0
+         %% =":block/page" %["plunder page"]
+         %% =":block/children"
+            ,, %% =":block/string" "[[Iceman]]"
+               %% =":block/uid" "3LKryaGyF"
+               %% =":block/order" 0
+               %% =":block/page" %["plunder page"]
+               %% =":block/refs" %["iceman page"]
+               %% =":block/children"
+                  ,, %% =":block/string" "((b2fdrwjXZ))"
+                     %% =":block/uid" "D_fFfQNlb"
+                     %% =":block/order" 0
+                     %% =":block/page" %["plunder page"]
+                     %% =":block/refs" %["b2fdrwjXZ"] ; ref
+            ,, %% =":block/string" "[[Sol]]"
+               %% =":block/uid" "o-_aIaa83"
+               %% =":block/order" 1
+               %% =":block/page" %["plunder page"]
+               %% =":block/refs" %["sol page"]
+               %% =":block/children"
+                  ,, %% =":block/string" "((16M_lgxfk))"
+                     %% =":block/uid" "xYAA9mPYv"
+                     %% =":block/order" 0
+                     %% =":block/page" %["plunder page"]
+                     %% =":block/refs" %["16M_lgxfk"]
+,, %% =":db/id" %["iceman page"]
+   %% =":page/title" "Iceman"
+   %% =":block/uid" "pnKunZ4If"
+   %% =":block/children"
+      ,, %% =":block/string" "Currently working on"
+         %% =":block/uid" "5COIJVctB"
+         %% =":block/order" 0
+         %% =":block/page" %["iceman page"]
+         %% =":block/children"
+            ,, %% =":db/id" %["b2fdrwjXZ"]
+               %% =":block/string" "Datom"
+               %% =":block/uid" "b2fdrwjXZ"
+               %% =":block/order" 0
+               %% =":block/page" %["iceman page"]
+,, %% =":db/id" %["sol page"]
+   %% =":page/title" "Sol"
+   %% =":block/uid" "1NLcDwisF"
+   %% =":block/children"
+      ,, %% =":block/string" "Currently working on"
+         %% =":block/uid" "yzo5F7CVd"
+         %% =":block/order" 0
+         %% =":block/page" %["sol page"]
+         %% =":block/children"
+            ,, %% =":db/id" %["16M_lgxfk"]
+               %% =":block/string" "Compiler"
+               %% =":block/uid" "16M_lgxfk"
+               %% =":block/order" 0
+               %% =":block/page" %["sol page"]
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Conceptual demo:
+;
+; Here we try to break down the workflow of reading and writing.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;
+;; Case 1: Grab blocks under the main Plunder page.
+;
+
+; Gets the toplevel block for the Plunder page.
+= plunderPage
+| assertRight | findPageBlock "Plunder" notesDB
+
+; Gets the one "Members" block that's on the Plunder page.
+= membersBlock
+@ q | makeOrderedChildrenQuery plunderPage
+| idx 0 | assertRight | findBlocksContent q notesDB
+
+; Gets the two blocks under Members in sorted order.
+= memberBlockContents
+@ q | makeOrderedChildrenQuery membersBlock
+| assertRight | findBlocksContent q notesDB
+
+!!=    memberBlockContents
+    ,,  %% =':block/uid' '3LKryaGyF'
+        %% =':block/string' '[[Iceman]]'
+        %% =':block/children'
+           [%[':block/uid'='D_fFfQNlb' ':block/order'=0]]
+    ,,  %% =':block/uid' 'o-_aIaa83'
+        %% =':block/string' '[[Sol]]'
+        %% =':block/children'
+           [%[':block/uid'='xYAA9mPYv' ':block/order'=0]]
+
+; Notes: Not entirely happy with the above. Doing this as a bunch of
+; separate lookups seems questionable and likely to result in inconsistent
+; views if the database is modified mid-read. A real implementation also needs
+; to do binding of an entity to a UI element with subscriptions.
+;
+
+;
+;; Case 2: Get the "linked references" section of a page.
+;
+; Roam's big idea is that for every item (page or block) that you view, you can
+; see all things which reference it in context. So find out all the blocks which
+; reference the Iceman page, their uid and the title of the page they are on.
+;
+
+= icemanPage
+| assertRight | findPageBlock "Iceman" notesDB
+
+= referencingBlocks
+| findPageBlocksReferencing icemanPage notesDB
+
+!!=    referencingBlocks
+    ,,  1
+    ,,  %% =':block/refs'
+            ,,  %% =':block/uid' '3LKryaGyF'
+                %% =':block/page'
+                   [%[':block/uid'='TtzFH-Ym1' ':page/title'=[%Plunder]]]
+
+
+
+; Notes: The referencing blocks query above really would work better as a
+; :query
+
+;;;
+;
+; Other things we must handle:
+;
+; - Write a new block
+; - Drag a bullet around to a new parent.

@@ -1,0 +1,142 @@
+### stroll <- prelude
+
+"""
+""" Stroll
+""" ======
+"""
+""" A different way to Roam locally.
+
+/+  boot
+/+  switch    ["#switch"]
+/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  datom
+
+""" Schema """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= strollSchema
+^ assertTransact _ emptyDB
+; Page attributes
+,, %% =":db/ident" ":page/title"
+   %% =":db/unique" TRUE
+   %% =":db/doc"
+       "When set on a block, that block is treated as a page with this title."
+; Block attributes
+,, %% =":db/ident" ":block/string"
+   %% =":db/cardinality" "one"
+   %% =":db/doc" "String content of a block"
+,, %% =":db/ident" ":block/uid"
+   %% =":db/cardinality" "one"
+   %% =":db/unique" TRUE
+   %% =":db/doc" "User referable text name for a block"
+,, %% =":db/ident" ":block/children"
+   %% =":db/cardinality" "many"
+   %% =":db/valueType" "ref"
+   %% =":db/doc" "Reference to all blocks under this block"
+,, %% =":db/ident" ":block/page"
+   %% =":db/cardinality" "one"
+   %% =":db/valueType" "ref"
+   %% =":db/indexed" TRUE
+   %% =":db/doc" "Reference to the page this block is displayed on."
+,, %% =":db/ident" ":block/refs"
+   %% =":db/cardinality" "many"
+   %% =":db/valueType" "ref"
+   %% =":db/doc" "Reference to all blocks `:block/string` textually refers to."
+,, %% =":db/ident" ":block/order"
+   %% =":db/cardinality" "one"
+   %% =":db/doc" "The order of these blocks in the list of `:block/children`."
+
+; Deliberately skipping :block/parents because we have a VAE table, unlike
+; datascript. The data from :block/parents is derivable from :block/children,
+; and will give you the order instead of having to calculate that after the
+; fact.
+
+
+; TODO: The above is the minimal viable stroll. There are a TON of things we
+; want to look into:
+;
+; - Item filtering in the references section.
+;
+;   - Roam sticks a monolithic object in `:window/filters` on the block's eid
+;     for filtering references positively or negatively. This is more than a
+;     little brittle and also implies that they aren't using them in :find.
+;
+;   - logseq's datascript usage is ephemeral with the markdown files being
+;     the persistent store. They just stick this data in a raw bullet point.
+;
+; - Open states
+;
+;   - A block is open or not and this is stored on the block, instead of being
+;     open or not on a specific page, which is usually what you want?
+;
+; - Hierarchy view
+;
+;   - logseq's hierarchy view is just such a good feature and it's very
+;     revealing that Roam hasn't or can't copy it. We should just verbatim
+;     copy this feature because it's super useful and only costs a single
+;     attribute per :page entity that participates in a hierarchy.
+;
+; - Aliases
+;
+;   - Roam has refused to implement this feature for basically its entire
+;     existence when it's the most requested feature of the product. logseq
+;     has aliases and it's actually super trivial, just add a ":page/alias"
+;     attribute and check for aliases every place you'd other look for
+;     ":page/title".
+;
+; - Journal
+;
+;   - The "Daily Notes" style pages are the killer organizational feature of
+;     both Roam, logseq and other imitators. But this involves another
+;     attribute in ":page/" to support.
+
+""" Queries """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; Imagine you are writing a web frontend for the above and you want to deal
+; with it entirely with pulls. This is contrived, since at least logseq's
+; implementation of a Roam-like uses complex :find queries all over the place
+; with comparatively few pulls. (I did pull first since the datascript designer
+; said he doesn't reach for pulls in normal webapps, but the one example app I
+; can find actually makes extensive use of them.)
+
+childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
+
+; Find the implicit block that make up a page, along with all its children.
+= (findPageBlock pageTitle db)
+| pull ,, ":block/uid"
+       ,, childrenQuery
+       [":page/title" pageTitle]
+       db
+
+; Given a row of all the child blocks sorted by order, list the data for each
+; block for display.
+= findBlocksContent
+| pullMany ,, ":block/uid"
+           ,, ":block/string"
+           ,, childrenQuery
+
+; Given any result map which contains a childrenQuery, produce an ordered list
+; of uids to lookup sorted on order.
+= (makeOrderedChildrenQuery s)
+@ rowOfTab | fromSome [] | tabLookup ":block/children" s
+@ (getOrder x)
+  | fromSome 0 | tabLookup ":block/order" x
+@ sortedRow | sortOn getOrder rowOfTab
+^ map _ sortedRow
+& r
+[":block/uid" (fromSome ('missing uid' 0) | tabLookup ":block/uid" r)]
+
+; Given a block, find all blocks which reference this block and the page
+; they're on.
+;
+; The output of this pull is why the normal query interface is so nice: instead
+; of returning a list of tuples, this returns a weird large nested structure of
+; tabs and cabs and rows. The data is in there, but it's pretty cumbersome to
+; work with.
+;
+= (findPageBlocksReferencing x db)
+@ uid | fromSome "" | tabLookup ":block/uid" x
+| pull ,, %% =":block/_refs" ,, ":block/uid"
+                             ,, %% =":block/page" ,, ":block/uid"
+                                                  ,, ":page/title"
+       [":block/uid" uid]
+       db
