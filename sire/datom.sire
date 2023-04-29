@@ -675,11 +675,7 @@ e
     | if | cabIsEmpty cab
         | trk [%empty]
         | RIGHT []
-    ;
-    | if isRef
-        | 'todo: isRef' 0
     | if isMany
-        ; many/non-ref
         | RIGHT [outputKey (cabRow cab)]
     ;
     | RIGHT [outputKey (cabFirst cab)]
