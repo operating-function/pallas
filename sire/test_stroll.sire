@@ -94,11 +94,11 @@
 | idx 0 | assertRight | findBlocksContent q notesDB
 
 ; Gets the two blocks under Members in sorted order.
-= memberBlockContents
+= (memberBlockContents membersBlock db)
 @ q | makeOrderedChildrenQuery membersBlock
-| assertRight | findBlocksContent q notesDB
+| assertRight | findBlocksContent q db
 
-!!=    memberBlockContents
+!!=    | memberBlockContents membersBlock notesDB
     ,,  %% =':block/uid' '3LKryaGyF'
         %% =':block/string' '[[Iceman]]'
         %% =':block/children'
@@ -135,10 +135,44 @@
                 %% =':block/page'
                    [%[':block/uid'='TtzFH-Ym1' ':page/title'=[%Plunder]]]
 
-
-
 ; Notes: The referencing blocks query above really would work better as a
 ; :query
+
+;
+;; Case 3: Inserting a new bullet under an item.
+;
+; So you're cursor is on a bullet, but now you want a NEW bullet after
+; that. Whoah!
+;
+; Test that we move all bullet points around correctly
+
+; Insert at beginning
+!!=    | sortRowTabByOrder
+       | findBlocksChildrenUnsorted "r0wrZ2qQL"
+       | assertRight
+       | insertEmptyBlock "r0wrZ2qQL" 0 notesDB
+    ,, %[':block/uid'=(%XXXXXXXXX) ':block/order'=0]
+    ,, %[':block/uid'='3LKryaGyF' ':block/order'=1]
+    ,, %[':block/uid'='o-_aIaa83' ':block/order'=2]
+
+; Middle
+!!=    | sortRowTabByOrder
+       | findBlocksChildrenUnsorted "r0wrZ2qQL"
+       | assertRight
+       | insertEmptyBlock "r0wrZ2qQL" 1 notesDB
+    ,, %[':block/uid'='3LKryaGyF' ':block/order'=0]
+    ,, %[':block/uid'=(%XXXXXXXXX) ':block/order'=1]
+    ,, %[':block/uid'='o-_aIaa83' ':block/order'=2]
+
+; End
+!!=    | sortRowTabByOrder
+       | findBlocksChildrenUnsorted "r0wrZ2qQL"
+       | assertRight
+       | insertEmptyBlock "r0wrZ2qQL" 2 notesDB
+    ,, %[':block/uid'='3LKryaGyF' ':block/order'=0]
+    ,, %[':block/uid'='o-_aIaa83' ':block/order'=1]
+    ,, %[':block/uid'=(%XXXXXXXXX) ':block/order'=2]
+
 
 ;;;
 ;

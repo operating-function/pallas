@@ -109,21 +109,32 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 
 ; Given a row of all the child blocks sorted by order, list the data for each
 ; block for display.
+> Row Any > DB > Either [Error] [(Tab Any Any)]
 = findBlocksContent
 | pullMany ,, ":block/uid"
            ,, ":block/string"
            ,, childrenQuery
 
+= (sortRowTabByOrder t)
+^ sortOn _ t
+& x
+| fromSome 0 | tabLookup ":block/order" x
+
 ; Given any result map which contains a childrenQuery, produce an ordered list
 ; of uids to lookup sorted on order.
 = (makeOrderedChildrenQuery s)
 @ rowOfTab | fromSome [] | tabLookup ":block/children" s
-@ (getOrder x)
-  | fromSome 0 | tabLookup ":block/order" x
-@ sortedRow | sortOn getOrder rowOfTab
-^ map _ sortedRow
+^ map _ | sortRowTabByOrder rowOfTab
 & r
 [":block/uid" (fromSome ('missing uid' 0) | tabLookup ":block/uid" r)]
+
+= (findBlocksChildrenUnsorted uid db)
+# datacase | pull [childrenQuery] [":block/uid" uid] db
+* (LEFT l) []
+* (RIGHT r)
+    | fromSome []
+    | tabLookup ":block/children" r
+
 
 ; Given a block, find all blocks which reference this block and the page
 ; they're on.
@@ -140,3 +151,49 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
                                                   ,, ":page/title"
        [":block/uid" uid]
        db
+
+; Given a block, add a new empty child at position X.
+;
+; This involves increasing the order of every block after pos and creating a
+; new block at pos.
+= (insertEmptyBlock parentUid pos db)
+; all children pulled from the database
+@ children | findBlocksChildrenUnsorted parentUid db
+; new tuples for child nodes that must be updated.
+@ childUpdates
+    ^ mapMaybe _ children
+    & node
+    : uid < maybeCase (tabLookup ":block/uid" node) NONE
+    : order < maybeCase (tabLookup ":block/order" node) NONE
+    | if (lth order pos)
+        | NONE
+    ; TODO: If I allow reading of raw EID numbers during a pull via a virtual
+    ; ":db/id" like Datomic, we can get rid of the overhead of this lookup
+    ; here, which is probably small in this one instance, but is a unneeded
+    ; repeated lookup over all queries.
+    | SOME [%add [":block/uid" uid] ":block/order" (inc order)]
+;
+@ page
+  ; TODO: this would work better as a query, since that would just return the
+  ; eid directly.
+  | fromSome ('missing :block/page' 0)
+  | tabLookup ":block/page"
+  | idx 1
+  | pull [":block/page"] [":block/uid" parentUid] db
+;
+@ newItem
+    ; TODO: Must randomly generate a real uid. This implies we're no longer
+    ; pushing the raw datom db around, but have additional state for the random
+    ; seed.
+    %% =":block/uid" "XXXXXXXXX"
+    %% =":block/string" ""
+    %% =":block/order" pos
+    %% =":block/page" page
+;
+@ addChild
+    %% =":db/id" [":block/uid" parentUid]
+    %% =":block/children" newItem
+@ total | rowCons addChild childUpdates
+| transact total db
+
+
