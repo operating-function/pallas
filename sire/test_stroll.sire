@@ -9,10 +9,10 @@
 """ Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (assertRight x)
-| fromRight ('assertion failed' 0) x
+| fromRight ('assertion failed' x) x
 
 = notesDB
-^ assertTransact _ strollSchema
+^ assertTransactStrollDb _ | emptyStrollDb 42
 ,, %% =":db/id" %["plunder page"]
    %% =":page/title" "Plunder"
    %% =":block/uid" "TtzFH-Ym1"
@@ -151,7 +151,8 @@
        | findBlocksChildrenUnsorted "r0wrZ2qQL"
        | assertRight
        | insertEmptyBlock "r0wrZ2qQL" 0 notesDB
-    ,, %[':block/uid'=(%XXXXXXXXX) ':block/order'=0]
+    @ [_ nextUid] | genUid | idx 0 notesDB
+    ,, %[':block/uid'=nextUid ':block/order'=0]
     ,, %[':block/uid'='3LKryaGyF' ':block/order'=1]
     ,, %[':block/uid'='o-_aIaa83' ':block/order'=2]
 
@@ -160,8 +161,9 @@
        | findBlocksChildrenUnsorted "r0wrZ2qQL"
        | assertRight
        | insertEmptyBlock "r0wrZ2qQL" 1 notesDB
+    @ [_ nextUid] | genUid | idx 0 notesDB
     ,, %[':block/uid'='3LKryaGyF' ':block/order'=0]
-    ,, %[':block/uid'=(%XXXXXXXXX) ':block/order'=1]
+    ,, %[':block/uid'=nextUid ':block/order'=1]
     ,, %[':block/uid'='o-_aIaa83' ':block/order'=2]
 
 ; End
@@ -169,9 +171,10 @@
        | findBlocksChildrenUnsorted "r0wrZ2qQL"
        | assertRight
        | insertEmptyBlock "r0wrZ2qQL" 2 notesDB
+    @ [_ nextUid] | genUid | idx 0 notesDB
     ,, %[':block/uid'='3LKryaGyF' ':block/order'=0]
     ,, %[':block/uid'='o-_aIaa83' ':block/order'=1]
-    ,, %[':block/uid'=(%XXXXXXXXX) ':block/order'=2]
+    ,, %[':block/uid'=nextUid ':block/order'=2]
 
 
 ;;;

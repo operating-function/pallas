@@ -10,6 +10,7 @@
 /+  switch    ["#switch"]
 /+  datatype  ["#record" "#datatype" "#datacase"]
 /+  datom
+/+  gen
 
 """ Schema """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -89,6 +90,54 @@
 ;     both Roam, logseq and other imitators. But this involves another
 ;     attribute in ":page/" to support.
 
+""" Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""
+""" These are general and should be moved elsewhere
+
+; We need to be able to generate random uids, which are like base64 but with
+; '-' and '_' instead of '+' and '/'.
+
+= base64hepbar
+  b#{ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_}
+
+> Gen > [Gen Nat]
+= (genUid gen)
+@ [gen l]
+  ^ foldl _ [gen NIL] [0 1 2 3 4 5 6 7 8 9]
+  & ([gen xs] i)
+  @ [gen res] | genBitsNat 6 gen
+  [gen (CONS (barIdx res base64hepbar) xs)]
+@ uid | listFoldl strWeld '' l
+[gen uid]
+
+""" Database Record """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+# record StrollDb
+| STROLL_DB gen:Rand db:DB
+
+> Nat > StrollDb
+= (emptyStrollDb seed)
+@ gen | mkRand seed
+| STROLL_DB gen strollSchema
+
+> Any > StrollDb > > Either (Row Error) StrollDb
+= (transactStrollDb txn strollDb)
+# openStrollDb strollDb
+| trk [%txn db]
+# datacase | transact txn db
+* (LEFT l) | LEFT l
+* (RIGHT r) | RIGHT | STROLL_DB gen r
+
+> Any StrollDb > StrollDb
+= (assertTransactStrollDb txn strollDb)
+| trk [%atsd strollDb]
+# datacase (transactStrollDb txn strollDb)
+* (LEFT l)
+    | trk [%l l]
+    | 'transaction failed: ' l
+* (RIGHT r)
+    | trk [%r r] r
+
 """ Queries """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; Imagine you are writing a web frontend for the above and you want to deal
@@ -101,7 +150,8 @@
 childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 
 ; Find the implicit block that make up a page, along with all its children.
-= (findPageBlock pageTitle db)
+= (findPageBlock pageTitle strollDb)
+# openStrollDb strollDb
 | pull ,, ":block/uid"
        ,, childrenQuery
        [":page/title" pageTitle]
@@ -110,10 +160,13 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ; Given a row of all the child blocks sorted by order, list the data for each
 ; block for display.
 > Row Any > DB > Either [Error] [(Tab Any Any)]
-= findBlocksContent
+= (findBlocksContent q strollDb)
+# openStrollDb strollDb
 | pullMany ,, ":block/uid"
            ,, ":block/string"
            ,, childrenQuery
+           q
+           db
 
 = (sortRowTabByOrder t)
 ^ sortOn _ t
@@ -128,7 +181,8 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 & r
 [":block/uid" (fromSome ('missing uid' 0) | tabLookup ":block/uid" r)]
 
-= (findBlocksChildrenUnsorted uid db)
+= (findBlocksChildrenUnsorted uid strollDb)
+# openStrollDb strollDb
 # datacase | pull [childrenQuery] [":block/uid" uid] db
 * (LEFT l) []
 * (RIGHT r)
@@ -144,7 +198,8 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ; tabs and cabs and rows. The data is in there, but it's pretty cumbersome to
 ; work with.
 ;
-= (findPageBlocksReferencing x db)
+= (findPageBlocksReferencing x strollDb)
+# openStrollDb strollDb
 @ uid | fromSome "" | tabLookup ":block/uid" x
 | pull ,, %% =":block/_refs" ,, ":block/uid"
                              ,, %% =":block/page" ,, ":block/uid"
@@ -156,9 +211,10 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;
 ; This involves increasing the order of every block after pos and creating a
 ; new block at pos.
-= (insertEmptyBlock parentUid pos db)
+= (insertEmptyBlock parentUid pos strollDb)
+# openStrollDb strollDb
 ; all children pulled from the database
-@ children | findBlocksChildrenUnsorted parentUid db
+@ children | findBlocksChildrenUnsorted parentUid strollDb
 ; new tuples for child nodes that must be updated.
 @ childUpdates
     ^ mapMaybe _ children
@@ -174,18 +230,23 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
     | SOME [%add [":block/uid" uid] ":block/order" (inc order)]
 ;
 @ page
-  ; TODO: this would work better as a query, since that would just return the
-  ; eid directly.
-  | fromSome ('missing :block/page' 0)
-  | tabLookup ":block/page"
-  | idx 1
-  | pull [":block/page"] [":block/uid" parentUid] db
-;
+    ; TODO: this would work better as a query, since that would just return the
+    ; eid directly.
+    | fromSome ('missing :block/page' 0)
+    | tabLookup ":block/page"
+    | idx 1
+    | pull [":block/page"] [":block/uid" parentUid] db
+; generate a unique uid that doesn't exist in the database yet.
+@ [gen uid]
+    ^ _ gen
+    ? (loop gen)
+    @ [gen uid] | genUid gen
+    @ matches | lookupByAV ":block/uid" uid db
+    | if | cabIsEmpty matches
+        [gen uid]
+    | loop gen
 @ newItem
-    ; TODO: Must randomly generate a real uid. This implies we're no longer
-    ; pushing the raw datom db around, but have additional state for the random
-    ; seed.
-    %% =":block/uid" "XXXXXXXXX"
+    %% =":block/uid" uid
     %% =":block/string" ""
     %% =":block/order" pos
     %% =":block/page" page
@@ -194,6 +255,6 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
     %% =":db/id" [":block/uid" parentUid]
     %% =":block/children" newItem
 @ total | rowCons addChild childUpdates
-| transact total db
-
-
+# datacase  | transact total db
+* (LEFT l)  | LEFT l
+* (RIGHT r) | RIGHT | STROLL_DB gen r
