@@ -266,3 +266,111 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 # datacase  | transact total db
 * (LEFT l)  | LEFT l
 * (RIGHT r) | RIGHT | STROLL_DB gen r
+
+; Creates a new page with a new single empty bullet on it and returns the uid
+; of the created page.
+;
+> String > StrollDb > [Uid StrollDb]
+= (makeNewPage pageTitle strollDb)
+@ [pointUid strollDb] | generateUniqueID strollDb
+@ [pageUid strollDb]  | generateUniqueID strollDb
+^ [pageUid _]
+^ assertTransactStrollDb _ strollDb
+,, %% =":db/id" %["newpage"]
+   %% =":page/title" pageTitle
+   %% =":block/uid" pageUid
+   %% =":block/children"
+      ,, %% =":block/string" ""
+         %% =":block/uid" pointUid
+         %% =":block/order" 0
+         %% =":block/page" %["newpage"]
+
+; Given a page title, resolves it to a uid, creating the page if necessary.
+;
+> String > StrollDb > [Uid StrollDb]
+= (pageToUid pageTitle strollDb)
+# openStrollDb strollDb
+@ eids | lookupByAV ":page/title" pageTitle db
+| if | cabIsEmpty eids
+  | makeNewPage pageTitle strollDb
+@ uids | lookupByAE ":block/uid" (cabFirst eids) db
+[(cabFirst uids) strollDb]
+
+; Parses a string for things which look like references.
+;
+> String > [String]
+= (parseRefs txt)
+@ bar | natBar txt
+@ len | barLen bar
+| listToRow
+^ _ 0 bar NIL
+? (loop i bar out)
+| if | gth i len
+  out
+| if | rowAnd ,, | eql (barIdx i bar) '('
+              ,, | eql (barIdx (inc i) bar) '('
+              ,, | eql (barIdx (add 11 i) bar) ')'
+              ,, | eql (barIdx (add 12 i) bar) ')'
+   ; todo: additionally validate that its base64
+   @ ref | barNat | barSlice (add i 2) 9 bar
+   | loop (add i 12) bar (CONS ref out)
+| loop (inc i) bar out
+
+!!=     [%bbCCddEE1 %aaBBccDD9]
+    | parseRefs "One ((aaBBccDD9)) Three ((bbCCddEE1))"
+
+; Parse inside links
+!!=     [%bbCCddEE1]
+    | parseRefs "Yesterday, [I wrote this](((bbCCddEE1)))"
+
+; Parses titles out of the data
+;
+; This is tricky because you have to deal with page titles that contain page
+; titles, and have to deal with malformed ones. (We deal with extra [[ or ]]
+; on either side of the title.)
+;
+> String > [String]
+= (parseTitles txt)
+@ bar | natBar txt
+@ len | barLen bar
+| listToRow
+^ _ 0 bar NIL NIL
+? (loop i bar stack out)
+| if | gth i len
+    out
+| if | rowAnd ,, | eql (barIdx i bar) '['
+              ,, | eql (barIdx (inc i) bar) '['
+    ; we mark that this is where we have the beginning of a mark
+    | loop (add 2 i) bar (CONS (add 2 i) stack) out
+| if | rowAnd ,, | eql (barIdx i bar) ']'
+              ,, | eql (barIdx (inc i) bar) ']'
+    : x xs < **listCase stack
+                 ; extra unmatched right close. ignore it
+                 | loop (add 2 i) bar stack out
+    @ title | barNat | barSlice x (sub i x) bar
+    | loop (add 2 i) bar xs (CONS title out)
+| loop (inc i) bar stack out
+
+; Simple case
+!!=     [%Iceman]
+    | parseTitles "[[Iceman]]"
+
+;; Parse in links
+!!=     [%Iceman]
+    | parseTitles "[This dude]([[Iceman]])"
+
+;; Simple recursive case
+!!=     ['[[Word]] More' %Word]
+    | parseTitles "[[[[Word]] More]]"
+
+;; Extra '[[' on left
+!!=     ['[[Word]] More' %Word]
+    | parseTitles "[[ [[[[Word]] More]]"
+
+;; Extra ']]' on right
+!!=     ['[[Word]] More' %Word]
+    | parseTitles "[[[[Word]] More]] ]]"
+
+;; Parallel references
+!!=     ['[[One]] and [[Two]]' 'Two' 'One']
+    | parseTitles "[[[[One]] and [[Two]]]]"
