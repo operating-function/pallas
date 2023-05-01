@@ -138,6 +138,22 @@
 * (RIGHT r)
     | trk [%r r] r
 
+; Generates a unique id, checking that the uid isn't in the database
+;
+> StrollDb > [uid StrollDb]
+= (generateUniqueID strollDb)
+# openStrollDb strollDb
+; generate a unique uid that doesn't exist in the database yet.
+@ [gen uid]
+    ^ _ gen
+    ? (loop gen)
+    @ [gen uid] | genUid gen
+    @ matches | lookupByAV ":block/uid" uid db
+    | if | cabIsEmpty matches
+        [gen uid]
+    | loop gen
+[uid (STROLL_DB gen db)]
+
 """ Queries """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; Imagine you are writing a web frontend for the above and you want to deal
@@ -212,6 +228,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ; This involves increasing the order of every block after pos and creating a
 ; new block at pos.
 = (insertEmptyBlock parentUid pos strollDb)
+@ [uid strollDb] | generateUniqueID strollDb
 # openStrollDb strollDb
 ; all children pulled from the database
 @ children | findBlocksChildrenUnsorted parentUid strollDb
@@ -236,15 +253,6 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
     | tabLookup ":block/page"
     | idx 1
     | pull [":block/page"] [":block/uid" parentUid] db
-; generate a unique uid that doesn't exist in the database yet.
-@ [gen uid]
-    ^ _ gen
-    ? (loop gen)
-    @ [gen uid] | genUid gen
-    @ matches | lookupByAV ":block/uid" uid db
-    | if | cabIsEmpty matches
-        [gen uid]
-    | loop gen
 @ newItem
     %% =":block/uid" uid
     %% =":block/string" ""
