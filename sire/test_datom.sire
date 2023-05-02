@@ -243,3 +243,9 @@
     @ tendiesId | cabFirst | lookupByAV ":item/product" "Tendies" multiOrders
     ^ pull _ tendiesId multiOrders
     ,, %% =":order/_lineItems" ,, ":order/name"
+
+; Test backwards lookup to database entity
+!!=    | RIGHT %% =":order/lineItems" ,, %% =":db/id" 13
+    @ tendiesId | cabFirst | lookupByAV ":item/product" "Tendies" multiOrders
+    ^ pull _ tendiesId multiOrders
+    ,, %% =":order/_lineItems" ,, ":db/id"

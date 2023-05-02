@@ -565,14 +565,14 @@ e
 
 """ Pull """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; todo: maybe wrong structure. probably want to have each option as a maybe
-; in PULL_ATTR.
-# datatype AttrOption
-* OPTION_AS name:Str
-
+; AttrExpr, an "attribute expression", the parsed version of trying to represent
+; the way of specifying an attribute in a pull, in either direction, subject to
+; a set of options which controls how the results from the attribute match will
+; be returned.
 # datatype AttrExpr
 * ATTR_EXPR name:String options:(Tab String Any)
 * ATTR_BACKWARDS name:String options:(Tab String Any)
+* ATTR_EID options:(Tab String Any)
 
 # datatype ParsedPull
 * PULL_WILDCARD
@@ -631,6 +631,8 @@ e
     | RIGHT | PULL_MAP specs
 | if (val == "*")
     | RIGHT PULL_WILDCARD
+| if (val == dbIdStr)
+    | RIGHT | **PULL_ATTR | ATTR_EID %[]
 | if (isNat val)
     | RIGHT
     | **PULL_ATTR
@@ -640,24 +642,26 @@ e
     | ATTR_BACKWARDS realName %[]
 | LEFT | **BAD_PULL_TERM val
 
-> Either Error [Str (Cab Any) [Nat Bool Bool Bool Bool]]
+> Db
+> Nat
+> Either Error [Str (Cab Any) [Bool Bool Bool Bool]]
 = (lookupAttr db eid expr)
-@ [name options lookup]
-    # datacase expr
-    * (ATTR_EXPR name options)
-        ,, name
-        ,, options
-        ,, aid&(lookupByEidAid eid aid db)
-    * (ATTR_BACKWARDS name options)
-        ,, name
-        ,, options
-        ,, aid&(lookupByVAid eid aid db)
 ;
-: [aid indexed unique isMany isRef] <- doRight | resolveAttrName name db
-@ outputKey | fromSome name | tabLookup ":as" options
-@ rawCab | lookup aid
-; TODO: handle limits in rawCab.
-| RIGHT [outputKey rawCab [indexed unique isMany isRef]]
+@ (handleOptions name options attrType rawCab)
+  @ outputKey | fromSome name | tabLookup ":as" options
+  ; TODO: handle limits in rawCab.
+  | RIGHT [outputKey rawCab attrType]
+# datacase expr
+* (ATTR_EXPR name options)
+    : [aid indexed unique isMany isRef] <- doRight | resolveAttrName name db
+    @ rawCab | lookupByEidAid eid aid db
+    | handleOptions name options [indexed unique isMany isRef] rawCab
+* (ATTR_BACKWARDS name options)
+    : [aid indexed unique isMany isRef] <- doRight | resolveAttrName name db
+    @ rawCab | lookupByVAid eid aid db
+    | handleOptions name options [indexed unique isMany isRef] rawCab
+* (ATTR_EID options)
+    | handleOptions dbIdStr options [TRUE TRUE FALSE TRUE] (cabSingleton eid)
 
 > Nat
 > DB
