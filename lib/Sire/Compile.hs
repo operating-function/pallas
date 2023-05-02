@@ -291,7 +291,9 @@ expBod = flip go []
             bap s xs $ bodied{inline=Just f}
 
         EVAR r ->
-            bap s xs $ fromMaybe (error "Internal Error")
+            bap s xs $ fromMaybe (error ("Internal Error: `"
+                                      <> show r
+                                      <> "` missing."))
                      $ lookup r.key tab
 
         EREF (G t i) ->
