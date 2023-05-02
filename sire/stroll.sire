@@ -110,6 +110,9 @@
 @ uid | listFoldl strWeld '' l
 [gen uid]
 
+= (assertRight x)
+| fromRight ('assertion failed' x) x
+
 """ Database Record """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 # record StrollDb
@@ -223,6 +226,33 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
        [":block/uid" uid]
        db
 
+; Given a uid, find all the eids of all the blocks this uid forward references
+;
+; TODO: this is another function where query would be cleaner
+= (findAllRefEids uid strollDb)
+# openStrollDb strollDb
+| map [k v]&v
+| catMap tabToPairs
+| fromSome %[]
+| tabLookup ":block/refs"
+| assertRight
+| pull ,, %% =":block/refs" ,, ":db/id"
+       [":block/uid" uid]
+       db
+
+; Given a uid, find all the uids of all the blocks this uid forward references
+= (findAllRefUids uid strollDb)
+# openStrollDb strollDb
+| map [k v]&v
+| catMap tabToPairs
+| map tabToPairs
+| fromSome %[]
+| tabLookup ":block/refs"
+| assertRight
+| pull ,, %% =":block/refs" ,, ":block/uid"
+       [":block/uid" uid]
+       db
+
 ; Given a block, add a new empty child at position X.
 ;
 ; This involves increasing the order of every block after pos and creating a
@@ -292,7 +322,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 # openStrollDb strollDb
 @ eids | lookupByAV ":page/title" pageTitle db
 | if | cabIsEmpty eids
-  | makeNewPage pageTitle strollDb
+    | makeNewPage pageTitle strollDb
 @ uids | lookupByAE ":block/uid" (cabFirst eids) db
 [(cabFirst uids) strollDb]
 
@@ -306,7 +336,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ^ _ 0 bar NIL
 ? (loop i bar out)
 | if | gth i len
-  out
+    out
 | if | rowAnd ,, | eql (barIdx i bar) '('
               ,, | eql (barIdx (inc i) bar) '('
               ,, | eql (barIdx (add 11 i) bar) ')'
@@ -374,3 +404,34 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;; Parallel references
 !!=     ['[[One]] and [[Two]]' 'Two' 'One']
     | parseTitles "[[[[One]] and [[Two]]]]"
+
+
+; Sets the text content of a block to a given string, extracting page titles
+; and block references and then updating the correct ref attributes.
+;
+> String > String > StrollDb > StrollDb
+= (setBlockText textUid text strollDb)
+# openStrollDb strollDb
+; Calculate all the uid references that text refers to.
+@ refs   | parseRefs text
+@ [titleRefs strollDb]
+    ^ foldl _ [NIL strollDb] | parseTitles text
+    & ([titleRefs strollDb] i)
+    @ [uid strollDb] | pageToUid i strollDb
+    [(CONS uid titleRefs) strollDb]
+;
+@ newRefUids | weld refs | listToRow titleRefs
+@ newRefEids
+    | cabCat
+    | map uid&(lookupByAV ":block/uid" uid db) newRefUids
+;
+; Fetch the current references uids from textUid.
+@ currentRefEids | cabFromRow | findAllRefEids textUid strollDb
+;
+@ toAdd | cabRow | cabDifference newRefEids currentRefEids
+@ toDel | cabRow | cabDifference currentRefEids newRefEids
+;
+^ assertTransactStrollDb (cat _) strollDb
+,, [[%add [":block/uid" textUid] ":block/string" text]]
+,, | map a&[%add [":block/uid" textUid] ":block/refs" a] toAdd
+,, | map r&[%rm [":block/uid" textUid] ":block/refs" r] toDel

@@ -8,9 +8,6 @@
 
 """ Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (assertRight x)
-| fromRight ('assertion failed' x) x
-
 = notesDB
 ^ assertTransactStrollDb _ | emptyStrollDb 42
 ,, %% =":db/id" %["plunder page"]
@@ -176,10 +173,37 @@
     ,, %[':block/uid'='o-_aIaa83' ':block/order'=1]
     ,, %[':block/uid'=nextUid ':block/order'=2]
 
+;
+;; Case 4: Write some text in that block
+;
+; When we set the text of a block, we have to parse it and do bookkeeping
+; around references between them. Tests that we update these correctly.
+;
+
+; Change uid "D_fFfQNlb" from "((b2fdrwjXZ))" to "[[Iceman]] ((b2fdrwjXZ))".
+= changedSubIcemanRefDB
+| setBlockText "D_fFfQNlb" "[[Iceman]] ((b2fdrwjXZ))" notesDB
+
+; Ensure we added a reference to "pnKunZ4If"
+!!=     ['pnKunZ4If' 'b2fdrwjXZ']
+    | findAllRefUids "D_fFfQNlb" changedSubIcemanRefDB
+
+; Change the text again to remove the block reference.
+= changed2SubIcemanRefDB
+| setBlockText "D_fFfQNlb" "[[Iceman]]" changedSubIcemanRefDB
+
+!!=     ['pnKunZ4If']
+    | findAllRefUids "D_fFfQNlb" changed2SubIcemanRefDB
+
+; Change it again so it now points to an invalid uid.
+= changed3SubIcemanRefDB
+| setBlockText "D_fFfQNlb" "((AAAAAAAAA))" changed2SubIcemanRefDB
+
+!!=     []
+    | findAllRefUids "D_fFfQNlb" changed3SubIcemanRefDB
 
 ;;;
 ;
 ; Other things we must handle:
 ;
-; - Write a new block
 ; - Drag a bullet around to a new parent.
