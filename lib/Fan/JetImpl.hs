@@ -12,7 +12,7 @@ import Fan.Convert
 import Fan.Eval
 import Fan.Jets
 import Fan.Types
-import PlunderPrelude            hiding ((^))
+import PlunderPrelude   hiding ((^))
 
 import Data.ByteString.Builder (byteString, toLazyByteString)
 import Data.Vector             ((!), (//))
@@ -134,6 +134,7 @@ jetImpls = mapFromList
   , ( "cabSplitAt"  , cabSplitAtJet )
   , ( "cabSplitLT"  , cabSplitLTJet )
   , ( "cabIntersection", cabIntersectionJet )
+  , ( "cabDifference", cabDifferenceJet )
   , ( "tabSwitch"    , tabSwitchJet    )
   , ( "tabSingleton" , tabSingletonJet )
   , ( "isTab"        , isTabJet )
@@ -839,6 +840,14 @@ cabIntersectionJet f e =
     doIntersection a b = mkCab $ S.intersection a b
                          -- Could be empty
 
+cabDifferenceJet :: Jet
+cabDifferenceJet f e =
+    orExecTrace "cabDifferenceJet" (f e)
+                (doDifference <$> getCab (e^1) <*> getCab (e^2))
+  where
+    doDifference :: Set Fan -> Set Fan -> Fan
+    doDifference a b = mkCab $ S.difference a b
+                       -- Could be empty
 
 tabSingletonJet :: Jet
 tabSingletonJet _ e = TAB $ M.singleton (e^1) (e^2)

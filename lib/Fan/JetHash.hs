@@ -139,6 +139,7 @@ jetHashes
     , e "cabSplitAt"          "6mpwAZ3JuCfcLjvMpW73M2dBK33vbqhofqQEP71nDSUu"
     , e "cabSplitLT"          "F84idD5s9vuSUSypHPjWX2s794wBbygcuQi4H1n1whVT"
     , e "cabIntersection"     "CmrCahfNF7ngevcq9qQuoh5LVdEtXGVcvYoJiNSgMya5"
+    , e "cabDifference"       "C7wrN5P1tNY666RVr72PVVos7sx3GNutjDc6WHa5wB6t"
     , e "tabSingleton"        "B3AbFuGPj8DH2mUAorZvS6f2dVmhfzHwFWo7eHd5HR6f"
     , e "isTab"               "FvjeS3T66WQxeX3sLCGnxY2C8Y35sYwYqPquQLSLb9b2"
     , e "tabIdx"              "44w2NviURiG49U5MvkzusPXRhNsQsaKxyakyw1SvfhP5"

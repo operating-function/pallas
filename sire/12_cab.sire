@@ -179,6 +179,7 @@
     | loop (inc aIdx) bIdx cur
 | loop aIdx (inc bIdx) cur
 
+(cabDifference a b)=(listFoldl (c i)&(cabDel i c) a | cabList b)
 
 = (cabElem i cab)
 | idx i | lawBody cab
@@ -419,6 +420,8 @@
 !!= %[a b c]   | cabAscUnions [%[a] %[b] %[c]]
 !!= %[a b]     | cabAscUnions [%[a] %[] %[b]]
 
+!!= %[3]       | cabDifference %[3 5] %[5 7]
+
 ; cabAscUnions deopt behaviour
 !!= (a b c d & [7 9 8])
   | cabAscUnions [%[7 9] %[8]]
@@ -455,7 +458,7 @@
 ^-^ cabFirst cabLen cabPop cabRow cabList cabIns cabDel cabUnion cabAscUnions
 ^-^ cabCat cabCatList
 ^-^ cabKeys cabHas cabMin cabSingleton cabDrop cabTake cabSplitAt cabSplitLT
-^-^ cabIntersection cabElem fromSingletonCab
+^-^ cabIntersection cabDifference cabElem fromSingletonCab
 ^-^ cabFromRow
 ^-^
 ^-^ "%" "%%"
