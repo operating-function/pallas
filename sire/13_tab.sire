@@ -452,7 +452,7 @@ tab=(tabFromAscPairs par)
 ^-^ tabLen tabIdx tabKeys hasKey look tabVals tabSwitch tabMatch
 ^-^ tabFromPairs tabToPairs tabToPairList tabToList look tabPut tabMut
 ^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter tabMap tabUnionWith
-^-^ tabLookup tabMinKey tabFoldlWithKey tabElem
+^-^ tabLookup tabMinKey tabFoldlWithKey tabElem emptyTab
 ^-^
 ^-^ isTabSugar desugarTab
 ^-^
