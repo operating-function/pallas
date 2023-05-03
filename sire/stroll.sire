@@ -245,7 +245,6 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 # openStrollDb strollDb
 | map [k v]&v
 | catMap tabToPairs
-| map tabToPairs
 | fromSome %[]
 | tabLookup ":block/refs"
 | assertRight
