@@ -12,7 +12,7 @@
 
 /+  01_fan  [lawBody trk isLaw inc]
 /+  02_bit  [if ifNot and or not]
-/+  03_nat  [toNat isZero]
+/+  03_nat  [add toNat isZero]
 /+  04_app  [len idx head mut]
 /+  05_eql  [eql neq lth lte gte gth]
 /+  06_cow  [null map weld rowRepel rowApply rev foldl]
@@ -104,6 +104,15 @@ ex=(mkTab [1 2 3] [4 5 6])
 
 (tabPut x k v)=(tabMut k v x)
 
+; `tabInsertWith f key newval tab` will insert the pair (key, newval)
+; into `tab` if key does not exist in the tab. If the key does exist,
+; the function will insert the pair `(key, f newval oldval)`.
+
+= (tabInsertWith f key newval tab)
+@ m_oldval (tabLookup key tab)
+^ tabMut key _ tab
+| **maybeCase m_oldval newval (f newval)
+
 = ex1 (mkTab [1 5] [5 1])
 
 !!= ( mkTab [1 2 5] [5 6 1] ) | tabMut 2 6 | ex1
@@ -115,7 +124,10 @@ ex=(mkTab [1 2 3] [4 5 6])
 !!= ( mkTab [1 3 5] [8 7 9] ) | tabMut 3 7 | tabMut 1 8 | tabMut 5 9 | ex1
 !!= ( mkTab [1 3 5] [8 7 9] ) | tabMut 1 8 | tabMut 3 7 | tabMut 5 9 | ex1
 !!= ( mkTab [1 3 5] [8 7 9] ) | tabMut 5 9 | tabMut 3 7 | tabMut 1 8 | ex1
-
+!!= ( mkTab [1 2 5] [5 6 1] ) | tabInsertWith add 2 6 | ex1
+!!= ( mkTab [1 5]   [11 1]  ) | tabInsertWith add 1 6 | ex1
+!!= ( mkTab [1 5]   [5 7]   ) | tabInsertWith add 5 6 | ex1
+!!= ( mkTab [1 5 9] [5 1 3] ) | tabInsertWith add 9 3 | ex1
 
 """ Switching on Tabs """"""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -452,7 +464,7 @@ tab=(tabFromAscPairs par)
 ^-^ tabLen tabIdx tabKeys hasKey look tabVals tabSwitch tabMatch
 ^-^ tabFromPairs tabToPairs tabToPairList tabToList look tabPut tabMut
 ^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter tabMap tabUnionWith
-^-^ tabLookup tabMinKey tabFoldlWithKey tabElem emptyTab
+^-^ tabLookup tabMinKey tabFoldlWithKey tabElem emptyTab tabInsertWith
 ^-^
 ^-^ isTabSugar desugarTab
 ^-^
