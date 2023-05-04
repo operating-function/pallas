@@ -303,7 +303,7 @@
 & (x _)
 | x
 
-(listUnsafeHead l)=(listSafeHead 0)
+(listUnsafeHead l)=(listSafeHead 0 l)
 
 !!= NONE   | listHead NIL
 !!= SOME-3 | listHead (CONS 3 (CONS 4 NIL))
