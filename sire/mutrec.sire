@@ -123,7 +123,7 @@
     @ [fun args _] arm
     @ extras  (sub maxArgs | len args)
     | letE fun
-        | lamE args
+        | inlinedLamE fun args
         | appE
         | weld (varE coreNam, litE key)
         | weld (map varE args)
@@ -174,16 +174,16 @@
 
 = (foo x)
 # mutrec %even_odd
-    (and (**even x 8) (**odd x))
+    (and (even x 8) (odd x))
 * (even x y)
-    | ifNot x TRUE  (**odd dec-x)
+    | ifNot x TRUE  (odd dec-x)
 * (odd x)
-    | ifNot x FALSE (**even dec-x 9)
+    | ifNot x FALSE (even dec-x 9)
 
 = (looper start)
-# mutrec %loop (**loop start)
+# mutrec %loop (loop start)
 * (loop xx)
-    | ifNot xx 0 (**loop 0)
+    | ifNot xx 0 (loop 0)
 
 = loopFun
 ? (looper start)
@@ -240,7 +240,7 @@
         @ [fun args _] arm
         @ extras (sub maxArgs | len args)
         | letE fun
-                | lamE args
+                | inlinedLamE fun args
                 | appE
                 | weld (coreIdn, litE key)
                 | weld (map varE args)

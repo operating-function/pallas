@@ -11,8 +11,10 @@ module Sire.Compile.Common
     , Expr
     , Func
     , showSymb
+    , apple
     , gensym
     , duplicateExpTop
+    , duplicateFunShallow
     , numRefs
     )
 where
@@ -21,8 +23,13 @@ import PlunderPrelude
 import Sire.Types
 import Sire.Compile.Types (Inliner, Refr(..), Global(..), Expr, Func, showSymb)
 
-import Control.Monad.State (StateT(..), evalStateT, get)
-import Optics.Zoom         (zoom)
+import Control.Monad.State (StateT(..), evalStateT, get, modify')
+
+
+-- Util ------------------------------------------------------------------------
+
+apple :: Expr -> [Expr] -> Expr
+apple = foldl' EAPP
 
 
 -- Gensym ----------------------------------------------------------------------
@@ -39,25 +46,25 @@ gensym nam = do
     writeIORef vCompilerGenSym nex
     pure (REFR nam key)
 
-refreshRef :: Refr -> StateT (Int, Map Int Refr) IO Refr
+refreshRef :: Refr -> StateT (IntMap Refr) IO Refr
 refreshRef ref =
-    (lookup ref.key . snd <$> get) >>= \case
+    (lookup ref.key <$> get) >>= \case
         Just r  -> pure r
         Nothing -> pure ref
 
-refreshBinder :: Refr -> StateT (Int, Map Int Refr) IO Refr
+refreshBinder :: Refr -> StateT (IntMap Refr) IO Refr
 refreshBinder ref = do
-    tab <- snd <$> get
+    tab <- get
     let key = ref.key
     case lookup key tab of
         Just r ->
             pure r
         Nothing -> do
-            r <- zoom _1 (gensym ref.name)
-            modifying _2 (insertMap key r)
+            r <- gensym ref.name
+            modify' (insertMap key r)
             pure r
 
-duplicateFun :: Fun Refr b -> StateT (Int, Map Int Refr) IO (Fun Refr b)
+duplicateFun :: Fun Refr b -> StateT (IntMap Refr) IO (Fun Refr b)
 duplicateFun (FUN iline self name args body) = do
     self' <- refreshBinder self
     args' <- traverse refreshBinder args
@@ -65,11 +72,11 @@ duplicateFun (FUN iline self name args body) = do
     pure (FUN iline self' name args' body')
 
 -- Duplicates an expression, creating fresh Refrs for each binding.
-duplicateExp :: Exp Refr b -> StateT (Int, Map Int Refr) IO (Exp Refr b)
+duplicateExp :: Exp Refr b -> StateT (IntMap Refr) IO (Exp Refr b)
 duplicateExp = go
   where
     go  :: Exp Refr b
-        -> StateT (Int, Map Int Refr) IO (Exp Refr b)
+        -> StateT (IntMap Refr) IO (Exp Refr b)
     go expr = case expr of
         EVAR x     -> EVAR <$> refreshRef x
         EREC v e b -> EREC <$> refreshBinder v <*> go e <*> go b
@@ -81,7 +88,31 @@ duplicateExp = go
         EREF{}     -> pure expr
 
 duplicateExpTop :: Exp Refr b -> IO (Exp Refr b)
-duplicateExpTop e = evalStateT (duplicateExp e) (0, mempty)
+duplicateExpTop e = evalStateT (duplicateExp e) (mempty)
+
+{-
+    This is only valid if all nested functions have been lambda lifted.
+
+    Specifically, we assume that no sub-function has a reference to any local binding.
+-}
+duplicateFunShallow :: Func -> IO Func
+duplicateFunShallow fun =
+    flip evalStateT mempty do
+        self' <- refreshBinder fun.self
+        args' <- traverse refreshBinder fun.args
+        body' <- go fun.body
+        pure fun{self=self', args=args', body=body'}
+  where
+    go  :: Expr -> StateT (IntMap Refr) IO Expr
+    go = \case
+        EVAR x     -> EVAR <$> refreshRef x
+        EREC v e b -> EREC <$> refreshBinder v <*> go e <*> go b
+        ELET v e b -> ELET <$> refreshBinder v <*> go e <*> go b
+        EAPP f x   -> EAPP <$> go f <*> go x
+        ELAM p f   -> pure (ELAM p f)
+        ELIN x     -> ELIN <$> go x
+        x@EVAL{}   -> pure x
+        x@EREF{}   -> pure x
 
 
 -- How many times is a variable referenced? ------------------------------------

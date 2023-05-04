@@ -43,7 +43,7 @@ data Global = G
     { val     :: Fan
     , inliner :: Inliner
     }
-  deriving (Generic, Eq)
+  deriving (Generic, Eq, NFData)
 
 instance Show Global where
   show (G (F.NAT n) _) = "(AT " <> show n <> ")"
@@ -53,10 +53,11 @@ data Refr = REFR
     { name :: !Symb
     , key  :: !Int
     }
+  deriving (Generic, NFData)
 
 instance Eq  Refr where (==)    x y = (==)    x.key y.key
 instance Ord Refr where compare x y = compare x.key y.key
 
 instance Show Refr where
-    show r = unpack (showSymb r.name) <> "_" <> show r.key
+    show r = show (unpack (showSymb r.name) <> "_" <> show r.key)
     -- TODO Doesn't handle all cases correctly

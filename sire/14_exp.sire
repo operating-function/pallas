@@ -22,7 +22,7 @@
 /+  06_cow  [v1 v2 v3 foldr map rowApply]
 /+  07_rex  [rexHeir rexEmbd rexSons rexText rexRune]
 /+  07_rex  [rexIsLeaf rexIsEmbd rexIsNode]
-/+  07_rex  [WORD EMBD NEST OPEN CORD]
+/+  07_rex  [WORD EMBD NEST OPEN PREF CORD]
 /+  07_rex  [rexGetWord rexKids rexStyle '`']
 /+  07_rex  [rexGetNodeWithRune rexGetKidsOfNodeWithRune]
 /+  07_rex  [rexGetWordNoHeir rexSetHeir]
@@ -146,6 +146,11 @@
 = (sigE r)        | if (eql 1 len-r) varE-(idx 0 r) (NEST 0 "|" (map varE r) 0)
 = (lamE rs b)     | OPEN 0 "#&" [(sigE rs)] b
 = (wutE rs b)     | OPEN 0 "#?" [(sigE rs)] b
+
+= (inlinedLamE f rs b)
+^ OPEN 0 "#?" [_] b
+^ NEST 0 "|" (rowCons _ | map varE rs) 0
+| PREF 0 "**" [(varE f)] 0
 
 = (sigKE k r)
 | if (eql 1 len-r)
@@ -338,6 +343,7 @@ symTodo='todo: support .foo and .234'
 ^-^
 ^-^ isSymbolChar strIsSymbol rexIsSymbol readSymbol
 ^-^ natE litE varE varKE cnsE barE letE letKE recE recKE sigKE sigE lamE wutE
+^-^ inlinedLamE
 ^-^ txtE txtKE appE
 ^-^
 ^-^ bloodline
