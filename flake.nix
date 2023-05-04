@@ -38,6 +38,11 @@
         devPkgs = [
           hPkgs.ghc
 
+          # Doesn't need to strictly match GHC version, and builds from
+          # source (cache miss) if I use `hPkgs.ghcid`
+          pkgs.haskellPackages.ghcid
+          pkgs.haskellPackages.stylish-haskell
+
           stack-wrapped
 
           pkgs.lmdb
