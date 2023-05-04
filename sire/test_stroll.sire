@@ -70,7 +70,6 @@
                %% =":block/order" 0
                %% =":block/page" %["sol page"]
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Conceptual demo:
 ;
@@ -202,8 +201,79 @@
 !!=     []
     | findAllRefUids "D_fFfQNlb" changed3SubIcemanRefDB
 
-;;;
 ;
-; Other things we must handle:
+;; Case 5: Move a bullet from one parent to another.
 ;
-; - Drag a bullet around to a new parent.
+
+= reorderingTestDB
+^ assertTransactStrollDb _ | emptyStrollDb 42
+,, %% =":db/id" %["reorder testing"]
+   %% =":page/title" "Reorder"
+   %% =":block/uid" "Mkd32lJAn"
+   %% =":block/children"
+      ,, %% =":block/string" "Source"
+         %% =":block/uid" "ohlsan321"
+         %% =":block/order" 0
+         %% =":block/page" %["reorder testing"]
+         %% =":block/children"
+            ,, %% =":block/string" "A"
+               %% =":block/uid" "xh8spvba1"
+               %% =":block/order" 0
+               %% =":block/page" %["reorder testing"]
+            ,, %% =":block/string" "B"
+               %% =":block/uid" "492kcn1sl"
+               %% =":block/order" 1
+               %% =":block/page" %["reorder testing"]
+            ,, %% =":block/string" "C"
+               %% =":block/uid" "wdf1297fD"
+               %% =":block/order" 2
+               %% =":block/page" %["reorder testing"]
+      ,, %% =":block/string" "Destination"
+         %% =":block/uid" "ck20LBq8I"
+         %% =":block/order" 0
+         %% =":block/page" %["reorder testing"]
+         %% =":block/children"
+            ,, %% =":block/string" "1"
+               %% =":block/uid" "AnLk21dYd"
+               %% =":block/order" 0
+               %% =":block/page" %["reorder testing"]
+            ,, %% =":block/string" "2"
+               %% =":block/uid" "ssk209jkD"
+               %% =":block/order" 1
+               %% =":block/page" %["reorder testing"]
+            ,, %% =":block/string" "3"
+               %% =":block/uid" "ui3d9vvaa"
+               %% =":block/order" 2
+               %% =":block/page" %["reorder testing"]
+,, %% =":db/id" %["other reorder page"]
+   %% =":page/title" "Reorder Dest"
+   %% =":block/uid" "me29jsdfN"
+
+; Moves `Reorder > Source > B` to between `Reorder > Destination > (1) and (2)`.
+= reparentedSamePageDB
+| reparent "492kcn1sl" "ck20LBq8I" 1 reorderingTestDB
+
+; Checks that the source's parent was reordered correctly
+!!=     | sortRowTabByOrder
+        | findBlocksChildrenUnsorted "ohlsan321" reparentedSamePageDB
+    ,, %[':block/uid'="xh8spvba1" ':block/order'=0]
+    ,, %[':block/uid'="wdf1297fD" ':block/order'=1]
+
+; Checks that the bullet arrived at the correct destination and reordered the
+; bullets after it:
+!!=     | sortRowTabByOrder
+        | findBlocksChildrenUnsorted "ck20LBq8I" reparentedSamePageDB
+    ,, %[':block/uid'="AnLk21dYd" ':block/order'=0]
+    ,, %[':block/uid'="492kcn1sl" ':block/order'=1]
+    ,, %[':block/uid'="ssk209jkD" ':block/order'=2]
+    ,, %[':block/uid'="ui3d9vvaa" ':block/order'=3]
+
+; Move the whole source block to a block on the Reorder page.
+= reparentedDifferentPageDB
+| reparent "ohlsan321" "me29jsdfN" 0 reorderingTestDB
+
+; Checks that we change the ":block/page" of our children, by comparing it with
+; the eid of a toplevel node we moved to.
+!!=     ^ getPageByEid _ reparentedDifferentPageDB
+        | getEidOf "xh8spvba1" reparentedDifferentPageDB
+    | getEidOf "me29jsdfN" reparentedDifferentPageDB

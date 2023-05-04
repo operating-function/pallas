@@ -126,20 +126,18 @@
 > Any > StrollDb > > Either (Row Error) StrollDb
 = (transactStrollDb txn strollDb)
 # openStrollDb strollDb
-| trk [%txn db]
+;| trk [%txn db]
 # datacase | transact txn db
 * (LEFT l) | LEFT l
 * (RIGHT r) | RIGHT | STROLL_DB gen r
 
 > Any StrollDb > StrollDb
 = (assertTransactStrollDb txn strollDb)
-| trk [%atsd strollDb]
 # datacase (transactStrollDb txn strollDb)
 * (LEFT l)
     | trk [%l l]
     | 'transaction failed: ' l
-* (RIGHT r)
-    | trk [%r r] r
+* (RIGHT r) r
 
 ; Generates a unique id, checking that the uid isn't in the database
 ;
@@ -226,6 +224,38 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
        [":block/uid" uid]
        db
 
+= (getEidOf uid strollDb)
+# openStrollDb strollDb
+| cabFirst
+| lookupByAV ":block/uid" uid db
+
+; Returns the uid of the parent
+;
+= (getParentOf uid strollDb)
+# openStrollDb strollDb
+| fromSome ""
+| tabLookup ":block/uid"
+| idx 0
+| fromSome []
+| tabLookup ":block/children"
+| assertRight
+| pull [[":block/_children"=[":block/uid"]]]
+       [":block/uid" uid]
+       db
+
+; Get the block order by eid.
+;
+= (getOrderByEid eid strollDb)
+# openStrollDb strollDb
+| cabFirst
+| lookupByAE ":block/order" eid db
+
+= (getPageByEid eid strollDb)
+# openStrollDb strollDb
+; if this eid has a :page/title, it is a page.
+| ifNot (cabIsEmpty | lookupByAE ":page/title" eid db) eid
+| cabFirst | lookupByAE ":block/page" eid db
+
 ; Given a uid, find all the eids of all the blocks this uid forward references
 ;
 ; TODO: this is another function where query would be cleaner
@@ -248,9 +278,39 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 | fromSome %[]
 | tabLookup ":block/refs"
 | assertRight
-| pull ,, %% =":block/refs" ,, ":block/uid"
+| pull [[":block/refs"=[":block/uid"]]]
        [":block/uid" uid]
        db
+
+= (findAllChildUids uid strollDb)
+| map x&(fromSome "" | tabLookup ":block/uid" x)
+| findBlocksChildrenUnsorted uid strollDb
+
+> (Nat > Nat) > String > Nat > StrollDb > StrollDb
+= (childrenUpdatesAfter fun parentUid pos strollDb)
+; all children pulled from the database
+@ children | findBlocksChildrenUnsorted parentUid strollDb
+^ mapMaybe _ children
+& node
+: uid < maybeCase (tabLookup ":block/uid" node) NONE
+: order < maybeCase (tabLookup ":block/order" node) NONE
+| if (lth order pos)
+    | NONE
+; TODO: If I allow reading of raw EID numbers during a pull via a virtual
+; ":db/id" like Datomic, we can get rid of the overhead of this lookup
+; here, which is probably small in this one instance, but is a unneeded
+; repeated lookup over all queries.
+| SOME [%add [":block/uid" uid] ":block/order" (fun order)]
+
+; Create entries for a transaction which changes each block to a different page
+; uid.
+;
+> String > Nat > StrollDb > [Any]
+= (mkPageUpdates uid dstEid strollDb)
+| cat
+| rowCons [[%add [":block/uid" uid] ":block/page" dstEid]]
+| map u&(mkPageUpdates u dstEid strollDb)
+| findAllChildUids uid strollDb
 
 ; Given a block, add a new empty child at position X.
 ;
@@ -259,21 +319,8 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 = (insertEmptyBlock parentUid pos strollDb)
 @ [uid strollDb] | generateUniqueID strollDb
 # openStrollDb strollDb
-; all children pulled from the database
-@ children | findBlocksChildrenUnsorted parentUid strollDb
 ; new tuples for child nodes that must be updated.
-@ childUpdates
-    ^ mapMaybe _ children
-    & node
-    : uid < maybeCase (tabLookup ":block/uid" node) NONE
-    : order < maybeCase (tabLookup ":block/order" node) NONE
-    | if (lth order pos)
-        | NONE
-    ; TODO: If I allow reading of raw EID numbers during a pull via a virtual
-    ; ":db/id" like Datomic, we can get rid of the overhead of this lookup
-    ; here, which is probably small in this one instance, but is a unneeded
-    ; repeated lookup over all queries.
-    | SOME [%add [":block/uid" uid] ":block/order" (inc order)]
+@ childUpdates | childrenUpdatesAfter inc parentUid pos strollDb
 ;
 @ page
     ; TODO: this would work better as a query, since that would just return the
@@ -434,3 +481,33 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ,, [[%add [":block/uid" textUid] ":block/string" text]]
 ,, | map a&[%add [":block/uid" textUid] ":block/refs" a] toAdd
 ,, | map r&[%rm [":block/uid" textUid] ":block/refs" r] toDel
+
+; Moves a bullet point to a new parent, updating all references and page
+; entries.
+;
+> String > String > Nat > StrollDb > StrollDb
+= (reparent nodeUid newParentUid newOrder strollDb)
+@ nodeEid      | getEidOf nodeUid strollDb
+@ curParentUid | getParentOf nodeUid strollDb
+@ curOrder     | getOrderByEid nodeEid strollDb
+@ prevReorders | childrenUpdatesAfter dec curParentUid curOrder strollDb
+@ newReorders  | childrenUpdatesAfter inc newParentUid newOrder strollDb
+;
+@ pageChanges
+    @ curPage | getPageByEid nodeEid strollDb
+    @ dstPage
+      ^ getPageByEid _ strollDb
+      | getEidOf newParentUid strollDb
+    | if (curPage == dstPage) []
+    ;
+    ; we must reassign the page of the block and of every child block
+    ; recursively.
+    | mkPageUpdates nodeUid dstPage strollDb
+;
+^ assertTransactStrollDb (cat _) strollDb
+,, [[%rm [":block/uid" curParentUid] ":block/children" nodeEid]]
+,, [[%add [":block/uid" newParentUid] ":block/children" nodeEid]]
+,, [[%add nodeEid ":block/order" newOrder]]
+,, prevReorders
+,, newReorders
+,, pageChanges
