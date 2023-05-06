@@ -8,7 +8,8 @@
 ;; Definitions ;;
 ;;;;;;;;;;;;;;;;;
 
-= (gulf f t) | gen (sub inc-t f) add-f
+= (gulf f t)
+| gen (sub (inc t) f) (add f)
 
 ; Constants
 b3OutLen=32
@@ -37,28 +38,28 @@ b3DeriveKeyMaterial=(lsh 1 6)
 , 2 6 3 10 7 0 4 13 1 11 12 5 9 14 15 8
 
 = (b3G S a b c d mx my)
-@ S | put S a | add32 (add32 get-S-a get-S-b) mx
-@ S | put S d | ror32 (xor32 get-S-d get-S-a) 16
-@ S | put S c | add32 get-S-c get-S-d
-@ S | put S b | ror32 (xor32 get-S-b get-S-c) 12
-@ S | put S a | add32 (add32 get-S-a get-S-b) my
-@ S | put S d | ror32 (xor32 get-S-d get-S-a) 8
-@ S | put S c | add32 get-S-c get-S-d
-@ S | put S b | ror32 (xor32 get-S-b get-S-c) 7
+@ S | put S a | add32 (add32 (get S a) (get S b)) mx
+@ S | put S d | ror32 (xor32 (get S d) (get S a)) 16
+@ S | put S c | add32 (get S c) (get S d)
+@ S | put S b | ror32 (xor32 (get S b) (get S c)) 12
+@ S | put S a | add32 (add32 (get S a) (get S b)) my
+@ S | put S d | ror32 (xor32 (get S d) (get S a)) 8
+@ S | put S c | add32 (get S c) (get S d)
+@ S | put S b | ror32 (xor32 (get S b) (get S c)) 7
 S
 
 = (b3Round st m)
 ; Mix the columns
-@ st | b3G st 0 4  8 12 get-m-0 get-m-1
-@ st | b3G st 1 5  9 13 get-m-2 get-m-3
-@ st | b3G st 2 6 10 14 get-m-4 get-m-5
-@ st | b3G st 3 7 11 15 get-m-6 get-m-7
+@ st | b3G st 0 4  8 12 (get m 0) (get m 1)
+@ st | b3G st 1 5  9 13 (get m 2) (get m 3)
+@ st | b3G st 2 6 10 14 (get m 4) (get m 5)
+@ st | b3G st 3 7 11 15 (get m 6) (get m 7)
 ;
 ; Mix the diagonals
-@ st | b3G st 0 5 10 15 get-m-8  get-m-9
-@ st | b3G st 1 6 11 12 get-m-10 get-m-11
-@ st | b3G st 2 7  8 13 get-m-12 get-m-13
-@ st | b3G st 3 4  9 14 get-m-14 get-m-15
+@ st | b3G st 0 5 10 15 (get m 8)  (get m 9)
+@ st | b3G st 1 6 11 12 (get m 10) (get m 11)
+@ st | b3G st 2 7  8 13 (get m 12) (get m 13)
+@ st | b3G st 3 4  9 14 (get m 14) (get m 15)
 st
 
 = (b3Permute m)
@@ -72,30 +73,30 @@ st
 
 ; welds up to four u8.
 = (u32weld v)
-| ifNot (eqlNat len-v 4)
+| ifNot (eqlNat (len v) 4)
     | die "u32weld requires 4 bytes"
-| u8weld get-v-0
-| u8weld get-v-1
-| u8weld get-v-2
-         get-v-3
+| u8weld (get v 0)
+| u8weld (get v 1)
+| u8weld (get v 2)
+         (get v 3)
 
 > Row U8 > Row U32
 = (bytesToWords bv)
-| if (mod len-bv 4)
+| if (mod (len bv) 4)
     | die "byte-row length not a multiple of 4"
-@ wid (div len-bv 4)
+@ wid (div (len bv) 4)
 ^ _ 0 0 (mkRow wid)
 ? (loop i j acc)
 | if (eql j wid) acc
 @ next (add i 4)
-| loop next inc-j
+| loop next (inc j)
 | acc | u32weld | slice bv i next
 
 > Row U8 > Row U32
 = (bytesToWords bv)
-| if (mod len-bv 4)
+| if (mod (len bv) 4)
     | die "byte-row length not a multiple of 4"
-@ wid (div len-bv 4)
+@ wid (div (len bv) 4)
 | gen wid
 & j
 @ i (mul j 4)
@@ -107,32 +108,25 @@ st
 
 ; Little Endian Byte order
 > Row U32 > Row U8
-= (wordsToBytes wv)
-| catMap wordToBytes wv
+(wordsToBytes wv)=(catMap wordToBytes wv)
 
 > (Row8 U32, Row16 U32, U64, U32, U32)
 > Row16 U32
-= (b3Compress tupl)
-@       , chainingValue ;; TODO Support `,,` in patterns in `*` macro.
-          blockWords
-          counter
-          blockLen
-          flags
-    | tupl
-@ st ,, (get chainingValue 0)
-     ,, (get chainingValue 1)
-     ,, (get chainingValue 2)
-     ,, (get chainingValue 3)
-     ,, (get chainingValue 4)
-     ,, (get chainingValue 5)
-     ,, (get chainingValue 6)
-     ,, (get chainingValue 7)
-     ,, (get b3Iv 0)
-     ,, (get b3Iv 1)
-     ,, (get b3Iv 2)
-     ,, (get b3Iv 3)
-     ,, (chop32 counter)
-     ,, (chop32 rsh-counter-32)
+= (b3Compress [chainingValue blockWords counter blockLen flags])
+@ st ,, get chainingValue 0
+     ,, get chainingValue 1
+     ,, get chainingValue 2
+     ,, get chainingValue 3
+     ,, get chainingValue 4
+     ,, get chainingValue 5
+     ,, get chainingValue 6
+     ,, get chainingValue 7
+     ,, get b3Iv 0
+     ,, get b3Iv 1
+     ,, get b3Iv 2
+     ,, get b3Iv 3
+     ,, chop32 counter
+     ,, chop32 (rsh counter 32)
      ,, blockLen
      ,, flags
 @ block blockWords
@@ -160,7 +154,7 @@ st
 @ st | put st (add i 8)
      | xor32 (get st (add i 8))
      | get chainingValue i
-| loop inc-i st
+| loop (inc i) st
 
 (first8words v)=(slice v 0 8)
 
@@ -201,14 +195,14 @@ st
        ,, b3OutputGetBlockWords o
        ,, outputBlockCounter
        ,, b3OutputGetBlockLen o
-       ,, or32 b3OutputGetFlags-o b3Root
+       ,, or32 (b3OutputGetFlags o) b3Root
 @ need | minNat outChunkLen remBytes
 @ segm | take need
        | wordsToBytes words
 | loop
-  (inc outputBlockCounter)
-  (sub remBytes need)
-  (acc segm)
+* inc outputBlockCounter
+* sub remBytes need
+* acc segm
 
 ; = ChunkState
 ; , chainingVal
@@ -245,15 +239,16 @@ st
 | b3ChunkstGetBlocksCompressed c
 
 = (b3ChunkstStartFlag c)
-| if (isZero b3ChunkstGetBlocksCompressed-c)
-     b3ChunkStart
-     0
+| if (isZero | b3ChunkstGetBlocksCompressed c)
+* b3ChunkStart
+* 0
 
 > Chunk > Row u8 > Chunk
 = (b3ChunkstUpdate c input)
 | if (isZero (len input)) c
-@ c | if (| neq b3BlockLen | b3ChunkstGetBlockLen c)
-      c
+@ c | if
+    * neq b3BlockLen (b3ChunkstGetBlockLen c)
+    * c
   ;;; If the block buffer is full, compress
   ;;; it and clear it.
     @ blockWords
@@ -266,8 +261,9 @@ st
        ,, blockWords
        ,, b3ChunkstGetChunkCounter c
        ,, b3BlockLen
-       ,, or32 (b3ChunkstGetFlags c)
-               (b3ChunkstStartFlag c)
+       ,, | or32
+          * b3ChunkstGetFlags c
+          * b3ChunkstStartFlag c
     @ c | b3ChunkstPutBlocksCompressed c
         | inc (b3ChunkstGetBlocksCompressed c)
     @ c | b3ChunkstPutBlock c
@@ -285,38 +281,33 @@ st
 
 = (b3ChunkstOutput c)
 @ blockWords
-    | bytesToWords b3ChunkstGetBlock-c
+    | bytesToWords | b3ChunkstGetBlock c
 | b3OutputNew
-  b3ChunkstGetChainingVal-c
-  blockWords
-  b3ChunkstGetChunkCounter-c
-  b3ChunkstGetBlockLen-c
+* b3ChunkstGetChainingVal c
+* blockWords
+* b3ChunkstGetChunkCounter c
+* b3ChunkstGetBlockLen c
 | or32
-  (or32 b3ChunkstGetFlags-c b3ChunkstStartFlag-c)
-  b3ChunkEnd
+* or32 (b3ChunkstGetFlags c) (b3ChunkstStartFlag c)
+* b3ChunkEnd
 
-= | b3ParentOutput
-    lChildCv
-    rChildCv
-    keyWords
-    flags
+= (b3ParentOutput lChildCv rChildCv keyWords flags)
 @ blockWords
-    | weld (take 8 lChildCv)
-           (take 8 rChildCv)
+    | weld (take 8 lChildCv) (take 8 rChildCv)
 | b3OutputNew
-  keyWords
-  blockWords
-  0
-  b3BlockLen
-  (or32 b3Parent flags)
+* keyWords
+* blockWords
+* 0
+* b3BlockLen
+* or32 b3Parent flags
 
 = (b3ParentCv lChildCv rChildCv keyWords flags)
 | b3OutputChainingValue
 | b3ParentOutput
-  lChildCv
-  rChildCv
-  keyWords
-  flags
+* lChildCv
+* rChildCv
+* keyWords
+* flags
 
 ; (Modifying cvStack,cvStackLen to just use
 ; a list in this port.)
@@ -336,7 +327,7 @@ st
 (b3HasherPutCvStack h cv)=(put h 2 cv)
 
 = (b3HasherNewInternal keyWords flags)
-| ifNot (eql 8 len-keyWords)
+| ifNot (eql 8 | len keyWords)
     | die "Incorrect length of keyWords"
 ,, b3ChunkstNew keyWords 0 flags
 ,, keyWords
@@ -375,10 +366,10 @@ st
         | b3HasherPopStack h
     @ newCv
         | b3ParentCv
-          leftCv
-          newCv
-          b3HasherGetKeyWords-h
-          b3HasherGetFlags-h
+        * leftCv
+        * newCv
+        * b3HasherGetKeyWords h
+        * b3HasherGetFlags h
     @ totalChunks
         | rsh totalChunks 1
     | go h newCv totalChunks
@@ -392,8 +383,8 @@ st
             | b3HasherGetChunkst h
     @ need  | minNat want (len input)
     @ temp  | b3ChunkstUpdate
-              (b3HasherGetChunkst h)
-              (take need input)
+            * b3HasherGetChunkst h
+            * take need input
     @ h     | b3HasherPutChunkst h temp
     @ input | drop need input
     | b3HasherUpdate h input
@@ -409,32 +400,32 @@ st
 @ totalChunks
     | inc
     | b3ChunkstGetChunkCounter
-    | b3HasherGetChunkst-h
+    | b3HasherGetChunkst h
 @ h | b3HasherAddChunkChainingValue
-      h
-      chunkCv
-      totalChunks
-@ h | b3HasherPutChunkst-h
+    * h
+    * chunkCv
+    * totalChunks
+@ h | b3HasherPutChunkst h
     | b3ChunkstNew
-      b3HasherGetKeyWords-h
-      totalChunks
-      b3HasherGetFlags-h
+    * b3HasherGetKeyWords h
+    * totalChunks
+    * b3HasherGetFlags h
 | final h input
 
 > Hasher > Nat > Row U8
 = (b3Finalize h outHashSize)
-@ out (b3ChunkstOutput b3HasherGetChunkst-h)
-^ _ out b3HasherGetCvStack-h
+@ out (b3ChunkstOutput | b3HasherGetChunkst h)
+^ _ out (b3HasherGetCvStack h)
 ? (go output stack)
 | **listCase stack
   | b3OutputRootOutputBytes output outHashSize
 & (top res)
 @ output
     | b3ParentOutput
-      top
-      b3OutputChainingValue-output
-      b3HasherGetKeyWords-h
-      b3HasherGetFlags-h
+    * top
+    * b3OutputChainingValue output
+    * b3HasherGetKeyWords h
+    * b3HasherGetFlags h
 | go output res
 
 ; One-function convenience method that
