@@ -45,7 +45,7 @@
 * maxEid : Nat
 
 ; raw operation to add a resolved tuple to the database
-> Nat > Nat > Any > Bool > Bool > Bool > DB > DB
+> Nat > Nat > Any > Bit > Bit > Bit > Db > Db
 = (rawAdd e a v writeAve many isRef db)
 ;| trk [%rawAdd e a v writeAve many isRef db]
 # openDb db
@@ -87,7 +87,7 @@
 | DB eav aev ave vae maxEid
 
 ; raw remove
-> Nat > Nat > Any > DB > DB
+> Nat > Nat > Any > Db > Db
 = (rawRm e a v db)
 # openDb db
 @ (alter2 c in)
@@ -178,12 +178,12 @@ db
 * LOOKUP attr:Any val:Any
 
 # datatype TxnAction
-* ACTADD eid:Nat aid:Nat attrName:Any val:Any writeAve:Bool unique:Bool
-         many:Bool isRef:Bool
+* ACTADD eid:Nat aid:Nat attrName:Any val:Any writeAve:Bit unique:Bit
+         many:Bit isRef:Bit
 * ACTRM  eid:Any aid:Any val:Any
 
 ; Return a new entity id and record the new max in the database.
-> DB > [Nat DB]
+> Db > [Nat Db]
 = (allocEntity db)
 # openDb db
 ,, maxEid
@@ -195,28 +195,28 @@ db
 | cabFirst opt
 
 ; Internal functions on
-> Nat > Nat > DB > Cab Any
+> Nat > Nat > Db > Cab Any
 = (lookupByEidAid eid aid db)
 # openDb db
 : av <- **maybeCase (tabLookup eid eav) %[]
 : v  <- **maybeCase (tabLookup aid av) %[]
 v
 
-> Nat > Nat > DB > Cab Any
+> Nat > Nat > Db > Cab Any
 = (lookupByAidEid aid eid db)
 # openDb db
 : ev <- **maybeCase (tabLookup aid aev) %[]
 : v  <- **maybeCase (tabLookup eid ev) %[]
 v
 
-> Nat > Nat > DB > Cab Nat
+> Nat > Nat > Db > Cab Nat
 = (lookupByAidV aid val db)
 # openDb db
 : ve <- **maybeCase (tabLookup aid ave) %[]
 : e  <- **maybeCase (tabLookup val ve) %[]
 e
 
-> Any > Nat > DB > Cab Nat
+> Any > Nat > Db > Cab Nat
 = (lookupByVAid val aid db)
 # openDb db
 : ae <- **maybeCase (tabLookup val vae) %[]
@@ -227,7 +227,7 @@ e
 ; number and an 'indexed' boolean which is whether we can use the ave table to
 ; lookup data related to this attribute.
 ;
-> Str > DB > Either Error [Nat Bool Bool Bool Bool]
+> Str > Db > Either Error [Nat Bit Bit Bit Bit]
 = (resolveAttrName attrName db)
 ;| trk [%resolve attrName]
 @ attrsCab | lookupByAidV dbIdentId attrName db
@@ -258,21 +258,21 @@ e
 | RIGHT [attrEid isIndex isUnique isMany isRef]
 
 ; User level manual lookup
-> Nat > Any > DB > Cab Any
+> Nat > Any > Db > Cab Any
 = (lookupByEA eid attr db)
 : aid
     < **fromSingletonCab (lookupByAidV dbIdentId attr db)
     | 'unknown attr' attr
 | lookupByEidAid eid aid db
 
-> Any > Nat > DB > Cab Any
+> Any > Nat > Db > Cab Any
 = (lookupByAE attr eid db)
 : aid
     < **fromSingletonCab (lookupByAidV dbIdentId attr db)
     | 'unknown attr' attr
 | lookupByAidEid aid eid db
 
-> Any > Any > DB > Cab Nat
+> Any > Any > Db > Cab Nat
 = (lookupByAV attr val db)
 # datacase (resolveAttrName attr db)
 * (LEFT errs) | 'could not lookup. errors: ' errs
@@ -281,7 +281,7 @@ e
         | 'cannot lookup unindexed attr/val' attr
     | lookupByAidV aid val db
 
-> Any > Any > DB > Cab Nat
+> Any > Any > Db > Cab Nat
 = (lookupByVA val attr db)
 # datacase (resolveAttrName attr db)
 * (LEFT errs)
@@ -291,7 +291,7 @@ e
         | 'cannot lookup non-ref values' attr
     | lookupByVAid val aid db
 
-> Any > Any > Nat > DB > Cab Nat
+> Any > Any > Nat > Db > Cab Nat
 = (lookupByIdentA identAttr identVal attr db)
 # datacase | resolveAttrName identAttr db
 * (LEFT err)
@@ -306,7 +306,7 @@ e
 
 ; Resolve a lookup ref into an eid or error.
 ;
-> Str > Any > DB > Either Error Nat
+> Str > Any > Db > Either Error Nat
 = (performLookup attrName val db)
 # datacase | resolveAttrName attrName db
 * (LEFT err) | LEFT err
@@ -326,7 +326,7 @@ e
 ; [":b/second" 6] -> LEFT err (assuming lookup fails)
 ; %["tmpid"]      -> RIGHT [2 ...] (assigns a tmpid and adds it to the map)
 ;
-> Tab Str Nat > DB > Any > Either Error [Nat (Tab Str Nat) DB]
+> Tab Str Nat > Db > Any > Either Error [Nat (Tab Str Nat) Db]
 = (parseEntityId txnTmpIds db i)
 | if (isNat i)
     | RIGHT [i txnTmpIds db]
@@ -356,7 +356,7 @@ e
 ; TODO: Rewrite and reflow this function to the new 4 space standard. As is, the
 ; deep nesting makes editing most of this hard.
 ;
-> DB > Tab Any Any > [(Maybe Nat) [Error] [TxnAction] (Tab Any Any) DB]
+> Db > Tab Any Any > (Opt Nat, Row Error, Row TxnAction, Tab Any Any, Db)
 = (parseMapForm txnTmpIds db tab)
 ; if there's a :db/id, than use that. But if there's not, we have to assign
 ; a new temporary id.
@@ -457,7 +457,7 @@ e
     ,, txnTmpIds
     ,, db
 
-> DB > Tab Any Any > [[Error] [TxnAction] (Tab Any Any) DB]
+> Db > Tab Any Any > (Row Error, Row TxnAction, Tab Any Any, Db)
 = (parseListForm txnTmpIds db row)
 ; rows are a tuple of [op espec attr val]
 | ifNot | eql 4 | len row
@@ -510,7 +510,7 @@ e
 ; and we have to lookup the properties of those attributes to know how to parse
 ; them.
 ;
-> DB > Any > [[Error] [TxnAction] (Tab Any Any) DB]
+> Db > Any > (Row Error, Row TxnAction, Tab Any Any, Db)
 = (parseItem txnTmpIds db item)
 | if (isTab item)
     | drop 1 | parseMapForm txnTmpIds db item
@@ -519,7 +519,7 @@ e
 ;
 | LEFT "1) What"
 
-> DB > Row Any > Either [Error] [[TxnAction] DB]
+> Db > Row Any > Either (Row Error) (Row TxnAction, Db)
 = (parseAllItems db items)
 ^ foldl _ [NIL NIL %[] db] items
 & ([errs actions txnTmpIds db] i)
@@ -532,7 +532,7 @@ e
 ; User transaction function. Given transaction items, resolve any pending
 ; entity numbers in them and then apply them to the database.
 ;
-> Row Any > DB > (Either (Row Error) DB)
+> Row Any > Db > Either (Row Error) Db
 = (transact items db)
 @ [errs actions _ db] | parseAllItems db items
 | ifNot (listNull errs) | LEFT | listToRow errs
@@ -557,7 +557,7 @@ e
 | ifNot (listNull errs) | LEFT | listToRow errs
 | RIGHT newDB
 
-> Row TxnItem > DB > DB
+> Row TxnItem > Db > Db
 = (assertTransact items db)
 # datacase (transact items db)
 * (LEFT l)  | 'transaction failed: ' l
@@ -580,7 +580,7 @@ e
 * PULL_MAP spec:(Row [AttrExpr (Row ParsedPull)])
 
 ; cps
-> [Either [e] a] > ([a] > Either [e] b) > Either [e] b
+> Row (Either (Row e) a) > (Row a > Either (Row e) b) > Either (Row e) b
 = (collectErrors vals cont)
 @ [errs parsedVals] | partition vals
 | ifNot | isZero | len errs
@@ -600,7 +600,7 @@ e
 ; last component of the attribute name to start with a '_'. We should find a
 ; better way to represent this, but for now, literally clone.
 ;
-> Nat > Some Nat
+> Nat > Opt Nat
 = (isBackwardsAttribute n)
 @ bar | natBar n
 : lastIdx < maybeCase (barElemIndexEnd "/" bar) NONE
@@ -612,7 +612,7 @@ e
 | barWeld first
 | barDrop 1 last
 
-> DB > Any > Either [Error] ParsedPull
+> Db > Any > Either (Row Error) ParsedPull
 = (parse db val)
 | if | isRow val
     ; TODO: all non simple list forms.
@@ -644,7 +644,7 @@ e
 
 > Db
 > Nat
-> Either Error [Str (Cab Any) [Bool Bool Bool Bool]]
+> Either Error [Str (Cab Any) [Bit Bit Bit Bit]]
 = (lookupAttr db eid expr)
 ;
 @ (handleOptions name options attrType rawCab)
@@ -664,7 +664,7 @@ e
     | handleOptions dbIdStr options [TRUE TRUE FALSE TRUE] (cabSingleton eid)
 
 > Nat
-> DB
+> Db
 > ParsedPull
 > Either Error [Any Any]
 = (lookupSpec eid db item)
@@ -709,7 +709,7 @@ e
 ; by `pullSpec`. This tab can recurse downwards into linked attributes, but
 ; does cannot do arbitrary higher complexity queries.
 ;
-> Any > Any > DB > Either [Error] (Tab Any Any)
+> Any > Any > Db > Either (Row Error) (Tab Any Any)
 = (pull pullSpec eidSpec db)
 # datacase | parseEntityId %[] db eidSpec
 * (LEFT l) (LEFT [l])
@@ -722,7 +722,7 @@ e
 
 ; General lookup function which returns information for multiple entities.
 ;
-> Any > Row Any > DB > Either [Error] [(Tab Any Any)]
+> Any > Row Any > Db > Either (Row Error) (Row | Tab Any Any)
 = (pullMany pullSpec rowEidSpec db)
 : eids
     < collectErrors
