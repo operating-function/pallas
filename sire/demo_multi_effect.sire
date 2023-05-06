@@ -235,4 +235,4 @@ hexAlphabet=(b#{0123456789abcdef})
 ; trk %now,now
 | repeatRequestDemo done
 
-(newMachine effectDemo)
+(runCog effectDemo)

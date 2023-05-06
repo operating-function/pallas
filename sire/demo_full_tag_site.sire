@@ -513,4 +513,4 @@ NONE
 : httpThread2 <- fork (runHttpServer vSt)
 | return ()
 
-(newMachine launchFullTagDemo)
+(runCog launchFullTagDemo)

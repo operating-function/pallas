@@ -18,4 +18,4 @@
 : ??(td_waited _) <- syscall (**TIME_WAIT (inc now))
 | timeDemo (dec count) return
 
-newMachine-(timeDemo 5)
+runCog-(timeDemo 5)

@@ -232,8 +232,8 @@
 | ioLoop st_ (**getRequestsRow st_)
 
 > IO a > Machine
-= (newMachine act)
-; trk (%newMachine),act
+= (runCog act)
+; trk (%runCog),act
 @ st,tid (allocateThread emptyState)
 @ st     (act nullThread tid st)
 ; trk [=st]
@@ -436,7 +436,7 @@
 ^-^ pure andThen ">>" forever
 ^-^ exit cancel fork prepareFork finalizeFork cancelFork
 ^-^ myThreadId getKernelState
-^-^ newMachine
+^-^ runCog
 ^-^
 ^-^ syscall
 ^-^

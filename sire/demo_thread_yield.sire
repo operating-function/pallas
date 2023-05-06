@@ -12,7 +12,7 @@
 ;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = yieldDemo
-| newMachine
+| runCog
 & return
 : bob <- fork & done
               : val <- block

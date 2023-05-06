@@ -280,7 +280,7 @@ cog
 | STEP KERNEL (tabToPairList event) fr kl sl rq
 
 > IO a > Machine
-= (newMachine startUp)
+= (runCog startUp)
 @ k   | DONE
 @ end | KERNEL
 @ me  | 0

@@ -10,7 +10,7 @@
 /+  io      [fork]
 /+  io      [myThreadId getKernelState]
 /+  io      [newRef readRef writeRef]
-/+  io      [newMachine]
+/+  io      [runCog]
 
 
 ;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,7 +39,7 @@
 | k x
 
 = threadDemoTwice
-| newMachine
+| runCog
 & k
 : v <- newRef 0
 ; (randomWait v >> randomWait v) k

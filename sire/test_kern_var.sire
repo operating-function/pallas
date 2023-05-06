@@ -26,7 +26,7 @@
     | die "You failed the test!"
 | return ()
 
-!!= (newMachine checkIds)
+!!= (runCog checkIds)
     | KERNEL ~[0 1] 0 [0 0] [0 0]
 
 = (checkIds_v2 return)
@@ -42,7 +42,7 @@
     | die "You failed the test!"
 | return ()
 
-!!= (newMachine checkIds_v2)
+!!= (runCog checkIds_v2)
     | KERNEL ~[0 3] 0 [0 DONE (FULL 9 [(1,10)]) 0] [0 0 0 0]
 
 
@@ -63,7 +63,7 @@
 | assert (rq  == [0])         `(rq == [0])
 | return ()
 
-!!= (newMachine checkKernelState)
+!!= (runCog checkKernelState)
     | KERNEL ~[0] 0 [0] [0]
 
 
@@ -75,7 +75,7 @@
 : v <- newRef i
 | justAlloc (inc i) return
 
-!!= (newMachine justAlloc-0)
+!!= (runCog justAlloc-0)
    | KERNEL ~[0]
             ~[]
             [0 0 1 2 3 4 5 6 7 8]
@@ -96,7 +96,7 @@
 : v <- newRef i
 | allocLoop (inc i) return
 
-!!= (newMachine allocLoop-0)
+!!= (runCog allocLoop-0)
     | KERNEL ~[0 0 1 2 3 4 5 6 7 8 9]
              ~[]
              [0 0 0 0 0 0 0 0 0 0]
@@ -109,7 +109,7 @@
 : key <- newEmptyMVar
 | takeMVar key return
 
-!!= (newMachine starvedReader)
+!!= (runCog starvedReader)
     | KERNEL ~[] ~[] (DONE, EMPTY [0]) [0 0]
 
 
@@ -122,7 +122,7 @@
 : val <- readRef key
 | takeMVar key return
 
-!!= (newMachine satedReader)
+!!= (runCog satedReader)
     | KERNEL ~[0 2] ~[] (0, EMPTY [], 0) [0 0 0]
 
 
@@ -137,7 +137,7 @@
 | putMVar key (inc nin)
 | return
 
-!!= (newMachine satedReader)
+!!= (runCog satedReader)
     | KERNEL ~[0 2] ~[] (0, FULL 10 [], 0) [0 0 0]
 
 
@@ -151,7 +151,7 @@
 | putMVar key 6
 | return
 
-!!= (newMachine starvingWriters)
+!!= (runCog starvingWriters)
     | KERNEL ~[4 5 6]
              ~[]
              (DONE, FULL 9 [2,8 3,7 0,6], DONE, DONE, 0, 0, 0)
@@ -169,7 +169,7 @@
 : v7  <- takeMVar key
 | return ()
 
-!!= (newMachine satedWriters)
+!!= (runCog satedWriters)
     | KERNEL ~[0 3 2] ~[] (0, EMPTY [], DONE, DONE) [0 0 0 0]
 
 
@@ -185,10 +185,10 @@
 : ___ <- cancel zaz
 | return ()
 
-!!= (newMachine canceledCalls)
+!!= (runCog canceledCalls)
     | KERNEL ~[0] ~[4 3 1] [0 0 DONE 0 0] [0 0 [%http 0 %hear] 0 0]
 
-!!= ((newMachine canceledCalls) [2='fake response'])
+!!= ((runCog canceledCalls) [2='fake response'])
     | KERNEL ~[2 4 3 1 0]
              ~[]           ;; Canceled list merged into free list
              [0 0 0 0 0]
@@ -208,25 +208,25 @@
 : ___ <- cancel zaz
 | return ()
 
-!!= (newMachine compoundEvents)
+!!= (runCog compoundEvents)
     | KERNEL ~[0]
              ~[5 3 1]
              [0 0 DONE 0 DONE 0]
              [0 0 [%http 0 %hear] 0 [%http 0 %hear] 0]
 
-!!= ((newMachine compoundEvents) [2='fake'])
+!!= ((runCog compoundEvents) [2='fake'])
     | KERNEL ~[2 5 3 1 0]
              ~[]           ;; Canceled list merged into free list
              [0 0 0 0 DONE 0]
              [0 0 0 0 [%http 0 %hear] 0]
 
-!!= ((newMachine compoundEvents) [2='fake'] [4='response'])
+!!= ((runCog compoundEvents) [2='fake'] [4='response'])
     | KERNEL ~[4 2 5 3 1 0]
              ~[]             ;; Canceled list merged into free list
              [0 0 0 0 0 0]
              [0 0 0 0 0 0]
 
-!!= ((newMachine compoundEvents) [2='fake' 4='response'])
+!!= ((runCog compoundEvents) [2='fake' 4='response'])
     | KERNEL ~[4 2 5 3 1 0]
              ~[]             ;; Canceled list merged into free list
              [0 0 0 0 0 0]

@@ -45,4 +45,4 @@
 : _ <- effect
 | httpHello st done
 
-(newMachine (httpHello %[]))
+(runCog (httpHello %[]))
