@@ -1,3 +1,7 @@
+-- Copyright 2023 The Plunder Authors
+-- Use of this source code is governed by a BSD-style license that can be
+-- found in the LICENSE file.
+
 {-# OPTIONS_GHC -Wall   #-}
 {-# OPTIONS_GHC -Werror #-}
 
@@ -8,15 +12,15 @@ module Sire.Syntax
     )
 where
 
+import Control.Monad.State
 import PlunderPrelude
 import Rex
 import Sire.Types
-import Control.Monad.State
 
 import Fan.Print    (dent)
 import Loot.Backend (plunVal, valFan)
-import Loot.Types   (LawName(..), Val(..), XTag(..), xtagTag)
 import Loot.Syntax  (readArgs, readSymb)
+import Loot.Types   (LawName(..), Val(..), XTag(..), xtagTag)
 
 import qualified Fan
 import qualified Loot.ReplExe as Loot

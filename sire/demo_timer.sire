@@ -1,3 +1,7 @@
+;;; Copyright 2023 The Plunder Authors
+;;; Use of this source code is governed by a BSD-style license that can be
+;;; found in the LICENSE file.
+
 ### demo_timer <- demo_thread_yield
 
 ;;; This is an example of a tiny program using the `kern.sire` exo-kernel.

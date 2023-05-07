@@ -1,3 +1,7 @@
+-- Copyright 2023 The Plunder Authors
+-- Use of this source code is governed by a BSD-style license that can be
+-- found in the LICENSE file.
+
 -----   TODO: Support different HTTP/Telnet ports for different ships.
 -----   TODO: ports file exist within the ship data-types, not in `~/.*`.
 

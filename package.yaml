@@ -1,8 +1,8 @@
 name:                plunder
 version:             0.1.0.0
-license:             AGPL
+license:             BSD3
 author:              "Plunder Authors"
-copyright:           "2021 Plunder Authors"
+copyright:           "2023 Plunder Authors"
 
 # ghc-options: -O2 -j
 ghc-options: -O -j
