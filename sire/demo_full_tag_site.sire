@@ -130,9 +130,9 @@
    b#{/a/b}
 
 = (getFilename path)
-| **maybeCase (barElemIndexEnd "/" path)
-    | die "weird filename"
-& lastIdx
+# datacase (barElemIndexEnd "/" path)
+* NONE (die "weird filename")
+* (SOME lastIdx)
 | barDrop (inc lastIdx) path
 
 !!= (getFilename b#{http://blah/blah/two.html})
@@ -164,9 +164,9 @@ t
 t
 
 = (assertTabLookup key t)
-| **maybeCase (tabLookup key t) (die [%missingKey key])
-& (v)
-v
+# datacase (tabLookup key t)
+* NONE     | die [%missingKey key]
+* (SOME v) | v
 
 = (assertVec v@[h t])
 | **assertThat (eqlNat h %vec) [%notAVec v]
@@ -397,8 +397,9 @@ NONE
 * POST
   # switch path
   * b#"/search"
-    : q <- **maybeCase (parseCmd body)
-             | SOME [400 b#bad [] b#{}]
+    # datacase (parseCmd body)
+    * NONE     | SOME [400 b#bad [] b#{}]
+    * (SOME q)
     # datacase q
     * STATUSCMD
       @ statusJson | **doStatus st

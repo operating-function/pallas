@@ -355,10 +355,14 @@ newRootNode
   | insertRec treeConfig treeFun hh node
 ;
 = (joinIndex kl il)
-  : k ks <- **listCase kl
-                : [keys vals] _ <- **listCase il [NIL NIL]
-                [(listFromRow keys) ~[vals]]
-  : [keys vals] ts <- **listCase il (die "missing index in joinIndex")
+  # datacase kl
+  * NIL # datacase il
+        * NIL                  (NIL, NIL)
+        * (CONS [keys vals] _) (listFromRow keys, ~[vals])
+  * (CONS k ks)
+  # datacase il
+  * NIL (die "missing index in joinIndex")
+  * (CONS [keys vals] ts)
   @ [keyrest valrest] | joinIndex ks ts
   @ !kout | listWeld (listFromRow keys) (CONS k keyrest)
   @ !vout | CONS vals valrest
