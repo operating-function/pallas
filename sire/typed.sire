@@ -1,0 +1,632 @@
+### typed <- datatype
+
+/+ boot
+/+ mutrec [bloodline]
+/+ switch
+/+ datatype
+
+
+""" Utilities """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; TODO: Move these into 14_exp (or wherever).
+
+= (defC sig bodyExp)
+| OPEN 0 "=" (sigE sig, bodyExp) 0
+
+= (defKC key sig bodyExp)
+| OPEN 0 "=" (sigKE key sig, bodyExp) 0
+
+
+""" Type Values """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+"""
+""" {SCHEME} is the constructor for a type.  (SCHEME 3 e) means
+""" (forall a b c. e).
+"""
+""" In Hindley-Milner, the forall can only occur on the outside of a type,
+""" so there is no forall in the actual TypeExp structure, only at the
+""" onset, in SCHEME.
+"""
+""" {TCON} and {TVAR} are the constructors for type-expressions.
+"""
+""" TVAR references a type-variable (by index).
+"""
+""" TCON references a abstract type by binding-key, along with 0-or-more
+""" type parameters.
+"""
+""" For example:
+"""
+"""     forall a. List (Either a a)
+"""
+""" Is represented as:
+"""
+"""      | SCHEME 1
+"""      | TCON getBinderKey#List
+"""      ,   | TCON getBinderKey#Either
+"""         ,, TVAR 0
+"""         ,, TVAR 0
+"""
+
+(TCON key params)=[key params]
+(TVAR key)=key
+
+(SCHEME vars typ)=[vars typ]
+
+
+""" Type Expressions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+"""
+""" {TExp} is a syntactic type expression.  Type expressions are first
+""" parsed into this, then name-resolved, then compiled into the above
+""" structures.
+"""
+
+# datatype TExp
+* T_FUN a:TExp b:TExp
+* T_REF nam:Str val:Type params:(Row TExp)
+* T_VAR sym:Str
+* T_TUP exps:(Row TExp)
+
+
+""" Parsing Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= schemeExpected
+""" Scheme signatures look like:
+"""
+"""     Any
+"""     (Fun a b)
+
+= (parseSchemeSig rex err ok)
+@ rune (rexRune rex)
+| ifNot (rune == '|')
+    : sym < readSymbol rex err
+    @ key | rexIdnt rex
+    | ok key sym []
+: ks < readKeySignature rex err
+| if (lth len 2)
+    | err rex schemeExpected
+@ [key sym] (idx 0 ks)
+@ varNames  (map idx-1 (drop 1 ks))
+| if (len varNames /= cabLen (cabFromRow varNames))
+    | err rex "type params must be unique"
+| ok key sym varNames
+
+"""
+""" {#abstype} is used to backfill things that were earlier in the
+""" bootstrapping process than the type system, and things that are
+""" built using PLAN primitives (instead of typed-sire constructucts).
+"""
+""" Pins, Functions, Rows, Tabs, etc.
+"""
+""" {#abstype} simply defines a new type with no operations, and
+""" operations are backfilled retroactivly using {#backfill}.  This can
+""" be abused to create bindings that don't match their declared types,
+""" so don't do that.
+"""
+""" {#abstype} is also used internally by the versions of {#record},
+""" and {#datatype} that are exported by this modules.
+"""
+
+"""
+""" TODO: Check that the type name uses the TypeNamingConvention,
+""" and that the type variables use the variableNamingConvention.
+"""
+
+= absExpected
+""" Expected something like one of these:
+"""
+"""     abstype#Any
+"""     abstype#(Fun a b)
+
+= ("#getTypeNames" s p e a r err ok)
+| ok p a (cnsE (look p %typeName))
+
+= ("#abstype" s p e a r err ok)
+@ sons@[_ sigRex] (rexSons r)
+| if (len sons /= 2)
+    | err r absExpected
+@ rune (rexRune sigRex)
+| if (rune == '|')
+    : ks < readKeySignature sigRex err
+    | if (lth len 2)
+        | err r absExpected
+    @ [key sym] (idx 0 ks)
+    @ numVars   (dec (len ks))
+    @ varKeys   (map idx-0 (drop 1 ks))
+    @ varNames  (map idx-1 (drop 1 ks))
+    | if (len varNames /= cabLen (cabFromRow varNames))
+        | err r "type params must be unique"
+    @ prp | setProperty key 'typeName' sym p
+    | ok prp a
+    | defKC key [sym]
+    | cnsE (SCHEME numVars | TCON key (gen numVars TVAR))
+: sym < readSymbol sigRex err
+@ key | rexIdnt sigRex
+@ prp | setProperty key 'typeName' sym p
+| ok prp a
+| defKC key [sym]
+| cnsE (SCHEME 0 | TCON key [])
+
+"""
+""" This section redefines {#record} and {#datatype} to also generate
+""" a new opaque type.
+"""
+
+"""
+""" TODO This is jank af, break {#record} and {#abstype} into re-usable
+""" parser + code generated and use those here (instead of just manually
+""" expanding both macros and combining the result).
+"""
+
+oldRecord=(.{#record})
+oldDataType=(.{#datatype})
+
+= ({#record} s p e a r err ok)
+: p a tCmd <- .{#abstype} s p e a ``(abstype#($$(idx 1 | rexKids r))) err
+: p a rCmd <- oldRecord s p e a r err
+| ok p a
+`` * $$tCmd
+   * $$rCmd
+
+= ({#datatype} s p e a r err ok)
+: p a tCmd <- .{#abstype} s p e a ``(abstype#($$(idx 1 | rexKids r))) err
+: p a dCmd <- oldDataType s p e a r err
+| ok p a
+`` * $$tCmd
+   * $$dCmd
+
+""" Declare Basic Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+abstype#Type
+abstype#Void
+abstype#Any
+abstype#Nat
+abstype#(Pin a)
+abstype#(Fun a b)
+abstype#Bar
+abstype#Bit
+abstype#Str
+abstype#(Tab k v)
+abstype#(Cab k)
+abstype#(Row a)
+abstype#(Opt a)
+abstype#(List a)
+abstype#(Either a b)
+
+* # record Unit             | UNIT
+* # record (Box a)          | BOX p:a
+* # record (Pair a b)       | PAIR p:a q:b
+* # record (Trip a b c)     | TRIP p:a q:b r:c
+* # record (Quad a b c d)   | QUAD p:a q:b r:c s:d
+* # record (Pent a b c d e) | PENT p:a q:b r:c s:d t:e
+
+abstype#TyExp
+
+= anyKey  | getKey#Any
+= funKey  | getKey#Fun
+= unitKey | getKey#Unit
+= boxKey  | getKey#Box
+= pairKey | getKey#Pair
+= tripKey | getKey#Trip
+= quadKey | getKey#Quad
+= pentKey | getKey#Pent
+
+!!= Any | SCHEME 0 (TCON anyKey [])
+!!= Fun | SCHEME 2 (TCON funKey [0 1])
+
+!!= getProp#(Any.typeName) 'Any'
+!!= getProp#(Nat.typeName) 'Nat'
+!!= getProp#(Fun.typeName) 'Fun'
+
+= (lookupOr env key fallback ok)
+| ifNot (hasKey key env) fallback
+| ok (look env key)
+
+= (showTypeTree allTypeNames vars x)
+^ _ x
+? (loop x@[con par])
+| if isNat-x
+    | varE (idx x vars)
+: nam
+    < lookupOr allTypeNames con
+    | "Is not a type" con,allTypeNames
+| if (null par)
+    | if (eql con unitKey) `()
+    | varE nam
+@ kids (map loop par)
+| if (eql con funKey)
+    @ [x y] kids
+    | if (">" == rexRune y)
+        @ ySons (rexSons y)
+        | rexSetSons (rowCons x ySons) y
+    | ``($$x > $$y)
+| if (eql con pairKey)
+    @ [p q] kids | ``($$p , $$q)
+| if (eql con tripKey)
+    @ [p q r] kids | ``($$p , $$q , $$r)
+| if (eql con quadKey)
+    @ [p q r s] kids | ``($$p , $$q , $$r , $$s)
+| if (eql con pentKey)
+    @ [p q r s t] kids | ``($$p , $$q , $$r , $$s , $$t)
+| else
+    ^ NEST 0 "|" _ 0
+    | rowCons (varE nam) kids
+
+= (showType p scheme@[arity x])
+@ nams | look p %typeName
+@ nams | if (isZero nams) %[] nams
+@ vars | gen arity (add 'a')
+@ body | showTypeTree nams vars x
+| body
+
+= (readDefinedSymbol src env rex err ok)
+: sym < readSymbol rex err
+@ key | look src sym
+@ val | look env sym
+| ifNot (hasKey sym env)
+    | err rex (strWeld 'Undefined symbol: ' sym)
+| if (isZero key)
+    | err rex (strWeld 'Binding without key: ' sym)
+| ok sym key (look env sym)
+
+= ("#printType" s p e a r err ok)
+@ kids (rexKids r)
+| if (len kids /= 2)
+    | die 'Usage: printType#Type'
+: symbol key scheme
+    < readDefinedSymbol s e (idx 1 kids) err
+| trk
+    | OPEN 0 "=" [(varE symbol)]
+    | showType p scheme
+| ok p a `0
+
+= (tyApp name scheme params err ok)
+@ [arity topTy] scheme
+| if (arity /= len params)
+    | err (varE name) "Bad arity in type application"
+^ ok (_ topTy)
+? (subst x@[con para])
+| if isNat-x (idx x params)
+| [con (map subst para)]
+
+= (tupleType n)
+# switch n
+* 0 Unit
+* 1 Box
+* 2 Pair
+* 3 Trip
+* 4 Quad
+* 5 Pent
+* _ ("todo support bigger tuples: " n)
+
+= (compileType vars tExp err ok)
+^ : tree <- _ tExp
+  | ok (SCHEME (len vars) tree)
+? (go tExp ret)
+# datacase tExp
+* (T_FUN a b)
+    : x <- go a
+    : y <- go b
+    : r <- tyApp 'Fun' Fun [x y] err
+    | ret r
+* (T_REF nam scheme args)
+    : params < traverseRow go args
+    : result < tyApp nam scheme params err
+    | ret result
+* (T_VAR sym)
+    # datacase (elemIdx sym vars)
+    * NONE     | err varE-sym 'unbound type variable'
+    * (SOME i) | ret (TVAR i)
+* (T_TUP exps)
+    : params < traverseRow go exps
+    @ scheme | tupleType (len exps)
+    : result < tyApp 'TUP' scheme params err
+    | ret result
+
+
+""" Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+"""
+""" Type :=
+"""
+"""     | TyCon
+"""     | tyVar
+"""     | (Row a)
+"""     | Row-a
+"""     | (Type > Type)
+"""     | (Type > Type > Type)
+"""     | (Type > Type > Type > ...)
+"""
+"""     | ()                       ;; UNIT=0
+"""     | (,)                      ;; UNIT=0
+"""     | ,a [a]                   ;; *FORBIDDEN* (looks like list type)
+"""     | (a, b)                   ;; Pair a b
+"""     | (a, b, c)                ;; Trip a b c
+"""     | ...
+"""
+
+= annBindExpected
+""" Expected something like:
+"""
+"""     > Type
+"""     = Binding ...
+
+= (separateAnnotation topRex err ok)
+^ _ NONE topRex
+? (loop acc rex)
+| if (isZero rex)
+    | err topRex annBindExpected
+@ rune (rexRune rex)
+| if ((rune == "=") || (rune == "#="))
+    @ sigRex (idx 0 (rexKids rex))
+    @ keyRex | if (rexIsNode sigRex)
+             * idx 0 (rexKids sigRex) ;; TODO Actually parse
+             * sigRex
+    | ok (bloodline (listRev acc)) (rexIdnt keyRex) rex
+| if (rune /= ">")
+    | err topRex annBindExpected
+@ acc (rexSetHeir 0 rex)::acc
+| loop acc (rexHeir rex)
+
+!!=  ,, `` > Row Nat
+           > Row Nat
+     ,, 0
+     ,, `` = (I x) x
+  ^ separateAnnotation _ v2 v3
+ `` > Row Nat
+    > Row Nat
+    = (I x) x
+
+!!=  ,, `` > Row Nat > Row Nat
+     ,, 0
+     ,, `` = (I x) x
+  ^ separateAnnotation _ v2 v3
+ `` > Row Nat > Row Nat
+    = (I x) x
+
+= (isTypeAnn rex)
+@ style (rexStyle rex)
+| and (rexIsNode rex)
+| and (rexRune rex == ">")
+      (style == "OPEN")
+
+= (foldr1 f xs)
+| if (null xs)
+    | {fold1} {empty row}
+@ las (dec len-xs)
+| foldr f (idx las xs) (take las xs)
+
+(bigFun args)=(**foldr1 T_FUN args)
+
+= (parseType_ parseTypeAnnotation spe@[s p e] rex err ok)
+^ _ rex ok
+? (loop rex ok)
+| if (isTypeAnn rex)
+    : annRes <- parseTypeAnnotation spe rex err
+    | ok annRes
+| if (rexIsSymbol rex)
+    : sym < readSymbol rex err
+    @ fst | strTake 1 sym
+    | if (isUpper fst)
+        | ifNot (hasKey sym e)
+            | err rex (strWeld 'Undefined type constructor: ' sym)
+        | ok (T_REF sym (look e sym) [])
+    | else
+        | ok (T_VAR sym)
+@ rune (rexRune rex)
+| if (isZero rune)
+    | err rex "Expected symbol or rune"
+# switch rune
+* '|'
+    @ kids (rexKids rex)
+    @ head (idx 0 kids)
+    @ para (drop 1 kids)
+    @ nKid (len kids)
+    | if (isZero nKid) ; UNIT
+        | ok | T_TUP []
+    : sym < readSymbol head err
+    | ifNot (isUpper (strTake 1 sym))
+        | err head "expected: TypeName"
+    | ifNot (hasKey sym e)
+        | err rex (strWeld 'Undefined type constructor: ' sym)
+    : params < traverseRow loop para
+    | ok (T_REF sym (look e sym) params)
+* '>'
+    : kidTypes < traverseRow loop (rexKids rex)
+    | ok (bigFun kidTypes)
+* '->'
+    : kidTypes < traverseRow loop (rexKids rex)
+    | ok (bigFun kidTypes)
+* ','
+    : kidTypes < traverseRow loop (rexKids rex)
+    | if (len kidTypes == 1)
+        | err rex 'Write (Row x), not [x]'
+    | ok (T_TUP kidTypes)
+* _
+    | err rex (strWeld 'invalid type rune: ' rune)
+
+= (parseTypeAnnotation spe topRex err ok)
+^ _ FALSE NIL topRex & l
+                     @ ty (bigFun | listToRowReversed l)
+                     | ok ty
+? (loop fancy acc rex ret)
+| if (isZero rex) (ret acc)
+| ifNot (isTypeAnn rex) (err rex "bad annotation")
+@ heir      | rexHeir rex
+@ sons      | rexSons rex
+@ numSons   | len sons
+@ lastSonIx | dec numSons
+@ lastSon   | idx lastSonIx sons
+| if (fancy && not (isZero heir))
+    | err rex "Don't try to get fancy"
+| if ((numSons /= 0) && isTypeAnn lastSon)
+    @ sons | take lastSonIx sons
+    | if (any isTypeAnn sons)
+        | err rex "bad annotation (don't be weird)"
+    @ iRex | if (len sons == 1) (idx 0 sons) (NEST 0 "|" sons 0)
+    : item < parseType_ parseTypeAnnotation spe iRex err
+    @ acc  | item::acc
+    : acc  < loop TRUE acc lastSon
+    : acc  < loop fancy acc heir
+    | ret acc
+@ sons (rexSons rex)
+| if (any isTypeAnn sons)
+    | err rex "bad annotation (don't be weird)"
+@ iRex | if (len sons == 1) (idx 0 sons) (NEST 0 "|" sons 0)
+: item < parseType_ parseTypeAnnotation spe iRex err
+@ acc | item::acc
+| loop fancy acc heir ret
+
+= (parseType spe rex err ok)
+| parseType_ parseTypeAnnotation spe rex err ok
+
+= (parseTypeAnnotatedBinding spe rex err ok)
+: annRex bindKey bindRex < separateAnnotation rex err
+: annTy                  < parseType spe annRex err
+| ok annTy bindKey bindRex
+
+
+""" Macros """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+"""
+""" {#typedef} creates a named type based on a type-expression.
+"""
+
+= ({#typedef} s p e a r err ok)
+@ kids (rexKids r)
+| if (len kids /= 3)
+    | err r 'Usage: # typedef Type (a > b)'
+@ [_typedef sigRex tyRex] kids
+: key sym vars < parseSchemeSig sigRex err
+: expr         < parseType [s p e] tyRex err
+: scheme       < compileType vars expr err
+@ prp          | setProperty key 'typeName' sym p
+| ok prp a
+| defKC key [sym] (cnsE scheme)
+
+typedef#Symbol#Nat
+typedef#RexKey#Nat
+
+typedef#(Key a)#Nat
+
+# typedef NatOp2
+    (Nat > Nat > Nat)
+
+# typedef (Foo z)
+    > z > List z > Nat > Nat
+
+# typedef (Zaz a b c d)
+    > Foo (a,b)
+    > Foo (c,d)
+    > (a,b,c,d)
+
+printType#NatOp2
+printType#Foo
+printType#Zaz
+printType#Quad
+printType#Pent
+printType#Unit
+printType#Fun
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+"""
+""" {txpFree} returns the set of type variables used in a type-expression,
+""" For example the set of type-variables in {Either a (b, List a)}
+""" is {%[a b]}.
+"""
+
+> TyExp > Cab Symbol
+= (txpFree x)
+# datacase x
+* (T_FUN a b)    | cabUnion (txpFree a) (txpFree b)
+* (T_REF _ _ xs) | cabCat (map txpFree xs)
+* (T_VAR sym)    | cabSingleton sym
+* (T_TUP xs)     | cabCat (map txpFree xs)
+
+"""
+""" {>} is the type-annotation rune.  It is prefixed directly onto the
+""" same block as the definition it annotates
+"""
+"""     > Nat > Nat
+"""     (add3 x)=(add 3 x)
+"""
+""" TODO: Support separate blocks for annotation and binding.
+"""
+"""     \ add3 : Nat > Nat
+"""
+"""     (add3 x)=(add 3 x)
+"""
+
+= ('>' s p e a r err ok)
+: tExp bindKey binding
+    < parseTypeAnnotatedBinding [s p e] r err
+@ vars | cabRow (txpFree tExp)
+: type < compileType vars tExp err
+@ p (setProperty bindKey 'type' type p)
+| ok p a binding
+
+"""
+""" {#backfill} assigns a type to an existing binding without checking it.
+"""
+""" This is intended as a way to retroactively assign types to things
+""" that we defined before the type system was built, and to give types
+""" to things that are defined directly in terms of PLAN primitives.
+"""
+""" (At the moment, nothing is checked at all, so this isn't actually
+""" different from `>`.  In the future it will be, though.
+"""
+
+= backfillExpected
+""" Expected something like:
+"""
+""" # backfill main
+""" > Int > Ptr Ptr-Char > IO ()
+
+= ('#backfill' s p e a r err ok)
+@ kids rexKids-r
+| if (3 /= len kids) (err r backfillExpected)
+@ [_ valRex typRex] kids
+: sym valKey _ < readDefinedSymbol s e valRex err
+: typExp       < parseType [s p e] typRex err
+@ tyVars       | cabRow (txpFree typExp)
+: scheme       < compileType tyVars typExp err
+@ p (setProperty valKey 'type' scheme p)
+| ok p a `0
+
+"""
+""" {#typeof} prints the type of a binding.  It is meant to be used
+""" interactively from the REPL.
+"""
+
+= ("#typeof" s p e a r err ok)
+@ kids (rexKids r)
+| if (len kids /= 2) | die 'Usage: typeof#var'
+: symbol < readSymbol (idx 1 kids) err
+@ vlKey  | look s symbol
+@ scheme | getProperty vlKey 'type' p
+| if (isZero vlKey)  | 'undefined' symbol
+| if (isZero scheme) | 'untyped' symbol
+| trk (NEST 0 "\" [(varE symbol)] | showType p scheme)
+| ok p a `0
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ {#typedef} {#abstype} {#printType} {#typeof} {#backfill}
+^-^
+^-^ {#record} {#datatype} {#datacase}
+^-^
+^-^ '>'
+^-^
+^-^ Void Any
+^-^ Nat Pin Fun
+^-^ Bit Str
+^-^ Row List Cab Tab
+^-^ Opt Either
+^-^ Bar
+^-^
+^-^ Unit Box Pair Trip Quad
+^-^
