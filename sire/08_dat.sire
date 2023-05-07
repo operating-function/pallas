@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 08_dat <- typed
+### 08_dat <- 07_rex
 
 """
 """ Data Structures
@@ -22,7 +22,21 @@
 /+  05_eql  [eql neq]
 /+  06_cow
 /+  07_rex
-/+  typed
+
+
+""" Fake Typing Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (">" s p e a r err ok)
+@ heir (rexHeir r)
+| if (isZero heir)
+    | err r "> annotations require an heir to annotate"
+| ok p a heir
+
+= ("\" s p e a r err ok)
+| ok p a `(#*)
+
+= ("#typedef" s p e a r err ok)
+| ok p a `(#*)
 
 
 """ Basic Row Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -762,4 +776,6 @@
 ^-^
 ^-^ traverseList forList traverseListWithState forListWithState
 ^-^ traverseRow forRow traverseRowWithState forRowWithState
+^-^
+^-^ ">" "#typedef" "\"
 ^-^

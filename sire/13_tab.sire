@@ -21,13 +21,7 @@
 /+  05_eql  [eql neq lth lte gte gth]
 /+  06_cow  [null map weld rowRepel rowApply rev foldl]
 /+  07_rex  [rexKids rexRune rexGetNodeWithRune EMBD PREF]
-/+  typed
-/+  08_dat  ["," findIdx elemIdx has rowCons cat drop take span insert]
-/+  08_dat  [appE rowE]
-/+  08_dat  [SOME NONE maybeCase]
-/+  08_dat  [sortOn listFromRow listToRow listNull listZip listMap listWeld]
-/+  08_dat  [listRev filter CONS NIL]
-/+  08_dat  [listCase]
+/+  08_dat
 /+  09_sci  [inspect fullInspection]
 /+  10_chr  []
 /+  11_str  [strWeld]

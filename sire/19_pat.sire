@@ -48,14 +48,7 @@
 /+  07_rex  [rexSetRune rexSetSons rexSetHeir]
 /+  07_rex  [NEST OPEN WORD]
 /+  07_rex  [rexIdnt]
-/+  typed
-/+  08_dat  [switch all tag drop rowCons cat take zip bapE]
-/+  08_dat  [CONS NIL listCase]
-/+  08_dat  [listToRowReversed listZip listEnumFrom listToRow listFromRow]
-/+  08_dat  [listSing listCat]
-/+  08_dat  [',' ',,']
-/+  08_dat  [listFoldr traverseRow forRowWithState]
-/+  08_dat  [traverseList traverseListWithState]
+/+  08_dat
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld strCat]

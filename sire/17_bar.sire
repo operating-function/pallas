@@ -39,13 +39,7 @@
 /+  06_cow  [map foldl foldr gen weld v1 v2 v4]
 /+  07_rex  [rexKids rexText '`']
 /+  07_rex  [rexGetLeaf]
-/+  typed
-/+  08_dat  [maybeCase SOME NONE]
-/+  08_dat  ["," rowAnd take all cat]
-/+  08_dat  [CONS NIL listCase]
-/+  08_dat  [listToRow listFromRow]
-/+  08_dat  [listGen listFindIndex listElemIndex listFoldr]
-/+  08_dat  [",,"]
+/+  08_dat
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [explode]

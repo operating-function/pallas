@@ -69,7 +69,6 @@
 /+  07_rex  [rexGetNodeWithRune]
 /+  07_rex  [rexStyle rexText rexEql]
 /+  07_rex  [rexSetRune rexSetHeir rexSetSons]
-/+  typed
 /+  08_dat  ["," ",," take drop switch]
 /+  08_dat  [CONS NIL listToRowReversed listCase listFromRow]
 /+  08_dat  [traverseRow listMap]

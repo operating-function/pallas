@@ -23,7 +23,6 @@
 /+  05_eql  [eql neq]
 /+  06_cow  [foldl]
 /+  07_rex  []
-/+  typed
 /+  08_dat  [CONS NIL listFoldl listToRow listMap "," listLen]
 /+  09_sci  []
 /+  10_chr  [isUpper toUpper toLower]

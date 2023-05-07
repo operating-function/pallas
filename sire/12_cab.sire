@@ -21,11 +21,7 @@
 /+  05_eql  [eql neq lte lth gth gte]
 /+  06_cow  [null weld v2 isRow map foldl foldr]
 /+  07_rex
-/+  typed
-/+  08_dat  [CONS NIL listCase listFromRow listToRowReversed sort delete cat]
-/+  08_dat  [listAll listFoldl listRev listToRow]
-/+  08_dat  ["," drop take span has]
-/+  08_dat  [forRow]
+/+  08_dat
 /+  09_sci  []
 /+  10_chr  [isDigit]
 /+  11_str  [strToList strWeld]

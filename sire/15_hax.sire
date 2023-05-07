@@ -54,7 +54,6 @@
 /+  05_eql  [eql neq]
 /+  06_cow  [v1 v2 v4 null weld]
 /+  07_rex  [rexKids rexGetWord "`" rexVal]
-/+  typed
 /+  08_dat  ["," drop]
 /+  09_sci  []
 /+  10_chr  []

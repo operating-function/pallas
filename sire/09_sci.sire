@@ -25,7 +25,6 @@
 /+  05_eql  []
 /+  06_cow  [map]
 /+  07_rex  []
-/+  typed
 /+  08_dat  ["," drop rowApply CONS NIL listToRow]
 
 
