@@ -76,7 +76,7 @@
   | readCoreBody '=' 5 `((= f|x x)(= f)) v2 v2
 
 ; TODO Move this to `17-exp.sire`
-; TODO Avoid the ## where necessary.
+; TODO Avoid the @ where necessary.
 = (taggedLamE nam tag args body)
 @ idn (SHUT 0 "@" (varE nam, litE tag) 0)
 @ sig (NEST 0 "|" (rowCons idn args) 0)

@@ -35,8 +35,13 @@
 ;;          corespond 1-1 with the callbacks in `sl`.  For values in
 ;;          `sl` that are not pending syscalls, rq[key]=0
 ;;
-;; Strictness
-;; ----------
+;; This sequence of arguments is easy to remember with the mnemonic:
+;; "End me for-real, kill self real-quick."  Don't actually do that,
+;; though.
+;;
+;;
+;; TODO: Strictness
+;; ----------------
 ;;
 ;; In theory, we should be using strictness annotations everywhere in
 ;; this code.  We are accumulating lazy state, and that creates a lot
@@ -66,10 +71,12 @@
     > me:ThreadId  ;; What thread is this?
     > Action
 
+; A "running process".  This never returns, always invoking a callback instead.
 # typedef Action
-    > fr:(List Nat)
-    > sl:(Row Any)
-    > rq:(Row Req)
+    > List Nat ; Free Slots
+    > List Nat ; Killed Threads (will become free at the end of the event)
+    > Row Any  ; Slots (Refs, Vars, blocked threads, syscall callbacks)
+    > Row Any  ; Syscalls.  The corresponding "slot" is the continuation.
     > Void
 
 

@@ -6,6 +6,7 @@
 
 /+  boot
 /+  datatype
+/+  typed
 
 
 """ Generators """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -14,6 +15,7 @@
 * ITEM item:a more:(Unit > GenStream a)
 * DONE
 
+> GenStream a > Nat > List a
 = (generate n g)
 | trk %generate,n,g
 | if (eql 0 n) NIL
@@ -21,10 +23,12 @@
 * DONE        | NIL
 * (ITEM x g2) | trk [x g2] | CONS x (generate (dec n) g2)
 
+> Nat > GenSteam Nat
 = (natsFrom i _)
 | seq i
 | ITEM i (natsFrom (inc i))
 
+> GenStream Nat
 nats=(natsFrom 0)
 
 !! eql ~[0 1 2 3 4 5 6 7 8 9] (generate 10 nats)

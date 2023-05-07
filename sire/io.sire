@@ -88,9 +88,9 @@
 ;; itself by deleting itself from the state.
 ;;
 
-# typedef Action (> ThreadId > State > State)
-# typedef Thread (> Response > Action)
-# typedef Effect (> Thread > Action)
+* # typedef Action > ThreadId > State > State
+* # typedef Thread > Any > Action
+* # typedef Effect > Thread > Action
 
 > Thread
 (nullThread _resp tid st)=(releaseThread tid st)

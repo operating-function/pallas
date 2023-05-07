@@ -52,7 +52,7 @@
 @ [_ keys nodes hh] node
 [0 [keys nodes] hh]
 
-> Row > Maybe [a Row]
+> Row a > Opt (a, Row a)
 = (rowUncons r)
 | if (isZero | len r) NONE
 | SOME [(idx 0 r) (drop 1 r)]
@@ -60,7 +60,7 @@
 !!= NONE               (rowUncons [])
 !!= (SOME [0 [1 2 3]]) (rowUncons [0 1 2 3])
 
-> Row a > Maybe (Row a, a)
+> Row a > Opt (Row a, a)
 = (rowUnsnoc r)
 @ l | len r
 | if (isZero l) NONE
@@ -103,6 +103,7 @@
 * LEAFNODE leaf:Any
 
 ;; An index is a row of [a row of keys, a row of subnodes]
+> Index k v
 = emptyIndex [[] []]
 
 ;
@@ -120,7 +121,7 @@
 = (singletonIndex val) [[] [val]]
 
 
-> Index k v > Maybe v
+> Index k v > Opt v
 = (fromSingletonIndex [_ vals])
 | if (eqlNat 1 (len vals)) (SOME (get vals 0)) NONE
 
@@ -137,7 +138,7 @@
 ; Given an index, split it into two so the left index has `numLeftKeys`
 ; and the right contains the rest. Also returns the pivot key.
 ;
-> Int > Index k v > (Index k v, k, Index k v)
+> Nat > Index k v > (Index k v, k, Index k v)
 = (splitIndexAt numLeftKeys [keys vals])
 @ leftKeys             | take numLeftKeys keys
 @ middleKeyAndRightKey | drop numLeftKeys keys
@@ -155,7 +156,7 @@
 ;
 ;  Given a pure index with no hitchhikers, create a node.
 ;
-> TreeFun > Int > Index k v > Index k v
+> TreeFun > Nat > Index k v > Index k v
 = (extendIndex treeFun maxIndexKeys idx)
 # openTreeFun treeFun
 @ maxIndexVals | inc maxIndexKeys
@@ -218,7 +219,7 @@
 ;; Leaf ;;
 ;;;;;;;;;;
 
-> TreeFun > Int > Index k n
+> TreeFun > Nat > Index k n
 = (splitLeafMany treeFun maxLeafItems items)
 # openTreeFun treeFun
 @ itemLen | leafLength items
@@ -270,13 +271,14 @@
 = twoThreeConfig
 @ minFanout 2
 @ maxFanout | dec | mul 2 minFanout
-| TREE_CONFIG minFanout
-              maxFanout
-              (dec minFanout)
-              (dec maxFanout)
-              minFanout
-              maxFanout
-              minFanout
+| TREE_CONFIG
+* minFanout
+* maxFanout
+* dec minFanout
+* dec maxFanout
+* minFanout
+* maxFanout
+* minFanout
 
 ;
 ; A config with larger corfficients for more realistic testing.
@@ -284,13 +286,14 @@
 = largeConfig
 @ minFanout 64
 @ maxFanout | dec | mul 2 minFanout
-| TREE_CONFIG minFanout
-              maxFanout
-              (dec minFanout)
-              (dec maxFanout)
-              minFanout
-              maxFanout
-              minFanout
+| TREE_CONFIG
+* minFanout
+* maxFanout
+* dec minFanout
+* dec maxFanout
+* minFanout
+* maxFanout
+* minFanout
 
 ;;;;;;;;;;
 ;; Tree ;;
@@ -758,7 +761,7 @@ newRootNode
 
 ; implementation detail of intersection
 ;
-> Cab k > SetNode k > [Cab k]
+> Cab k > SetNode k > Row (Cab k)
 = (checkSetAgainst a b)
 # datacase b
 * (LEAFNODE bLeaves)
@@ -894,7 +897,7 @@ newRootNode
 ; In SetMap, hitchhikers are a normal map of sets, but leaves are maps of
 ; raw hitchhikersets.
 ;
-> TreeConfig > Tab (HSet Nat) > Tab Cab > Tab (HSet Nat)
+> TreeConfig > Tab k (HSet Nat) > Tab k (Cab a) > Tab k (HSet Nat)
 = (hsmLeafInsertImpl setConfig leaf hh)
 @ (alt new m)
   | SOME

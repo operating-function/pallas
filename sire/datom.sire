@@ -561,7 +561,7 @@ e
 | ifNot (listNull errs) | LEFT | listToRow errs
 | RIGHT newDB
 
-> Row TxnItem > Db > Db
+> Row TxnAction > Db > Db
 = (assertTransact items db)
 # datacase (transact items db)
 * (LEFT l)  | 'transaction failed: ' l
