@@ -748,16 +748,27 @@
 """ Named Lambdas with Destroy """""""""""""""""""""""""""""""""""""""""""""""""
 
 ; TODO: Lambda binders should have binder-identities
+
+; TODO: This is lacking features from the base syntax (**)/etc.
+
+= (readNamedLambdaSig rex err ok)
+| if rexIsNode-rex
+    | readDestroyer rex err ok
+: sym <- readSymbol rex err
+| ok sym []
+
 ;
 = ("?" s p e a r err ok)
 : sigRex bodyExpr <- rexParseKids r [readAny readAny] err
-: sym    binds    <- readDestroyer sigRex err
+: sym    binds    <- readNamedLambdaSig sigRex err
 : a sig  bodyExpr <- makeDestroyer a binds bodyExpr
 | ok p a
 | wutE (rowCons sym sig)
 | bodyExpr
 
 !!= 5 | (uncurry f [x y] ? f x y) add [2 3]
+
+!!= ~[0 0 0] | listTake 3 z?(0::z)
 
 
 """ Anon Lambdas with Destroy """"""""""""""""""""""""""""""""""""""""""""""""""

@@ -284,11 +284,17 @@ readExpr = do
 
 -- Function Signatures ---------------------------------------------------------
 
-readSigy :: Red (Bool, XTag, NonEmpty Symb)
-readSigy = do
-    rune "|"
-    ((inline, t), x, xs) <- form2N readSigHead readSymb readSymb
-    pure (inline, t, x:|xs)
+readSigy :: Red (Bool, XTag, [Symb])
+readSigy = noArgs <|> args
+  where
+    noArgs = do
+         (inline, t) <- readSigHead
+         pure (inline, t, [])
+
+    args = do
+        rune "|"
+        ((inline, t), xs) <- form1N readSigHead readSymb
+        pure (inline, t, xs)
 
 readSigHead :: Red (Bool, XTag)
 readSigHead = (rune "**" >> form1 ((True,) <$> normal))
