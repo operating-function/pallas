@@ -409,6 +409,21 @@
 | **listCase lis NIL
 | (x xs & listDrop dec-num xs)
 
+= (listTakeWhile f lis)
+| **listCase lis NIL
+& (x xs)
+| if f-x (CONS x | listTakeWhile f xs)
+| NIL
+
+= (listDropWhile f lis)
+| **listCase lis NIL
+& (x xs)
+| if f-x listDropWhile-f-xs
+| lis
+
+!!= [2 [3 0]]     | listTakeWhile id [2 [3 [0 [4 [5 0]]]]]
+!!= [0 [4 [5 0]]] | listDropWhile id [2 [3 [0 [4 [5 0]]]]]
+
 ; TODO This does not belong here
 ; Convert a nat into a list of digits.
 ; TODO: Use `until`?
@@ -753,6 +768,7 @@
 ^-^ listFoldl listFoldr listMap listTurn listLen listSum listToRow
 ^-^ listToRowReversed listFromRow listAnd listOr listSum listAll listAny
 ^-^ listHas listEnumFrom listWeld listCat listTake listDrop listDigits
+^-^ listTakeWhile listDropWhile
 ^-^ digits listZipWith listZip listFilter listNull listMinimumOn listSortOn
 ^-^ listGen listFindIndex listElemIndex
 ^-^ listIndexed
