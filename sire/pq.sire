@@ -1,0 +1,177 @@
+### pq <- prelude
+
+"""
+""" Priority Queue
+""" ==============
+"""
+""" This implementation is based on section 4.16 of the book 'ML for the Working
+""" Programmer' by Larry C. Paulson (Cambridge University Press [1996]).
+"""
+""" It is modified to support a customizeable comparator function (`cmp`, below)
+""" which is passed as an argument to many `pq.*` functions. This allows similar
+""" functionality to, for example, a Haskell `Ord` instance. `cmp` takes 2
+""" arguments and outputs a LT/EQ/GT value (see 03_nat.sire) indicating their
+""" relation to each other.
+"""
+
+/+  02_bit   [if and TRUE FALSE]
+/+  03_nat   [eqlNat cmpNat LT EQ GT div sub]
+/+  05_eql   [neq]
+/+  08_dat   [listLen listUnsafeHead listDrop NIL listRev listFoldr]
+/+  08_dat   [SOME NONE maybeCase]
+/+  datatype ["#datatype" "#datacase"]
+/+  prelude
+
+# datatype Pq
+* Lf
+* Br a:Any l:Pq r:Pq
+
+= (pqCase t lf br)
+# datacase t
+* Lf         lf
+* (Br a l r) (**br a l r)
+
+!!= 7 | pqCase (Br 7 Lf Lf) 3 ((x l r)&x)
+!!= 3 | pqCase Lf 3 ((x l r)&x)
+
+= pqEmpty Lf
+
+= (pqNull t)
+| (t == pqEmpty)
+
+!!= 1 | pqNull Lf
+!!= 0 | pqNull (Br 7 Lf Lf)
+
+= (pqInsert cmp w t)
+^ _ w t
+? (go w t)
+# datacase t
+* Lf (Br w Lf Lf)
+* (Br v t1 t2)
+  | if (cmp w v == GT)
+    | (Br v (go w t2) t1)
+  | (Br w (go v t2) t1)
+
+= (leftRem cmp t)
+# datacase t
+* Lf [NONE t]
+* (Br w t1 t2)
+  | if (pqNull t1 && pqNull t2)
+      | (SOME w, Lf)
+    @ [mbW t] (leftRem cmp t1)
+    | (mbW, Br w t2 t)
+
+= test1 | pqInsert cmpNat 0 pqEmpty
+= test2 | pqInsert cmpNat 1 test1
+= test3 | leftRem cmpNat test2
+
+= (siftDown cmp w t1 t2)
+^ _ w t1 t2
+? (go w t1 t2)
+# datacase t1
+* Lf
+  # datacase t2
+  * Lf (Br w Lf Lf)
+  * _  (go w t2 t1)
+* (Br v1 t1L t1R)
+  # datacase t2
+  * Lf
+    | if (and (pqNull t1L) (pqNull t1R))
+      | if (cmp w v1 == GT)
+        | (Br v1 (Br w Lf Lf) Lf)
+      | (Br w t1 Lf)
+    | die 'siftDown: wat'
+  * (Br v2 t2L t2R)
+    | if ((GT /= cmp w v1) && (GT /= cmp w v2))
+      | Br w t1 t2
+    | if (GT == cmp v1 v2)
+      | Br v2 t1 (go w t2L t2R)
+    | Br v1 (go w t1L t1R) t2
+
+= (pqDelMin cmp t)
+# datacase t
+* Lf [NONE Lf]
+* (Br v t1 t2)
+  @ [mbW t] (leftRem cmp t1)
+  : w <- maybeCase mbW (SOME v, Lf)
+  | (SOME v, siftDown cmp w t2 t)
+
+= (pqMin t)
+# datacase t
+* Lf NONE
+* (Br w _ _) (SOME w)
+
+!!= (SOME 7) | pqMin (Br 7 Lf Lf)
+
+= (heapify cmp ls)
+^ _ (listLen ls) ls
+? (go n vs)
+| if (eql 0 n)
+  | [Lf vs]
+@ v (listUnsafeHead vs)
+@ vs (listDrop 1 vs)
+@ [t1 vs1] | go (div n 2) vs
+@ [t2 vs2] | go (div (sub n 1) 2) vs1
+| [(siftDown cmp v t1 t2) vs2]
+
+= (pqFromList cmp vs)
+| idx 0 (heapify cmp vs)
+
+= (pqFromList0 cmp vs)
+| listFoldl (acc x & pqInsert cmp x acc) pqEmpty vs
+
+= (pqToList cmp t)
+^ _ NIL t
+? (go acc t)
+@ [mbW t1] (pqDelMin cmp t)
+: w <- maybeCase mbW (listRev acc)
+| go (w::acc) t1
+
+= (pqSort cmp xs)
+| pqToList cmp
+| pqFromList cmp
+| xs
+
+= (pqSort0 cmp xs)
+| pqToList cmp
+| pqFromList0 cmp
+| xs
+
+!!= ~[0 1 2 3 5 7 9 9]
+      | pqSort  cmpNat ~[1 9 7 5 2 0 9 3]
+!!= ~[0 1 2 3 5 7 9 9]
+      | pqSort0 cmpNat ~[1 9 7 5 2 0 9 3]
+
+;; more sophisticated tests, examining laziness of pq values.
+;; we ensure that infinite values at position 1 of a tuple can pass in/out of
+;; pqs, provided they are not touched.
+
+= (cmpPairNatKey p1 p2)
+| cmpNat idx-0-p1 idx-0-p2
+
+= (repeat n)
+| z?(n::z)
+
+!!= 9
+  | maybeCase (pqMin (pqInsert cmpPairNatKey [9 (repeat 3)] pqEmpty))
+    | 7
+  | x&(idx 0 x)
+
+; insert in ascending order of key
+!!= 110
+  @ ls0 (listGen 11 (x&[x (repeat x)]))
+  @ pq (pqFromList0 cmpPairNatKey ls0)
+  @ ls1 (pqToList cmpPairNatKey pq)
+  | listSum (listMap (p&(add idx-0-p (listUnsafeHead idx-1-p))) ls1)
+
+; insert in descending order of key
+!!= 110
+  @ ls0 (listGen 11 (x&[(sub 10 x) (repeat (sub 10 x))]))
+  @ pq (pqFromList0 cmpPairNatKey ls0)
+  @ ls1 (pqToList cmpPairNatKey pq)
+  | listSum (listMap (p&(add idx-0-p (listUnsafeHead idx-1-p))) ls1)
+
+^-^
+^-^ pqCase pqEmpty pqInsert pqDelMin pqMin pqNull
+^-^ pqFromList pqToList pqSort
+^-^
