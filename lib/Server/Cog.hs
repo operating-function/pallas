@@ -18,12 +18,12 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Server.Cog
-    ( Cog(..)
-    , CogContext(..)
+    ( Machine(..)
+    , MachineContext(..)
     , Moment(..)
     , performReplay
-    , replayAndSpinCog
-    , shutdownCog
+    , replayAndCrankMachine
+    , shutdownMachine
     )
 where
 
@@ -57,12 +57,12 @@ import qualified Data.Vector as V
 --------------------------------------------------------------------------------
 
 data Moment = MOMENT {
-  val  :: Fan,
+  val  :: IntMap Fan,
   work :: NanoTime
   }
 
-data CogContext = COG_CONTEXT
-    { cogName     :: CogName
+data MachineContext = MACHINE_CONTEXT
+    { machineName :: MachineName
     , lmdb        :: LmdbStore
     , hw          :: DeviceTable
     , eval        :: Evaluator
@@ -79,14 +79,14 @@ unzipOnCommitFlows :: [OnCommitFlow] -> ([Flow], [Flow])
 unzipOnCommitFlows onCommits = ( map (.step) onCommits
                                , join $ map (.starts) onCommits)
 
--- | Toplevel handle for a Cog, a fan evaluation that makes requests and
--- receives responses.
+-- | Toplevel handle for a Machine, a group of individual Cog fan evaluation
+-- that makes requests and receives responses and which share an event log.
 --
--- Internally, cog execution has three long lived asyncs: a `Runner` async, a
--- `Logger` async, and a `Snapshotter` async. These communicate and are
+-- Internally, machine execution has three long lived asyncs: a `Runner` async,
+-- a `Logger` async, and a `Snapshotter` async. These communicate and are
 -- controlled via the following STM variables:
-data Cog = COG {
-  ctx              :: CogContext,
+data Machine = MACHINE {
+  ctx              :: MachineContext,
 
   -- The three phases:
   runnerAsync      :: Async (),
@@ -134,9 +134,9 @@ responseToVal (RespEval e)   =
         OKAY _ r  -> singleton r         -- [f]
         CRASH n e -> fromList [NAT n, e] -- [n e]
 
-responseToReceipt :: Bool -> [(Int, ResponseTuple)] -> Receipt
-responseToReceipt didCrash =
-    RECEIPT didCrash . mapFromList . fmap f
+responseToReceipt :: CogId -> Bool -> [(Int, ResponseTuple)] -> Receipt
+responseToReceipt cogId didCrash =
+    RECEIPT cogId didCrash . mapFromList . fmap f
   where
     f :: (Int, ResponseTuple) -> (Int, ReceiptItem)
     f (idx, tup) = case tup.resp of
@@ -153,6 +153,17 @@ data CallRequest = CR
 data Request
     = ReqEval EvalRequest
     | ReqCall CallRequest
+    -- TODO: We'll need to intercept specific %cog hardware requests here and I
+    -- need to think hard about implementing their semantics. send/recv is a
+    -- case where two different formal requests have to be triggered in the
+    -- same logbatch, and be written so the recv happens before the send
+    -- (because of replay).
+    --
+    -- | ReqSend
+    -- | ReqRecv
+    --
+    -- Maybe more easier is just:
+    -- | ReqSpin
     | UNKNOWN Fan
   deriving (Show)
 
@@ -160,8 +171,8 @@ data Request
   [%eval timeout/@ fun/fan arg/Fan ...]
   [$call synced/? param/Fan ...]
 -}
-valToRequest :: CogName -> Fan -> Request
-valToRequest cog top = fromMaybe (UNKNOWN top) do
+valToRequest :: MachineName -> CogId -> Fan -> Request
+valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
     row <- getRow top
     _   <- guard (length row >= 3)
     tag <- fromNoun @DeviceName (row!0)
@@ -174,7 +185,7 @@ valToRequest cog top = fromMaybe (UNKNOWN top) do
         let func = row!2
         let args = V.drop 3 row
         let flow = FlowDisabled -- TODO: What?
-        let er = EVAL_REQUEST{func,args,cog,flow,timeoutMs}
+        let er = EVAL_REQUEST{func,args,machine,cogId,flow,timeoutMs}
         pure (ReqEval er)
         -- e (ReqEval $ error "_" timeoutSecs (row!2) (V.drop 3 row))
     else
@@ -196,17 +207,18 @@ getCurrentReqNoun s = do
 data EvalCancelledError = EVAL_CANCELLED
   deriving (Exception, Show)
 
--- | A list of parsed out valid requests from `noun`. For every index
--- in the requests table, there is a raw fan value and a `LiveRequest`
--- which contains STM variables to listen
-type SysCalls = IntMap (Fan, LiveRequest)
+-- | A list of parsed out valid requests from `noun`. For every cog, for every
+-- index in that cog's requests table, there is a raw fan value and a
+-- `LiveRequest` which contains STM variables to listen
+type CogSysCalls = IntMap (Fan, LiveRequest)
+type MachineSysCalls = IntMap CogSysCalls
 
 -- | Data used only by the Runner async. This is all the data needed to
 -- run the main thread of Fan evaluation and start Requests that it made.
 data Runner = RUNNER
-    { ctx       :: CogContext
+    { ctx       :: MachineContext
     , vMoment   :: TVar Moment    -- ^ Current value + cummulative CPU time
-    , vRequests :: TVar SysCalls  -- ^ Current requests table
+    , vRequests :: TVar MachineSysCalls  -- ^ Current requests table
     }
 
 
@@ -242,12 +254,12 @@ instance Show LiveRequest where
 
 
 data ParseRequestsState = PRS
-    { syscalls  :: SysCalls
+    { syscalls  :: CogSysCalls
     , flows     :: [Flow]
     , onPersist :: [STM OnCommitFlow]
     }
 
-makeFieldLabelsNoPrefix ''CogContext
+makeFieldLabelsNoPrefix ''MachineContext
 makeFieldLabelsNoPrefix ''Moment
 makeFieldLabelsNoPrefix ''Runner
 makeFieldLabelsNoPrefix ''ParseRequestsState
@@ -261,12 +273,12 @@ makeFieldLabelsNoPrefix ''ParseRequestsState
 performReplay
     :: Debug
     => Cushion
-    -> CogContext
+    -> MachineContext
     -> ReplayFrom
     -> IO (BatchNum, Moment)
 performReplay cache ctx replayFrom = do
   let mkInitial (a, b) = (b, MOMENT a 0)
-  loadLogBatches ctx.cogName replayFrom mkInitial replayBatch ctx.lmdb cache
+  loadLogBatches ctx.machineName replayFrom mkInitial replayBatch ctx.lmdb cache
   where
     replayBatch :: (BatchNum, Moment) -> LogBatch -> IO (BatchNum, Moment)
     replayBatch (_, moment) LogBatch{batchNum,executed} =
@@ -274,7 +286,7 @@ performReplay cache ctx replayFrom = do
 
     recomputeEvals
         :: Moment -> Receipt -> StateT NanoTime IO (Bool, [(Fan,Fan)])
-    recomputeEvals m (RECEIPT didCrash tab) =
+    recomputeEvals m (RECEIPT cogId didCrash tab) =
         fmap (didCrash,) $
         for (mapToList tab) \(idx, rVal) -> do
             let k = toNoun (fromIntegral idx :: Word)
@@ -283,13 +295,18 @@ performReplay cache ctx replayFrom = do
                 ReceiptEvalOK  -> do
                     -- We performed an eval which succeeded the
                     -- first time.
-                    case getEvalFunAt m.val (RequestIdx idx) of
-                        Nothing -> throwIO INVALID_OK_RECEIPT_IN_LOGBATCH
-                        Just (fun, args)  -> do
-                            (runtime, res) <- withCalcRuntime do
-                                evaluate $ force (foldl' (%%) fun args)
-                            modify' (+ runtime)
-                            pure (k, ROW (singleton res))
+                    case lookup cogId.int m.val of
+                        Nothing -> throwIO INVALID_COGID_IN_LOGBATCH
+                        Just cog ->
+                            case getEvalFunAt cogId cog (RequestIdx idx) of
+                                Nothing ->
+                                    throwIO INVALID_OK_RECEIPT_IN_LOGBATCH
+                                Just (fun, args)  -> do
+                                    (runtime, res) <- withCalcRuntime do
+                                        evaluate $ force (foldl' (%%) fun args)
+                                    modify' (+ runtime)
+                                    pure (k, ROW (singleton res))
+                ReceiptRecv _ _ -> error "IMPLEMENT RECV REFERENCES"
 
     batchLoop :: BatchNum -> Moment -> [Receipt] -> IO (BatchNum, Moment)
     batchLoop bn m []     = pure (bn, m)
@@ -297,46 +314,52 @@ performReplay cache ctx replayFrom = do
         ((didCrash, eRes), eWork) <- flip runStateT 0 (recomputeEvals m x)
         let inp = TAB (mapFromList eRes)
         let arg = if didCrash then 0 %% inp else inp
-        (iWork, new) <- withCalcRuntime $ evaluate $ force (m.val %% arg)
-        let newWork = (m.work + eWork + iWork)
-        batchLoop bn MOMENT{work=newWork, val=new} xs
+        case lookup x.cogNum.int m.val of
+          Nothing -> throwIO INVALID_COGID_IN_LOGBATCH
+          Just fun -> do
+            (iWork, new) <- withCalcRuntime $ evaluate $ force (fun %% arg)
+            let newWork = (m.work + eWork + iWork)
+            batchLoop bn MOMENT{work=newWork,
+                                val=(insertMap x.cogNum.int new m.val)} xs
 
-    getEvalFunAt :: Fan -> RequestIdx -> Maybe (Fan, Vector Fan)
-    getEvalFunAt noun (RequestIdx idx) = do
+    getEvalFunAt :: CogId -> Fan -> RequestIdx -> Maybe (Fan, Vector Fan)
+    getEvalFunAt cogId noun (RequestIdx idx) = do
       let row = getCurrentReqNoun noun
       case row V.!? idx of
         Nothing -> Nothing
         Just val -> do
-          case valToRequest ctx.cogName val of
+          case valToRequest ctx.machineName cogId val of
             ReqEval er -> Just (er.func, er.args)
             _          -> Nothing
 
 -- | Main entry point for starting running a Cog.
-replayAndSpinCog :: Debug => Cushion -> CogContext -> ReplayFrom -> IO Cog
-replayAndSpinCog cache ctx replayFrom = do
-  let processName = "Cog: " <> encodeUtf8 (txt ctx.cogName)
-      threadName  = encodeUtf8 "Main"
+replayAndCrankMachine :: Debug => Cushion -> MachineContext -> ReplayFrom
+                      -> IO Machine
+replayAndCrankMachine cache ctx replayFrom = do
+  let threadName  = encodeUtf8 "Main"
 
   withProcessName processName (wrapReplay threadName)
   where
-    wrapReplay :: ByteString -> IO Cog
+    processName = "Machine: " <> encodeUtf8 (txt ctx.machineName)
+
+    wrapReplay :: ByteString -> IO Machine
     wrapReplay threadName = do
       withThreadName threadName $ do
         setThreadSortIndex (-3)
-        withTracingFlow "Replay" "cog" mempty [] $ do
+        withTracingFlow "Replay" "machine" mempty [] $ do
           (batchNum, moment) <- performReplay cache ctx replayFrom
 
           debugText $ "REPLAY TIME: " <> tshow moment.work <> " ns"
 
-          (cog, flows) <- buildCog threadName batchNum moment
-          pure (flows, [], cog)
+          (machine, flows) <- buildMachine threadName batchNum moment
+          pure (flows, [], machine)
 
-    buildCog
+    buildMachine
         :: ByteString
         -> BatchNum
         -> Moment
-        -> IO (Cog, [Flow])
-    buildCog threadName lastBatch moment = do
+        -> IO (Machine, [Flow])
+    buildMachine threadName lastBatch moment = do
       shutdownLogger   <- newTVarIO False
       shutdownSnapshot <- newTVarIO False
       liveVar          <- newTVarIO moment
@@ -353,31 +376,32 @@ replayAndSpinCog cache ctx replayFrom = do
       -- to work.
       initialFlows <- newEmptyMVar
 
-      cog <- mdo
+      machine <- mdo
         snapshotAsync <- asyncOnCurProcess $ withThreadName "Snapshot" $ do
           setThreadSortIndex (-1)
-          handle (onErr "snapshot") $ snapshotFun cog
+          handle (onErr "snapshot") $ snapshotFun machine
 
         loggerAsync <- asyncOnCurProcess $ withThreadName "Log" $ do
           setThreadSortIndex (-2)
-          handle (onErr "log") $ logFun cog
+          handle (onErr "log") $ logFun machine
 
         runnerAsync <- asyncOnCurProcess $ withThreadName threadName $ do
-          handle (onErr "runner") $ runnerFun initialFlows cog runner
+          handle (onErr "runner") $
+            runnerFun initialFlows machine processName runner
 
-        let cog = COG{..}
-        pure cog
+        let machine = MACHINE{..}
+        pure machine
 
       flows <- takeMVar initialFlows
-      pure (cog, flows)
+      pure (machine, flows)
 
     onErr name e = do
       debugText $ name <> " thread was killed by: " <> pack (displayException e)
       throwIO (e :: SomeException)
 
--- | Synchronously shuts down a cog and
-shutdownCog :: Cog -> IO ()
-shutdownCog COG{..} = do
+-- | Synchronously shuts down a machine and wait for it to exit.
+shutdownMachine :: Machine -> IO ()
+shutdownMachine MACHINE{..} = do
   -- Kill the runner to immediately cancel any computation being done.
   cancel runnerAsync
 
@@ -392,21 +416,23 @@ shutdownCog COG{..} = do
 buildLiveRequest
     :: Debug
     => Flow
-    -> CogContext
+    -> MachineContext
+    -> CogId
     -> RequestIdx
     -> Request
     -> STM ([Flow], LiveRequest, Maybe (STM OnCommitFlow))
-buildLiveRequest causeFlow ctx idx = \case
+buildLiveRequest causeFlow ctx cogId reqIdx = \case
     ReqEval EVAL_REQUEST{..} -> do -- timeoutMs func args -> do
         let req = EVAL_REQUEST{flow=causeFlow, timeoutMs, func, args,
-                               cog=ctx.cogName}
+                               machine=ctx.machineName, cogId}
         leRecord <- pleaseEvaluate ctx.eval req
-        pure ([], LiveEval{leIdx=idx, leRecord}, Nothing)
+        pure ([], LiveEval{leIdx=reqIdx, leRecord}, Nothing)
 
     ReqCall cr -> do
         callSt <- STVAR <$> newTVar LIVE
 
-        let lcSysCall = SYSCALL ctx.cogName cr.device cr.params callSt causeFlow
+        let lcSysCall = SYSCALL ctx.machineName cogId cr.device cr.params
+                                callSt causeFlow
         -- If the call requires durability, pass the STM action to start
         -- it back to the caller. Otherwise, just run the action and
         -- pass back nothing.
@@ -440,10 +466,7 @@ buildLiveRequest causeFlow ctx idx = \case
                 (cancel, flows) <- callHardware ctx.hw cr.device lcSysCall
                 pure (flows, Nothing, cancel)
 
-        -- TODO: What were you doing before you went to lunch? You were trying
-        -- to thread through created startFlows in addition to the stepFlow.
-
-        pure (startedFlows, LiveCall{lcIdx=idx, lcSysCall, lcCancel},
+        pure (startedFlows, LiveCall{lcIdx=reqIdx, lcSysCall, lcCancel},
               logCallback)
 
     UNKNOWN _ -> do
@@ -497,12 +520,12 @@ receiveResponse = \case
 
 -- The Cog Runner --------------------------------------------------------------
 
-runnerFun :: Debug => MVar [Flow] -> Cog -> Runner -> IO ()
-runnerFun initialFlows cog st =
-    withCogHardwareInterface cog.ctx.cogName cog.ctx.hw do
+runnerFun :: Debug => MVar [Flow] -> Machine -> ByteString -> Runner -> IO ()
+runnerFun initialFlows machine processName st =
+    withMachineHardwareInterface machine.ctx.machineName machine.ctx.hw do
 
         -- Process the initial syscall vector
-        (flows, onCommit) <- atomically (parseRequests st)
+        (flows, onCommit) <- atomically (parseAllRequests st)
 
         -- We got here via replay, so any synchronous requests are
         -- immediately safe to execute.
@@ -513,85 +536,101 @@ runnerFun initialFlows cog st =
         putMVar initialFlows flows
 
         -- Run the event loop
-        forever cogTick
+        forever machineTick
 
   where
     -- We've completed a unit of work. Time to tell the logger about
     -- the new state of the world.
     exportState :: Receipt -> [STM OnCommitFlow] -> STM ()
     exportState receipt onCommit = do
-        moment <- readTVar st.vMoment
         when (length onCommit > 0) do
-            writeTVar cog.logImmediately True
-        writeTQueue cog.logReceiptQueue (receipt, onCommit)
-        writeTVar cog.liveVar moment
+            writeTVar machine.logImmediately True
+        writeTQueue machine.logReceiptQueue (receipt, onCommit)
 
     -- TODO: Optimize
-    collectResponses :: IntMap (Maybe a) -> [(Int, a)]
-    collectResponses imap =
-        go [] (mapToList imap)
+    collectResponses :: IntMap (IntMap (Maybe a)) -> IntMap [(Int, a)]
+    collectResponses = map \m -> go [] (mapToList m)
       where
         go !acc []                  = acc
         go !acc ((k,Just v) : kvs)  = go ((k,v):acc) kvs
         go !acc ((_,Nothing) : kvs) = go acc         kvs
 
     -- Collects all responses that are ready.
-    takeReturns :: IO [(Int, ResponseTuple)]
+    takeReturns :: IO (IntMap [(Int, ResponseTuple)])
     takeReturns = do
         withAlwaysTrace "WaitForResponse" "cog" do
             -- This is in a separate atomically block because it doesn't
             -- change and we want to minimize contention.
-            sysCalls <- atomically (readTVar st.vRequests)
+            sysCalls :: MachineSysCalls <- atomically (readTVar st.vRequests)
 
             atomically do
                 returns <- fmap collectResponses
-                         $ traverse receiveResponse
+                         $ traverse (traverse receiveResponse)
                          $ sysCalls
 
                 when (null returns) retry
 
                 pure returns
 
-    cogTick :: IO ()
-    cogTick = do
-        -- traceM "TICK"
-        --  <- atomically (readTVar st.vRequests)
-        -- traceM (ppShow vec)
+    -- Every machineTick, we try to pick off as much work as possible for cogs
+    -- to do.
+    --
+    -- TODO: This is the simple way of doing things, there's a ton of runtime
+    -- gains that could be had at the cost of complexity by having a persistent
+    -- async for each Cog, but that adds some sync subtlety while this means
+    -- the machine is as fast as only the slowest cog, but is obviously correct.
+    machineTick :: IO ()
+    machineTick = do
         valTuples <- takeReturns
+        cogIdToResult <- mapConcurrently cogTick (mapToList valTuples)
+        atomically $ do
+            forM cogIdToResult \case
+              Just (onC,r) -> exportState r onC
+              _            -> pure ()
 
-        let endFlows  = (.flow) . snd <$> valTuples
+            moment <- readTVar st.vMoment
+            writeTVar machine.liveVar moment
 
-        let traceArg = M.singleton "syscall indicies"
-                     $ Right
-                     $ tshow
-                     $ fmap fst valTuples
+    --
+    cogTick
+      :: (Int, [(Int, ResponseTuple)])
+      -> IO (Maybe ([STM OnCommitFlow], Receipt))
+    cogTick (cogId, valTuples) =
+      withProcessName processName $
+        withThreadName ("Cog: " <> (encodeUtf8 $ tshow cogId)) $ do
+          --
+          let endFlows = (.flow) . snd <$> valTuples
+          let traceArg = M.singleton "syscall indicies"
+                       $ Right
+                       $ tshow
+                       $ fmap fst valTuples
 
-        withTracingFlow "Response" "cog" traceArg endFlows do
+          withTracingFlow "Response" "cog" traceArg endFlows $
+            runResponse st (COG_ID cogId) valTuples False >>= \case
+              Nothing -> pure ([], [], Nothing)
+              Just (flows, onCommit, receipt) ->
+                pure (flows, [], Just (onCommit, receipt))
 
-            runResponse st valTuples False >>= \case
-                Nothing -> do
-                    pure ([], [], ())
-
-                Just (flows, onCommit, receipt) -> do
-                    atomically (exportState receipt onCommit)
-                    pure (flows, [], ())
-
+-- runResponse and its caller is where we need a really make changes.
+--
+-- So w
 runResponse
     :: Debug
     => Runner
+    -> CogId
     -> [(Int, ResponseTuple)]
     -> Bool
     -> IO (Maybe ([Flow], [STM OnCommitFlow], Receipt))
-runResponse st rets didCrash = do
+runResponse st cogid rets didCrash = do
   let arg = TAB
           $ mapFromList
           $ flip fmap rets
           $ \(k,v) -> (NAT (fromIntegral k), responseToVal v.resp)
-
   moment <- atomically (readTVar st.vMoment)
+  let fun = fromMaybe (error "Invalid cogid") $ lookup cogid.int moment.val
   (runtimeUs, result) <- do
       withAlwaysTrace "Eval" "cog" do
-          evalWithTimeout thirtySecondsInMicroseconds moment.val
+          evalWithTimeout thirtySecondsInMicroseconds fun
               (if didCrash then (0 %% arg) else arg)
   case result of
     TIMEOUT -> recordInstantEvent "Main Timeout"   "cog" mempty >> onCrash
@@ -602,22 +641,24 @@ runResponse st rets didCrash = do
         -- LiveRequest without formally canceling it because it already
         -- completed.
         atomically do
-            modifyTVar' st.vMoment   \m -> MOMENT result (m.work + runtimeUs)
-            modifyTVar' st.vRequests \kals -> foldl' delReq kals (fst<$>rets)
+            modifyTVar' st.vMoment   \m ->
+                MOMENT (insertMap cogid.int result m.val) (m.work + runtimeUs)
+            modifyTVar' st.vRequests $
+                adjustMap (\kals -> foldl' delReq kals (fst<$>rets)) cogid.int
 
-        (startedFlows, onPersists) <- atomically (parseRequests st)
+        (startedFlows, onPersists) <- atomically (parseRequests st cogid)
 
         pure $ Just ( startedFlows
                     , onPersists
-                    , responseToReceipt didCrash rets
+                    , responseToReceipt removeMeDummyCogId didCrash rets
                     )
  where
    onCrash =
        if didCrash
        then throwIO COG_DOUBLE_CRASH
-       else runResponse st rets True
+       else runResponse st cogid rets True
 
-   delReq :: SysCalls -> Int -> SysCalls
+   delReq :: CogSysCalls -> Int -> CogSysCalls
    delReq acc k = IM.delete k acc
 
 {-
@@ -644,17 +685,27 @@ keep x y =
                _ -> x==y
 
 
+parseAllRequests :: Debug => Runner -> STM ([Flow], [STM OnCommitFlow])
+parseAllRequests runner = do
+  cogs <- (keys . (.val)) <$> readTVar runner.vMoment
+  actions <- forM cogs $ \i -> parseRequests runner (COG_ID i)
+  let (f, s) = unzip actions
+  pure (concat f, concat s)
+
+
 -- | Given a noun in a runner, update the `requests`
-parseRequests :: Debug => Runner -> STM ([Flow], [STM OnCommitFlow])
-parseRequests runner = do
-    moment   <- readTVar runner.vMoment
-    syscalls <- readTVar runner.vRequests
+parseRequests :: Debug => Runner -> CogId -> STM ([Flow], [STM OnCommitFlow])
+parseRequests runner cogId = do
+    moment   <- (fromMaybe (error "no cogid m") . lookup cogId.int . (.val)) <$>
+                readTVar runner.vMoment
+    syscalls <- (fromMaybe mempty . lookup cogId.int) <$>
+                readTVar runner.vRequests
 
     let init = PRS{syscalls, flows=[], onPersist=[]}
 
     st <- flip execStateT init do
               let expected = syscalls
-              let actual   = getCurrentReqNoun moment.val
+              let actual   = getCurrentReqNoun moment
 
               for_ (mapToList expected) \(i,(v,_)) ->
                   case actual V.!? i of
@@ -666,7 +717,9 @@ parseRequests runner = do
                   unless (member i expected) do
                       createReq i v
 
-    writeTVar runner.vRequests $! st.syscalls
+--    modifyTVar' runner.vRequests $ M.insert
+    modifyTVar' runner.vRequests $ insertMap cogId.int st.syscalls
+    --writeTVar runner.vRequests $!
 
     pure (st.flows, st.onPersist)
 
@@ -699,9 +752,10 @@ parseRequests runner = do
     createReq :: Int -> Fan -> StateT ParseRequestsState STM ()
     createReq i v = do
         -- traceM ("createReq:" <> show i <> " " <> show v)
-        let request = valToRequest runner.ctx.cogName v
+        let request = valToRequest runner.ctx.machineName removeMeDummyCogId v
             reqData = reqDebugSummary request
-            reqName = "Cog " <> encodeUtf8 runner.ctx.cogName.txt <> " idx "
+            reqName = "Cog " <> (encodeUtf8 $ tshow cogId.int)
+                   <> " idx "
                    <> encodeUtf8 (tshow i) <> ": " <> reqData
             catData = flowCategory request
         f <- lift $ allocateRequestFlow reqName (decodeUtf8 catData)
@@ -709,7 +763,7 @@ parseRequests runner = do
         let rIdx = RequestIdx i
 
         (startedFlows, live, onPersist) <- lift $
-          buildLiveRequest f runner.ctx rIdx request
+          buildLiveRequest f runner.ctx cogId rIdx request
 
         case onPersist of
             Nothing -> pure ()
@@ -767,8 +821,8 @@ data LogNext = LOG_NEXT
     to be written right away.  This is important for "synchronous" events,
     since we want to cause those to block for as little time as possible.
 -}
-logFun :: Debug => Cog -> IO ()
-logFun cog =
+logFun :: Debug => Machine -> IO ()
+logFun machine =
     loop
   where
     loop :: IO ()
@@ -786,26 +840,26 @@ logFun cog =
                 pure (startFlows, stepFlows, ())
 
         case next.shutdown of
-          True  -> atomically $ writeTVar cog.shutdownSnapshot True
+          True  -> atomically $ writeTVar machine.shutdownSnapshot True
           False -> loop
 
     -- Either reads a shutdown command or the next batch of work to log.
     getNextBatch :: STM LogNext
     getNextBatch = do
-        shutdown             <- readTVar cog.shutdownLogger
-        live                 <- readTVar cog.liveVar
-        (lastBatchNum, writ) <- readTVar cog.writVar
-        forcedLog            <- readTVar cog.logImmediately
+        shutdown             <- readTVar machine.shutdownLogger
+        live                 <- readTVar machine.liveVar
+        (lastBatchNum, writ) <- readTVar machine.writVar
+        forcedLog            <- readTVar machine.logImmediately
 
         let nextLogWork = writ.work + logbatchWorkIntervalInNs
         let shouldLog   = shutdown || forcedLog || (live.work > nextLogWork)
 
         unless shouldLog retry
 
-        when forcedLog (writeTVar cog.logImmediately False)
+        when forcedLog (writeTVar machine.logImmediately False)
 
-        receipts <- flushTQueue cog.logReceiptQueue
-        moment   <- readTVar cog.liveVar
+        receipts <- flushTQueue machine.logReceiptQueue
+        moment   <- readTVar machine.liveVar
 
         pure LOG_NEXT{batchNum=(lastBatchNum + 1), ..}
 
@@ -815,14 +869,14 @@ logFun cog =
 
         now <- getNanoTime
 
-        writeLogBatch cog.ctx.lmdb cog.ctx.cogName $
+        writeLogBatch machine.ctx.lmdb machine.ctx.machineName $
             LogBatch
                 { batchNum  = next.batchNum
                 , writeTime = now
                 , executed  = receipts
                 }
 
-        atomically $ writeTVar cog.writVar (next.batchNum, next.moment)
+        atomically $ writeTVar machine.writVar (next.batchNum, next.moment)
 
         -- Perform the associated STM actions that were supposed to be
         -- run once committed.  This is used for synchronous syscalls
@@ -836,7 +890,7 @@ logFun cog =
 -- The Snapshotting Routine ----------------------------------------------------
 
 {-
-    The is the per-cog snapshotting logic that runs in `snapshotAsync`.
+    The is the per-machine snapshotting logic that runs in `snapshotAsync`.
 
     Snapshotting is fully asynchronous.  It doesn't block normal
     execution, so we allow it to lag behind the current state.
@@ -851,9 +905,9 @@ logFun cog =
     We also take a snapshot right before shutdown, when the daemon receives a
     SIGKILL.
 -}
-snapshotFun :: Debug => Cog -> IO ()
-snapshotFun cog =
-    when cog.ctx.enableSnaps do
+snapshotFun :: Debug => Machine -> IO ()
+snapshotFun machine =
+    when machine.ctx.enableSnaps do
         loop 0
   where
     loop lastSnapWork = do
@@ -862,8 +916,8 @@ snapshotFun cog =
         (shutdown, bn, moment) <-
             withAlwaysTrace "Block" "log" $
             atomically do
-                shutdown           <- readTVar cog.shutdownSnapshot
-                (logBN, logMoment) <- readTVar cog.writVar
+                shutdown           <- readTVar machine.shutdownSnapshot
+                (logBN, logMoment) <- readTVar machine.writVar
 
                 let shouldSnap = shutdown || logMoment.work > nextSnapWork
 
@@ -872,7 +926,8 @@ snapshotFun cog =
                 pure (shutdown, logBN, logMoment)
 
         withAlwaysTrace "Snapshot" "log" do
-            writeCogSnapshot cog.ctx.lmdb cog.ctx.cogName bn moment.val
+            writeMachineSnapshot machine.ctx.lmdb machine.ctx.machineName bn
+                                 moment.val
 
         unless shutdown do
             loop moment.work

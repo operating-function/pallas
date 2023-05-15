@@ -20,10 +20,18 @@ import qualified Data.Aeson as A
 --------------------------------------------------------------------------------
 
 -- | A machine, a set of related processes, are given a human readable name.
-newtype CogName = COG_NAME { txt :: Text }
+newtype MachineName = MACHINE_NAME { txt :: Text }
   deriving newtype (Show, Eq, Ord, A.ToJSON, A.FromJSON)
   deriving newtype (A.ToJSONKey, A.FromJSONKey)
   deriving newtype (FromHttpApiData, ToHttpApiData)
+
+-- | A numeric identifier for a cog within a single machine.
+newtype CogId = COG_ID { int :: Int }
+  deriving newtype (Eq, Show, Ord)
+
+-- TODO: Aid in first pass porting
+removeMeDummyCogId :: CogId
+removeMeDummyCogId = COG_ID 5
 
 -- | A positional index into the machine's Request vector.
 newtype RequestIdx = RequestIdx { int :: Int }
@@ -38,16 +46,21 @@ data ReceiptItem
 
   -- | Receipt of anything else.
   | ReceiptVal Fan
+
+  -- |
+  | ReceiptRecv { cogNum :: CogId, reqNum :: RequestIdx }
   deriving (Eq, Ord, Show)
 
 data Receipt = RECEIPT
-    { didCrash :: Bool
+    { cogNum   :: CogId
+    , didCrash :: Bool
     , inputs   :: IntMap ReceiptItem
     }
   deriving (Eq, Ord, Show)
 
 data CogFailure
     = COG_DOUBLE_CRASH
+    | INVALID_COGID_IN_LOGBATCH
     | INVALID_OK_RECEIPT_IN_LOGBATCH
   deriving (Eq, Ord, Show, Generic, Exception)
 

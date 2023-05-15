@@ -115,7 +115,7 @@ import Data.IntMap.Strict     (minView)
 import Fan.Convert            (FromNoun(..), ToNoun(..), fromNoun, toNoun)
 import Optics                 (set)
 import Server.Convert         ()
-import Server.Types.Logging   (CogName(..))
+import Server.Types.Logging   (CogId(..), MachineName(..))
 import System.Directory       (removeFile)
 import System.IO.Error        (catchIOError)
 
@@ -131,9 +131,10 @@ import qualified Network.WebSockets             as WS
 --------------------------------------------------------------------------------
 
 data RawRequest = RR
-    { cogName  :: CogName
-    , vals     :: Vector Fan
-    , callback :: TVar (Maybe (Fan -> STM ()))
+    { machineName :: MachineName
+    , cogId       :: CogId
+    , vals        :: Vector Fan
+    , callback    :: TVar (Maybe (Fan -> STM ()))
     }
 
 data PathLeaf = PL
@@ -244,8 +245,8 @@ data CogState = COG_STATE
 
 data HWState = HW_STATE
     { mach  :: FilePath
-    , wsApp :: CogName -> WS.ServerApp
-    , cogs  :: TVar (Map CogName CogState)
+    , wsApp :: MachineName -> CogId -> WS.ServerApp
+    , cogs  :: TVar (Map (MachineName, CogId) CogState)
     , store :: LmdbStore
     }
 
@@ -269,19 +270,19 @@ startCog lmdbStore st cogName = do
                  (fromIntegral listenPort :: Nat)
 -}
 
-stopCogByName :: HWState -> CogName -> IO ()
-stopCogByName st cogName = do
+stopCogById :: HWState -> MachineName -> CogId -> IO ()
+stopCogById st machineName cogId = do
     maybeCogState <-
         atomically do
             oldTab <- readTVar st.cogs
-            writeTVar st.cogs (deleteMap cogName oldTab)
-            pure (lookup cogName oldTab)
+            writeTVar st.cogs (deleteMap (machineName, cogId) oldTab)
+            pure (lookup (machineName, cogId) oldTab)
 
     maybe pass cancelCog maybeCogState
 
-spinCog :: Debug => HWState -> CogName -> IO ()
-spinCog st cogName = do
-    traceM (unpack ("HTTP_SPINNING:" <> cogName.txt))
+spinCog :: Debug => HWState -> MachineName -> CogId -> IO ()
+spinCog st machineName cogId = do
+    traceM (unpack ("HTTP_SPINNING:" <> machineName.txt))
     let localhost = N.tupleToHostAddress (0x7f, 0, 0, 1)
     let flags = [N.AI_NUMERICHOST, N.AI_NUMERICSERV]
     let tcp   = 6
@@ -290,12 +291,12 @@ spinCog st cogName = do
     listenSocket <- N.openSocket ainfo
     N.listen listenSocket 5 -- TODO Should this be 5?
     listenPort <- fromIntegral <$> N.socketPort listenSocket
-    debugVal (cogName.txt <> "_http_port")
+    debugVal (machineName.txt <> "_http_port")
              (fromIntegral listenPort :: Nat)
 
-    let baseName  = cogName.txt <> ".http.port"
+    let baseName  = machineName.txt <> ".http.port"
     let portFile = st.mach </> unpack baseName
-    debugTextVal (cogName.txt <> "_http_port_file") (pack portFile)
+    debugTextVal (machineName.txt <> "_http_port_file") (pack portFile)
     writeFileUtf8 portFile (tshow listenPort)
 
     cogState <- do
@@ -307,7 +308,7 @@ spinCog st cogName = do
         port <- pure listenPort
         live <- newTVarIO emptyPool
         mdo
-            stik <- async (servThread st.store (st.wsApp cogName) cs)
+            stik <- async (servThread st.store (st.wsApp machineName cogId) cs)
             let ~cs = COG_STATE{sock,port,file=portFile,stik,serv,hear,lock,
                                 hold,live}
             pure cs
@@ -317,14 +318,14 @@ spinCog st cogName = do
     --
     -- This is safe, but is an implicit invariant that would be nice
     -- to factor-out eventually.
-    atomically $ modifyTVar st.cogs $ insertMap cogName cogState
+    atomically $ modifyTVar st.cogs $ insertMap (machineName, cogId) cogState
 {-
             sock <- pure listenSocket
             port <- pure listenPort
             live <- newTVarIO []
             wipe <- async (staticWipeThread stat)
             dype <- async (dynoWipeThread stat)
-            serv <- async (servThread lmdbStore (st.wsApp cogName) stat)
+            serv <- async (servThread lmdbStore (st.wsApp machineName) stat)
             stik <- pure (SSS live wipe)
             dyno <- DRS <$> newTVarIO mempty
                         <*> newTVarIO []
@@ -443,7 +444,7 @@ servThread lmdbStore wsApp cog = do
 
 runSysCall :: HWState -> SysCall -> STM (Cancel, [Flow])
 runSysCall st syscall = do
-    mCog <- lookup syscall.cog <$> readTVar st.cogs
+    mCog <- lookup (syscall.machine, syscall.cog) <$> readTVar st.cogs
     case mCog of
         Nothing -> do
             -- traceM "NO COG"
@@ -619,13 +620,13 @@ createHardwareHttp
     :: Debug
     => FilePath
     -> LmdbStore
-    -> (CogName -> WS.ServerApp)
+    -> (MachineName -> CogId -> WS.ServerApp)
     -> Acquire Device
 createHardwareHttp mach store wsApp = do
     st <- mkAcquire startup shutdown
     pure DEVICE
         { spin = spinCog st
-        , stop = stopCogByName st
+        , stop = stopCogById st
         , call = runSysCall st
         , category = categoryCall
         , describe = describeCall

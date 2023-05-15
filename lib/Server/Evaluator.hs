@@ -59,7 +59,8 @@ data Evaluator = EVALUATOR
     }
 
 data EvalRequest = EVAL_REQUEST
-    { cog       :: CogName
+    { machine   :: MachineName
+    , cogId     :: CogId
     , flow      :: Flow
     , timeoutMs :: Nat
     , func      :: Fan
@@ -128,7 +129,8 @@ runWorker st _workerId tid = do
         vRespFlow <- newEmptyTMVarIO
         vTimeout      <- newTVarIO False
 
-        let workName = ("Work:" <> encodeUtf8 req.cog.txt)
+        let workName = ("Work: (" <> encodeUtf8 req.machine.txt <> "," <>
+                        (encodeUtf8 $ tshow req.cogId.int) <> ")")
 
         execTid <- async $ withCopiedTid tid $ do
           -- Even if we timeout or crash, we always need a response flow to

@@ -31,28 +31,29 @@ import Server.Hardware.Time (createHardwareTime)
 -- ort Server.Hardware.Wock (createHardwareWock)
 import Server.Hardware.Poke (SubmitPoke, createHardwarePoke)
 
-import Control.Concurrent       (threadDelay)
-import Control.Exception        (handle)
-import Control.Monad.Fail       (fail)
-import Control.Monad.State      (State, execState, modify')
-import Data.Text                (splitOn)
+import Control.Concurrent (threadDelay)
+import Control.Exception  (handle)
+import Control.Monad.Fail (fail)
+--import Control.Monad.State      (State, execState, modify')
+--import Data.Text                (splitOn)
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Fan.Save                 (loadPack, savePack)
-import Jelly.Types              (hashToBTC)
-import System.Directory         (createDirectoryIfMissing, doesFileExist,
-                                 getHomeDirectory, removeFile)
-import System.Exit              (ExitCode(..), exitWith)
-import System.IO.Error          (catchIOError)
-import System.Posix.Types       (CPid(CPid))
+--import Jelly.Types              (hashToBTC)
+import System.Directory   (createDirectoryIfMissing, doesFileExist,
+                           getHomeDirectory, removeFile)
+import System.Exit        (ExitCode(..), exitWith)
+import System.IO.Error    (catchIOError)
+import System.Posix.Types (CPid(CPid))
 
-import qualified Jelly
+--import qualified Jelly
 import qualified Loot.ReplExe
 import qualified Rex
 import qualified Sire.ReplExe
 
-import qualified Data.Aeson               as A
-import qualified Data.ByteString          as BS
-import qualified Data.Char                as C
+import qualified Data.Aeson as A
+--import qualified Data.ByteString          as BS
+--import qualified Data.Char                as C
+import qualified Data.IntMap              as IM
 import qualified Fan                      as F
 import qualified Fan.Prof                 as Prof
 import qualified Network.HTTP.Client      as HTTP
@@ -60,6 +61,13 @@ import qualified Network.Socket           as N
 import qualified Network.Wai              as W
 import qualified Network.Wai.Handler.Warp as W
 import qualified Server.LmdbStore         as DB
+
+--------------------------------------------------------------------------------
+
+-- TODO: NEED TO GO THROUGH AND MAKE NEW COMMANDS FOR MACHINES, REMOVE OLD ONES
+-- FOR COGS.
+--
+-- TODO: C-s "COG" AND VALIDATE EACH TIME WORD IS USED.
 
 --------------------------------------------------------------------------------
 
@@ -207,19 +215,18 @@ instance MimeUnrender OctetStream JellyPack where
                    . toStrict
 
 
--- CogStatus -------------------------------------------------------------------
+-- MachineStatus ---------------------------------------------------------------
 
-data CogStatus
+data MachineStatus
     = IDLE
-    | CLOGGED
-    | SPINNING
+    | RUNNING
     | STARTING
   deriving (Show, Read)
 
-instance A.ToJSON CogStatus where
+instance A.ToJSON MachineStatus where
   toJSON = A.toJSON . toLower . show
 
-instance A.FromJSON CogStatus where
+instance A.FromJSON MachineStatus where
     parseJSON x = do
        txt <- A.parseJSON x
        let die = fail ("invalid cog status: " <> txt)
@@ -228,11 +235,13 @@ instance A.FromJSON CogStatus where
 
 --------------------------------------------------------------------------------
 
-type CogCap = Capture "cog" CogName
+type MachineCap = Capture "machine" MachineName
+
+-- type CogCap = Capture "cog" CogName
 
 type PackCap = ReqBody '[OctetStream] JellyPack
 
-type PokePath = CaptureAll "path" Text
+--type PokePath = CaptureAll "path" Text
 
 type GET  = Get '[JSON]
 type POST = Post '[JSON]
@@ -241,13 +250,13 @@ data CtlApi a = CTL_API
     { isUp   :: a :- "up"                         :> GET ()
     , halt   :: a :- "halt"                       :> POST ()
     , pins   :: a :- "pins"                       :> GET (Map Text [Text])
-    , cogs   :: a :- "cogs"                       :> GET (Map CogName CogStatus)
-    , doDu   :: a :- "du"   :> CogCap             :> GET [Text]
-    , spin   :: a :- "cogs" :> CogCap :> "spin"   :> POST ()
-    , replay :: a :- "cogs" :> CogCap :> "replay" :> POST ()
-    , boot   :: a :- "boot" :> CogCap :> PackCap  :> POST ()
-    , poke   :: a :- "poke" :> CogCap
-                            :> PokePath :> PackCap :> POST ()
+    , machines :: a :- "machines"               :> GET (Map MachineName MachineStatus)
+    -- , doDu   :: a :- "du"   :> CogCap             :> GET [Text]
+    , spin   :: a :- "machines" :> MachineCap :> "spin"   :> POST ()
+    , replay :: a :- "machines" :> MachineCap :> "replay" :> POST ()
+    , boot   :: a :- "boot" :> MachineCap :> PackCap  :> POST ()
+    -- , poke   :: a :- "poke" :> CogCap
+    --                         :> PokePath :> PackCap :> POST ()
     }
   deriving (Generic)
 
@@ -261,11 +270,11 @@ ctlServer st =
     pins :: Handler (Map Text [Text])
     pins = pure (error "TODO: Re-implement")
 
-    boot :: CogName -> JellyPack -> Handler ()
+    boot :: MachineName -> JellyPack -> Handler ()
     boot n pkg = liftIO (doBoot st n pkg)
 
-    poke :: CogName -> [Text] -> JellyPack -> Handler ()
-    poke n path package = liftIO (doPoke st n path package)
+    -- poke :: MachineName -> [Text] -> JellyPack -> Handler ()
+    -- poke n path package = liftIO (doPoke st n path package)
 
     {-|
         If we were to respond, there would be a race condition between the
@@ -277,54 +286,54 @@ ctlServer st =
     halt :: Handler ()
     halt = forever (putMVar st.termSignal ())
 
-    cogs :: Handler (Map CogName CogStatus)
-    cogs = do
-        cgz <- liftIO (DB.getCogNames st.lmdb)
+    machines :: Handler (Map MachineName MachineStatus)
+    machines = do
+        cgz <- liftIO (DB.getMachineNames st.lmdb)
         let tab = mapFromList (cgz <&> \c -> (c, c))
-        liftIO $ for tab (getCogStatus >=> maybe (error "impossible") pure)
+        liftIO $ for tab (getMachineStatus >=> maybe (error "impossible") pure)
 
-    spin :: CogName -> Handler ()
+    spin :: MachineName -> Handler ()
     spin cog = do
-        void $ liftIO $ spinCog st LatestSnapshot $ COG_NAME cog.txt
+        void $ liftIO $ spinCog st LatestSnapshot $ MACHINE_NAME cog.txt
 
-    replay :: CogName -> Handler ()
+    replay :: MachineName -> Handler ()
     replay cog = do
-        void $ liftIO $ spinCog st EarliestSnapshot $ COG_NAME cog.txt
+        void $ liftIO $ spinCog st EarliestSnapshot $ MACHINE_NAME cog.txt
 
-    getCogStatus :: CogName -> IO (Maybe CogStatus)
-    getCogStatus cog = do
-        cgz <- liftIO (setFromList <$> DB.getCogNames st.lmdb)
-        let mach = COG_NAME cog.txt
-        if not (member mach (cgz :: Set CogName)) then
+    getMachineStatus :: MachineName -> IO (Maybe MachineStatus)
+    getMachineStatus cog = do
+        cgz <- liftIO (setFromList <$> DB.getMachineNames st.lmdb)
+        let mach = MACHINE_NAME cog.txt
+        if not (member mach (cgz :: Set MachineName)) then
             pure Nothing
         else atomically do
-            (lookup mach <$> readTVar st.cogHandles) >>= \case
+            (lookup mach <$> readTVar st.machineHandles) >>= \case
                 Nothing -> pure (Just IDLE)
                 Just vc -> readTVar vc >>= \case
                    Nothing -> pure (Just STARTING)
-                   Just{}  -> pure (Just SPINNING)
+                   Just{}  -> pure (Just RUNNING)
 
-    doDu :: CogName -> Handler [Text]
-    doDu cog = liftIO $ shipDu st $ COG_NAME cog.txt
+    -- doDu :: MachineName -> Handler [Text]
+    -- doDu cog = liftIO $ shipDu st $ MACHINE_NAME cog.txt
 
 
 reqIsUp    :: ClientM ()
-reqBoot    :: CogName -> JellyPack -> ClientM ()
+reqBoot    :: MachineName -> JellyPack -> ClientM ()
 _reqHalt   :: ClientM ()
-reqCogs    :: ClientM (Map CogName CogStatus)
-reqSpin    :: CogName -> ClientM ()
-_reqReplay :: CogName -> ClientM ()
-reqDu      :: CogName -> ClientM [Text]
-reqPoke    :: CogName -> [Text] -> JellyPack -> ClientM ()
+reqMachines    :: ClientM (Map MachineName MachineStatus)
+reqSpin    :: MachineName -> ClientM ()
+_reqReplay :: MachineName -> ClientM ()
+-- reqDu      :: MachineName -> ClientM [Text]
+-- reqPoke    :: MachineName -> [Text] -> JellyPack -> ClientM ()
 
 CTL_API { isUp   = reqIsUp
         , boot   = reqBoot
         , halt   = _reqHalt
-        , cogs   = reqCogs
+        , machines   = reqMachines
         , spin   = reqSpin
         , replay = _reqReplay
-        , doDu   = reqDu
-        , poke   = reqPoke
+        -- , doDu   = reqDu
+        -- , poke   = reqPoke
         } = client (Proxy @(NamedRoutes CtlApi))
 
 --------------------------------------------------------------------------------
@@ -337,23 +346,23 @@ data RunType
                            Bool       -- Crash on jet deopt
                            [FilePath] -- SireFile
     | RTLoot FilePath Prof Bool [FilePath]
-    | RTBoot FilePath Prof Bool CogName Text
-    | RTUses FilePath CogName
+    | RTBoot FilePath Prof Bool MachineName Text
+    -- | RTUses FilePath MachineName
     | RTServ FilePath Prof Bool -- profiling file
                            Bool -- profile laws
                            Bool -- Warn on jet deopt
                            Bool -- Crash on jet deopt
                            Int  -- Number of EVAL workers
     | RTDamn FilePath Prof Bool DaemonAction
-    | RTOpen FilePath CogName
-    | RTTerm FilePath CogName
+    | RTOpen FilePath MachineName
+    | RTTerm FilePath MachineName
     | RTCogs FilePath
     | RTStat FilePath
-    | RTSpin FilePath ReplayFrom (Maybe CogName)
-    | RTPoke FilePath CogName Text FilePath
+    | RTSpin FilePath ReplayFrom (Maybe MachineName)
+    -- | RTPoke FilePath MachineName Text FilePath
 
-cogNameArg :: Parser CogName
-cogNameArg = COG_NAME <$> strArgument (metavar "NAME" <> help helpTxt)
+machineNameArg :: Parser MachineName
+machineNameArg = MACHINE_NAME <$> strArgument (metavar "NAME" <> help helpTxt)
   where
     helpTxt = "A name for the cog"
 
@@ -390,11 +399,11 @@ runType :: FilePath -> Parser RunType
 runType defaultDir = subparser
     ( plunderCmd "term" "Connect to the terminal of a cog."
       (RTTerm <$> storeOpt
-              <*> cogNameArg)
+              <*> machineNameArg)
 
    <> plunderCmd "open" "Open a terminal's GUI interface."
       (RTOpen <$> storeOpt
-              <*> cogNameArg)
+              <*> machineNameArg)
 
    <> plunderCmd "sire" "Runs an standalone loot repl."
       (RTSire <$> storeOpt
@@ -404,7 +413,7 @@ runType defaultDir = subparser
               <*> doptCrash
               <*> many sireFile)
 
-   <> plunderCmd "cogs" "List cogs in machine."
+   <> plunderCmd "machines" "List cogs in machine."
       (RTCogs <$> (storeArg <|> storeOpt))
 
    <> plunderCmd "status" "List cogs in machine with their status."
@@ -413,7 +422,7 @@ runType defaultDir = subparser
    <> plunderCmd "spin" "Resume an idle cog."
       (RTSpin <$> storeOpt
               <*> replayFromOption
-              <*> fmap Just cogNameArg)
+              <*> fmap Just machineNameArg)
 
    <> plunderCmd "spin-all" "Resume all idle cogs"
       (RTSpin <$> storeOpt
@@ -427,12 +436,12 @@ runType defaultDir = subparser
       (RTBoot <$> storeOpt
               <*> profOpt
               <*> profLaw
-              <*> cogNameArg
+              <*> machineNameArg
               <*> bootHashArg)
 
-   <> plunderCmd "du" "du -ab compatible output for pin state."
-        (RTUses <$> storeOpt
-                <*> cogNameArg)
+   -- <> plunderCmd "du" "du -ab compatible output for pin state."
+   --      (RTUses <$> storeOpt
+   --              <*> machineNameArg)
 
    <> plunderCmd "server" "Replays the events in a machine."
         (RTServ <$> (storeArg <|> storeOpt)
@@ -447,14 +456,14 @@ runType defaultDir = subparser
         (RTDamn <$> (storeArg <|> storeOpt) <*> profOpt <*> profLaw
                 <*> daemonAction)
 
-   <> plunderCmd "poke" "Pokes a spinning cog with a value."
-        -- TODO: should pokePath parse the '/' instead?
-        (RTPoke <$> storeOpt <*> cogNameArg <*> pokePath
-                <*> pokeSire)
-    )
+   -- <> plunderCmd "poke" "Pokes a spinning cog with a value."
+   --      -- TODO: should pokePath parse the '/' instead?
+   --      (RTPoke <$> storeOpt <*> machineNameArg <*> pokePath
+   --              <*> pokeSire)
+   )
   where
-    pokePathHelp = help "Path to send data on"
-    pokeSireHelp = help "Sire file to parse and send"
+    -- pokePathHelp = help "Path to send data on"
+    -- pokeSireHelp = help "Sire file to parse and send"
     storeHlp = help "Location of plunder data"
     profHelp = help "Where to output profile traces (JSON)"
     storeArg = strArgument (metavar "STORE" <> storeHlp)
@@ -467,8 +476,8 @@ runType defaultDir = subparser
                  <> storeHlp
                   )
 
-    pokePath = strArgument (metavar "PATH" <> pokePathHelp)
-    pokeSire = strArgument (metavar "SIRE" <> pokeSireHelp)
+    -- pokePath = strArgument (metavar "PATH" <> pokePathHelp)
+    -- pokeSire = strArgument (metavar "SIRE" <> pokeSireHelp)
 
     profLaw :: Parser Bool
     profLaw = switch ( short 'P'
@@ -535,15 +544,15 @@ data BadPortsFile = BAD_PORTS_FILE Text FilePath Text
   deriving (Eq, Ord, Show)
   deriving anyclass Exception
 
-data SpinDuringShutdown = SPIN_DURING_SHUTDOWN CogName
+data SpinDuringShutdown = SPIN_DURING_SHUTDOWN MachineName
   deriving (Eq, Ord, Show)
   deriving anyclass Exception
 
-data CogAlreadySpinning = COG_ALREADY_SPINNING CogName
+data CogAlreadySpinning = COG_ALREADY_RUNNING MachineName
   deriving (Eq, Ord, Show)
   deriving anyclass Exception
 
-data NoSuchCog = NO_SUCH_COG CogName
+data NoSuchCog = NO_SUCH_COG MachineName
   deriving (Eq, Ord, Show)
   deriving anyclass Exception
 
@@ -602,14 +611,14 @@ main = Rex.colorsOnlyInTerminal do
         RTStat d             -> listCogs d True
         RTSpin d r m         -> maybe (spinAll d r) (spinOne d r) m
         RTBoot d _ _ x y     -> bootCog d x y
-        RTUses d cog         -> duCog d cog
+        -- RTUses d cog         -> duCog d cog
         RTServ d _ _ s j c w -> do writeIORef F.vWarnOnJetFallback j
                                    writeIORef F.vCrashOnJetFallback c
                                    runServer s w d
         RTDamn d _ _ START   -> startDaemon d
         RTDamn d _ _ STOP    -> killDaemon d
         RTDamn d _ _ RESTART -> killDaemon d >> startDaemon d
-        RTPoke d cog p y     -> pokeCog d cog p y
+        -- RTPoke d cog p y     -> pokeCog d cog p y
 
 withProfileOutput :: RunType -> IO () -> IO ()
 withProfileOutput args act = do
@@ -627,11 +636,11 @@ withProfileOutput args act = do
         RTCogs _             -> Nothing
         RTStat _             -> Nothing
         RTSpin _ _ _         -> Nothing
-        RTUses _ _           -> Nothing
+        -- RTUses _ _           -> Nothing
         RTBoot _ p l _ _     -> (,l) <$> p
         RTServ _ p l _ _ _ _ -> (,l) <$> p
         RTDamn _ p l _       -> (,l) <$> p
-        RTPoke _ _ _ _       -> Nothing
+        -- RTPoke _ _ _ _       -> Nothing
 
 startDaemon :: Debug => FilePath -> IO ()
 startDaemon d =
@@ -639,7 +648,7 @@ startDaemon d =
          (True,  _) -> debugText "Daemon started."
          (False, _) -> debugText "Daemon already running."
 
-bootCog :: (Debug, Rex.RexColor) => FilePath -> CogName -> Text -> IO ()
+bootCog :: (Debug, Rex.RexColor) => FilePath -> MachineName -> Text -> IO ()
 bootCog d c pash = do
     withDaemon d $ do
         let fil = unpack pash
@@ -652,25 +661,25 @@ bootCog d c pash = do
                   Just vl -> pure vl
         reqBoot c (JELLY_PACK val)
 
-pokeCog :: (Debug, Rex.RexColor) => FilePath -> CogName -> Text -> FilePath
-        -> IO ()
-pokeCog d c p pash = do
-  withDaemon d $ do
-      let fil = unpack pash
-      e <- liftIO (doesFileExist fil)
-      unless e (error $ unpack ("File does not exist: " <> pash))
-      mVl <- liftIO (Sire.ReplExe.loadFile fil)
-      val <- case mVl of
-                Nothing -> (error . unpack) $
-                               ("No value at end of file : " <> pash)
-                Just vl -> pure vl
-      reqPoke c (splitOn "/" p) (JELLY_PACK val)
+-- pokeCog :: (Debug, Rex.RexColor) => FilePath -> MachineName -> Text -> FilePath
+--         -> IO ()
+-- pokeCog d c p pash = do
+--   withDaemon d $ do
+--       let fil = unpack pash
+--       e <- liftIO (doesFileExist fil)
+--       unless e (error $ unpack ("File does not exist: " <> pash))
+--       mVl <- liftIO (Sire.ReplExe.loadFile fil)
+--       val <- case mVl of
+--                 Nothing -> (error . unpack) $
+--                                ("No value at end of file : " <> pash)
+--                 Just vl -> pure vl
+--       reqPoke c (splitOn "/" p) (JELLY_PACK val)
 
-duCog :: Debug => FilePath -> CogName -> IO ()
-duCog d c = do
-  withDaemon d $ do
-      retLines <- reqDu c
-      liftIO $ forM_ retLines $ putStrLn
+-- duCog :: Debug => FilePath -> MachineName -> IO ()
+-- duCog d c = do
+--   withDaemon d $ do
+--       retLines <- reqDu c
+--       liftIO $ forM_ retLines $ putStrLn
 
 killDaemon :: Debug => FilePath -> IO ()
 killDaemon d = do
@@ -685,7 +694,7 @@ killDaemon d = do
            signalProcess sigTERM (alien :: CPid)
 
 -- TODO Spin request should include ReplayFrom info.
-spinOne :: Debug => FilePath -> ReplayFrom -> CogName -> IO ()
+spinOne :: Debug => FilePath -> ReplayFrom -> MachineName -> IO ()
 spinOne d _r cog =
     withDaemon d (reqSpin cog)
 
@@ -693,9 +702,9 @@ spinOne d _r cog =
 spinAll :: Debug => FilePath -> ReplayFrom -> IO ()
 spinAll d _r = do
     withDaemon d do
-        status <-  reqCogs
-        for_ (keys status) \cog -> do
-            reqSpin cog
+        status <-  reqMachines
+        for_ (keys status) \machine -> do
+            reqSpin machine
 
 shellFg :: String -> [String] -> IO ExitCode
 shellFg c a = do
@@ -719,7 +728,7 @@ shellBg c a (out, err) = do
     (_, _, _, _) <- createProcess p
     pure ()
 
-openBrowser :: FilePath -> CogName -> IO ExitCode
+openBrowser :: FilePath -> MachineName -> IO ExitCode
 openBrowser dir cogNm = do
     let pax = (dir </> unpack (cogNm.txt <> ".http.port"))
     exists <- doesFileExist pax
@@ -731,7 +740,7 @@ openBrowser dir cogNm = do
     let url = "http://localhost:" <> show port
     shellFg "xdg-open" [url]
 
-openTerminal :: FilePath -> CogName -> IO ExitCode
+openTerminal :: FilePath -> MachineName -> IO ExitCode
 openTerminal dir cogNm = do
     let pax = (dir </> unpack (cogNm.txt <> ".telnet.port"))
     exists <- doesFileExist pax
@@ -746,7 +755,7 @@ data ServerState = SERVER_STATE
     { storeDir       :: FilePath
     , enableSnaps    :: Bool
     , isShuttingDown :: TVar Bool
-    , cogHandles     :: TVar (Map CogName (TVar (Maybe Cog)))
+    , machineHandles :: TVar (Map MachineName (TVar (Maybe Machine)))
     , termSignal     :: MVar ()
     , lmdb           :: DB.LmdbStore
     , hardware       :: DeviceTable
@@ -771,12 +780,12 @@ runServer enableSnaps numWorkers storeDir = do
         installHandler sig (Catch (putMVar termSignal ())) Nothing
 
     isShuttingDown <- newTVarIO False
-    cogHandles     <- newTVarIO mempty
+    machineHandles <- newTVarIO mempty
 
     let devTable db hw_poke = do
             hw1_rand          <- createHardwareRand
           --(hw4_wock, wsApp) <- createHardwareWock
-            let wsApp _cogName _ws = pure ()
+            let wsApp _machineName _cogId _ws = pure ()
             hw2_http          <- createHardwareHttp storeDir db wsApp
           --hw3_sock          <- createHardwareSock storeDir
             hw5_time          <- createHardwareTime
@@ -800,7 +809,7 @@ runServer enableSnaps numWorkers storeDir = do
             st <- pure SERVER_STATE
                 { storeDir
                 , isShuttingDown
-                , cogHandles
+                , machineHandles
                 , lmdb      = db
                 , hardware  = hw
                 , poke      = submitPoke
@@ -817,24 +826,25 @@ runServer enableSnaps numWorkers storeDir = do
     To boot a machine, we just write the initial value as a single Init
     to the log, and then exit.
 -}
-doBoot :: Debug => ServerState -> CogName -> JellyPack -> IO ()
-doBoot st cogName pak = do
-    debug ["booting_cog", cogName.txt]
+doBoot :: Debug => ServerState -> MachineName -> JellyPack -> IO ()
+doBoot st machineName pak = do
+    debug ["booting_cog", machineName.txt]
 
-    createdCog <- DB.newCog st.lmdb cogName
+    createdCog <- DB.newMachine st.lmdb machineName
 
     if not createdCog then
-        error ("Trying to overwrite existing machine " <> show cogName)
+        error ("Trying to overwrite existing machine " <> show machineName)
     else
-        DB.writeCogSnapshot st.lmdb cogName (BatchNum 0) pak.fan
+        DB.writeMachineSnapshot st.lmdb machineName (BatchNum 0)
+                                (IM.singleton removeMeDummyCogId.int pak.fan)
 
-{-
-    Deliver a noun from the outside to a given cog.
--}
-doPoke :: Debug => ServerState -> CogName -> [Text] -> JellyPack -> IO ()
-doPoke st cogName path pak = do
-    debug ["poke_cog", cogName.txt]
-    st.poke cogName (fromList path) pak.fan
+-- {-
+--     Deliver a noun from the outside to a given cog.
+-- -}
+-- doPoke :: Debug => ServerState -> MachineName -> [Text] -> JellyPack -> IO ()
+-- doPoke st machineName path pak = do
+--     debug ["poke_cog", machineName.txt]
+--     st.poke machineName (fromList path) pak.fan
 
 {-
     `vShutdownFlag` serves as a guard which prevents new cogs from
@@ -854,7 +864,7 @@ shutdownOnSigkill (st, rpcServer) = do
     handles <-
         atomically do
             writeTVar st.isShuttingDown $! True
-            readTVar st.cogHandles
+            readTVar st.machineHandles
 
     debugText "beginning_shutdown"
 
@@ -866,7 +876,7 @@ shutdownOnSigkill (st, rpcServer) = do
         \(cogNm, vHandle) -> do
             debug ["asking_for_cog_to_stop", cogNm.txt]
             cog <- atomically $ readTVar vHandle >>= maybe retry pure
-            shutdownCog cog
+            shutdownMachine cog
             debug ["cog_halted", cogNm.txt]
 
     debugText "finished_shutdownOnSigKill"
@@ -875,114 +885,114 @@ listCogs :: Debug => FilePath -> Bool -> IO ()
 listCogs d showStatus = do
     withDaemon d $ do
         debugText "list_cogs"
-        status <- reqCogs
+        status <- reqMachines
         liftIO $ showStatus & \case
             False ->  debug ((.txt) <$> keys status)
             True  ->  for_ (mapToList status) \(k,v) -> do
                           debugTextVal k.txt (toLower $ tshow v)
 
-spinCog :: Debug => ServerState -> ReplayFrom -> CogName -> IO ()
-spinCog st replayFrom cogName = do
-    debug ["spining_cog", cogName.txt]
+spinCog :: Debug => ServerState -> ReplayFrom -> MachineName -> IO ()
+spinCog st replayFrom machineName = do
+    debug ["spining_cog", machineName.txt]
 
     cache <- DB.CUSHION <$> newIORef mempty
 
-    DB.loadCog st.lmdb cogName >>= \case
+    DB.loadMachine st.lmdb machineName >>= \case
         Nothing -> do
-            throwIO (NO_SUCH_COG cogName)
+            throwIO (NO_SUCH_COG machineName)
         Just _bn -> do
             vHandle <- join $ atomically do
                 halty <- readTVar st.isShuttingDown
-                table <- readTVar st.cogHandles
-                case (halty, lookup cogName table) of
+                table <- readTVar st.machineHandles
+                case (halty, lookup machineName table) of
                     (True, _) ->
-                        pure $ throwIO (SPIN_DURING_SHUTDOWN cogName)
+                        pure $ throwIO (SPIN_DURING_SHUTDOWN machineName)
                     (_, Just{}) ->
-                        pure $ throwIO (COG_ALREADY_SPINNING cogName)
+                        pure $ throwIO (COG_ALREADY_RUNNING machineName)
                     (False, Nothing) -> do
                         h <- newTVar Nothing
-                        modifyTVar' st.cogHandles (insertMap cogName h)
+                        modifyTVar' st.machineHandles (insertMap machineName h)
                         pure (pure h)
 
             debug ["found_cog", "starting_replay"::Text]
             let hw   = st.hardware
             let eval = st.evaluator
             let enableSnaps = st.enableSnaps
-            let ctx  = COG_CONTEXT{eval, hw, cogName, lmdb=st.lmdb, enableSnaps}
-            h <- withCogDebugging cogName.txt
-                   (replayAndSpinCog cache ctx replayFrom)
+            let ctx  = MACHINE_CONTEXT{eval, hw, machineName, lmdb=st.lmdb, enableSnaps}
+            h <- withCogDebugging machineName.txt
+                   (replayAndCrankMachine cache ctx replayFrom)
             atomically (writeTVar vHandle $! Just h)
             debugText "cog_spinning"
 
-shipDu :: Debug => ServerState -> CogName -> IO [Text]
-shipDu st cogName = do
-  cache <- DB.CUSHION <$> newIORef mempty
+-- shipDu :: Debug => ServerState -> MachineName -> IO [Text]
+-- shipDu st machineName = do
+--   cache <- DB.CUSHION <$> newIORef mempty
 
-  -- Read the current noun if the ship is spinning and alive.
-  mybNoun <- atomically $ do
-    cogs <- readTVar st.cogHandles
-    case lookup cogName cogs of
-      Nothing -> pure Nothing
-      Just cogVar -> do
-        mybC <- readTVar cogVar
-        case mybC of
-          Nothing -> pure Nothing
-          Just c -> do
-            (MOMENT n _) <- readTVar c.liveVar
-            pure $ Just n
+--   -- Read the current noun if the ship is spinning and alive.
+--   mybNoun <- atomically $ do
+--     cogs <- readTVar st.machineHandles
+--     case lookup machineName cogs of
+--       Nothing -> pure Nothing
+--       Just cogVar -> do
+--         mybC <- readTVar cogVar
+--         case mybC of
+--           Nothing -> pure Nothing
+--           Just c -> do
+--             (MOMENT n _) <- readTVar c.liveVar
+--             pure $ Just n
 
-  -- If there's no noun (ship isn't spinning), replay the ship.
-  noun <- case mybNoun of
-    Just noun -> pure noun
-    Nothing -> do
-      let enableSnaps = st.enableSnaps
-      let hw   = st.hardware  -- not used
-      let eval = st.evaluator -- not used
-      let ctx  = COG_CONTEXT{eval, hw, cogName, lmdb=st.lmdb, enableSnaps}
-      (_, MOMENT noun _) <- performReplay cache ctx LatestSnapshot
-      pure noun
+--   -- If there's no noun (ship isn't spinning), replay the ship.
+--   noun <- case mybNoun of
+--     Just noun -> pure noun
+--     Nothing -> do
+--       let enableSnaps = st.enableSnaps
+--       let hw   = st.hardware  -- not used
+--       let eval = st.evaluator -- not used
+--       let ctx  = MACHINE_CONTEXT{eval, hw, machineName, lmdb=st.lmdb, enableSnaps}
+--       (_, MOMENT noun _) <- performReplay cache ctx LatestSnapshot
+--       pure noun
 
-  (pins, _hed, blob) <- F.saveFan noun
+--   (pins, _hed, blob) <- F.saveFan noun
 
-  pure $ execState (fanDu (txt cogName) pins blob) []
-  where
-    fanDu :: Text -> Vector F.Pin -> ByteString -> State [Text] ()
-    fanDu name refs blob = do
-      refSize <- sum <$> mapM (pinDu [name]) refs
-      _ <- calcEntry [name] refSize blob
-      pure ()
+--   pure $ execState (fanDu (txt machineName) pins blob) []
+--   where
+--     fanDu :: Text -> Vector F.Pin -> ByteString -> State [Text] ()
+--     fanDu name refs blob = do
+--       refSize <- sum <$> mapM (pinDu [name]) refs
+--       _ <- calcEntry [name] refSize blob
+--       pure ()
 
-    pinDu :: [Text] -> F.Pin -> State [Text] Int
-    pinDu path p = do
-      error "TODO: This is more complex now" path
-      error "We should probably store sizes and edge-lists in the database" p
-      error "And this should be a read transaction" binName ok ugul
-      -- let pinName = binName p.item
-      -- refSize <- sum <$> mapM (pinDu (pinName : path)) p.refs
-      -- calcEntry (pinName : path) refSize p.blob
+--     pinDu :: [Text] -> F.Pin -> State [Text] Int
+--     pinDu path p = do
+--       error "TODO: This is more complex now" path
+--       error "We should probably store sizes and edge-lists in the database" p
+--       error "And this should be a read transaction" binName ok ugul
+--       -- let pinName = binName p.item
+--       -- refSize <- sum <$> mapM (pinDu (pinName : path)) p.refs
+--       -- calcEntry (pinName : path) refSize p.blob
 
-    calcEntry :: [Text] -> Int -> ByteString -> State [Text] Int
-    calcEntry path refSize blob = do
-      let blobSize = BS.length blob
-          totalSize = refSize + blobSize
-      let displayPath :: Text = concat $ intersperse "/" $ reverse path
-      modify' ((tshow totalSize <> " " <> displayPath):)
-      pure totalSize
+--     calcEntry :: [Text] -> Int -> ByteString -> State [Text] Int
+--     calcEntry path refSize blob = do
+--       let blobSize = BS.length blob
+--           totalSize = refSize + blobSize
+--       let displayPath :: Text = concat $ intersperse "/" $ reverse path
+--       modify' ((tshow totalSize <> " " <> displayPath):)
+--       pure totalSize
 
-    -- TODO: Better way to identify grains that don't have law names?
-    binName :: F.Fan -> Text
-    binName = \case
-        F.FUN law -> ugul law.name.nat
-        F.PIN pin -> binName pin.item
-        f         -> hashToBTC $ toHash $ F.saveFanPure f
-                       where
-                         toHash (_, h, t) = unsafePerformIO (Jelly.hash h t)
+--     -- TODO: Better way to identify grains that don't have law names?
+--     binName :: F.Fan -> Text
+--     binName = \case
+--         F.FUN law -> ugul law.name.nat
+--         F.PIN pin -> binName pin.item
+--         f         -> hashToBTC $ toHash $ F.saveFanPure f
+--                        where
+--                          toHash (_, h, t) = unsafePerformIO (Jelly.hash h t)
 
-    ok '_' = True
-    ok c   = C.isAlphaNum c
+--     ok '_' = True
+--     ok c   = C.isAlphaNum c
 
-    ugul :: Nat -> Text
-    ugul 0   = "anon"
-    ugul nat = case natUtf8 nat of
-        Right t | all ok t -> t
-        _                  -> tshow nat
+--     ugul :: Nat -> Text
+--     ugul 0   = "anon"
+--     ugul nat = case natUtf8 nat of
+--         Right t | all ok t -> t
+--         _                  -> tshow nat

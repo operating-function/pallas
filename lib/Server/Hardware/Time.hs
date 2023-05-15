@@ -72,7 +72,7 @@
 
 {-# OPTIONS_GHC -Wall   #-}
 {-# OPTIONS_GHC -Werror #-}
-{-# LANGUAGE Strict      #-}
+{-# LANGUAGE Strict #-}
 
 module Server.Hardware.Time (createHardwareTime) where
 
@@ -139,8 +139,8 @@ createHardwareTime :: Debug => Acquire Device
 createHardwareTime = do
     st <- mkAcquire mk release
     pure DEVICE
-        { spin = const pass -- Don't care which cog makes the calls.
-        , stop = const pass
+        { spin = \_ _ -> pass -- Don't care which cog makes the calls.
+        , stop = \_ _ -> pass
         , call = runSysCall st
         , category = categoryCall
         , describe = describeCall

@@ -15,7 +15,7 @@ module Server.Hardware.Types
     , SysCall(..)
     , SysCallState(..)
     , getCallResponse
-    , withCogHardwareInterface
+    , withMachineHardwareInterface
     , writeResponse
     , fillInvalidSyscall
     , syscallCategory
@@ -61,18 +61,19 @@ newtype Cancel = CANCEL { action :: STM () }
 -- Callbacks -------------------------------------------------------------------
 
 data SysCall = SYSCALL
-    { cog   :: CogName
-    , dev   :: DeviceName
-    , args  :: Vector Fan
-    , state :: CallStateVar
-    , cause :: Flow
+    { machine :: MachineName
+    , cog     :: CogId
+    , dev     :: DeviceName
+    , args    :: Vector Fan
+    , state   :: CallStateVar
+    , cause   :: Flow
     }
   deriving Show
 
 data Device = DEVICE
-    { spin     :: CogName -> IO ()
+    { spin     :: MachineName -> CogId -> IO ()
     , call     :: SysCall -> STM (Cancel, [Flow])
-    , stop     :: CogName -> IO ()
+    , stop     :: MachineName -> CogId -> IO ()
     , category :: Vector Fan -> Text
     , describe :: Vector Fan -> Text
     }
@@ -136,15 +137,15 @@ callHardware db deviceName call = do
         fillInvalidSyscall call
         pure (CANCEL pass, [])
 
-withCogHardwareInterface :: CogName -> DeviceTable -> IO a -> IO a
-withCogHardwareInterface cog dev act =
+withMachineHardwareInterface :: MachineName -> DeviceTable -> IO a -> IO a
+withMachineHardwareInterface machine dev act =
     bracket_ notifySpin notifyStop act
   where
     notifySpin :: IO ()
-    notifySpin = for_ dev.table (\d -> d.spin cog)
+    notifySpin = for_ dev.table (\d -> d.spin machine removeMeDummyCogId)
 
     notifyStop :: IO ()
-    notifyStop = for_ dev.table (\d -> d.stop cog)
+    notifyStop = for_ dev.table (\d -> d.stop machine removeMeDummyCogId)
 
 syscallCategory :: DeviceTable -> DeviceName -> Vector Fan -> Text
 syscallCategory db deviceName params = do
