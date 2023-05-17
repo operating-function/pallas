@@ -103,7 +103,7 @@ do
 done
 
 # TODO: error out if this broke.
-plunder boot fulltag sire/demo-full-tag-site.sire
+plunder boot fulltag sire/demo_full_tag_site.sire
 plunder spin fulltag
 
 until [ -f ./.demo/fulltag.http.port ]
