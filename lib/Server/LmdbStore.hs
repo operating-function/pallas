@@ -196,7 +196,7 @@ open dir = do
       logTbl <- mdb_dbi_open txn (unpack <$> logName tn) [MDB_INTEGERKEY]
       ssTbl  <- mdb_dbi_open txn (unpack <$> snapshotName tn) [MDB_INTEGERKEY]
       num  <- getNumBatches txn logTbl
-      vNum <- newTVarIO (case num of { 0 -> 1; _ -> num })
+      vNum <- newTVarIO num
       pure $ (tn, CogLogTable logTbl ssTbl vNum)
 
 close :: LmdbStore -> IO ()
