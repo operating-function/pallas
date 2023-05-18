@@ -83,3 +83,10 @@ foreign import ccall unsafe "jelly_hash"
            -> CSize -> Ptr Word8 -- head
            -> CSize -> Ptr Word8 -- body
            -> IO ()
+
+foreign import ccall unsafe "jet_blake3"
+    c_jet_blake3
+        :: Ptr Word8 -- 32-byte buffer
+        -> CSize     -- input size
+        -> Ptr Word8 -- head
+        -> IO ()

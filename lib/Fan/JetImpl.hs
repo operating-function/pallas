@@ -20,17 +20,19 @@ import PlunderPrelude   hiding ((^))
 
 import Data.ByteString.Builder (byteString, toLazyByteString)
 import Data.Vector             ((!), (//))
+import Foreign.Marshal.Alloc   (allocaBytes)
+import Foreign.Ptr             (castPtr)
+import Jelly.Fast.FFI          (c_jet_blake3)
 
-import qualified BLAKE3          as B3
-import qualified Data.ByteArray  as BA
-import qualified Data.ByteString as BS
-import qualified Data.Map        as M
-import qualified Data.Set        as S
-import qualified Data.Vector     as V
-import qualified Fan.Prof        as Prof
-import qualified GHC.Exts        as GHC
-import qualified GHC.Natural     as GHC
-import qualified Natty           as Natty
+import qualified Data.ByteString        as BS
+import qualified Data.ByteString.Unsafe as BS
+import qualified Data.Map               as M
+import qualified Data.Set               as S
+import qualified Data.Vector            as V
+import qualified Fan.Prof               as Prof
+import qualified GHC.Exts               as GHC
+import qualified GHC.Natural            as GHC
+import qualified Natty                  as Natty
 import qualified PlunderPrelude
 
 --------------------------------------------------------------------------------
@@ -723,13 +725,16 @@ barWeldJet f e =
 
 blake3Jet :: Jet
 blake3Jet f e =
-    orExecTrace "blake3" (f e)
-        (BAR . blake3 <$> getBar (e^1))
+    orExecTrace "blake3" (f e) do
+        blake3 <$> getBar (e^1)
   where
-    blake3 bar = digestBytes (B3.hash [bar])
-
-    digestBytes :: B3.Digest 32 -> ByteString
-    digestBytes d = BA.copyAndFreeze d (const $ pure ())
+    blake3 bar =
+        unsafePerformIO $
+        allocaBytes 32 \buf ->
+        BS.unsafeUseAsCStringLen bar \(byt, wid) -> do
+            c_jet_blake3 (castPtr buf) (fromIntegral wid) (castPtr byt)
+            res <- BS.packCStringLen (buf, 32)
+            pure (BAR res)
 
 cabSingletonJet :: Jet
 cabSingletonJet _ e = CAb $ S.singleton (e^1)

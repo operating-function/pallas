@@ -7,16 +7,13 @@ copyright:           "2023 Plunder Authors"
 # ghc-options: -O2 -j
 ghc-options: -O -j
 
-cc-options: -Wall -O3
+cc-options: -Wall -O3 -Werror
 
 library:
   source-dirs: lib
-  cc-options: -O3 -Wall -Werror
   c-sources:
-    - cbits/jelly.c
-    - cbits/base58.c
-    - cbits/xxhash.c
-    - cbits/xxh_x86dispatch.c
+    - cbits/*.c
+    - cbits/*.S
 
 extra-source-files:
   - cbits/*.h
@@ -108,7 +105,6 @@ dependencies:
 - base
 - base16-bytestring
 - base58-bytestring
-- blake3
 - bytestring
 - bytestring-mmap
 - case-insensitive

@@ -2230,3 +2230,13 @@ void jelly_hash
         blake3_hasher_update(&hasher, bod_ptr, bod_wid);
         blake3_hasher_finalize(&hasher, out, 32);
 }
+
+// TODO: Move this to another file.
+void jet_blake3 (uint8_t* out , size_t wid , uint8_t *byt)
+{
+        // TODO This is 1912 bytes, moving into context or keep on stack?
+        blake3_hasher hasher;
+        blake3_hasher_init(&hasher);
+        blake3_hasher_update(&hasher, byt, wid);
+        blake3_hasher_finalize(&hasher, out, 32);
+}
