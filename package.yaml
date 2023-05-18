@@ -7,17 +7,41 @@ copyright:           "2023 Plunder Authors"
 # ghc-options: -O2 -j
 ghc-options: -O -j
 
-cc-options: -Wall -O3 -Werror
+when:
+  - condition: arch(aarch64)
+    then:
+      cc-options: -Wall -O3
+    else:
+      cc-options: -Wall -O3 -Werror
 
 library:
   source-dirs: lib
   c-sources:
-    - cbits/*.c
-    - cbits/*.S
+    - cbits/base58.c
+    - cbits/blake3.c
+    - cbits/blake3_dispatch.c
+    - cbits/blake3_portable.c
+    - cbits/harness.c
+    - cbits/jelly.c
+    - cbits/main.c
+    - cbits/xxhash.c
+  when:
+    - condition: arch(aarch64)
+      then:
+        c-sources:
+          - cbits/blake3_neon.c
+      else:
+        c-sources:
+          - cbits/xxh_x86dispatch.c
+          - cbits/blake3_avx2_x86-64_unix.S
+          - cbits/blake3_avx512_x86-64_unix.S
+          - cbits/blake3_sse2_x86-64_unix.S
+          - cbits/blake3_sse41_x86-64_unix.S
 
 extra-source-files:
   - cbits/*.h
   - cbits/*.c
+  - cbits/*.S
 
 include-dirs:
   - cbits
