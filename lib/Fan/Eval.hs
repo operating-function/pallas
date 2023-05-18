@@ -1721,7 +1721,8 @@ executeLaw self recPro exePro args =
         -- traceM ("\t" <> show (numArgs, numVars))
         -- traceM ("\t" <> show (toList args))
         let err = error ("UNINITIALIZED" <> show exePro.prgrm)
-        vs <- newSmallArray numVars err
+        vs <- newSmallArray (numVars + 1) err
+                -- TODO: Figure out why this is wrong!!  This is no good!
         go vs exePro.prgrm
   where
     go :: SmallMutableArray RealWorld Fan -> Run -> IO Fan
@@ -1737,6 +1738,14 @@ executeLaw self recPro exePro args =
 
         LET i v b -> mdo
             -- traceM "LET"
+            when (i < 0) do
+                error "bad index"
+            when (i >= sizeofSmallMutableArray vs) do
+                error $ concat [ "out of bounds: "
+                                , show i
+                                , "<"
+                                , show (sizeofSmallMutableArray vs)
+                                ]
             vRes <- (writeSmallArray vs i vRes >> go vs v)
             go vs b
 
@@ -1866,9 +1875,9 @@ executeLaw self recPro exePro args =
             -- pure res
 
         OP2 _ f a b -> do
-          af <- go vs a
-          bf <- go vs b
-          pure $ f af bf
+            af <- go vs a
+            bf <- go vs b
+            pure $ f af bf
 
 trkName :: Fan -> Maybe Text
 trkName fan = do
