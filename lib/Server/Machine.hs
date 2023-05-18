@@ -5,9 +5,9 @@
 {-
     TOPLEVEL TODOS:
 
-    - TODO: `shutdownCog` works for now, but what we really want is a way to hit
-            ctrl-c once to begin shutdown and then have a second ctrl-c which
-            aborts snapshotting.
+    - TODO: `shutdownMachine` works for now, but what we really want is a way
+            to hit ctrl-c once to begin shutdown and then have a second ctrl-c
+            which aborts snapshotting.
 -}
 
 {-# LANGUAGE NoFieldSelectors #-}
@@ -17,7 +17,7 @@
 {-# OPTIONS_GHC -Werror #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Server.Cog
+module Server.Machine
     ( Machine(..)
     , MachineContext(..)
     , Moment(..)

@@ -14,9 +14,9 @@ import Options.Applicative
 import PlunderPrelude       hiding (Handler, handle)
 import Servant
 import Servant.Client
-import Server.Cog
 import Server.Debug
 import Server.Evaluator
+import Server.Machine
 import Server.Types.Logging
 import System.Environment
 import System.Posix.Signals hiding (Handler)
