@@ -32,8 +32,10 @@ import PlunderPrelude
 import Control.Concurrent.STM.TQueue (flushTQueue)
 import Control.Monad.State           (StateT, execStateT, modify', runStateT)
 import Data.Vector                   ((!))
+import GHC.Conc                      (unsafeIOToSTM)
 import GHC.Prim                      (reallyUnsafePtrEquality#)
 -- ort Text.Show.Pretty              (ppShow)
+import System.Random (randomIO)
 
 import Fan (Fan(..), PrimopCrash(..), getRow, (%%))
 
@@ -124,10 +126,12 @@ thirtySecondsInMicroseconds = 30 * 10 ^ (6::Int)
 data Response
     = RespEval EvalOutcome
     | RespCall Fan SysCall
+    | RespSpin CogId
   deriving (Show)
 
 responseToVal :: Response -> Fan
 responseToVal (RespCall f _) = f
+responseToVal (RespSpin (COG_ID id)) = fromIntegral id
 responseToVal (RespEval e)   =
     ROW case e of
         TIMEOUT   -> mempty              -- []
@@ -150,6 +154,11 @@ data CallRequest = CR
     }
   deriving (Show)
 
+data SpinRequest = SR
+    { cogFun  :: Fan
+    }
+  deriving (Show)
+
 data Request
     = ReqEval EvalRequest
     | ReqCall CallRequest
@@ -163,12 +172,15 @@ data Request
     -- | ReqRecv
     --
     -- Maybe more easier is just:
-    -- | ReqSpin
+    | ReqSpin SpinRequest
     | UNKNOWN Fan
   deriving (Show)
 
 {-
   [%eval timeout/@ fun/fan arg/Fan ...]
+  [%cog %spin fun/Fan]  -- COG_ID 0 only
+  [%cog %send dst/Nat param/Fan]
+  [%cog %recv]
   [$call synced/? param/Fan ...]
 -}
 valToRequest :: MachineName -> CogId -> Fan -> Request
@@ -188,6 +200,11 @@ valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
         let er = EVAL_REQUEST{func,args,machine,cogId,flow,timeoutMs}
         pure (ReqEval er)
         -- e (ReqEval $ error "_" timeoutSecs (row!2) (V.drop 3 row))
+    else if tag == "cog" then do
+        case nat of
+            "spin" | cogId == crankCogId -> do
+                pure (ReqSpin $ SR $ row!2)
+            _ -> Nothing
     else
         case nat of
             0 -> pure (ReqCall $ CR False tag $ V.drop 2 row)
@@ -224,11 +241,21 @@ data Runner = RUNNER
 
 -- -----------------------------------------------------------------------
 
+-- An effect that happens atomically after a Response is processed by a cog and
+-- didn't crash.
+data CogEffect
+    = CSpin
+      { reCogId :: CogId
+      , reFun   :: Fan
+      }
+    deriving (Show)
+
 data ResponseTuple = RTUP
-    { key  :: RequestIdx
-    , resp :: Response
-    , work :: NanoTime
-    , flow :: Flow
+    { key    :: RequestIdx
+    , resp   :: Response
+    , work   :: NanoTime
+    , flow   :: Flow
+    , effect :: Maybe CogEffect
     }
   deriving (Show)
 
@@ -244,14 +271,18 @@ data LiveRequest
     lcCancel  :: Cancel,
     lcSysCall :: SysCall
     }
+  | LiveSpin {
+    lsIdx :: RequestIdx,
+    lsFun :: Fan
+    }
   | LiveUnknown
 
 instance Show LiveRequest where
     show = \case
         LiveEval{}  -> "EVAL"
         LiveCall{}  -> "CALL"
+        LiveSpin{}  -> "SPIN"
         LiveUnknown -> "UNKNOWN"
-
 
 data ParseRequestsState = PRS
     { syscalls  :: CogSysCalls
@@ -307,6 +338,7 @@ performReplay cache ctx replayFrom = do
                                     modify' (+ runtime)
                                     pure (k, ROW (singleton res))
                 ReceiptRecv _ _ -> error "IMPLEMENT RECV REFERENCES"
+                ReceiptSpun _ -> error "IMPLEMENT RESPIN IN REPLAY"
 
     batchLoop :: BatchNum -> Moment -> [Receipt] -> IO (BatchNum, Moment)
     batchLoop bn m []     = pure (bn, m)
@@ -469,12 +501,16 @@ buildLiveRequest causeFlow ctx cogId reqIdx = \case
         pure (startedFlows, LiveCall{lcIdx=reqIdx, lcSysCall, lcCancel},
               logCallback)
 
+    ReqSpin (SR func) -> do
+      pure ([], LiveSpin{lsIdx=reqIdx, lsFun=func}, Nothing)
+
     UNKNOWN _ -> do
         pure ([], LiveUnknown, Nothing)
 
 cancelRequest :: LiveRequest -> STM ()
 cancelRequest LiveEval{..} = leRecord.cancel.action
 cancelRequest LiveCall{..} = lcCancel.action
+cancelRequest LiveSpin{}   = pure () -- Not asynchronous
 cancelRequest LiveUnknown  = pure ()
 
 {-
@@ -487,14 +523,18 @@ workToReplayEval = \case
     CRASH{}  -> 0
     TIMEOUT  -> 0
 
-receiveResponse :: (Fan, LiveRequest) -> STM (Maybe ResponseTuple)
-receiveResponse = \case
+receiveResponse
+  :: TVar Moment
+  -> (Fan, LiveRequest)
+  -> STM (Maybe ResponseTuple)
+receiveResponse momentVar = \case
     (_, LiveEval{..}) -> do
         getEvalOutcome leRecord >>= \case
             Nothing -> pure Nothing
             Just (outcome, flow) -> do
                 let work = workToReplayEval outcome
-                pure (Just RTUP{key=leIdx, resp=RespEval outcome, work, flow})
+                pure (Just RTUP{key=leIdx, resp=RespEval outcome, work, flow,
+                                effect=Nothing})
 
     (_, LiveCall{..}) -> do
         getCallResponse lcSysCall >>= \case
@@ -507,7 +547,24 @@ receiveResponse = \case
                 --
                 -- TODO: Reconsider the above TODO?  Replay does not
                 -- run effects again.
-                pure (Just RTUP{key=lcIdx, resp, work=0, flow})
+                pure (Just RTUP{key=lcIdx, resp, work=0, flow, effect=Nothing})
+
+    (_, LiveSpin{..}) ->
+      do
+        cogid <- getRandomNonConflictingId =<< readTVar momentVar
+        -- TODO: How should the flows be represented when spinning a new cog!?
+        pure (Just RTUP{key=lsIdx, resp=RespSpin cogid, work=0,
+                        flow=FlowDisabled, effect=Just (CSpin{reCogId=cogid
+                                                             ,reFun=lsFun})})
+      where
+        getRandomNonConflictingId :: Moment -> STM CogId
+        getRandomNonConflictingId moment = do
+          -- Word8 is a very temporary hack: this should not be a negative
+          -- number, but IntMap only is bound to +/- 2^29-1.
+          r :: Word8 <- unsafeIOToSTM $ randomIO
+          case lookup (fromIntegral r) moment.val of
+            Nothing -> pure $ COG_ID $ fromIntegral r
+            Just _  -> getRandomNonConflictingId moment
 
     (_, LiveUnknown) -> do
         pure Nothing
@@ -561,11 +618,11 @@ runnerFun initialFlows machine processName st =
         withAlwaysTrace "WaitForResponse" "cog" do
             -- This is in a separate atomically block because it doesn't
             -- change and we want to minimize contention.
-            sysCalls :: MachineSysCalls <- atomically (readTVar st.vRequests)
+            sysCalls <- atomically (readTVar st.vRequests)
 
             atomically do
                 returns <- fmap collectResponses
-                         $ traverse (traverse receiveResponse)
+                         $ traverse (traverse $ receiveResponse st.vMoment)
                          $ sysCalls
 
                 when (null returns) retry
@@ -598,7 +655,6 @@ runnerFun initialFlows machine processName st =
     cogTick (cogId, valTuples) =
       withProcessName processName $
         withThreadName ("Cog: " <> (encodeUtf8 $ tshow cogId)) $ do
-          --
           let endFlows = (.flow) . snd <$> valTuples
           let traceArg = M.singleton "syscall indicies"
                        $ Right
@@ -611,9 +667,6 @@ runnerFun initialFlows machine processName st =
               Just (flows, onCommit, receipt) ->
                 pure (flows, [], Just (onCommit, receipt))
 
--- runResponse and its caller is where we need a really make changes.
---
--- So w
 runResponse
     :: Debug
     => Runner
@@ -637,20 +690,31 @@ runResponse st cogid rets didCrash = do
     CRASH{} -> recordInstantEvent "Main Exception" "cog" mempty >> onCrash
     OKAY _ result -> do
       withAlwaysTrace "Tick" "cog" do
-        -- Update the runner state, making sure to delete the consumed
-        -- LiveRequest without formally canceling it because it already
-        -- completed.
-        atomically do
+        (sideEffectFlows, sideEffectPersists) <- concatUnzip <$> atomically do
+            -- Update the runner state, making sure to delete the consumed
+            -- LiveRequest without formally canceling it because it already
+            -- completed.
             modifyTVar' st.vMoment   \m ->
                 MOMENT (insertMap cogid.int result m.val) (m.work + runtimeUs)
             modifyTVar' st.vRequests $
                 adjustMap (\kals -> foldl' delReq kals (fst<$>rets)) cogid.int
 
+            -- If this was a successful run of the main event, do whatever side
+            -- effect running this event was supposed to have.
+            case didCrash of
+                True -> pure mempty
+                False -> forM rets $ \(_,RTUP{effect}) -> case effect of
+                    Nothing -> pure (mempty, mempty)
+                    Just CSpin{..} -> do
+                        modifyTVar' st.vMoment \m ->
+                            m { val=insertMap reCogId.int reFun m.val }
+                        parseRequests st reCogId
+
         (startedFlows, onPersists) <- atomically (parseRequests st cogid)
 
-        pure $ Just ( startedFlows
-                    , onPersists
-                    , responseToReceipt removeMeDummyCogId didCrash rets
+        pure $ Just ( startedFlows ++ sideEffectFlows
+                    , onPersists ++ sideEffectPersists
+                    , responseToReceipt cogid didCrash rets
                     )
  where
    onCrash =
@@ -685,13 +749,15 @@ keep x y =
                _ -> x==y
 
 
+concatUnzip :: [([a], [b])] -> ([a], [b])
+concatUnzip a = let (f, s) = unzip a
+                in (concat f, concat s)
+
 parseAllRequests :: Debug => Runner -> STM ([Flow], [STM OnCommitFlow])
 parseAllRequests runner = do
   cogs <- (keys . (.val)) <$> readTVar runner.vMoment
   actions <- forM cogs $ \i -> parseRequests runner (COG_ID i)
-  let (f, s) = unzip actions
-  pure (concat f, concat s)
-
+  pure $ concatUnzip actions
 
 -- | Given a noun in a runner, update the `requests`
 parseRequests :: Debug => Runner -> CogId -> STM ([Flow], [STM OnCommitFlow])
@@ -717,9 +783,7 @@ parseRequests runner cogId = do
                   unless (member i expected) do
                       createReq i v
 
---    modifyTVar' runner.vRequests $ M.insert
     modifyTVar' runner.vRequests $ insertMap cogId.int st.syscalls
-    --writeTVar runner.vRequests $!
 
     pure (st.flows, st.onPersist)
 
@@ -740,6 +804,7 @@ parseRequests runner cogId = do
         ReqEval{}  -> "%eval"
         ReqCall rc -> "%call " <> (encodeUtf8 $
                           describeSyscall runner.ctx.hw rc.device rc.params)
+        ReqSpin{}  -> "%spin"
         UNKNOWN{}  -> "UNKNOWN"
 
     flowCategory :: Request -> ByteString
@@ -747,12 +812,12 @@ parseRequests runner cogId = do
         ReqEval{}  -> "%eval"
         ReqCall rc -> "%call " <> (encodeUtf8 $
                           syscallCategory runner.ctx.hw rc.device rc.params)
+        ReqSpin{}  -> "%spin"
         UNKNOWN{}  -> "UNKNOWN"
 
     createReq :: Int -> Fan -> StateT ParseRequestsState STM ()
     createReq i v = do
-        -- traceM ("createReq:" <> show i <> " " <> show v)
-        let request = valToRequest runner.ctx.machineName removeMeDummyCogId v
+        let request = valToRequest runner.ctx.machineName cogId v
             reqData = reqDebugSummary request
             reqName = "Cog " <> (encodeUtf8 $ tshow cogId.int)
                    <> " idx "

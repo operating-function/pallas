@@ -33,6 +33,10 @@ newtype CogId = COG_ID { int :: Int }
 removeMeDummyCogId :: CogId
 removeMeDummyCogId = COG_ID 5
 
+-- The hardcoded id for the one cog which can spin new cogs. cog
+crankCogId :: CogId
+crankCogId = COG_ID 0
+
 -- | A positional index into the machine's Request vector.
 newtype RequestIdx = RequestIdx { int :: Int }
   deriving newtype (Eq, Show, Ord)
@@ -47,8 +51,11 @@ data ReceiptItem
   -- | Receipt of anything else.
   | ReceiptVal Fan
 
-  -- |
+  -- | Receipt of a recv. Points back to the sending cause.
   | ReceiptRecv { cogNum :: CogId, reqNum :: RequestIdx }
+
+  -- | Receipt of a spin. Contains the assigned cog id.
+  | ReceiptSpun { cogNum :: CogId }
   deriving (Eq, Ord, Show)
 
 data Receipt = RECEIPT

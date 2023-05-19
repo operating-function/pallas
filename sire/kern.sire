@@ -307,6 +307,7 @@ cog
 ; such a nice api.
 
 = (EVAL tim exp)        | weld [%eval tim] exp
+= (COG_SPIN f)          | [%cog %spin f]
 = (RAND_BYTE x)         | [%rand 0 %byte x]
 = (HTTP_SERV ss)        | [%http 0 %serv ss]
 = (HTTP_HEAR)           | [%http 0 %hear]
