@@ -414,84 +414,102 @@ ex=(PAIR %a %b)
 """
 
 
-''' readDatacaseBody '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+''' parseDatacaseBody ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-> Map Symbol Nat
-> Properties
-> Rex
-> Macro3 (a > Nat) Rex (Row (Nat, Row Symb, Rex))
-= (readDatacaseBody src prp cases err ok)
+> Rex > Parser2 Rex (Row (Rex, Symb, Row Symb, Rex))
+= (parseDatacaseBody cases err ok)
 ;;;;;
 : clauses
     < ^ unrollSlip2Tar cases _ err
       ? (onAlien x err ret)
       | err x 'Not a switch branch'
-;;;;;
-^ _ FALSE 0 NONE NIL (listFromRow clauses)
-? (go hasTag fun oFallback acc remain)
+;
+^ _ NONE ~[] (listFromRow clauses)
+? (go oFallback acc remain)
+;
 : [sigRex bodyRex] remain
     < **listCase remain
         | ok
-        * hasTag
-        * fun
         * fromSome (natE 0) oFallback
         * listToRowReversed acc
-;;;;;
+;
 | if (rexEql `_ sigRex)
     | ifNot (isZero oFallback)
         | err cases "Only one fallback-pattern is allowed"
-    | go hasTag fun (SOME bodyRex) acc remain
-;;;;;
+    | go (SOME bodyRex) acc remain
+;
 : constr fields
     < & k
       | if (rexIsLeaf sigRex)
           : sym < readKey sigRex err
           | k sym []
       | else
-          | readDestroyer sigRex err k
+          : c fs < readDestroyer sigRex err
+          | k c fs
+;
+@ acc [sigRex constr fields bodyRex]::acc
+| go oFallback acc remain
+
+
+''' readDatacaseBody '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+# record (DataCase p e)
+| DATA_CASE
+* tag    : Nat
+* arity  : Nat
+* fields : Row p
+* body   : e
+
+> Map Symbol Nat
+> Properties
+> Rex
+> Parser4 Bit (a -> Nat) Rex (Row | DataCase Rex Rex)
+= (readDatacaseBody src prp casesRex err ok)
+: fallback branches < parseDatacaseBody casesRex err
+;
+^ _ FALSE 0 NIL (listFromRow branches)
+? (go hasTag fun acc remain)
+;
+: hed@[sigRex constr fields bodyRex] remain
+    < **listCase remain
+        | ok hasTag fun fallback (listToRowReversed acc)
 ;
 | ifNot (hasKey constr src)
-    | err sigRex
-    ^ strWeld _ constr
+    ^ err sigRex (strWeld _ constr)
     | "Undefined Pattern: "
 ;
 @ key (look src constr)
 | if (isZero key)
-    | err sigRex
-    ^ strWeld _ constr
+    ^ err sigRex (strWeld _ constr)
     | "Pattern defined without identity: "
 ;
 | ifNot (hasProperty key 'conTag' prp)
-    | err sigRex
-    ^ strWeld _ constr
+    ^ err sigRex (strWeld _ constr)
     | "Unknown constructor(tag): "
+;
 | ifNot (hasProperty key 'conAri' prp)
-    | err sigRex
-    ^ strWeld _ constr
+    ^ err sigRex (strWeld _ constr)
     | "Unknown constructor(ari): "
 ;
 | ifNot (hasProperty key 'conFun' prp)
-    | err sigRex
-    ^ strWeld _ constr
+    ^ err sigRex (strWeld _ constr)
     | "Unknown constructor(fun): "
 ;
 | ifNot (hasProperty key 'conHas' prp)
-    | err sigRex
-    ^ strWeld _ constr
+    ^ err sigRex (strWeld _ constr)
     | "Unknown constructor(has): "
-;;;;;
+;
 @ tag    | getProperty key 'conTag' prp
 @ ari    | getProperty key 'conAri' prp
 @ fun    | getProperty key 'conFun' prp
 @ hasTag | getProperty key 'conHas' prp
-@ acc    | CONS [tag ari fields bodyRex] acc
-;;;;;
-| if (neq ari len-fields)
-    | err sigRex
-    ^ strWeld _ (showNat ari)
+;
+| if (len fields /= ari)
+    ^ err sigRex (strWeld _ | showNat ari)
     | 'This constructor requires arity='
-;;;;;
-| go hasTag fun oFallback acc remain
+;
+@ acc (DATA_CASE tag ari fields bodyRex)::acc
+| go hasTag fun acc remain
 
 !!=    ,, TRUE
        ,, dataTag

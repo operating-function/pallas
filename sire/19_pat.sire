@@ -100,12 +100,12 @@
 
 """ Parsing Binders in General """""""""""""""""""""""""""""""""""""""""""""""""
 
-;
-; ( VAR k n   = [%v k n]   )  ==>  x
-; ( ALI k n p = [%a k n p] )  ==>  x@p
-; ( SEQ x y   = [%s x y]   )  ==>  !x
-; ( TAB x     = [%t x]     )  ==>  %[a=b c=d] || [a=b c=d]
-; ( ROW x     = [%r x]     )  ==>  [a b c]
+; # datatype Pat
+; * VAR=v k:Nat n:Symb         ;;   x
+; * ALI=a k:Nat n:Symb p:Pat   ;;   x@p
+; * SEQ=s x:Pat                ;;   !x
+; * TAB=t x:(Tab Val Pat)      ;;   %[a=b c=d]
+; * ROW=r x:(Row Pat)          ;;   [a b c]
 ;
 ; First parse patterns into data structures.
 ;
