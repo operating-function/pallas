@@ -605,29 +605,35 @@ runnerFun initialFlows machine processName st =
         writeTQueue machine.logReceiptQueue (receipt, onCommit)
 
     -- TODO: Optimize
-    collectResponses :: IntMap (IntMap (Maybe a)) -> IntMap [(Int, a)]
-    collectResponses = map \m -> go [] (mapToList m)
+    collectResponses :: IntMap (Maybe a) -> [(Int, a)]
+    collectResponses imap =
+        go [] (mapToList imap)
       where
         go !acc []                  = acc
         go !acc ((k,Just v) : kvs)  = go ((k,v):acc) kvs
         go !acc ((_,Nothing) : kvs) = go acc         kvs
 
-    -- Collects all responses that are ready.
-    takeReturns :: IO (IntMap [(Int, ResponseTuple)])
+    mkCogResponses :: MachineSysCalls -> [STM (CogId, [(Int, ResponseTuple)])]
+    mkCogResponses msc = map build $ mapToList msc
+      where
+        build :: (Int, CogSysCalls) -> STM (CogId, [(Int, ResponseTuple)])
+        build (k, sysCalls) = do
+           returns <- fmap collectResponses
+                    $ traverse (receiveResponse st.vMoment)
+                    $ sysCalls
+
+           when (null returns) retry
+
+           pure (COG_ID k, returns)
+
+    -- Collects all responses that are ready for one cog.
+    takeReturns :: IO (CogId, [(Int, ResponseTuple)])
     takeReturns = do
         withAlwaysTrace "WaitForResponse" "cog" do
             -- This is in a separate atomically block because it doesn't
             -- change and we want to minimize contention.
-            sysCalls <- atomically (readTVar st.vRequests)
-
-            atomically do
-                returns <- fmap collectResponses
-                         $ traverse (traverse $ receiveResponse st.vMoment)
-                         $ sysCalls
-
-                when (null returns) retry
-
-                pure returns
+            machineSysCalls <- atomically (readTVar st.vRequests)
+            atomically $ asum $ mkCogResponses machineSysCalls
 
     -- Every machineTick, we try to pick off as much work as possible for cogs
     -- to do.
@@ -638,10 +644,10 @@ runnerFun initialFlows machine processName st =
     -- the machine is as fast as only the slowest cog, but is obviously correct.
     machineTick :: IO ()
     machineTick = do
-        valTuples <- takeReturns
-        cogIdToResult <- mapConcurrently cogTick (mapToList valTuples)
+        (cogId, valTuples) <- takeReturns
+        result <- cogTick (cogId, valTuples)
         atomically $ do
-            forM cogIdToResult \case
+            case result of
               Just (onC,r) -> exportState r onC
               _            -> pure ()
 
@@ -650,7 +656,7 @@ runnerFun initialFlows machine processName st =
 
     --
     cogTick
-      :: (Int, [(Int, ResponseTuple)])
+      :: (CogId, [(Int, ResponseTuple)])
       -> IO (Maybe ([STM OnCommitFlow], Receipt))
     cogTick (cogId, valTuples) =
       withProcessName processName $
@@ -662,7 +668,7 @@ runnerFun initialFlows machine processName st =
                        $ fmap fst valTuples
 
           withTracingFlow "Response" "cog" traceArg endFlows $
-            runResponse st (COG_ID cogId) valTuples False >>= \case
+            runResponse st cogId valTuples False >>= \case
               Nothing -> pure ([], [], Nothing)
               Just (flows, onCommit, receipt) ->
                 pure (flows, [], Just (onCommit, receipt))
