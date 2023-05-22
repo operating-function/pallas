@@ -48,15 +48,12 @@ dataTag=_DataTag
 = (constrToCamel prefix constr)
 | strWeld prefix
 | strFromList
-| ? (fixUnderscores str)
-  : c cs <- listCase str str
-  : d ds <- listCase cs  str
-  | if (eql c '_')
-      | fixUnderscores (CONS toUpper-d ds)
-  | CONS c (fixUnderscores cs)
-| CONS '_'
-| strToList
-| strToLower constr
+^ _ ('_' :: strToList (strToLower constr))
+? (fixUnderscores str)
+: c cs <- listCase str str
+: d ds <- listCase cs  str
+| if (c /= '_') (c :: fixUnderscores cs)
+| fixUnderscores (toUpper d :: ds)
 
 !!= 'openPair'     | constrToCamel %open 'PAIR'
 !!= 'mkTreeConfig' | constrToCamel %mk 'TREE_CONFIG'
