@@ -411,10 +411,12 @@ ex=(PAIR %a %b)
 """
 
 
-''' parseDatacaseBody ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+''' parseDatacase ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-> Rex > Parser2 Rex (Row (Rex, Symb, Row Symb, Rex))
-= (parseDatacaseBody cases err ok)
+> (Rex -> Parser e)
+> Rex
+> Parser2 (Opt e) (Row (Rex, Symb, Row Pat, e))
+= (parseDatacaseBody readExp cases err ok)
 ;;;;;
 : clauses
     < ^ unrollSlip2Tar cases _ err
@@ -426,14 +428,14 @@ ex=(PAIR %a %b)
 ;
 : [sigRex bodyRex] remain
     < **listCase remain
-        | ok
-        * fromSome (natE 0) oFallback
-        * listToRowReversed acc
+        | ok oFallback (listToRowReversed acc)
+;
+: bodyExp <- readExp bodyRex err
 ;
 | if (rexEql `_ sigRex)
     | ifNot (isZero oFallback)
         | err cases "Only one fallback-pattern is allowed"
-    | go (SOME bodyRex) acc remain
+    | go (SOME bodyExp) acc remain
 ;
 : constr fields
     < & k
@@ -444,8 +446,22 @@ ex=(PAIR %a %b)
           : c fs < readDestroyer sigRex err
           | k c fs
 ;
-@ acc [sigRex constr fields bodyRex]::acc
+@ acc [sigRex constr fields bodyExp]::acc
 | go oFallback acc remain
+
+> (Rex -> Parser e)
+> Rex
+> Parser3 e (Opt e) Row-(Rex, Symb, Row Pat, e)
+= (parseDatacase readExp rex err ok)
+@ sons@[_ valExp] | rexSons rex
+@ heir            | rexHeir rex
+;
+| if (isZero heir || (len sons /= 2))
+    | err rex '#datacase requires one son plus an heir.'
+;
+: exp      < readExp valExp err
+: fb cases < parseDatacaseBody readExp heir err
+| ok exp fb cases
 
 
 ''' readDatacaseBody '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -461,8 +477,11 @@ ex=(PAIR %a %b)
 > Properties
 > Rex
 > Parser4 Bit (a -> Nat) Rex (Row | DataCase Rex Rex)
+;
 = (readDatacaseBody src prp casesRex err ok)
-: fallback branches < parseDatacaseBody casesRex err
+;
+: oFallback branches < parseDatacaseBody readAny casesRex err
+@ fallback (fromSome (natE 0) oFallback)
 ;
 ^ _ FALSE 0 NIL (listFromRow branches)
 ? (go hasTag fun acc remain)
@@ -718,6 +737,6 @@ setProp#(RIGHT.conHas)#TRUE
 ^-^
 ^-^ _DataTag
 ^-^ dataTag
-^-^ '#datacase'
+^-^ '#datacase' parseDatacase
 ^-^ '#datatype'
 ^-^ '#record'

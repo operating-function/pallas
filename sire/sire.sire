@@ -11,21 +11,34 @@
 /+  boot
 /+  datatype
 /+  switch
+/+  datatype [parseDatacase]
+
+; TODO: Doesn't quite match reality (and neither does comment in 19_pat.sire)
+# datatype Pat
+* P_VAR nm:Symb
+* P_ALI nm:Symb pt:Pat
+* P_SEQ pt:Pat
+* P_ROW xs:(Row Pat)
+* P_TAB xs:(Tab Any Pat)
+
+# record ConCase
+| CON_CASE con:Symb params:(Row Pat) body:Exp
 
 # record Fun
 | FUN self:Sym tag:Nat args:(Row Sym) body:Exp
 
 # datatype Exp
 * EBED b:Any
-* EREF r:Sym
+* EREF r:Str
 * ENAT n:Nat
 * EAPP x:Exp y:Exp
 * EKET xs:(Row Exp) v:Exp
-* ELET n:Sym x:Exp b:Exp
-* EREC n:Sym x:Exp b:Exp
-* ELAM pin:Bit fun:Fun
-* ELIN f:Sym xs:(Row Exp)
-* EWUT r:rex
+* ELET n:Str x:Exp b:Exp
+* EREC n:Str x:Exp b:Exp
+* ELAM pin:Bit fun:(Str, Nat, Row Str, Exp)
+* ELIN f:Str xs:(Row Exp)
+* ECAS x:Exp fb:(Opt Exp) cs:(Row ConCase)
+* EWUT r:Rex
 
 = (showSig syms)
 | if (len syms == 1)
@@ -41,6 +54,31 @@
     | INFX 0 "&" (showSig args, go body) 0
 | INFX 0 "?" (showSig (rowCons self args), go body) 0
 
+
+= (showPat p)
+# switch (idx 0 p)
+* 'v'
+    @ [_ _ v] p
+    | varE v
+* _
+    | 'showPat' {unsupported pattern}
+
+= (showCon cn pts)
+| if (null pts) (varE cn)
+^ NEST 0 "|" _ 0
+| rowCons (varE cn)
+| map showPat pts
+
+= (showDatacases showSire f xs)
+^ _ (listFromRow xs)
+? (go xs)
+: (cn,pts,b) xs
+    < listCase xs # datacase f
+                  * NONE      | 0
+                  * (SOME fb) | ``(* _ $$(showSire fb))
+@ rest (go xs)
+| trk [=cn =pts =b =xs]
+| ``((* $$(showCon cn pts) $$(showSire b))($$rest))
 
 = (showSire exp)
 @ go showSire
@@ -61,9 +99,12 @@
 * (EREC n x b)   | INFX 0 '@@' (go EREF-n, go x) (go b)
 * (ELAM pin fun) | showFun go pin fun
 * (EWUT rex)     ^ PREF 0 '???' [rex] 0
-* (ELIN f xs)    ^ NEST 0 '|' _ 0
+* (ELIN f xs)    ^ (NEST 0 '|' _ 0)
                  | rowCons (PREF 0 '**' [(go EREF-f)] 0)
                  | map go xs
+* (ECAS x f cs)
+    | NEST 0 '#' (varE 'datacase', showSire x)
+    | showDatacases showSire f cs
 
 !!=     ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 0 0 (2 fanc))
     | showSire
@@ -121,6 +162,19 @@
 : exp <- readSire rex err
 | ok (RIGHT exp)
 
+= (parseHax readSire rex err ok)
+@ kids@[param] (rexKids rex)
+| if (null kids) (err rex '# with no parameter')
+: sym <- readSymbol param err
+# switch sym
+* "datacase"
+    : val fb cases < parseDatacase readSire rex err
+    | ok ^ ECAS val fb (map _ cases)
+         & [_ constr pats body]
+         | CON_CASE constr pats body
+* _
+    | err rex (strWeld 'Unknown keyword: #' sym)
+
 > Rex > Parser Exp
 = (readSire rex err ok)
 @ style (rexStyle rex)
@@ -173,6 +227,7 @@
     | ok | ELAM FALSE | FUN func func args body
 * '@'  | parseLet ELET readSire rex err ok
 * '@@' | parseLet EREC readSire rex err ok
+* '#'  | parseHax readSire rex err ok
 * _
     | err rex (strWeld 'Unknown rune: ' rune)
 
@@ -204,3 +259,20 @@
       | if (f (idx i r))
           | loop (inc i)
       (v2 (take i r) (drop i r))
+
+!!= `((# datacase a)(* NONE 0)(* (SOME x) x))
+  ^ readSire _ v2 showSire
+  ` # datacase a
+    * NONE     0
+    * (SOME x) x
+
+!!= `((# datacase a)(* NONE 0)(* _ 1))
+  ^ readSire _ v2 showSire
+  ` # datacase a
+    * NONE     0
+    * _        1
+
+
+^-^ EBED EREF ENAT EAPP EKET ELET EREC ELAM ELIN ECAS EWUT
+^-^
+^-^ readSire showSire
