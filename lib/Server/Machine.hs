@@ -30,6 +30,7 @@ where
 import PlunderPrelude
 
 import Control.Concurrent.STM.TQueue (flushTQueue)
+import Control.Concurrent.STM.TVar   (stateTVar)
 import Control.Monad.State           (StateT, execStateT, modify', runStateT)
 import Data.Vector                   ((!))
 import GHC.Conc                      (unsafeIOToSTM)
@@ -127,11 +128,13 @@ data Response
     = RespEval EvalOutcome
     | RespCall Fan SysCall
     | RespSpin CogId
+    | RespStop CogId Fan
   deriving (Show)
 
 responseToVal :: Response -> Fan
 responseToVal (RespCall f _) = f
 responseToVal (RespSpin (COG_ID id)) = fromIntegral id
+responseToVal (RespStop _ f) = f
 responseToVal (RespEval e)   =
     ROW case e of
         TIMEOUT   -> mempty              -- []
@@ -173,6 +176,7 @@ data Request
     --
     -- Maybe more easier is just:
     | ReqSpin SpinRequest
+    | ReqStop CogId
     | UNKNOWN Fan
   deriving (Show)
 
@@ -204,6 +208,8 @@ valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
         case nat of
             "spin" | cogId == crankCogId -> do
                 pure (ReqSpin $ SR $ row!2)
+            "stop" | cogId == crankCogId -> do
+                ReqStop <$> fromNoun @CogId (row!2)
             _ -> Nothing
     else
         case nat of
@@ -275,6 +281,10 @@ data LiveRequest
     lsIdx :: RequestIdx,
     lsFun :: Fan
     }
+  | LiveStop {
+    lstIdx   :: RequestIdx,
+    lstCogId :: CogId
+    }
   | LiveUnknown
 
 instance Show LiveRequest where
@@ -282,6 +292,7 @@ instance Show LiveRequest where
         LiveEval{}  -> "EVAL"
         LiveCall{}  -> "CALL"
         LiveSpin{}  -> "SPIN"
+        LiveStop{}  -> "STOP"
         LiveUnknown -> "UNKNOWN"
 
 data ParseRequestsState = PRS
@@ -502,7 +513,10 @@ buildLiveRequest causeFlow ctx cogId reqIdx = \case
               logCallback)
 
     ReqSpin (SR func) -> do
-      pure ([], LiveSpin{lsIdx=reqIdx, lsFun=func}, Nothing)
+        pure ([], LiveSpin{lsIdx=reqIdx, lsFun=func}, Nothing)
+
+    ReqStop cogid -> do
+        pure ([], LiveStop{lstIdx=reqIdx, lstCogId=cogid}, Nothing)
 
     UNKNOWN _ -> do
         pure ([], LiveUnknown, Nothing)
@@ -511,6 +525,7 @@ cancelRequest :: LiveRequest -> STM ()
 cancelRequest LiveEval{..} = leRecord.cancel.action
 cancelRequest LiveCall{..} = lcCancel.action
 cancelRequest LiveSpin{}   = pure () -- Not asynchronous
+cancelRequest LiveStop{}   = pure ()
 cancelRequest LiveUnknown  = pure ()
 
 {-
@@ -524,10 +539,11 @@ workToReplayEval = \case
     TIMEOUT  -> 0
 
 receiveResponse
-  :: TVar Moment
+  :: TVar MachineSysCalls
+  -> TVar Moment
   -> (Fan, LiveRequest)
   -> STM (Maybe ResponseTuple)
-receiveResponse momentVar = \case
+receiveResponse syscallsVar momentVar = \case
     (_, LiveEval{..}) -> do
         getEvalOutcome leRecord >>= \case
             Nothing -> pure Nothing
@@ -565,6 +581,26 @@ receiveResponse momentVar = \case
           case lookup (fromIntegral r) moment.val of
             Nothing -> pure $ COG_ID $ fromIntegral r
             Just _  -> getRandomNonConflictingId moment
+
+    (_, LiveStop{..}) -> do
+        do
+          myb <- (lookup lstCogId.int . (.val)) <$> readTVar momentVar
+          case myb of
+            Nothing -> retry
+            Just cogval -> do
+              modifyTVar' momentVar \m -> m { val=deleteMap lstCogId.int m.val }
+
+              reqs <- stateTVar syscallsVar getAndRemoveReqs
+              mapM_ cancelRequest reqs
+
+              pure (Just RTUP{key=lstIdx, resp=RespStop lstCogId cogval, work=0,
+                              flow=FlowDisabled, effect=Nothing})
+        where
+          getAndRemoveReqs s =
+              ( getLiveReqs $ fromMaybe mempty $ lookup lstCogId.int s
+              , deleteMap lstCogId.int s
+              )
+          getLiveReqs csc = map (\(_,(_,lr)) -> lr) $ mapToList csc
 
     (_, LiveUnknown) -> do
         pure Nothing
@@ -619,7 +655,7 @@ runnerFun initialFlows machine processName st =
         build :: (Int, CogSysCalls) -> STM (CogId, [(Int, ResponseTuple)])
         build (k, sysCalls) = do
            returns <- fmap collectResponses
-                    $ traverse (receiveResponse st.vMoment)
+                    $ traverse (receiveResponse st.vRequests st.vMoment)
                     $ sysCalls
 
            when (null returns) retry
@@ -696,6 +732,10 @@ runResponse st cogid rets didCrash = do
     CRASH{} -> recordInstantEvent "Main Exception" "cog" mempty >> onCrash
     OKAY _ result -> do
       withAlwaysTrace "Tick" "cog" do
+        -- TODO: Actually should the following be a single atomically block?
+        --
+        -- Is it a problem that the spin effects could occur in a different
+        -- atomically?
         (sideEffectFlows, sideEffectPersists) <- concatUnzip <$> atomically do
             -- Update the runner state, making sure to delete the consumed
             -- LiveRequest without formally canceling it because it already
@@ -811,6 +851,7 @@ parseRequests runner cogId = do
         ReqCall rc -> "%call " <> (encodeUtf8 $
                           describeSyscall runner.ctx.hw rc.device rc.params)
         ReqSpin{}  -> "%spin"
+        ReqStop{}  -> "%stop"
         UNKNOWN{}  -> "UNKNOWN"
 
     flowCategory :: Request -> ByteString
@@ -819,6 +860,7 @@ parseRequests runner cogId = do
         ReqCall rc -> "%call " <> (encodeUtf8 $
                           syscallCategory runner.ctx.hw rc.device rc.params)
         ReqSpin{}  -> "%spin"
+        ReqStop{}  -> "%stop"
         UNKNOWN{}  -> "UNKNOWN"
 
     createReq :: Int -> Fan -> StateT ParseRequestsState STM ()
