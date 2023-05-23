@@ -93,6 +93,9 @@ GT=2
 = (bitWeld x y)
 | add x | lsh y met-x
 
+
+""" Bitwise Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 = (perbit f x y)
 ^ _ x y 0 0
 ? (go a b off acc)
@@ -102,8 +105,8 @@ GT=2
 | seq acc
 | go (div a 2) (div b 2) (inc off) acc
 
-= (con x y) | perbit or  x y
-= (dis x y) | perbit and x y
+= (dis x y) | perbit or  x y
+= (con x y) | perbit and x y
 = (mix x y) | perbit xor x y
 
 

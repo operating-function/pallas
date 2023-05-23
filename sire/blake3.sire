@@ -108,7 +108,7 @@ st
 
 ; breaks a nat that represents a word into
 ; its little-endian component bytes
-(wordToBytes a)=(gen 4 i&(dis 0xff (rsh a (mul 8 i))))
+(wordToBytes a)=(gen 4 i&(con 0xff (rsh a (mul 8 i))))
 
 ; Little Endian Byte order
 > Row U32 > Row U8

@@ -325,10 +325,10 @@ mixJet :: Jet
 mixJet _ env = NAT (toNat(env^1) `xor` toNat(env^2))
 
 conJet :: Jet
-conJet _ env = NAT (toNat(env^1)  .|.  toNat(env^2))
+conJet _ env = NAT (toNat(env^1)  .&.  toNat(env^2))
 
 disJet :: Jet
-disJet _ env = NAT (toNat(env^1)  .&. toNat(env^2))
+disJet _ env = NAT (toNat(env^1)  .|. toNat(env^2))
 
 divJet :: Jet
 divJet _ env =

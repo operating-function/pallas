@@ -38,8 +38,8 @@
 = (lte32 x y) | lteNat w32-x w32-y
 = (gte32 x y) | gteNat w32-x w32-y
 = (eql32 x y) | eqlNat w32-x w32-y
-= (and32 x y) | dis w32-x w32-y
-= (or32  x y) | con w32-x w32-y
+= (and32 x y) | con w32-x w32-y
+= (or32  x y) | dis w32-x w32-y
 = (xor32 x y) | mix w32-x w32-y
 = (lsh32 x y) | and32 (lsh w32-x w32-y) wMax32
 = (rsh32 x y) | and32 (rsh w32-x w32-y) wMax32
