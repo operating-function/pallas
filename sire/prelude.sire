@@ -7,6 +7,7 @@
 /+ boot
 /+ w32
 /+ w48
+/+ w64
 /+ switch
 /+ mutrec
 /+ datatype

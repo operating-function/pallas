@@ -1,0 +1,68 @@
+;;; Copyright 2023 The Plunder Authors
+;;; Use of this source code is governed by a BSD-style license that can be
+;;; found in the LICENSE file.
+
+### w64 <- w48
+
+/+  boot
+
+;;;;;;;;;;;;;;;;;;
+;; 64-bit Words ;;
+;;;;;;;;;;;;;;;;;;
+
+= (bex64)  | bex 64
+= (bex63)  | bex 63
+= (wMax64) | dec bex64
+= (wMin64) | 0
+= (iMax64) | dec bex63
+= (iMin64) | bex63
+= (w64 x)  | mod x bex64
+= (i64 x)  | mod x bex64
+
+= (inc64 x)   | w64 (inc x)
+= (dec64 x)   | 2 wMax64 v&v x
+= (add64 x y) | w64 (add w64-x w64-y)
+= (mul64 x y) | w64 (mul w64-x w64-y)
+= (div64 x y) | div w64-x w64-y
+= (not64 x)   | not w64-x
+= (lth64 x y) | lthNat w64-x w64-y
+= (gth64 x y) | gthNat w64-x w64-y
+= (lte64 x y) | lteNat w64-x w64-y
+= (gte64 x y) | gteNat w64-x w64-y
+= (eql64 x y) | eqlNat w64-x w64-y
+= (and64 x y) | con w64-x w64-y
+= (or64  x y) | dis w64-x w64-y
+= (xor64 x y) | mix w64-x w64-y
+= (lsh64 x y) | and64 (lsh w64-x w64-y) wMax64
+= (rsh64 x y) | and64 (rsh w64-x w64-y) wMax64
+= (chop64 x)  | and64 x wMax64
+
+isZero64=not64
+
+= (sub64 x y)
+| if (lte64 y x)
+    | sub w64-x w64-y
+| sub (add bex64 x) y
+
+= (ror64 x y)
+| or64 (rsh64 x y)
+| lsh64 x (sub64 64 y)
+
+= (rol64 x y)
+| or64 (lsh64 x y)
+| rsh64 x (sub64 64 y)
+
+= (bitFlip64 x) | sub64 wMax64 x
+
+
+;;;;;;;;;;;;;
+;; Exports ;;
+;;;;;;;;;;;;;
+
+^-^ w64 wMax64 wMin64
+^-^ inc64 dec64 add64 mul64 div64
+^-^ lth64 gth64 lte64 gte64 eql64
+^-^ not64 and64 or64 xor64 lsh64 rsh64
+^-^ chop64 isZero64 sub64 ror64 rol64
+^-^ bitFlip64
+^-^
