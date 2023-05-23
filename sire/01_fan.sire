@@ -32,24 +32,16 @@
 = natCase | 2
 = inc     | 3
 = PIN     | 4
-
-
-""" Utilities """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-; reverse pair constructor (see 06_cow.sire)
-= c2 | 0 0 3 0
+= die     | "die"   ; Using a primop above 4 is a crash.
+= todo    | "todo"  ; Using a primop above 4 is a crash.
 
 
 """ Primps API """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (force x)     | 0 0 0 | 2 x
+= (force x)     | 0 0 0 (2 x)
 = (seq x y)     | 2 y (_ & y) x
 = (deepseq x y) | seq (force x) y
 = (trk x y)     | deepseq x y
-= (trkVal k v)  | trk (c2 v k) v
-
-die="die"
-todo="todo"
 
 = (isPin x) | 1 (_ & 1) (_ _ _ & 0) (_ _ & 0) (_ & 0) x
 = (isLaw x) | 1 (_ & 0) (_ _ _ & 1) (_ _ & 0) (_ & 0) x
@@ -147,15 +139,14 @@ todo="todo"
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ LAW valCase natCase inc PIN
+^-^ LAW valCase natCase inc PIN die todo
 ^-^
 ^-^ force seq deepseq
-^-^ die todo
 ^-^ isLaw lawName lawArgs lawBody
 ^-^ isPin pinItem
 ^-^ isApp car cdr
 ^-^ isNat
-^-^ trk trkVal
+^-^ trk
 ^-^ caar cadr cdar cddr caaar caadr cadar caddr cdaar cdadr cddar cdddr
 ^-^ caaaar
 ^-^ S K K2 I B

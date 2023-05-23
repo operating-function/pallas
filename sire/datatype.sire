@@ -257,11 +257,11 @@ fieldExpect="Expected something like (field:type)"
 | ok p a
 | if (isZero len-fields)
         | bloodline
-        ; trkVal %bloodline
+        ; ^ trk [bloodline=_] _
        ~~ defC [constr] (natE 0)
        ~~ @ nam (| strWeld "mk" | strCapitalize | strToLower constr)
           | defC [nam '_'] (natE 0)
-; trkVal %bloodline
+; ^ trk [bloodline=_] _
 @ fields (map (idx 1) fields)  ;;  (Row (RexId, Symbol, Type)) -> Row Symbol
 | bloodline
 | listCat
@@ -337,7 +337,7 @@ ex=(PAIR %a %b)
 > (RexProps, Cmd)
 = (defDataTypeC src prp env branches)
 ;
-; trkVal %defDataTypeC
+; ^ trk [defDataTypeC=_] _
 ;
 ^ _ 0 prp NIL (listFromRow branches)
 ? (loop ix prp acc remain)

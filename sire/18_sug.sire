@@ -202,7 +202,7 @@
 | readColBinder lastSon err
 & kids
 | ok p a
-; trkVal ": output"
+; ^ trk [output=_] _
 | OPEN 0 "#|" kids
 | OPEN 0 sigRune [sigExp]
 | heir
