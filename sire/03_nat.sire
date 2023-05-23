@@ -25,7 +25,7 @@
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 /+  01_fan  [seq isNat cdr die K]
-/+  02_bit  [if else ifNot not bit and or xor]
+/+  02_bit  [if else ifNot not bit and or xor TRUE FALSE]
 
 
 """ Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -80,6 +80,15 @@ GT=2
 !!= 1 | isZero 0
 !!= 0 | isZero 1
 !!= 0 | isZero isZero
+
+
+(natBitIndex i n)=(mod (rsh n i) 2)
+
+!!= FALSE (natBitIndex 0 8)
+!!= FALSE (natBitIndex 1 8)
+!!= FALSE (natBitIndex 2 8)
+!!= TRUE  (natBitIndex 3 8)
+!!= FALSE (natBitIndex 4 8)
 
 
 """ Pad Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -211,6 +220,7 @@ GT=2
 ^-^ roundUp
 ^-^ isZero
 ^-^ lsh rsh con mix dis bex
+^-^ natBitIndex
 ^-^ takeBits
 ^-^ isNat toNat
 ^-^ exec
