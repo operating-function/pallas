@@ -469,7 +469,7 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash mul
 
 'pinHash .{%%}'
-!!= x#{f932742aa1c18e4f1fc4666ce2069f1d58d1fc2a084132e55839d4d0e99e59ee}
+!!= x#{196ce2a763ea3a61358e25d8329bb34f4711785c6635b5fff4087e6cd39c8479}
   | pinHash .{%%}
 
 'pinHash cmp'
@@ -508,7 +508,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 | loop acc (rexHeir rex)
 
 !!= [[%hi `there] [%bye `here]]
-  | readBindPairs `((hi=there)(bye=here)) v2 I
+  | readBindPairs `((hi=there)(bye=here)) v2 id
 
 ;;;
 ;;; TODO Broken macro.  Unit test the SHIT out of all of this macro code.

@@ -16,12 +16,8 @@
 """
 """     (isLaw x)=(1 _&0 (_ _ _)&1 (_ _)&0 _&0 x)
 """
-""" This module also includes some bread-and-butter jets and combinators
-""" that are widely used but don't generally belong anywhere else.
-"""
-""" -   `trk` produces debugging traces.
-""" -   `compose`, `id`, `const` are generally useful.
-""" -   ...etc
+""" In addition, this module includes some bread-and-butter jets and
+""" combinators that are widely used but don't belong anywhere else.
 """
 
 
@@ -72,19 +68,13 @@
 
 """ Combinators """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (S x y z)  | x z (y z)
-= (K x y)    | x
-= (I x)      | x
-= (B g f y)  | g (f y)
-= (K2 x y z) | x
-
-= (apply f x)  | f x
-= (supply x f) | f x
-
-= compose | B
-= const   | K
-= const2  | K2
-= id      | I
+= (id x)          | x
+= (const x y)     | x
+= (ignore x y)    | y
+= (compose g f y) | g (f y)
+= (flip f x y)    | f y x
+= (apply f x)     | f x
+= (supply x f)    | f x
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -103,23 +93,23 @@
 !!= 4 | car car
 !!= 1 | cdadr car
 
-!!= 'K'       | lawName (0 'K' 2 1)
-!!= 2         | lawArgs (0 'K' 2 1)
-!!= 1         | lawBody (0 'K' 2 1)
-!!= 1         | cdr     (0 'K' 2 1)
-!!= (0 'K' 2) | car     (0 'K' 2 1)
+!!= 'const'       | lawName (0 'const' 2 1)
+!!= 2             | lawArgs (0 'const' 2 1)
+!!= 1             | lawBody (0 'const' 2 1)
+!!= 1             | cdr     (0 'const' 2 1)
+!!= (0 'const' 2) | car     (0 'const' 2 1)
 
-!!= (K a b ? a)     | 0 'K'   2 1
-!!= (G a b ? b)     | 0 'G'   2 2
-!!= (die x ? die x) | 0 'die' 1 (0 0 1)
-!!= (f a b ? f)     | 0 'f'   2 0
-!!= (f a b ? a)     | 0 'f'   2 1
-!!= (f a b ? b)     | 0 'f'   2 2
-!!= (f a b ? 3)     | 0 'f'   2 3
-!!= (f a b ? a b)   | 0 'f'   2 (0 1 2)
-!!= (f a b ? f a b) | 0 'f'   2 (0 (0 0 1) 2)
-!!= (f a b ? f 7 7) | 0 'f'   2 (0 (0 0 7) 7)
-!!= (f a b ? f 1 2) | 0 'f'   2 (0 (0 0 (2 1)) (2 2))
+!!= (const a b ? a)  | 0 'const'  2 1
+!!= (ignore a b ? b) | 0 'ignore' 2 2
+!!= (die x ? die x)  | 0 'die'    1 (0 0 1)
+!!= (f a b ? f)      | 0 'f'      2 0
+!!= (f a b ? a)      | 0 'f'      2 1
+!!= (f a b ? b)      | 0 'f'      2 2
+!!= (f a b ? 3)      | 0 'f'      2 3
+!!= (f a b ? a b)    | 0 'f'      2 (0 1 2)
+!!= (f a b ? f a b)  | 0 'f'      2 (0 (0 0 1) 2)
+!!= (f a b ? f 7 7)  | 0 'f'      2 (0 (0 0 7) 7)
+!!= (f a b ? f 1 2)  | 0 'f'      2 (0 (0 0 (2 1)) (2 2))
 
 !!= (a b & a)       | 0 0 2 1
 !!= (a b & b)       | 0 0 2 2
@@ -147,8 +137,9 @@
 ^-^ isApp car cdr
 ^-^ isNat
 ^-^ trk
+^-^
 ^-^ caar cadr cdar cddr caaar caadr cadar caddr cdaar cdadr cddar cdddr
 ^-^ caaaar
-^-^ S K K2 I B
-^-^ apply supply compose const const2 id
+^-^
+^-^ id const ignore compose flip apply supply
 ^-^

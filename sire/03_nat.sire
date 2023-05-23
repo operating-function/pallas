@@ -23,7 +23,7 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [seq isNat cdr die K]
+/+  01_fan  [seq isNat cdr die const]
 /+  02_bit  [if else ifNot not bit and or xor TRUE FALSE]
 
 
@@ -212,8 +212,8 @@ GT=2
 !!= 1 (checkOrd 5 4)
 !!= 1 (checkOrd 6 4)
 !!= 1 (checkOrd 7 4)
-!!= 1 (checkOrd K 4)
-!!= 1 (checkOrd K 0)
+!!= 1 (checkOrd const 4)
+!!= 1 (checkOrd const 0)
 
 
 """ Check Literal Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""

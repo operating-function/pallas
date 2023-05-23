@@ -371,18 +371,18 @@ abstype#TyExp
 !!=  ,, `` > Row Nat
            > Row Nat
      ,, 0
-     ,, `` = (I x) x
+     ,, `` = (id x) x
   ^ separateAnnotation _ v2 v3
  `` > Row Nat
     > Row Nat
-    = (I x) x
+    = (id x) x
 
 !!=  ,, `` > Row Nat > Row Nat
      ,, 0
-     ,, `` = (I x) x
+     ,, `` = (id x) x
   ^ separateAnnotation _ v2 v3
  `` > Row Nat > Row Nat
-    = (I x) x
+    = (id x) x
 
 = (isTypeAnn rex)
 @ style (rexStyle rex)

@@ -103,9 +103,9 @@
 !!= 1 | ordered lth [1]
 !!= 1 | ordered lth [1 2]
 !!= 1 | ordered lth [1 2 3 4 5 999]
-!!= 1 | ordered lth [1 2 K]
-!!= 1 | ordered lth [1 2 K (0 0)]
-!!= 1 | ordered lth [1 K]
+!!= 1 | ordered lth [1 2 const]
+!!= 1 | ordered lth [1 2 const (0 0)]
+!!= 1 | ordered lth [1 const]
 !!= 1 | ordered lth [2]
 
 !!= 0 | ordered lth [0 0]

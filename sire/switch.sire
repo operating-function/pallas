@@ -107,7 +107,7 @@ unrollSlip2Tis=(unrollSlip2Rune '=')
 unrollSlip2Tar=(unrollSlip2Rune '*')
 
 foo=(x e o & o (varE "_", x))
-(try x)=(unrollSlip2Tis x foo v2 I)
+(try x)=(unrollSlip2Tis x foo v2 id)
 
 !!= [[`x `y] [`_ `9]]
         | try ` = x y
@@ -148,13 +148,13 @@ foo=(x e o & o (varE "_", x))
 | foldl f (natE 0, %[]) cases
 
 !!= [`0 [3=(`4) 5=(`6)]]
-        | readSwitchPats `((* 3 4)(* 5 6)) v2 I
+        | readSwitchPats `((* 3 4)(* 5 6)) v2 id
 
 !!= [`x [3=(`4) 5=(`6)]]
-        | readSwitchPats `((* 3 4)(* 5 6)(x)) v2 I
+        | readSwitchPats `((* 3 4)(* 5 6)(x)) v2 id
 
 !!= [`x (tabMut [3 3] `6 [3=(`4)])]
-        | readSwitchPats `((* 3 4)(* [3 3] 6)(x)) v2 I
+        | readSwitchPats `((* 3 4)(* [3 3] 6)(x)) v2 id
 
 
 """ Atomic Switch """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

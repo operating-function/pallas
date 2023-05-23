@@ -29,7 +29,7 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [isLaw isApp isNat lawBody lawName lawArgs trk I]
+/+  01_fan  [isLaw isApp isNat lawBody lawName lawArgs trk id]
 /+  01_fan  [seq inc die]
 /+  02_bit  [bit not if ifNot or and]
 /+  03_nat  [lteNat even isZero]
@@ -280,15 +280,15 @@ emptyBar=(0 1 1 1)
 & bar
 | ok p a (cnsE bar)
 
-!!= (natBar-'asdf')       | readBarLit `(b#asdf) v2 I
-!!= [`(#b)    blTwoKids]  | readBarLit `(#b)     v2 I
-!!= [`(b#b#b) blTwoKids]  | readBarLit `(b#b#b)  v2 I
-!!= [`[]      blWantText] | readBarLit `(b#[])   v2 I
+!!= (natBar-'asdf')       | readBarLit `(b#asdf) v2 id
+!!= [`(#b)    blTwoKids]  | readBarLit `(#b)     v2 id
+!!= [`(b#b#b) blTwoKids]  | readBarLit `(b#b#b)  v2 id
+!!= [`[]      blWantText] | readBarLit `(b#[])   v2 id
 
-!!= (barFromHex 'asdf')   | readBarLit `(x#asdf) v2 I
-!!= [`(#x)    blTwoKids]  | readBarLit `(#x)     v2 I
-!!= [`(x#x#x) blTwoKids]  | readBarLit `(x#x#x)  v2 I
-!!= [`[]      blWantText] | readBarLit `(x#[])   v2 I
+!!= (barFromHex 'asdf')   | readBarLit `(x#asdf) v2 id
+!!= [`(#x)    blTwoKids]  | readBarLit `(#x)     v2 id
+!!= [`(x#x#x) blTwoKids]  | readBarLit `(x#x#x)  v2 id
+!!= [`[]      blWantText] | readBarLit `(x#[])   v2 id
 
 = (barFlat x)
 | if isBar-x

@@ -248,10 +248,10 @@
                 | appE
                 | weld (coreIdn, litE key)
                 | weld (map varE args)
-                | gen extras (K (cnsE 0))
+                | gen extras (const | cnsE 0)
         | bindArms body rest
 : aft coreArgIdns
-        < forRowWithState aft (gen maxArgs | K 0)
+        < forRowWithState aft (gen maxArgs | const 0)
                 & (aft item pure)
                 @ idn  (varKE aft | gensymNm "arg" aft)
                 @ !aft (inc aft)

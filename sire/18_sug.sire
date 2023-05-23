@@ -110,13 +110,13 @@
 & bindings
 | ok (map idx-1 bindings)
 
-!!= [%a %b %c]          | readSignature `(a b c) v2 I
-!!= [%a]                | readSignature `(a)     v2 I
-!!= [%a]                | readSignature `a       v2 I
-!!= [`[a b] sigExpect]  | readSignature `[a b]   v2 I
-!!= [`([][]) sigNoHeir] | readSignature `([][])  v2 I
+!!= [%a %b %c]          | readSignature `(a b c) v2 id
+!!= [%a]                | readSignature `(a)     v2 id
+!!= [%a]                | readSignature `a       v2 id
+!!= [`[a b] sigExpect]  | readSignature `[a b]   v2 id
+!!= [`([][]) sigNoHeir] | readSignature `([][])  v2 id
 
-!!= [[0 %a] [0 %b] [0 %c]] | readKeySignature `(a b c) v2 I
+!!= [[0 %a] [0 %b] [0 %c]] | readKeySignature `(a b c) v2 id
 
 
 """ The Col Macro """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -165,13 +165,13 @@
 ;
 | ok ['&' (NEST 0 "|" [rex] 0)]
 
-!!= ['&' `(| (Foo x))] (readColSig `(Foo x) I I)
+!!= ['&' `(| (Foo x))] (readColSig `(Foo x) id id)
 
-!!= ['&' `(Foo x)] (readColSig `(&(Foo x)) I I)
+!!= ['&' `(Foo x)] (readColSig `(&(Foo x)) id id)
 
-!!= ['?' `(Foo x)] (readColSig `(?(Foo x)) I I)
+!!= ['?' `(Foo x)] (readColSig `(?(Foo x)) id id)
 
-!!= ['??' `(Foo x)] (readColSig `(??(Foo x)) I I)
+!!= ['??' `(Foo x)] (readColSig `(??(Foo x)) id id)
 
 = colNeedsHeir | "Heir is required"
 = colTwoSons   | "Expected at least two sons"

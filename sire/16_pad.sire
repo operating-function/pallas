@@ -43,7 +43,7 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [die seq isNat K]
+/+  01_fan  [die seq isNat const]
 /+  02_bit  [if ifNot]
 /+  03_nat  [add mul sub bex dec met lsh rsh mod]
 /+  04_app  [idx len]
@@ -156,10 +156,10 @@ emptyPad=1
 !!= 29 p#1011
 !!= 30 p#0111
 
-!!= p#101 (padWeld p#101 0)
-!!= p#101 (padWeld p#101 K)
-!!= p#101 (padWeld 0 p#101)
-!!= p#101 (padWeld K p#101)
+!!= p#101 | padWeld p#101 0
+!!= p#101 | padWeld p#101 const
+!!= p#101 | padWeld 0     p#101
+!!= p#101 | padWeld const p#101
 
 !!= p#0000 (padWeld p#00 p#00)
 !!= p#1000 (padWeld p#10 p#00)
@@ -196,7 +196,7 @@ emptyPad=1
 !!= p#''   | padFlat []
 !!= p#''   | padFlat [[[]] []]
 !!= p#1100 | padFlat [p#1100]
-!!= p#1100 | padFlat (K p#1100)
+!!= p#1100 | padFlat (const p#1100)
 !!= p#1100 | padFlat [[p#1100]]
 !!= p#1100 | padFlat [p#11 p#00]
 !!= p#1011 | padFlat [p#10 p#11]

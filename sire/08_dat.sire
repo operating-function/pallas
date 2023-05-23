@@ -94,7 +94,7 @@
 = (splitAt i r)
 (v2 (take i r) (drop i r))
 
-(strictRow a)=(foldl K a a)
+(strictRow a)=(foldl const a a)
 
 = (insert ix val row)
 | gen (inc len-row)
@@ -171,12 +171,12 @@
 (isNone x)=(isZero x)
 (isSome x)=(neq 0 x)
 
-(fromSome n x)=(**maybeCase x n I)
+(fromSome n x)=(**maybeCase x n id)
 
 (unpackSome x)=(**fromSome (die 'Unexpected NONE') x)
 
 !!= 1 | maybeCase SOME-0 0 inc
-!!= 1 | maybeCase SOME-1 0 I
+!!= 1 | maybeCase SOME-1 0 id
 !!= 1 | maybeCase SOME-2 0 dec
 !!= 1 | maybeCase NONE   1 die
 
@@ -482,7 +482,7 @@
 | CONS (f i)
 | loop (inc i)
 
-!!= (listGen 3 I) [0 [1 [2 0]]]
+!!= (listGen 3 id) [0 [1 [2 0]]]
 
 = (listFindIndex f xs)
 ^ _ 0 xs
@@ -517,7 +517,7 @@
 | listSortOn f
 | listFromRow row
 
-(sort row)=(sortOn I row)
+(sort row)=(sortOn id row)
 
 (filter f row)=(| listToRow | listFilter f | listFromRow row)
 
@@ -555,23 +555,23 @@
 = (**RIGHT x) [1 x]
 
 = (eitherCase x l r)     (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
-= (fromRight l x)        (**eitherCase x l I)
+= (fromRight l x)        (**eitherCase x l id)
 = (unpackRight x)        (**fromRight (die 'Unexpected LEFT') x)
 = (eitherCaseLeft x r l) (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
 = (eitherOpen x r)       (**eitherCase x _&x r)
 = (eitherOpenLeft x l)   (**eitherCase x l _&x)
-= (fromLeft r x)         (**eitherCase x I r)
+= (fromLeft r x)         (**eitherCase x id r)
 = (unpackLeft x)         (**fromLeft (die 'Unexpected RIGHT') x)
 = (eitherGetRight x k)   (**eitherCase x _&x k)
 = (eitherGetLeft x k)    (**eitherCase x k _&x)
 = (eitherMap f val)      (**eitherCase val 0 (x & 1 f-x))
 
-!!= 1 | eitherCase RIGHT-0 K-0 inc
-!!= 1 | eitherCase RIGHT-1 K-0 I
-!!= 1 | eitherCase RIGHT-2 K-0 dec
-!!= 1 | eitherCase LEFT-9  K-1 die
-!!= 1 | eitherCase LEFT-1  I   die
-!!= 1 | eitherCase LEFT-0  inc die
+!!= 1 | eitherCase RIGHT-0 const-0 inc
+!!= 1 | eitherCase RIGHT-1 const-0 id
+!!= 1 | eitherCase RIGHT-2 const-0 dec
+!!= 1 | eitherCase LEFT-9  const-1 die
+!!= 1 | eitherCase LEFT-1  id      die
+!!= 1 | eitherCase LEFT-0  inc     die
 
 !!= 1 | unpackRight (RIGHT 1)
 !!= 1 | unpackLeft (LEFT 1)
@@ -681,9 +681,9 @@
 
 (forList xs f return)=(**traverseList f xs return)
 
-!!= 0         | traverseList (x ret)&(if even-x ret-x 0) [3 [4 0]] I
-!!= 0         | traverseList (x ret)&(if even-x ret-x 0) [4 [5 0]] I
-!!= [4 [6 0]] | traverseList (x ret)&(if even-x ret-x 0) [4 [6 0]] I
+!!= 0         | traverseList (x ret)&(if even-x ret-x 0) [3 [4 0]] id
+!!= 0         | traverseList (x ret)&(if even-x ret-x 0) [4 [5 0]] id
+!!= [4 [6 0]] | traverseList (x ret)&(if even-x ret-x 0) [4 [6 0]] id
 
 
 > st
@@ -719,9 +719,9 @@
 
 (forRow xs f return)=(**traverseRow f xs return)
 
-!!= 0     | traverseRow (x ret)&(if even-x ret-x 0) [3 4] I
-!!= 0     | traverseRow (x ret)&(if even-x ret-x 0) [4 5] I
-!!= [4 6] | traverseRow (x ret)&(if even-x ret-x 0) [4 6] I
+!!= 0     | traverseRow (x ret)&(if even-x ret-x 0) [3 4] id
+!!= 0     | traverseRow (x ret)&(if even-x ret-x 0) [4 5] id
+!!= [4 6] | traverseRow (x ret)&(if even-x ret-x 0) [4 6] id
 
 
 > (a > (st>b>r)) > st > Row a > m st (Row b)

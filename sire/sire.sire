@@ -126,10 +126,10 @@
     | ELAM FALSE
     | FUN 0 0 [%x %y] (EREF %x)
 
-!!=     ` (K x y ? x)
+!!=     ` (const x y ? x)
     | showSire
     | ELAM FALSE
-    | FUN "K" "K" [%x %y] (EREF %x)
+    | FUN "const" "const" [%x %y] (EREF %x)
 
 !!=     ` (^ f _ y)x
     | showSire
@@ -243,8 +243,8 @@
 !! sireRound ` (**f x y)
 !! sireRound ` (x & x)
 !! sireRound ` (x y & x)
-!! sireRound ` (I x ? x)
-!! sireRound ` (K x y ? x)
+!! sireRound ` (id x ? x)
+!! sireRound ` (const x y ? x)
 !! sireRound ` (x @ 3)(x x x)
 !! sireRound ` (x @@ 3)x
 !! sireRound ` (^ f _ y)x

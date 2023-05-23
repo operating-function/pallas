@@ -101,29 +101,29 @@
         | ret text
 
 
-!!= 1  | getDigit "1"  [] I
-!!= 5  | getDigit "5"  [] I
-!!= 9  | getDigit "9"  [] I
-!!= [] | getDigit "a"  [] I
-!!= [] | getDigit ""   [] I
-!!= [] | getDigit "10" [] I
+!!= 1  | getDigit "1"  [] id
+!!= 5  | getDigit "5"  [] id
+!!= 9  | getDigit "9"  [] id
+!!= [] | getDigit "a"  [] id
+!!= [] | getDigit ""   [] id
+!!= [] | getDigit "10" [] id
 
-!!= 123 | getNatStr "123" [] I
-!!= []  | getNatStr ""    [] I
-!!= 0   | getNatStr "0"   [] I
-!!= 1   | getNatStr "1"   [] I
-!!= []  | getNatStr "a"   [] I
+!!= 123 | getNatStr "123" [] id
+!!= []  | getNatStr ""    [] id
+!!= 0   | getNatStr "0"   [] id
+!!= 1   | getNatStr "1"   [] id
+!!= []  | getNatStr "a"   [] id
 
-!!= 345          | readNat `345 v2 I
-!!= 0            | readNat `0   v2 I
-!!= [`[] rnWord] | readNat `[]  v2 I
-!!= [`a  rnNumb] | readNat `a   v2 I
+!!= 345          | readNat `345 v2 id
+!!= 0            | readNat `0   v2 id
+!!= [`[] rnWord] | readNat `[]  v2 id
+!!= [`a  rnNumb] | readNat `a   v2 id
 
-!!= 345               | readAtomLit `345     v2 I
-!!= %asdf             | readAtomLit `(%asdf) v2 I
-!!= %asdf             | readAtomLit `"asdf"  v2 I
-!!= [`(%) cenOneKid]  | readAtomLit `(%)     v2 I
-!!= [`(%(.)) cenWord] | readAtomLit `(%(.))   v2 I
+!!= 345               | readAtomLit `345     v2 id
+!!= %asdf             | readAtomLit `(%asdf) v2 id
+!!= %asdf             | readAtomLit `"asdf"  v2 id
+!!= [`(%) cenOneKid]  | readAtomLit `(%)     v2 id
+!!= [`(%(.)) cenWord] | readAtomLit `(%(.))   v2 id
 
 
 """ Expresssions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -201,9 +201,9 @@
 
 = needBar | "Expected a | node"
 
-!!= [`3 `4]          | readNodeWithoutHeirButWithRune "," `[3 4] v2 I
-!!= [`[3 4] needBar] | readNodeWithoutHeirButWithRune "|" `[3 4] v2 I
-!!= [`[3 4] needBar] | readNodeWithoutHeirButWithRune "|" `[3 4] v2 I
+!!= [`3 `4]          | readNodeWithoutHeirButWithRune "," `[3 4] v2 id
+!!= [`[3 4] needBar] | readNodeWithoutHeirButWithRune "|" `[3 4] v2 id
+!!= [`[3 4] needBar] | readNodeWithoutHeirButWithRune "|" `[3 4] v2 id
 
 
 
@@ -322,15 +322,15 @@ symTodo='todo: support .foo and .234'
 | else
     | err rex nrBadForm
 
-!!= [%x]                | readRowOfNames `x        v2 I
-!!= [%x]                | readRowOfNames `(x)      v2 I
-!!= []                  | readRowOfNames `[]       v2 I
-!!= [%x]                | readRowOfNames `[x]      v2 I
-!!= [%x %y]             | readRowOfNames `[x y]    v2 I
-!!= [%x %y %z]          | readRowOfNames `[x y z]  v2 I
-!!= [`9 badSymChar]     | readRowOfNames `[x y 9]  v2 I
-!!= [`() nrBadForm]     | readRowOfNames `()       v2 I
-!!= [`([][]) nrBadHeir] | readRowOfNames `([][])   v2 I
+!!= [%x]                | readRowOfNames `x        v2 id
+!!= [%x]                | readRowOfNames `(x)      v2 id
+!!= []                  | readRowOfNames `[]       v2 id
+!!= [%x]                | readRowOfNames `[x]      v2 id
+!!= [%x %y]             | readRowOfNames `[x y]    v2 id
+!!= [%x %y %z]          | readRowOfNames `[x y z]  v2 id
+!!= [`9 badSymChar]     | readRowOfNames `[x y 9]  v2 id
+!!= [`() nrBadForm]     | readRowOfNames `()       v2 id
+!!= [`([][]) nrBadHeir] | readRowOfNames `([][])   v2 id
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

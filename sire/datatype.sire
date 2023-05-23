@@ -322,7 +322,7 @@ ex=(PAIR %a %b)
 !!=            ,, [0 %FOO [(0, 'x', `a)]]
                ,, [0 %BAR [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
                ,, [0 %LOL []]
-        ^ readDataBranches _ v2 I
+        ^ readDataBranches _ v2 id
         ` * FOO x:a
           * BAR x:b y:c z:d
           * LOL
@@ -655,12 +655,12 @@ two=2
 
 setProp#(TRUE.conTag)#one
 setProp#(TRUE.conAri)#zero
-setProp#(TRUE.conFun)#I
+setProp#(TRUE.conFun)#id
 setProp#(TRUE.conHas)#FALSE
 
 setProp#(FALSE.conTag)#zero
 setProp#(FALSE.conAri)#zero
-setProp#(FALSE.conFun)#I
+setProp#(FALSE.conFun)#id
 setProp#(FALSE.conHas)#FALSE
 
 !!=     'true'

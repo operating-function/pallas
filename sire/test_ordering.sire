@@ -26,22 +26,22 @@ raw=(pinItem cmp)
 """ PLAN Type Ordering Tests """""""""""""""""""""""""""""""""""""""""""""""""""
 
 !! checkOrder EQ 0 0         ; Nats are the same as nats.
-!! checkOrder LT 0 K         ; Nats are smaller than pins.
+!! checkOrder LT 0 const     ; Nats are smaller than pins.
 !! checkOrder LT 0 x&x       ; Nats are smaller than laws.
 !! checkOrder LT 0 (0 0)     ; Nats are smaller than apps.
 
-!! checkOrder GT K 0         ; Pins are bigger than nats.
-!! checkOrder EQ K K         ; Pins are the same as pins.
-!! checkOrder LT K x&x       ; Pins are smaller than laws.
-!! checkOrder LT K (0 0)     ; Pins are smaller than apps.
+!! checkOrder GT const 0     ; Pins are bigger than nats.
+!! checkOrder EQ const const ; Pins are the same as pins.
+!! checkOrder LT const x&x   ; Pins are smaller than laws.
+!! checkOrder LT const (0 0) ; Pins are smaller than apps.
 
 !! checkOrder GT x&x 0       ; Laws are bigger than nats.
-!! checkOrder GT x&x K       ; Laws are bigger than pins.
+!! checkOrder GT x&x const   ; Laws are bigger than pins.
 !! checkOrder EQ x&x x&x     ; Laws are the same as laws.
 !! checkOrder LT x&x (0 0)   ; Laws are smaller than apps.
 
 !! checkOrder GT (0 0) 0     ; Apps are bigger than nats.
-!! checkOrder GT (0 0) K     ; Apps are bigger than pins.
+!! checkOrder GT (0 0) const ; Apps are bigger than pins.
 !! checkOrder GT (0 0) x&x   ; Apps are bigger than laws.
 !! checkOrder EQ (0 0) (0 0) ; Apps are the same as apps.
 
@@ -51,9 +51,9 @@ raw=(pinItem cmp)
 
 """ Basic Ordering Tests """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-!! checkOrder LT 9     K
-!! checkOrder EQ K     K
-!! checkOrder GT (0 0) K
+!! checkOrder LT 9     const
+!! checkOrder EQ const const
+!! checkOrder GT (0 0) const
 
 !! checkOrder LT 0 1
 !! checkOrder EQ 1 1
@@ -143,7 +143,7 @@ raw=(pinItem cmp)
 !! checkOrder LT [0 0 0] | %[8=8 9=9 10=10]
 
 ; Rows are pretty small closures.  Only closures with nat-heads are smaller.
-!! checkOrder LT [0]   | (cdr-K 0)
+!! checkOrder LT [0]   | (cdr-const 0)
 !! checkOrder LT [0]   | ((x y & x) 0)
 !! checkOrder LT [0 0] | (pinItem-v3 0 0)
 !! checkOrder GT [0]   | (0 0)
