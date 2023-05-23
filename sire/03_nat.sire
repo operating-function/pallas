@@ -18,7 +18,6 @@
 """ What about `setBit`?
 """ What about `getBit`?
 """ What about `flipBit`?
-""" What about `popCount`?
 """
 
 
@@ -126,6 +125,23 @@ GT=2
 !!= 7 (dis 1 7)
 !!= 7 (dis 7 1)
 
+; (a > Bit > a) > a > Nat > a
+= (natFoldl f z n)
+| if (isZero n) z
+@ z (f z | mod n 2)
+| seq z
+| natFoldl f z (rsh n 1)
+
+; Nat > Nat
+(popCount n)=(natFoldl add 0 n)
+
+!!= 1 (popCount 1)
+!!= 1 (popCount 2)
+!!= 1 (popCount 4)
+!!= 2 (popCount 5)
+!!= 2 (popCount 6)
+!!= 3 (popCount 7)
+
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -221,6 +237,8 @@ GT=2
 ^-^ isZero
 ^-^ lsh rsh con mix dis bex
 ^-^ natBitIndex
+^-^ natFoldl
+^-^ popCount
 ^-^ takeBits
 ^-^ isNat toNat
 ^-^ exec
