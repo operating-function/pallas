@@ -27,40 +27,42 @@
 """ - [ ] < #<
 """ - [ ] ###
 """
-"""
-""" TODO: Parse all built-in expression runes:
-"""
-""" - [ ] | #|
-""" - [ ] @ #@
-""" - [ ] @@ #@@
-""" - [ ] & #&
-""" - [ ] ? #?
-""" - [ ] ?? #??
-""" - [ ] ** #**
-""" - [ ] ^ #^
-"""
-""" TODO: Parse all macro-defined runes:
-"""
+""" TODO: Parse all macro-defined commands:
 """
 """ - [ ] !!
+""" - [ ] #mutual
+"""
+""" DONE: Parse all built-in expression runes:
+"""
+""" - [x] | #|
+""" - [x] @ #@
+""" - [x] @@ #@@
+""" - [x] & #&
+""" - [x] ? #?
+""" - [x] ?? #??
+""" - [x] ** #**
+""" - [x] ^ #^
+"""
+""" TODO: Parse all macro-defined expressions:
+"""
+"""
 """ - [ ] #p #b #x
 """ - [ ] % %%
 """ - [ ] ` ``
 """ - [ ] && || == /=
-""" - [ ] , ,,
+""" - [-] , ,,
 """ - [ ] :
-""" - [ ] >
-""" - [ ] >=
-""" - [ ] >> >>=
 """ - [ ] ~ ~~ ::
-""" - [ ] # \
-""" - [ ] #abstype #backfill
-""" - [ ] #typedef
-""" - [ ] #typeof #printType
-""" - [ ] #mutrec #mutual
+""" - [x] #
+""" - [ ] #mutrec
 """ - [ ] #record #datacase #datatype #switch
-""" - [ ] #getenv #getKey #getProp #setProp #hasProp #getTypeNames
 """
+""" Some macros are don't need to be supported
+"""
+""" - > \
+""" - #abstype #backfill #typedef
+""" - #typeof #printType
+""" - #getenv #getKey #getProp #setProp #hasProp #getTypeNames
 
 
 """ Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -87,9 +89,10 @@
 * ELET=let n:Pat x:Exp b:Exp
 * EREC=rec n:Str x:Exp b:Exp
 * ELAM=lam pin:Bit fun:(Str, Nat, Row Pat, Exp)
-* ELIN=lin f:Str xs:(Row Exp)
+* ELIN=lin x:Exp
 * EROW=row xs:(Row Exp)
 * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
+* EUNT=unt
 
 
 """ Printing """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -103,20 +106,20 @@
 > (v > Rex) > Tab Any v > Rex
 = (showTab showVal tab)
 | if (null tab) `(%[])
-^ NEST 0 "," _ 0
+^ NEST 0 {,} _ 0
 ^ map _ (tabToPairs tab)
 & [k v]
 ^ trk [=k =v res=_] _
-^ SHUT 0 "=" _ 0
+^ SHUT 0 {=} _ 0
 | (showKey k, showVal v)
 
 > Pat > Rex
 = (showPat p)
 # datacase p
 * (PVAR _k v) | varE v
-* (PSEQ _k v) | PREF 0 "!" ,(varE v) 0
-* (PALI x y)  | SHUT 0 "@" (showPat x, showPat y) 0
-* (PROW xs)   | NEST 0 "," (map showPat xs) 0
+* (PSEQ _k v) | PREF 0 {!} ,(varE v) 0
+* (PALI x y)  | SHUT 0 {@} (showPat x, showPat y) 0
+* (PROW xs)   | NEST 0 {,} (map showPat xs) 0
 * (PTAB xs)   | showTab showPat xs
 
 !!= (` %[])
@@ -134,7 +137,7 @@
 > Row Rex > Rex
 = (showSig rexes@[first])
 | if (len rexes == 1) first
-| NEST 0 "|" rexes 0
+| NEST 0 {|} rexes 0
 
 > (Exp > Rex) > Bit > Fun > Rex
 = (showFun showSire pin (FUN self tag args body))
@@ -145,14 +148,14 @@
 @ selfRex  | varE self
 @ argRexes | map showPat args
 | if (isZero tag)
-    | INFX 0 "&" (showSig argRexes, showSire body) 0
+    | INFX 0 {&} (showSig argRexes, showSire body) 0
 | else
-    | INFX 0 "?" (showSig (rowCons selfRex argRexes), showSire body) 0
+    | INFX 0 {?} (showSig (rowCons selfRex argRexes), showSire body) 0
 
 > Sym > Row Pat > Rex
 = (showCon cn pts)
 | if (null pts) (varE cn)
-^ NEST 0 "|" _ 0
+^ NEST 0 {|} _ 0
 | rowCons (varE cn)
 | map showPat pts
 
@@ -168,39 +171,40 @@
 @ rest (go xs)
 | ``((* $$(showCon cn pts) $$(showSire b))($$rest))
 
+= (niceApp showSire e)
+^ _ e ~[]
+? (loop e acc)
+# datacase e
+* (EAPP f x) | loop f (showSire x)::acc
+* _          | NEST 0 {|} (listToRow (showSire e)::acc) 0
+
+= (showCase showSire x f cs)
+| NEST 0 {#} (varE 'datacase', showSire x)
+| showDatacases showSire f cs
+
 > Exp > Rex
 = (showSire exp)
 @ go showSire
-@ (niceApp e)
-    ^ _ e ~[]
-    ? (loop e acc)
-    # datacase e
-    * (EAPP f x) | loop f (go x)::acc
-    * _          | NEST 0 '|' (listToRow (go e)::acc) 0
 # datacase exp
 * (EBED x)       | EMBD x
 * (EREF x)       | WORD 0 x 0
 * (ENAT n)       | WORD 0 showNat-n 0
-* (EAPP x y)     | niceApp exp
-* (EKET xs v)    | NEST 0 "^" (map go xs) (go v)
-* (ELET n x b)   | INFX 0 '@'  (showPat n, go x) (go b)
-* (EREC n x b)   | INFX 0 '@@' (showPat (PVAR 0 n), go x) (go b)
+* (EAPP x y)     | niceApp go exp
+* (EKET xs v)    | NEST 0 {^} (map go xs) (go v)
+* (ELET n x b)   | INFX 0 {@}  (showPat n, go x) (go b)
+* (EREC n x b)   | INFX 0 {@@} (showPat (PVAR 0 n), go x) (go b)
 * (ELAM pin fun) | showFun go pin fun
-* (ELIN f xs)    ^ (NEST 0 '|' _ 0)
-                 | rowCons (PREF 0 '**' [(go EREF-f)] 0)
-                 | map go xs
-* (EROW xs)      | NEST 0 "," (map go xs) 0
-* (ECAS x f cs)
-    | NEST 0 '#' (varE 'datacase', go x)
-    | showDatacases go f cs
-* _
-    | {showSire: Unknown syntax} exp
+* (ELIN x)       | PREF 0 {**} ,(showSire x) 0
+* (EROW xs)      | NEST 0 {,} (map go xs) 0
+* EUNT           | `()
+* (ECAS x f cs)  | showCase go x f cs
+* _              | {showSire: Unknown syntax} exp
 
 !!= ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 0 0 (2 fanc))
   | showSire
   | ELET (PVAR 0 "n") (ENAT %inc)
   | ELET (PVAR 0 "fanc")
-      | ELIN %mkLaw
+      | foldl EAPP (ELIN | EREF %mkLaw)
      ,, EREF %n
      ,, EREF %a
      ,, EREF %b
@@ -249,84 +253,99 @@
 * (PVAR _ v)
 | ok (EREC v x b)
 
-> (Rex > Parser Sire) > Rex > Parser (Either Sym Sire)
-= (readAppHead readSire rex err ok)
-| if (rexRune rex == "**")
-    @ kids (rexKids rex)
-    | if (len kids /= 1)
-        | err rex "bad inline syntax, must be '**foo'"
-    : sym <- readSymbol (idx 0 kids) err
-    | ok (LEFT sym)
-: exp <- readSire rex err
-| ok (RIGHT exp)
-
 > (Rex > Parser Exp) > Rex > Parser Rex
 = (parseHax readSire rex err ok)
 @ kids@[param] (rexKids rex)
 | if (null kids) (err rex '# with no parameter')
 : sym <- readSymbol param err
 # switch sym
+* _ | err rex (strWeld 'Unknown keyword: #' sym)
 * "datacase"
-    : val fb cases < parseDatacase readSire rex err
-    | ok ^ ECAS val fb (map _ cases)
-         & [_ constr pats body]
-         | CON_CASE constr pats body
-* _
-    | err rex (strWeld 'Unknown keyword: #' sym)
+: val fb cases < parseDatacase readSire rex err
+| ok ^ ECAS val fb (map _ cases)
+     & [_ constr pats body]
+     | CON_CASE constr pats body
+
+= (readApp readSire rex err ok)
+@ kids (rexKids rex)
+| if (isZero | len kids) (ok EUNT)
+: exps < traverseRow (x k & readSire x err k) kids
+| ok (foldl EAPP (idx 0 exps) (drop 1 exps))
+
+= (readKet readSire rex err ok)
+@ sons (rexSons rex)
+@ heir (rexHeir rex)
+| if (null sons && isZero heir)
+    | err rex "Bad ^ must be:  (^ f _ y)x"
+: exp <- traverseRow (x k & readSire x err k) sons
+: cab <- readSire heir err
+| ok | EKET exp cab
+
+= (readPam readSire rex err ok)
+@ kids (rexKids rex)
+| if (len kids /= 2) (err rex 'Bad lambda')
+@ [sigRex bodRex] kids
+: pats <- readBindSig sigRex err
+: body <- readSire bodRex err
+| ok | ELAM FALSE | FUN 0 0 pats body
+
+= (readWut readSire pinned rex err ok)
+@ kids@[sigRex bodRex] (rexKids rex)
+| if (len kids /= 2) (err rex 'Bad lambda.')
+: func pats <- readDestroyer sigRex err
+: body <- readSire bodRex err
+| ok (ELAM pinned | FUN func func pats body)
+
+= (readLin readSire rex err ok)
+@ kids@[expRex]
+    | rexKids rex
+| if (len kids /= 1)
+    | err rex "Expected something like: **x"
+: exp <- readSire expRex err
+| ok (ELIN exp)
+
+= (readCom readSire rex err ok)
+: exps <- traverseRow (x k & readSire x err k) (rexKids rex)
+| ok (EROW exps)
+
+= (readLeaf rex err ok)
+@ txt (rexText rex)
+# switch (rexStyle rex)
+* CORD ok-(ENAT txt)
+* TAPE ok-(ENAT txt)
+* LINE ok-(ENAT txt)
+* PAGE ok-(ENAT txt)
+* CURL ok-(ENAT txt)
+* WORD
+; TODO: Parse nat literals
+| ok (EREF txt)
 
 > Rex > Parser Exp
 = (readSire rex err ok)
-@ style (rexStyle rex)
-@ rune  (rexRune rex)
-@ kids  (rexKids rex)
-# switch rune
-* 0
-    # switch style
-    * EMBD | ok | EBED | rexEmbd rex
-    * WORD | ok | EREF | rexText rex ;; TODO: nat literals
-    * CORD | ok | ENAT | rexText rex
-    * TAPE | ok | ENAT | rexText rex
-    * LINE | ok | ENAT | rexText rex
-    * PAGE | ok | ENAT | rexText rex
-    * CURL | ok | ENAT | rexText rex
-* '^'
-    @ sons (rexSons rex)
-    @ heir (rexHeir rex)
-    | if (null sons && isZero heir)
-        | err rex "Bad ^ must be:  (^ f _ y)x"
-    : exp <- traverseRow (x k & readSire x err k) sons
-    : cab <- readSire heir err
-    | ok | EKET exp cab
-* '|'
-    | if isZero-(len kids) (err rex "| with no kids")
-    @ funcRex | idx 0 kids
-    @ argsRex | drop 1 kids
-    : fHead   < readAppHead readSire funcRex err
-    : args    < traverseRow (x k & readSire x err k) argsRex
-    # datacase fHead
-    * (LEFT func) | ok | ELIN func args
-    * (RIGHT exp) | ok | foldl EAPP exp args
-* '&'
-    @ kids (rexKids rex)
-    | if (len kids /= 2) (err rex 'Bad lambda')
-    @ [sigRex bodRex] kids
-    : pats <- readBindSig sigRex err
-    : body <- readSire bodRex err
-    | ok | ELAM FALSE | FUN 0 0 pats body
-* '?'
-    @ kids@[sigRex bodRex] (rexKids rex)
-    | if (len kids /= 2) (err rex 'Bad lambda.')
-    : func pats <- readDestroyer sigRex err
-    : body <- readSire bodRex err
-    | ok (ELAM FALSE | FUN func func pats body)
-* ','
-    : exps <- traverseRow (x k & readSire x err k) (rexKids rex)
-    | ok (EROW exps)
-* '@'  | parseLet readSire rex err ok
-* '@@' | parseRec readSire rex err ok
-* '#'  | parseHax readSire rex err ok
-* _
-    | err rex (strWeld 'Unknown rune: ' rune)
+# switch (rexType rex)
+* "EMBD" | ok EBED-(rexGetEmbd rex)
+* "LEAF" | readLeaf rex err ok
+* "NODE"
+# switch (rexRune rex)
+* {^}   | readKet readSire rex err ok
+* {#^}  | readKet readSire rex err ok
+* {|}   | readApp readSire rex err ok
+* {#|}  | readApp readSire rex err ok
+* {&}   | readPam readSire rex err ok
+* {#&}  | readPam readSire rex err ok
+* {?}   | readWut readSire FALSE rex err ok
+* {#?}  | readWut readSire FALSE rex err ok
+* {??}  | readWut readSire TRUE rex err ok
+* {#??} | readWut readSire TRUE rex err ok
+* {**}  | readLin readSire rex err ok
+* {#**} | readLin readSire rex err ok
+* {,}   | readCom readSire rex err ok
+* {@}   | parseLet readSire rex err ok
+* {#@}  | parseLet readSire rex err ok
+* {@@}  | parseRec readSire rex err ok
+* {#@@} | parseRec readSire rex err ok
+* {#}   | parseHax readSire rex err ok
+* _     | err rex (strWeld 'Unknown Rune')
 
 ; Assumes that the input formatting matches the printers formatting.
 = (sireRound rex)
