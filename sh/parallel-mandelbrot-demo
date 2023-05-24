@@ -9,9 +9,11 @@
 # Only operate on the `.demo` directory.
 export PLUNDER_DIR=$(realpath .demo)
 
+plunder=$(stack path --local-install-root)/bin/plunder
+
 # TODO: error out if this broke.
-plunder boot pfract sire/demo_parallel_mandelbrot.sire
-plunder spin pfract
+$plunder boot pfract sire/demo_parallel_mandelbrot.sire
+$plunder spin pfract
 
 until [ -f ./.demo/pfract.http.port ]
 do
