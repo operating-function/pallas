@@ -77,16 +77,17 @@
 * (PROW xs)   | NEST 0 "," (map showPat xs) 0
 * (PTAB xs)   | showTab showPat xs
 
-!!= (` %[]) | showPat (PTAB %[])
+!!= (` %[])
+  | showPat | PTAB %[]
 
 !!= `[120=x 121=(!y)]
-   | showPat | PTAB [x=(PVAR 0 %x) y=(PSEQ 0 %y)]
+  | showPat | PTAB [x=(PVAR 0 %x) y=(PSEQ 0 %y)]
 
 !!= ` x@[a b@[c !d]]
-   | showPat | PALI (PVAR 0 %x)
-             | PROW ,, PVAR 0 %a
-                    ,, PALI (PVAR 0 %b)
-                         | PROW (PVAR 0 "c", PSEQ 0 "d")
+  | showPat | PALI (PVAR 0 %x)
+            | PROW ,, PVAR 0 %a
+                   ,, PALI (PVAR 0 %b)
+                        | PROW (PVAR 0 "c", PSEQ 0 "d")
 
 > Row Rex > Rex
 = (showSig rexes@[first])
@@ -153,35 +154,35 @@
 * _
     | {showSire: Unknown syntax} exp
 
-!!=     ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 0 0 (2 fanc))
-    | showSire
-    | ELET (PVAR 0 "n") (ENAT %inc)
-    | ELET (PVAR 0 "fanc")
-        | ELIN %mkLaw
-       ,, EREF %n
-       ,, EREF %a
-       ,, EREF %b
-    | EAPP
-        | EAPP
-            | EAPP (ENAT 0) (ENAT 0)
-        | ENAT 0
-    | EAPP (ENAT 2)
-    | EREF %fanc
+!!= ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 0 0 (2 fanc))
+  | showSire
+  | ELET (PVAR 0 "n") (ENAT %inc)
+  | ELET (PVAR 0 "fanc")
+      | ELIN %mkLaw
+     ,, EREF %n
+     ,, EREF %a
+     ,, EREF %b
+  | EAPP
+      | EAPP
+          | EAPP (ENAT 0) (ENAT 0)
+      | ENAT 0
+  | EAPP (ENAT 2)
+  | EREF %fanc
 
-!!=     ` (x y & x)
-    | showSire
-    | ELAM FALSE
-    | FUN 0 0 (PVAR 0 %x, PVAR 0 %y) (EREF %x)
+!!= ` (x y & x)
+  | showSire
+  | ELAM FALSE
+  | FUN 0 0 (PVAR 0 %x, PVAR 0 %y) (EREF %x)
 
-!!=     ` (const x y ? x)
-    | showSire
-    | ELAM FALSE
-    | FUN "const" "const" (PVAR 0 %x, PVAR 0 %y) (EREF %x)
+!!= ` (const x y ? x)
+  | showSire
+  | ELAM FALSE
+  | FUN "const" "const" (PVAR 0 %x, PVAR 0 %y) (EREF %x)
 
-!!=     ` (^ f _ y)x
-    | showSire
-    | EKET (EREF %f, EREF %_, EREF %y)
-    | EREF %x
+!!= ` (^ f _ y)x
+  | showSire
+  | EKET (EREF %f, EREF %_, EREF %y)
+  | EREF %x
 
 
 """ Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -306,16 +307,16 @@
 !! sireRound ` ([x y] @ [1 2])[y x]
 !! sireRound ` (z@[!x y] @ [1 2])(x y z)
 
-!!=     ` (span f r ? (l @ len r)(^ _ 0)(loop i ? if (eql i l) (v2 r v0) (if (f (idx i r)) (loop (inc i)) (v2 (take i r) (drop i r)))))
-    ^ readSire _ v2 showSire
-    ` ? (span f r)
-      @ l | len r
-      ^ _ 0
-      ? (loop i)
-      | if (eql i l) (v2 r v0)
-      | if (f (idx i r))
-          | loop (inc i)
-      (v2 (take i r) (drop i r))
+!!= ` (span f r ? (l @ len r)(^ _ 0)(loop i ? if (eql i l) (v2 r v0) (if (f (idx i r)) (loop (inc i)) (v2 (take i r) (drop i r)))))
+  ^ readSire _ v2 showSire
+  ` ? (span f r)
+    @ l | len r
+    ^ _ 0
+    ? (loop i)
+    | if (eql i l) (v2 r v0)
+    | if (f (idx i r))
+        | loop (inc i)
+    (v2 (take i r) (drop i r))
 
 !!= `((# datacase a)(* NONE 0)(* (SOME x) x))
   ^ readSire _ v2 showSire
