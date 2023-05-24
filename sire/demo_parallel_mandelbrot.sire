@@ -9,6 +9,7 @@
 
 /+  boot
 /+  w48
+/+  kern
 
 ; /+  io
 ; /+  switch
@@ -323,7 +324,7 @@ black=[0 0 0]
 
 
 spc=' '
-nl=10
+NL=10
 
 ; Probably better to just do this to all of `plasmaColors` up front?
 = (renderColor trip)
@@ -340,14 +341,14 @@ nl=10
 = (mandelbrotPpm w h)
 @ header
     | cat
-    ,, [%P %3 nl nl]
+    ,, [%P %3 NL NL]
     ,, digits-w
     ,, [spc]
     ,, digits-h
-    ,, [nl %2 %5 %5 nl]
+    ,, [NL %2 %5 %5 NL]
 @ body
     | cat
-    | map ln&(weld catMap-renderColor-ln [nl])
+    | map ln&(weld catMap-renderColor-ln [NL])
     | mandelbrot w h
 | implode
 | weld header body
@@ -357,46 +358,26 @@ nl=10
 ; mandelbrotPpm 8 8
 ; mandelbrotPpm 4 4
 
-
-; parallel map
-= (pmap ms f args cb)
-@ jobs | map x&[%eval ms f x] args
-@ l    | len args
-@ ret  | rep 0 l
-^ _ l ret jobs
-? (loop remaining all jobs idx val)
-| trk [%loopBegin remaining]
-;
-; todo: val needs a ton of validation instead of assuming it worked.
-;
-@ all  | put all idx | get val 1
-@ jobs | put jobs idx 0
-| if (eqlNat remaining 1)
-  ;| trk [%fin all]
-  | cb all
-| loop (dec remaining) all jobs
-
-;
-; Problem statement: you can't call functions, since everything has to
-; continuation pass. pmap
-;
-
-= (mandelbrotDemo w h)
-@ header
+> Nat > Nat > Cog Void
+= (mandelbrotDemo width height cogExit)
+@ header ; Row Str
     | cat
-   ,, [%P %3 nl nl]
-   ,, digits-w
+   ,, [%P %3 NL NL]
+   ,, digits width
    ,, [spc]
-   ,, digits-h
-   ,, [nl %2 %5 %5 nl]
-| pmap 5000 (mandelbrotLine w h) (gen h i&i)
-& rows
-@ body
-    | cat
-    | map ln&(weld catMap-renderColor-ln [nl]) rows
-@ ppm
-    | implode | weld header body
-| trk ppm
-| die %done
+   ,, digits height
+   ,, [NL %2 %5 %5 NL]
+;
+@ rowIds | gen height id
+: ??(pmapDone rowLns)
+    < pmap 5000 (mandelbrotLine width height) rowIds
+;
+@ bodStr ^ cat (map _ rowLns)
+         | ln&(weld (catMap renderColor ln) [NL])
+;
+| trk [ppm=(implode | weld header bodStr)]
+;
+| cogExit ()
 
-(mandelbrotDemo 32 32)
+| runCog
+| mandelbrotDemo 32 32

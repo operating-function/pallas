@@ -58,6 +58,7 @@
 
 /+ boot
 /+ datatype
+/+ switch
 
 
 """ Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -303,10 +304,11 @@ cog
 
 """ Sys Calls """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; TODO: Proably better to just use syscall directly, now that we have
-; such a nice api.
-
 = (EVAL tim exp)        | weld [%eval tim] exp
+= (EVAL1 tim f p)       | [%eval tim f p]
+= (EVAL2 tim f p q)     | [%eval tim f p q]
+= (EVAL3 tim f p q r)   | [%eval tim f p q r]
+= (EVAL4 tim f p q r s) | [%eval tim f p q r s]
 = (RAND_BYTE x)         | [%rand 0 %byte x]
 = (HTTP_SERV ss)        | [%http 0 %serv ss]
 = (HTTP_HEAR)           | [%http 0 %hear]
@@ -327,3 +329,37 @@ cog
 = (PORT_SIRE)           | [%port 0 %sire]
 = (PORT_SEND m w)       | [%port 0 %send m w]
 = (PORT_RECV m u b)     | [%port 0 %recv m u b]
+
+
+""" Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; TODO: Hack: This doesn't belong here.
+= (forceUnpackEvalResult ctx res)
+# switch (len res)
+* 0 (die ('eval-timeout' ctx))
+* 1 (idx 0 res)
+* 2 (die ('eval-crash' ctx))
+
+; parallel map (using the EVAL syscall)
+> Nat > (a > b) > Row a > Cog (Row b)
+= (pmap ms f args return)
+;
+: resultMVars
+    < ^ traverseRow _ args
+      & (arg stepReturn)
+      : var <- newEmptyMVar
+      : tid <- fork & threadExit
+                    : myTid < myThreadId
+                    : eRes < syscall (EVAL1 ms f arg)
+                    @ !res | forceUnpackEvalResult "pmap" eRes
+                    : _    < putMVar var res
+                    | threadExit ()
+      | stepReturn var
+;
+: results
+    < ^ traverseRow _ resultMVars
+      & (var stepReturn)
+      : val <- takeMVar var
+      | stepReturn val
+;
+| return results
