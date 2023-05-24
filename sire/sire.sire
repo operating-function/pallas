@@ -15,9 +15,51 @@
 """
 """ Parser and (simple) printer for Sire + Macros.
 """
-""" TODO: Also parse commands
-"""
 """ TODO: Can we make {EREC} support destructuring too?  Why not?
+"""
+""" TODO: Kill io.sire
+"""
+""" TODO: Parse all built-in command runes:
+"""
+""" - [ ] !!= #!!=
+""" - [ ] = #=
+""" - [ ] * #*
+""" - [ ] < #<
+""" - [ ] ###
+"""
+"""
+""" TODO: Parse all built-in expression runes:
+"""
+""" - [ ] | #|
+""" - [ ] @ #@
+""" - [ ] @@ #@@
+""" - [ ] & #&
+""" - [ ] ? #?
+""" - [ ] ?? #??
+""" - [ ] ** #**
+""" - [ ] ^ #^
+"""
+""" TODO: Parse all macro-defined runes:
+"""
+"""
+""" - [ ] !!
+""" - [ ] #p #b #x
+""" - [ ] % %%
+""" - [ ] ` ``
+""" - [ ] && || == /=
+""" - [ ] , ,,
+""" - [ ] :
+""" - [ ] >
+""" - [ ] >=
+""" - [ ] >> >>=
+""" - [ ] ~ ~~ ::
+""" - [ ] # \
+""" - [ ] #abstype #backfill
+""" - [ ] #typedef
+""" - [ ] #typeof #printType
+""" - [ ] #mutrec #mutual
+""" - [ ] #record #datacase #datatype #switch
+""" - [ ] #getenv #getKey #getProp #setProp #hasProp #getTypeNames
 """
 
 
