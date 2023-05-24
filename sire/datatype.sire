@@ -186,31 +186,36 @@ fieldExpect="Expected something like (field:type)"
 @ field | (rexIdnt rex, sym, typ)
 | go (field :: acc) (rexHeir rex)
 
-; CNSTR
-; (CNSTR (field:type)*)
-; (CNSTR (* field : type)(* field : type)
-; (|CNSTR)(* field : type)(* field : type)
+""" {readConstructorSig} accepts inputs that look like one of the
+""" following:
+"""
+"""     CNSTR
+"""     (CNSTR (field:type)*)
+"""     (CNSTR (* field : type)(* field : type)
+"""     (|CNSTR)(* field : type)(* field : type)
+
+> Rex > Parser (Nat, Symbol, Row Symbol)
 = (readConstructorSig r err ok)
 | ifNot (rexIsNode r)
     ; trk 'just symbol'
     : cnstr <- readSymbol r err
-    | ok rexIdnt-r cnstr []
+    | ok (rexIdnt r, cnstr, [])
 ;
 ; trk '| node'
 @ kids    | rexKids r
 @ numKids | len kids
 | if (neq "|" rexRune-r)
-        | err r sigExpect
+    | err r sigExpect
 | if (isZero numKids)
-        | err r "Expected at least one kid"
+    | err r "Expected at least one kid"
 ;
 @ cnstrRex (idx 0 kids)
 : cnstr   < readSymbol cnstrRex err
 @ cnstrId | rexIdnt cnstrRex
 ;
 | if (eql 1 numKids)
-        ; trk '|-rune but no fields'
-        | ok cnstrId cnstr []
+    ; trk '|-rune but no fields'
+    | ok (cnstrId, cnstr, [])
 ;
 ; trk 'there are fields'
 @ fields     | drop 1 kids
@@ -219,10 +224,11 @@ fieldExpect="Expected something like (field:type)"
 ;
 | if (eql 2 numKids && ("*" == rexRune firstField))
     : fields <- parseItemizedFields (idx 1 kids) err
-    | ok cnstrId cnstr fields
+    | ok (cnstrId, cnstr, fields)
 : fields <- parseManyFields (drop 1 kids) err
-| ok cnstrId cnstr fields
+| ok (cnstrId, cnstr, fields)
 
+> Rex > Parser (Nat, Symbol, Row Symbol)
 = (readDatatypeSig node err ok)
 @ rune (rexRune node)
 | if (neq "*" rune)
@@ -251,16 +257,16 @@ fieldExpect="Expected something like (field:type)"
 ; We ignore the first kid, because it's the type, which we don't yet
 ; actually do anything with.
 ;
-: key constr fields
-       <- **readConstructorSig (idx 2 kids) err
+: [key constr fields]
+    < readConstructorSig (idx 2 kids) err
 ; trk [=key =constr =fields]
 | ok p a
 | if (isZero len-fields)
-        | bloodline
-        ; ^ trk [bloodline=_] _
-       ~~ defC [constr] (natE 0)
-       ~~ @ nam (| strWeld "mk" | strCapitalize | strToLower constr)
-          | defC [nam '_'] (natE 0)
+    | bloodline
+    ; ^ trk [bloodline=_] _
+   ~~ defC [constr] (natE 0)
+   ~~ @ nam (| strWeld "mk" | strCapitalize | strToLower constr)
+      | defC [nam '_'] (natE 0)
 ; ^ trk [bloodline=_] _
 @ fields (map (idx 1) fields)  ;;  (Row (RexId, Symbol, Type)) -> Row Symbol
 | bloodline
@@ -304,28 +310,27 @@ ex=(PAIR %a %b)
 
 ''' readDataBranches '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-> Rex > MacroMonad (Row (Symbol, Row Symbol))
+> Rex > Parser (Row (Nat, Symbol, Row Symbol))
 = (readDataBranches r err ok)
-^ _ NIL r
+^ _ ~[] r
 ? (go acc r)
-@ = this (rexSetHeir 0 r)
-  = that (rexHeir r)
-: key ctr slots <- readDatatypeSig this err
-@ acc
-        | CONS [key ctr slots] acc
+@ this | rexSetHeir 0 r
+@ that | rexHeir r
+: sig < readDatatypeSig this err
+@ !acc sig::acc
 | if (isZero that)
-        | ok (listToRowReversed acc)
+    | ok (listToRowReversed acc)
 | else
-        | go acc that
+    | go acc that
 
 
-!!=            ,, [0 %FOO [(0, 'x', `a)]]
-               ,, [0 %BAR [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
-               ,, [0 %LOL []]
-        ^ readDataBranches _ v2 id
-        ` * FOO x:a
-          * BAR x:b y:c z:d
-          * LOL
+!!=  ,, [0 %FOO [(0, 'x', `a)]]
+     ,, [0 %BAR [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
+     ,, [0 %LOL []]
+  ^ readDataBranches _ v2 id
+  ` * FOO x:a
+    * BAR x:b y:c z:d
+    * LOL
 
 
 ''' defDataTypeC '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -363,20 +368,20 @@ ex=(PAIR %a %b)
 
 ''' #datatype ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-; '#datatype'/Macro
-= ('#datatype' s p e a r err ok)
-@ = kids (rexKids r)
-| ifNot (len-kids == 3)
-        | err r
-      """Expected something like
-      """
-      """    # datatype Type
-      """    * CONSTR
-      """    * CONSTR field:type ...
+= datatypeExpected
+  """ Expected something like
+  """
+  """     # datatype Type
+  """     * CONSTR
+  """     * CONSTR field:type ...
+
+> Macro
+= ({#datatype} s p e a r err ok)
+@ kids (rexKids r)
+| if (len kids /= 3) (err r datatypeExpected)
 : branches < readDataBranches (idx 2 kids) err
 @ [prp rex] | defDataTypeC s p e branches
 | ok prp a rex
-
 
 # datatype (Either a b)
 * E_LEFT x:a
@@ -527,43 +532,43 @@ ex=(PAIR %a %b)
 @ acc (DATA_CASE tag ari fields bodyRex)::acc
 | go hasTag fun acc remain
 
-!!=    ,, TRUE
-       ,, dataTag
-       ,, (natE 0)
-       ,,  ,, [0 0 []                      `[x "]"]]
-           ,, [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
-    ^ _ v2 v4
-    @ xpr `` * LNULL       [x "]"]
-             * (LCONS _ _) [x " " (go xs)]
-    @ src %% =LNULL 3
-          %% =LCONS 4
-    @ prp %% =conTag %[3=0 4=1]
-          %% =conAri %[3=0 4=2]
-          %% =conFun %[3=_DataTag 4=_DataTag]
-          %% =conHas %[3=TRUE 4=TRUE]
-    | readDatacaseBody src prp xpr
+!!=  ,, TRUE
+     ,, dataTag
+     ,, (natE 0)
+     ,,  ,, [0 0 []                      `[x "]"]]
+         ,, [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
+  ^ _ v2 v4
+  @ xpr `` * LNULL       [x "]"]
+           * (LCONS _ _) [x " " (go xs)]
+  @ src %% =LNULL 3
+        %% =LCONS 4
+  @ prp %% =conTag %[3=0 4=1]
+        %% =conAri %[3=0 4=2]
+        %% =conFun %[3=_DataTag 4=_DataTag]
+        %% =conHas %[3=TRUE 4=TRUE]
+  | readDatacaseBody src prp xpr
 
-!!=    ,, TRUE
-       ,, dataTag
-       ,, `[x " " (go xs)]
-       ,,  ,, [0 0 [] `[x "]"]]
-    ^ _ v2 v4
-    @ xpr `` * LNULL [x "]"]
-             * _     [x " " (go xs)]
-    @ src %% =LNULL 3
-          %% =LCONS 4
-    @ prp %% =conTag %[3=0 4=1]
-          %% =conAri %[3=0 4=2]
-          %% =conFun %[3=_DataTag 4=_DataTag]
-          %% =conHas %[3=TRUE 4=TRUE]
-    | readDatacaseBody src prp xpr
+!!=  ,, TRUE
+     ,, dataTag
+     ,, `[x " " (go xs)]
+     ,,  ,, [0 0 [] `[x "]"]]
+  ^ _ v2 v4
+  @ xpr `` * LNULL [x "]"]
+           * _     [x " " (go xs)]
+  @ src %% =LNULL 3
+        %% =LCONS 4
+  @ prp %% =conTag %[3=0 4=1]
+        %% =conAri %[3=0 4=2]
+        %% =conFun %[3=_DataTag 4=_DataTag]
+        %% =conHas %[3=TRUE 4=TRUE]
+  | readDatacaseBody src prp xpr
 
 = xpr `` * _ 0
          * _ 0
 
-!!=    ,, xpr
-       ,, "Only one fallback-pattern is allowed"
-    | readDatacaseBody %[] %[] xpr v2 v4
+!!=  ,, xpr
+     ,, "Only one fallback-pattern is allowed"
+  | readDatacaseBody %[] %[] xpr v2 v4
 
 
 ''' makeDatacaseExpr '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -663,10 +668,10 @@ setProp#(FALSE.conAri)#zero
 setProp#(FALSE.conFun)#id
 setProp#(FALSE.conHas)#FALSE
 
-!!=     'true'
-    # datacase TRUE
-    * TRUE  'true'
-    * FALSE 'false'
+!!= 'true'
+  # datacase TRUE
+  * TRUE  'true'
+  * FALSE 'false'
 
 
 ''' Opt ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -681,10 +686,10 @@ setProp#(SOME.conAri)#one
 setProp#(SOME.conFun)#len
 setProp#(SOME.conHas)#FALSE
 
-!!=     ['some' %x]
-    # datacase (SOME %x)
-    * NONE     | 'none'
-    * (SOME x) | [{some} x]
+!!= ['some' %x]
+  # datacase (SOME %x)
+  * NONE     | 'none'
+  * (SOME x) | [{some} x]
 
 
 ''' List '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -699,12 +704,12 @@ setProp#(NIL.conAri)#zero
 setProp#(NIL.conFun)#len
 setProp#(NIL.conHas)#FALSE
 
-!!=     'xyz abcd'
-    ^ _ ~[{x} {y} {z } {abcd}]
-    ? (strCatList lis)
-    # datacase lis
-    * NIL         | ''
-    * (CONS x xs) | strWeld x (strCatList xs)
+!!= 'xyz abcd'
+  ^ _ ~[{x} {y} {z } {abcd}]
+  ? (strCatList lis)
+  # datacase lis
+  * NIL         | ''
+  * (CONS x xs) | strWeld x (strCatList xs)
 
 
 ''' Either '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
