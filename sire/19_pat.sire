@@ -101,11 +101,11 @@
 """ Parsing Binders in General """""""""""""""""""""""""""""""""""""""""""""""""
 
 ; # datatype Pat
-; * VAR=v k:Nat n:Symb         ;;   x
-; * ALI=a k:Nat n:Symb p:Pat   ;;   x@p
-; * SEQ=s x:Pat                ;;   !x
-; * TAB=t x:(Tab Val Pat)      ;;   %[a=b c=d]
-; * ROW=r x:(Row Pat)          ;;   [a b c]
+; * PVAR=v k:Key n:Sym
+; * PSEQ=s k:Key p:Sym
+; * PALI=a n:Sym p:Pat
+; * PROW=r x:(Row Pat)
+; * PTAB=t x:(Tab Any Pat)
 ;
 ; First parse patterns into data structures.
 ;

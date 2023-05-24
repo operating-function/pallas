@@ -31,7 +31,7 @@
 """ Getting that tag from an object """"""""""""""""""""""""""""""""""""""""""""
 
 ;;; TODO: Jet this and OP1 this.
-(_DataTag x)=(if x x (idx 0 x))
+(_DataTag x)=(if isNat-x x (idx 0 x))
 
 dataTag=_DataTag
 
@@ -186,6 +186,22 @@ fieldExpect="Expected something like (field:type)"
 @ field | (rexIdnt rex, sym, typ)
 | go (field :: acc) (rexHeir rex)
 
+> Rex > Parser (Nat, Symbol, Opt Nat)
+= (readSymbolMaybeWithTag rex err ok)
+| ifNot (rexIsNode rex)
+    : sym < readSymbol rex err
+    | ok (rexIdnt rex, sym, NONE)
+;
+@ kids@[symRex tagRex] (rexKids rex)
+;
+| if ((rexRune rex /= "=") || (len kids /= 2))
+    | err rex "Expecting CONSTR or CONSTR=tag"
+;
+@ key | rexIdnt symRex
+: sym < readSymbol symRex err
+: tag < readKey tagRex err
+| ok (key, sym, SOME tag)
+
 """ {readConstructorSig} accepts inputs that look like one of the
 """ following:
 """
@@ -193,50 +209,54 @@ fieldExpect="Expected something like (field:type)"
 """     (CNSTR (field:type)*)
 """     (CNSTR (* field : type)(* field : type)
 """     (|CNSTR)(* field : type)(* field : type)
+"""
+"""     CNSTR="tag"
+"""     (CNSTR="tag" (field:type)*)
+"""     (CNSTR="tag" (* field : type)(* field : type)
+"""     (|CNSTR="tag")(* field : type)(* field : type)
 
-> Rex > Parser (Nat, Symbol, Row Symbol)
+> Rex > Parser (Nat, Symbol, Opt Nat, Row Symbol)
 = (readConstructorSig r err ok)
+;
 | ifNot (rexIsNode r)
-    ; trk 'just symbol'
     : cnstr <- readSymbol r err
-    | ok (rexIdnt r, cnstr, [])
+    | ok (rexIdnt r, cnstr, NONE, [])
 ;
-; trk '| node'
-@ kids    | rexKids r
-@ numKids | len kids
-| if (neq "|" rexRune-r)
+@ rune | rexRune r
+;
+| if (rune == "=")
+    : (cnstrId, cnstr, oTag) < readSymbolMaybeWithTag r err
+    | ok (cnstrId, cnstr, oTag, [])
+;
+@ kids@[cnstrRex] | rexKids r
+@ numKids         | len kids
+;
+| if ((rune /= "|") || isZero numKids)
     | err r sigExpect
-| if (isZero numKids)
-    | err r "Expected at least one kid"
 ;
-@ cnstrRex (idx 0 kids)
-: cnstr   < readSymbol cnstrRex err
-@ cnstrId | rexIdnt cnstrRex
+: (cnstrId, cnstr, oTag)
+    < readSymbolMaybeWithTag cnstrRex err
 ;
 | if (eql 1 numKids)
-    ; trk '|-rune but no fields'
-    | ok (cnstrId, cnstr, [])
+    | ok (cnstrId, cnstr, oTag, [])
 ;
-; trk 'there are fields'
 @ fields     | drop 1 kids
-; trk [=fields]
 @ firstField | idx 0 fields
 ;
 | if (eql 2 numKids && ("*" == rexRune firstField))
     : fields <- parseItemizedFields (idx 1 kids) err
-    | ok (cnstrId, cnstr, fields)
+    | ok (cnstrId, cnstr, oTag, fields)
 : fields <- parseManyFields (drop 1 kids) err
-| ok (cnstrId, cnstr, fields)
+| ok (cnstrId, cnstr, oTag, fields)
 
-> Rex > Parser (Nat, Symbol, Row Symbol)
+""" {readDatatypeSig} uses an inglorious short-term hack: it simply runs
+""" the record-signature parser against a fudged input.
+
+> Rex > Parser (Nat, Symbol, Opt Nat, Row Symbol)
 = (readDatatypeSig node err ok)
 @ rune (rexRune node)
 | if (neq "*" rune)
     | err node "Expecting something like (* CNSTR field:type ...)"
-;
-; Inglorious short-term hack: just re-using the record parser with
-; fudged input TODO.
-;
 ^ readConstructorSig _ err ok
 | rexSetRune "|" node
 
@@ -257,8 +277,13 @@ fieldExpect="Expected something like (field:type)"
 ; We ignore the first kid, because it's the type, which we don't yet
 ; actually do anything with.
 ;
-: [key constr fields]
+@ sigRex (idx 2 kids)
+: [key constr oTag fields]
     < readConstructorSig (idx 2 kids) err
+;
+| if (oTag /= NONE)
+    | err sigRex "Record constructors are never tagged"
+;
 ; trk [=key =constr =fields]
 | ok p a
 | if (isZero len-fields)
@@ -310,7 +335,10 @@ ex=(PAIR %a %b)
 
 ''' readDataBranches '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-> Rex > Parser (Row (Nat, Symbol, Row Symbol))
+; TODO: Validate that all tags are implicit or
+; explicit and that all explicit tags are unique.
+
+> Rex > Parser (Row (Nat, Symbol, Opt Nat, Row Symbol))
 = (readDataBranches r err ok)
 ^ _ ~[] r
 ? (go acc r)
@@ -324,13 +352,21 @@ ex=(PAIR %a %b)
     | go acc that
 
 
-!!=  ,, [0 %FOO [(0, 'x', `a)]]
-     ,, [0 %BAR [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
-     ,, [0 %LOL []]
+!!=  ,, [0 %FOO NONE [(0, 'x', `a)]]
+     ,, [0 %BAR NONE [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
+     ,, [0 %LOL NONE []]
   ^ readDataBranches _ v2 id
   ` * FOO x:a
     * BAR x:b y:c z:d
     * LOL
+
+!!=  ,, [0 %FOO (SOME %f) [(0, 'x', `a)]]
+     ,, [0 %BAR (SOME %b) [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
+     ,, [0 %LOL (SOME %l) []]
+  ^ readDataBranches _ v2 id
+  ` * FOO=f x:a
+    * BAR=b x:b y:c z:d
+    * LOL=l
 
 
 ''' defDataTypeC '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -338,7 +374,7 @@ ex=(PAIR %a %b)
 > RexSources
 > RexProps
 > Env
-> Row (Key, Str, Row Str)
+> Row (Key, Str, Opt Nat, Row Str)
 > (RexProps, Cmd)
 = (defDataTypeC src prp env branches)
 ;
@@ -351,19 +387,25 @@ ex=(PAIR %a %b)
 ; trk %loop,[=ix =prp =acc =remain]
 ;
 : kca remain <- **listCase remain (prp, bloodline acc)
-@ [key cns arg] kca
+@ [key cns oTag arg] kca
 ;
-@ prp (setProperty key 'conTag' ix       prp)
-@ prp (setProperty key 'conAri' len-arg  prp)
-@ prp (setProperty key 'conFun' _DataTag prp)
-@ prp (setProperty key 'conHas' TRUE     prp) ; hasTag
+@ ari | len arg
+@ tag | fromSome ix oTag
+@ prp | setProperty key 'conTag' tag      prp
+@ prp | setProperty key 'conAri' ari      prp
+@ prp | setProperty key 'conFun' _DataTag prp
+@ prp | setProperty key 'conHas' TRUE     prp ; hasTag
 ;
-@ arg (map idx-1 arg)
-@ bod (| rowE | rowCons natE-ix | map varE arg)
-@ cmd (defKC key (rowCons cns arg) bod)
-@ acc (CONS cmd acc)
-;
-| loop (inc ix) prp acc remain
+| if (isZero ari)
+    @ bod | natE tag
+    @ cmd | defKC key [cns] bod
+    | loop (inc ix) prp (cmd :: acc) remain
+| else
+    @ arg (map idx-1 arg)
+    @ bod (| rowE | rowCons natE-tag | map varE arg)
+    @ cmd (defKC key (rowCons cns arg) bod)
+    @ acc (CONS cmd acc)
+    | loop (inc ix) prp acc remain
 
 
 ''' #datatype ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -397,23 +439,19 @@ ex=(PAIR %a %b)
 !! eql [0 9] | E_LEFT 9
 !! eql [1 8] | E_RIGHT 8
 
+# datatype (Choice a b)
+* THIS=l x:a
+* THAT=r x:b
 
-"""
-""" # datacase foo
-""" * NIL         0
-""" * (CONS x xs) xs
-"""
-""" ~~ [0 [] `0)
-""" ~~ [1 [%x %xs] `xs]
-"""
-""" # switch (idx 0 foo)
-""" * 0
-"""     @ [_] foo
-"""     0
-""" * 1
-"""     @ [_ x xs] foo
-"""     1
-"""
+!!= 'l'      | getProp#(THIS.conTag)
+!!= 1        | getProp#(THIS.conAri)
+!!= _DataTag | getProp#(THIS.conFun)
+!!= 'r'      | getProp#(THAT.conTag)
+!!= 1        | getProp#(THAT.conAri)
+!!= _DataTag | getProp#(THAT.conFun)
+
+!! eql [%l 9] | THIS 9
+!! eql [%r 8] | THAT 8
 
 
 ''' parseDatacase ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''

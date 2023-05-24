@@ -7,22 +7,25 @@
 /+  boot
 /+  switch  ["#switch"]
 /+  mutrec  ["#mutrec"]
+/+  datatype
 /+  jlex
 
 
 """ Json Values """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= JSON_NULL    | %nil
-= JSON_TRUE    | %ya
-= JSON_FALSE   | %no
-= TAG_JSON_STR | %str
-= TAG_JSON_NUM | %num
-= TAG_JSON_VEC | %vec
-= TAG_JSON_MAP | %map
-= (JSON_STR s) | [%str s]
-= (JSON_NUM n) | [%num n]
-= (JSON_VEC r) | [%vec r]
-= (JSON_MAP t) | [%map t]
+TAG_JSON_STR='str'
+TAG_JSON_NUM='num'
+TAG_JSON_VEC='vec'
+TAG_JSON_MAP='map'
+
+# datatype Json
+* JSON_NULL=nil
+* JSON_TRUE=ya
+* JSON_FALSE=no
+* JSON_STR=str s:Bar
+* JSON_NUM=num n:Nat
+* JSON_VEC=vec r:(Row Json)
+* JSON_MAP=map t:(Tab Str Json)
 
 
 """ Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

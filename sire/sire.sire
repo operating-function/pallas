@@ -13,13 +13,12 @@
 /+  switch
 /+  datatype [parseDatacase]
 
-; TODO: Doesn't quite match reality (and neither does comment in 19_pat.sire)
 # datatype Pat
-* P_VAR nm:Symb
-* P_ALI nm:Symb pt:Pat
-* P_SEQ pt:Pat
-* P_ROW xs:(Row Pat)
-* P_TAB xs:(Tab Any Pat)
+* PVAR=v k:Key n:Sym
+* PSEQ=s k:Key p:Sym
+* PALI=a n:Sym p:Pat
+* PROW=r x:(Row Pat)
+* PTAB=t x:(Tab Any Pat)
 
 # record ConCase
 | CON_CASE con:Symb params:(Row Pat) body:Exp
@@ -28,17 +27,17 @@
 | FUN self:Sym tag:Nat args:(Row Sym) body:Exp
 
 # datatype Exp
-* EBED b:Any
-* EREF r:Str
-* ENAT n:Nat
-* EAPP x:Exp y:Exp
-* EKET xs:(Row Exp) v:Exp
-* ELET n:Str x:Exp b:Exp
-* EREC n:Str x:Exp b:Exp
-* ELAM pin:Bit fun:(Str, Nat, Row Str, Exp)
-* ELIN f:Str xs:(Row Exp)
-* ECAS x:Exp fb:(Opt Exp) cs:(Row ConCase)
-* EWUT r:Rex
+* EBED=cns b:Any
+* EREF=ref r:Str
+* ENAT=nat n:Nat
+* EAPP=app x:Exp y:Exp
+* EKET=ket xs:(Row Exp) v:Exp
+* ELET=let n:Str x:Exp b:Exp
+* EREC=rec n:Str x:Exp b:Exp
+* ELAM=lam pin:Bit fun:(Str, Nat, Row Str, Exp)
+* ELIN=lin f:Str xs:(Row Exp)
+* ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
+* EWUT=wut r:Rex
 
 = (showSig syms)
 | if (len syms == 1)
