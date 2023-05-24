@@ -8,6 +8,8 @@ import PlunderPrelude
 
 import Optics (set)
 
+import qualified Data.IntMap as IntMap
+
 --------------------------------------------------------------------------------
 
 data Pool a = POOL
@@ -30,4 +32,14 @@ poolRegister var val = do
 
 poolUnregister :: TVar (Pool a) -> Int -> STM ()
 poolUnregister tvar k = do
-   modifyTVar' tvar (over #tab (deleteMap k))
+    modifyTVar' tvar (over #tab (deleteMap k))
+
+readPool :: TVar (Pool a) -> (a -> STM b) -> STM b
+readPool tvar fun = do
+    pool <- readTVar tvar
+    case IntMap.minView pool.tab of
+        Nothing -> retry
+        Just (x,xs) -> do
+            r <- fun x
+            writeTVar tvar (set #tab xs $ pool)
+            pure r

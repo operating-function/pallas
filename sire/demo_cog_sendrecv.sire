@@ -1,0 +1,38 @@
+;;; Copyright 2023 The Plunder Authors
+;;; Use of this source code is governed by a BSD-style license that can be
+;;; found in the LICENSE file.
+
+### demo_cog_sendrecv <- demo_cog_stop
+
+/+  boot
+/+  kern
+/+  demo_timer
+
+= (pongCog return)
+| trk [%pongwait]
+: ??(pong_got_msg rawmsg) <- syscall COG_RECV
+@ [msg] rawmsg
+| trk [%pongrecv msg]
+: ??(pong_sent success) <- syscall (COG_SEND 0 msg)
+| trk [%pongsuccess success]
+| pongCog return
+
+= (sendDemo return)
+: ??(spin_got_id cogId) <- syscall (COG_SPIN (runCog-pongCog))
+| trk [%cogId cogId]
+;
+^ _ 0 return
+? (go i return)
+| trk [%pingsending i]
+: ??(sent_msg_success success) <- syscall (COG_SEND cogId i)
+: ??(recv_msg rawmsg) <- syscall COG_RECV
+@ [msg] rawmsg
+| trk [%pingrecv msg]
+;
+; wait a second to not spam things.
+: ??(td_got_time now) <- syscall TIME_WHEN
+| trk [current_time=now]
+: ??(td_waited _) <- syscall (**TIME_WAIT (inc now))
+| go (inc i) return
+
+(runCog sendDemo)
