@@ -948,7 +948,7 @@
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ parseBinder
+^-^ readBindSig parseBinder
 ^-^ readDestroyer makeDestroyer
 ^-^
 ^-^ sequenceBinds bindSeqE

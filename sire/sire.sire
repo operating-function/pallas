@@ -24,7 +24,9 @@
 | CON_CASE con:Sym params:(Row Pat) body:Exp
 
 # record Fun
-| FUN self:Sym tag:Nat args:(Row Sym) body:Exp
+| FUN self:Sym tag:Nat args:(Row Pat) body:Exp
+
+; TODO: Can we make {EREC} support destructuring too?  Why not?
 
 # datatype Exp
 * EBED=cns b:Any
@@ -32,34 +34,36 @@
 * ENAT=nat n:Nat
 * EAPP=app x:Exp y:Exp
 * EKET=ket xs:(Row Exp) v:Exp
-* ELET=let n:Str x:Exp b:Exp
+* ELET=let n:Pat x:Exp b:Exp
 * EREC=rec n:Str x:Exp b:Exp
-* ELAM=lam pin:Bit fun:(Str, Nat, Row Str, Exp)
+* ELAM=lam pin:Bit fun:(Str, Nat, Row Pat, Exp)
 * ELIN=lin f:Str xs:(Row Exp)
+* EROW=row xs:(Row Exp)
 * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
 
-= (showSig syms)
-| if (len syms == 1)
-    | varE (idx 0 syms)
-| NEST 0 "|" (map varE syms) 0
-
-= (showFun go pin (FUN self tag args body))
-| if pin
-    | 'todo' 'show pinned lambdas'
-| if (self /= tag)
-    | 'todo' 'show lambdas where name is different from tag'
-| if (isZero tag)
-    | INFX 0 "&" (showSig args, go body) 0
-| INFX 0 "?" (showSig (rowCons self args), go body) 0
-
-
 = (showPat p)
-# switch (idx 0 p)
-* 'v'
-    @ [_ _ v] p
-    | varE v
-* _
-    | 'showPat' {unsupported pattern}
+# datacase p
+* (PVAR _k v) | varE v
+* (PSEQ _k v) | PREF 0 "!" ,(varE v) 0
+* (PALI x y)  | SHUT 0 "@" (showPat x, showPat y) 0
+* (PROW xs)   | NEST 0 "," (map showPat xs) 0
+* (PTAB xs)   | {showPat: TODO: print tab patterns} xs
+
+= (showSig rexes@[first])
+| if (len rexes == 1) first
+| NEST 0 "|" rexes 0
+
+= (showFun showSire pin (FUN self tag args body))
+| if pin
+    | todo 'show pinned lambdas'
+| if (self /= tag)
+    | todo 'show lambdas where name is different from tag'
+@ selfRex  | varE self
+@ argRexes | map showPat args
+| if (isZero tag)
+    | INFX 0 "&" (showSig argRexes, showSire body) 0
+| else
+    | INFX 0 "?" (showSig (rowCons selfRex argRexes), showSire body) 0
 
 = (showCon cn pts)
 | if (null pts) (varE cn)
@@ -75,7 +79,6 @@
                   * NONE      | 0
                   * (SOME fb) | ``(* _ $$(showSire fb))
 @ rest (go xs)
-| trk [=cn =pts =b =xs]
 | ``((* $$(showCon cn pts) $$(showSire b))($$rest))
 
 = (showSire exp)
@@ -83,7 +86,6 @@
 @ (niceApp e)
     ^ _ e ~[]
     ? (loop e acc)
-    | trk %niceApp,[=e =acc]
     # datacase e
     * (EAPP f x) | loop f (go x)::acc
     * _          | NEST 0 '|' (listToRow (go e)::acc) 0
@@ -93,20 +95,23 @@
 * (ENAT n)       | WORD 0 showNat-n 0
 * (EAPP x y)     | niceApp exp
 * (EKET xs v)    | NEST 0 "^" (map go xs) (go v)
-* (ELET n x b)   | INFX 0 '@'  (go EREF-n, go x) (go b)
-* (EREC n x b)   | INFX 0 '@@' (go EREF-n, go x) (go b)
+* (ELET n x b)   | INFX 0 '@'  (showPat n, go x) (go b)
+* (EREC n x b)   | INFX 0 '@@' (showPat (PVAR 0 n), go x) (go b)
 * (ELAM pin fun) | showFun go pin fun
 * (ELIN f xs)    ^ (NEST 0 '|' _ 0)
                  | rowCons (PREF 0 '**' [(go EREF-f)] 0)
                  | map go xs
+* (EROW xs)      | NEST 0 "," (map go xs) 0
 * (ECAS x f cs)
-    | NEST 0 '#' (varE 'datacase', showSire x)
-    | showDatacases showSire f cs
+    | NEST 0 '#' (varE 'datacase', go x)
+    | showDatacases go f cs
+* _
+    | {showSire: Unknown syntax} exp
 
 !!=     ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 0 0 (2 fanc))
     | showSire
-    | ELET %n (ENAT %inc)
-    | ELET %fanc
+    | ELET (PVAR 0 "n") (ENAT %inc)
+    | ELET (PVAR 0 "fanc")
         | ELIN %mkLaw
        ,, EREF %n
        ,, EREF %a
@@ -121,30 +126,38 @@
 !!=     ` (x y & x)
     | showSire
     | ELAM FALSE
-    | FUN 0 0 [%x %y] (EREF %x)
+    | FUN 0 0 (PVAR 0 %x, PVAR 0 %y) (EREF %x)
 
 !!=     ` (const x y ? x)
     | showSire
     | ELAM FALSE
-    | FUN "const" "const" [%x %y] (EREF %x)
+    | FUN "const" "const" (PVAR 0 %x, PVAR 0 %y) (EREF %x)
 
 !!=     ` (^ f _ y)x
     | showSire
     | EKET (EREF %f, EREF %_, EREF %y)
     | EREF %x
 
-> (Sym -> Exp -> Exp -> Exp)
 > (Rex > Parser Exp)
 > Rex
 > Parser Exp
-= (parseLet con readSire rex err ok)
-@ kids (rexKids rex)
+= (parseLet readSire rex err ok)
+@ kids@[patRex expRex bodRex] (rexKids rex)
 | if (len kids /= 3) (err rex 'Bad let')
-@ [varRex expRex bodRex] kids
-: var < readSymbol varRex err
+: var < parseBinder patRex err
 : exp < readSire expRex err
 : bod < readSire bodRex err
-| ok | con var exp bod
+| ok (ELET var exp bod)
+
+= (parseRec readSire rex err ok)
+: res < parseLet readSire rex err
+# datacase res
+* _ (die 'impossible')
+* (ELET p x b)
+# datacase p
+* _ | err rex {recursive-let currently doesn't support pattern matching}
+* (PVAR _ v)
+| ok (EREC v x b)
 
 > (Rex > Parser Sire)
 > Rex
@@ -201,7 +214,6 @@
     @ argsRex | drop 1 kids
     : fHead   < readAppHead readSire funcRex err
     : args    < traverseRow (x k & readSire x err k) argsRex
-    | trk [=fHead]
     # datacase fHead
     * (LEFT func) | ok | ELIN func args
     * (RIGHT exp) | ok | foldl EAPP exp args
@@ -209,21 +221,20 @@
     @ kids (rexKids rex)
     | if (len kids /= 2) (err rex 'Bad lambda')
     @ [sigRex bodRex] kids
-    : args <- readSignature sigRex err
+    : pats <- readBindSig sigRex err
     : body <- readSire bodRex err
-    | ok | ELAM FALSE | FUN 0 0 args body
+    | ok | ELAM FALSE | FUN 0 0 pats body
 * '?'
-    @ kids (rexKids rex)
+    @ kids@[sigRex bodRex] (rexKids rex)
     | if (len kids /= 2) (err rex 'Bad lambda.')
-    @ [sigRex bodRex] kids
-    : names <- readSignature sigRex err
-    | if (lth (len names) 2) (err rex 'Bad lambda.')
-    @ func (idx 0 names)
-    @ args (drop 1 names)
+    : func pats <- readDestroyer sigRex err
     : body <- readSire bodRex err
-    | ok | ELAM FALSE | FUN func func args body
-* '@'  | parseLet ELET readSire rex err ok
-* '@@' | parseLet EREC readSire rex err ok
+    | ok (ELAM FALSE | FUN func func pats body)
+* ','
+    : exps <- traverseRow (x k & readSire x err k) (rexKids rex)
+    | ok (EROW exps)
+* '@'  | parseLet readSire rex err ok
+* '@@' | parseRec readSire rex err ok
 * '#'  | parseHax readSire rex err ok
 * _
     | err rex (strWeld 'Unknown rune: ' rune)
@@ -245,6 +256,9 @@
 !! sireRound ` (x @ 3)(x x x)
 !! sireRound ` (x @@ 3)x
 !! sireRound ` (^ f _ y)x
+!! sireRound ` (x @ [1 2])[x x]
+!! sireRound ` ([x y] @ [1 2])[y x]
+!! sireRound ` (z@[!x y] @ [1 2])(x y z)
 
 !!=     ` (span f r ? (l @ len r)(^ _ 0)(loop i ? if (eql i l) (v2 r v0) (if (f (idx i r)) (loop (inc i)) (v2 (take i r) (drop i r)))))
     ^ readSire _ v2 showSire
