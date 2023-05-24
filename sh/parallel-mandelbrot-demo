@@ -10,7 +10,7 @@
 export PLUNDER_DIR=$(realpath .demo)
 
 # TODO: error out if this broke.
-plunder boot pfract sire/demo-parallel-mandelbrot.sire
+plunder boot pfract sire/demo_parallel_mandelbrot.sire
 plunder spin pfract
 
 until [ -f ./.demo/pfract.http.port ]
