@@ -700,8 +700,7 @@ receiveResponse st = \case
 
 runnerFun :: Debug => MVar [Flow] -> Machine -> ByteString -> Runner -> IO ()
 runnerFun initialFlows machine processName st =
-    withMachineHardwareInterface machine.ctx.machineName machine.ctx.hw do
-
+    bracket_ registerCogsWithHardware stopCogsWithHardware $ do
         -- Process the initial syscall vector
         (flows, onCommit) <- atomically (parseAllRequests st)
 
@@ -717,6 +716,19 @@ runnerFun initialFlows machine processName st =
         forever machineTick
 
   where
+    registerCogsWithHardware :: IO ()
+    registerCogsWithHardware = do
+      m <- readTVarIO st.vMoment
+      let k :: [CogId] = keys m.val
+      for_ k $ \cogid ->
+        for_ machine.ctx.hw.table $ \d -> d.spin machine.ctx.machineName cogid
+
+    stopCogsWithHardware :: IO ()
+    stopCogsWithHardware = do
+      m <- readTVarIO st.vMoment
+      for_ (keys m.val) $ \cogid ->
+        for_ machine.ctx.hw.table $ \d -> d.stop machine.ctx.machineName cogid
+
     -- We've completed a unit of work. Time to tell the logger about
     -- the new state of the world.
     exportState :: (Receipt, [STM OnCommitFlow]) -> STM ()
@@ -814,20 +826,6 @@ runResponse st cogid rets didCrash = do
     CRASH{} -> recordInstantEvent "Main Exception" "cog" mempty >> onCrash
     OKAY _ result -> do
       withAlwaysTrace "Tick" "cog" do
-        -- If there were recvs executed on our responses, we must also process
-        -- the result to the send acknowledging whether it crashed or not.
-        sendResults <- forM rets
-            \(_,rt) -> case rt.resp of
-                RespRecv PENDING_SEND{..} -> do
-                  let outcome = if didCrash then SendCrash else SendOK
-                  -- TODO: Enable flows; how do we connect the recv completing
-                  -- to this?
-                  let rtup = RTUP{key=idx,resp=RespSend outcome,work=0
-                                 ,flow=FlowDisabled}
-                  runResponse st sender [(idx.int, rtup)] False
-                _ -> pure ([], [])
-        let (sendFlows, sendReceipts) = concatUnzip sendResults
-
         -- TODO: Actually should the following be a single atomically block?
         --
         -- Is it a problem that the spin effects could occur in a different
@@ -857,11 +855,36 @@ runResponse st cogid rets didCrash = do
 
         (startedFlows, onPersists) <- atomically (parseRequests st cogid)
 
+        afterResults <- forM rets
+            \(_,rt) -> case rt.resp of
+                RespSpin newCogId _ -> do
+                  for_ st.ctx.hw.table $ \d ->
+                    d.spin st.ctx.machineName newCogId
+                  pure ([], [])
+
+                RespStop dedCogId _ -> do
+                  for_ st.ctx.hw.table $ \d ->
+                    d.stop st.ctx.machineName dedCogId
+                  pure ([], [])
+
+                -- If there were recvs executed on our responses, we must also
+                -- process the result to the send acknowledging whether it
+                -- crashed or not.
+                RespRecv PENDING_SEND{..} -> do
+                  let outcome = if didCrash then SendCrash else SendOK
+                  -- TODO: Enable flows; how do we connect the recv completing
+                  -- to this?
+                  let rtup = RTUP{key=idx,resp=RespSend outcome,work=0
+                                 ,flow=FlowDisabled}
+                  runResponse st sender [(idx.int, rtup)] False
+                _ -> pure ([], [])
+        let (afterFlows, afterReceipts) = concatUnzip afterResults
+
         let receiptPairs = [(responseToReceipt cogid didCrash rets,
                              onPersists ++ sideEffectPersists)]
-                        ++ sendReceipts
+                        ++ afterReceipts
 
-        pure ( startedFlows ++ sendFlows ++ sideEffectFlows
+        pure ( startedFlows ++ afterFlows ++ sideEffectFlows
              , receiptPairs )
 
  where

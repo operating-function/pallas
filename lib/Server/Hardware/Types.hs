@@ -15,7 +15,6 @@ module Server.Hardware.Types
     , SysCall(..)
     , SysCallState(..)
     , getCallResponse
-    , withMachineHardwareInterface
     , writeResponse
     , fillInvalidSyscall
     , syscallCategory
@@ -136,16 +135,6 @@ callHardware db deviceName call = do
         traceM ("no such device: " <> show deviceName)
         fillInvalidSyscall call
         pure (CANCEL pass, [])
-
-withMachineHardwareInterface :: MachineName -> DeviceTable -> IO a -> IO a
-withMachineHardwareInterface machine dev act =
-    bracket_ notifySpin notifyStop act
-  where
-    notifySpin :: IO ()
-    notifySpin = for_ dev.table (\d -> d.spin machine removeMeDummyCogId)
-
-    notifyStop :: IO ()
-    notifyStop = for_ dev.table (\d -> d.stop machine removeMeDummyCogId)
 
 syscallCategory :: DeviceTable -> DeviceName -> Vector Fan -> Text
 syscallCategory db deviceName params = do
