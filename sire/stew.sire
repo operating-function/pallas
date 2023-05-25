@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### sire <- kern
+### stew <- kern
 
 /+  boot
 /+  datatype
@@ -10,10 +10,14 @@
 /+  datatype [parseDatacase]
 
 """
-""" sire.sire
+""" stew.sire
 """ =========
 """
-""" Parser and (simple) printer for Sire + Macros.
+""" This is a parser, printer, and compiler for Stew, the "Steward Language".
+""" Stew is an interim language between Sire and Heir.  Stew is built
+""" using the Sire macro system but does not itself support further
+""" macro-extension, instead using the traditional parse, type-check,
+""" compiler flow.
 """
 """ TODO: Can we make {EREC} support destructuring too?  Why not?
 """
