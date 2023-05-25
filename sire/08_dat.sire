@@ -296,6 +296,9 @@
 = NIL           | 0
 = (**CONS x xs) | [x xs]
 
+; TODO: Always inline?
+; TODO: Use isZero?
+
 = (listCase xs nil cons)
 | if isNat-xs nil
 | **cons idx-0-xs idx-1-xs

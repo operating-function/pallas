@@ -54,12 +54,12 @@ validate tab = unsafePerformIO do
   where
     runHashes =
         [ ( "if"        , ifHash        )
-        , ( "ifNot"     , ifNotHash     )
+        , ( "ifNot"     , ifNotHash     ) -- use inlining instead of jetting.
         , ( "switch"    , switchHash    )
         , ( "seq"       , seqHash       )
         , ( "trk"       , trkHash       )
         , ( "tabSwitch" , tabSwitchHash )
-        , ( "idx"       , idxHash       )
+        , ( "idx"       , idxHash       ) -- use inlining instead of jetting.
         , ( "get"       , getHash       )
         , ( "add"       , addHash       )
         , ( "sub"       , subHash       )
@@ -110,6 +110,7 @@ jetHashes
     , e "get"                 "CC4gCjuhJc9bXhiLHSdWkUe84c95bowZac1FkUQqQtDw"
     , e "idx"                 "AbxuJzL7R9fA5xDrvRPoaDQziFceN8hiLTaDWov6bcuc"
     , e "mut"                 "6qnajRQCZDJeYttfLZU8ZB8tRbRoqy7zWA9FU5gx1c3a"
+        -- ^ remove idx/mut jets and use inlining instead.
     , e "eql"                 "4AaF13zqQmE32NwSRFyg5w6mUt8cF6vQ3tTBvXfzGLGB"
     , e "neq"                 "Cq2MNChKYooxaEb5jeEAcoZj7wAaoAhx8h3NXA1kbH7m"
     , e "cmp"                 "3SQ51YwjVwzHdAMhbdGd8cpXhF2wTPpnGAb3TVN3rCs4"
