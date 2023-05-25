@@ -16,7 +16,7 @@
 
 /+  01_fan  []
 /+  02_bit  [if and or not]
-/+  03_nat  [gteNat lteNat add sub eqlNat]
+/+  03_nat  [gteNat lteNat lthNat add sub eqlNat]
 /+  04_app  []
 /+  05_eql  []
 /+  06_cow  []
@@ -31,14 +31,10 @@
 (isUpper c)=(and (gteNat c 'A') (lteNat c 'Z'))
 (isLower c)=(and (gteNat c 'a') (lteNat c 'z'))
 (isAlpha c)=(or isUpper-c isLower-c)
+(isPrint c)=(lthNat (sub c 0x20) 0x5f)
 
-= (toLower c)
-| if (isUpper c) (add 32 c)
-| c
-
-= (toUpper c)
-| if (isLower c) (sub c 32)
-| c
+(toLower c)=(if (isUpper c) (add 32 c) c)
+(toUpper c)=(if (isLower c) (sub c 32) c)
 
 (chr c)=(add c 48)
 (ord c)=(sub c 48)
@@ -61,5 +57,5 @@
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^  ord chr
-^-^  isDigit isUpper isLower isAlpha
+^-^  isDigit isUpper isLower isAlpha isPrint
 ^-^  toLower toUpper

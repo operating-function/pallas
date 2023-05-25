@@ -181,6 +181,7 @@ abstype#Type
 abstype#Void
 abstype#Any
 abstype#Nat
+abstype#Pad
 abstype#(Pin a)
 abstype#(Fun a b)
 abstype#Bar

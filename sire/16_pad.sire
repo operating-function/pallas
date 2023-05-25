@@ -139,6 +139,8 @@ emptyPad=1
 = hpBadShape | "Expcted two kids"
 = hpBadType  | "Bar literal expects a text parameter"
 
+; TODO: {showPadLit} should use bare-words for non-empty pads.
+
 = (showPadLit pad)
 ^ SHUT 0 "#" _ 0
 ,, WORD 0 "p" 0

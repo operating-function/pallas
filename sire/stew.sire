@@ -49,10 +49,9 @@
 """
 """ TODO: Parse all macro-defined expressions:
 """
-"""
 """ - [x] #p
-""" - [ ] #b
-""" - [ ] #x
+""" - [x] #b
+""" - [x] #x
 """ - [ ] % %%
 """ - [ ] ` ``
 """ - [ ] && || == /=
@@ -90,7 +89,8 @@
 * EBED=cns b:Any
 * EREF=ref r:Str
 * ENAT=nat n:Nat
-* EPAD=pad n:Nat
+* EPAD=pad n:Pad
+* EBAR=bar n:Bar
 * EAPP=app x:Exp y:Exp
 * EKET=ket xs:(Row Exp) v:Exp
 * ELET=let n:Pat x:Exp b:Exp
@@ -197,6 +197,7 @@
 * (EREF x)       | WORD 0 x 0
 * (ENAT n)       | WORD 0 showNat-n 0
 * (EPAD p)       | showPadLit p
+* (EBAR b)       | showBarLit b
 * (EAPP x y)     | niceApp go exp
 * (EKET xs v)    | NEST 0 {^} (map go xs) (go v)
 * (ELET n x b)   | INFX 0 {@}  (showPat n, go x) (go b)
@@ -208,7 +209,7 @@
 * (ECAS x f cs)  | showCase go x f cs
 * _              | {showSire: Unknown syntax} exp
 
-!!= ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 p#{111} 0 (2 fanc))
+!!= ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 p#{111} b#{asdf} (2 fanc))
   | showSire
   | ELET (PVAR 0 "n") (ENAT %inc)
   | ELET (PVAR 0 "fanc")
@@ -219,7 +220,7 @@
   | EAPP
       | EAPP
           | EAPP (ENAT 0) (EPAD p#111)
-      | ENAT 0
+      | EBAR b#asdf
   | EAPP (ENAT 2)
   | EREF %fanc
 
@@ -268,9 +269,9 @@
 : sym <- readSymbol param err
 # switch sym
 * _ | err rex (strWeld 'Unknown keyword: #' sym)
-* {p}
-    : pad <- readPadLit rex err
-    | ok (EPAD pad)
+* {p} | readPadLit rex err (pad & ok (EPAD pad))
+* {b} | readBarLit rex err (pad & ok (EBAR pad))
+* {x} | readBarLit rex err (pad & ok (EBAR pad))
 * {datacase}
     : val fb cases < parseDatacase readSire rex err
     | ok ^ ECAS val fb (map _ cases)
