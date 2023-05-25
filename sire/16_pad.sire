@@ -44,21 +44,21 @@
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 /+  01_fan  [die seq isNat const]
-/+  02_bit  [if ifNot]
-/+  03_nat  [add mul sub bex dec met lsh rsh mod]
+/+  02_bit  [if ifNot else]
+/+  03_nat  [isZero add mul sub bex dec met lsh rsh mod lteNat]
 /+  04_app  [idx len]
 /+  05_eql  [eql neq]
 /+  06_cow  [map weld foldl]
-/+  07_rex  [rexKids rexText rexIsLeaf]
-/+  08_dat  [","]
-/+  08_dat  [listFromRow listCase]
+/+  07_rex  [rexKids rexText rexIsLeaf SHUT WORD CURL {`}]
+/+  08_dat  [{,} {,,}]
+/+  08_dat  [listFromRow listCase listSnoc NIL CONS]
 /+  09_sci  []
 /+  10_chr  []
-/+  11_str  [explode]
+/+  11_str  [explode strToList strFromList]
 /+  12_cab  []
 /+  13_tab  []
 /+  14_exp  [cnsE]
-/+  15_hax  ['#']
+/+  15_hax  [{#}]
 
 
 """ Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -103,16 +103,35 @@ emptyPad=1
 | ifNot remain [pad emptyPad]
 | [looted remain]
 
-= (padFromBinaryStr str)
-@ dig | map (eql "1") explode-str
-@ buf | listFromRow weld-dig-[1]
-^ _ 0 buf 1
+; TODO: {readPadLit} should ignore whitespace (spaces and tabs) so
+; that multi-line bit-strings are possible.
+
+; Rex > Str > Read Pad
+= (readPadStr rex str err ok)
+@ lis (listSnoc (strToList str) "1")
+^ _ 0 lis 1
 ? (loop acc lis pos)
-| seq acc
-| **listCase lis acc
+| **listCase lis (ok acc)
 & (b bs)
-@ acc | if b (add pos acc) acc
-| loop acc bs (mul 2 pos)
+@ nextPos (mul 2 pos)
+| seq nextPos
+| if (eql '0' b)
+    | loop acc bs nextPos
+| if (eql '1' b)
+    @ acc (add pos acc)
+    | seq acc
+    | loop acc bs nextPos
+| else
+    | err rex "pad literals must contain only zeros and ones"
+
+; Pad -> Str
+= (showPadStr pad)
+| strFromList
+^ _ pad
+? (go rem)
+| if (lteNat rem 1) NIL
+| CONS (if (mod rem 2) '1' '0')
+| go (rsh rem 1)
 
 
 """ The `#p` Macro """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -120,13 +139,35 @@ emptyPad=1
 = hpBadShape | "Expcted two kids"
 = hpBadType  | "Bar literal expects a text parameter"
 
-= ("#p" s p e a r err ok)
-@ kids (rexKids r)
-| if (neq 2 len-kids) | (err r hpBadShape)
-@ s (idx 1 kids)
-| ifNot (rexIsLeaf s) | (err s hpBadType)
-| ok p a
-| cnsE | padFromBinaryStr | rexText s
+= (showPadLit pad)
+^ SHUT 0 "#" _ 0
+,, WORD 0 "p" 0
+,, CURL 0 (showPadStr pad) 0
+
+; Rex > Read Bar
+= (readPadLit rex err ok)
+@ kids   | rexKids rex
+@ strRex | idx 1 kids
+| if (neq 2 len-kids)      | err rex hpBadShape
+| ifNot (rexIsLeaf strRex) | err strRex hpBadType
+| readPadStr rex (rexText strRex) err ok
+
+= ({#p} s p e a r err ok)
+| readPadLit r err
+& pad
+| ok p a (cnsE pad)
+
+!!= {}   (showPadStr 0)
+!!= {}   (showPadStr 1)
+!!= {0}  (showPadStr p#0)
+!!= {1}  (showPadStr p#1)
+!!= {11} (showPadStr p#11)
+!!= {10} (showPadStr p#10)
+!!= {01} (showPadStr p#01)
+!!= {00} (showPadStr p#00)
+
+!!= `(p#{})   | showPadLit p#{}
+!!= `(p#{00}) | showPadLit p#00
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -211,5 +252,8 @@ emptyPad=1
 ^-^ toPad padNat natPad padLen
 ^-^ padWeld padCat padFlat
 ^-^ padSplitAt
-^-^ padFromBinaryStr
-^-^ "#p"
+^-^
+^-^ readPadStr showPadStr
+^-^ readPadLit showPadLit
+^-^
+^-^ {#p}

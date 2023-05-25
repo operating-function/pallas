@@ -549,6 +549,16 @@
 | if (listNull a) xs
 | loop (idx 1 a) (CONS (idx 0 a) xs)
 
+= (listSnoc xs e)
+| **listCase xs (CONS e NIL)
+& (x xs)
+| CONS x
+| listSnoc xs e
+
+!!= (listSnoc [0 [1 0]] 2)
+  | [0 [1 [2 0]]]
+
+
 """ Either """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (**LEFT x)  [0 x]
@@ -773,7 +783,7 @@
 ^-^ listGen listFindIndex listElemIndex
 ^-^ listIndexed
 ^-^ listIntersperse
-^-^ listRev
+^-^ listRev listSnoc
 ^-^
 ^-^ LEFT RIGHT
 ^-^ fromLeft unpackLeft
