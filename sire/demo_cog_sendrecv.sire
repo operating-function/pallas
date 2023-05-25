@@ -8,22 +8,23 @@
 /+  kern
 /+  demo_timer
 
-= (pongCog return)
+= (pongCog parent return)
 | trk [%pongwait]
 : ??(pong_got_msg rawmsg) <- syscall COG_RECV
 @ [msg] rawmsg
 | trk [%pongrecv msg]
-: ??(pong_sent success) <- syscall (COG_SEND 0 msg)
+: ??(pong_sent success) <- syscall (COG_SEND parent msg)
 | trk [%pongsuccess success]
-| pongCog return
+| pongCog parent return
 
 = (sendDemo return)
-: ??(spin_got_id cogId) <- syscall (COG_SPIN (runCog-pongCog))
+: ??(spin_who me) <- syscall COG_WHO
+: ??(spin_got_id cogId) <- syscall (COG_SPIN (runCog-(pongCog me)))
 | trk [%cogId cogId]
 ;
 ^ _ 0 return
 ? (go i return)
-| trk [%pingsending i]
+| trk [%pingsending cogId i]
 : ??(sent_msg_success success) <- syscall (COG_SEND cogId i)
 : ??(recv_msg rawmsg) <- syscall COG_RECV
 @ [msg] rawmsg

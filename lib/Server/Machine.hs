@@ -61,7 +61,7 @@ import qualified Data.Vector as V
 --------------------------------------------------------------------------------
 
 data Moment = MOMENT {
-  val  :: IntMap Fan,
+  val  :: Map CogId Fan,
   work :: NanoTime
   }
 
@@ -220,24 +220,14 @@ valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
         -- e (ReqEval $ error "_" timeoutSecs (row!2) (V.drop 3 row))
     else if tag == "cog" then do
         case nat of
-            "spin" | cogId == crankCogId -> do
-                _   <- guard (length row == 3)
-                pure (ReqSpin $ SR $ row!2)
-            "stop" | cogId == crankCogId -> do
-                _   <- guard (length row == 3)
-                ReqStop <$> fromNoun @CogId (row!2)
-            "send" -> do
-                _   <- guard (length row >= 3)
+            "spin" | length row == 3 -> pure (ReqSpin $ SR $ row!2)
+            "stop" | length row == 3 -> ReqStop <$> fromNoun @CogId (row!2)
+            "send" | length row >= 3 -> do
                 dst <- fromNoun @CogId (row!2)
                 pure (ReqSend (SNDR dst (V.drop 3 row)))
-            "recv" -> do
-                _   <- guard (length row == 2)
-                pure ReqRecv
-            "who" -> do
-                _   <- guard (length row == 2)
-                pure ReqWho
-            _ -> do
-                Nothing
+            "recv" | length row == 2 -> pure ReqRecv
+            "who"  | length row == 2 -> pure ReqWho
+            _ -> Nothing
     else do
         _   <- guard (length row >= 3)
         case nat of
@@ -262,7 +252,7 @@ data EvalCancelledError = EVAL_CANCELLED
 -- index in that cog's requests table, there is a raw fan value and a
 -- `LiveRequest` which contains STM variables to listen
 type CogSysCalls = IntMap (Fan, LiveRequest)
-type MachineSysCalls = IntMap CogSysCalls
+type MachineSysCalls = Map CogId CogSysCalls
 
 -- | A pending send
 data PendingSendRequest = PENDING_SEND
@@ -388,7 +378,7 @@ performReplay cache ctx replayFrom = do
                 ReceiptEvalOK  -> do
                     -- We performed an eval which succeeded the
                     -- first time.
-                    case lookup cogId.int m.val of
+                    case lookup cogId m.val of
                         Nothing -> throwIO INVALID_COGID_IN_LOGBATCH
                         Just cog ->
                             case getEvalFunAt cogId cog (RequestIdx idx) of
@@ -408,13 +398,13 @@ performReplay cache ctx replayFrom = do
         ((didCrash, eRes), eWork) <- flip runStateT 0 (recomputeEvals m x)
         let inp = TAB (mapFromList eRes)
         let arg = if didCrash then 0 %% inp else inp
-        case lookup x.cogNum.int m.val of
+        case lookup x.cogNum m.val of
           Nothing -> throwIO INVALID_COGID_IN_LOGBATCH
           Just fun -> do
             (iWork, new) <- withCalcRuntime $ evaluate $ force (fun %% arg)
             let newWork = (m.work + eWork + iWork)
             batchLoop bn MOMENT{work=newWork,
-                                val=(insertMap x.cogNum.int new m.val)} xs
+                                val=(insertMap x.cogNum new m.val)} xs
 
     getEvalFunAt :: CogId -> Fan -> RequestIdx -> Maybe (Fan, Vector Fan)
     getEvalFunAt cogId noun (RequestIdx idx) = do
@@ -467,7 +457,7 @@ replayAndCrankMachine cache ctx replayFrom = do
 
           sends <- forM (keys moment.val) $ \k -> do
               pool <- newTVar emptyPool
-              pure (COG_ID k, pool)
+              pure (k, pool)
           vSends     <- newTVar $ mapFromList sends
           pure RUNNER{vMoment, ctx, vRequests, vSends}
 
@@ -666,20 +656,20 @@ receiveResponse st = \case
         getRandomNonConflictingId moment = do
           -- Word8 is a very temporary hack: this should not be a negative
           -- number, but IntMap only is bound to +/- 2^29-1.
-          r :: Word8 <- unsafeIOToSTM $ randomIO
-          case lookup (fromIntegral r) moment.val of
-            Nothing -> pure $ COG_ID $ fromIntegral r
+          r :: Word64 <- unsafeIOToSTM $ randomIO
+          case lookup (COG_ID r) moment.val of
+            Nothing -> pure $ COG_ID r
             Just _  -> getRandomNonConflictingId moment
 
     (_, LiveStop{..}) -> do
         do
-          myb <- (lookup lstCogId.int . (.val)) <$> readTVar st.vMoment
+          myb <- (lookup lstCogId . (.val)) <$> readTVar st.vMoment
           case myb of
             Nothing -> retry
             Just cogval -> do
               modifyTVar' st.vSends $ M.delete lstCogId
               modifyTVar' st.vMoment
-                          \m -> m { val=deleteMap lstCogId.int m.val }
+                          \m -> m { val=deleteMap lstCogId m.val }
 
               reqs <- stateTVar st.vRequests getAndRemoveReqs
               mapM_ cancelRequest reqs
@@ -688,8 +678,8 @@ receiveResponse st = \case
                               flow=FlowDisabled})
         where
           getAndRemoveReqs s =
-              ( getLiveReqs $ fromMaybe mempty $ lookup lstCogId.int s
-              , deleteMap lstCogId.int s
+              ( getLiveReqs $ fromMaybe mempty $ lookup lstCogId s
+              , deleteMap lstCogId s
               )
           getLiveReqs csc = map (\(_,(_,lr)) -> lr) $ mapToList csc
 
@@ -744,11 +734,11 @@ runnerFun initialFlows machine processName st =
         go !acc ((k,Just v) : kvs)  = go ((k,v):acc) kvs
         go !acc ((_,Nothing) : kvs) = go acc         kvs
 
-    mkCogResponses :: [(Int, CogSysCalls)]
+    mkCogResponses :: [(CogId, CogSysCalls)]
                    -> [STM (CogId, [(Int, ResponseTuple)])]
     mkCogResponses = map build
       where
-        build :: (Int, CogSysCalls) -> STM (CogId, [(Int, ResponseTuple)])
+        build :: (CogId, CogSysCalls) -> STM (CogId, [(Int, ResponseTuple)])
         build (k, sysCalls) = do
            returns <- fmap collectResponses
                     $ traverse (receiveResponse st)
@@ -756,7 +746,7 @@ runnerFun initialFlows machine processName st =
 
            when (null returns) retry
 
-           pure (COG_ID k, returns)
+           pure (k, returns)
 
     -- Collects all responses that are ready for one cog.
     takeReturns :: IO (CogId, [(Int, ResponseTuple)])
@@ -766,6 +756,7 @@ runnerFun initialFlows machine processName st =
             -- change and we want to minimize contention.
             machineSysCalls <- mapToList <$> atomically (readTVar st.vRequests)
             reordered <- shuffleM machineSysCalls
+            -- debugText $ "takeReturns: " <> tshow reordered
             atomically $ asum $ mkCogResponses reordered
 
     -- Every machineTick, we try to pick off as much work as possible for cogs
@@ -813,7 +804,7 @@ runResponse st cogid rets didCrash = do
           $ flip fmap rets
           $ \(k,v) -> (NAT (fromIntegral k), responseToVal v.resp)
   moment <- atomically (readTVar st.vMoment)
-  let fun = fromMaybe (error "Invalid cogid") $ lookup cogid.int moment.val
+  let fun = fromMaybe (error "Invalid cogid") $ lookup cogid moment.val
   (runtimeUs, result) <- do
       withAlwaysTrace "Eval" "cog" do
           evalWithTimeout thirtySecondsInMicroseconds fun
@@ -846,9 +837,9 @@ runResponse st cogid rets didCrash = do
             -- LiveRequest without formally canceling it because it already
             -- completed.
             modifyTVar' st.vMoment   \m ->
-                MOMENT (insertMap cogid.int result m.val) (m.work + runtimeUs)
+                MOMENT (insertMap cogid result m.val) (m.work + runtimeUs)
             modifyTVar' st.vRequests $
-                adjustMap (\kals -> foldl' delReq kals (fst<$>rets)) cogid.int
+                adjustMap (\kals -> foldl' delReq kals (fst<$>rets)) cogid
 
             -- If this was a successful run of the main event, do whatever side
             -- effect running this event was supposed to have.
@@ -860,7 +851,7 @@ runResponse st cogid rets didCrash = do
                         modifyTVar' st.vSends $ M.insert newCogId pool
 
                         modifyTVar' st.vMoment \m ->
-                            m { val=insertMap newCogId.int fun m.val }
+                            m { val=insertMap newCogId fun m.val }
                         parseRequests st newCogId
                     _ -> pure (mempty, mempty)
 
@@ -913,15 +904,15 @@ concatUnzip a = let (f, s) = unzip a
 parseAllRequests :: Debug => Runner -> STM ([Flow], [STM OnCommitFlow])
 parseAllRequests runner = do
   cogs <- (keys . (.val)) <$> readTVar runner.vMoment
-  actions <- forM cogs $ \i -> parseRequests runner (COG_ID i)
+  actions <- forM cogs $ parseRequests runner
   pure $ concatUnzip actions
 
 -- | Given a noun in a runner, update the `requests`
 parseRequests :: Debug => Runner -> CogId -> STM ([Flow], [STM OnCommitFlow])
 parseRequests runner cogId = do
-    moment   <- (fromMaybe (error "no cogid m") . lookup cogId.int . (.val)) <$>
+    moment   <- (fromMaybe (error "no cogid m") . lookup cogId . (.val)) <$>
                 readTVar runner.vMoment
-    syscalls <- (fromMaybe mempty . lookup cogId.int) <$>
+    syscalls <- (fromMaybe mempty . lookup cogId) <$>
                 readTVar runner.vRequests
 
     let init = PRS{syscalls, flows=[], onPersist=[]}
@@ -940,7 +931,7 @@ parseRequests runner cogId = do
                   unless (member i expected) do
                       createReq i v
 
-    modifyTVar' runner.vRequests $ insertMap cogId.int st.syscalls
+    modifyTVar' runner.vRequests $ insertMap cogId st.syscalls
 
     pure (st.flows, st.onPersist)
 

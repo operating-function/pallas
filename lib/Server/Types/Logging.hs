@@ -26,16 +26,12 @@ newtype MachineName = MACHINE_NAME { txt :: Text }
   deriving newtype (FromHttpApiData, ToHttpApiData)
 
 -- | A numeric identifier for a cog within a single machine.
-newtype CogId = COG_ID { int :: Int }
+newtype CogId = COG_ID { int :: Word64 }
   deriving newtype (Eq, Show, Ord)
 
 -- TODO: Aid in first pass porting
 removeMeDummyCogId :: CogId
 removeMeDummyCogId = COG_ID 5
-
--- The hardcoded id for the one cog which can spin new cogs. cog
-crankCogId :: CogId
-crankCogId = COG_ID 0
 
 -- | A positional index into the machine's Request vector.
 newtype RequestIdx = RequestIdx { int :: Int }

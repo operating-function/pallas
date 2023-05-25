@@ -21,6 +21,7 @@ import Server.Types.Logging
 import System.Environment
 import System.Posix.Signals hiding (Handler)
 import System.Process
+import System.Random        (randomIO)
 
 import Server.Hardware.Http  (createHardwareHttp)
 import Server.Hardware.Types (DeviceTable(..))
@@ -53,7 +54,6 @@ import qualified Sire.ReplExe
 import qualified Data.Aeson as A
 --import qualified Data.ByteString          as BS
 --import qualified Data.Char                as C
-import qualified Data.IntMap              as IM
 import qualified Fan                      as F
 import qualified Fan.Prof                 as Prof
 import qualified Network.HTTP.Client      as HTTP
@@ -831,12 +831,13 @@ doBoot st machineName pak = do
     debug ["booting_cog", machineName.txt]
 
     createdCog <- DB.newMachine st.lmdb machineName
+    firstCogId <- COG_ID <$> randomIO
 
     if not createdCog then
         error ("Trying to overwrite existing machine " <> show machineName)
     else
         DB.writeMachineSnapshot st.lmdb machineName (BatchNum 0)
-                                (IM.singleton crankCogId.int pak.fan)
+                                (singletonMap firstCogId pak.fan)
 
 -- {-
 --     Deliver a noun from the outside to a given cog.
