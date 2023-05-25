@@ -137,6 +137,7 @@ data Response
     | RespSend SendOutcome
     | RespSpin CogId Fan
     | RespStop CogId Fan
+    | RespWho CogId
   deriving (Show)
 
 responseToVal :: Response -> Fan
@@ -146,6 +147,7 @@ responseToVal (RespSend SendOK) = NAT 0
 responseToVal (RespSend SendCrash) = NAT 1
 responseToVal (RespSpin (COG_ID id) _) = fromIntegral id
 responseToVal (RespStop _ f) = f
+responseToVal (RespWho (COG_ID id)) = fromIntegral id
 responseToVal (RespEval e)   =
     ROW case e of
         TIMEOUT   -> mempty              -- []
@@ -189,6 +191,7 @@ data Request
     | ReqRecv
     | ReqSpin SpinRequest
     | ReqStop CogId
+    | ReqWho
     | UNKNOWN Fan
   deriving (Show)
 
@@ -230,6 +233,9 @@ valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
             "recv" -> do
                 _   <- guard (length row == 2)
                 pure ReqRecv
+            "who" -> do
+                _   <- guard (length row == 2)
+                pure ReqWho
             _ -> do
                 Nothing
     else do
@@ -258,14 +264,7 @@ data EvalCancelledError = EVAL_CANCELLED
 type CogSysCalls = IntMap (Fan, LiveRequest)
 type MachineSysCalls = IntMap CogSysCalls
 
--- TODO: Think more about how the pooling here works.
---
--- - Processing a %send request has to add to a pool based on the destination
---   messages.
---
--- - That %send request being canceled needs to remove from the pool.
-
---
+-- | A pending send
 data PendingSendRequest = PENDING_SEND
     { sender    :: CogId
     , idx       :: RequestIdx
@@ -330,6 +329,10 @@ data LiveRequest
     lstIdx   :: RequestIdx,
     lstCogId :: CogId
     }
+  | LiveWho {
+    lwIdx   :: RequestIdx,
+    lwCogId :: CogId
+    }
   | LiveUnknown
 
 instance Show LiveRequest where
@@ -340,6 +343,7 @@ instance Show LiveRequest where
         LiveRecv{}  -> "RECV"
         LiveSpin{}  -> "SPIN"
         LiveStop{}  -> "STOP"
+        LiveWho{}   -> "WHO"
         LiveUnknown -> "UNKNOWN"
 
 data ParseRequestsState = PRS
@@ -586,6 +590,9 @@ buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
     ReqStop cogid -> do
         pure ([], LiveStop{lstIdx=reqIdx, lstCogId=cogid}, Nothing)
 
+    ReqWho -> do
+        pure ([], LiveWho{lwIdx=reqIdx, lwCogId=cogId}, Nothing)
+
     UNKNOWN _ -> do
         pure ([], LiveUnknown, Nothing)
 
@@ -596,6 +603,7 @@ cancelRequest LiveRecv{}   = pure ()
 cancelRequest LiveSend{..} = poolUnregister lsndPool lsndPoolId
 cancelRequest LiveSpin{}   = pure () -- Not asynchronous
 cancelRequest LiveStop{}   = pure ()
+cancelRequest LiveWho{}    = pure ()
 cancelRequest LiveUnknown  = pure ()
 
 {-
@@ -684,6 +692,10 @@ receiveResponse st = \case
               , deleteMap lstCogId.int s
               )
           getLiveReqs csc = map (\(_,(_,lr)) -> lr) $ mapToList csc
+
+    (_, LiveWho{..}) -> do
+        pure (Just RTUP{key=lwIdx, resp=RespWho lwCogId, work=0,
+                        flow=FlowDisabled})
 
     (_, LiveUnknown) -> do
         pure Nothing
@@ -953,6 +965,7 @@ parseRequests runner cogId = do
         ReqRecv{}  -> "%recv"
         ReqSpin{}  -> "%spin"
         ReqStop{}  -> "%stop"
+        ReqWho{}   -> "%who"
         UNKNOWN{}  -> "UNKNOWN"
 
     flowCategory :: Request -> ByteString
@@ -960,10 +973,11 @@ parseRequests runner cogId = do
         ReqEval{}  -> "%eval"
         ReqCall rc -> "%call " <> (encodeUtf8 $
                           syscallCategory runner.ctx.hw rc.device rc.params)
-        ReqSend{}  -> "%send"
-        ReqRecv{}  -> "%recv"
-        ReqSpin{}  -> "%spin"
-        ReqStop{}  -> "%stop"
+        ReqSend{}  -> "%cog"
+        ReqRecv{}  -> "%cog"
+        ReqSpin{}  -> "%cog"
+        ReqStop{}  -> "%cog"
+        ReqWho{}   -> "%cog"
         UNKNOWN{}  -> "UNKNOWN"
 
     createReq :: Int -> Fan -> StateT ParseRequestsState STM ()
