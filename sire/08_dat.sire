@@ -201,7 +201,7 @@
 = (findIdx f row)
 ^ foldr _ NONE tag-row
 & (iv rest)
-| if f-(idx 1 iv) SOME-(idx 0 iv) rest
+| if f-(snd iv) SOME-(fst iv) rest
 
 = (elemIdx key row)
 | findIdx (eql key) row
@@ -529,8 +529,8 @@
 = (findIdxMany f row)
 ^ foldr _ NIL tag-row
 & (iv rest)
-| ifNot f-(idx 1 iv) rest
-| CONS (idx 0 iv) rest
+| ifNot f-(snd iv) rest
+| CONS (fst iv) rest
 
 (elemIdxMany key row)=(findIdxMany (eql key) row)
 
@@ -550,7 +550,7 @@
 ^ _ a NIL
 ? (loop a xs)
 | if (listNull a) xs
-| loop (idx 1 a) (CONS (idx 0 a) xs)
+| loop (snd a) (CONS (fst a) xs)
 
 = (listSnoc xs e)
 | **listCase xs (CONS e NIL)
@@ -591,17 +591,17 @@
 
 > Row (Eat a b) > (Row a, Row b)
 = (partition r)
-@ check
-  & (x i)
-  @ lefts  | idx 0 i
-  @ rights | idx 1 i
-  | if (idx 0 x)
-    [lefts (CONS (idx 1 x) rights)]
-  [(CONS (idx 1 x) lefts) rights]
-| map listToRow | foldr check [NIL NIL] r
+^ map listToRow (foldr _ [NIL NIL] r)
+& (x i)
+@ lefts  | fst i
+@ rights | snd i
+| if (fst x)
+    | (lefts, CONS (snd x) rights)
+| (CONS (snd x) lefts, rights)
 
 !!= [[0 3] [1 2]]
   | partition [LEFT-0 RIGHT-1 RIGHT-2 LEFT-3]
+
 
 """ Maybe utils that depend on list """""""""""""""""""""""""""""""""""""""""""
 

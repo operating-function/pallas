@@ -19,7 +19,7 @@
 /+  03_nat  [add toNat isZero]
 /+  04_app  [len idx head mut]
 /+  05_eql  [eql neq lth lte gte gth]
-/+  06_cow  [null map weld rowRepel rowApply rev foldl]
+/+  06_cow  [null map weld rowRepel rowApply rev foldl fst snd]
 /+  07_rex  [rexKids rexRune rexGetNodeWithRune EMBD PREF]
 /+  08_dat
 /+  09_sci  [inspect fullInspection]
@@ -162,7 +162,7 @@ tab=(tabFromAscPairs par)
 """ Table Construction from unique pairs """""""""""""""""""""""""""""""""""""""
 
 = (tabFromPairs pairs)
-| foldl (t p & tabMut (idx 0 p) (idx 1 p) t) emptyTab pairs
+| foldl (t p & tabMut (fst p) (snd p) t) emptyTab pairs
 
 = (tabToPairList tab)
 | listMap (i & [i look-tab-i])
@@ -220,8 +220,8 @@ tab=(tabFromAscPairs par)
 = (tabSplitLT key t)
 @ pairs | tabToPairs t
 @ s | span p&(lth (idx 0 p) key) pairs
-@ head | idx 0 s
-@ tail | idx 1 s
+@ head | fst s
+@ tail | snd s
 [(tabFromPairs head) (tabFromPairs tail)]
 
 = (tabAlter fun key tab)
@@ -245,8 +245,8 @@ tab=(tabFromAscPairs par)
 @ pairs | tabToPairs tab
 @ do
   ? (do p)
-  @ k | idx 0 p
-  @ v | idx 1 p
+  @ k | fst p
+  @ v | snd p
   @ nv | fun k v
   [k nv]
 | tabFromPairs | map do pairs
@@ -261,14 +261,14 @@ tab=(tabFromAscPairs par)
 ? (loop a b xs)
 | if (listNull a) (listWeld (listRev xs) b)
 | if (listNull b) (listWeld (listRev xs) a)
-@ ap  (idx 0 a)
-@ ak  (idx 0 ap)
-@ av  (idx 1 ap)
-@ axs (idx 1 a)
-@ bp  (idx 0 b)
-@ bk  (idx 0 bp)
-@ bv  (idx 1 bp)
-@ bxs (idx 1 b)
+@ ap  (fst a)
+@ ak  (fst ap)
+@ av  (snd ap)
+@ axs (snd a)
+@ bp  (fst b)
+@ bk  (fst bp)
+@ bv  (snd bp)
+@ bxs (snd b)
 | if | eql ak bk
     | loop axs bxs (CONS [ak (fun av bv)] xs)
 | if | lth ak bk
@@ -283,7 +283,7 @@ tab=(tabFromAscPairs par)
 = (tabFoldlWithKey fun start tab)
 @ do
   ? (do i pair)
-  | fun i (idx 0 pair) (idx 1 pair)
+  | fun i (fst pair) (snd pair)
 | foldl do start | tabToPairs tab
 
 """ Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

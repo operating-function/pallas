@@ -165,6 +165,8 @@ v1=c1
 
 """ More Basic Operations """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
+= (fst x)         | idx 0 x
+= (snd x)         | idx 1 x
 = (map f v)       | gen len-v x&(f idx-x-v)
 = (turn v f)      | map f v
 = (rev xs)        @ wid len-xs | gen wid i&(get xs sub-wid-(inc i))
@@ -200,5 +202,6 @@ v1=c1
 ^-^ weld
 ^-^ gen foldr foldl
 ^-^ mut put
+^-^ fst snd
 ^-^ map turn rev
 ^-^ rowApply rowRepel
