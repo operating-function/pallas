@@ -10,6 +10,13 @@
 """
 """ A cab is a data-jetted set of nouns.
 """
+""" Cabs are represented as a law of the form:
+"""
+"""     (0 0 n row)
+"""
+""" Where n is the length of the row+1, and the row is in ascending order
+""" (according to `cmp`) and unique.
+"""
 
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -24,8 +31,8 @@
 /+  07_rex
 /+  08_dat
 /+  09_sci  []
-/+  10_chr  [isDigit]
-/+  11_str  [strToList strWeld]
+/+  10_chr  [isDigit ord chr]
+/+  11_str  [strToList strWeld loadKeyWord loadDecimal]
 
 
 """ Cabs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -137,21 +144,6 @@
 
 
 """ % Rune: Atoms, Tabs, and Cabs """"""""""""""""""""""""""""""""""""""""""""""
-
-(chr c)=(add c 48)
-(ord c)=(sub c 48)
-
-> Str > Nat
-= (loadDecimal n)
-^ listFoldl _ 0 (strToList n)
-& (acc c)
-| add (mul 10 acc) (ord c)
-
-> Str > Nat
-= (loadKeyWord str)
-| if (listAll isDigit strToList-str)
-    | loadDecimal str
-| str
 
 = (readKey rex err ok)
 | if (neq 0 (rexHeir rex))
@@ -397,6 +389,7 @@
 ^-^ cabFromRow
 ^-^
 ^-^ {%} {%%}
-^-^ loadKeyWord readKey
+^-^
+^-^ readKey
 ^-^ mkCenMacro cenCab
 ^-^ mkCenCenMacro cenCenCab
