@@ -52,7 +52,7 @@
 ; deconstructing them.
 ;
 
-= (cmpLaw cmp x y)
+= (**cmpLaw cmp x y)
 | ordWeld (cmpNat (lawName x) (lawName y))
 | ordWeld (cmpNat (lawArgs x) (lawArgs y))
           (cmp (lawBody x) (lawBody y))
@@ -63,25 +63,54 @@
 ; Nats comparisons are done in the obvious ways.
 ;
 ; Pins, Laws, and Apps are compared "lexicographically" (compare the
-; first thing first), except that apps are first checked length-wise.
+; first thing first).
 ;
-; Apps with fewer application are smaller than apps with more.  Apps with
-; the same length are check lexicographically.
+; Note that, (len x > len y) implies (x > y).  This is a useful property
+; for efficiently comparing data-jets, for example, a shorter array is
+; always smaller than a longer array.  There is no need to compare
+; the values.
 ;
-; This system of comparing closure-lengths first makes it much easier
-; and simpler to implement equality efficiently, especially for data-jets.
+; The {cmp} function has the following lazy-evaluation behavior:
+;
+; -   Pins, laws, and nats are always in normal form once evaluated,
+;     so these will always be fully evaluated if compared.
+;
+; -   The above also applies to data-jets that are built on laws:
+;     Bar, Cow, Cab, and Rex.
+;
+; -   If a closure is compared to a non-closure, the closure will be
+;     evaluated to WHNF (and no further)
+;
+; -   If a larger closure is compared to a smaller closure, both closures
+;     will be evaluated to WHNF (and no further).
+;
+; -   If two closures of the same size are compared, then both closures
+;     will be evaluated to WHNF, and then the items will be compared
+;     one-by-one in application order.  Any remaining items will not
+;     be evaluated.
+;
+; -   The above rules apply in the same way to data-jets that are built
+;     on closures:
+;
+;     1)  Smaller rows and tabs are smaller (and no of the values are
+;         evaluated).
+;
+;     2)  Rows of equal size are compared starting from the last value
+;         (because row items are applied in reverse order).
+;
+;     3)  Tabs of equal size are compared starting from the greatest key
+;         (because tab items are applied in reverse order).
 ;
 = (cmp x y)
 | if (isNat x) | ifNot (isNat y) LT (cmpNat x y)
 | if (isNat y) | GT
 | if (isPin x) | ifNot (isPin y) LT (cmp (pinItem x) (pinItem y))
 | if (isPin y) | GT
-| if (isLaw x) | ifNot (isLaw y) LT (**cmpLaw cmp x y)
+| if (isLaw x) | ifNot (isLaw y) LT (cmpLaw cmp x y)
 | if (isLaw y) | GT
-| else
-    | ordWeld (cmpNat (len x) (len y))
-    | ordWeld (cmp (car x) (car y))
-              (cmp (cdr x) (cdr y))
+| ordWeld
+    (cmp (car x) (car y))
+    (cmp (cdr x) (cdr y))
 
 !!= LT | cmp 9     const
 !!= EQ | cmp const const
