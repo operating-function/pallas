@@ -17,6 +17,7 @@
 /+  01_fan
 /+  02_bit  [if else ifNot and or not]
 /+  03_nat  [add sub mul dec gteNat isZero]
+/+  03_nat  [even odd]
 /+  04_app  [idx get len]
 /+  05_eql  [eql neq lte lth gth gte]
 /+  06_cow  [null weld v2 isRow map foldl foldr fst snd]
@@ -30,56 +31,52 @@
 """ Cabs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = emptyCab         | 0 0 1 []
-= (cabSingleton x) | 0 0 2 [x]
+= (cabSing x)      | 0 0 2 [x]
 = (cabIsEmpty cab) | eql 1 (lawArgs cab)
+= (cabToRow cab)   | lawBody cab
 
 !!= 1 | cabIsEmpty emptyCab
-!!= 1 | not (cabIsEmpty | cabSingleton "a")
+!!= 1 | not (cabIsEmpty | cabSing "a")
 
-= (cabFirst cab) | idx 0 (lawBody cab)
-= (cabLen cab)   | len (lawBody cab)
+= (cabLen cab)    | len (cabToRow cab)
+= (cabToList cab) | listFromRow (cabToRow cab)
+= (cabHas k cab)  | has k (cabToRow cab)
+= (cabMin cab)    | idx 0 (cabToRow cab)
 
-= (cabPop cab)
-@ bod | lawBody cab
-@ new | 0 0 (dec (lawArgs cab)) (drop 1 bod)
-@ hed | idx 0 bod
-| [hed new]
+; {cabFromRowSet} is an internal routine that expects to be given a
+; "row set" a sorted row with no duplicates.
+;
+; {cabPort} ports a row operation to a cab.  For this to work, the row
+; operation must always return a result that is in assending order and
+; contains no duplicates.
 
-(cabRow cab)=(lawBody cab)
-(cabList cab)=(listFromRow (cabRow cab))
+= (cabFromRowSet row) | 0 0 (inc | len row) row
+= (cabPort op cab)    | cabFromRowSet | op | cabToRow cab
 
-= (cabIns itm cab)
-@ bod | sort (weld [itm] (lawBody cab))
-@ arg | inc (len bod)
-| 0 0 arg bod
+; {cabPortSplit} ports a row splitting function (Row a > (Row a, Row a))
+; to cabs.  Like {cabPort}, {cabPortSplit} expects both of the rows
+; returned by the splitting function to be in assending order and contain
+; no duplicates.
 
-= (cabDel itm cab)
-@ bod | delete itm (lawBody cab)
-@ arg | inc (len bod)
-| 0 0 arg bod
+= (cabPortSplit op cab)
+@ xy | op (cabToRow cab)
+| (cabFromRowSet (fst xy), cabFromRowSet (snd xy))
 
-= (cabUnion a b)
-@ bod | sort (weld (lawBody a) (lawBody b))
-@ arg | inc (len bod)
-| 0 0 arg bod
+= (cabFromRow row) | cabFromRowSet (sortUniq row)
+= (cabIns itm c)   | cabFromRow (rowCons itm | cabToRow c)
+= (cabDel itm c)   | cabFromRowSet (delete itm | cabToRow c)
+= (cabPop c)       | (idx 0 c, cabFromRowSet (drop 1 | cabToRow c))
+= (cabUnion a b)   | cabFromRow (weld (cabToRow a) (cabToRow b))
+= (cabCatList l)   | listFoldl cabUnion emptyCab l
+= (cabCatRow r)    | foldl cabUnion emptyCab r
 
-; cabWeld=cabUnion (?) TODO
+; {cabAscUnions} expects a row of cabs, each strictly assending (the
+; greatest element of one cab is smaller than the smallest element of
+; the next).  If this invariant is violated, the result will not be a cab.
 
-(cabCatList lis)=(listFoldl cabUnion emptyCab lis)
+(cabAscUnions cs)=(cabFromRowSet | catMap cabToRow cs)
 
-(cabCat row)=(foldl cabUnion emptyCab row)
-
-; when cabs are not in strictly ascending order, we deop into not a set.
-= (cabAscUnions cabs)
-@ bod | cat | map lawBody cabs
-@ arg | inc (len bod)
-| 0 0 arg bod
-
-= (cabKeys cab)  | lawBody cab
-= (cabHas k cab) | has k cabKeys-cab
-= (cabMin cab)   | idx 0 | lawBody cab
-
-= (ordered chk row)
+= (isOrderedWith chk row)
 @ wid (len row)
 ^ _ (idx 0 row) 1
 ? (go las i)
@@ -88,114 +85,58 @@
 | and (chk las cur)
 | go cur (inc i)
 
-!!= 1 | ordered lth [0 1 2]
-!!= 1 | ordered lte [0 0 1]
-!!= 1 | ordered gth [3 2 1]
-!!= 1 | ordered gte [3 3 2]
-!!= 1 | ordered eql [3 3 3]
-!!= 1 | ordered neq [3 4 2]
+!!= 1 | isOrderedWith lth [0 1 2]
+!!= 1 | isOrderedWith lte [0 0 1]
+!!= 1 | isOrderedWith gth [3 2 1]
+!!= 1 | isOrderedWith gte [3 3 2]
+!!= 1 | isOrderedWith eql [3 3 3]
+!!= 1 | isOrderedWith neq [3 4 2]
 
-!!= 1 | ordered lth []
-!!= 1 | ordered lth [0]
-!!= 1 | ordered lth [0 1]
-!!= 1 | ordered lth [0 1 [0]]
-!!= 1 | ordered lth [0 1 2]
-!!= 1 | ordered lth [1]
-!!= 1 | ordered lth [1 2]
-!!= 1 | ordered lth [1 2 3 4 5 999]
-!!= 1 | ordered lth [1 2 const]
-!!= 1 | ordered lth [1 2 const (0 0)]
-!!= 1 | ordered lth [1 const]
-!!= 1 | ordered lth [2]
+!!= 1 | isOrderedWith lth []
+!!= 1 | isOrderedWith lth [0]
+!!= 1 | isOrderedWith lth [0 1]
+!!= 1 | isOrderedWith lth [0 1 [0]]
+!!= 1 | isOrderedWith lth [0 1 2]
+!!= 1 | isOrderedWith lth [1]
+!!= 1 | isOrderedWith lth [1 2]
+!!= 1 | isOrderedWith lth [1 2 3 4 5 999]
+!!= 1 | isOrderedWith lth [1 2 const]
+!!= 1 | isOrderedWith lth [1 2 const (0 0)]
+!!= 1 | isOrderedWith lth [1 const]
+!!= 1 | isOrderedWith lth [2]
 
-!!= 0 | ordered lth [0 0]
-!!= 0 | ordered lth [0 0 [0]]
-!!= 0 | ordered lth [1 1]
-!!= 0 | ordered lth [1 2 0]
-!!= 0 | ordered lth [2 1]
-!!= 0 | ordered lth [2 1 (die 'never evaluated')]
-!!= 0 | ordered lth [1 1 (die 'never evaluated')]
-!!= 1 | ordered lth []
+!!= 0 | isOrderedWith lth [0 0]
+!!= 0 | isOrderedWith lth [0 0 [0]]
+!!= 0 | isOrderedWith lth [1 1]
+!!= 0 | isOrderedWith lth [1 2 0]
+!!= 0 | isOrderedWith lth [2 1]
+!!= 0 | isOrderedWith lth [2 1 (die 'never evaluated')]
+!!= 0 | isOrderedWith lth [1 1 (die 'never evaluated')]
+!!= 1 | isOrderedWith lth []
 
 = (isCab cab)
-| and isLaw-cab
-@ arg lawArgs-cab
-@ nam lawName-cab
-@ bod lawBody-cab
-| and eql-0-nam
-| and isRow-bod
-| and (eql arg (inc len-bod))
-      (ordered lth bod)
+| and (isLaw cab)
+@ arg (lawArgs cab)
+@ nam (lawName cab)
+@ bod (lawBody cab)
+| and (eql 0 nam)
+| and (isRow bod)
+| and (eql arg (inc | len bod))
+      (isOrderedWith lth bod)
 
-= (cabDrop idx c)
-@ r       | lawBody c
-@ tail    | drop idx r
-@ tailArg | inc | len tail
-(0 0 tailArg tail)
-
-= (cabTake idx c)
-@ r       | lawBody c
-@ head    | take idx r
-@ headArg | inc | len head
-(0 0 headArg head)
-
-= (cabSplitAt idx c)
-@ r       | lawBody c
-@ head    | take idx r
-@ headArg | inc | len head
-@ tail    | drop idx r
-@ tailArg | inc | len tail
-[(0 0 headArg head) (0 0 tailArg tail)]
-
-= (cabSplitLT key c)
-@ r | lawBody c
-@ s | span (gth key) r
-@ head | fst s
-@ tail | snd s
-@ headArg | inc | len head
-@ tailArg | inc | len tail
-[(0 0 headArg head) (0 0 tailArg tail)]
-
-= (cabIntersection a b)
-@ ab   | lawBody a
-@ alen | len ab
-@ bb   | lawBody b
-@ blen | len bb
-@ mkCab
-  ? (mkCab l)
-  @ r   | listToRowReversed l
-  @ arg | inc (len r)
-  | 0 0 arg r
-| mkCab
-^ _ 0 0 NIL
-? (loop aIdx bIdx cur)
-| if (eql aIdx alen) cur
-| if (eql bIdx blen) cur
-@ ai | get ab aIdx
-@ bi | get bb bIdx
-| if (eql ai bi)
-    | loop (inc aIdx) (inc bIdx) (CONS ai cur)
-| if (lth ai bi)
-    | loop (inc aIdx) bIdx cur
-| loop aIdx (inc bIdx) cur
-
-(cabDifference a b)=(listFoldl (c i)&(cabDel i c) a | cabList b)
-
-= (cabElem i cab)
-| idx i | lawBody cab
-
-= (fromSingletonCab opt bad gud)
-| if (neq 1 | cabLen opt) bad
-| **gud (cabFirst opt)
+= (cabElem i c)         | idx i (cabToRow c)
+= (cabFoldl f z c)      | foldl f z (cabToRow c)
+= (cabDrop n c)         | cabPort (drop n) c
+= (cabTake n c)         | cabPort (take n) c
+= (cabFilter f c)       | cabPort (filter f) c
+= (cabSplitAt idx c)    | cabPortSplit (splitAt idx) c
+= (cabSpan p c)         | cabPortSplit (span p) c
+= (cabIntersect a b)    | cabFilter x&(cabHas x a) b
+= (cabDiff a b)         | cabFoldl (c i & cabDel i c) a b
+= (cabSplitLT key c)    | cabSpan (gth key) c
 
 
 """ % Rune: Atoms, Tabs, and Cabs """"""""""""""""""""""""""""""""""""""""""""""
-
-;
-; %x
-;
-; %[0 x 'y']
-;
 
 (chr c)=(add c 48)
 (ord c)=(sub c 48)
@@ -249,7 +190,7 @@
     | ok p a (CORD 0 rexText-son 0)
 ;;
 | ifNot (rexIsNode son) fail
-| ifNot (eql "," rexRune-son) fail
+| ifNot (eql {,} rexRune-son) fail
 ;;
 @ grandsons (rexSons son)
 | if (null grandsons)
@@ -298,7 +239,7 @@
 = (cenTabStub s p e a kids err ok)
 | err "Import the % macro from `17_tab`, not from `16_cab`."
 
-= ("%" s p e a r err ok)
+= ({%} s p e a r err ok)
 | **mkCenMacro cenCab cenTabStub s p e a r err ok
 
 
@@ -314,15 +255,13 @@
 = (cenCenTabStub s p e a r err ok)
 | err r "Import the %% macro from `17_tab`, not from `16_cab`."
 
-
 = (readCenCenCabLine rex err ok)
-| rexGetNodeWithRune "%%" rex
+| rexGetNodeWithRune {%%} rex
     | err rex "Expected a %% node (in a tall-form cab literal)"
 & (sons heir)
 ^ forRow sons _ (keys & ok keys heir)
 ? (step son pure)
 | readKey son err pure
-
 
 = (readCenCenCab rex err ok)
 ^ _ emptyCab rex
@@ -336,12 +275,10 @@
 | if (cabHas key acc) (err rex "duplicate key")
 | cabIns key acc
 
-
 = (cenCenCab s p e a r err ok)
 | readCenCenCab r err
 & cab
 | ok p a (EMBD cab)
-
 
 = (mkCenCenMacro doCab doTab s p e a r err ok)
 @ sons (rexSons r)
@@ -352,22 +289,16 @@
 | else
     | **doCab s p e a r err ok
 
-= ("%%" s p e a r err ok)
+= ({%%} s p e a r err ok)
 | (**mkCenCenMacro cenCenCab cenCenTabStub s p e a r err ok)
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-= (cabFromRow row)
-| foldr cabIns emptyCab row
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 !!= %[a] (cabFromRow [%a %a])
 !!= %[a b] (cabFromRow [%a %b])
 !!= %[a b] (cabFromRow [%b %a])
 !!= %[a b] (cabFromRow [%b %a %b])
-
-
-""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 !!= 1 | isCab %[]
 !!= 1 | isCab %[1]
@@ -385,20 +316,16 @@
 !!= %x_x | "x_x"
 
 !!= %[]    | %[]
-
 !!= %[a]   | %[97]
-
 !!= %[a]   | %['a']
-
 !!= %[a b] | %[98 97]
-
 !!= %[a b] | %["b" 'a']
 
 !!= %[]        | emptyCab
 !!= %['x']     | cabIns 'x' emptyCab
 !!= %[x]       | cabIns 'x' emptyCab
-!!= %[3]       | cabIns 3  emptyCab
-!!= %[3]       | cabSingleton 3
+!!= %[3]       | cabIns 3   emptyCab
+!!= %[3]       | cabSing 3
 !!= %[3]       | cabIns 3  %[]
 !!= %[0 1 2 3] | cabIns 3  %[0 1 2]
 !!= %[a b c]   | cabIns %c %[a b]
@@ -415,12 +342,18 @@
 !!= %[a b c]   | cabUnion %[a c]   %[a b c]
 !!= %[a b c]   | cabUnion %[a b c] %[a b c]
 
+!!= %[0 2 4]   | cabFilter even %[0 1 2 3 4 5]
+!!= %[1 3 5]   | cabFilter odd  %[0 1 2 3 4 5]
+!!= %[a]       | cabIntersect %[a b c] %[a d]
+!!= %[a b]     | cabIntersect %[a b c] %[a b d]
+!!= %[]        | cabIntersect %[a b c] %[d e f]
+
 !!= %[]        | cabAscUnions []
 !!= %[a]       | cabAscUnions [%[a]]
 !!= %[a b c]   | cabAscUnions [%[a] %[b] %[c]]
 !!= %[a b]     | cabAscUnions [%[a] %[] %[b]]
 
-!!= %[3]       | cabDifference %[3 5] %[5 7]
+!!= %[3]       | cabDiff %[3 5] %[5 7]
 
 ; cabAscUnions deopt behaviour
 !!= (a b c d & [7 9 8])
@@ -447,21 +380,23 @@
  %% 3
  %% 4 """a
 
-!!= %[a b c] | cabCat [%[a] %[b] %[c]]
+!!= %[a b c] | cabCatRow [%[a] %[b] %[c]]
 !!= %[a b c] | cabCatList [%[a] [%[b] [%[c] 0]]]
+
+!!= (%[0 1], %[2 3]) | cabSplitLT 2 %[0 1 2 3]
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^ isCab
 ^-^ emptyCab cabIsEmpty
-^-^ cabFirst cabLen cabPop cabRow cabList cabIns cabDel cabUnion cabAscUnions
-^-^ cabCat cabCatList
-^-^ cabKeys cabHas cabMin cabSingleton cabDrop cabTake cabSplitAt cabSplitLT
-^-^ cabIntersection cabDifference cabElem fromSingletonCab
+^-^ cabLen cabPop cabToRow cabToList cabIns cabDel cabUnion cabAscUnions
+^-^ cabCatRow cabCatList
+^-^ cabHas cabMin cabSing cabDrop cabTake cabSplitAt cabSplitLT
+^-^ cabIntersect cabDiff cabElem
 ^-^ cabFromRow
 ^-^
-^-^ "%" "%%"
+^-^ {%} {%%}
 ^-^ loadKeyWord readKey
 ^-^ mkCenMacro cenCab
 ^-^ mkCenCenMacro cenCenCab

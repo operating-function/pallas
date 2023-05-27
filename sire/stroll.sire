@@ -230,7 +230,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 
 = (getEidOf uid strollDb)
 # openStrollDb strollDb
-| cabFirst
+| cabMin
 | lookupByAV ":block/uid" uid db
 
 ; Returns the uid of the parent
@@ -251,14 +251,14 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;
 = (getOrderByEid eid strollDb)
 # openStrollDb strollDb
-| cabFirst
+| cabMin
 | lookupByAE ":block/order" eid db
 
 = (getPageByEid eid strollDb)
 # openStrollDb strollDb
 ; if this eid has a :page/title, it is a page.
 | ifNot (cabIsEmpty | lookupByAE ":page/title" eid db) eid
-| cabFirst | lookupByAE ":block/page" eid db
+| cabMin | lookupByAE ":block/page" eid db
 
 ; Given a uid, find all the eids of all the blocks this uid forward references
 ;
@@ -373,8 +373,8 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ eids | lookupByAV ":page/title" pageTitle db
 | if | cabIsEmpty eids
     | makeNewPage pageTitle strollDb
-@ uids | lookupByAE ":block/uid" (cabFirst eids) db
-[(cabFirst uids) strollDb]
+@ uids | lookupByAE ":block/uid" (cabMin eids) db
+[(cabMin uids) strollDb]
 
 ; Parses a string for things which look like references.
 ;
@@ -472,14 +472,14 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;
 @ newRefUids | weld refs | listToRow titleRefs
 @ newRefEids
-    | cabCat
+    | cabCatRow
     | map uid&(lookupByAV ":block/uid" uid db) newRefUids
 ;
 ; Fetch the current references uids from textUid.
 @ currentRefEids | cabFromRow | findAllRefEids textUid strollDb
 ;
-@ toAdd | cabRow | cabDifference newRefEids currentRefEids
-@ toDel | cabRow | cabDifference currentRefEids newRefEids
+@ toAdd | cabToRow | cabDiff newRefEids currentRefEids
+@ toDel | cabToRow | cabDiff currentRefEids newRefEids
 ;
 ^ assertTransactStrollDb (cat _) strollDb
 ,, [[%add [":block/uid" textUid] ":block/string" text]]

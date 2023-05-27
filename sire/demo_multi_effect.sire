@@ -18,7 +18,7 @@
 | forList_ xs f next
 
 (forRow_ row f next)=(forList_ (listFromRow row) f next)
-(forCab_ cab f next)=(**forRow_ (cabRow cab) f next)
+(forCab_ cab f next)=(**forRow_ (cabToRow cab) f next)
 (traverseList_ f cab next)=(forList_ cab f next)
 (traverseRow_ f cab next)=(**forRow_ cab f next)
 (traverseCab_ f cab next)=(**forCab_ cab f next)
@@ -71,7 +71,7 @@ hexAlphabet=(b#{0123456789abcdef})
 !! eql b#ff00cccaba (renderBar x#ff00cccaba)
 
 = (guarenteeNewline bar)
-| if barNull-bar bar
+| if barIsEmpty-bar bar
 @ las (barGet bar (dec barLen-bar))
 | if (eql 10 las) bar
 | barWeld bar (natBar 10)
@@ -127,7 +127,7 @@ hexAlphabet=(b#{0123456789abcdef})
 | if (eql 0 bar) (next 0)
 : tid <- fork (PIN-handleSocketInput broadcast class vOpen sock)
 : con <- readRef vOpen
-@ conns (listFromRow cabRow-con)
+@ conns (listFromRow cabToRow-con)
 | broadcast bar next
 
 = (runLocalFileServer next)
@@ -147,8 +147,8 @@ hexAlphabet=(b#{0123456789abcdef})
 : tels <- readRef vTelnetOpen
 : webs <- readRef vWebSocketOpen
 | trk ["ALL_SEND" bar [=tels =webs]]
-: ____ <- sendAllLoop SOCK_SEND (cabList tels) bar
-: ____ <- sendAllLoop WOCK_SEND (cabList webs) bar
+: ____ <- sendAllLoop SOCK_SEND (cabToList tels) bar
+: ____ <- sendAllLoop WOCK_SEND (cabToList webs) bar
 | next 0
 
 = (runSocketLoop broadcast class vOpen next)

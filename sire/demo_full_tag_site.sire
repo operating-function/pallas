@@ -193,7 +193,7 @@ t
 
 = (imgRowToTagTabCab [id tags _])
 | tabFromPairs
-| map tag&(barNat tag, cabSingleton id) tags
+| map tag&(barNat tag, cabSing id) tags
 
 = (imgRowToPair imgRow@[id _ _])
 [id imgRow]
@@ -355,7 +355,7 @@ NONE
 ;
 ;| trk [%ids ids]
 @ targetIds
-    | cabList
+    | cabToList
     | cabTake 25
     | cabDrop offset ids
 @ records

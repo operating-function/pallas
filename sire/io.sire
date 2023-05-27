@@ -382,7 +382,7 @@
 | forList_ xs f return
 
 (for_ row f return)=(forList_ (listFromRow row) f return)
-(forCab_ cab f return)=(**for_ (cabRow cab) f return)
+(forCab_ cab f return)=(**for_ (cabToRow cab) f return)
 (traverseList_ f cab return)=(forList_ cab f return)
 (traverse_ f cab return)=(**for_ cab f return)
 (traverseCab_ f cab return)=(**forCab_ cab f return)

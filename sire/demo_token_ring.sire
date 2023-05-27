@@ -31,9 +31,9 @@
 @ [bob_seed bob_addr] bob_seed_addr
 @ [chr_seed chr_addr] chr_seed_addr
 ;
-@ ali_white | cabSingleton chr_addr
-@ bob_white | cabSingleton ali_addr
-@ chr_white | cabSingleton bob_addr
+@ ali_white | cabSing chr_addr
+@ bob_white | cabSing ali_addr
+@ chr_white | cabSing bob_addr
 ;
 ; trk [=ali_seed =ali_addr =bob_seed =bob_addr]
 ;

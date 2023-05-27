@@ -96,7 +96,7 @@
 = (natBar n)       | mkBar 0 n
 = (barNat n)       | barDec (lawBody n)
 = (barLen bar)     | div (padLen lawBody-bar) 8
-= (barNull bar)    | eql 1 (lawBody bar)
+= (barIsEmpty bar) | eql 1 (lawBody bar)
 
 = (barIdx i bar)
 ^ _ i (barNat bar)
@@ -190,7 +190,7 @@ emptyBar=(0 1 1 1)
 ; a lot of methods in the stdlib where the haskell version returns a maybe but
 ; the sire version always returns a value.
 = (barElemIndexEnd e b)
-| if (barNull b) NONE
+| if (barIsEmpty b) NONE
 ^ _ (dec | barLen b)
 ? (loop i)
 | if (eql (barIdx i b) e) | SOME i
@@ -203,7 +203,7 @@ emptyBar=(0 1 1 1)
 | [(barTake i b) (barDrop (inc i) b)]
 
 = (barSplitWith fun bar)
-| if (barNull bar) NIL
+| if (barIsEmpty bar) NIL
 ^ _ bar
 ? (loop bar)
 | **maybeCase (barFindIndex fun bar) (CONS bar NIL)
@@ -403,7 +403,7 @@ newline=(natBar 10)
 !!= 1 | checkBar 65791 1 255
 !!= 1 | checkBar 65536 2 0
 
-!!= 1 | barNull b#""
+!!= 1 | barIsEmpty b#""
 
 !!= [b#a b#zn]           (barSplitAt 1 b#azn)
 !!= [b#a b#n]            (barSplitOne %z b#azn)
@@ -425,7 +425,7 @@ newline=(natBar 10)
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^ isBar padBar
-^-^ emptyBar barNull
+^-^ emptyBar barIsEmpty
 ^-^ byteWidth barTrail barEnc barDec mkBar natBar barNat barLen barIdx
 ^-^ zEnd stripZEnd w8 bytesBar barGen barRep barGet barBytes barFoldl barFoldr
 ^-^ barAll

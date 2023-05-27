@@ -485,7 +485,7 @@ newRootNode
 = (hmLeaf l)       | PIN [1 l]
 
 = (hmSingleton config k v)
-@ node | hmLeaf | tabSingleton k v
+@ node | hmLeaf | tabSing k v
 [config (SOME node)]
 
 = hhMapTF
@@ -519,7 +519,7 @@ newRootNode
 | getLeafRow hhMapTF top
 
 = (hmInsert k v [config r])
-@ p | tabSingleton k v
+@ p | tabSing k v
 | **maybeCase r
     [config (SOME (PIN [1 p]))]
 & gr
@@ -583,7 +583,7 @@ newRootNode
 | (**isNone r)
 
 = (hsRawSingleton v)
-@ node (PIN [1 (cabSingleton v)])
+@ node (PIN [1 (cabSing v)])
 | SOME node
 
 (hsSingleton config v)=[config (hsRawSingleton v)]
@@ -606,7 +606,7 @@ newRootNode
 ,, hsDeleteItem                  ; hhDelete
 
 = (hsRawInsert i config r)
-@ is | cabSingleton i
+@ is | cabSing i
 | **maybeCase r
     (SOME (PIN [1 is]))
 & gr
@@ -717,7 +717,7 @@ newRootNode
 ? (loop [i curSize curOut])
 | if (gth i rowLen) NONE
 | if | eql i rowLen
-  | if (listNull curOut) NONE
+  | if (listIsEmpty curOut) NONE
   @ !u | cabAscUnions | listToRowReversed curOut
   | if (cabIsEmpty u) NONE
   | SOME [u [(inc i) 0 NIL]]
@@ -769,7 +769,7 @@ newRootNode
 = (checkSetAgainst a b)
 # datacase b
 * (LEAFNODE bLeaves)
-  @ !c | cabIntersection a bLeaves
+  @ !c | cabIntersect a bLeaves
   | if (cabIsEmpty c) []
   [c]
 * (INDEXNODE index _)
@@ -798,18 +798,20 @@ newRootNode
 
 !!= [%[1] %[5]]
    | checkSetAgainst %[1 5]
-   (INDEXNODE [[5] [(hmLeaf %[1 2]) (hmLeaf %[5 7])]] %[])
+   ^ INDEXNODE _ %[]
+   | ([5], (hmLeaf %[1 2], hmLeaf %[5 7]))
 
 !!= []
    | checkSetAgainst %[8 9]
-   (INDEXNODE [[5] [(hmLeaf %[1 2]) (hmLeaf %[5 7])]] %[])
+   ^ INDEXNODE _ %[]
+   | ([5], (hmLeaf %[1 2], hmLeaf %[5 7]))
 
 = (findIntersectStep find [arange anode brange bnode])
 : a as <- **listCase anode  NONE
 : b bs <- **listCase bnode  NONE
 ;
-@ asNil | **listNull as
-@ bsNil | **listNull bs
+@ asNil | **listIsEmpty as
+@ bsNil | **listIsEmpty bs
 ; both ranges at end.
 | if (and asNil bsNil)
   | SOME [(find a b) [NIL NIL NIL NIL]]
@@ -865,7 +867,7 @@ newRootNode
   * (LEAFNODE leftLeaves)
     # datacase (caseImpl right)
     * (LEAFNODE rightLeaves)
-      @ c | cabIntersection leftLeaves rightLeaves
+      @ c | cabIntersect leftLeaves rightLeaves
       | if (cabIsEmpty c) []
       [c]
     * (INDEXNODE rightIdx _)
@@ -954,13 +956,13 @@ newRootNode
 = (hsmInsert k v [mapConfig setConfig r])
 | **maybeCase r
    @ raw  | hsRawSingleton v
-   @ leaf | tabSingleton k raw
+   @ leaf | tabSing k raw
    ,, mapConfig
    ,, setConfig
    ,, | SOME (PIN [1 leaf])
 & gr
 @ tf | hhSetMapTF setConfig
-@ hh | tabSingleton k (cabSingleton v)
+@ hh | tabSing k (cabSing v)
 @ !index | insertRec mapConfig tf hh gr
 @ !fixed | fixup mapConfig tf index
 ,, mapConfig

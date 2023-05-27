@@ -71,9 +71,9 @@
 
 ; Transaction which tries to duplicate a unique value fail. (Tries to add sol's
 ; email to iceman's entity).
-!!=    @ icemanEid | cabFirst
+!!=    @ icemanEid | cabMin
                    | lookupByAV ":c/email" "iceman@plunder.tech" contactsDB
-       @ solEid    | cabFirst
+       @ solEid    | cabMin
                    | lookupByAV ":c/email" "sol@plunder.tech" contactsDB
        | LEFT ,, | UNIQUE_VIOLATION ":c/email" "sol@plunder.tech"
                                      solEid icemanEid
@@ -201,7 +201,7 @@
 
 ; Who ordered the hamburger?
 !!=     | lookupByAV ":order/name" "Bob" orders
-    @ tendiesEid | cabFirst | lookupByAV ":item/product" "Hamburger" orders
+    @ tendiesEid | cabMin | lookupByAV ":item/product" "Hamburger" orders
     | lookupByVA tendiesEid ":order/lineItems" orders
 
 = multiOrders
@@ -219,7 +219,7 @@
 
 ; Who ordered the tendies?
 !!=     | lookupByAV ":order/name" "James" multiOrders
-    @ tendiesEid | cabFirst | lookupByAV ":item/product" "Tendies" multiOrders
+    @ tendiesEid | cabMin | lookupByAV ":item/product" "Tendies" multiOrders
     | lookupByVA tendiesEid ":order/lineItems" multiOrders
 
 """ Pull """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -236,7 +236,7 @@
                                          %% =":item/quantity" 1
                                       ,, %% =":item/product" "Guinness"
                                          %% =":item/quantity" 1
-    @ bobId | cabFirst | lookupByAV ":order/name" "Bob" multiOrders
+    @ bobId | cabMin | lookupByAV ":order/name" "Bob" multiOrders
     ^ pull _ bobId multiOrders
     ,, ":order/name"
     ,, %% =":order/lineItems" ,, ":item/product"
@@ -244,12 +244,12 @@
 
 ; Test backwards lookups, ie whose orders included tendies?
 !!=    | RIGHT %% =":order/lineItems" ,, %% =":order/name" "James"
-    @ tendiesId | cabFirst | lookupByAV ":item/product" "Tendies" multiOrders
+    @ tendiesId | cabMin | lookupByAV ":item/product" "Tendies" multiOrders
     ^ pull _ tendiesId multiOrders
     ,, %% =":order/_lineItems" ,, ":order/name"
 
 ; Test backwards lookup to database entity
 !!=    | RIGHT %% =":order/lineItems" ,, %% =":db/id" 13
-    @ tendiesId | cabFirst | lookupByAV ":item/product" "Tendies" multiOrders
+    @ tendiesId | cabMin | lookupByAV ":item/product" "Tendies" multiOrders
     ^ pull _ tendiesId multiOrders
     ,, %% =":order/_lineItems" ,, ":db/id"

@@ -144,7 +144,7 @@
 @ gen          | mkRand seed
 @ [gen count]  | genBitsNat 6 gen
 @ [gen inList] | mkIntList count gen
-@ checkItems   | cabRow (buildCabFrom inList)
+@ checkItems   | cabToRow (buildCabFrom inList)
 @ checkLen     | len checkItems
 | seq (FORCE (inList,checkLen,checkItems))
 @ hs           | build inList
@@ -206,7 +206,7 @@
 = (buildTabCabFrom pairs)
 @ (alt val prev)
   | SOME
-  | **maybeCase prev | cabSingleton val
+  | **maybeCase prev (cabSing val)
   & c
   | cabIns val c
 ^ _ pairs %[]
@@ -303,7 +303,7 @@
 @ cabB         | buildCabFrom listB
 @ hsA          | hsFromCab twoThreeConfig cabA
 @ hsB          | hsFromCab twoThreeConfig cabB
-@ cabInt       | cabIntersection cabA cabB
+@ cabInt       | cabIntersect cabA cabB
 @ hsInt        | intersect hsA hsB
 ;
 @ hsIntAsCab   | hsToCab hsInt

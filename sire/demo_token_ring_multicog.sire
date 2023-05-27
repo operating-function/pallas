@@ -32,9 +32,9 @@ bob_addr=10596230052322399722105231362754563170718023616660062471817786621486818
 chr_seed=52976751534160209956333130898579376098249339062778942485773840894118951066106
 chr_addr=103591720051388974245721626122938885281617477279315808997977838168198714501849
 
-ali_white=(cabSingleton chr_addr)
-bob_white=(cabSingleton ali_addr)
-chr_white=(cabSingleton bob_addr)
+ali_white=(cabSing chr_addr)
+bob_white=(cabSing ali_addr)
+chr_white=(cabSing bob_addr)
 
 ali_msg=(b#"Hi, bob.  What's good?")
 bob_msg=(b#"Life is good.  Charlie?")

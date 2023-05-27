@@ -125,8 +125,8 @@ jetImpls = mapFromList
   , ( "barLen"      , barLenJet  )
   , ( "natBar"      , natBarJet  )
   , ( "barNat"      , barNatJet )
-  , ( "barNull"     , barNullJet )
-  , ( "cabSingleton" , cabSingletonJet )
+  , ( "barIsEmpty"  , barIsEmptyJet )
+  , ( "cabSing"     , cabSingletonJet )
   , ( "cabIns"      , cabInsJet  )
   , ( "cabDel"      , cabDelJet  )
   , ( "cabMin"      , cabMinJet  )
@@ -139,11 +139,11 @@ jetImpls = mapFromList
   , ( "cabIsEmpty"  , cabIsEmptyJet )
   , ( "cabSplitAt"  , cabSplitAtJet )
   , ( "cabSplitLT"  , cabSplitLTJet )
-  , ( "cabIntersection", cabIntersectionJet )
-  , ( "cabDifference", cabDifferenceJet )
-  , ( "tabSwitch"    , tabSwitchJet    )
-  , ( "tabSingleton" , tabSingletonJet )
-  , ( "isTab"        , isTabJet )
+  , ( "cabIntersect", cabIntersectionJet )
+  , ( "cabDiff"     , cabDifferenceJet )
+  , ( "tabSwitch"   , tabSwitchJet    )
+  , ( "tabSing"     , tabSingletonJet )
+  , ( "isTab"       , isTabJet )
   , ( "tabIdx"      , tabIdxJet )
   , ( "tabMut"      , tabMutJet )
   , ( "tabElem"     , tabElemJet )
@@ -163,7 +163,6 @@ jetImpls = mapFromList
   , ( "tabKeys"     , tabKeysJet )
   , ( "tabVals"     , tabValsJet )
   , ( "blake3"      , blake3Jet )
-
   , ( "bit"         , bitJet   )
   , ( "not"         , notJet   )
   , ( "and"         , andJet   )
@@ -427,8 +426,8 @@ barNatJet f e = orExec (f e) $ do
   b <- getBar (e^1)
   pure $ NAT $ bytesNat b
 
-barNullJet :: Jet
-barNullJet f e = orExec (f e) $ do
+barIsEmptyJet :: Jet
+barIsEmptyJet f e = orExec (f e) $ do
   b <- getBar (e^1)
   pure $ fromBit $ null b
 

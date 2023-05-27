@@ -16,10 +16,11 @@
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 /+  01_fan
-/+  02_bit  [if else ifNot and or not TRUE FALSE]
-/+  03_nat  [dec sub add gteNat lthNat lteNat minNat div roundUp mod even isZero]
+/+  02_bit  [if else ifNot and or not bit TRUE FALSE]
+/+  03_nat  [dec sub add minNat div roundUp mod even isZero]
+/+  03_nat  [LT GT EQ gteNat lthNat lteNat]
 /+  04_app  [head arity len idx get mut]
-/+  05_eql  [eql neq]
+/+  05_eql  [eql neq cmp]
 /+  06_cow
 /+  07_rex
 
@@ -368,7 +369,8 @@
 (listTurn l f)=(listMap f l)
 
 '''
-''' TODO: Create a version of listToRowReversed with a static length:
+''' TODO: Create a versions of {listToRow} and {listToRowReversed}
+''' that work with static lengths:
 '''
 ''' -  It always produces a row of a certain size.
 ''' -  If the list is too long, only the head is taken.
@@ -468,7 +470,7 @@
 | if f-x (CONS x listFilter-f-xs)
 | listFilter f xs
 
-(listNull xs)=(isNat xs)
+(listIsEmpty xs)=(isNat xs)
 
 = (listMinimumOn f a bs)
 | **listCase bs a
@@ -487,6 +489,59 @@
 
 !!= (listGen 3 id) [0 [1 [2 0]]]
 
+; {listSortBy}, {listSort}, {sortBy}, {sort} etc are simple
+; implementations meant to be used in jets.  If you want a proper
+; quicksort or mergesort, implement them yourself.
+
+= (listInsertBy cmp x lis)
+| **listCase lis (listSing x)
+& (y ys)
+| if (cmp x y)
+    | CONS y (listInsertBy cmp x ys)
+| CONS x lis
+
+; {listUniq} removes duplicate values that appear next to each-other.
+; If the input is sorted, then the output will have no duplicates.
+
+= (listUniq xs)
+| if (isZero xs) NIL
+^ _ (fst xs) (snd xs)
+? (go x ys)
+| **listCase ys (listSing x)
+& (y ys)
+| if (eql x y) (go y ys)
+| CONS x (go y ys)
+
+= (listSortBy cmp xs) | listFoldr (listInsertBy cmp) NIL xs
+= (listSort xs)       | listSortBy cmp xs
+= (listSortUniq xs)   | listUniq (listSort xs)
+= (comparing f x y)   | cmp (f x) (f y)
+
+= (listSortOn f lis)
+| listMap snd
+| listSortBy (comparing fst)
+| listMap x&(y @ f x)(seq y (y, x))
+| lis
+
+; {rowPort} converts from a list operation to a row operation.
+
+= (rowPort op row) | listToRow (op | listFromRow row)
+= (uniq row)       | rowPort listUniq         row
+= (sortOn f row)   | rowPort (listSortOn f)   row
+= (sortBy cmp row) | rowPort (listSortBy cmp) row
+= (sort row)       | rowPort listSort         row
+= (sortUniq row)   | rowPort listSortUniq     row
+
+!!= [0 3 3 4 5] | sort               | [0 3 4 3 5]
+!!= [0 3 3 4 5] | sortBy cmp         | [0 3 4 3 5]
+!!= [5 4 3 3 0] | sortBy (flip cmp)  | [0 3 4 3 5]
+!!= [0 3 4 3 5] | sortBy _&EQ        | [0 3 4 3 5]
+!!= [5 4 3 3 0] | sortOn x&(sub 5 x) | [0 3 4 3 5]
+!!= [5 3 4 3 0] | sortOn not         | [0 3 4 3 5]
+!!= [0 5 3 4 3] | sortOn bit         | [0 3 4 3 5]
+!!= [0 5 0]     | uniq [0 0 5 5 0 0]
+!!= [0 5]       | sortUniq [0 0 5 5 0 0]
+
 = (listFindIndex f xs)
 ^ _ 0 xs
 ? (loop ix rest)
@@ -503,24 +558,6 @@
 !!= (0 2) | listElemIndex 2 (, 0 , 1 , 2 , 3 0)
 !!= (0 3) | listElemIndex 3 (, 0 , 1 , 2 , 3 0)
 !!= 0     | listElemIndex 4 (, 0 , 1 , 2 , 3 0)
-
-= (listSortOn f lis)
-| **listCase lis NIL
-& (x xs)
-@ fst | listMinimumOn f x xs
-@ fky | f fst
-@ rst | listSortOn f
-      | listFilter x&(not (eql fky f-x))
-      | lis
-| CONS fst rst
-
-; TODO This is out of place!
-= (sortOn f row)
-| listToRow
-| listSortOn f
-| listFromRow row
-
-(sort row)=(sortOn id row)
 
 (filter f row)=(| listToRow | listFilter f | listFromRow row)
 
@@ -549,7 +586,7 @@
 = (listRev a)
 ^ _ a NIL
 ? (loop a xs)
-| if (listNull a) xs
+| if (listIsEmpty a) xs
 | loop (snd a) (CONS (fst a) xs)
 
 = (listSnoc xs e)
@@ -597,7 +634,8 @@
 @ rights | snd i
 | if (fst x)
     | (lefts, CONS (snd x) rights)
-| (CONS (snd x) lefts, rights)
+| else
+    | (CONS (snd x) lefts, rights)
 
 !!= [[0 3] [1 2]]
   | partition [LEFT-0 RIGHT-1 RIGHT-2 LEFT-3]
@@ -782,7 +820,7 @@
 ^-^ listToRowReversed listFromRow listAnd listOr listSum listAll listAny
 ^-^ listHas listEnumFrom listWeld listCat listTake listDrop listDigits
 ^-^ listTakeWhile listDropWhile
-^-^ digits listZipWith listZip listFilter listNull listMinimumOn listSortOn
+^-^ digits listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn
 ^-^ listGen listFindIndex listElemIndex
 ^-^ listIndexed
 ^-^ listIntersperse
@@ -796,7 +834,7 @@
 ^-^ eitherGetRight eitherGetLeft
 ^-^ eitherMap partition
 ^-^
-^-^ sort sortOn
+^-^ sort sortBy sortOn sortUniq
 ^-^ filter delete
 ^-^ findIdxMany elemIdxMany
 ^-^

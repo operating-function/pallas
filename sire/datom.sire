@@ -19,6 +19,16 @@
 /+  datatype  ["#record" "#datatype" "#datacase"]
 /+  mutrec
 
+
+""" Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (fromSingletonCab opt bad gud)
+| if (neq 1 | cabLen opt) bad
+| **gud (cabMin opt)
+
+
+""" Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 ;; for v0, all trees are Tabs and Cabs, not hitch stuff. doing all the hitch
 ;; stuff will require adding a `Multimap a b c -> Map a (Map b (MapSet c))`
 ;; typw.
@@ -56,29 +66,29 @@
 ; only usable for tuples which end in [v] (eav, aev)
 @ (alterEndVal c in)
     | SOME
-    : cab <- **maybeCase in (cabSingleton c)
+    : cab <- **maybeCase in (cabSing c)
     | if many | cabIns c cab
-    | cabSingleton c
+    | cabSing c
 ; only usable for tuples whose middle is not v (eav, aev)
 @ (alterNotVal b c in)
     | SOME
     : tab
         < **maybeCase in
-        | tabSingleton b
-        | cabSingleton c
+        | cabSing b
+        | cabSing c
     | tabAlter (alterEndVal c) b tab
 ; only usable for tuples whose middle IS v (ave)
 @ (alterEndNonV c in)
     | SOME
-    : cab <- **maybeCase in (cabSingleton c)
+    : cab <- **maybeCase in (cabSing c)
     | cabIns c cab
 ; only usable for tuples whose middle IS v (ave)
 @ (alterMiddleEndNonV b c in)
     | SOME
     : tab
         < **maybeCase in
-        | tabSingleton b
-        | cabSingleton c
+        | cabSing b
+        | cabSing c
     | tabAlter (alterEndNonV c) b tab
 @ eav | tabAlter (alterNotVal a v) e eav
 @ aev | tabAlter (alterNotVal e v) a aev
@@ -196,7 +206,7 @@ db
 = (singletonCabDefault opt missing next)
 | **next
 | if (neq 1 | cabLen opt) missing
-| cabFirst opt
+| cabMin opt
 
 ; Internal functions on
 > Nat > Nat > Db > Cab Any
@@ -321,7 +331,7 @@ e
     @ l | cabLen eids
     | if (isZero l)
         | LEFT | **LOOKUP_NO_MATCH attrName val
-    | RIGHT | cabFirst eids
+    | RIGHT | cabMin eids
 
 ; Immediately resolves an entity to a numeric entity id.
 ;
@@ -342,8 +352,8 @@ e
 ; typing
 | if | rowAnd ,, isCab i
               ,, eql 1 | cabLen i
-              ,, isNat | cabFirst i
-    @ val | cabFirst i
+              ,, isNat | cabMin i
+    @ val | cabMin i
     : eid
         < maybeCase (tabLookup val txnTmpIds)
         @ [eid db] | allocEntity db
@@ -539,7 +549,7 @@ e
 > Row Any > Db > Either (Row Error) Db
 = (transact items db)
 @ [errs actions _ db] | parseAllItems db items
-| ifNot (listNull errs) | LEFT | listToRow errs
+| ifNot (listIsEmpty errs) | LEFT | listToRow errs
 @ [errs newDB]
     ^ listFoldl _ [errs db] actions
     & ([errs db] item)
@@ -554,11 +564,11 @@ e
         | if (cabIsEmpty oldEidCab)
             ; no previous value
             [errs (rawAdd eid aid val writeAve many isRef db)]
-        ,, | CONS (UNIQUE_VIOLATION attrName val (cabFirst oldEidCab) eid) errs
+        ,, | CONS (UNIQUE_VIOLATION attrName val (cabMin oldEidCab) eid) errs
         ,, db
     * (ACTRM eid attr val)
         [errs (rawRm eid attr val db)]
-| ifNot (listNull errs) | LEFT | listToRow errs
+| ifNot (listIsEmpty errs) | LEFT | listToRow errs
 | RIGHT newDB
 
 > Row TxnAction > Db > Db
@@ -665,7 +675,7 @@ e
     @ rawCab | lookupByVAid eid aid db
     | handleOptions name options [indexed unique isMany isRef] rawCab
 * (ATTR_EID options)
-    | handleOptions dbIdStr options [TRUE TRUE FALSE TRUE] (cabSingleton eid)
+    | handleOptions dbIdStr options [TRUE TRUE FALSE TRUE] (cabSing eid)
 
 > Nat
 > Db
@@ -684,9 +694,9 @@ e
         | trk [%empty]
         | RIGHT []
     | if isMany
-        | RIGHT [outputKey (cabRow cab)]
+        | RIGHT [outputKey (cabToRow cab)]
     ;
-    | RIGHT [outputKey (cabFirst cab)]
+    | RIGHT [outputKey (cabMin cab)]
 * (PULL_MAP spec)
     ; Need to process the map here. This is a key from a eid ref to all the
     ; values which match it.
@@ -698,7 +708,7 @@ e
             < doRight | lookupAttr db eid k
         : result
             < collectErrors
-            ^ map _ | cabRow cab
+            ^ map _ | cabToRow cab
             ? (lookupSubEid subeid)
             : result
                 < collectErrors
@@ -746,6 +756,8 @@ e
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+^-^ fromSingletonCab
+^-^
 ^-^ UNIQUE_VIOLATION LOOKUP_NO_ATTRIBUTE LOOKUP_ATTRIBUTE_NOT_UNIQUE
 ^-^ LOOKUP_NO_MATCH INVALID_ROW INVALID_ROW_OP BAD_MAP_VAL BAD_PULL_TERM
 ^-^

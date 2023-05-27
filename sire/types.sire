@@ -542,9 +542,9 @@ printType#Fun
 = (txpFree x)
 # datacase x
 * (T_FUN a b)    | cabUnion (txpFree a) (txpFree b)
-* (T_REF _ _ xs) | cabCat (map txpFree xs)
-* (T_VAR sym)    | cabSingleton sym
-* (T_TUP xs)     | cabCat (map txpFree xs)
+* (T_REF _ _ xs) | cabCatRow (map txpFree xs)
+* (T_VAR sym)    | cabSing sym
+* (T_TUP xs)     | cabCatRow (map txpFree xs)
 
 """
 """ {>} is the type-annotation rune.  It is prefixed directly onto the
@@ -563,7 +563,7 @@ printType#Fun
 = ('>' s p e a r err ok)
 : tExp bindKey binding
     < parseTypeAnnotatedBinding [s p e] r err
-@ vars | cabRow (txpFree tExp)
+@ vars | cabToRow (txpFree tExp)
 : type < compileType vars tExp err
 @ p (setProperty bindKey 'type' type p)
 | ok p a binding
@@ -591,7 +591,7 @@ printType#Fun
 @ [_ valRex typRex] kids
 : sym valKey _ < readDefinedSymbol s e valRex err
 : typExp       < parseType [s p e] typRex err
-@ tyVars       | cabRow (txpFree typExp)
+@ tyVars       | cabToRow (txpFree typExp)
 : scheme       < compileType tyVars typExp err
 @ p (setProperty valKey 'type' scheme p)
 | ok p a `0
