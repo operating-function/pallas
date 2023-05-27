@@ -17,10 +17,10 @@
 
 /+  01_fan
 /+  02_bit  [if else ifNot and or not bit TRUE FALSE]
-/+  03_nat  [dec sub add minNat div roundUp mod even isZero]
+/+  03_nat  [dec sub add lsh rsh minNat div roundUp mod even isZero]
 /+  03_nat  [LT GT EQ gteNat lthNat lteNat]
 /+  04_app  [head arity len idx get mut]
-/+  05_cmp  [eql neq cmp]
+/+  05_cmp  [eql neq cmp lth gte]
 /+  06_row
 /+  07_rex
 
@@ -717,6 +717,69 @@
  ,, 5
 
 
+""" Binary Search """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; {bsearch} finds the index of an item within a "row set".  The input
+; row is presumed to be in ascending order and without duplciates.
+;
+; {bsearch} finds the index of an item equal to the target, or the
+; index of the smallest item larger than the target, or it returns the
+; length of the array, if no such item exists.
+;
+; The result is tagged to indicate if the result is a match or not.
+; Tagging works by left-shifting the resuilt by one, and then setting the
+; low bit only if there was a match.
+;
+; The index returned in the "not found" case is always the index where
+; this item could be inserted without breaking the "row set" invariants.
+;
+; {lsearch} has the same behavior as {bsearch}, and mostly just exists
+; as a test case.
+
+(**found ix)=(inc | lsh ix 1)
+(**not_found ix)=(lsh ix 1)
+
+> Any > Row Any > Nat > Nat > Nat
+= (lsearch_ key row low end)
+| if (gte low end) (not_found low)
+| switch (cmp key | get row low) 0
+,, not_found low                   ;;  LT
+,, found low                       ;;  EQ
+,, lsearch_ key row (inc low) end  ;;  GT
+
+> Any > Row Any > Nat
+= (bsearch_ key row low end)
+| if (gte low end) (not_found low)
+@ index (rsh (add low end) 1)
+| switch (cmp key | get row index) 0
+,, bsearch_ key row low index        ;; LT
+,, found index                       ;; EQ
+,, bsearch_ key row (inc index) end  ;; GT
+
+(lsearch key row)=(lsearch_ key row 0 (len row))
+(bsearch key row)=(bsearch_ key row 0 (len row))
+
+= (search_chk row assoc)
+^ foldr _ TRUE assoc
+& (kv continue)
+@ k (fst kv)
+@ e (snd kv)
+@ lr (lsearch k row)
+@ br (bsearch k row)
+| if (neq e lr) ['lsearch mismatch' ['for key' k] [e '!=' lr]]
+| if (neq e br) ['bsearch mismatch' ['for key' k] [e '!=' br]]
+| continue
+
+N=not_found
+F=found
+
+!!= 1 | search_chk []        | tag [N|0 N|0 N|0]
+!!= 1 | search_chk [1]       | tag [N|0 F|0 N|1]
+!!= 1 | search_chk [1 3 5]   | tag [N|0 F|0 N|1 F|1 N|2 F|2 N|3 N|3]
+!!= 1 | search_chk [1 3 5 7] | tag [N|0 F|0 N|1 F|1 N|2 F|2 N|3 F|3 N|4]
+!!= 1 | search_chk [1 3 5 6] | tag [N|0 F|0 N|1 F|1 N|2 F|2 F|3 N|4 N|4]
+
+
 """ Traversing Lists """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 > (a > (b>r)) > Row a > m (Row b)
@@ -840,6 +903,9 @@
 ^-^
 ^-^ readOpenRow
 ^-^ ",,"
+^-^
+^-^ lsearch lsearch_
+^-^ bsearch bsearch_
 ^-^
 ^-^ traverseList forList traverseListWithState forListWithState
 ^-^ traverseRow forRow traverseRowWithState forRowWithState
