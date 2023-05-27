@@ -23,38 +23,8 @@
 /+  01_fan  [isNat]
 /+  01_fan  [const id]
 /+  02_bit  [if ifNot else and not]
-/+  03_nat  [eqlNat LT EQ GT cmpNat]
+/+  03_nat  [eqlNat cmpNat LT EQ GT ordWeld]
 /+  04_app  [len]
-
-
-""" Equality """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-= (eql x y)
-| if isPin-x
-        | and isPin-y
-              (eql pinItem-x pinItem-y)
-| if isLaw-x
-        | and isLaw-y
-        | and (eqlNat lawArgs-x lawArgs-y)
-        | and (eqlNat lawName-x lawName-y)
-              (eql lawBody-x lawBody-y)
-| if isApp-x
-        | and isApp-y
-        | and (eql car-x car-y)
-              (eql cdr-x cdr-y)
-| else
-        | and isNat-y eqlNat-x-y
-
-(neq x y)=(not eql-x-y)
-
-!!= 1 | eql 0              0
-!!= 1 | eql 99             99
-!!= 1 | eql id             id
-!!= 1 | eql _&0            _&0
-!!= 1 | eql (0 0)          (0 0)
-!!= 1 | eql (const 0)      (const 0)
-!!= 1 | eql (const const)  (const const)
-!!= 1 | eql (1 0 1 2)      (1 0 1 2)
 
 
 """ Ordering """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -81,12 +51,6 @@
 ; This also a jetting implementation to compare data jets without
 ; deconstructing them.
 ;
-
-; EQ <> y = y
-; x  <> _ = x
-= (ordWeld x y)
-| if (eql x EQ) y
-| x
 
 = (cmpLaw cmp x y)
 | ordWeld (cmpNat (lawName x) (lawName y))
@@ -174,6 +138,11 @@
 !!= GT | cmp (0 3 3 2) (0 2 2 2)
 !!= GT | cmp (0 3 3 3) (0 2 2 2)
 
+
+""" Specific Comparisons """"""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (eql x y) | eqlNat EQ (cmp x y)
+= (neq x y) | not (eql x y)
 = (lth x y) | eql LT (cmp x y)
 = (lte x y) | neq GT (cmp x y)
 = (gth x y) | eql GT (cmp x y)
@@ -181,14 +150,22 @@
 = (min x y) | if (lte x y) x y
 = (max x y) | if (gte x y) x y
 
+!!= 1 | eql 0              0
+!!= 1 | eql 99             99
+!!= 1 | eql id             id
+!!= 1 | eql _&0            _&0
+!!= 1 | eql (0 0)          (0 0)
+!!= 1 | eql (const 0)      (const 0)
+!!= 1 | eql (const const)  (const const)
+!!= 1 | eql (1 0 1 2)      (1 0 1 2)
+
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ eql neq
-^-^
 ^-^ ordWeld cmp
 ^-^
 ^-^ lth lte gth gte
+^-^ eql neq
 ^-^ min max
 ^-^

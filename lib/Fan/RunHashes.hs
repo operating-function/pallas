@@ -21,7 +21,7 @@ switchHash :: Hash256
 switchHash = "At3b6gCssS7MRqh2imQVsjbn5mBQsMe9hnqvS6MiZ9PX"
 
 tabSwitchHash :: Hash256
-tabSwitchHash = "7wKuHPyav43YhmNuffz2ZxiutvhDHfCRLaERNT6APgnM"
+tabSwitchHash = "DiZBoWc4XWv6riFKCTPgHK6cAAiLEv72VXWiJEcNxbr"
 
 seqHash :: Hash256
 seqHash = "sb965zsyHBkHaowAjiXcTMt89e3kvnq617Hsf8DRi6S"
@@ -45,7 +45,7 @@ mulHash :: Hash256
 mulHash = "BWNGj7CzE1got1H5pnp4nSYG8jbW8xBBGvrcDq7mHW5n"
 
 eqlHash :: Hash256
-eqlHash = "4AaF13zqQmE32NwSRFyg5w6mUt8cF6vQ3tTBvXfzGLGB"
+eqlHash = "B6grd7w9xZqFvKGnBZGf5g24JLerQLNS3tqXPFAyWuTX"
 
 eqlNatHash :: Hash256
 eqlNatHash = "HinQSPoGNvnL6DG3mkeKKtiyCTnCYaS3oNzRsGSw3Ccx"

@@ -51,6 +51,8 @@ LT=0
 EQ=1
 GT=2
 
+(ordWeld x y)=(if (eqlNat x EQ) y x)
+
 = (div x y) | if (lthNat x y) 0 inc-(div sub-x-y y)
 = (mod x y) | sub x | mul y | div x y
 = (bex n)   | exec mul-2 1 n
@@ -244,5 +246,5 @@ GT=2
 ^-^ exec
 ^-^ perbit
 ^-^
-^-^ LT EQ GT
+^-^ LT EQ GT ordWeld
 ^-^

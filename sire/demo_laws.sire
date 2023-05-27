@@ -452,28 +452,28 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= pinBytz-(2 0 3) | x#4c3e0d
 !!= pinBytz-toNat   | x#f8c043f7e614462f67f2e906
 
-'pinHash add'
+{pinHash add}
 !!= x#{bdac4dd0f4de34484c4dcf4534845a58545937fa28511977866ca8f2047ef5df}
   | pinHash add
 
-'pinHash mul'
+{pinHash mul}
 !!= x#{b74e96e0385dcb18599b1570e3c5807a9284050258766cb7cd10b004713d2032}
   | pinHash mul
 
-'pinHash .{%%}'
-!!= x#{9851f3f90b613166fa6837449c3f1c35c800922722448393833e98e77809c36d}
+{pinHash .{%%}}
+!!= x#{16a0646cb713edc4bd3b4783a30a10c64d4ddb83b6b36e112fd6aba706b8895c}
   | pinHash .{%%}
 
-'pinHash cmp'
-!!= x#{48562368fd8806cacab34d017cd9e7ad2d749b04bb1e4c443770ab2f797137a1}
+{pinHash cmp}
+!!= x#{0e55129363af397ba70a350d17312a0550c652539ffbaf2b2b802a4d1eecd59b}
   | pinHash cmp
 
-'pinHash multiEqlE'
-!!= x#{f7f6af1e100558b0ccaa16df8eb90464253b5f03f824a951fe9bb020b04564b1}
+{pinHash multiEqlE}
+!!= x#{c01db223c4aa33a8f601492ed6345ca19dc6c6cd7a55c332a1d65e07a382606a}
   | pinHash multiEqlE
 
-'pinHash pinHash'
-!!= x#{8623d2d2a8c7436dc6bf3e1532d42abdd7e8166bf6d70af0c3ff2cb99bee34cc}
+{pinHash pinHash}
+!!= x#{32afac1455d1251f37f20008e59eebfc21ccb3a4ad99b1bb8c6053c35451fbc6}
   | pinHash pinHash
 
 = (refsTable pin)
