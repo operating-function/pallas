@@ -15,13 +15,13 @@ ifHash :: Hash256
 ifHash = "9cFk4oxzbH92Bi8jgw7k5LYJNkhTLBxAiQfJ3x3baf6e"
 
 ifNotHash :: Hash256
-ifNotHash = "GuMQnrCGNsTTj75eQ9UNpdEcj4GCTF8UqR1Ja69iufbc"
+ifNotHash = "66DQ83azQBPKg3E5zy8TFyr7X9jcbNW3acZUtgJnhfdC"
 
 switchHash :: Hash256
-switchHash = "At3b6gCssS7MRqh2imQVsjbn5mBQsMe9hnqvS6MiZ9PX"
+switchHash = "3jB28Bxn47KDKB7qMV3N5rnwL9wEd6b13h6kUZYAmHhj"
 
 tabSwitchHash :: Hash256
-tabSwitchHash = "DiZBoWc4XWv6riFKCTPgHK6cAAiLEv72VXWiJEcNxbr"
+tabSwitchHash = "82cuAPkaqRztvSEfMpcNJAPCA36B38DcEkvom7WEctVq"
 
 seqHash :: Hash256
 seqHash = "sb965zsyHBkHaowAjiXcTMt89e3kvnq617Hsf8DRi6S"
@@ -45,7 +45,7 @@ mulHash :: Hash256
 mulHash = "BWNGj7CzE1got1H5pnp4nSYG8jbW8xBBGvrcDq7mHW5n"
 
 eqlHash :: Hash256
-eqlHash = "B6grd7w9xZqFvKGnBZGf5g24JLerQLNS3tqXPFAyWuTX"
+eqlHash = "2yS1bsYtv1JMQjACU4yjDLKAx5QTHHTSfbwoTsiCCUAe"
 
 eqlNatHash :: Hash256
 eqlNatHash = "HinQSPoGNvnL6DG3mkeKKtiyCTnCYaS3oNzRsGSw3Ccx"

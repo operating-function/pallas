@@ -46,17 +46,17 @@
 TRUE=1
 FALSE=0
 
-= (if x t e)    | 2 e _&t x
-= (**else x)    | x
-= (not x)       | if x 0 1
-= (bit x)       | if x 1 0
-= (and x y)     | if x (bit y) 0
-= (or x y)      | if x 1 (bit y)
-= (xor x y)     | if x (not y) (bit y)
-= (nand x y)    | not (and x y)
-= (nor x y)     | not (or x y)
-= (xnor x y)    | not (xor x y)
-= (ifNot x t e) | if (not x) t e
+= (if x t e)      | 2 e _&t x
+= (**ifNot x t e) | if x e t
+= (**else x)      | x
+= (not x)         | if x 0 1
+= (bit x)         | if x 1 0
+= (and x y)       | if x (bit y) 0
+= (or x y)        | if x 1 (bit y)
+= (xor x y)       | if x (not y) (bit y)
+= (nand x y)      | not (and x y)
+= (nor x y)       | not (or x y)
+= (xnor x y)      | not (xor x y)
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
