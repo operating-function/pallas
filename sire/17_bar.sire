@@ -35,7 +35,7 @@
 /+  03_nat  [lteNat even isZero]
 /+  03_nat  [mod lsh rsh add bex mul sub dec div minNat takeBits]
 /+  04_app  [len get idx]
-/+  05_eql  [eql neq gte]
+/+  05_cmp  [eql neq gte]
 /+  06_cow  [map foldl foldr gen weld v1 v2 v4]
 /+  07_rex  [SHUT CURL WORD]
 /+  07_rex  [rexKids rexText '`']

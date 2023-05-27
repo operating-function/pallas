@@ -20,7 +20,7 @@
 /+  02_bit  [if ifNot and or not]
 /+  03_nat  [gteNat lteNat add sub lsh roundUp met takeBits mul rsh mod div]
 /+  04_app  []
-/+  05_eql  [eql neq]
+/+  05_cmp  [eql neq]
 /+  06_cow  [foldl]
 /+  07_rex  []
 /+  08_dat  [CONS NIL listFoldl listToRow listMap listLen listAll]

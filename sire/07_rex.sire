@@ -28,7 +28,7 @@
 /+  02_bit  [if ifNot or]
 /+  03_nat  [isZero]
 /+  04_app  [idx len]
-/+  05_eql  [eql neq]
+/+  05_cmp  [eql neq]
 /+  06_cow  [weld map c1 v0 v1 v2]
 
 

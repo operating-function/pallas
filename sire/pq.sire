@@ -16,7 +16,7 @@
 
 /+  02_bit   [if and TRUE FALSE]
 /+  03_nat   [eqlNat cmpNat LT EQ GT div sub]
-/+  05_eql   [neq]
+/+  05_cmp   [neq]
 /+  08_dat   [listLen listUnsafeHead listDrop NIL listRev listFoldr]
 /+  08_dat   [SOME NONE maybeCase]
 /+  datatype ["#datatype" "#datacase"]

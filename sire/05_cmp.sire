@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 05_eql <- 04_app
+### 05_cmp <- 04_app
 
 """
 """ Equality and Ordering

@@ -22,7 +22,7 @@
 /+  02_bit  [if]
 /+  03_nat  []
 /+  04_app  [idx]
-/+  05_eql  []
+/+  05_cmp  []
 /+  06_cow  [map]
 /+  07_rex  []
 /+  08_dat  ["," drop rowApply CONS NIL listToRow]

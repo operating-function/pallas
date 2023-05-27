@@ -60,7 +60,7 @@
 /+  02_bit  [if ifNot and or not else]
 /+  03_nat  [add div inc dec isZero lthNat]
 /+  04_app  [idx len]
-/+  05_eql  [eql neq]
+/+  05_cmp  [eql neq]
 /+  06_cow  [weld map foldr null v1 v2 v3 v4]
 /+  07_rex  [rexConstr rexIdnt rexRune rexSons rexHeir rexKids]
 /+  07_rex  [rexIsNode rexGetNode]

@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 06_cow <- 05_eql
+### 06_cow <- 05_cmp
 
 """
 """ Rows
@@ -40,7 +40,7 @@
 /+  02_bit  [if ifNot and or not]
 /+  03_nat  [eqlNat dec sub add lthNat isZero]
 /+  04_app  [head arity len null idx get mut put]
-/+  05_eql  [eql]
+/+  05_cmp  [eql]
 
 
 """ Core Definitions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""

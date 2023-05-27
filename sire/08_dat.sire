@@ -20,7 +20,7 @@
 /+  03_nat  [dec sub add minNat div roundUp mod even isZero]
 /+  03_nat  [LT GT EQ gteNat lthNat lteNat]
 /+  04_app  [head arity len idx get mut]
-/+  05_eql  [eql neq cmp]
+/+  05_cmp  [eql neq cmp]
 /+  06_cow
 /+  07_rex
 

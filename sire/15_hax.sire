@@ -51,7 +51,7 @@
 /+  02_bit  [if ifNot not]
 /+  03_nat  [lthNat]
 /+  04_app  [len idx]
-/+  05_eql  [eql neq]
+/+  05_cmp  [eql neq]
 /+  06_cow  [v1 v2 v4 null weld]
 /+  07_rex  [rexKids rexGetWord "`" rexVal]
 /+  08_dat  ["," drop]
