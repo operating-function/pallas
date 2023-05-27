@@ -19,7 +19,7 @@
 /+  03_nat  [add toNat isZero]
 /+  04_app  [len idx head mut]
 /+  05_cmp  [eql neq lth lte gte gth]
-/+  06_cow  [null map weld rowRepel rowApply rev foldl fst snd]
+/+  06_row  [null map weld rowRepel rowApply rev foldl fst snd]
 /+  07_rex  [rexKids rexRune rexGetNodeWithRune EMBD PREF]
 /+  08_dat
 /+  09_sci  [inspect fullInspection]

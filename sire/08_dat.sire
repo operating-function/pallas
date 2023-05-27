@@ -21,7 +21,7 @@
 /+  03_nat  [LT GT EQ gteNat lthNat lteNat]
 /+  04_app  [head arity len idx get mut]
 /+  05_cmp  [eql neq cmp]
-/+  06_cow
+/+  06_row
 /+  07_rex
 
 

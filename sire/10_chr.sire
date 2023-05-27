@@ -19,7 +19,7 @@
 /+  03_nat  [gteNat lteNat lthNat add sub eqlNat]
 /+  04_app  []
 /+  05_cmp  []
-/+  06_cow  []
+/+  06_row  []
 /+  07_rex  []
 /+  08_dat  []
 /+  09_sci  []

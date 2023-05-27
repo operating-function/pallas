@@ -40,7 +40,7 @@
 /+  03_nat  [add div gteNat inc lthNat isZero]
 /+  04_app  [len null idx]
 /+  05_cmp  [eql neq]
-/+  06_cow  [weld map turn foldl foldr v1 v2 v4]
+/+  06_row  [weld map turn foldl foldr v1 v2 v4]
 /+  07_rex  [rexKids rexRune rexHeir rexSons rexText rexVal rexEql "`"]
 /+  07_rex  [rexIsNode rexIsLeaf]
 /+  07_rex  [rexGetKidsOfNodeWithRune rexGetWord]

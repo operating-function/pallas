@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 07_rex <- 06_cow
+### 07_rex <- 06_row
 
 """
 """ Rex Syntax Trees
@@ -29,7 +29,7 @@
 /+  03_nat  [isZero]
 /+  04_app  [idx len]
 /+  05_cmp  [eql neq]
-/+  06_cow  [weld map c1 v0 v1 v2]
+/+  06_row  [weld map c1 v0 v1 v2]
 
 
 """ Rex Representation (possibly data-jetted) """"""""""""""""""""""""""""""""""

@@ -23,7 +23,7 @@
 /+  03_nat  []
 /+  04_app  [idx]
 /+  05_cmp  []
-/+  06_cow  [map]
+/+  06_row  [map]
 /+  07_rex  []
 /+  08_dat  ["," drop rowApply CONS NIL listToRow]
 

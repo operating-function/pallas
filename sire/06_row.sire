@@ -2,13 +2,18 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 06_cow <- 05_cmp
+### 06_row <- 05_cmp
 
 """
 """ Rows
 """ ====
 """
-""" Rows are data-jetted arrays.  Since Fan is untyped, these are used
+""" This module defines some very basic operations on rows (arrays).
+""" However, most row operations are defined in 08_dat.sire, since it is
+""" much easier to define those operations along with other operations,
+""" and also once we have macros for row literals.
+"""
+""" Rows are data-jetted arrays.  Since PLAN is untyped, these are used
 """ both as vectors and as tuples.
 """
 """ A row is represented as (cow n) partially applied to n argumnts,

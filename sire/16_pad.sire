@@ -48,7 +48,7 @@
 /+  03_nat  [isZero add mul sub bex dec met lsh rsh mod lteNat]
 /+  04_app  [idx len]
 /+  05_cmp  [eql neq]
-/+  06_cow  [map weld foldl]
+/+  06_row  [map weld foldl]
 /+  07_rex  [rexKids rexText rexIsLeaf SHUT WORD CURL {`}]
 /+  08_dat  [{,} {,,}]
 /+  08_dat  [listFromRow listCase listSnoc NIL CONS]
