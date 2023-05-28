@@ -125,22 +125,22 @@ raw=(pinItem cmp)
 !! checkOrder GT [0 1] %[0 1]
 
 ; Rows are compared with tabs first by comparing the sizes.
-!! checkOrder GT [0]     %[]
-!! checkOrder LT [0]     %[0=0 1=1]
-!! checkOrder LT []      %[0=0 1=1]
-!! checkOrder GT [0 0 0] %[0=0 1=1]
+!! checkOrder GT [0]     #[]
+!! checkOrder LT [0]     #[0=0 1=1]
+!! checkOrder LT []      #[0=0 1=1]
+!! checkOrder GT [0 0 0] #[0=0 1=1]
 
 ; If the sizes are the same, rows are always smaller.
-!! checkOrder LT []      | %[]
-!! checkOrder LT [0]     | %[8=8]
-!! checkOrder LT [0 0]   | %[8=8 9=9]
-!! checkOrder LT [0 0 0] | %[8=8 9=9 10=10]
+!! checkOrder LT []      | #[]
+!! checkOrder LT [0]     | #[8=8]
+!! checkOrder LT [0 0]   | #[8=8 9=9]
+!! checkOrder LT [0 0 0] | #[8=8 9=9 10=10]
 
 ; If the sizes are the same, rows are always smaller.
-!! checkOrder LT []      | %[]
-!! checkOrder LT [0]     | %[8=8]
-!! checkOrder LT [0 0]   | %[8=8 9=9]
-!! checkOrder LT [0 0 0] | %[8=8 9=9 10=10]
+!! checkOrder LT []      | #[]
+!! checkOrder LT [0]     | #[8=8]
+!! checkOrder LT [0 0]   | #[8=8 9=9]
+!! checkOrder LT [0 0 0] | #[8=8 9=9 10=10]
 
 ; Rows are pretty small closures.  Only closures with nat-heads are smaller.
 !! checkOrder LT [0]   | (cdr-const 0)

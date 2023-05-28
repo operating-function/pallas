@@ -34,8 +34,8 @@
 /+  09_sci  []
 /+  10_chr  [isAlpha isDigit]
 /+  11_str  [strCat explode strWeld]
-/+  12_cab  []
-/+  13_tab  [tabToPairs '%' tabE]
+/+  12_cab  ['%']
+/+  13_tab  [tabToPairs '#' tabE]
 
 
 """ Parsing and Printing Nats """"""""""""""""""""""""""""""""""""""""""""""""""

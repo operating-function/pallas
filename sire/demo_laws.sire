@@ -170,16 +170,16 @@ hexAlphabet=(natBar "0123456789abcdef")
 > Char > Opt Nat
 = (readDigit char)
 | tabSwitch char NONE
-%% ="0" SOME 0
-%% ="1" SOME 1
-%% ="2" SOME 2
-%% ="3" SOME 3
-%% ="4" SOME 4
-%% ="5" SOME 5
-%% ="6" SOME 6
-%% ="7" SOME 7
-%% ="8" SOME 8
-%% ="9" SOME 9
+## ="0" SOME 0
+## ="1" SOME 1
+## ="2" SOME 2
+## ="3" SOME 3
+## ="4" SOME 4
+## ="5" SOME 5
+## ="6" SOME 6
+## ="7" SOME 7
+## ="8" SOME 8
+## ="9" SOME 9
 
 > Nat > Opt Nat
 = (readNat n)
@@ -437,9 +437,9 @@ hexAlphabet=(natBar "0123456789abcdef")
 
 = (niceJar val)
 @ [hash deps byts] jar-val
-%% =hash hash
-%% =deps deps
-%% =bits byts
+## =hash hash
+## =deps deps
+## =bits byts
 
 (pinHash val)=(| idx 0 | jar val)
 (pinBytz val)=(| idx 2 | jar val)
@@ -460,9 +460,9 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= x#{b74e96e0385dcb18599b1570e3c5807a9284050258766cb7cd10b004713d2032}
   | pinHash mul
 
-{pinHash .{%%}}
-!!= x#{5c10a5f312435e61bb59488bcf54636dbd5dd2dcf2c07101f34eb6e6f64a720f}
-  | pinHash .{%%}
+{pinHash .{##}}
+!!= x#{bfa5234e3c360c3a16ade6fb90128187d97e7c074b2c4e355af9d023644d01f6}
+  | pinHash .{##}
 
 {pinHash cmp}
 !!= x#{9a1a18b3c14d1c02f4778a199463b94bbe19d40c688fca8fbb1a242c9d058ab1}

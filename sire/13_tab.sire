@@ -26,9 +26,7 @@
 /+  10_chr  []
 /+  11_str  [strWeld]
 /+  12_cab  [isCab emptyCab cabLen cabHas cabMin]
-/+  12_cab  [readKey]
-/+  12_cab  ["%" mkCenMacro cenCab]
-/+  12_cab  ["%%" mkCenCenMacro cenCenCab]
+/+  12_cab  ["%"  readKey]
 
 
 """ Tabs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -298,8 +296,13 @@ tab=(tabFromAscPairs par)
 ; TODO Parse decimal
 ; TODO Should we support 0xHEX?
 ; TODO Validate identifiers
-= (cenTab s p e a r kids err ok)
-^ _ emptyTab (listFromRow kids)
+= ({#} s p e a r err ok)
+@ kids (rexKids r)
+@ kid  (idx 0 kids)
+| if (neq 1 | len kids)      | err r   "What is this?"
+| if (neq "," | rexRune kid) | err kid "What is this?"
+| trk ['kid',kid 'kids',(rexKids kid)]
+^ _ emptyTab (listFromRow (rexKids kid))
 ? (go acc pairs)
 ; trk [%go acc pairs]
 | **listCase pairs (ok p a tabE-acc)
@@ -332,14 +335,14 @@ tab=(tabFromAscPairs par)
     | okay key keyRex
 | okay key (idx 1 kids)
 
-= (cenCenTab s p e a r err ok)
+= ({##} s p e a r err ok)
 ^ _ emptyTab r
 ? (go acc rex)
 ; trk 'go',acc,rex
 | if (isZero rex)
     | ok p a (tabE acc)
-| rexGetNodeWithRune "%%" rex
-    | err rex "Expected a %% node (in a tall-form tab literal)"
+| rexGetNodeWithRune "##" rex
+    | err rex "Expected a ## node (in a tall-form tab literal)"
 & (sons heir)
 @ okay
     ? (okay newKey newValue)
@@ -350,13 +353,13 @@ tab=(tabFromAscPairs par)
     | go acc heir
 | if (isZero len-sons)
     ; trk 'zeroSons'
-    | err rex "%% requires at least 1 son (in a tall-form tab literal)"
+    | err rex "## requires at least 1 son (in a tall-form tab literal)"
 ;;;;
 ; trk %sons,sons
 @ keyTisRex (idx 0 sons)
 | rexGetNodeWithRune "=" keyTisRex
     | err keyTisRex
-    | strWeld "First son of every %% node must be a = node "
+    | strWeld "First son of every ## node must be a = node "
               "(in a tall-form tab literal)"
 & (tisSons tisHeir)
 | if    | or (neq 1 len-tisSons)
@@ -373,22 +376,16 @@ tab=(tabFromAscPairs par)
 & k
 | okay k valExp
 
-= ("%" s p e a r err ok)
-| **mkCenMacro cenCab cenTab s p e a r err ok
-
-= ("%%" s p e a r err ok)
-| **mkCenCenMacro cenCenCab cenCenTab s p e a r err ok
-
 = (isTabSugar rex)
 @ kids (rexKids rex)
 | and (not null-kids)
       (| eql "=" | rexRune | idx 0 kids)
 
 = (desugarTab rex)
-| PREF 0 "%" [rex] 0
+| PREF 0 "#" [rex] 0
 
 ; Same as the previous version except that things like [x=3] get rewritten
-; as %[x=3] (and therefore treated as tabs).
+; as #[x=3] (and therefore treated as tabs).
 = ("," s p e a rex err ok)
 | if (isTabSugar rex)
     | ok p a (desugarTab rex)
@@ -397,10 +394,10 @@ tab=(tabFromAscPairs par)
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-!!= 1 | isTab %[]
-!!= 1 | isTab %[0=0]
-!!= 1 | isTab %[x=3]
-!!= 1 | isTab %[x=3 y=4]
+!!= 1 | isTab #[]
+!!= 1 | isTab #[0=0]
+!!= 1 | isTab #[x=3]
+!!= 1 | isTab #[x=3 y=4]
 !!= 1 | isTab [x=3 y=4]
 !!= 1 | isTab [=isTab]
 
@@ -409,49 +406,49 @@ tab=(tabFromAscPairs par)
 !!= 0 | isTab (%[x y] 3)
 !!= 1 | isTab (%[x y] 3 4)
 
-!!= [a=0]     | %[97=0]
-!!= [a=0]     | %['a'=0]
-!!= [a=0 b=1] | %[98=1 97=0]
-!!= [a=0 b=1] | %["b"=1 'a'=0]
+!!= [a=0]     | #[97=0]
+!!= [a=0]     | #['a'=0]
+!!= [a=0 b=1] | #[98=1 97=0]
+!!= [a=0 b=1] | #["b"=1 'a'=0]
 
-!!= 0 | tabLen %[]
-!!= 1 | tabLen %[x=0]
-!!= 2 | tabLen %[x=0 y=1]
+!!= 0 | tabLen #[]
+!!= 1 | tabLen #[x=0]
+!!= 2 | tabLen #[x=0 y=1]
 
-!!= (inspect %[x=0 y=1])        | [%[x y] 1 0]
+!!= (inspect #[x=0 y=1])        | [%[x y] 1 0]
 !!= (inspect %[x y])            | [0 0 3 [%x %y]]
 !!= (inspect [%x %y])           | [(0 0 3 0) %y %x]
-!!= (fullInspection %[x=0 y=1]) | [[0 0 3 [[0 0 3 0] %y %x]] 1 0]
+!!= (fullInspection #[x=0 y=1]) | [[0 0 3 [[0 0 3 0] %y %x]] 1 0]
 
-!!= 8 | tabIdx 0 %[0=8]
-!!= 9 | tabIdx %aa %(bb=8, aa=9)
+!!= 8 | tabIdx 0 #[0=8]
+!!= 9 | tabIdx %aa #(bb=8, aa=9)
 
-!!= 1 | hasKey %aa %(bb=8, aa=9)
-!!= 1 | not | hasKey %cc %(bb=8, aa=9)
+!!= 1 | hasKey %aa #(bb=8, aa=9)
+!!= 1 | not | hasKey %cc #(bb=8, aa=9)
 
-!!= [3 4] | tabKeys %[3=3 4=4]
-!!= []    | tabKeys %[]
+!!= [3 4] | tabKeys #[3=3 4=4]
+!!= []    | tabKeys #[]
 
-!!= %[3=3]     | tabMut 3 3 %[3=4]
-!!= %[3=4 4=4] | tabMut 4 4 %[3=4]
-!!= %[0=0]     | tabMut 0 0 %[]
-!!= %[0=0]     | tabMut 0 0 %[]
+!!= #[3=3]     | tabMut 3 3 #[3=4]
+!!= #[3=4 4=4] | tabMut 4 4 #[3=4]
+!!= #[0=0]     | tabMut 0 0 #[]
+!!= #[0=0]     | tabMut 0 0 #[]
 
-!!= %[a=(0 1)] | (%% =a 0 1)
+!!= #[a=(0 1)] | (## =a 0 1)
 
 ;
 ; TODO Support things like:
 ;
-; %% x=3 y=4
-; %% p=0 q=1 r=2
-; %% =s
+; ## x=3 y=4
+; ## p=0 q=1 r=2
+; ## =s
 ;    | strToBar
 ;    | renderNat
 ;    | bex
 ;    | add 3 4
 ;
 
-!!= ["a"=1 b=2 {c}=3] | (%% =b 2)(%% ="a" 1)(%% ={c} 3)
+!!= ["a"=1 b=2 {c}=3] | (## =b 2)(## ="a" 1)(## ={c} 3)
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -468,5 +465,5 @@ tab=(tabFromAscPairs par)
 ^-^
 ^-^ tabE
 ^-^
-^-^ "," "%" "%%"
+^-^ "," "#" "##"
 ^-^

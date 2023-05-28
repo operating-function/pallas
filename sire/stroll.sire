@@ -21,34 +21,34 @@
 = strollSchema
 ^ assertTransact _ emptyDB
 ; Page attributes
-,, %% =":db/ident" ":page/title"
-   %% =":db/unique" TRUE
-   %% =":db/doc"
+,, ## =":db/ident" ":page/title"
+   ## =":db/unique" TRUE
+   ## =":db/doc"
        "When set on a block, that block is treated as a page with this title."
 ; Block attributes
-,, %% =":db/ident" ":block/string"
-   %% =":db/cardinality" "one"
-   %% =":db/doc" "String content of a block"
-,, %% =":db/ident" ":block/uid"
-   %% =":db/cardinality" "one"
-   %% =":db/unique" TRUE
-   %% =":db/doc" "User referable text name for a block"
-,, %% =":db/ident" ":block/children"
-   %% =":db/cardinality" "many"
-   %% =":db/valueType" "ref"
-   %% =":db/doc" "Reference to all blocks under this block"
-,, %% =":db/ident" ":block/page"
-   %% =":db/cardinality" "one"
-   %% =":db/valueType" "ref"
-   %% =":db/indexed" TRUE
-   %% =":db/doc" "Reference to the page this block is displayed on."
-,, %% =":db/ident" ":block/refs"
-   %% =":db/cardinality" "many"
-   %% =":db/valueType" "ref"
-   %% =":db/doc" "Reference to all blocks `:block/string` textually refers to."
-,, %% =":db/ident" ":block/order"
-   %% =":db/cardinality" "one"
-   %% =":db/doc" "The order of these blocks in the list of `:block/children`."
+,, ## =":db/ident" ":block/string"
+   ## =":db/cardinality" "one"
+   ## =":db/doc" "String content of a block"
+,, ## =":db/ident" ":block/uid"
+   ## =":db/cardinality" "one"
+   ## =":db/unique" TRUE
+   ## =":db/doc" "User referable text name for a block"
+,, ## =":db/ident" ":block/children"
+   ## =":db/cardinality" "many"
+   ## =":db/valueType" "ref"
+   ## =":db/doc" "Reference to all blocks under this block"
+,, ## =":db/ident" ":block/page"
+   ## =":db/cardinality" "one"
+   ## =":db/valueType" "ref"
+   ## =":db/indexed" TRUE
+   ## =":db/doc" "Reference to the page this block is displayed on."
+,, ## =":db/ident" ":block/refs"
+   ## =":db/cardinality" "many"
+   ## =":db/valueType" "ref"
+   ## =":db/doc" "Reference to all blocks `:block/string` textually refers to."
+,, ## =":db/ident" ":block/order"
+   ## =":db/cardinality" "one"
+   ## =":db/doc" "The order of these blocks in the list of `:block/children`."
 
 ; Deliberately skipping :block/parents because we have a VAE table, unlike
 ; datascript. The data from :block/parents is derivable from :block/children,
@@ -222,8 +222,8 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 = (findPageBlocksReferencing x strollDb)
 # openStrollDb strollDb
 @ uid | fromSome "" | tabLookup ":block/uid" x
-| pull ,, %% =":block/_refs" ,, ":block/uid"
-                             ,, %% =":block/page" ,, ":block/uid"
+| pull ,, ## =":block/_refs" ,, ":block/uid"
+                             ,, ## =":block/page" ,, ":block/uid"
                                                   ,, ":page/title"
        [":block/uid" uid]
        db
@@ -270,7 +270,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 | fromSome %[]
 | tabLookup ":block/refs"
 | assertRight
-| pull ,, %% =":block/refs" ,, ":db/id"
+| pull ,, ## =":block/refs" ,, ":db/id"
        [":block/uid" uid]
        db
 
@@ -334,14 +334,14 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
     | idx 1
     | pull [":block/page"] [":block/uid" parentUid] db
 @ newItem
-    %% =":block/uid" uid
-    %% =":block/string" ""
-    %% =":block/order" pos
-    %% =":block/page" page
+    ## =":block/uid" uid
+    ## =":block/string" ""
+    ## =":block/order" pos
+    ## =":block/page" page
 ;
 @ addChild
-    %% =":db/id" [":block/uid" parentUid]
-    %% =":block/children" newItem
+    ## =":db/id" [":block/uid" parentUid]
+    ## =":block/children" newItem
 @ total | rowCons addChild childUpdates
 # datacase  | transact total db
 * (LEFT l)  | LEFT l
@@ -356,14 +356,14 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ [pageUid strollDb]  | generateUniqueID strollDb
 ^ [pageUid _]
 ^ assertTransactStrollDb _ strollDb
-,, %% =":db/id" %["newpage"]
-   %% =":page/title" pageTitle
-   %% =":block/uid" pageUid
-   %% =":block/children"
-      ,, %% =":block/string" ""
-         %% =":block/uid" pointUid
-         %% =":block/order" 0
-         %% =":block/page" %["newpage"]
+,, ## =":db/id" %["newpage"]
+   ## =":page/title" pageTitle
+   ## =":block/uid" pageUid
+   ## =":block/children"
+      ,, ## =":block/string" ""
+         ## =":block/uid" pointUid
+         ## =":block/order" 0
+         ## =":block/page" %["newpage"]
 
 ; Given a page title, resolves it to a uid, creating the page if necessary.
 ;

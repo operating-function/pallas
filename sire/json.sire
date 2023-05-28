@@ -152,8 +152,8 @@ TAG_JSON_MAP='map'
 !!= (parseValue b#{ { }}) (JSON_MAP %[], NIL)
 !!= (parseValue b#{ {"str":"x", "null":null}})
   ,,   | JSON_MAP
-      %% =str  (JSON_STR b#x)
-      %% =null JSON_NULL
+      ## =str  (JSON_STR b#x)
+      ## =null JSON_NULL
   ,, NIL
 
 
@@ -201,8 +201,8 @@ TAG_JSON_MAP='map'
 !! eql b#{{"null":null,"bools":[true,false]}}
    | printJSON
    | JSON_MAP
-  %% =null  JSON_NULL
-  %% =bools JSON_VEC-[JSON_TRUE JSON_FALSE]
+  ## =null  JSON_NULL
+  ## =bools JSON_VEC-[JSON_TRUE JSON_FALSE]
 
 !!  | eql
        ,, b#{{}}

@@ -114,15 +114,15 @@
 
 = (newState servThread learnLock)
 | mkState
-  %% =files      | startingFiles
-  %% =fileBytes  | 0
-  %% =local      | FALSE
-  %% =imgCount   | 0
-  %% =pairCount  | 0
-  %% =imgs       | hmEmpty imgmapConfig
-  %% =tags       | hsmEmpty largeConfig idsetConfig
-  %% =servThread | servThread
-  %% =learnLock  | learnLock
+  ## =files      | startingFiles
+  ## =fileBytes  | 0
+  ## =local      | FALSE
+  ## =imgCount   | 0
+  ## =pairCount  | 0
+  ## =imgs       | hmEmpty imgmapConfig
+  ## =tags       | hsmEmpty largeConfig idsetConfig
+  ## =servThread | servThread
+  ## =learnLock  | learnLock
 
 (mkBarPath path)=(barFlat (b#{/}, listIntersperse b#{/} (listFromRow path)))
 
@@ -328,9 +328,9 @@ NONE
 = (buildStatus st)
 # openState st
 | **JSON_MAP
-%% =bytes | **JSON_NUM fileBytes
-%% =imgs  | **JSON_NUM imgCount
-%% =pairs | **JSON_NUM pairCount
+## =bytes | **JSON_NUM fileBytes
+## =imgs  | **JSON_NUM imgCount
+## =pairs | **JSON_NUM pairCount
 
 ; [hm hsm] [cord] > bar
 = (doSearch st [offset searchTags])
@@ -345,9 +345,9 @@ NONE
 | if | not | isZero | len missing
   ; send back the missing tags
   | **JSON_MAP
- %% =tag      | **JSON_STR b#{BadTag}
- %% =contents | **JSON_VEC (map tagToStr missing)
- %% =status   | **buildStatus st
+ ## =tag      | **JSON_STR b#{BadTag}
+ ## =contents | **JSON_VEC (map tagToStr missing)
+ ## =status   | **buildStatus st
 ;
 @ ids
   | hsToCab
@@ -373,18 +373,18 @@ NONE
    ,, **JSON_NUM id
    ,, **JSON_STR path
 | **JSON_MAP
-%% =tag      | **JSON_STR b#{OK}
-%% =contents | **JSON_MAP
-            %% =total  | **JSON_NUM | cabLen ids
-            %% =offset | **JSON_NUM offset
-            %% =query  | **JSON_VEC | map tagToStr searchTags
-            %% =slice  | **JSON_VEC records
-%% =status   | **buildStatus st
+## =tag      | **JSON_STR b#{OK}
+## =contents | **JSON_MAP
+            ## =total  | **JSON_NUM | cabLen ids
+            ## =offset | **JSON_NUM offset
+            ## =query  | **JSON_VEC | map tagToStr searchTags
+            ## =slice  | **JSON_VEC records
+## =status   | **buildStatus st
 
 = (doStatus st)
 | **JSON_MAP
-%% =tag      | **JSON_STR b#{Status}
-%% =contents | **buildStatus st
+## =tag      | **JSON_STR b#{Status}
+## =contents | **buildStatus st
 
 
 """ Website """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

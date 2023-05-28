@@ -578,12 +578,12 @@ ex=(PAIR %a %b)
   ^ _ v2 v4
   @ xpr `` * LNULL       [x "]"]
            * (LCONS _ _) [x " " (go xs)]
-  @ src %% =LNULL 3
-        %% =LCONS 4
-  @ prp %% =conTag %[3=0 4=1]
-        %% =conAri %[3=0 4=2]
-        %% =conFun %[3=_DataTag 4=_DataTag]
-        %% =conHas %[3=TRUE 4=TRUE]
+  @ src ## =LNULL 3
+        ## =LCONS 4
+  @ prp ## =conTag #[3=0 4=1]
+        ## =conAri #[3=0 4=2]
+        ## =conFun #[3=_DataTag 4=_DataTag]
+        ## =conHas #[3=TRUE 4=TRUE]
   | readDatacaseBody src prp xpr
 
 !!=  ,, TRUE
@@ -593,12 +593,12 @@ ex=(PAIR %a %b)
   ^ _ v2 v4
   @ xpr `` * LNULL [x "]"]
            * _     [x " " (go xs)]
-  @ src %% =LNULL 3
-        %% =LCONS 4
-  @ prp %% =conTag %[3=0 4=1]
-        %% =conAri %[3=0 4=2]
-        %% =conFun %[3=_DataTag 4=_DataTag]
-        %% =conHas %[3=TRUE 4=TRUE]
+  @ src ## =LNULL 3
+        ## =LCONS 4
+  @ prp ## =conTag #[3=0 4=1]
+        ## =conAri #[3=0 4=2]
+        ## =conFun #[3=_DataTag 4=_DataTag]
+        ## =conHas #[3=TRUE 4=TRUE]
   | readDatacaseBody src prp xpr
 
 = xpr `` * _ 0

@@ -13,9 +13,9 @@
 
 = postDB
 ^ assertTransact _ emptyDB
-,, %[":db/ident"=":b/post" ":db/cardinality"="one"]
-,, %[":db/ident"=":b/author" ":db/cardinality"="one"]
-,, %[":db/ident"=":b/title" ":db/cardinality"="one"]
+,, #[":db/ident"=":b/post" ":db/cardinality"="one"]
+,, #[":db/ident"=":b/author" ":db/cardinality"="one"]
+,, #[":db/ident"=":b/title" ":db/cardinality"="one"]
 
 
 ; Check that map form and a list form of adds are equivalent.
@@ -25,29 +25,29 @@
         ,, [%add %["other"] ":b/post" "Other post"]
         ,, [%add %["other"] ":b/author" "Sol"]
    ^ assertTransact _ postDB
-   ,, %[":b/post"="mai poast" ":b/author"="Iceman"]
-   ,, %[":b/post"="Other post" ":b/author"="Sol"]
+   ,, #[":b/post"="mai poast" ":b/author"="Iceman"]
+   ,, #[":b/post"="Other post" ":b/author"="Sol"]
 
 = emptyContactsDB
 ^ assertTransact _ emptyDB
-,, %% =":db/ident" ":c/name"
-   %% =":db/indexed" TRUE
-   %% =":db/cardinality" "one"
-   %% =":db/unique" TRUE
+,, ## =":db/ident" ":c/name"
+   ## =":db/indexed" TRUE
+   ## =":db/cardinality" "one"
+   ## =":db/unique" TRUE
 ; In this contrived testing scenario, you can have many emails, but only one
 ; phone number and that phone number can be shared between people.
-,, %% =":db/ident" ":c/email"
-   %% =":db/unique" TRUE
-   %% =":db/cardinality" "many"
-,, %% =":db/ident" ":c/phone"
-   %% =":db/indexed" TRUE
-   %% =":db/unique" FALSE
-   %% =":db/cardinality" "one"
+,, ## =":db/ident" ":c/email"
+   ## =":db/unique" TRUE
+   ## =":db/cardinality" "many"
+,, ## =":db/ident" ":c/phone"
+   ## =":db/indexed" TRUE
+   ## =":db/unique" FALSE
+   ## =":db/cardinality" "one"
 
 = contactsDB
   ^ assertTransact _ emptyContactsDB
-  ,, %[":c/name"="Iceman" ":c/email"="iceman@plunder.tech"]
-  ,, %[":c/name"="Sol" ":c/email"="sol@plunder.tech"]
+  ,, #[":c/name"="Iceman" ":c/email"="iceman@plunder.tech"]
+  ,, #[":c/name"="Sol" ":c/email"="sol@plunder.tech"]
 
 ; Lookup by nonexistent attributes fail.
 !!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":d/blah")]
@@ -62,7 +62,7 @@
 ; NEWENTITY with nonexistent attributes fails.
 !!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/b") (LOOKUP_NO_ATTRIBUTE ":bad/a")]
     ^ transact _ emptyContactsDB
-    ,, %[":bad/a"="bad" ":bad/b"="bad"]
+    ,, #[":bad/a"="bad" ":bad/b"="bad"]
 
 ; ADD with nonexistent attributes fails.
 !!=   | LEFT [(LOOKUP_NO_ATTRIBUTE ":bad/a")]
@@ -139,23 +139,23 @@
 
 = emptySpouseDB
   ^ assertTransact _ emptyDB
-  ,, %% =":db/ident" ":person/name"
-     %% =":db/cardinality" "one"
-     %% =":db/indexed" TRUE
-  ,, %% =":db/ident" ":person/spouse"
-     %% =":db/cardinality" "one"
-     %% =":db/valueType" "ref"
-  ,, %% =":db/ident" ":person/alias"
-     %% =":db/cardinality" "many"
+  ,, ## =":db/ident" ":person/name"
+     ## =":db/cardinality" "one"
+     ## =":db/indexed" TRUE
+  ,, ## =":db/ident" ":person/spouse"
+     ## =":db/cardinality" "one"
+     ## =":db/valueType" "ref"
+  ,, ## =":db/ident" ":person/alias"
+     ## =":db/cardinality" "many"
 
 = aliceAndBob
   ^ assertTransact _ emptySpouseDB
-  ,, %% =":db/id" %["bobid"]
-     %% =":person/name" "Bob"
-     %% =":person/spouse" %["aliceid"]
-  ,, %% =":db/id" %["aliceid"]
-     %% =":person/name" "Alice"
-     %% =":person/spouse" %["bobid"]
+  ,, ## =":db/id" %["bobid"]
+     ## =":person/name" "Bob"
+     ## =":person/spouse" %["aliceid"]
+  ,, ## =":db/id" %["aliceid"]
+     ## =":person/name" "Alice"
+     ## =":person/spouse" %["bobid"]
 
 ; Test that the mutual references in value position were resolved:
 !!=    | lookupByAV ":person/name" "Alice" aliceAndBob
@@ -170,9 +170,9 @@
 ; Test that setting a person's alias with a list works.
 = aliasDB
     ^ assertTransact _ emptySpouseDB
-    ,, %% =":db/id" 500
-       %% =":person/name" "Bob"
-       %% =":person/alias" ["Bobby" "Robert"]
+    ,, ## =":db/id" 500
+       ## =":person/name" "Bob"
+       ## =":person/alias" ["Bobby" "Robert"]
 
 ; Both aliases recorded.
 !!=    %["Bobby" "Robert"]
@@ -182,22 +182,22 @@
 ; Test that we can resolve complex many/ref cases.
 = emptyOrderDB
   ^ assertTransact _ emptyDB
-  ,, %% =":db/ident" ":order/name"
-     %% =":db/cardinality" "one"
-     %% =":db/indexed" TRUE
-  ,, %% =":db/ident" ":order/lineItems"
-     %% =":db/cardinality" "many"
-     %% =":db/valueType" "ref"
-  ,, %% =":db/ident" ":item/product"
-     %% =":db/cardinality" "one"
-     %% =":db/indexed" TRUE
-  ,, %% =":db/ident" ":item/quantity"
-     %% =":db/cardinality" "one"
+  ,, ## =":db/ident" ":order/name"
+     ## =":db/cardinality" "one"
+     ## =":db/indexed" TRUE
+  ,, ## =":db/ident" ":order/lineItems"
+     ## =":db/cardinality" "many"
+     ## =":db/valueType" "ref"
+  ,, ## =":db/ident" ":item/product"
+     ## =":db/cardinality" "one"
+     ## =":db/indexed" TRUE
+  ,, ## =":db/ident" ":item/quantity"
+     ## =":db/cardinality" "one"
 
 = orders
   ^ assertTransact _ emptyOrderDB
-  ,, %% =":order/name" "Bob"
-     %% =":order/lineItems" %% =":item/product" "Hamburger"
+  ,, ## =":order/name" "Bob"
+     ## =":order/lineItems" ## =":item/product" "Hamburger"
 
 ; Who ordered the hamburger?
 !!=     | lookupByAV ":order/name" "Bob" orders
@@ -206,16 +206,16 @@
 
 = multiOrders
   ^ assertTransact _ emptyOrderDB
-  ,, %% =":order/name" "Bob"
-     %% =":order/lineItems" ,, %% =":item/product" "Hamburger"
-                               %% =":item/quantity" 1
-                            ,, %% =":item/product" "Guinness"
-                               %% =":item/quantity" 1
-  ,, %% =":order/name" "James"
-     %% =":order/lineItems" ,, %% =":item/product" "Tendies"
-                               %% =":item/quantity" 1
-                            ,, %% =":item/product" "Kirin"
-                               %% =":item/quantity" 1
+  ,, ## =":order/name" "Bob"
+     ## =":order/lineItems" ,, ## =":item/product" "Hamburger"
+                               ## =":item/quantity" 1
+                            ,, ## =":item/product" "Guinness"
+                               ## =":item/quantity" 1
+  ,, ## =":order/name" "James"
+     ## =":order/lineItems" ,, ## =":item/product" "Tendies"
+                               ## =":item/quantity" 1
+                            ,, ## =":item/product" "Kirin"
+                               ## =":item/quantity" 1
 
 ; Who ordered the tendies?
 !!=     | lookupByAV ":order/name" "James" multiOrders
@@ -231,25 +231,25 @@
     | pull [":person/alias" ":person/name"] 500 aliasDB
 
 ; What was Bob's order?
-!!=    | RIGHT %% =":order/name" "Bob"
-               %% =":order/lineItems" ,, %% =":item/product" "Hamburger"
-                                         %% =":item/quantity" 1
-                                      ,, %% =":item/product" "Guinness"
-                                         %% =":item/quantity" 1
+!!=    | RIGHT ## =":order/name" "Bob"
+               ## =":order/lineItems" ,, ## =":item/product" "Hamburger"
+                                         ## =":item/quantity" 1
+                                      ,, ## =":item/product" "Guinness"
+                                         ## =":item/quantity" 1
     @ bobId | cabMin | lookupByAV ":order/name" "Bob" multiOrders
     ^ pull _ bobId multiOrders
     ,, ":order/name"
-    ,, %% =":order/lineItems" ,, ":item/product"
+    ,, ## =":order/lineItems" ,, ":item/product"
                               ,, ":item/quantity"
 
 ; Test backwards lookups, ie whose orders included tendies?
-!!=    | RIGHT %% =":order/lineItems" ,, %% =":order/name" "James"
+!!=    | RIGHT ## =":order/lineItems" ,, ## =":order/name" "James"
     @ tendiesId | cabMin | lookupByAV ":item/product" "Tendies" multiOrders
     ^ pull _ tendiesId multiOrders
-    ,, %% =":order/_lineItems" ,, ":order/name"
+    ,, ## =":order/_lineItems" ,, ":order/name"
 
 ; Test backwards lookup to database entity
-!!=    | RIGHT %% =":order/lineItems" ,, %% =":db/id" 13
+!!=    | RIGHT ## =":order/lineItems" ,, ## =":db/id" 13
     @ tendiesId | cabMin | lookupByAV ":item/product" "Tendies" multiOrders
     ^ pull _ tendiesId multiOrders
-    ,, %% =":order/_lineItems" ,, ":db/id"
+    ,, ## =":order/_lineItems" ,, ":db/id"

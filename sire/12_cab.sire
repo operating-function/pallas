@@ -169,85 +169,10 @@
 !!= 9   (readKey `9       v2 x&x)
 !!= 9   (readKey (EMBD 9) v2 x&x)
 
-= (mkCenMacro doCab doTab s p e a r err ok)
-@ fail (err r "% expects something like %foo or %[...]")
-;;
-@ heir (rexHeir r)
-@ sons (rexSons r)
-| if (neq 0 heir) fail
-| if (neq 1 len-sons) fail
-@ son (idx 0 sons)
-;;
-| if (eql "WORD" (rexStyle son))
-    | ok p a (CORD 0 rexText-son 0)
-;;
-| ifNot (rexIsNode son) fail
-| ifNot (eql {,} rexRune-son) fail
-;;
-@ grandsons (rexSons son)
-| if (null grandsons)
-    | ok p a (EMBD emptyCab)
-| if (rexIsNode (idx 0 grandsons))
-  (doTab s p e a r grandsons err ok)
-  (doCab s p e a r grandsons err ok)
-
-= (cenCab s p e a r kids err ok)
-^ _ emptyCab (listFromRow kids)
-? (go acc kidList)
-| **listCase kidList (ok p a (EMBD acc))
-& (thisKid moreKids)
-@ unexpected
-   | err thisKid
-      """ A cab key literal must be one of:
-      """
-      """ -   String ('', 'x', 'text', ...)
-      """ -   Number number (0, 3, 12341234, ...)
-      """ -   Identifier (x, _Y_3, ...)
-@ okay
-    ? (okay newKey)
-    | if (cabHas newKey acc)
-        | err thisKid "duplicate key"
-    | go (cabIns newKey acc) moreKids
-@ style (rexStyle thisKid)
-| if (eql "WORD" style)
-    | okay (loadKeyWord rexText-thisKid)
-| if    | or (eql "CORD" style)
-        | or (eql "TAPE" style)
-        | or (eql "TAPE" style)
-        | or (eql "LINE" style)
-             (eql "PAGE" style)
-    | okay rexText-thisKid
-| if (eql "EMBD" style)
-    @ fan (rexEmbd thisKid)
-    | if (not isNat-fan) unexpected
-    | okay fan
-| else
-    | unexpected
-
-;;; TODO test the above
-;;;
-;;; TODO Need much more careful tests throghout this module, complex code.
-
-= (cenTabStub s p e a kids err ok)
-| err "Import the % macro from `17_tab`, not from `16_cab`."
-
-= ({%} s p e a r err ok)
-| **mkCenMacro cenCab cenTabStub s p e a r err ok
-
 
 """ %% Rune: Tall-Form Tabs and Cabs """""""""""""""""""""""""""""""""""""""""""
 
-;
-; %% 3
-; %% x
-; %% 'x'
-; %% """y
-;
-
-= (cenCenTabStub s p e a r err ok)
-| err r "Import the %% macro from `17_tab`, not from `16_cab`."
-
-= (readCenCenCabLine rex err ok)
+= (readCabLine rex err ok)
 | rexGetNodeWithRune {%%} rex
     | err rex "Expected a %% node (in a tall-form cab literal)"
 & (sons heir)
@@ -255,11 +180,11 @@
 ? (step son pure)
 | readKey son err pure
 
-= (readCenCenCab rex err ok)
+= (readTallCab rex err ok)
 ^ _ emptyCab rex
 ? (go acc rex)
 | if (isZero rex) (ok acc)
-| **readCenCenCabLine rex err
+| **readCabLine rex err
 & (newKeys heir)
 ^ go _ heir
 ^ foldl _ acc newKeys
@@ -267,22 +192,75 @@
 | if (cabHas key acc) (err rex "duplicate key")
 | cabIns key acc
 
-= (cenCenCab s p e a r err ok)
-| readCenCenCab r err
+= ({%%} s p e a r err ok)
+| readTallCab r err
 & cab
 | ok p a (EMBD cab)
 
-= (mkCenCenMacro doCab doTab s p e a r err ok)
-@ sons (rexSons r)
-| if (null sons)
-    | **err r "%% rune must be given sons"
-| if (rexIsNode (idx 0 sons))
-    | **doTab s p e a r err ok
-| else
-    | **doCab s p e a r err ok
+cenExpect="% expects something like %foo or %[...]"
 
-= ({%%} s p e a r err ok)
-| (**mkCenCenMacro cenCenCab cenCenTabStub s p e a r err ok)
+= cabKeyExpect
+  """ A cab key literal must be one of:
+  """
+  """ -   String ('', 'x', 'text', ...)
+  """ -   Number number (0, 3, 12341234, ...)
+  """ -   Identifier (x, _Y_3, ...)
+
+= (readCabKey rex err ok)
+@ style | rexStyle rex
+@ text  | rexText rex
+@ embed | rexEmbd rex
+| if (eql "WORD" style)
+    | ok (loadKeyWord text)
+| if (and (eql "EMBD" style) (isNat embed))
+    | ok embed
+| if (rexIsLeaf rex)
+    | ok text
+| err rex cabKeyExpect
+
+= (readCenBracket rex err ok)
+| if (neq "," | rexRune rex)
+    | err rex cenExpect
+| forRowWithState emptyCab (rexKids rex)
+    & (acc kid yield)
+    | seq acc
+    | readCabKey kid err
+    & key
+    | if (cabHas key acc) (err kid "duplicate key")
+    | yield (cabIns key acc) key
+& (acc keys)
+| ok acc
+
+!!= (cabFromRow ['a' 'b' 'c']) | readCenBracket `[a b c] v2 id
+!!= (cabFromRow ['a' 'b' 'c']) | readCenBracket `[c b a] v2 id
+!!= [`(a b c) cenExpect]       | readCenBracket `(a b c) v2 id
+!!= [`c "duplicate key"]       | readCenBracket `[c b c] v2 id
+
+= (readCenLit rex err ok)
+@ kids (rexKids rex)
+@ nKid (len kids)
+@ kid  (idx 0 kids)
+| if (neq nKid 1) (err rex cenExpect)
+| ifNot (rexIsNode kid)
+    | if (eql "WORD" rexStyle-kid)
+        | ok (LEFT | rexText kid)
+    | err rex cenExpect
+| readCenBracket kid err
+| cab&(ok RIGHT-cab)
+
+!!= (LEFT "a")                   | readCenLit `(%a)     v2 id
+!!= (LEFT "1")                   | readCenLit `(%1)     v2 id
+!!= [`1 cenExpect]               | readCenLit `1        v2 id
+!!= (RIGHT emptyCab)             | readCenLit `(%[])    v2 id
+!!= (RIGHT cabSing-"a")          | readCenLit `(%[a])   v2 id
+!!= (RIGHT cabFromRow-["a" "b"]) | readCenLit `(%[a b]) v2 id
+
+= ({%} s p e a r err ok)
+| readCenLit r err
+& eRes
+@ val (**eitherCase eRes id id)
+| trk [r val]
+| ok p a (EMBD val)
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -388,8 +366,8 @@
 ^-^ cabIntersect cabDiff cabElem
 ^-^ cabFromRow
 ^-^
+^-^ readKey
+^-^ readCabKey readCenBracket readCenLit
+^-^
 ^-^ {%} {%%}
 ^-^
-^-^ readKey
-^-^ mkCenMacro cenCab
-^-^ mkCenCenMacro cenCenCab

@@ -255,7 +255,7 @@ abstype#TyExp
 
 = (showType p scheme@[arity x])
 @ nams | look p %typeName
-@ nams | if (isZero nams) %[] nams
+@ nams | if (isZero nams) #[] nams
 @ vars | gen arity (add 'a')
 @ body | showTypeTree nams vars x
 | body

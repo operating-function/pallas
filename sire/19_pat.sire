@@ -52,8 +52,8 @@
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld strCat]
-/+  12_cab  [readKey]
-/+  13_tab  ["%" "%%" tabToPairs tabFromPairs tabIdx tabToList tabMut]
+/+  12_cab  [readKey "%"]
+/+  13_tab  ["##" tabToPairs tabFromPairs tabIdx tabToList tabMut]
 /+  13_tab  [isTabSugar desugarTab]
 /+  14_exp
 /+  15_hax  ['#']
@@ -109,7 +109,7 @@
 ;
 ; First parse patterns into data structures.
 ;
-;   @ [x [y z] %[a=b c=d e=f]] (foo foo)
+;   @ [x [y z] [a=b c=d e=f]] (foo foo)
 ;   body
 ;
 ;     =>
@@ -120,9 +120,9 @@
 ;      ,, VAR 2 'y'
 ;      ,, VAR 3 'z'
 ;  ,, TAB
-;      %% =a (VAR 4 'b')
-;      %% =c (VAR 5 'd')
-;      %% =e (VAR 6 'f')
+;      ## =a (VAR 4 'b')
+;      ## =c (VAR 5 'd')
+;      ## =e (VAR 6 'f')
 ;
 ; Then generate code from that:
 ;
@@ -184,9 +184,9 @@
         | err rex "Tab-Binder must have form (= k) or (= k v)"
 
 = (parseTabBinder parseBinder rex err ok)
-: kids <- readNodeWithoutHeirButWithRune "%" rex err
+: kids <- readNodeWithoutHeirButWithRune "#" rex err
 | if (neq 1 len-kids)
-        | err rex "Tab-Pattern expects % rune with one kid"
+        | err rex "Tab-Pattern expects # rune with one kid"
 @ com (idx 0 kids)
 : comKids <- readKidsOfNodeWithRune "," com err
 : result  <- ^ traverseRow _ comKids
@@ -246,7 +246,7 @@
         | if (isTabSugar rex)
             | parseBinder (desugarTab rex) err ok
         | parseRowBinder parseBinder rex err ok
-| if (eql rune "%")
+| if (eql rune "#")
         | parseTabBinder parseBinder rex err ok
 | if (eql rune "@")
         | parseAliasedBinder parseBinder rex err ok
@@ -285,27 +285,27 @@
           ,, [%v 0 %y]
           ,, [%s 0 %z]
 
-!!= (parseBinder `(%[=x y=b]) v2 id)
+!!= (parseBinder `(#[=x y=b]) v2 id)
        ,, %t
-       ,, %% =x [%v 0 %x]
-          %% =y [%v 0 %b]
+       ,, ## =x [%v 0 %x]
+          ## =y [%v 0 %b]
 
 !!= (parseBinder `[=x y=b] v2 id)
        ,, %t
-       ,, %% =x [%v 0 %x]
-          %% =y [%v 0 %b]
+       ,, ## =x [%v 0 %x]
+          ## =y [%v 0 %b]
 
-!!= (parseBinder `[%[=x] [y]] v2 id)
+!!= (parseBinder `[#[=x] [y]] v2 id)
        ,, %r
-       ,, ,, [%t %[x=[%v 0 %x]]]
+       ,, ,, [%t #[x=[%v 0 %x]]]
           ,, [%r [[%v 0 %y]]]
 
 
-!!= (parseBinder `(foo@[%[=x] [y]]) v2 id)
+!!= (parseBinder `(foo@[#[=x] [y]]) v2 id)
        ,, 'a'
        ,, ['v' 0 'foo']
        ,,  ,, 'r'
-           ,,  ,, ['t' %[x=['v' 0 'x']]]
+           ,,  ,, ['t' #[x=['v' 0 'x']]]
                ,, ['r' [['v' 0 'y']]]
 
 
@@ -320,7 +320,7 @@
 ;
 ; Then, generate a binder sequence from this:
 ;
-;   @ [x [y z] %[a=b c=d e=f]] (foo foo)
+;   @ [x [y z] #[a=b c=d e=f]] (foo foo)
 ;   body
 ;
 ;     =>
@@ -451,7 +451,7 @@
     | sequenceBinds 5
     | v1
    ,,   | v2 %r
-       ,, [%t %[x=[%v 2 %x]]]
+       ,, [%t #[x=[%v 2 %x]]]
        ,, [%r [[%v 3 %y]]]
    ,, `(foo foo)
 
@@ -557,7 +557,7 @@
 | letE tmp tabExp
 | (go (tabToList bindings))
 
-!!= (destructureTabE 9 %[x=(%y) p=(%q)] `tabby `(add y q) v2)
+!!= (destructureTabE 9 #[x=(%y) p=(%q)] `tabby `(add y q) v2)
         | v2 10
        ``
        #@ _g9 tabby
@@ -565,7 +565,7 @@
        #@ y (#| $tabIdx $$(cnsE %x) _g9)
         (add y q)
 
-!!= (destructureTabE 9 %[] `tabby `(add y q) v2)
+!!= (destructureTabE 9 #[] `tabby `(add y q) v2)
         | v2 10
        ``
        #@ _g9 tabby
@@ -696,11 +696,11 @@
        | (add x (add y z))
 
 !!= 7
-       @ %[=x =y =z] %[y=4 z=3]
+       @ #[=x =y =z] #[y=4 z=3]
        | (add x (add y z))
 
 !!= 7
-       @ %[x=(!x) =y =z] %[y=4 z=3]
+       @ #[x=(!x) =y =z] #[y=4 z=3]
        | (add x (add y z))
 
 !!= [5 3 0 3 4 3]
@@ -711,7 +711,7 @@
 !!= [[0 3 5 4 0] 3 4]
         @ f 5
         @ [p q r s]  [3 4 f]
-        @ %[x=a =y]  %[x=3 y=4]
+        @ #[x=a =y]  #[x=3 y=4]
         | [[s p r q s] a y]
 
 !!= 5
@@ -730,9 +730,9 @@
         [b a]
 
 !!= [500 200 1001]
-        @ %[pos=[px py pz] vel=[vx vy vz]]
-               %% =pos [500 200 1]
-               %% =vel [0 0 1000]
+        @ #[pos=[px py pz] vel=[vx vy vz]]
+               ## =pos [500 200 1]
+               ## =vel [0 0 1000]
        ,, add px vx
        ,, add py vy
        ,, add pz vz
@@ -785,8 +785,8 @@
 
 !!= 5 | (f [x y] & f x y) add [2 3]
 
-!!= %[x=0 y=1 z=2]
-     | foldr ([k v] t & tabMut k v t) %[] [[%x 0] [%y 1] [%z 2]]
+!!= #[x=0 y=1 z=2]
+     | foldr ([k v] t & tabMut k v t) #[] [[%x 0] [%y 1] [%z 2]]
 
 
 """ Top-Level Definitions with Destroy """""""""""""""""""""""""""""""""""""""""
@@ -881,9 +881,9 @@
 @ a,r (mkDefsC a defBinds)
 | ok p a r
 
-= (weird [[[x]] %[=y a=z]]) [x y z]
+= (weird [[[x]] #[=y a=z]]) [x y z]
 
-!!= [3 9 8] (weird [[[3]] %[y=9 a=8]])
+!!= [3 9 8] (weird [[[3]] #[y=9 a=8]])
 
 [x y]=[3 4]
 [a b]=[3 4]

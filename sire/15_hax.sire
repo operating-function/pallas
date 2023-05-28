@@ -53,13 +53,14 @@
 /+  04_app  [len idx]
 /+  05_cmp  [eql neq]
 /+  06_row  [v1 v2 v4 null weld]
-/+  07_rex  [rexKids rexGetWord "`" rexVal]
+/+  07_rex  [rexKids rexGetWord "`" rexVal rexRune]
 /+  08_dat  ["," drop]
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld]
 /+  12_cab  []
-/+  13_tab  ["%" "%%" look hasKey tabKeys isTab tabIsEmpty]
+/+  13_tab  ["#"]
+/+  13_tab  [look hasKey tabKeys isTab tabIsEmpty]
 /+  14_exp  [cnsE varE]
 
 ;; TODO s/hasKey/tabHas/g
@@ -76,11 +77,18 @@
 = haxFstWord | "First parameter to # must be a symbol."
 = haxBadSymb | (key & strWeld "Undefined Symbol: " showSymbol-key)
 
-= ("#" s p e a r err ok)
-@ kids rexKids-r
+oldHax=(.{#})
+
+= ({#} s p e a r err ok)
+@ kids     | rexKids r
+@ firstKid | idx 0 kids
+@ numKids  | len kids
+;
 ; trk [=kids]
-| if (null kids)           | (err r haxNeedKid)
-| **rexGetWord (idx 0 kids) | (err r haxFstWord)
+| if (null kids)        | (err r haxNeedKid)
+| if (eql (1,",") (numKids, rexRune firstKid))
+    | oldHax s p e a r err ok
+| **rexGetWord firstKid | (err r haxFstWord)
 & (name heir)
 ; trk [=name =heir]
 @ key (strWeld "#" name)
@@ -106,6 +114,7 @@
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 !!= 1 | isTab #getenv
+!!= 1 | isTab #[1=2]
 
 !!= 1 | not (tabIsEmpty #getenv)
 

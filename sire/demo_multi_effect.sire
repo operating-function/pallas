@@ -34,10 +34,10 @@
 = files
 @ html multi_demo_index_html
 | PIN
-%% ="/index.html"  [ "text/html"    b#{Hello World!} ]
-%% ="/hello.txt"   [ "text/plain"   html             ]
-%% ="/"            [ "text/html"    html             ]
-%% ="/favicon.ico" [ "image/x-icon" favicon          ]
+## ="/index.html"  [ "text/html"    b#{Hello World!} ]
+## ="/hello.txt"   [ "text/plain"   html             ]
+## ="/"            [ "text/html"    html             ]
+## ="/favicon.ico" [ "image/x-icon" favicon          ]
 
 (RAND req)=[0 0 req]
 (SERV req)=[0 1 req]

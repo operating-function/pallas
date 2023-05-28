@@ -48,15 +48,15 @@
 
 = (setProperty key pro val tab)
 @ kid | tabIdx pro tab
-@ kid | if isNat-kid %[] kid
+@ kid | if isNat-kid #[] kid
 @ kid | tabMut key val kid
 | tabMut pro kid tab
 
 !!= %val               | getProperty 37 %foo [foo=[37='val']]
 !!= [foo=([37='val'])] | setProperty 37 %foo %val 0
-!!= [foo=([37='val'])] | setProperty 37 %foo %val [foo=(%[])]
+!!= [foo=([37='val'])] | setProperty 37 %foo %val [foo=(#[])]
 
-!!= %[foo=[130='v' 129='w'] bar=[130='v']]
+!!= #[foo=[130='v' 129='w'] bar=[130='v']]
   | setProperty 130 %foo %v
   | setProperty 130 %bar %v
   | setProperty 129 %foo %w
