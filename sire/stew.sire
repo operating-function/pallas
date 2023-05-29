@@ -19,8 +19,6 @@
 """ macro-extension, instead using the traditional parse, type-check,
 """ compiler flow.
 """
-""" TODO: Can we make {EREC} support destructuring too?  Why not?
-"""
 """ TODO: Kill io.sire
 """
 """ TODO: Parse all built-in command runes:
@@ -117,7 +115,7 @@
 * EAPP=app x:Exp y:Exp
 * EKET=ket xs:(Row Exp) v:Exp
 * ELET=let n:Pat x:Exp b:Exp
-* EREC=rec n:Str x:Exp b:Exp
+* EREC=rec n:Pat x:Exp b:Exp
 * ELAM=lam pin:Bit fun:(Str, Nat, Row Pat, Exp)
 * ELIN=lin x:Exp
 * EROW=row xs:(Row Exp)
@@ -236,7 +234,7 @@
 * (EAPP x y)     | niceApp go exp
 * (EKET xs v)    | NEST 0 {^} (map go xs) (go v)
 * (ELET n x b)   | INFX 0 {@}  (showPat n, go x) (go b)
-* (EREC n x b)   | INFX 0 {@@} (showPat (PVAR 0 n), go x) (go b)
+* (EREC n x b)   | INFX 0 {@@} (showPat n, go x) (go b)
 * (ELAM pin fun) | showFun go pin fun
 * (ELIN x)       | PREF 0 {**} ,(showSire x) 0
 * (EROW xs)      | NEST 0 {,} (map go xs) 0
@@ -297,14 +295,9 @@
 
 > (Rex > Parser Exp) > Rex > Parser Exp
 = (parseRec readExp rex err ok)
-: res < parseLet readExp rex err
-# datacase res
-* _ (die 'impossible')
-* (ELET p x b)
-# datacase p
-* _ | err rex {recursive-let currently doesn't support pattern matching}
-* (PVAR _ v)
-| ok (EREC v x b)
+: e <- parseLet readExp rex err
+# datacase e
+* (ELET v e b) | ok | EREC v e b
 
 > (Rex > Parser Exp) > Rex > Parser Rex
 = (parseCen rex err ok)
