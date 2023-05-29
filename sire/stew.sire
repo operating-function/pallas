@@ -34,7 +34,7 @@
 """ TODO: Parse all macro-defined commands:
 """
 """ - [ ] !!
-""" - [ ] #mutual
+""" - [x] #mutual
 """
 """ DONE: Parse all built-in expression runes:
 """
@@ -102,6 +102,10 @@
 
 # record Fun
 | FUN self:Sym tag:Nat args:(Row Pat) body:Exp
+
+# datatype Cmd
+* CEXP=exp e:Exp
+* CMUT=mut cs:(Row Cmd)  ;;  Mutually recursive
 
 # datatype Exp
 * EBED=cns b:Any
@@ -309,15 +313,19 @@
 * (LEFT val)  | ok (ENAT val)
 * (RIGHT cab) | ok (ECAB cab)
 
-> (Rex > Parser Exp) > Rex > Parser Rex
-= (parseHax readExp rex err ok)
+= (readHaxOutline rex err ok)
 @ kids@[keywordRex] | rexKids rex
 @ params            | drop 1 kids
 | if (null kids)
     | err rex '# with no parameter'
 : sym <- readSymbol keywordRex err
+| ok keywordRex sym params
+
+> (Rex > Parser Exp) > Rex > Parser Exp
+= (parseHaxExp readExp rex err ok)
+: symRex sym params <- readHaxOutline rex err
 # switch sym
-* _ | err rex (strWeld 'Unknown keyword: #' sym)
+* _   | err symRex 'Unknown # keyword'
 * {p} | readPadLit rex err (pad & ok (EPAD pad))
 * {b} | readBarLit rex err (pad & ok (EBAR pad))
 * {x} | readBarLit rex err (pad & ok (EBAR pad))
@@ -414,11 +422,31 @@
 * {,}   | readCom readExp rex err ok
 * {@}   | parseLet readExp rex err ok
 * {@@}  | parseRec readExp rex err ok
-* {#}   | parseHax readExp rex err ok
+* {#}   | parseHaxExp readExp rex err ok
 * {##}  | parseHaxHax readExp rex err ok
 * {`}   | parseTik rex err ok
 * {%}   | parseCen rex err ok
 * _     | err rex (strWeld 'Unknown Rune')
+
+> (Rex > Parser Cmd) > (Rex > Parser Exp) > Rex > Parser Cmd
+= (readHaxCmd readCmd rex err ok)
+: symRex sym params <- readHaxOutline rex err
+# switch sym
+* {mutual}
+    : cmds <- traverseRow (flip readCmd err) params
+    | ok (CMUT cmds)
+* _
+    : exp <- parseHaxExp readExp err
+    | ok (CEXP exp)
+
+> (Rex > Parser Cmd) > (Rex > Parser Exp) > Rex > Parser Cmd
+= (readCmd rex err ok)
+# switch (rexRune rex)
+* _
+    : exp <- readExp rex err
+    | ok (CEXP exp)
+* {#}
+    | readHaxCmd readCmd rex err
 
 ; Assumes that the input formatting matches the printers formatting.
 = (sireRound rex)
