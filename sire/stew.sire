@@ -52,11 +52,14 @@
 """ - [x] #p
 """ - [x] #b
 """ - [x] #x
-""" - [ ] # ##
-""" - [ ] % %%
+""" - [x] %
+""" - [ ] %%
+""" - [ ] # (tabs)
+""" - [ ] ##
 """ - [ ] ` ``
 """ - [ ] && || == /=
-""" - [-] , ,,
+""" - [x] ,
+""" - [ ] ,,
 """ - [ ] :
 """ - [ ] ~ ~~ ::
 """ - [x] #
@@ -92,6 +95,7 @@
 * ENAT=nat n:Nat
 * EPAD=pad n:Pad
 * EBAR=bar n:Bar
+* ECAB=cab n:(Cab Any)
 * EAPP=app x:Exp y:Exp
 * EKET=ket xs:(Row Exp) v:Exp
 * ELET=let n:Pat x:Exp b:Exp
@@ -109,17 +113,29 @@
 = (showKey k)
 | ifNot (isNat k)
     | todo {TODO: Support non-nat keys when printing tab patterns}
-| WORD 0 (showNat k) 0
+@ isKey
+    | and (neq 0 k)
+    | barAll isAlpha (natBar k)
+| WORD 0 (if isKey k | showNat k) 0
+
+!!= `a (showKey %a)
+!!= `5 (showKey 5)
+!!= `0 (showKey 0)
 
 > (v > Rex) > Tab Any v > Rex
 = (showTab showVal tab)
-| if (null tab) `(%[])
+| if (null tab) `(#[])
 ^ NEST 0 {,} _ 0
 ^ map _ (tabToPairs tab)
 & [k v]
 ^ trk [=k =v res=_] _
 ^ SHUT 0 {=} _ 0
 | (showKey k, showVal v)
+
+= (showCab cab)
+^ PREF 0 "%" [_] 0
+^ NEST 0 "," _ 0
+| map showKey (cabToRow cab)
 
 > Pat > Rex
 = (showPat p)
@@ -130,10 +146,10 @@
 * (PROW xs)   | NEST 0 {,} (map showPat xs) 0
 * (PTAB xs)   | showTab showPat xs
 
-!!= (` %[])
-  | showPat | PTAB %[]
+!!= (` #[])
+  | showPat | PTAB #[]
 
-!!= `[120=x 121=(!y)]
+!!= `[x=x y=(!y)]
   | showPat | PTAB [x=(PVAR 0 %x) y=(PSEQ 0 %y)]
 
 !!= ` x@[a b@[c !d]]
@@ -199,6 +215,7 @@
 * (ENAT n)       | WORD 0 showNat-n 0
 * (EPAD p)       | showPadLit p
 * (EBAR b)       | showBarLit b
+* (ECAB ks)      | showCab ks
 * (EAPP x y)     | niceApp go exp
 * (EKET xs v)    | NEST 0 {^} (map go xs) (go v)
 * (ELET n x b)   | INFX 0 {@}  (showPat n, go x) (go b)
@@ -224,6 +241,10 @@
       | EBAR b#asdf
   | EAPP (ENAT 2)
   | EREF %fanc
+
+!!= ` [%[0 a b] %[0] %[]]
+  | showSire
+  | EROW (map ECAB [%[0 a b] %[0] %[]])
 
 !!= ` (x y & x)
   | showSire
@@ -262,6 +283,13 @@
 * _ | err rex {recursive-let currently doesn't support pattern matching}
 * (PVAR _ v)
 | ok (EREC v x b)
+
+> (Rex > Parser Exp) > Rex > Parser Rex
+= (parseCen rex err ok)
+: eRes <- readCenLit rex err
+# datacase eRes
+* (LEFT val)  | ok (ENAT val)
+* (RIGHT cab) | ok (ECAB cab)
 
 > (Rex > Parser Exp) > Rex > Parser Rex
 = (parseHax readSire rex err ok)
@@ -341,23 +369,16 @@
 * "NODE"
 # switch (rexRune rex)
 * {^}   | readKet readSire rex err ok
-* {#^}  | readKet readSire rex err ok
 * {|}   | readApp readSire rex err ok
-* {#|}  | readApp readSire rex err ok
 * {&}   | readPam readSire rex err ok
-* {#&}  | readPam readSire rex err ok
 * {?}   | readWut readSire FALSE rex err ok
-* {#?}  | readWut readSire FALSE rex err ok
 * {??}  | readWut readSire TRUE rex err ok
-* {#??} | readWut readSire TRUE rex err ok
 * {**}  | readLin readSire rex err ok
-* {#**} | readLin readSire rex err ok
 * {,}   | readCom readSire rex err ok
 * {@}   | parseLet readSire rex err ok
-* {#@}  | parseLet readSire rex err ok
 * {@@}  | parseRec readSire rex err ok
-* {#@@} | parseRec readSire rex err ok
 * {#}   | parseHax readSire rex err ok
+* {%}   | parseCen rex err ok
 * _     | err rex (strWeld 'Unknown Rune')
 
 ; Assumes that the input formatting matches the printers formatting.
