@@ -638,7 +638,7 @@ newRootNode
 = (hsToCab [config r])
 | **maybeCase r %[]
 & top
-| cabAscUnions
+| cabCatRowAsc
 | getLeafRow hhSetTF top
 
 = (hsMember key [config r])
@@ -691,8 +691,8 @@ newRootNode
 = (hsRawUnion aconfig ar br)
 : a <- **maybeCase ar br
 : b <- **maybeCase br ar
-@ as | cabAscUnions | getLeafRow hhSetTF a
-@ bs | cabAscUnions | getLeafRow hhSetTF b
+@ as | cabCatRowAsc | getLeafRow hhSetTF a
+@ bs | cabCatRowAsc | getLeafRow hhSetTF b
 | hsRawFromCab aconfig
 | cabUnion as bs
 
@@ -718,7 +718,7 @@ newRootNode
 | if (gth i rowLen) NONE
 | if | eql i rowLen
   | if (listIsEmpty curOut) NONE
-  @ !u | cabAscUnions | listToRowReversed curOut
+  @ !u | cabCatRowAsc | listToRowReversed curOut
   | if (cabIsEmpty u) NONE
   | SOME [u [(inc i) 0 NIL]]
 ;
@@ -732,12 +732,12 @@ newRootNode
     ; under the minimum, so split the set.
     @ off | sub max curSize
     @ [head tail] | cabSplitAt off next
-    @ !u | cabAscUnions | listToRowReversed | CONS head curOut
+    @ !u | cabCatRowAsc | listToRowReversed | CONS head curOut
     @ nextStep [(inc i) (cabLen tail) (CONS tail NIL)]
     | if (cabIsEmpty u) | loop nextStep
     | SOME [u nextStep]
   ; we can just combine and be done.
-  @ !u | cabAscUnions | listToRowReversed curOut
+  @ !u | cabCatRowAsc | listToRowReversed curOut
   @ nextStep [(inc i) 0 (CONS next NIL)]
   | if (cabIsEmpty u) | loop nextStep
   | SOME [u nextStep]

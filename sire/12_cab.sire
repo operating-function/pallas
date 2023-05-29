@@ -50,38 +50,38 @@
 = (cabHas k cab)  | has k (cabToRow cab)
 = (cabMin cab)    | idx 0 (cabToRow cab)
 
-; {cabFromRowSet} is an internal routine that expects to be given a
+; {mkCab} is an internal routine that expects to be given a
 ; "row set" a sorted row with no duplicates.
-;
+
 ; {cabPort} ports a row operation to a cab.  For this to work, the row
-; operation must always return a result that is in assending order and
+; operation must always return a result that is in ascending order and
 ; contains no duplicates.
 
-= (cabFromRowSet row) | 0 0 (inc | len row) row
-= (cabPort op cab)    | cabFromRowSet | op | cabToRow cab
+= (mkCab row)      | 0 0 (inc | len row) row
+= (cabPort op cab) | mkCab | op | cabToRow cab
 
 ; {cabPortSplit} ports a row splitting function (Row a > (Row a, Row a))
 ; to cabs.  Like {cabPort}, {cabPortSplit} expects both of the rows
-; returned by the splitting function to be in assending order and contain
+; returned by the splitting function to be in ascending order and contain
 ; no duplicates.
 
 = (cabPortSplit op cab)
 @ xy | op (cabToRow cab)
-| (cabFromRowSet (fst xy), cabFromRowSet (snd xy))
+| (mkCab (fst xy), mkCab (snd xy))
 
-= (cabFromRow row) | cabFromRowSet (sortUniq row)
-= (cabIns itm c)   | cabFromRow (rowCons itm | cabToRow c)
-= (cabDel itm c)   | cabFromRowSet (delete itm | cabToRow c)
-= (cabPop c)       | (idx 0 c, cabFromRowSet (drop 1 | cabToRow c))
-= (cabUnion a b)   | cabFromRow (weld (cabToRow a) (cabToRow b))
-= (cabCatList l)   | listFoldl cabUnion emptyCab l
-= (cabCatRow r)    | foldl cabUnion emptyCab r
+= (cabFromRow row)  | mkCab (sortUniq row)
+= (cabIns itm c)    | cabFromRow (rowCons itm | cabToRow c)
+= (cabDel itm c)    | mkCab (delete itm | cabToRow c)
+= (cabPop c)        | (idx 0 c, mkCab (drop 1 | cabToRow c))
+= (cabWeld a b)     | cabFromRow (weld (cabToRow a) (cabToRow b))
+= (cabCatList l)    | listFoldl cabWeld emptyCab l
+= (cabCatRow r)     | foldl cabWeld emptyCab r
+= (cabCatRowAsc cs) | mkCab (catMap cabToRow cs)
 
-; {cabAscUnions} expects a row of cabs, each strictly assending (the
-; greatest element of one cab is smaller than the smallest element of
-; the next).  If this invariant is violated, the result will not be a cab.
-
-(cabAscUnions cs)=(cabFromRowSet | catMap cabToRow cs)
+; {cabCatRowAsc} expects a row of cabs, each strictly ascending (the
+; greatest element of each cab is smaller than all elements of the next
+; cab in the sequence).  If this invariant is violated, the result will
+; not be a cab.
 
 = (isOrderedWith chk row)
 @ wid (len row)
@@ -133,20 +133,21 @@
 
 = (cabElem i c)         | idx i (cabToRow c)
 = (cabFoldl f z c)      | foldl f z (cabToRow c)
+= (cabFoldr f z c)      | foldr f z (cabToRow c)
 = (cabDrop n c)         | cabPort (drop n) c
 = (cabTake n c)         | cabPort (take n) c
 = (cabFilter f c)       | cabPort (filter f) c
 = (cabSplitAt idx c)    | cabPortSplit (splitAt idx) c
 = (cabSpan p c)         | cabPortSplit (span p) c
-= (cabIntersect a b)    | cabFilter x&(cabHas x a) b
-= (cabDiff a b)         | cabFoldl (c i & cabDel i c) a b
+= (cabIntersect a b)    | cabFilter (flip cabHas a) b
+= (cabSub a b)          | cabFoldl (flip cabDel) a b
 = (cabSplitLT key c)    | cabSpan (gth key) c
 
 
 """ % Rune: Atoms, Tabs, and Cabs """"""""""""""""""""""""""""""""""""""""""""""
 
 = (readKey rex err ok)
-| if (neq 0 (rexHeir rex))
+| if (neq 0 | rexHeir rex)
     | err rex (strWeld "Unexpected heir on key")
 @ style (rexStyle rex)
 | if (eql "WORD" style)
@@ -306,28 +307,33 @@ cenExpect="% expects something like %foo or %[...]"
 !!= %[0 2 3]   | cabDel 1 %[0 1 2 3]
 !!= %[1 2 3]   | cabDel 0 %[0 1 2 3]
 !!= %[0 1 2]   | cabDel 3 %[0 1 2]
-!!= %[0 1 2 3] | cabUnion %[0 2]   %[1 3]
-!!= %[a b c]   | cabUnion %[a c]   %[b]
-!!= %[a b c]   | cabUnion %[a c]   %[b c]
-!!= %[a b c]   | cabUnion %[a c]   %[a b c]
-!!= %[a b c]   | cabUnion %[a b c] %[a b c]
+!!= %[0 1 2 3] | cabWeld %[0 2]   %[1 3]
+!!= %[a b c]   | cabWeld %[a c]   %[b]
+!!= %[a b c]   | cabWeld %[a c]   %[b c]
+!!= %[a b c]   | cabWeld %[a c]   %[a b c]
+!!= %[a b c]   | cabWeld %[a b c] %[a b c]
 
 !!= %[0 2 4]   | cabFilter even %[0 1 2 3 4 5]
 !!= %[1 3 5]   | cabFilter odd  %[0 1 2 3 4 5]
+
 !!= %[a]       | cabIntersect %[a b c] %[a d]
 !!= %[a b]     | cabIntersect %[a b c] %[a b d]
 !!= %[]        | cabIntersect %[a b c] %[d e f]
 
-!!= %[]        | cabAscUnions []
-!!= %[a]       | cabAscUnions [%[a]]
-!!= %[a b c]   | cabAscUnions [%[a] %[b] %[c]]
-!!= %[a b]     | cabAscUnions [%[a] %[] %[b]]
+!!= %[]        | cabCatRowAsc []
+!!= %[a]       | cabCatRowAsc [%[a]]
+!!= %[a b c]   | cabCatRowAsc [%[a] %[b] %[c]]
+!!= %[a b]     | cabCatRowAsc [%[a] %[] %[b]]
 
-!!= %[3]       | cabDiff %[3 5] %[5 7]
+!!= %[3]       | cabSub %[3 5] %[5 7]
+!!= %[5]       | cabSub %[3 5] %[1 3]
+!!= %[3 5]     | cabSub %[3 5] %[4 7]
+!!= %[]        | cabSub %[3 5] %[3 5]
+!!= %[]        | cabSub %[] %[3 5]
 
-; cabAscUnions deopt behaviour
+; cabCatRowAsc deopt behaviour
 !!= (a b c d & [7 9 8])
-  | cabAscUnions [%[7 9] %[8]]
+  | cabCatRowAsc [%[7 9] %[8]]
 
 !!= %[3]       | %% 3
 !!= %[3 4 'a'] | (%%3)(%%4)(%% 'a')
@@ -356,15 +362,32 @@ cenExpect="% expects something like %foo or %[...]"
 !!= (%[0 1], %[2 3]) | cabSplitLT 2 %[0 1 2 3]
 
 
+""" Aliases """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+cabUnion=cabWeld
+cabDifference=cabSub
+cabSubtract=cabSub
+cabInsert=cabIns
+cabIntersection=cabIntersect
+
+
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+^-^
 ^-^ isCab
+^-^
 ^-^ emptyCab cabIsEmpty
-^-^ cabLen cabPop cabToRow cabToList cabIns cabDel cabUnion cabAscUnions
-^-^ cabCatRow cabCatList
-^-^ cabHas cabMin cabSing cabDrop cabTake cabSplitAt cabSplitLT
-^-^ cabIntersect cabDiff cabElem
-^-^ cabFromRow
+^-^
+^-^ cabSing cabFromRow
+^-^ cabToRow cabLen cabToList
+^-^ cabFoldl cabFoldr
+^-^
+^-^ cabIns cabDel cabHas
+^-^ cabUnion cabWeld cabCatRow cabCatList cabCatRowAsc
+^-^ cabMin cabPop cabDrop cabTake cabSplitAt cabSplitLT
+^-^ cabIntersect cabSub cabElem
+^-^
+^-^ cabUnion cabDifference cabInsert cabSubtract cabIntersection
 ^-^
 ^-^ readKey
 ^-^ readCabKey readCenBracket readCenLit

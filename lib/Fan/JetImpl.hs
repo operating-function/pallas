@@ -131,8 +131,8 @@ jetImpls = mapFromList
   , ( "cabDel"      , cabDelJet  )
   , ( "cabMin"      , cabMinJet  )
   , ( "cabLen"      , cabLenJet  )
-  , ( "cabUnion"    , cabUnionJet )
-  , ( "cabAscUnions" , cabAscUnionsJet )
+  , ( "cabWeld"     , cabWeldJet )
+  , ( "cabCatRowAsc", cabCatRowAscJet )
   , ( "cabHas"      , cabHasJet  )
   , ( "cabTake"     , cabTakeJet )
   , ( "cabDrop"     , cabDropJet )
@@ -140,7 +140,7 @@ jetImpls = mapFromList
   , ( "cabSplitAt"  , cabSplitAtJet )
   , ( "cabSplitLT"  , cabSplitLTJet )
   , ( "cabIntersect", cabIntersectionJet )
-  , ( "cabDiff"     , cabDifferenceJet )
+  , ( "cabSub"      , cabSubJet )
   , ( "tabSwitch"   , tabSwitchJet    )
   , ( "tabSing"     , tabSingletonJet )
   , ( "isTab"       , isTabJet )
@@ -771,16 +771,16 @@ cabLenJet f e =
     clen :: Set Fan -> Fan
     clen = NAT . fromIntegral . S.size
 
-cabUnionJet :: Jet
-cabUnionJet f e =
-    orExecTrace "cabUnion" (f e) (u <$> getCab (e^1) <*> getCab (e^2))
+cabWeldJet :: Jet
+cabWeldJet f e =
+    orExecTrace "cabWeld" (f e) (u <$> getCab (e^1) <*> getCab (e^2))
   where
     u :: Set Fan -> Set Fan -> Fan
     u a b = mkCab $ S.union a b
               -- This one could be empty.
 
-cabAscUnionsJet :: Jet
-cabAscUnionsJet f e = orExecTrace "cabAscUnions" (f e) do
+cabCatRowAscJet :: Jet
+cabCatRowAscJet f e = orExecTrace "cabCatRowAsc" (f e) do
   r <- getRow (e^1)
   cabs <- filter (not . S.null) <$> traverse getCab r
   guard (isAsc $ V.toList cabs)
@@ -848,9 +848,9 @@ cabIntersectionJet f e =
     doIntersection a b = mkCab $ S.intersection a b
                          -- Could be empty
 
-cabDifferenceJet :: Jet
-cabDifferenceJet f e =
-    orExecTrace "cabDifferenceJet" (f e)
+cabSubJet :: Jet
+cabSubJet f e =
+    orExecTrace "cabSubJet" (f e)
                 (doDifference <$> getCab (e^1) <*> getCab (e^2))
   where
     doDifference :: Set Fan -> Set Fan -> Fan

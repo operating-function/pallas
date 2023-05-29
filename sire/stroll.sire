@@ -478,8 +478,8 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ; Fetch the current references uids from textUid.
 @ currentRefEids | cabFromRow | findAllRefEids textUid strollDb
 ;
-@ toAdd | cabToRow | cabDiff newRefEids currentRefEids
-@ toDel | cabToRow | cabDiff currentRefEids newRefEids
+@ toAdd | cabToRow | cabSub newRefEids currentRefEids
+@ toDel | cabToRow | cabSub currentRefEids newRefEids
 ;
 ^ assertTransactStrollDb (cat _) strollDb
 ,, [[%add [":block/uid" textUid] ":block/string" text]]
