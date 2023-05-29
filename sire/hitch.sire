@@ -512,10 +512,13 @@ newRootNode
 | map tabLen
 | getLeafRow hhMapTF top
 
+; TODO: {hmKeys} returns a cab in the empty case, and a row-of-rows
+; otherwise.  Is that wrong?
+
 = (hmKeys [config r])
 | **maybeCase r %[]
 & top
-| map tabKeys
+| map tabKeysRow
 | getLeafRow hhMapTF top
 
 = (hmInsert k v [config r])

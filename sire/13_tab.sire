@@ -25,7 +25,7 @@
 /+  09_sci  [inspect fullInspection]
 /+  10_chr  []
 /+  11_str  [strWeld]
-/+  12_cab  [isCab emptyCab cabLen cabHas cabMin]
+/+  12_cab  [isCab emptyCab cabLen cabHas cabMin cabToList]
 /+  12_cab  ["%"  readKey]
 
 
@@ -65,14 +65,12 @@ ex=(mkTab [1 2 3] [4 5 6])
 
 """ Basic Quations about Tabs """"""""""""""""""""""""""""""""""""""""""""""""""
 
-;; TODO `tabKeys` should probably return a cab
-
 = (tabLen tab)     | len tab
 = (tabIsEmpty tab) | isLaw tab
-= (tabKeysCab tab) | head-tab
-= (tabKeys tab)    | lawBody head-tab
-= (tabVals tab)    | map look-tab tabKeys-tab
-= (hasKey k t)     | cabHas k tabKeysCab-t
+= (tabKeys tab)    | head tab
+= (tabKeysRow tab) | lawBody (tabKeys tab)
+= (tabVals tab)    | map (look tab) (tabKeysRow tab)
+= (hasKey k t)     | cabHas k (tabKeys t)
 = (tabLookup k t)  | if (hasKey k t) (SOME | tabIdx k t) NONE
 
 ;; TODO: Rename hasKey to tabHas.
@@ -91,7 +89,7 @@ ex=(mkTab [1 2 3] [4 5 6])
 !!= 3 (findInsIdx 4 [1 2 3])
 
 = (tabMut key val tab)
-@ keys (tabKeys tab)
+@ keys (tabKeysRow tab)
 | **maybeCase (elemIdx key keys)
     @ ix (findInsIdx key keys)
     | mkTab (insert ix key keys) (insert ix val tab)
@@ -140,7 +138,7 @@ ex=(mkTab [1 2 3] [4 5 6])
 | mkTab keys vals
 
 = (tabToPairs tab)
-@ ks | listFromRow tabKeys-tab
+@ ks | listFromRow (tabKeysRow tab)
 @ vs | listFromRow tab
 | listToRow | listZip ks vs
 
@@ -160,8 +158,8 @@ tab=(tabFromAscPairs par)
 | foldl (t p & tabMut (fst p) (snd p) t) emptyTab pairs
 
 = (tabToPairList tab)
-| listMap (i & [i look-tab-i])
-| listFromRow (tabKeys tab)
+| listMap i&(i, look tab i)
+| cabToList (tabKeys tab)
 
 (tabToList tab)=(listFromRow tabToPairs-tab)
 
@@ -283,7 +281,7 @@ tab=(tabFromAscPairs par)
 > Tab Exp > Exp
 = (tabE tab)
 | appE
-| rowCons (EMBD | tabKeysCab tab)
+| rowCons (EMBD | tabKeys tab)
 | rev (tabVals tab)
 
 ; TODO Break out `readTabPair`
@@ -420,8 +418,10 @@ tab=(tabFromAscPairs par)
 !!= 1 | hasKey %aa #(bb=8, aa=9)
 !!= 1 | not | hasKey %cc #(bb=8, aa=9)
 
-!!= [3 4] | tabKeys #[3=3 4=4]
-!!= []    | tabKeys #[]
+!!= %[3 4] | tabKeys #[3=3 4=4]
+!!= %[]    | tabKeys #[]
+!!= [3 4]  | tabKeysRow #[3=3 4=4]
+!!= []     | tabKeysRow #[]
 
 !!= #[3=3]     | tabMut 3 3 #[3=4]
 !!= #[3=4 4=4] | tabMut 4 4 #[3=4]
@@ -450,7 +450,7 @@ tab=(tabFromAscPairs par)
 ^-^
 ^-^ tabSing mkTab isTab
 ^-^
-^-^ tabLen tabIdx tabKeys hasKey look tabVals tabSwitch
+^-^ tabLen tabIdx tabKeys tabKeysRow hasKey look tabVals tabSwitch
 ^-^ tabFromPairs tabToPairs tabToPairList tabToList look tabPut tabMut
 ^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter tabMap tabUnionWith
 ^-^ tabLookup tabMinKey tabFoldlWithKey tabElemIdx emptyTab tabInsertWith

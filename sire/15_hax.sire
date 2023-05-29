@@ -58,7 +58,7 @@
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld]
-/+  12_cab  []
+/+  12_cab  ["%"]
 /+  13_tab  ["#"]
 /+  13_tab  [look hasKey tabKeys isTab tabIsEmpty]
 /+  14_exp  [cnsE varE]
@@ -120,9 +120,10 @@ oldHax=(.{#})
 
 !!= `((foo#bar)zaz) (foo#bar)zaz
 
-^-^ "#" ',' eql '#quote' tabKeys '#getenv'
+^-^ "#" '%' eql '#quote' tabKeys '#getenv'
 
-!!= (tabKeys #getenv) | ['#' ',' 'eql' '#quote' 'tabKeys' '#getenv']
+!!= (tabKeys #getenv)
+  | %['#' '%' 'eql' '#quote' 'tabKeys' '#getenv']
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

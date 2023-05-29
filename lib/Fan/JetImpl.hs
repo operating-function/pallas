@@ -160,7 +160,7 @@ jetImpls = mapFromList
   , ( "tabFoldlWithKey" , tabFoldlWithKeyJet )
   , ( "tabAlter"    , tabAlterJet )
   , ( "hasKey"      , tabHasKeyJet )
-  , ( "tabKeys"     , tabKeysJet )
+  , ( "tabKeysRow"  , tabKeysRowJet )
   , ( "tabVals"     , tabValsJet )
   , ( "blake3"      , blake3Jet )
   , ( "bit"         , bitJet   )
@@ -841,7 +841,7 @@ cabSplitLTJet f e =
 
 cabIntersectionJet :: Jet
 cabIntersectionJet f e =
-    orExecTrace "cabIntersectionJet" (f e)
+    orExecTrace "cabIntersection" (f e)
                 (doIntersection <$> getCab (e^1) <*> getCab (e^2))
   where
     doIntersection :: Set Fan -> Set Fan -> Fan
@@ -850,7 +850,7 @@ cabIntersectionJet f e =
 
 cabSubJet :: Jet
 cabSubJet f e =
-    orExecTrace "cabSubJet" (f e)
+    orExecTrace "cabSub" (f e)
                 (doDifference <$> getCab (e^1) <*> getCab (e^2))
   where
     doDifference :: Set Fan -> Set Fan -> Fan
@@ -1046,14 +1046,14 @@ tabHasKeyJet f e =
         False -> NAT 0
         True  -> NAT 1
 
-tabKeysJet :: Jet
-tabKeysJet f e = orExecTrace "tabKeysJet" (f e) (tk <$> getTab(e^1))
+tabKeysRowJet :: Jet
+tabKeysRowJet f e = orExecTrace "tabKeysRow" (f e) (tk <$> getTab(e^1))
   where
     tk :: Map Fan Fan -> Fan
     tk = ROW . V.fromList . M.keys
 
 tabValsJet :: Jet
-tabValsJet f e = orExecTrace "tabValsJet" (f e) (tv <$> getTab(e^1))
+tabValsJet f e = orExecTrace "tabVals" (f e) (tv <$> getTab(e^1))
   where
     tv :: Map Fan Fan -> Fan
     tv = ROW . V.fromList . M.elems
