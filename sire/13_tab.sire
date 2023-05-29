@@ -14,8 +14,8 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [lawBody trk isLaw inc]
-/+  02_bit  [if ifNot and or not]
+/+  01_fan  [lawBody trk isLaw inc seq]
+/+  02_bit  [if ifNot and or not nor]
 /+  03_nat  [add toNat isZero]
 /+  04_app  [len idx head mut]
 /+  05_cmp  [eql neq lth lte gte gth]
@@ -64,7 +64,7 @@ ex=(mkTab [1 2 3] [4 5 6])
 """ Basic Quations about Tabs """"""""""""""""""""""""""""""""""""""""""""""""""
 
 = (tabLen tab)     | len tab
-= (tabIsEmpty tab) | isLaw tab
+= (tabIsEmpty tab) | null tab
 = (tabKeys tab)    | head tab
 = (tabKeysRow tab) | lawBody (tabKeys tab)
 = (tabVals tab)    | map (tabGet tab) (tabKeysRow tab)
@@ -274,7 +274,65 @@ tab=(tabFromAscPairs par)
   | fun i (fst pair) (snd pair)
 | foldl do start | tabToPairs tab
 
-""" Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+pairExpect={Expected something like =x or x=3}
+
+; TODO Parse decimal
+; TODO Should we support 0xHEX?
+; TODO Validate identifiers
+= (readTabPair readVal rex err ok)
+@ rune   | rexRune rex
+@ kids   | rexKids rex
+@ nKid   | len kids
+@ keyRex | idx 0 kids
+@ valRex | idx 1 kids
+@ valRex | if (eql 2 nKid) valRex keyRex
+| if (neq "=" rune)
+    | err rex pairExpect
+| if (nor (eql 1 nKid) (eql 2 nKid))
+    | err rex pairExpect
+| readKey keyRex err
+& key
+| readVal valRex err
+& val
+| ok key val
+
+tabExpect={Expected something like [], [x=1 ...], [=x ...]}
+
+= (readTabBracket readVal rex err ok)
+| if (neq "," | rexRune rex)
+    | err rex tabExpect
+| forRowWithState emptyTab (rexKids rex)
+    & (acc kid yield)
+    | seq acc
+    | readTabPair readVal kid err
+    & (key val)
+    | if (cabHas key acc)
+        | err kid "duplicate key"
+    | yield (tabMut key val acc) 0
+& (acc _)
+| ok acc
+
+outerExpect={Expected something like #[x=1], [x=1], etc}
+
+= (readWideTabLit readVal rex err ok)
+@ rune | rexRune rex
+@ kids | rexKids rex
+@ nKid | len kids
+| if (eql "#" rune)
+    | if (neq 1 nKid)
+        | err rex outerExpect
+    @ kid (idx 0 kids)
+    | readTabBracket readVal kid err ok
+| if (null kids)
+    | err rex outerExpect
+| readTabBracket readVal rex err ok
+
+(readRex rex err ok)=(ok rex)
+
+
+""" Expansion """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 > Tab Exp > Exp
 = (tabE tab)
@@ -282,48 +340,13 @@ tab=(tabFromAscPairs par)
 | rowCons (EMBD | tabKeys tab)
 | rev (tabVals tab)
 
-; TODO Break out `readTabPair`
-; TODO Parse decimal
-; TODO Should we support 0xHEX?
-; TODO Validate identifiers
+
+""" Rune Macros """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 = ({#} s p e a r err ok)
-@ kids (rexKids r)
-@ kid  (idx 0 kids)
-| if (neq 1 | len kids)      | err r   "What is this?"
-| if (neq "," | rexRune kid) | err kid "What is this?"
-| trk ['kid',kid 'kids',(rexKids kid)]
-^ _ emptyTab (listFromRow (rexKids kid))
-? (go acc pairs)
-; trk [%go acc pairs]
-| **listCase pairs (ok p a tabE-acc)
-& (thisPair morePairs)
-;
-@ unexpect
-    | err thisPair "Every element of a tab literal must be an `=` node."
-;
-@ okay
-    ? (okay newKey newValue)
-    | if (tabHas newKey acc)
-        | err thisPair "duplicate key"
-    @ acc (tabMut newKey newValue acc)
-    | go acc morePairs
-;
-| rexGetNodeWithRune "=" thisPair unexpect
-& (sons heir)
-;
-@ kids   | rexKids thisPair
-@ nKid   | len kids
-@ keyRex | idx 0 kids
-;
-| if (or (isZero nKid) (gth nKid 2))
-    | err thisPair "Tab key-value pairs must be = nodes with one-or-two sons"
-;
-| readKey keyRex err
-& key
-; trk [%key key]
-| if (eql 1 nKid)
-    | okay key keyRex
-| okay key (idx 1 kids)
+| readWideTabLit readRex r err
+& res
+| ok p a (tabE res)
 
 = ({##} s p e a r err ok)
 ^ _ emptyTab r
@@ -371,15 +394,14 @@ tab=(tabFromAscPairs par)
 | and (not null-kids)
       (| eql "=" | rexRune | idx 0 kids)
 
-= (desugarTab rex)
-| PREF 0 "#" [rex] 0
-
-; Same as the previous version except that things like [x=3] get rewritten
-; as #[x=3] (and therefore treated as tabs).
-= ("," s p e a rex err ok)
-| if (isTabSugar rex)
-    | ok p a (desugarTab rex)
-| ok p a (rowE | rexKids rex)
+; This extends the basic row syntax to support tab literals (if theh
+; elements are = nodes).
+= ({,} s p e a r err ok)
+| if (isTabSugar r)
+   | readWideTabLit readRex r err
+   & res
+   | ok p a (tabE res)
+| ok p a (rowE | rexKids r)
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -453,9 +475,10 @@ tab=(tabFromAscPairs par)
 ^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter tabMap tabUnionWith
 ^-^ tabLookup tabMinKey tabFoldlWithKey tabElemIdx emptyTab tabInsWith
 ^-^
-^-^ isTabSugar desugarTab
+^-^ readTabPair readTabBracket readWideTabLit
+^-^ isTabSugar
 ^-^
 ^-^ tabE
 ^-^
-^-^ "," "#" "##"
+^-^ {,} {#} {##}
 ^-^
