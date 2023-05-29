@@ -45,7 +45,7 @@ instance ToNoun ReceiptItem where
     toNoun re = toNoun $ case re of
                            ReceiptEvalOK   -> NAT 0
                            ReceiptVal val  -> toNoun (NAT 1, val)
-                           ReceiptRecv{..} -> toNoun (NAT 2, cogNum, reqNum)
+                           ReceiptRecv{..} -> toNoun (NAT 2, sender, reqIdx)
                            ReceiptSpun{..} -> toNoun (NAT 3, cogNum)
 
 instance FromNoun ReceiptItem where
@@ -54,8 +54,8 @@ instance FromNoun ReceiptItem where
         ROW v -> case toList v of
             [NAT 1, val]          -> Just $ ReceiptVal val
             [NAT 2, cogN, reqN]   -> do
-                cogNum <- fromNoun cogN
-                reqNum <- fromNoun reqN
+                sender <- fromNoun cogN
+                reqIdx <- fromNoun reqN
                 Just ReceiptRecv{..}
             [NAT 3, cogN]         -> do
                 cogNum <- fromNoun cogN

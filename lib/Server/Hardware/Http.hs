@@ -294,7 +294,7 @@ spinCog st machineName cogId = do
     debugVal (machineName.txt <> "_http_port")
              (fromIntegral listenPort :: Nat)
 
-    let baseName  = machineName.txt <> ".http.port"
+    let baseName  = machineName.txt <> "." <> (tshow cogId.int) <> ".http.port"
     let portFile = st.mach </> unpack baseName
     debugTextVal (machineName.txt <> "_http_port_file") (pack portFile)
     writeFileUtf8 portFile (tshow listenPort)

@@ -160,8 +160,10 @@ responseToReceipt cogId didCrash =
   where
     f :: (Int, ResponseTuple) -> (Int, ReceiptItem)
     f (idx, tup) = case tup.resp of
-        RespEval OKAY{} -> (idx, ReceiptEvalOK)
-        resp            -> (idx, ReceiptVal (responseToVal resp))
+        RespEval OKAY{}           -> (idx, ReceiptEvalOK)
+        RespRecv PENDING_SEND{..} -> (idx, ReceiptRecv{..})
+        RespSpin cog _            -> (idx, ReceiptSpun cog)
+        resp                      -> (idx, ReceiptVal (responseToVal resp))
 
 data CallRequest = CR
     { durable :: Bool
@@ -257,7 +259,7 @@ type MachineSysCalls = Map CogId CogSysCalls
 -- | A pending send
 data PendingSendRequest = PENDING_SEND
     { sender    :: CogId
-    , idx       :: RequestIdx
+    , reqIdx    :: RequestIdx
     , msgParams :: Vector Fan
     }
   deriving (Show)
@@ -874,9 +876,9 @@ runResponse st cogid rets didCrash = do
                   let outcome = if didCrash then SendCrash else SendOK
                   -- TODO: Enable flows; how do we connect the recv completing
                   -- to this?
-                  let rtup = RTUP{key=idx,resp=RespSend outcome,work=0
+                  let rtup = RTUP{key=reqIdx,resp=RespSend outcome,work=0
                                  ,flow=FlowDisabled}
-                  runResponse st sender [(idx.int, rtup)] False
+                  runResponse st sender [(reqIdx.int, rtup)] False
                 _ -> pure ([], [])
         let (afterFlows, afterReceipts) = concatUnzip afterResults
 

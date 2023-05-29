@@ -29,10 +29,6 @@ newtype MachineName = MACHINE_NAME { txt :: Text }
 newtype CogId = COG_ID { int :: Word64 }
   deriving newtype (Eq, Show, Ord)
 
--- TODO: Aid in first pass porting
-removeMeDummyCogId :: CogId
-removeMeDummyCogId = COG_ID 5
-
 -- | A positional index into the machine's Request vector.
 newtype RequestIdx = RequestIdx { int :: Int }
   deriving newtype (Eq, Show, Ord)
@@ -48,7 +44,7 @@ data ReceiptItem
   | ReceiptVal Fan
 
   -- | Receipt of a recv. Points back to the sending cause.
-  | ReceiptRecv { cogNum :: CogId, reqNum :: RequestIdx }
+  | ReceiptRecv { sender :: CogId, reqIdx :: RequestIdx }
 
   -- | Receipt of a spin. Contains the assigned cog id.
   | ReceiptSpun { cogNum :: CogId }
