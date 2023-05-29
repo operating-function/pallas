@@ -153,7 +153,7 @@ foo=(x e o & o (varE "_", x))
 !!= [`x [3=(`4) 5=(`6)]]
         | readSwitchPats `((* 3 4)(* 5 6)(x)) v2 id
 
-!!= [`x (tabMut [3 3] `6 [3=(`4)])]
+!!= [`x (tabIns [3 3] `6 [3=(`4)])]
         | readSwitchPats `((* 3 4)(* [3 3] 6)(x)) v2 id
 
 

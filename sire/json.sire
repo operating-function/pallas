@@ -74,7 +74,7 @@ TAG_JSON_MAP='map'
    @ stream (eatSpace ts)
    ; trk [s3=(listToRow stream)]
    : newVal stream <- val stream fail
-   @ !acc (tabMut newKey newVal acc)
+   @ !acc (tabIns newKey newVal acc)
    ;
    @ stream (eatSpace stream)
    @ complain (fail 'Expecting , or }' stream)

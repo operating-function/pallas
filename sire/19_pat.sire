@@ -53,7 +53,7 @@
 /+  10_chr  []
 /+  11_str  [strWeld strCat]
 /+  12_cab  [readKey "%"]
-/+  13_tab  ["##" tabToPairs tabFromPairs tabIdx tabToList tabMut]
+/+  13_tab  ["##" tabToPairs tabFromPairs tabIdx tabToList tabIns]
 /+  13_tab  [readRex isTabSugar readWideTabLit]
 /+  14_exp
 /+  15_hax  ['#']
@@ -759,7 +759,7 @@
 !!= 5 | (f [x y] & f x y) add [2 3]
 
 !!= #[x=0 y=1 z=2]
-     | foldr ([k v] t & tabMut k v t) #[] [[%x 0] [%y 1] [%z 2]]
+     | foldr ([k v] t & tabIns k v t) #[] [[%x 0] [%y 1] [%z 2]]
 
 
 """ Top-Level Definitions with Destroy """""""""""""""""""""""""""""""""""""""""

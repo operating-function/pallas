@@ -43,7 +43,7 @@
 | **listCase pairs
   t
 & ([key val] xs)
-| build xs (tabMut key val t)
+| build xs (tabIns key val t)
 
 = (buildHMinsertFrom pairs)
 @ empty | hmEmpty twoThreeConfig

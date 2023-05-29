@@ -49,8 +49,8 @@
 = (setProperty key pro val tab)
 @ kid | tabIdx pro tab
 @ kid | if isNat-kid #[] kid
-@ kid | tabMut key val kid
-| tabMut pro kid tab
+@ kid | tabIns key val kid
+| tabIns pro kid tab
 
 !!= %val               | getProperty 37 %foo [foo=[37='val']]
 !!= [foo=([37='val'])] | setProperty 37 %foo %val 0

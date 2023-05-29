@@ -357,7 +357,7 @@ e
     : eid
         < maybeCase (tabLookup val txnTmpIds)
         @ [eid db] | allocEntity db
-        | RIGHT [eid (tabMut val eid txnTmpIds) db]
+        | RIGHT [eid (tabIns val eid txnTmpIds) db]
     | RIGHT [eid txnTmpIds db]
 | LEFT ["Couldn't parse" i]
 

@@ -399,7 +399,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 * (go p t noun)
     : ref
        <- **maybeCase (tabLookup noun t)
-            @ t (tabMut noun p t)
+            @ t (tabIns noun p t)
             | if isNat-noun (**nat p t noun)
             | if isApp-noun (**cel p t car-noun cdr-noun)
             @ hed (0 lawName-noun lawArgs-noun)
@@ -418,7 +418,7 @@ hexAlphabet=(natBar "0123456789abcdef")
             & (cache item pure)
             @ [cache res] | jarMemo cache item
             @ [hash _ _]  | res
-            @ cache       | tabMut item res cache
+            @ cache       | tabIns item res cache
             | pure cache hash
     @ pack | jam depz pinItem-pin
     @ byts | natBar pack
@@ -461,7 +461,7 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash mul
 
 {pinHash .{##}}
-!!= x#{f64492a1e3b97ab404b676bec988938f970f0b84cae4e2e387e1961ab74d5ac1}
+!!= x#{b384f074d84f7fd7d045fdffae5d3fab6ce562812354aee46ba3dcddff75e24e}
   | pinHash .{##}
 
 {pinHash cmp}
@@ -473,7 +473,7 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash multiEqlE
 
 {pinHash pinHash}
-!!= x#{38620d17f79702502067a45205f0c566522faf40616e550eb843fed658973f07}
+!!= x#{3c84ef11966cfcd9bdbcb9c7724c80425b7ea4b80baea4491cd1a4f3cd4cd1b4}
   | pinHash pinHash
 
 = (refsTable pin)
