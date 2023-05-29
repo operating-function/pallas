@@ -51,7 +51,7 @@
 """ - [x] #b
 """ - [x] #x
 """ - [x] %
-""" - [ ] %%
+""" - [x] %%
 """ - [x] #  (tabs)
 """ - [x] ##
 """ - [ ] ``
@@ -306,6 +306,11 @@
 * (LEFT val)  | ok (ENAT val)
 * (RIGHT cab) | ok (ECAB cab)
 
+> (Rex > Parser Exp) > Rex > Parser Rex
+= (parseCenCen rex err ok)
+: cab <- readTallCab rex err
+| ok (ECAB cab)
+
 = (readHaxOutline rex err ok)
 @ kids@[keywordRex] | rexKids rex
 @ params            | drop 1 kids
@@ -419,6 +424,7 @@
 * {##}  | parseHaxHax readExp rex err ok
 * {`}   | parseTik rex err ok
 * {%}   | parseCen rex err ok
+* {%%}  | parseCenCen rex err ok
 * _     | err rex (strWeld 'Unknown Rune')
 
 > (Rex > Parser Cmd) > (Rex > Parser Exp) > Rex > Parser Cmd
@@ -484,6 +490,11 @@
   ` # datacase a
     * NONE     0
     * (SOME x) x
+
+!!= ` %[0 1 2 a b c]
+  ^ readExp _ v2 showSire
+  ` %% a b c
+    %% 0 1 2
 
 !!= `((# datacase a)(* NONE 0)(* _ 1))
   ^ readExp _ v2 showSire

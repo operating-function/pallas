@@ -390,6 +390,7 @@ cabIntersection=cabIntersect
 ^-^ cabUnion cabDifference cabInsert cabSubtract cabIntersection
 ^-^
 ^-^ readKey
+^-^ readTallCab
 ^-^ readCabKey readCenBracket readCenLit
 ^-^
 ^-^ {%} {%%}
