@@ -54,8 +54,8 @@
 """ - [x] #x
 """ - [x] %
 """ - [ ] %%
-""" - [x] # (tabs)
-""" - [ ] ##
+""" - [x] #  (tabs)
+""" - [x] ##
 """ - [ ] ``
 """ - [ ] `
 """ - [ ] &&
@@ -320,6 +320,11 @@
          & [_ constr pats body]
          | CON_CASE constr pats body
 
+> (Rex > Parser Exp) > Rex > Parser Rex
+= (parseHaxHax readSire rex err ok)
+: tab <- readTallTabLit readSire rex err
+| ok (ETAB tab)
+
 = (readApp readSire rex err ok)
 @ kids (rexKids rex)
 | if (isZero | len kids) (ok EUNT)
@@ -397,6 +402,7 @@
 * {@}   | parseLet readSire rex err ok
 * {@@}  | parseRec readSire rex err ok
 * {#}   | parseHax readSire rex err ok
+* {##}  | parseHaxHax readSire rex err ok
 * {%}   | parseCen rex err ok
 * _     | err rex (strWeld 'Unknown Rune')
 
@@ -432,6 +438,11 @@
     | if (f (idx i r))
         | loop (inc i)
     (v2 (take i r) (drop i r))
+
+!!= `[x=3 y=4]
+  ^ readSire _ v2 showSire
+  ` ## =x 3
+    ## =y 4
 
 !!= `((# datacase a)(* NONE 0)(* (SOME x) x))
   ^ readSire _ v2 showSire

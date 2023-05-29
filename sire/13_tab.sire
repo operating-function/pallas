@@ -20,7 +20,8 @@
 /+  04_app  [len idx head mut]
 /+  05_cmp  [eql neq lth lte gte gth]
 /+  06_row  [null map weld rowRepel rowApply rev foldl fst snd]
-/+  07_rex  [rexKids rexRune rexGetNodeWithRune EMBD PREF]
+/+  07_rex  [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
+/+  07_rex  [OPEN EMBD PREF]
 /+  08_dat
 /+  09_sci  [inspect fullInspection]
 /+  10_chr  []
@@ -274,7 +275,10 @@ tab=(tabFromAscPairs par)
   | fun i (fst pair) (snd pair)
 | foldl do start | tabToPairs tab
 
+
 """ Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+(readRex rex err ok)=(ok rex)
 
 pairExpect={Expected something like =x or x=3}
 
@@ -329,7 +333,42 @@ outerExpect={Expected something like #[x=1], [x=1], etc}
     | err rex outerExpect
 | readTabBracket readVal rex err ok
 
-(readRex rex err ok)=(ok rex)
+= (parseTallKey rex err ok)
+@ rune   (rexRune rex)
+@ kids   (rexKids rex)
+@ keyRex (idx 0 kids)
+| if (or (neq "=" rexRune-rex) (neq 1 len-kids))
+    | err rex "Expected something like: =key"
+| readKey keyRex rex
+& key
+| ok keyRex key
+
+tallExpect={Expected something like (## =key val ...)(...)}
+
+= (readTallTabLit readVal rex err ok)
+^ _ emptyTab rex
+? (go acc rex)
+| if (isZero rex) (ok acc)
+@ rune     | rexRune rex
+@ sons     | rexSons rex
+@ nSons    | len sons
+@ firstSon | idx 0 sons
+@ moreSons | drop 1 sons
+@ heir     | rexHeir rex
+| if (or (neq "##" rune) (isZero nSons))
+    | err rex tallExpect
+| parseTallKey firstSon err
+& (keyRex newKey)
+@ valRex
+    | if (eql 1 nSons) keyRex
+    | OPEN 0 "|" moreSons 0
+| readVal valRex err
+& newVal
+| if (tabHas newKey acc)
+    | err firstSon "duplicate key"
+@ acc (tabIns newKey newVal acc)
+| seq acc
+| go acc heir
 
 
 """ Expansion """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -349,45 +388,9 @@ outerExpect={Expected something like #[x=1], [x=1], etc}
 | ok p a (tabE res)
 
 = ({##} s p e a r err ok)
-^ _ emptyTab r
-? (go acc rex)
-; trk 'go',acc,rex
-| if (isZero rex)
-    | ok p a (tabE acc)
-| rexGetNodeWithRune "##" rex
-    | err rex "Expected a ## node (in a tall-form tab literal)"
-& (sons heir)
-@ okay
-    ? (okay newKey newValue)
-    ; trk 'okay',newKey,newValue
-    | if (tabHas newKey acc)
-        | err rex "duplicate key"
-    @ acc (tabIns newKey newValue acc)
-    | go acc heir
-| if (isZero len-sons)
-    ; trk 'zeroSons'
-    | err rex "## requires at least 1 son (in a tall-form tab literal)"
-;;;;
-; trk %sons,sons
-@ keyTisRex (idx 0 sons)
-| rexGetNodeWithRune "=" keyTisRex
-    | err keyTisRex
-    | strWeld "First son of every ## node must be a = node "
-              "(in a tall-form tab literal)"
-& (tisSons tisHeir)
-| if    | or (neq 1 len-tisSons)
-             (neq 0 tisHeir)
-    | err keyTisRex
-    | "=key form for tall-form tab literal must have exactly one son"
-@ keyRex (idx 0 tisSons)
-@ valExp
-    | if (eql 1 len-sons) keyRex
-    | if (eql 2 len-sons) (idx 1 sons)
-    | appE (drop 1 sons)
-; trk [%keyRex,keyRex %valExp,valExp]
-| **readKey keyRex err
-& k
-| okay k valExp
+| readTallTabLit readRex r err
+& res
+| ok p a (tabE res)
 
 = (isTabSugar rex)
 @ kids (rexKids rex)
@@ -477,7 +480,7 @@ outerExpect={Expected something like #[x=1], [x=1], etc}
 ^-^
 ^-^ readRex
 ^-^
-^-^ readTabPair readTabBracket readWideTabLit
+^-^ readTabPair readTabBracket readWideTabLit readTallTabLit
 ^-^ isTabSugar
 ^-^
 ^-^ tabE
