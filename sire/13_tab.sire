@@ -131,9 +131,6 @@ ex=(mkTab [1 2 3] [4 5 6])
 | ifNot (hasKey key tab) fal
 | tabIdx key tab
 
-= (tabMatch val fal tab)
-| tabSwitch idx-0-val fal tab
-
 
 """ Raw Table Construction from Ordered Pairs """"""""""""""""""""""""""""""""""
 
@@ -181,12 +178,9 @@ tab=(tabFromAscPairs par)
 !!= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 7] [3 8]]
 
 
-""" tabElem """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Treating a Tab like an Array """""""""""""""""""""""""""""""""""""""""""""""
 
-; This could be named better?  Gets a key-value by index of ascending
-; traversal?
-
-= (tabElem i tab)
+= (tabElemIdx i tab)
 @ pairs (tabToPairs tab)
 | if (gte i len-pairs) 0
 | idx i pairs
@@ -456,10 +450,10 @@ tab=(tabFromAscPairs par)
 ^-^
 ^-^ tabSing mkTab isTab
 ^-^
-^-^ tabLen tabIdx tabKeys hasKey look tabVals tabSwitch tabMatch
+^-^ tabLen tabIdx tabKeys hasKey look tabVals tabSwitch
 ^-^ tabFromPairs tabToPairs tabToPairList tabToList look tabPut tabMut
 ^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter tabMap tabUnionWith
-^-^ tabLookup tabMinKey tabFoldlWithKey tabElem emptyTab tabInsertWith
+^-^ tabLookup tabMinKey tabFoldlWithKey tabElemIdx emptyTab tabInsertWith
 ^-^
 ^-^ isTabSugar desugarTab
 ^-^

@@ -146,7 +146,7 @@ jetImpls = mapFromList
   , ( "isTab"       , isTabJet )
   , ( "tabIdx"      , tabIdxJet )
   , ( "tabMut"      , tabMutJet )
-  , ( "tabElem"     , tabElemJet )
+  , ( "tabElemIdx"  , tabElemIdxJet )
   , ( "tabLen"      , tabLenJet )
   , ( "tabToPairs"  , tabToPairsJet )
   , ( "tabFromPairs", tabFromPairsJet )
@@ -894,9 +894,9 @@ tabMutJet f e =
     tmut :: Fan -> Fan -> Map Fan Fan -> Fan
     tmut k v t = TAB $ M.insert k v t
 
-tabElemJet :: Jet
-tabElemJet f e =
-    orExecTrace "tabElem" (f e) (telem (toNat(e^1)) <$> getTab (e^2))
+tabElemIdxJet :: Jet
+tabElemIdxJet f e =
+    orExecTrace "tabElemIdx" (f e) (telem (toNat(e^1)) <$> getTab (e^2))
   where
     telem :: Nat -> Map Fan Fan -> Fan
     telem i m = let n = fromIntegral i
