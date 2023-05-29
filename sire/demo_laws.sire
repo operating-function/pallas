@@ -473,7 +473,7 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash multiEqlE
 
 {pinHash pinHash}
-!!= x#{c9a7d4974361561566dc9ef031cf7557c12157d6f3d455a8e34252ce5f40d31e}
+!!= x#{38620d17f79702502067a45205f0c566522faf40616e550eb843fed658973f07}
   | pinHash pinHash
 
 = (refsTable pin)

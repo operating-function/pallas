@@ -106,7 +106,7 @@ GT=2
 
 """ Bitwise Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (perbit f x y)
+= (bitwise f x y)
 ^ _ x y 0 0
 ? (go a b off acc)
 | ifNot (add a b) acc
@@ -115,9 +115,9 @@ GT=2
 | seq acc
 | go (div a 2) (div b 2) (inc off) acc
 
-= (dis x y) | perbit or  x y
-= (con x y) | perbit and x y
-= (mix x y) | perbit xor x y
+= (dis x y) | bitwise or  x y
+= (con x y) | bitwise and x y
+= (mix x y) | bitwise xor x y
 
 !!= 7 (con 7 7)
 !!= 5 (con 5 7)
@@ -244,7 +244,7 @@ GT=2
 ^-^ takeBits
 ^-^ isNat toNat
 ^-^ exec
-^-^ perbit
+^-^ bitwise
 ^-^
 ^-^ LT EQ GT ordWeld
 ^-^
