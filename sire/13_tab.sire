@@ -278,8 +278,6 @@ tab=(tabFromAscPairs par)
 
 """ Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-(readRex rex err ok)=(ok rex)
-
 pairExpect={Expected something like =x or x=3}
 
 ; TODO Parse decimal

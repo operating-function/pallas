@@ -23,10 +23,10 @@
 """
 """ TODO: Parse all built-in command runes:
 """
-""" - [ ] !!= #!!=
-""" - [ ] = #=
-""" - [ ] * #*
-""" - [ ] < #<
+""" - [ ] !!=
+""" - [ ] =
+""" - [ ] *
+""" - [ ] <
 """ - [ ] ###
 """
 """ TODO: Parse all macro-defined commands:
@@ -54,7 +54,7 @@
 """ - [x] %%
 """ - [x] #  (tabs)
 """ - [x] ##
-""" - [ ] ``
+""" - [ ] `` (recognize but reject, too complicated)
 """ - [x] `
 """ - [ ] &&
 """ - [ ] ||
@@ -62,7 +62,7 @@
 """ - [ ] /=
 """ - [x] , (rows)
 """ - [x] , (tabs)
-""" - [ ] ,,
+""" - [x] ,,
 """ - [ ] :
 """ - [ ] ~
 """ - [ ] ~~
@@ -70,21 +70,43 @@
 """ - [x] # (keywords)
 """ - [ ] #mutrec
 """ - [ ] #record
-""" - [ ] #datacase
+""" - [x] #datacase
 """ - [ ] #datatype
 """ - [ ] #switch
 """
-""" Some macros are don't need to be supported
+""" TODO: Parse expressions that don't exist yet.
 """
-""" - > \
-""" - #abstype #backfill #typedef
-""" - #typeof #printType
-""" - #getenv #getKey #getProp #setProp #hasProp #getTypeNames
+""" - [ ] / ("has type")
 """
-""" Or rather, these macros don't need to be handled any differently
-""" than they currently are.
+""" Parse other commands:
 """
-
+""" - [ ] >
+""" - [ ] \
+""" - [ ] #abstype
+""" - [ ] #backfill
+""" - [ ] #typedef
+""" - [ ] #typeof
+""" - [ ] #printType
+""" - [ ] #getenv
+""" - [ ] #getKey
+""" - [ ] #getProp
+""" - [ ] #setProp
+""" - [ ] #hasProp
+""" - [ ] #getTypeNames
+"""
+""" TODO: Name resolution
+"""
+""" TODO: Macro that takes any stew and compiles it to sire.
+"""
+""" TODO: Redefine all runes to invoke TheBigStewMacro.
+"""
+""" TODO: Merge switch.sire and datatype.sire
+""" TODO: Implement #openrecord (#datacase on records)
+""" TODO: Merge (#switch / #openrecord / #datacase) into #case
+""" TODO: #case supports multiple values.
+""" TODO: #case supports recursive patterns.
+""" TODO: Merge #record and #datatype into #data
+"""
 
 """ Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -392,6 +414,10 @@
     : exps <- traverseRow (x k & readExp x err k) kids
     | ok (EROW exps)
 
+= (readComCom readExp rex err ok)
+: items < readOpenRow readExp rex err
+| ok (EROW items)
+
 = (readLeaf rex err ok)
 @ txt (rexText rex)
 # switch (rexStyle rex)
@@ -418,6 +444,7 @@
 * {??}  | readWut readExp TRUE rex err ok
 * {**}  | readLin readExp rex err ok
 * {,}   | readCom readExp rex err ok
+* {,,}  | readComCom readExp rex err ok
 * {@}   | parseLet readExp rex err ok
 * {@@}  | parseRec readExp rex err ok
 * {#}   | parseHaxExp readExp rex err ok
@@ -484,6 +511,16 @@
   ^ readExp _ v2 showSire
   ` ## =x 3
     ## =y 4
+
+!!= `[3 (0 1)]
+  ^ readExp _ v2 showSire
+  ` ,, 3
+    ,, 0 1
+
+!!= `[3 (0 1)]
+  ^ readExp _ v2 showSire
+  ` ,, 3
+     | 0 1
 
 !!= `((# datacase a)(* NONE 0)(* (SOME x) x))
   ^ readExp _ v2 showSire

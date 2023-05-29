@@ -686,26 +686,38 @@
 
 """ Tall-Form Row Literals """""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (readOpenRow rex err ok)
-; trk 'readOpenRow',rex,err
-| rexGetNodeWithRune ",," rex
-    | ok (CONS rex NIL)
-& (sons heir)
-| if (null sons)
-    | err rex "At least one kid is required"
-| if (isZero heir)
-    | ok (CONS (appE sons) NIL)
-| readOpenRow heir err
-& rest
-| ok (CONS (appE sons) rest)
+openRowExpect={Expected something like (,, x), (,, f x y), etc}
 
-= (",," s p e a r err ok)
-; trk ['SRC_TABLE' s]
-; trk ['PROPERTYS' p]
-; trk [',,' r err ok]
-| readOpenRow r err
-& list
-| ok p a (rowE listToRow-list)
+= (readOpenRow readExp rex err ok)
+^ _ NIL rex
+? (go acc rex)
+@ sons (rexSons rex)
+@ heir (rexHeir rex)
+@ rune (rexRune rex)
+| if (isZero rex)
+    | ok (listToRowReversed acc)
+| if (neq {,,} rune)
+    | readExp rex err
+    & exp
+    @ acc (CONS exp acc)
+    | go acc 0
+| if (null sons)
+    | err rex openRowExpect
+@ itemRex
+    | if (eql 1 | len sons) (idx 0 sons)
+    | OPEN 0 "|" sons 0
+| readExp itemRex err
+& exp
+@ acc (CONS exp acc)
+| seq acc
+| go acc heir
+
+(readRex rex err ok)=(ok rex)
+
+= ({,,} s p e a r err ok)
+| readOpenRow readRex r err
+& res
+| ok p a (rowE res)
 
 !!= [3 4 5] (,, 3)(,, 4)(,, 5)
 !!= [3 4 5] (,, 3)(,, 4)5
@@ -901,6 +913,7 @@ F=found
 ^-^ filter delete
 ^-^ findIdxMany elemIdxMany
 ^-^
+^-^ readRex
 ^-^ readOpenRow
 ^-^ ",,"
 ^-^
