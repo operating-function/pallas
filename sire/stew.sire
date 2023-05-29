@@ -57,7 +57,7 @@
 """ - [x] #  (tabs)
 """ - [x] ##
 """ - [ ] ``
-""" - [ ] `
+""" - [x] `
 """ - [ ] &&
 """ - [ ] ||
 """ - [ ] ==
@@ -113,9 +113,10 @@
 * ELAM=lam pin:Bit fun:(Str, Nat, Row Pat, Exp)
 * ELIN=lin x:Exp
 * EROW=row xs:(Row Exp)
+* EUNT=unt
 * ETAB=tab xs:(Tab Nat Exp)
 * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
-* EUNT=unt
+* EREX=rex r:Rex
 
 
 """ Printing """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -325,6 +326,12 @@
 : tab <- readTallTabLit readSire rex err
 | ok (ETAB tab)
 
+= (parseTik rex err ok)
+@ kids (rexKids rex)
+| ifNot (eql 1 | len kids)
+    | err rex {Expected something like `(rex)}
+| EREX (idx 0 kids)
+
 = (readApp readSire rex err ok)
 @ kids (rexKids rex)
 | if (isZero | len kids) (ok EUNT)
@@ -403,6 +410,7 @@
 * {@@}  | parseRec readSire rex err ok
 * {#}   | parseHax readSire rex err ok
 * {##}  | parseHaxHax readSire rex err ok
+* {`}   | parseTik rex err ok
 * {%}   | parseCen rex err ok
 * _     | err rex (strWeld 'Unknown Rune')
 
