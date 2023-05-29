@@ -14,7 +14,7 @@
 # switch method
 * GET
     , st
-    @ entry (look st path)
+    @ entry (tabGet st path)
     | if (eql 0 entry)
         | [rid 404 b#{Not Found} [] b#{}]
     @ head | [(b#{Content-Type}, b#{text/plain})]

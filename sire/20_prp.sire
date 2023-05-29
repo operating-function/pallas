@@ -38,8 +38,8 @@
 """ Operations on Property Tables """"""""""""""""""""""""""""""""""""""""""""""
 
 = (hasProperty key pro tab)
-| and (hasKey pro tab)
-| hasKey key (tabIdx pro tab)
+| and (tabHas pro tab)
+| tabHas key (tabIdx pro tab)
 
 = (getProperty key pro tab)
 | tabIdx key
@@ -74,9 +74,9 @@
 
 = ('#getKey' s p e a r err ok)
 : _ symbol <- rexParseKids r [readAny readSymbol] err
-| if not-(hasKey symbol s)
+| if not-(tabHas symbol s)
     | 'Undefined symbol' symbol
-@ key (look s symbol)
+@ key (tabGet s symbol)
 | if (isZero key)
     | 'Symbols defined without key' symbol
 | ok p a (cnsE key)
@@ -89,7 +89,7 @@
 
 = ('#hasProp' s p e a r err expand)
 : _ [symbol property] <- rexParseKids r [readAny readSymbProp] err
-@ key (look s symbol)
+@ key (tabGet s symbol)
 | if (isZero key)
   | die [symbol s]
   | err (varE symbol) 'Undefined symbol'
@@ -99,7 +99,7 @@
 
 = ('#getProp' s p e a r err expand)
 : _ [symbol property] <- rexParseKids r [readAny readSymbProp] err
-@ key (look s symbol)
+@ key (tabGet s symbol)
 | if (isZero key)
   | die [symbol s]
   | err (varE symbol) 'Undefined symbol'
@@ -111,13 +111,13 @@
 = ('#setProp' s p e a r err expand)
 : _ [symbol property] valSym
         < rexParseKids r [readAny readSymbProp readSymbol] err
-| if not-(hasKey symbol s)
+| if not-(tabHas symbol s)
         | err (varE symbol) 'Undefined symbol'
-| if not-(hasKey valSym e)
+| if not-(tabHas valSym e)
         | err (varE valSym) 'Property value must be the name of a bound value.'
 ;
-@ key (look s symbol)
-@ val (look e valSym)
+@ key (tabGet s symbol)
+@ val (tabGet e valSym)
 @ p (setProperty key property val p)
 | expand p a (cnsE 0)
 

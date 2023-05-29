@@ -16,7 +16,7 @@
 /+  boot
 
 = (PokeLoop calls response)
-@ val | look response 0
+@ val | tabGet response 0
 | trk [=val]
 | PokeLoop [[%poke 0 %poke [%listen]]]
 

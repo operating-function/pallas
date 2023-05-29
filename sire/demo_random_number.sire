@@ -12,7 +12,7 @@
 (call count)=[%rand 0 %byte count]
 
 = (RandLoop count calls response)
-@ bytes (look response 0)
+@ bytes (tabGet response 0)
 | if not-(count == barLen bytes)
     | die "%rand size is not what we asked for"
 | trk [=bytes]

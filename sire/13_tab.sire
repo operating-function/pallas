@@ -47,20 +47,18 @@ emptyTab=emptyCab
 
 """ Tab Lookup """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-;; TODO Maybe this should take the fallback as an argument?
-;; That would eliminate the need for `tabSwitch`.
 = (tabIdx key tab)
 @ keys (lawBody head-tab)
 | **maybeCase (elemIdx key keys) 0
 (ix & idx ix tab)
 
-= (look tab key)   | tabIdx key tab
+(**tabGet tab key)=(tabIdx key tab)
 
 ex=(mkTab [1 2 3] [4 5 6])
 
-!!= 4  | look ex 1
-!!= 5  | look ex 2
-!!= 6  | look ex 3
+!!= 4 | tabGet ex 1
+!!= 5 | tabGet ex 2
+!!= 6 | tabGet ex 3
 
 
 """ Basic Quations about Tabs """"""""""""""""""""""""""""""""""""""""""""""""""
@@ -69,11 +67,11 @@ ex=(mkTab [1 2 3] [4 5 6])
 = (tabIsEmpty tab) | isLaw tab
 = (tabKeys tab)    | head tab
 = (tabKeysRow tab) | lawBody (tabKeys tab)
-= (tabVals tab)    | map (look tab) (tabKeysRow tab)
-= (hasKey k t)     | cabHas k (tabKeys t)
-= (tabLookup k t)  | if (hasKey k t) (SOME | tabIdx k t) NONE
+= (tabVals tab)    | map (tabGet tab) (tabKeysRow tab)
+= (tabHas k t)     | cabHas k (tabKeys t)
+= (tabLookup k t)  | if (tabHas k t) (SOME | tabIdx k t) NONE
 
-;; TODO: Rename hasKey to tabHas.
+;; TODO: Rename tabHas to tabHas.
 
 
 """ Tab Insertion """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -98,11 +96,11 @@ ex=(mkTab [1 2 3] [4 5 6])
 
 (tabPut x k v)=(tabMut k v x)
 
-; `tabInsertWith f key newval tab` will insert the pair (key, newval)
+; `tabInsWith f key newval tab` will insert the pair (key, newval)
 ; into `tab` if key does not exist in the tab. If the key does exist,
 ; the function will insert the pair `(key, f newval oldval)`.
 
-= (tabInsertWith f key newval tab)
+= (tabInsWith f key newval tab)
 @ m_oldval (tabLookup key tab)
 ^ tabMut key _ tab
 | **maybeCase m_oldval newval (f newval)
@@ -118,15 +116,15 @@ ex=(mkTab [1 2 3] [4 5 6])
 !!= ( mkTab [1 3 5] [8 7 9] ) | tabMut 3 7 | tabMut 1 8 | tabMut 5 9 | ex1
 !!= ( mkTab [1 3 5] [8 7 9] ) | tabMut 1 8 | tabMut 3 7 | tabMut 5 9 | ex1
 !!= ( mkTab [1 3 5] [8 7 9] ) | tabMut 5 9 | tabMut 3 7 | tabMut 1 8 | ex1
-!!= ( mkTab [1 2 5] [5 6 1] ) | tabInsertWith add 2 6 | ex1
-!!= ( mkTab [1 5]   [11 1]  ) | tabInsertWith add 1 6 | ex1
-!!= ( mkTab [1 5]   [5 7]   ) | tabInsertWith add 5 6 | ex1
-!!= ( mkTab [1 5 9] [5 1 3] ) | tabInsertWith add 9 3 | ex1
+!!= ( mkTab [1 2 5] [5 6 1] ) | tabInsWith add 2 6 | ex1
+!!= ( mkTab [1 5]   [11 1]  ) | tabInsWith add 1 6 | ex1
+!!= ( mkTab [1 5]   [5 7]   ) | tabInsWith add 5 6 | ex1
+!!= ( mkTab [1 5 9] [5 1 3] ) | tabInsWith add 9 3 | ex1
 
 """ Switching on Tabs """"""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (tabSwitch key fal tab)
-| ifNot (hasKey key tab) fal
+| ifNot (tabHas key tab) fal
 | tabIdx key tab
 
 
@@ -145,10 +143,10 @@ ex=(mkTab [1 2 3] [4 5 6])
 par=[[1 4] [2 5] [3 6]]
 tab=(tabFromAscPairs par)
 
-!!= 4   | look ex 1
-!!= 5   | look ex 2
-!!= 6   | look ex 3
-!!= 6   | look ex 3
+!!= 4   | tabGet ex 1
+!!= 5   | tabGet ex 2
+!!= 6   | tabGet ex 3
+!!= 6   | tabGet ex 3
 !!= par | tabToPairs tab
 
 
@@ -158,7 +156,7 @@ tab=(tabFromAscPairs par)
 | foldl (t p & tabMut (fst p) (snd p) t) emptyTab pairs
 
 = (tabToPairList tab)
-| listMap i&(i, look tab i)
+| listMap i&(i, tabGet tab i)
 | cabToList (tabKeys tab)
 
 (tabToList tab)=(listFromRow tabToPairs-tab)
@@ -196,7 +194,7 @@ tab=(tabFromAscPairs par)
 
 = (tabPop tab)
 @ key (cabMin (head tab))
-@ val (look tab key)
+@ val (tabGet tab key)
 @ rem (tabDel key tab)
 | [key val rem]
 
@@ -305,7 +303,7 @@ tab=(tabFromAscPairs par)
 ;
 @ okay
     ? (okay newKey newValue)
-    | if (hasKey newKey acc)
+    | if (tabHas newKey acc)
         | err thisPair "duplicate key"
     @ acc (tabMut newKey newValue acc)
     | go acc morePairs
@@ -339,7 +337,7 @@ tab=(tabFromAscPairs par)
 @ okay
     ? (okay newKey newValue)
     ; trk 'okay',newKey,newValue
-    | if (hasKey newKey acc)
+    | if (tabHas newKey acc)
         | err rex "duplicate key"
     @ acc (tabMut newKey newValue acc)
     | go acc heir
@@ -415,8 +413,8 @@ tab=(tabFromAscPairs par)
 !!= 8 | tabIdx 0 #[0=8]
 !!= 9 | tabIdx %aa #(bb=8, aa=9)
 
-!!= 1 | hasKey %aa #(bb=8, aa=9)
-!!= 1 | not | hasKey %cc #(bb=8, aa=9)
+!!= 1 | tabHas %aa #(bb=8, aa=9)
+!!= 1 | not | tabHas %cc #(bb=8, aa=9)
 
 !!= %[3 4] | tabKeys #[3=3 4=4]
 !!= %[]    | tabKeys #[]
@@ -450,10 +448,10 @@ tab=(tabFromAscPairs par)
 ^-^
 ^-^ tabSing mkTab isTab
 ^-^
-^-^ tabLen tabIdx tabKeys tabKeysRow hasKey look tabVals tabSwitch
-^-^ tabFromPairs tabToPairs tabToPairList tabToList look tabPut tabMut
+^-^ tabLen tabIdx tabKeys tabKeysRow tabHas tabGet tabVals tabSwitch
+^-^ tabFromPairs tabToPairs tabToPairList tabToList tabPut tabMut
 ^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter tabMap tabUnionWith
-^-^ tabLookup tabMinKey tabFoldlWithKey tabElemIdx emptyTab tabInsertWith
+^-^ tabLookup tabMinKey tabFoldlWithKey tabElemIdx emptyTab tabInsWith
 ^-^
 ^-^ isTabSugar desugarTab
 ^-^

@@ -159,7 +159,7 @@ jetImpls = mapFromList
   , ( "tabMinKey"   , tabMinKeyJet )
   , ( "tabFoldlWithKey" , tabFoldlWithKeyJet )
   , ( "tabAlter"    , tabAlterJet )
-  , ( "hasKey"      , tabHasKeyJet )
+  , ( "tabHas"      , tabHasKeyJet )
   , ( "tabKeysRow"  , tabKeysRowJet )
   , ( "tabVals"     , tabValsJet )
   , ( "blake3"      , blake3Jet )
@@ -1039,7 +1039,7 @@ tabAlterJet f e =
 
 tabHasKeyJet :: Jet
 tabHasKeyJet f e =
-    orExecTrace "hasKey" (f e) (hk (e^1) <$> getTab(e^2))
+    orExecTrace "tabHas" (f e) (hk (e^1) <$> getTab(e^2))
   where
     hk :: Fan -> Map Fan Fan -> Fan
     hk k m = case M.member k m of

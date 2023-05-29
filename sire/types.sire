@@ -119,7 +119,7 @@
 """     abstype#(Fun a b)
 
 = ("#getTypeNames" s p e a r err ok)
-| ok p a (cnsE (look p %typeName))
+| ok p a (cnsE (tabGet p %typeName))
 
 = ("#abstype" s p e a r err ok)
 @ sons@[_ sigRex] (rexSons r)
@@ -220,8 +220,8 @@ abstype#TyExp
 !!= getProp#(Fun.typeName) 'Fun'
 
 = (lookupOr env key fallback ok)
-| ifNot (hasKey key env) fallback
-| ok (look env key)
+| ifNot (tabHas key env) fallback
+| ok (tabGet env key)
 
 = (showTypeTree allTypeNames vars x)
 ^ _ x
@@ -254,7 +254,7 @@ abstype#TyExp
     | rowCons (varE nam) kids
 
 = (showType p scheme@[arity x])
-@ nams | look p %typeName
+@ nams | tabGet p %typeName
 @ nams | if (isZero nams) #[] nams
 @ vars | gen arity (add 'a')
 @ body | showTypeTree nams vars x
@@ -262,13 +262,13 @@ abstype#TyExp
 
 = (readDefinedSymbol src env rex err ok)
 : sym < readSymbol rex err
-@ key | look src sym
-@ val | look env sym
-| ifNot (hasKey sym env)
+@ key | tabGet src sym
+@ val | tabGet env sym
+| ifNot (tabHas sym env)
     | err rex (strWeld 'Undefined symbol: ' sym)
 | if (isZero key)
     | err rex (strWeld 'Binding without key: ' sym)
-| ok sym key (look env sym)
+| ok sym key (tabGet env sym)
 
 = ("#printType" s p e a r err ok)
 @ kids (rexKids r)
@@ -409,9 +409,9 @@ abstype#TyExp
     : sym < readSymbol rex err
     @ fst | strTake 1 sym
     | if (isUpper fst)
-        | ifNot (hasKey sym e)
+        | ifNot (tabHas sym e)
             | err rex (strWeld 'Undefined type constructor: ' sym)
-        | ok (T_REF sym (look e sym) [])
+        | ok (T_REF sym (tabGet e sym) [])
     | else
         | ok (T_VAR sym)
 @ rune (rexRune rex)
@@ -428,10 +428,10 @@ abstype#TyExp
     : sym < readSymbol head err
     | ifNot (isUpper (strTake 1 sym))
         | err head "expected: TypeName"
-    | ifNot (hasKey sym e)
+    | ifNot (tabHas sym e)
         | err rex (strWeld 'Undefined type constructor: ' sym)
     : params < traverseRow loop para
-    | ok (T_REF sym (look e sym) params)
+    | ok (T_REF sym (tabGet e sym) params)
 * '>'
     : kidTypes < traverseRow loop (rexKids rex)
     | ok (bigFun kidTypes)
@@ -605,7 +605,7 @@ printType#Fun
 @ kids (rexKids r)
 | if (len kids /= 2) | die 'Usage: typeof#var'
 : symbol < readSymbol (idx 1 kids) err
-@ vlKey  | look s symbol
+@ vlKey  | tabGet s symbol
 @ scheme | getProperty vlKey 'type' p
 | if (isZero vlKey)  | 'undefined' symbol
 | if (isZero scheme) | 'untyped' symbol

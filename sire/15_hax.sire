@@ -60,10 +60,10 @@
 /+  11_str  [strWeld]
 /+  12_cab  ["%"]
 /+  13_tab  ["#"]
-/+  13_tab  [look hasKey tabKeys isTab tabIsEmpty]
+/+  13_tab  [tabGet tabHas tabKeys isTab tabIsEmpty]
 /+  14_exp  [cnsE varE]
 
-;; TODO s/hasKey/tabHas/g
+;; TODO s/tabHas/tabHas/g
 
 
 """ Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -93,8 +93,8 @@ oldHax=(.{#})
 ; trk [=name =heir]
 @ key (strWeld "#" name)
 ; trk [=key]
-| ifNot (hasKey key e)    | (err r haxBadSymb-key)
-@ fun (look e key)
+| ifNot (tabHas key e)    | (err r haxBadSymb-key)
+@ fun (tabGet e key)
 ; trk [fun=(pinItem fun)]
 | fun s p e a r err ok
 

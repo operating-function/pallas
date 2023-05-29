@@ -123,7 +123,7 @@ dataTag=_DataTag
 """     = (getSnd x)     | idx 1 x
 """     = (setFst v x)   | mut 0 v x
 """     = (setSnd v x)   | mut 1 v x
-"""     = (mkPair t)     | PAIR (look %fst t) (look %snd t)
+"""     = (mkPair t)     | PAIR (tabGet %fst t) (tabGet %snd t)
 """
 """ This input format works too:
 """
@@ -533,11 +533,11 @@ ex=(PAIR %a %b)
     < **listCase remain
         | ok hasTag fun fallback (listToRowReversed acc)
 ;
-| ifNot (hasKey constr src)
+| ifNot (tabHas constr src)
     ^ err sigRex (strWeld _ constr)
     | "Undefined Pattern: "
 ;
-@ key (look src constr)
+@ key (tabGet src constr)
 | if (isZero key)
     ^ err sigRex (strWeld _ constr)
     | "Pattern defined without identity: "
