@@ -73,7 +73,7 @@
 """ Convenience Macros to Query properties of bindings. """"""""""""""""""""""""
 
 = ('#getKey' s p e a r err ok)
-: _ symbol <- rexParseKids r [readAny readSymbol] err
+: _ symbol <- rexParseKids r [readRex readSymbol] err
 | if not-(tabHas symbol s)
     | 'Undefined symbol' symbol
 @ key (tabGet s symbol)
@@ -88,7 +88,7 @@
 | ret [symbol property]
 
 = ('#hasProp' s p e a r err expand)
-: _ [symbol property] <- rexParseKids r [readAny readSymbProp] err
+: _ [symbol property] <- rexParseKids r [readRex readSymbProp] err
 @ key (tabGet s symbol)
 | if (isZero key)
   | die [symbol s]
@@ -98,7 +98,7 @@
 | expand p a (cnsE has)
 
 = ('#getProp' s p e a r err expand)
-: _ [symbol property] <- rexParseKids r [readAny readSymbProp] err
+: _ [symbol property] <- rexParseKids r [readRex readSymbProp] err
 @ key (tabGet s symbol)
 | if (isZero key)
   | die [symbol s]
@@ -110,7 +110,7 @@
 
 = ('#setProp' s p e a r err expand)
 : _ [symbol property] valSym
-        < rexParseKids r [readAny readSymbProp readSymbol] err
+        < rexParseKids r [readRex readSymbProp readSymbol] err
 | if not-(tabHas symbol s)
         | err (varE symbol) 'Undefined symbol'
 | if not-(tabHas valSym e)

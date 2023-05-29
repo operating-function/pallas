@@ -475,6 +475,8 @@ outerExpect={Expected something like #[x=1], [x=1], etc}
 ^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter tabMap tabUnionWith
 ^-^ tabLookup tabMinKey tabFoldlWithKey tabElemIdx emptyTab tabInsWith
 ^-^
+^-^ readRex
+^-^
 ^-^ readTabPair readTabBracket readWideTabLit
 ^-^ isTabSugar
 ^-^

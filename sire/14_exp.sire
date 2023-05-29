@@ -173,10 +173,7 @@
   | bloodline [`(a=1) [`(b=2) [`(c=3) 0]]]
 
 
-""" Catch-All Reader """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-= (readAny rex err ret)
-| ret rex
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (readNodeWithRune rune rex err ret)
 | **rexGetNodeWithRune rune rex
@@ -335,7 +332,7 @@ symTodo='todo: support .foo and .234'
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-^-^ readAny
+^-^
 ^-^ readNodeWithRune
 ^-^ readKidsOfNodeWithRune
 ^-^ readNodeWithoutHeirButWithRune

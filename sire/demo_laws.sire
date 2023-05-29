@@ -495,7 +495,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 | if (neq "=" (rexRune rex))
         | err rex "Knot patterns must be = nodes"
 : sym rhs
-       <- rexParseKids (rexSetHeir 0 rex) [readSymbol readAny] err
+       <- rexParseKids (rexSetHeir 0 rex) [readSymbol readRex] err
 @ acc (CONS [sym rhs] acc)
 | loop acc (rexHeir rex)
 

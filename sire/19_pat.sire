@@ -54,7 +54,7 @@
 /+  11_str  [strWeld strCat]
 /+  12_cab  [readKey "%"]
 /+  13_tab  ["##" tabToPairs tabFromPairs tabIdx tabToList tabMut]
-/+  13_tab  [isTabSugar readWideTabLit]
+/+  13_tab  [readRex isTabSugar readWideTabLit]
 /+  14_exp
 /+  15_hax  ['#']
 /+  16_pad  []
@@ -732,7 +732,7 @@
 
 ;
 = ("?" s p e a r err ok)
-: sigRex bodyExpr <- rexParseKids r [readAny readAny] err
+: sigRex bodyExpr <- rexParseKids r [readRex readRex] err
 : sym    binds    <- readNamedLambdaSig sigRex err
 : a sig  bodyExpr <- makeDestroyer a binds bodyExpr
 | ok p a
@@ -747,7 +747,7 @@
 """ Anon Lambdas with Destroy """"""""""""""""""""""""""""""""""""""""""""""""""
 
 = ("&" s p e a r err ok)
-: sigRex bodyExpr <- rexParseKids r [readAny readAny] err
+: sigRex bodyExpr <- rexParseKids r [readRex readRex] err
 : binds           <- readBindSig sigRex err
 : a sig  bodyExpr <- makeDestroyer a binds bodyExpr
 | ok p a

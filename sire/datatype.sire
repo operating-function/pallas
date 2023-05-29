@@ -99,7 +99,7 @@ dataTag=_DataTag
 ``
     = ($$(txtE nam) s p e a r err ok)
         : _ expr body
-               <- $rexParseKids r $[readAny readAny readAny] err
+               <- $rexParseKids r $[readRex readRex readRex] err
         | ok p ($inc a)
         | $destructureRowE ($gensym a) $$(rowE | map txtE fields) expr body
 
@@ -107,7 +107,7 @@ dataTag=_DataTag
        ``
         = ('#openPair' s p e a r err ok)
             : _ expr body
-               <- $rexParseKids r $[readAny readAny readAny] err
+               <- $rexParseKids r $[readRex readRex readRex] err
             | ok p ($inc a)
             | $destructureRowE ($gensym a) (#| $(cow 2) 'snd' 'fst') expr body
 
@@ -523,7 +523,7 @@ ex=(PAIR %a %b)
 ;
 = (readDatacaseBody src prp casesRex err ok)
 ;
-: oFallback branches < parseDatacaseBody readAny casesRex err
+: oFallback branches < parseDatacaseBody readRex casesRex err
 @ fallback (fromSome (natE 0) oFallback)
 ;
 ^ _ FALSE 0 NIL (listFromRow branches)

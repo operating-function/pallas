@@ -185,7 +185,7 @@ foo=(x e o & o (varE "_", x))
 
 
 = ("#switch" s p e a r err ok)
-: _ expr arms <- rexParseKids r [readAny readAny readSwitchPats] err
+: _ expr arms <- rexParseKids r [readRex readRex readSwitchPats] err
 @ wild,pats arms
 | ok p a
 | switchE expr wild pats

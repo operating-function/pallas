@@ -108,7 +108,7 @@
 = ("#mutrec" s p e a r err ok)
 @ coreNam (gensymNm "core" a)
 : _ coreTag letBody sigRex
-        < rexParseKids r [readAny readAtomLit readAny readAny] err
+        < rexParseKids r [readRex readAtomLit readRex readRex] err
 : aft sigExpPairs
         < readCoreBody '*' a sigRex err
 ;
@@ -220,7 +220,7 @@
 
 = ("#mutual" s p e aft r err ok)
 : _ coreSymbol sigRex
-        < rexParseKids r [readAny readAny readAny] err
+        < rexParseKids r [readRex readRex readRex] err
 : aft sigExpPairs
        < readCoreBody '=' aft sigRex err
 : coreName
