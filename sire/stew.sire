@@ -82,6 +82,10 @@
 """ - #abstype #backfill #typedef
 """ - #typeof #printType
 """ - #getenv #getKey #getProp #setProp #hasProp #getTypeNames
+"""
+""" Or rather, these macros don't need to be handled any differently
+""" than they currently are.
+"""
 
 
 """ Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -279,17 +283,17 @@
 """ Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 > (Rex > Parser Exp) > Rex > Parser Exp
-= (parseLet readSire rex err ok)
+= (parseLet readExp rex err ok)
 @ kids@[patRex expRex bodRex] (rexKids rex)
 | if (len kids /= 3) (err rex 'Bad let')
 : var < parseBinder patRex err
-: exp < readSire expRex err
-: bod < readSire bodRex err
+: exp < readExp expRex err
+: bod < readExp bodRex err
 | ok (ELET var exp bod)
 
 > (Rex > Parser Exp) > Rex > Parser Exp
-= (parseRec readSire rex err ok)
-: res < parseLet readSire rex err
+= (parseRec readExp rex err ok)
+: res < parseLet readExp rex err
 # datacase res
 * _ (die 'impossible')
 * (ELET p x b)
@@ -306,24 +310,26 @@
 * (RIGHT cab) | ok (ECAB cab)
 
 > (Rex > Parser Exp) > Rex > Parser Rex
-= (parseHax readSire rex err ok)
-@ kids@[param] (rexKids rex)
-| if (null kids) (err rex '# with no parameter')
-: sym <- readSymbol param err
+= (parseHax readExp rex err ok)
+@ kids@[keywordRex] | rexKids rex
+@ params            | drop 1 kids
+| if (null kids)
+    | err rex '# with no parameter'
+: sym <- readSymbol keywordRex err
 # switch sym
 * _ | err rex (strWeld 'Unknown keyword: #' sym)
 * {p} | readPadLit rex err (pad & ok (EPAD pad))
 * {b} | readBarLit rex err (pad & ok (EBAR pad))
 * {x} | readBarLit rex err (pad & ok (EBAR pad))
 * {datacase}
-    : val fb cases < parseDatacase readSire rex err
+    : val fb cases < parseDatacase readExp rex err
     | ok ^ ECAS val fb (map _ cases)
          & [_ constr pats body]
          | CON_CASE constr pats body
 
 > (Rex > Parser Exp) > Rex > Parser Rex
-= (parseHaxHax readSire rex err ok)
-: tab <- readTallTabLit readSire rex err
+= (parseHaxHax readExp rex err ok)
+: tab <- readTallTabLit readExp rex err
 | ok (ETAB tab)
 
 = (parseTik rex err ok)
@@ -332,52 +338,52 @@
     | err rex {Expected something like `(rex)}
 | EREX (idx 0 kids)
 
-= (readApp readSire rex err ok)
+= (readApp readExp rex err ok)
 @ kids (rexKids rex)
 | if (isZero | len kids) (ok EUNT)
-: exps < traverseRow (x k & readSire x err k) kids
+: exps < traverseRow (x k & readExp x err k) kids
 | ok (foldl EAPP (idx 0 exps) (drop 1 exps))
 
-= (readKet readSire rex err ok)
+= (readKet readExp rex err ok)
 @ sons (rexSons rex)
 @ heir (rexHeir rex)
 | if (null sons && isZero heir)
     | err rex "Bad ^ must be:  (^ f _ y)x"
-: exp <- traverseRow (x k & readSire x err k) sons
-: cab <- readSire heir err
+: exp <- traverseRow (x k & readExp x err k) sons
+: cab <- readExp heir err
 | ok | EKET exp cab
 
-= (readPam readSire rex err ok)
+= (readPam readExp rex err ok)
 @ kids (rexKids rex)
 | if (len kids /= 2) (err rex 'Bad lambda')
 @ [sigRex bodRex] kids
 : pats <- readBindSig sigRex err
-: body <- readSire bodRex err
+: body <- readExp bodRex err
 | ok | ELAM FALSE | FUN 0 0 pats body
 
-= (readWut readSire pinned rex err ok)
+= (readWut readExp pinned rex err ok)
 @ kids@[sigRex bodRex] (rexKids rex)
 | if (len kids /= 2) (err rex 'Bad lambda.')
 : func pats <- readDestroyer sigRex err
-: body <- readSire bodRex err
+: body <- readExp bodRex err
 | ok (ELAM pinned | FUN func func pats body)
 
-= (readLin readSire rex err ok)
+= (readLin readExp rex err ok)
 @ kids@[expRex]
     | rexKids rex
 | if (len kids /= 1)
     | err rex "Expected something like: **x"
-: exp <- readSire expRex err
+: exp <- readExp expRex err
 | ok (ELIN exp)
 
-= (readCom readSire rex err ok)
+= (readCom readExp rex err ok)
 @ rune (rexRune rex)
 @ kids (rexKids rex)
 | if (and (not null-kids) (eql "=" (rexRune fst-kids)))
-    : tab <- readWideTabLit readSire rex err
+    : tab <- readWideTabLit readExp rex err
     | ok (ETAB tab)
 | else
-    : exps <- traverseRow (x k & readSire x err k) kids
+    : exps <- traverseRow (x k & readExp x err k) kids
     | ok (EROW exps)
 
 = (readLeaf rex err ok)
@@ -393,30 +399,30 @@
 | ok (EREF txt)
 
 > Rex > Parser Exp
-= (readSire rex err ok)
+= (readExp rex err ok)
 # switch (rexType rex)
 * "EMBD" | ok EBED-(rexGetEmbd rex)
 * "LEAF" | readLeaf rex err ok
 * "NODE"
 # switch (rexRune rex)
-* {^}   | readKet readSire rex err ok
-* {|}   | readApp readSire rex err ok
-* {&}   | readPam readSire rex err ok
-* {?}   | readWut readSire FALSE rex err ok
-* {??}  | readWut readSire TRUE rex err ok
-* {**}  | readLin readSire rex err ok
-* {,}   | readCom readSire rex err ok
-* {@}   | parseLet readSire rex err ok
-* {@@}  | parseRec readSire rex err ok
-* {#}   | parseHax readSire rex err ok
-* {##}  | parseHaxHax readSire rex err ok
+* {^}   | readKet readExp rex err ok
+* {|}   | readApp readExp rex err ok
+* {&}   | readPam readExp rex err ok
+* {?}   | readWut readExp FALSE rex err ok
+* {??}  | readWut readExp TRUE rex err ok
+* {**}  | readLin readExp rex err ok
+* {,}   | readCom readExp rex err ok
+* {@}   | parseLet readExp rex err ok
+* {@@}  | parseRec readExp rex err ok
+* {#}   | parseHax readExp rex err ok
+* {##}  | parseHaxHax readExp rex err ok
 * {`}   | parseTik rex err ok
 * {%}   | parseCen rex err ok
 * _     | err rex (strWeld 'Unknown Rune')
 
 ; Assumes that the input formatting matches the printers formatting.
 = (sireRound rex)
-@ out (readSire rex v2 showSire)
+@ out (readExp rex v2 showSire)
 | if (rexEql rex out) 1
 | out
 
@@ -437,7 +443,7 @@
 !! sireRound ` (z@[!x y] @ [1 2])(x y z)
 
 !!= ` (span f r ? (l @ len r)(^ _ 0)(loop i ? if (eql i l) (v2 r v0) (if (f (idx i r)) (loop (inc i)) (v2 (take i r) (drop i r)))))
-  ^ readSire _ v2 showSire
+  ^ readExp _ v2 showSire
   ` ? (span f r)
     @ l | len r
     ^ _ 0
@@ -448,18 +454,18 @@
     (v2 (take i r) (drop i r))
 
 !!= `[x=3 y=4]
-  ^ readSire _ v2 showSire
+  ^ readExp _ v2 showSire
   ` ## =x 3
     ## =y 4
 
 !!= `((# datacase a)(* NONE 0)(* (SOME x) x))
-  ^ readSire _ v2 showSire
+  ^ readExp _ v2 showSire
   ` # datacase a
     * NONE     0
     * (SOME x) x
 
 !!= `((# datacase a)(* NONE 0)(* _ 1))
-  ^ readSire _ v2 showSire
+  ^ readExp _ v2 showSire
   ` # datacase a
     * NONE     0
     * _        1
@@ -469,4 +475,4 @@
 
 ^-^ EBED EREF ENAT EAPP EKET ELET EREC ELAM ELIN ECAS
 ^-^
-^-^ readSire showSire
+^-^ readExp showSire
