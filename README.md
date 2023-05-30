@@ -18,3 +18,7 @@ This is a prototype implementation of Plunder.
 
 -   To run the `fulltag` demo, see the instructions in
     `sh/full-tag-site-demo`.
+
+-   To build the `plunder` executable via nix, run `nix build .#plunder`
+    (flakes-compatible nix required). Targets for `rex` and `plock` are
+    also available.

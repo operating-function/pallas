@@ -2,17 +2,29 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    haskellNix.url = "github:input-output-hk/haskell.nix";
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }:
+  outputs = { self, nixpkgs, flake-utils, haskellNix, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
 
-        pkgs = import nixpkgs {
-          inherit system;
-        };
+        compiler = "ghc944";
 
-        compiler = "ghc943";
+        overlays = [ haskellNix.overlay
+          (final: prev: {
+            plunder =
+              final.haskell-nix.project' {
+                src = ./.;
+                compiler-nix-name = compiler;
+              };
+          })
+        ];
+
+        pkgs = import nixpkgs {
+          inherit system overlays;
+          inherit (haskellNix) config;
+        };
 
         hPkgs =
           pkgs.haskell.packages.${compiler}; # must match `stack.yaml` resolver
@@ -49,6 +61,8 @@
           pkgs.zlib
         ];
 
+        flake = pkgs.plunder.flake {};
+
       in
 
       {
@@ -56,6 +70,13 @@
         devShells.default = pkgs.mkShell {
           buildInputs = devPkgs;
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath devPkgs;
+        };
+
+        packages = rec {
+          plunder = flake.packages."plunder:exe:plunder";
+          plock = flake.packages."plunder:exe:plock";
+          rex = flake.packages."plunder:exe:rex";
+          default = plunder;
         };
 
       });

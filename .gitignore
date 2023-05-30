@@ -10,3 +10,5 @@ TAGS
 .ting
 .tmp.sire
 .direnv/
+result
+result-*

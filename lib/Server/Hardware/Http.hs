@@ -109,7 +109,6 @@ import Server.Debug
 import Server.Hardware.Types
 import Server.LmdbStore
 
-import Control.Concurrent.STM (writeTMVar)
 import Data.Acquire           (Acquire, mkAcquire)
 import Data.IntMap.Strict     (minView)
 import Fan.Convert            (FromNoun(..), ToNoun(..), fromNoun, toNoun)
