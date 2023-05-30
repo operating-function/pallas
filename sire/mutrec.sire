@@ -45,7 +45,7 @@
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (parseCoreBody rune readExp rex err ok)
+= (readCoreBody rune readExp rex err ok)
 : clauses
   < ^ unrollSlip2Rune rune rex _ err
     ? (nonMatchingTail x err ret)
@@ -57,31 +57,46 @@
 : body      <- readExp bodyRex err
 | ret [sym binds body]
 
-= (readCoreBody rune aft rex err ok)
-: parsedArms
-    < parseCoreBody rune readRex rex err
-| trk #[=parsedArms]
-^ traverseRowWithState aft _ parsedArms ok
+!!= [[%f [[%v 0 %x]] `x] [%g [[%v 0 %y]] `0]]
+  | readCoreBody '=' readRex `((f x = x)(g y = 0)) v2 id
+
+!!= [[%f [[%r [[%v 0 %x] [%v 0 %y]]]] `x]]
+  | readCoreBody '=' readRex `((f [x y] = x)) v2 id
+
+!!= [`(*) 'Not a core arm']
+  | readCoreBody '=' readRex `((f x = x)(g y = 0)(*)) v2 id
+
+!!= [`(= f) '= node expects two parameters']
+  | readCoreBody '=' readRex `((= f|x x)(= f)) v2 id
+
+= (readMutRecExp readExp rex err ok)
+: _ coreTag letBody coreBody
+    < ^ rexParseKids rex _ err
+      | (readRex, readAtomLit, readExp, readCoreBody {*} readExp)
+| ok coreTag letBody coreBody
+
+= (genCoreBody arms aft ok)
+^ traverseRowWithState aft _ arms ok
 & (aft [sym binds body] ret)
+| trk #[=sym =binds =body]
 : aft sig bod <- makeDestroyer aft binds body
 | ret aft [sym sig bod]
 
-!!= 5,[[%f [%x] `x] [%g [%y] `0]]
-  | readCoreBody '=' 5 `((f x = x)(g y = 0)) v2 v2
+!!=  ,, 5
+     ,, ,, [%f [%x] `x]
+        ,, [%g [%y] `0]
+  ^ genCoreBody _ 5 v2
+  | [[%f [[%v 0 %x]] `x] [%g [[%v 0 %y]] `0]]
 
 !!=  ,, 7
-     ,,  ,,   | **v3 %f ['_g5']
-                 `` #@ $$(varKE 6 '_g6') _g5
-                    #@ x (#| $(idx 0) _g6)
-                    #@ y (#| $(idx 1) _g6)
-                     x
-  | readCoreBody '=' 5 `((f [x y] = x)) v2 v2
-
-!!= [`(*) 'Not a core arm']
-  | readCoreBody '=' 5 `((f x = x)(g y = 0)(*)) v2 v2
-
-!!= [`(= f) '= node expects two parameters']
-  | readCoreBody '=' 5 `((= f|x x)(= f)) v2 v2
+     ,,  ,,  ,, 'f'
+             ,, ['_g5']
+             ,, `` #@ $$(varKE 6 '_g6') _g5
+                   #@ x (#| $(idx 0) _g6)
+                   #@ y (#| $(idx 1) _g6)
+                    x
+  ^ genCoreBody _ 5 v2
+  | [[%f [[%r [[%v 0 %x] [%v 0 %y]]]] `x]]
 
 ; TODO Move this to `17-exp.sire`
 ; TODO Avoid the @ where necessary.
@@ -113,19 +128,15 @@
 !!= 5 | maxRow [5 3 4]
 !!= 0 | maxRow []
 
-= (readMutrecExp readExp rex err ok)
-: _ coreTag letBody coreBody
-    < ^ rexParseKids rex _ err
-      | (readRex, readAtomLit, readExp, parseCoreBody {*} readExp)
-| ok coreTag letBody coreBody
-
 = ("#mutrec" s p e a r err ok)
-: _coreTag _letBody _coreBody <- readMutrecExp readRex r err
+: coreTag letBody coreBody
+    < readMutRecExp readRex r err
+;
 @ coreNam (gensymNm "core" a)
-: _ coreTag letBody sigRex
-    < rexParseKids r [readRex readAtomLit readRex readRex] err
+;
 : aft sigExpPairs
-    < readCoreBody '*' a sigRex err
+    < genCoreBody coreBody a
+;
 @ arms | listZip listEnumFrom-0 listFromRow-sigExpPairs
 @ aft  | add aft 2
 @ maxArgs
@@ -227,12 +238,10 @@
 """ #mutual """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = ("#mutual" s p e aft r err ok)
-: _ coreSymbol sigRex
-        < rexParseKids r [readRex readRex readRex] err
-: aft sigExpPairs
-       < readCoreBody '=' aft sigRex err
-: coreName
-        < readSymbol coreSymbol err
+: _ coreSymbol sigRex < rexParseKids r [readRex readRex readRex] err
+: arms                < readCoreBody '=' readRex sigRex err
+: aft sigExpPairs     < genCoreBody arms aft
+: coreName            < readSymbol coreSymbol err
 @
     = coreIdn | varKE (rexIdnt coreSymbol) coreName
     = tagKey  | aft
@@ -327,8 +336,13 @@
 ;; Exports ;;
 ;;;;;;;;;;;;;
 
-^-^ "#mutual"
-^-^ "#mutrec"
+^-^
 ^-^ unrollSlip2Tis
 ^-^ readSignature
 ^-^ bloodline
+^-^
+^-^ readMutRecExp
+^-^
+^-^ "#mutual"
+^-^ "#mutrec"
+^-^
