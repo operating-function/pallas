@@ -186,7 +186,7 @@
 ;
 ; As a consequence of this hack, we get error messages in the expansion,
 ; instead of directly from this macro, which is a worse user experience.
-= (":" s p e a r err ok)
+= ({:} s p e a r err ok)
 @ sons    (rexSons r)
 @ heir    (rexHeir r)
 @ numSons (len sons)
@@ -226,50 +226,56 @@
 = (unwrapTarSeq rex err ok)
 ^ _ NIL rex
 ? (loop acc rex)
-| if (isZero rex)
-    | ok | listToRowReversed acc
-| if (neq {*} | rexRune rex)
-    | ok | listToRowReversed (CONS rex acc)
-| ifNot (len (rexSons rex))
+@ sons (rexSons rex)
+@ rune (rexRune rex)
+| if (isZero rex)   | ok | listToRowReversed acc
+| if (neq {*} rune) | loop (CONS rex acc) 0
+| if (null sons)
     | err rex "Empty * item (not okay)"
 @ item
-    | rexSetRune {#|}
-    | rexSetHeir 0
-    | rex
+    | if (eql 1 | len sons)
+        (idx 0 sons)
+    | else
+        | rexSetRune {|}
+        | rexSetHeir 0
+        | rex
 | loop (CONS item acc) (rexHeir rex)
 
 !!=     ^ unwrapTarSeq _ v2 v1
         ` * add
           * 2
-          * 3
+          * inc 2
     ,
-   ,, ` #| add
-   ,, ` #| 2
-   ,, ` #| 3
+   ,, ` add
+   ,, ` 2
+   ,, ` | inc 2
+
+= (readFancyApp readExp rex err ok)
+@ sons    | rexSons rex
+@ heir    | rexHeir rex
+@ kids    | rexKids rex
+@ isFancy | and (neq 0 heir) (eql {*} rexRune-heir)
+: params
+  < & ret
+    | if not-isFancy ret-kids
+    : extras < unwrapTarSeq heir err
+    | trk #[=extras]
+    | ret (weld sons extras)
+: params < traverseRow (flip readExp err) params
+| ok params
 
 = ({|} s p e a r err ok)
-@ sons (rexSons r)
-@ heir (rexHeir r)
-@ kids (rexKids r)
-| ifNot len-kids
-    | ok p a `0
-| if | and (not (isZero heir))
-           (eql {*} (rexRune heir))
-    | if (isZero len-sons)
-        | err r {* heir, but no sons}
-    : orphans < unwrapTarSeq heir err
-    @ r | rexSetHeir 0 r
-    @ r | rexSetSons (weld sons orphans) r
-    @ r | rexSetRune {#|} r
-    | ok p a r
-^ ok p a _
-| rexSetRune {#|} r
+: params <- readFancyApp readRex r err
+| ok p a
+| if null-params (cnsE 0) (appE params)
 
 !!= 3                 | (| add)(* 2)(* 1)
+!!= 5                 | (| add)(* inc 2)(* inc 1)
 !!= 3                 | (| add)(* 2)(| add 0 1)
 !!= [2 7]             | (| v2)(* 2)(| add 3)(* 4)
 !!= [1,2 1,2 1,2 1,2] | (| v4)(* v2 1 2)(* v2 1 2)(* v2 1 2)(| v2 1)(| 2)
-
+!!= 3                 | (|)(* add)(* 2)(* 1)
+!!= 3                 | ()(* add)(* 2)(* 1)
 
 
 """ Closed List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -610,8 +616,8 @@ four=(WORD 0 {4} 0)
     | 'multiEqlE needs 2+ expressions' exps
 | if (eql numExps 2)
     | (n, appE (cnsE eql, fst exps, snd exps))
-@ tmpVar | gensym n
-@ tmpRef | varE tmpVar
+@ tmpVar   | gensym n
+@ tmpRef   | varE tmpVar
 @ fstExp   | fst exps
 @ restExps | drop 1 exps
 ^ (inc n, _)
@@ -647,6 +653,7 @@ four=(WORD 0 {4} 0)
 ^-^ rexGetRune
 ^-^ readKeySignature readSignature
 ^-^ readItemized
+^-^ readFancyApp
 ^-^ readTallListLit readWideListLit
 ^-^ readNotEqlExp readEqlExp
 ^-^ readQuasiQuotedRex splicedE

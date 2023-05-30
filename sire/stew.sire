@@ -38,7 +38,7 @@
 """
 """ DONE: Parse all built-in expression runes:
 """
-""" - [x] | (TODO: Suport itemized arguments)
+""" - [x] |
 """ - [x] @
 """ - [x] @@
 """ - [x] &
@@ -413,10 +413,10 @@
 | EREX (idx 0 kids)
 
 = (readApp readExp rex err ok)
-@ kids (rexKids rex)
-| if (isZero | len kids) (ok EUNT)
-: exps < traverseRow (x k & readExp x err k) kids
-| ok (foldl EAPP (idx 0 exps) (drop 1 exps))
+: exps <- readFancyApp readExp rex err
+| ok
+| if (null exps) EUNT
+| foldl EAPP (idx 0 exps) (drop 1 exps)
 
 = (readKet readExp rex err ok)
 @ sons (rexSons rex)
@@ -628,6 +628,12 @@
   ` # datacase a
     * NONE     0
     * _        1
+
+!!= `(add (inc 2) (inc 3))
+  ^ readExp _ v2 showSire
+  ` | add
+    * inc 2
+    * inc 3
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
