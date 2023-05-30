@@ -33,6 +33,8 @@
 """
 """ - [ ] !!
 """ - [x] #mutual
+""" - [ ] #record
+""" - [ ] #datatype
 """
 """ DONE: Parse all built-in expression runes:
 """
@@ -58,8 +60,8 @@
 """ - [x] `
 """ - [ ] &&
 """ - [ ] ||
-""" - [ ] ==
-""" - [ ] /=
+""" - [x] ==
+""" - [x] /=
 """ - [x] , (rows)
 """ - [x] , (tabs)
 """ - [x] ,,
@@ -68,10 +70,8 @@
 """ - [x] ~~
 """ - [x] ::
 """ - [x] # (keywords)
-""" - [ ] #mutrec
-""" - [ ] #record
 """ - [x] #datacase
-""" - [ ] #datatype
+""" - [ ] #mutrec
 """ - [ ] #switch
 """
 """ TODO: Parse expressions that don't exist yet.
@@ -96,7 +96,7 @@
 """
 """ TODO: Name resolution
 """
-""" TODO: Macro that takes any stew and compiles it to sire.
+""" TODO: Macro that takes any stew expression and compiles it to sire.
 """
 """ TODO: Redefine all runes to invoke TheBigStewMacro.
 """
@@ -145,8 +145,10 @@
 * ETAB=tab xs:(Tab Nat Exp)
 * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
 * EREX=rex r:Rex
-* ECONS=cons x:Exp xs:Exp
+* ECON=con x:Exp xs:Exp
 * ENIL=nil
+* EEQL=eql xs:(Row Exp)
+* ENEQ=neq x:Exp y:Exp
 
 
 """ Printing """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -266,8 +268,10 @@
 * EUNT           | `()
 * (ECAS x f cs)  | showCase go x f cs
 * (EREX r)       | NEST 0 "`" [r] 0
-* (ECONS x xs)   | INFX 0 "::" (showSire x, showSire xs) 0
+* (ECON x xs)    | INFX 0 "::" (showSire x, showSire xs) 0
 * ENIL           | `(~[])
+* (EEQL xs)      | INFX 0 "==" (map showSire xs) 0
+* (ENEQ x y)     | INFX 0 "/=" (showSire x, showSire y) 0
 * _              | {showSire: Unknown syntax} exp
 
 !!= ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 p#{111} b#{asdf} (2 fanc))
@@ -363,18 +367,28 @@
 > (Rex > Parser Exp) > Rex > Parser Exp
 = (parseSig readExp rex err ok)
 : items <- readWideListLit readExp rex err
-| ok (listFoldr ECONS ENIL items)
+| ok (listFoldr ECON ENIL items)
 
 > (Rex > Parser Exp) > Rex > Parser Exp
 = (parseSigSig readExp rex err ok)
 : items <- readTallListLit readExp rex err
-| ok (listFoldr ECONS ENIL items)
+| ok (listFoldr ECON ENIL items)
 
 > (Rex > Parser Exp) > Rex > Parser Exp
 = (parseColCol readExp rex err ok)
 : items tail <- readImproperListLit readExp rex err
 | trk [=items =tail]
-| ok (listFoldr ECONS tail items)
+| ok (listFoldr ECON tail items)
+
+> (Rex > Parser Exp) > Rex > Parser Exp
+= (parseTisTis readExp rex err ok)
+: items <- readEqlExp readExp rex err
+| ok (EEQL items)
+
+> (Rex > Parser Exp) > Rex > Parser Exp
+= (parseFasTis readExp rex err ok)
+: x y <- readNotEqlExp readExp rex err
+| ok (ENEQ x y)
 
 > (Rex > Parser Exp) > Rex > Parser Rex
 = (parseHaxHax readExp rex err ok)
@@ -473,6 +487,8 @@
 * {~}   | parseSig readExp rex err ok
 * {~~}  | parseSigSig readExp rex err ok
 * {::}  | parseColCol readExp rex err ok
+* {==}  | parseTisTis readExp rex err ok
+* {/=}  | parseFasTis readExp rex err ok
 * {`}   | parseTik rex err ok
 * {``}  | err rex "Stew doesn't yet support the `` rune."
 * {%}   | parseCen rex err ok
@@ -577,6 +593,14 @@
   ` :: 3 4
     :: 5
     :: 6
+
+!!= ` (3 == 4 == 5)
+  ^ readExp _ v2 showSire
+  ` (3 == 4 == 5)
+
+; !!= ` (3 /= 4)
+;   ^ readExp _ v2 showSire
+;   ` (3 /= 4)
 
 !!= `((# datacase a)(* NONE 0)(* _ 1))
   ^ readExp _ v2 showSire
