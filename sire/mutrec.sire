@@ -45,18 +45,26 @@
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (readCoreBody rune aft rex err ok)
-@ parseAlien (x err ret & err x 'Not a core arm')
+= (parseCoreBody rune readExp rex err ok)
 : clauses
-    < unrollSlip2Rune rune rex parseAlien err
-: aft results
-    < forRowWithState aft clauses
-        & (aft sigBody ret)
-        @ [sigRex body] sigBody
-        : sym binds   <- readDestroyer sigRex err
-        : aft sig bod <- makeDestroyer aft binds body
-        | ret aft [sym sig bod]
-| ok aft results
+  < ^ unrollSlip2Rune rune rex _ err
+    ? (nonMatchingTail x err ret)
+    | err x 'Not a core arm'
+^ traverseRow _ clauses ok
+& (sigBody ret)
+@ [sigRex bodyRex] sigBody
+: sym binds <- readDestroyer sigRex err
+: body      <- readExp bodyRex err
+| ret [sym binds body]
+
+= (readCoreBody rune aft rex err ok)
+: parsedArms
+    < parseCoreBody rune readRex rex err
+| trk #[=parsedArms]
+^ traverseRowWithState aft _ parsedArms ok
+& (aft [sym binds body] ret)
+: aft sig bod <- makeDestroyer aft binds body
+| ret aft [sym sig bod]
 
 !!= 5,[[%f [%x] `x] [%g [%y] `0]]
   | readCoreBody '=' 5 `((f x = x)(g y = 0)) v2 v2
@@ -105,21 +113,26 @@
 !!= 5 | maxRow [5 3 4]
 !!= 0 | maxRow []
 
+= (readMutrecExp readExp rex err ok)
+: _ coreTag letBody coreBody
+    < ^ rexParseKids rex _ err
+      | (readRex, readAtomLit, readExp, parseCoreBody {*} readExp)
+| ok coreTag letBody coreBody
+
 = ("#mutrec" s p e a r err ok)
+: _coreTag _letBody _coreBody <- readMutrecExp readRex r err
 @ coreNam (gensymNm "core" a)
 : _ coreTag letBody sigRex
-        < rexParseKids r [readRex readAtomLit readRex readRex] err
+    < rexParseKids r [readRex readAtomLit readRex readRex] err
 : aft sigExpPairs
-        < readCoreBody '*' a sigRex err
-;
-@ arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
-@ aft     | add aft 2
+    < readCoreBody '*' a sigRex err
+@ arms | listZip listEnumFrom-0 listFromRow-sigExpPairs
+@ aft  | add aft 2
 @ maxArgs
     | maxRow
     | turn (listToRow arms)
     & [_ [_ args _]]
     | len args
-;
 @ (bindArms body arms)
     | **listCase arms body
     & (item rest)
@@ -133,29 +146,24 @@
         | weld (map varE args)
         | rep (cnsE 0) extras
     | bindArms body rest
-;
 : aft coreArgs
-        < forRowWithState aft (rep 0 maxArgs)
-                & (aft item pure)
-                | pure (inc aft) (varE | gensymNm "arg" aft)
-;
+    < forRowWithState aft (rep 0 maxArgs)
+    & (aft item pure)
+    | pure (inc aft) (varE | gensymNm "arg" aft)
 @ tagArg | varE (gensymNm "tag" | inc aft)
 @ aft    | inc aft
-@
-    = coreArgs
-        | rowCons tagArg coreArgs
-    = branches
-        | turn (listToRow arms)
-        & foo
-        @ [key [fun args body]] foo
-        @ f
-                & ([ix var] rest)
-                | letE var (idx ix coreArgs) rest
-        | foldr f body (drop 1 | tag (rowCons fun args))
-    = coreBody
-        | OPEN 0 "#|" (cnsE switch, tagArg, cnsE 0)
-        | bowE branches
-;
+@ coreArgs
+    | rowCons tagArg coreArgs
+@ branches
+    | turn (listToRow arms)
+    & foo
+    @ [key [fun args body]] foo
+    ^ foldr _ body (drop 1 | tag (rowCons fun args))
+    & ([ix var] rest)
+    | letE var (idx ix coreArgs) rest
+@ coreBody
+    | OPEN 0 "#|" (cnsE switch, tagArg, cnsE 0)
+    | bowE branches
 | ok p aft
 | letE coreNam
     | taggedLamE coreNam coreTag coreArgs
