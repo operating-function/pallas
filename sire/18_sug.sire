@@ -60,7 +60,7 @@
 /+  02_bit  [if ifNot and or not else]
 /+  03_nat  [add div inc dec isZero lthNat]
 /+  04_app  [idx len]
-/+  05_cmp  [eql neq]
+/+  05_cmp  [eql neq lth]
 /+  06_row  [weld map foldr null v1 v2 v3 v4]
 /+  07_rex  [rexConstr rexIdnt rexRune rexSons rexHeir rexKids]
 /+  07_rex  [rexIsNode rexGetNode]
@@ -222,12 +222,11 @@
 
 """ Closed List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+(consE x xs)=(rowE [x xs])
+nilE=(cnsE NIL)
+
 > List Rex > Rex
-= (listE xs)
-^ trk 'listE',xs,_ _
-^ listFoldr _ (cnsE NIL) xs
-& (itemRex restRex)
-| rowE [itemRex restRex]
+(listE xs)=(listFoldr consE nilE xs)
 
 sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 
@@ -257,13 +256,20 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 
 """ Cons Operator """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+> (Rex > Read a) > Rex > Read (List a, a)
+= (readImproperListLit readExp rex err ok)
+@ kids (rexKids rex)
+@ nKid (len kids)
+| if (lth nKid 1)
+    | err rex {expected at least one paramaters}
+: exps < traverseRow (flip readExp err) kids
+@ las (dec nKid)
+| ok (listFromRow | take las exps) (idx las exps)
+
 = ("::" s p e a r err ok)
+: items tail < readImproperListLit readRex r err
 | ok p a
-^ _ (rexKids r)
-? (go kids)
-| if (isZero len-kids) | natE 0
-| if (eql 1 len-kids)  | idx 0 kids
-| else                 | rowE (idx 0 kids, go (drop 1 kids))
+| listFoldr consE tail items
 
 !!= ~[3 4]   (3 :: 4 :: ~[])
 !!= ~[3 4 5] (3 :: 4 :: ~[5])
@@ -555,6 +561,7 @@ UNIT=0
 ^-^ readItemized
 ^-^ readTallListLit
 ^-^ readWideListLit
+^-^ readImproperListLit
 ^-^
 ^-^ ":"
 ^-^ "~" "~~" "::"
