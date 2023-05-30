@@ -62,6 +62,8 @@ data CogFailure
     = COG_DOUBLE_CRASH
     | INVALID_COGID_IN_LOGBATCH
     | INVALID_OK_RECEIPT_IN_LOGBATCH
+    | INVALID_SPUN_RECEIPT_IN_LOGBATCH CogId
+    | INVALID_RECV_RECEIPT_IN_LOGBATCH
   deriving (Eq, Ord, Show, Generic, Exception)
 
 -- | Log batches count up from 0.
