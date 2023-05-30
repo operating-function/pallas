@@ -63,14 +63,15 @@
 /+  05_cmp  [eql neq lth]
 /+  06_row  [weld map foldr null v1 v2 v3 v4 fst snd]
 /+  07_rex  [rexConstr rexIdnt rexRune rexSons rexHeir rexKids]
-/+  07_rex  [rexIsNode rexGetNode]
-/+  07_rex  ["`" rexGetKidsOfNodeWithRune rexVal]
+/+  07_rex  [rexIsNode rexIsEmbd rexIsLeaf]
+/+  07_rex  [rexGetNode rexEmbd rexVal {`}]
 /+  07_rex  [R PREF NEST EMBD OPEN WORD CORD]
 /+  07_rex  [rexGetNodeWithRune]
 /+  07_rex  [rexStyle rexText rexEql]
 /+  07_rex  [rexSetRune rexSetHeir rexSetSons]
 /+  08_dat  [{,} {,,} {>} take drop switch]
 /+  08_dat  [CONS NIL listToRowReversed listCase listFromRow]
+/+  08_dat  [LEFT RIGHT eitherCase]
 /+  08_dat  [traverseRow listMap listFoldr]
 /+  08_dat  [readRex]
 /+  09_sci  []
@@ -321,43 +322,102 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 
 """ Quasi Quotation """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+; {parseQuasiTree} parses a quasi-quoted rex input and returns a Rex
+; node with the quasi-quoted parts stored as embedded values.
+;
+; There are two types of splices, $$(expression splices) and $valueSlices.
+;
+; The details of how that is stored is left up to `readVal` and `readExp`,
+; but the point is this parses a rex tree (without embeded values and with
+; splices) into a rex tree (with embeded values).
+;
+; It's slightly confusing, but works out cleanly.  It's simpler than
+; building our own representation for the same structure.
+
+= (parseQuasiTree readVal readExp rex err ok)
+@ rune | rexRune rex
+@ heir | rexHeir rex
+@ kids | rexKids rex
+@ nKid | len kids
+| if (rexIsEmbd rex)
+    | err rex {quasi-quotation contains unexpected PLAN embed}
+| if (eql {$} rune)
+    | if (neq 1 nKid)
+        | err rex {Too many/few sons for $ in `` macro}
+    | readVal (fst kids) err ok
+| if (eql {$$} rune)
+    | if (neq 1 nKid)
+        | err rex 'Too many/few sons for $$ in `` macro'
+    | readExp (fst kids) err ok
+: heir
+    < & ret
+      | if (isZero heir) (ret 0)
+      | parseQuasiTree readVal readExp heir err ret
+| if (rexIsLeaf rex)
+    | ok (R | rexConstr rex 0 (rexText rex) heir)
+| else
+    : sons
+        < ^ traverseRow _ (rexSons rex)
+          & (r k)
+          | parseQuasiTree readVal readExp r err k
+    | ok (R | rexConstr rex 0 rune sons heir)
+
+quasiExpected={Expected something like: ``rex}
+
+> (Rex > Read Rex) ; val
+> (Rex > Read Rex) ; exp
+> Rex
+> Read Rex
+= (parseQuasiQuotedRex readVal readExp rex err ok)
+@ rune | rexRune rex
+@ kids | rexKids rex
+@ tree | fst kids
+| if (or (neq "``" rune) (neq 1 | len kids))
+    | err rex quasiExpected
+| parseQuasiTree readVal readExp tree err ok
+
+four=(WORD 0 {4} 0)
+
+; {splicedE} takes a rex whose embded values represent splices.
+; Each splice is either a expression that should be interpreted as
+; constant value or an expressions that should be evaluated to a rex tree.
+;
+; We take that rex input, and we produce rex *output* that is a sire
+; expression that *evalutes to* the final rex tree.
+;
+; This is all very confusing, but it can be worked through, and the
+; resulting interface is intuitive.
+
+> RexEmbed (Either Rex Rex) > Rex
+= (splicedE rex)
+@ sons | rexSons rex
+@ heir | rexHeir rex
+@ rune | rexRune rex
+@ text | rexText rex
+| if (rexIsEmbd rex)
+    | eitherCase (rexEmbd rex)
+        (l & appE (cnsE EMBD, l))
+        (r & r)
+| if (rexIsLeaf rex)
+    ^ appE (cnsE R, appE _)
+   ,, cnsE (rexConstr rex 0 text)
+   ,, if (isZero heir) (cnsE 0) (splicedE heir)
+| else
+    ^ appE (cnsE R, appE _)
+   ,, cnsE (rexConstr rex 0 rune)
+   ,, rowE (map splicedE sons)
+   ,, if (isZero heir) (cnsE 0) (splicedE heir)
+
 ; $ splices in a constant value
 ; $$ splices in an expression
+;
+; TODO: Reverse these runes?
 
-; TODO Don't use `die`
-= ("``" s p e a r err ok)
-@ topKids (rexKids | rexVal r)
-| if (neq 1 len-topKids)
-    | err r "Expected one kid"
-: result
-   <-   ^ _ (idx 0 topKids)
-        ? (quote qRex qRet)
-        : qRune qSons qHeir
-               <- rexGetNode qRex (qRet | cnsE qRex)
-        @ qKids (rexKids qRex)
-        | if (eql qRune {$})
-                | if (neq 1 len-qKids)
-                        | err qRex 'Too many/few sons for $ in `` macro'
-                | qRet (appE (cnsE EMBD, idx 0 qKids))
-        | if (eql qRune {$$})
-                | if (neq 1 len-qKids)
-                        | err qRex 'Too many/few sons for $$ in `` macro'
-                | qRet (idx 0 qKids)
-        : quotedSons <- traverseRow quote qSons
-        : quotedHeir
-           <-   & ret
-                | if (isZero qHeir) (ret (natE 0))
-                | quote qHeir ret
-        | qRet
-        | appE
-       ,, cnsE R
-       ,,   | appE
-           ,, cnsE (rexConstr qRex)
-           ,, cnsE (rexIdnt qRex)
-           ,, txtE (rexRune qRex)
-           ,, rowE quotedSons
-           ,, quotedHeir
-| ok p a result
+= ({``} s p e a r err ok)
+@ readVal (rex err ok & ok (EMBD | LEFT rex))
+@ readExp (rex err ok & ok (EMBD | RIGHT rex))
+: quoted < parseQuasiQuotedRex readVal readExp r err
+| ok p a (splicedE quoted)
 
 four=(WORD 0 {4} 0)
 
@@ -366,13 +426,6 @@ four=(WORD 0 {4} 0)
 
 !!= ``(3 $$(cnsE four) 5)
      ``(3 $four 5)
-
-;; TODO It's stupidly hard to test this quasiquotation stuff.  Best
-;; evidence I have that this works is that the code downstream from
-;; it works, but that's a rough scene.
-;;
-;; TODO Maybe something like `traverseRex` would clean this up?
-;; That's feels like it may be the essence of what's going on here.
 
 = ({&&} s p e a r err ok)
 @ kids (rexKids r)
@@ -593,6 +646,8 @@ UNIT=0
 ^-^ readImproperListLit
 ^-^ readNotEqlExp
 ^-^ readEqlExp
+^-^ parseQuasiQuotedRex
+^-^ splicedE
 ^-^
 ^-^ {:}
 ^-^ {~} {~~} {::}
