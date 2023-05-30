@@ -231,6 +231,8 @@ instance A.FromJSON MachineStatus where
 
 type MachineCap = Capture "machine" MachineName
 
+type ReplayFromCap = Capture "replay-from" ReplayFrom
+
 type PackCap = ReqBody '[OctetStream] JellyPack
 
 --type PokePath = CaptureAll "path" Text
@@ -239,16 +241,20 @@ type GET  = Get '[JSON]
 type POST = Post '[JSON]
 
 data CtlApi a = CTL_API
-    { isUp   :: a :- "up"                         :> GET ()
-    , halt   :: a :- "halt"                       :> POST ()
-    , pins   :: a :- "pins"                       :> GET (Map Text [Text])
-    , machines :: a :- "machines"               :> GET (Map MachineName MachineStatus)
-    , doDu   :: a :- "du"   :> MachineCap             :> GET [Text]
-    , start  :: a :- "machines" :> MachineCap :> "start"   :> POST ()
-    , replay :: a :- "machines" :> MachineCap :> "replay" :> POST ()
-    , boot   :: a :- "boot" :> MachineCap :> PackCap  :> POST ()
-    -- , poke   :: a :- "poke" :> MachineCap
-    --                         :> PokePath :> PackCap :> POST ()
+    { isUp     :: a :- "up"                                 :> GET ()
+    , halt     :: a :- "halt"                               :> POST ()
+    , pins     :: a :- "pins"
+                    :> GET (Map Text [Text])
+    , machines :: a :- "machines"
+                    :> GET (Map MachineName MachineStatus)
+    , doDu     :: a :- "du"       :> MachineCap             :> GET [Text]
+    , start    :: a :- "machines" :> MachineCap :> "start"  :> ReplayFromCap
+                    :> POST ()
+    , replay   :: a :- "machines" :> MachineCap :> "replay" :> ReplayFromCap
+                    :> POST ()
+    , boot     :: a :- "boot    " :> MachineCap :> PackCap  :> POST ()
+    -- , poke  :: a :- "poke"     :> MachineCap :> PokePath :> PackCap
+    --              :> POST ()
     }
   deriving (Generic)
 
@@ -284,13 +290,13 @@ ctlServer st =
         let tab = mapFromList (cgz <&> \c -> (c, c))
         liftIO $ for tab (getMachineStatus >=> maybe (error "impossible") pure)
 
-    start :: MachineName -> Handler ()
-    start machine = do
-        void $ liftIO $ startMachine st LatestSnapshot machine
+    start :: MachineName -> ReplayFrom -> Handler ()
+    start machine rf = do
+        void $ liftIO $ startMachine st rf machine
 
-    replay :: MachineName -> Handler ()
-    replay machine = do
-        void $ liftIO $ startMachine st EarliestSnapshot machine
+    replay :: MachineName -> ReplayFrom -> Handler ()
+    replay machine rf = do
+        void $ liftIO $ startMachine st rf machine
 
     getMachineStatus :: MachineName -> IO (Maybe MachineStatus)
     getMachineStatus machine = do
@@ -312,8 +318,8 @@ reqIsUp    :: ClientM ()
 reqBoot    :: MachineName -> JellyPack -> ClientM ()
 _reqHalt   :: ClientM ()
 reqMachines    :: ClientM (Map MachineName MachineStatus)
-reqStart    :: MachineName -> ClientM ()
-_reqReplay :: MachineName -> ClientM ()
+reqStart    :: MachineName -> ReplayFrom -> ClientM ()
+_reqReplay :: MachineName -> ReplayFrom -> ClientM ()
 reqDu      :: MachineName -> ClientM [Text]
 -- reqPoke    :: MachineName -> [Text] -> JellyPack -> ClientM ()
 
@@ -691,18 +697,16 @@ killDaemon d = do
            -- TODO Handle situation where process does not actually exist.
            signalProcess sigTERM (alien :: CPid)
 
--- TODO Start request should include ReplayFrom info.
 startOne :: Debug => FilePath -> ReplayFrom -> MachineName -> IO ()
-startOne d _r machine =
-    withDaemon d (reqStart machine)
+startOne d r machine =
+    withDaemon d (reqStart machine r)
 
--- TODO Start request should include ReplayFrom info.
 startAll :: Debug => FilePath -> ReplayFrom -> IO ()
-startAll d _r = do
+startAll d r = do
     withDaemon d do
         status <-  reqMachines
         for_ (keys status) \machine -> do
-            reqStart machine
+            reqStart machine r
 
 shellFg :: String -> [String] -> IO ExitCode
 shellFg c a = do
