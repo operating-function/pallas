@@ -38,7 +38,7 @@
 """
 """ DONE: Parse all built-in expression runes:
 """
-""" - [x] |
+""" - [x] | (TODO: Suport itemized arguments)
 """ - [x] @
 """ - [x] @@
 """ - [x] &
@@ -58,8 +58,8 @@
 """ - [x] ##
 """ - [x] `` (recognize but reject, too complicated)
 """ - [x] `
-""" - [ ] &&
-""" - [ ] ||
+""" - [x] &&
+""" - [x] ||
 """ - [x] ==
 """ - [x] /=
 """ - [x] , (rows)
@@ -134,6 +134,8 @@
 * EPAD=pad n:Pad
 * EBAR=bar n:Bar
 * ECAB=cab n:(Cab Any)
+* EOR=or   x:Exp y:Exp
+* EAND=and x:Exp y:Exp
 * EAPP=app x:Exp y:Exp
 * EKET=ket xs:(Row Exp) v:Exp
 * ELET=let n:Pat x:Exp b:Exp
@@ -257,6 +259,8 @@
 * (EPAD p)       | showPadLit p
 * (EBAR b)       | showBarLit b
 * (ECAB ks)      | showCab ks
+* (EOR x y)      | INFX 0 {||} (showSire x, showSire y) 0
+* (EAND x y)     | INFX 0 {&&} (showSire x, showSire y) 0
 * (EAPP x y)     | niceApp go exp
 * (EKET xs v)    | NEST 0 {^} (map go xs) (go v)
 * (ELET n x b)   | INFX 0 {@}  (showPat n, go x) (go b)
@@ -342,6 +346,14 @@
 : cab <- readTallCab rex err
 | ok (ECAB cab)
 
+= (parseOrExp readExp rex err ok)
+: tree <- readInfixRight readExp "||" rex err
+| ok (binTreeFold EOR tree)
+
+= (parseAndExp readExp rex err ok)
+: tree <- readInfixRight readExp "&&" rex err
+| ok (binTreeFold EAND tree)
+
 = (readHaxOutline rex err ok)
 @ kids@[keywordRex] | rexKids rex
 @ params            | drop 1 kids
@@ -376,9 +388,8 @@
 
 > (Rex > Parser Exp) > Rex > Parser Exp
 = (parseColCol readExp rex err ok)
-: items tail <- readImproperListLit readExp rex err
-| trk [=items =tail]
-| ok (listFoldr ECON tail items)
+: tree <- readInfixRight readExp "::" rex err
+| ok (binTreeFold ECON tree)
 
 > (Rex > Parser Exp) > Rex > Parser Exp
 = (parseTisTis readExp rex err ok)
@@ -493,6 +504,8 @@
 * {``}  | err rex "Stew doesn't yet support the `` rune."
 * {%}   | parseCen rex err ok
 * {%%}  | parseCenCen rex err ok
+* {&&}  | parseAndExp readExp rex err ok
+* {||}  | parseOrExp readExp rex err ok
 * _     | err rex (strWeld 'Unknown Rune')
 
 > (Rex > Parser Cmd) > (Rex > Parser Exp) > Rex > Parser Cmd
@@ -598,9 +611,17 @@
   ^ readExp _ v2 showSire
   ` (3 == 4 == 5)
 
-; !!= ` (3 /= 4)
-;   ^ readExp _ v2 showSire
-;   ` (3 /= 4)
+!!= ` (3 /= 4)
+  ^ readExp _ v2 showSire
+  ` (3 /= 4)
+
+!!= ` (1 && (2 && 3))
+  ^ readExp _ v2 showSire
+  ` (1 && 2 && 3)
+
+!!= ` (1 || (2 || 3))
+  ^ readExp _ v2 showSire
+  ` (1 || 2 || 3)
 
 !!= `((# datacase a)(* NONE 0)(* _ 1))
   ^ readExp _ v2 showSire

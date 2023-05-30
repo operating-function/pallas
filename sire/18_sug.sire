@@ -221,6 +221,57 @@
         (.{:} 0 0 0 0 `((: x <* f)(, 3)) v2 v3)
 
 
+""" Fancy Function Application """""""""""""""""""""""""""""""""""""""""""""""""
+
+= (unwrapTarSeq rex err ok)
+^ _ NIL rex
+? (loop acc rex)
+| if (isZero rex)
+    | ok | listToRowReversed acc
+| if (neq {*} | rexRune rex)
+    | ok | listToRowReversed (CONS rex acc)
+| ifNot (len (rexSons rex))
+    | err rex "Empty * item (not okay)"
+@ item
+    | rexSetRune {#|}
+    | rexSetHeir 0
+    | rex
+| loop (CONS item acc) (rexHeir rex)
+
+!!=     ^ unwrapTarSeq _ v2 v1
+        ` * add
+          * 2
+          * 3
+    ,
+   ,, ` #| add
+   ,, ` #| 2
+   ,, ` #| 3
+
+= ({|} s p e a r err ok)
+@ sons (rexSons r)
+@ heir (rexHeir r)
+@ kids (rexKids r)
+| ifNot len-kids
+    | ok p a `0
+| if | and (not (isZero heir))
+           (eql {*} (rexRune heir))
+    | if (isZero len-sons)
+        | err r {* heir, but no sons}
+    : orphans < unwrapTarSeq heir err
+    @ r | rexSetHeir 0 r
+    @ r | rexSetSons (weld sons orphans) r
+    @ r | rexSetRune {#|} r
+    | ok p a r
+^ ok p a _
+| rexSetRune {#|} r
+
+!!= 3                 | (| add)(* 2)(* 1)
+!!= 3                 | (| add)(* 2)(| add 0 1)
+!!= [2 7]             | (| v2)(* 2)(| add 3)(* 4)
+!!= [1,2 1,2 1,2 1,2] | (| v4)(* v2 1 2)(* v2 1 2)(* v2 1 2)(| v2 1)(| 2)
+
+
+
 """ Closed List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 (consE x xs)=(rowE [x xs])
@@ -255,32 +306,6 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 !!= ~[]      | 0
 
 
-""" Cons Operator """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-> (Rex > Read a) > Rex > Read (List a, a)
-= (readImproperListLit readExp rex err ok)
-@ kids (rexKids rex)
-@ nKid (len kids)
-| if (lth nKid 1)
-    | err rex {expected at least one paramaters}
-: exps < traverseRow (flip readExp err) kids
-@ las (dec nKid)
-| ok (listFromRow | take las exps) (idx las exps)
-
-= ({::} s p e a r err ok)
-: items tail < readImproperListLit readRex r err
-| ok p a
-| listFoldr consE tail items
-
-!!= ~[3 4]   (3 :: 4 :: ~[])
-!!= ~[3 4 5] (3 :: 4 :: ~[5])
-
-!!= ~[3 4]
-        :: 3
-        :: 4
-        :: ~[]
-
-
 """ Open List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (readItemized rune readItem readUnmatchingHeir rex err ok)
@@ -301,7 +326,6 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 : item < readItem itemRex err
 | trk #[=item]
 : tail < go (rexHeir rex)
-| trk #[=tail]
 | ret (CONS item tail)
 
 = (readTallListLit readItem rex err ok)
@@ -322,19 +346,19 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 
 """ Quasi Quotation """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; {parseQuasiTree} parses a quasi-quoted rex input and returns a Rex
+; {readQuasiTree} reads a quasi-quoted rex input and returns a Rex
 ; node with the quasi-quoted parts stored as embedded values.
 ;
 ; There are two types of splices, $$(expression splices) and $valueSlices.
 ;
 ; The details of how that is stored is left up to `readVal` and `readExp`,
-; but the point is this parses a rex tree (without embeded values and with
+; but the point is this reads a rex tree (without embeded values and with
 ; splices) into a rex tree (with embeded values).
 ;
 ; It's slightly confusing, but works out cleanly.  It's simpler than
 ; building our own representation for the same structure.
 
-= (parseQuasiTree readVal readExp rex err ok)
+= (readQuasiTree readVal readExp rex err ok)
 @ rune | rexRune rex
 @ heir | rexHeir rex
 @ kids | rexKids rex
@@ -352,14 +376,14 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 : heir
     < & ret
       | if (isZero heir) (ret 0)
-      | parseQuasiTree readVal readExp heir err ret
+      | readQuasiTree readVal readExp heir err ret
 | if (rexIsLeaf rex)
     | ok (R | rexConstr rex 0 (rexText rex) heir)
 | else
     : sons
         < ^ traverseRow _ (rexSons rex)
           & (r k)
-          | parseQuasiTree readVal readExp r err k
+          | readQuasiTree readVal readExp r err k
     | ok (R | rexConstr rex 0 rune sons heir)
 
 quasiExpected={Expected something like: ``rex}
@@ -368,13 +392,13 @@ quasiExpected={Expected something like: ``rex}
 > (Rex > Read Rex) ; exp
 > Rex
 > Read Rex
-= (parseQuasiQuotedRex readVal readExp rex err ok)
+= (readQuasiQuotedRex readVal readExp rex err ok)
 @ rune | rexRune rex
 @ kids | rexKids rex
 @ tree | fst kids
 | if (or (neq "``" rune) (neq 1 | len kids))
     | err rex quasiExpected
-| parseQuasiTree readVal readExp tree err ok
+| readQuasiTree readVal readExp tree err ok
 
 four=(WORD 0 {4} 0)
 
@@ -416,7 +440,7 @@ four=(WORD 0 {4} 0)
 = ({``} s p e a r err ok)
 @ readVal (rex err ok & ok (EMBD | LEFT rex))
 @ readExp (rex err ok & ok (EMBD | RIGHT rex))
-: quoted < parseQuasiQuotedRex readVal readExp r err
+: quoted < readQuasiQuotedRex readVal readExp r err
 | ok p a (splicedE quoted)
 
 four=(WORD 0 {4} 0)
@@ -427,30 +451,89 @@ four=(WORD 0 {4} 0)
 !!= ``(3 $$(cnsE four) 5)
      ``(3 $four 5)
 
+(**NODE x y)=[x y]
+(**LEAF x)=[x]
+
+> (a > a > a) > BinTree a > a
+= (binTreeFold f node)
+| if (eql 1 len-node) (idx 0 node)
+| f
+* binTreeFold f (fst node)
+* binTreeFold f (snd node)
+
+= (**readInfixValidate rune rex err ok)
+@ kids (rexKids rex)
+@ nKid (len kids)
+| if (neq rune rexRune-rex)
+    | err rex | strWeld {expected rune: } rune
+| if (isZero nKid)
+    | err rex {binary operator requries 2+ args}
+| **ok kids nKid
+
+= (readInfixLeft readExp rune rex err ok)
+: kids nKid <- readInfixValidate rune rex err
+^ _ nKid kids
+? (go nKid kids)
+: lastItem < readExp (idx (dec nKid) kids) err
+| if (eql nKid 1)
+    | ok (LEAF lastItem)
+| else
+    @ nKid (dec nKid)
+    : head <- go nKid (take nKid kids)
+    | ok (NODE head (LEAF lastItem))
+
+= (readInfixRight readExp rune rex err ok)
+: kids nKid <- readInfixValidate rune rex err
+^ _ nKid kids ok
+? (go nKid kids ok)
+: fstItem < readExp (idx 0 kids) err
+| if (eql nKid 1)
+    | ok (LEAF fstItem)
+| else
+    @ nKid (dec nKid)
+    : rest <- go nKid (drop 1 kids)
+    | ok (NODE (LEAF fstItem) rest)
+
+= (andE x y) | ``($and $$x $$y)
+= (orE x y)  | ``($or $$x $$y)
+
 = ({&&} s p e a r err ok)
-@ kids (rexKids r)
-| if (neq 2 len-kids)
-    | err r "must have exactly two sons"
-| ok p a
-| ``($and $$(idx 0 kids) $$(idx 1 kids))
+: tree < readInfixRight readRex "&&" r err
+| ok p a (binTreeFold andE tree)
 
 = ({||} s p e a r err ok)
-@ kids (rexKids r)
-| if (neq 2 len-kids)
-    | err r "must have exactly two sons"
-| ok p a
-| ``($or $$(idx 0 kids) $$(idx 1 kids))
+: tree < readInfixRight readRex "||" r err
+| ok p a (binTreeFold orE tree)
+
+= ({::} s p e a r err ok)
+: tree < readInfixRight readRex "::" r err
+| ok p a (binTreeFold consE tree)
+
+!!= ~[3 4]   (3 :: 4 :: ~[])
+!!= ~[3 4 5] (3 :: 4 :: ~[5])
+!!= ~[3 4]   (:: 3)(:: 4)(:: ~[])
 
 !!= 1 | (@ one 1)(@ zero 0)(one && not zero)
 !!= 1 | not (1 && 0)
 !!= 1 | not (0 && 1)
 !!= 1 | not (0 && 0)
 !!= 1 | ((0 && 1) || (1 && 1))
+!!= 3 | ||3
+!!= 3 | &&3
+
+!!= 1 | (1 && 1 && 1)
+!!= 0 | (0 && die 3 && die 4)
+!!= 0 | (1 && 0 && die 4)
+
+!!= 1 | (1 || die 0 || 0)
+!!= 1 | (0 || 1 || die 0)
+!!= 1 | (0 || 0 || 1)
+!!= 0 | (0 || 0 || 0)
 
 
 """ Short-Hand Assertion """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (parseAssert more rex err ok)
+= (readAssert more rex err ok)
 @ kids (rexKids rex)
 | if (null kids) (ok more)
 | ok (appE kids :: more)
@@ -475,10 +558,10 @@ four=(WORD 0 {4} 0)
 @ heir     | rexHeir r
 @ heirRune | rexRune heir
 | if (isZero heir || neq {!!} heirRune)
-    : exps <- parseAssert NIL r err
+    : exps <- readAssert NIL r err
     | ret exps
 : more <- loop heir
-: exps <- parseAssert more (rexSetHeir 0 r) err
+: exps <- readAssert more (rexSetHeir 0 r) err
 | ret exps
 
 !! add 0 1
@@ -558,97 +641,19 @@ four=(WORD 0 {4} 0)
 !!= 0 (3 == 3 == 4)
 
 
-""" UNIT Hack (This should live elsewhere) """""""""""""""""""""""""""""""""""""
-
-= (unwrapTarSeq rex err ok)
-^ _ NIL rex
-? (loop acc rex)
-| if (isZero rex)
-    | ok | listToRowReversed acc
-| if (neq {*} | rexRune rex)
-    | ok | listToRowReversed (rex::acc)
-| ifNot (len (rexSons rex))
-    | err rex "Empty * item (not okay)"
-@ item
-    | rexSetRune {#|}
-    | rexSetHeir 0
-    | rex
-| loop item::acc (rexHeir rex)
-
-!!=     ^ unwrapTarSeq _ v2 v1
-       `` * add
-          * 2
-          * 3
-    ,
-   ,, ` #| add
-   ,, ` #| 2
-   ,, ` #| 3
-
-UNIT=0
-
-= ({|} s p e a r err ok)
-@ sons (rexSons r)
-@ heir (rexHeir r)
-@ kids (rexKids r)
-| ifNot len-kids
-    | ok p a `UNIT
-| if | and (not (isZero heir))
-           (eql {*} (rexRune heir))
-    | if (isZero len-sons)
-        | err r {* heir, but no sons}
-    : orphans < unwrapTarSeq heir err
-    @ r | rexSetHeir 0 r
-    @ r | rexSetSons (weld sons orphans) r
-    @ r | rexSetRune {#|} r
-    | ok p a r
-^ ok p a _
-| rexSetRune {#|} r
-
-!!= UNIT
-    | ()
-
-!!= 3
-    | add
-    * 2
-    * 1
-
-!!= 3
-    | add
-    * 2
-    | add 0 1
-
-!!= [2 7]
-    | v2
-    * 2
-    | add 3
-    * 4
-
-!!= [1,2 1,2 1,2 1,2]
-    | v4
-    * v2 1 2
-    * v2 1 2
-    * v2 1 2
-    | v2 1
-    | 2
-
-
-
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-^-^
-^-^ UNIT {|}
 ^-^
 ^-^ rexGetRune
 ^-^ readKeySignature readSignature
 ^-^ readItemized
-^-^ readTallListLit
-^-^ readWideListLit
-^-^ readImproperListLit
-^-^ readNotEqlExp
-^-^ readEqlExp
-^-^ parseQuasiQuotedRex
-^-^ splicedE
+^-^ readTallListLit readWideListLit
+^-^ readNotEqlExp readEqlExp
+^-^ readQuasiQuotedRex splicedE
+^-^ NODE LEAF binTreeFold
+^-^ readInfixRight readInfixLeft
 ^-^
+^-^ {|}
 ^-^ {:}
 ^-^ {~} {~~} {::}
 ^-^ {``}
