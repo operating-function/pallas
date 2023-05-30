@@ -76,8 +76,8 @@
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld strIsCapitalized]
-/+  12_cab  ["%"]
-/+  13_tab  []
+/+  12_cab  [{%}]
+/+  13_tab  [{#}]
 /+  14_exp  [readSymbol rexParseKids]
 /+  14_exp  [rowE natE letE cnsE txtE appE varE gensym]
 /+  14_exp  [bloodline]
@@ -276,23 +276,34 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 
 """ Open List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (unrollSlip2 rune alien rex err ok)
-^ _ NIL rex
-? (loop acc rex)
-: kids heir
-       <- rexGetNodeWithRune rune rex
-                : right <- alien rex err
-                | ok | listToRowReversed | CONS right acc
-@ acc (CONS kids acc)
-| if (isZero heir)
-        | ok | listToRowReversed acc
-| else
-        | loop acc heir
+= (readItemized rune readItem readUnmatchingHeir rex err ok)
+^ _ rex ok
+? (go rex ret)
+| trk 'go',rex
+| if (isZero rex)
+    | ret NIL
+| if (neq rune | rexRune rex)
+    : final < readUnmatchingHeir rex err
+    | ret (CONS final NIL)
+@ sons (rexSons rex)
+@ itemRex
+    | if (eql 1 | len sons) (idx 0 sons)
+    | OPEN 0 "|" sons 0
+| if (null sons)
+    | err (rexSetHeir 0 rex) "Expected non-empty line"
+: item < readItem itemRex err
+| trk #[=item]
+: tail < go (rexHeir rex)
+| trk #[=tail]
+| ret (CONS item tail)
+
+= (readTallListLit readItem rex err ok)
+| readItemized "~~" readItem readItem rex err ok
 
 = ("~~" s p e a r err ok)
-: row <- unrollSlip2 "~~" (x e o & o [x]) r err
-| ok p a
-| foldr (xs rex & rowE [appE-xs rex]) natE-0 row
+: items <- readTallListLit readRex r err
+| trk 'items',items,'->',(listE items)
+| ok p a (listE items)
 
 !!= ~[3 4 5] | [3 [4 [5 0]]]
 !!= ~[3]     | ~~ 3
@@ -539,7 +550,10 @@ UNIT=0
 ^-^
 ^-^ UNIT "|"
 ^-^
-^-^ readKeySignature readSignature unrollSlip2 rexGetRune
+^-^ rexGetRune
+^-^ readKeySignature readSignature
+^-^ readItemized
+^-^ readTallListLit
 ^-^ readWideListLit
 ^-^
 ^-^ ":"

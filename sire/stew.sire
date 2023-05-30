@@ -64,8 +64,8 @@
 """ - [x] , (tabs)
 """ - [x] ,,
 """ - [ ] :
-""" - [ ] ~
-""" - [ ] ~~
+""" - [x] ~
+""" - [x] ~~
 """ - [ ] ::
 """ - [x] # (keywords)
 """ - [ ] #mutrec
@@ -362,8 +362,12 @@
 
 > (Rex > Parser Exp) > Rex > Parser Exp
 = (parseSig readExp rex err ok)
-| trk 'parseSig',rex
 : items <- readWideListLit readExp rex err
+| ok (listFoldr ECONS ENIL items)
+
+> (Rex > Parser Exp) > Rex > Parser Exp
+= (parseSigSig readExp rex err ok)
+: items <- readTallListLit readExp rex err
 | ok (listFoldr ECONS ENIL items)
 
 > (Rex > Parser Exp) > Rex > Parser Rex
@@ -461,6 +465,7 @@
 * {#}   | parseHaxExp readExp rex err ok
 * {##}  | parseHaxHax readExp rex err ok
 * {~}   | parseSig readExp rex err ok
+* {~~}  | parseSigSig readExp rex err ok
 * {`}   | parseTik rex err ok
 * {``}  | err rex "Stew doesn't yet support the `` rune."
 * {%}   | parseCen rex err ok
@@ -549,6 +554,12 @@
 !!= ` (3 :: (4 :: (5 :: ~[])))
   ^ readExp _ v2 showSire
   ` ~[3 4 5]
+
+!!= ` (3 :: (4 :: (5 :: ~[])))
+  ^ readExp _ v2 showSire
+  ` ~~ 3
+    ~~ 4
+     5
 
 !!= `((# datacase a)(* NONE 0)(* _ 1))
   ^ readExp _ v2 showSire
