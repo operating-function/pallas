@@ -145,6 +145,8 @@
 * ETAB=tab xs:(Tab Nat Exp)
 * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
 * EREX=rex r:Rex
+* ECONS=cons x:Exp xs:Exp
+* ENIL=nil
 
 
 """ Printing """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -263,6 +265,9 @@
 * (ETAB xs)      | showTab showSire xs
 * EUNT           | `()
 * (ECAS x f cs)  | showCase go x f cs
+* (EREX r)       | NEST 0 "`" [r] 0
+* (ECONS x xs)   | INFX 0 "::" (showSire x, showSire xs) 0
+* ENIL           | `(~[])
 * _              | {showSire: Unknown syntax} exp
 
 !!= ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 p#{111} b#{asdf} (2 fanc))
@@ -354,6 +359,12 @@
     | ok ^ ECAS val fb (map _ cases)
          & [_ constr pats body]
          | CON_CASE constr pats body
+
+> (Rex > Parser Exp) > Rex > Parser Exp
+= (parseSig readExp rex err ok)
+| trk 'parseSig',rex
+: items <- readWideListLit readExp rex err
+| ok (listFoldr ECONS ENIL items)
 
 > (Rex > Parser Exp) > Rex > Parser Rex
 = (parseHaxHax readExp rex err ok)
@@ -449,6 +460,7 @@
 * {@@}  | parseRec readExp rex err ok
 * {#}   | parseHaxExp readExp rex err ok
 * {##}  | parseHaxHax readExp rex err ok
+* {~}   | parseSig readExp rex err ok
 * {`}   | parseTik rex err ok
 * {``}  | err rex "Stew doesn't yet support the `` rune."
 * {%}   | parseCen rex err ok
@@ -533,6 +545,10 @@
   ^ readExp _ v2 showSire
   ` %% a b c
     %% 0 1 2
+
+!!= ` (3 :: (4 :: (5 :: ~[])))
+  ^ readExp _ v2 showSire
+  ` ~[3 4 5]
 
 !!= `((# datacase a)(* NONE 0)(* _ 1))
   ^ readExp _ v2 showSire
