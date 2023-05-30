@@ -54,7 +54,7 @@
 """ - [x] %%
 """ - [x] #  (tabs)
 """ - [x] ##
-""" - [ ] `` (recognize but reject, too complicated)
+""" - [x] `` (recognize but reject, too complicated)
 """ - [x] `
 """ - [ ] &&
 """ - [ ] ||
@@ -450,6 +450,7 @@
 * {#}   | parseHaxExp readExp rex err ok
 * {##}  | parseHaxHax readExp rex err ok
 * {`}   | parseTik rex err ok
+* {``}  | err rex "Stew doesn't yet support the `` rune."
 * {%}   | parseCen rex err ok
 * {%%}  | parseCenCen rex err ok
 * _     | err rex (strWeld 'Unknown Rune')
