@@ -128,50 +128,54 @@ foo=(x e o & o (varE "_", x))
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (readSwitchPats rex err ok)
+; TODO: Make the value-parser configurable
+
+; TODO: readSwitchExp should produce a maybe for the fallback
+
+> (Rex > Read exp)
+> Rex
+> Read (exp, Tab Any exp)
+= (readSwitchPats readExp rex err ok)
+: defaultFallback
+    < readExp `0 err
 : clauses
-       <- unrollSlip2Tar rex (x err ret & ret (varE "_", x)) err
-; trk [=clauses]
+    < ^ unrollSlip2Tar rex _ err
+      ? (onNonMatchingTail x err ret)
+      | ret (varE "_", x)
 : cases
-        < forRow clauses
-        & (keyExp ret)
-        @ [key exp] keyExp
-        : nat <- (pure & readSwitchPat key err (pure NONE) (x & pure SOME-x))
-        | ret [nat exp]
-; trk [=cases]
-@ f
-        & ([wild acc] [mKey exp])
-        | **maybeCase mKey [exp acc]
-        & key
-        [wild (tabPut acc key exp)]
-| ok
-| foldl f (natE 0, %[]) cases
+    < forRow clauses
+    & ([key exp] ret)
+    : exp < readExp exp err
+    : nat < & pure
+            | readSwitchPat key err
+            * pure NONE
+            * compose pure SOME
+    | ret [nat exp]
+^ ok (foldl _ (defaultFallback, #[]) cases)
+& ([wild acc] [mKey exp])
+: key <- **maybeCase mKey [exp acc]
+| [wild (tabPut acc key exp)]
+
+= (readSwitchExp readExpr rex err ok)
+: _ exp [fallback arms]
+  < ^ rexParseKids rex _ err
+    | (readRex, readExpr, readSwitchPats readExpr)
+| ok exp fallback arms
 
 !!= [`0 [3=(`4) 5=(`6)]]
-        | readSwitchPats `((* 3 4)(* 5 6)) v2 id
+        | readSwitchPats readRex `((* 3 4)(* 5 6)) v2 id
+
+!!= [`7 [3=(`4) 5=(`6)]]
+        | readSwitchPats readRex `((* 3 4)(* 5 6)7) v2 id
 
 !!= [`x [3=(`4) 5=(`6)]]
-        | readSwitchPats `((* 3 4)(* 5 6)(x)) v2 id
+        | readSwitchPats readRex `((* 3 4)(* 5 6)(x)) v2 id
 
 !!= [`x (tabIns [3 3] `6 [3=(`4)])]
-        | readSwitchPats `((* 3 4)(* [3 3] 6)(x)) v2 id
+        | readSwitchPats readRex `((* 3 4)(* [3 3] 6)(x)) v2 id
 
 
 """ Atomic Switch """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-; TODO: Optimize any contiguous sequence by shifting the input:
-;
-; # switch x
-; * 5 %hi
-; * 6 %hi
-; * 7 %hi
-;
-;  @ fall 0
-;  | switch (sub x 4) fall
-; ,, fall
-; ,, 5
-; ,, 6
-; ,, 7
 
 = (switchE expr wild pats)
 @ canUseRowIndex
@@ -183,12 +187,10 @@ foo=(x e o & o (varE "_", x))
 | else
         | bopE (cnsE tabSwitch, expr, wild, tabE pats)
 
-
-= ("#switch" s p e a r err ok)
-: _ expr arms <- rexParseKids r [readRex readRex readSwitchPats] err
-@ wild,pats arms
+= ({#switch} s p e a r err ok)
+: exp fallback arms <- readSwitchExp readRex r err
 | ok p a
-| switchE expr wild pats
+| switchE exp fallback arms
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -250,5 +252,6 @@ foo=(x e o & o (varE "_", x))
 ^-^ unrollSlip2Rune
 ^-^ unrollSlip2Tis
 ^-^ unrollSlip2Tar
+^-^ readSwitchExp
 ^-^ switchE
 ^-^ "#switch"

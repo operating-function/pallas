@@ -73,7 +73,7 @@
 """ - [x] # (keywords)
 """ - [x] #datacase
 """ - [x] #mutrec
-""" - [ ] #switch
+""" - [x] #switch
 """
 """ TODO: Parse expressions that don't exist yet.
 """
@@ -146,6 +146,7 @@
 * EROW=row xs:(Row Exp)
 * EUNT=unt
 * ETAB=tab xs:(Tab Nat Exp)
+* ESWI=swi x:Exp fb:Exp arms:(Tab Any Exp)
 * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
 * EMUT=mut tag:Nat body:Rex arms:(Row (Sym, Row Pat, Exp))
 * EREX=rex r:Rex
@@ -270,6 +271,20 @@
              ,, showSire body
 | showMutRecArms showSire arms
 
+= (showSwitchArms showSire wild arms)
+^ _ (tabToPairList arms)
+? (go arms)
+: [key exp] arms
+    < listCase arms
+        | NEST 0 "*" (varE "_", showSire wild) 0
+^ NEST 0 "*" _ (go arms)
+| (showKey key, showSire exp)
+
+= (showSwitch showSire exp wild arms)
+| NEST 0 {#} ,, varE 'switch'
+             ,, showSire exp
+| showSwitchArms showSire wild arms
+
 > Exp > Rex
 = (showSire exp)
 @ go showSire
@@ -293,6 +308,7 @@
 * EUNT           | `()
 * (ECAS x f cs)  | showCase go x f cs
 * (EMUT t b as)  | showMutRec go t b as
+* (ESWI e f as)  | showSwitch go e f as
 * (EREX r)       | NEST 0 "`" [r] 0
 * (ECON x xs)    | INFX 0 "::" (showSire x, showSire xs) 0
 * ENIL           | `(~[])
@@ -395,6 +411,9 @@
 * {mutrec}
     : tag body arms < readMutRecExp readExp rex err
     | ok (EMUT tag body arms)
+* {switch}
+    : exp fallback arms < readSwitchExp readExp rex err
+    | ok (ESWI exp fallback arms)
 * {datacase}
     : val fb cases < parseDatacase readExp rex err
     | ok ^ ECAS val fb (map _ cases)
@@ -576,6 +595,13 @@
 !! sireRound ` (z@[!x y] @ [1 2])(x y z)
 !! sireRound ` (# mutrec 3 (three 5))(* (three _) 3)
 !! sireRound ` (# mutrec 3 (three 5))(* (three _) 3)(* (four _ _) (inc 3))
+!! sireRound ` (# switch 3)(* 3 3)(* 4 4)(* _ 9)
+
+!!= ` (# switch 3)(* 3 3)(* 4 4)(* _ 0)
+  ^ readExp _ v2 showSire
+  ` # switch 3
+    * 3 3
+    * 4 4
 
 !!= ` (span f r ? (l @ len r)(^ _ 0)(loop i ? if (eql i l) (v2 r v0) (if (f (idx i r)) (loop (inc i)) (v2 (take i r) (drop i r)))))
   ^ readExp _ v2 showSire
