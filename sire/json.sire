@@ -117,44 +117,44 @@ TAG_JSON_MAP='map'
     | 'lex error @0: Unexpected EOF (string)'
 
 !!= (parseValue b#{[null]})
-  ,, JSON_VEC [JSON_NULL]
-  ,, NIL
+  -- JSON_VEC [JSON_NULL]
+  -- NIL
 
 !!= (parseValue b#{ [null,null,true,false] })
-  ,,   | JSON_VEC
-      ,, JSON_NULL
-      ,, JSON_NULL
-      ,, JSON_TRUE
-      ,, JSON_FALSE
-  ,, [TOK_SPACE 0]
+  --   | JSON_VEC
+      -- JSON_NULL
+      -- JSON_NULL
+      -- JSON_TRUE
+      -- JSON_FALSE
+  -- [TOK_SPACE 0]
 
 !!= (parseValue b#{[[]]})
-  ,, JSON_VEC [(JSON_VEC [])]
-  ,, NIL
+  -- JSON_VEC [(JSON_VEC [])]
+  -- NIL
 
 !!= (parseValue b#{[[null,null]]})
-  ,, JSON_VEC [(JSON_VEC (JSON_NULL, JSON_NULL))]
-  ,, NIL
+  -- JSON_VEC [(JSON_VEC (JSON_NULL, JSON_NULL))]
+  -- NIL
 
 !!= (parseValue b#{[[0,0],[0, 0],[0 ,0],[0 , 0]]})
-  ,,   | JSON_VEC
-      ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
-      ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
-      ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
-      ,, JSON_VEC (JSON_NUM 0, JSON_NUM 0)
-  ,, NIL
+  --   | JSON_VEC
+      -- JSON_VEC (JSON_NUM 0, JSON_NUM 0)
+      -- JSON_VEC (JSON_NUM 0, JSON_NUM 0)
+      -- JSON_VEC (JSON_NUM 0, JSON_NUM 0)
+      -- JSON_VEC (JSON_NUM 0, JSON_NUM 0)
+  -- NIL
 
 !!= (parseValue b#{[0, ",", 1]})
-  ,, JSON_VEC (JSON_NUM 0, JSON_STR b#{,}, JSON_NUM 1)
-  ,, NIL
+  -- JSON_VEC (JSON_NUM 0, JSON_STR b#{,}, JSON_NUM 1)
+  -- NIL
 
 !!= (parseValue b#{{}})   (JSON_MAP %[], NIL)
 !!= (parseValue b#{ { }}) (JSON_MAP %[], NIL)
 !!= (parseValue b#{ {"str":"x", "null":null}})
-  ,,   | JSON_MAP
+  --   | JSON_MAP
       ## =str  (JSON_STR b#x)
       ## =null JSON_NULL
-  ,, NIL
+  -- NIL
 
 
 """ Printer """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -175,28 +175,28 @@ TAG_JSON_MAP='map'
 | if (eql TAG_JSON_NUM t)
    | natBar (showNat v)
 | if (eql TAG_JSON_VEC t)
-  ,, b#{[}
-  ,, listIntersperse b#{,} (| listFromRow | map go v)
-  ,, b#{]}
+  -- b#{[}
+  -- listIntersperse b#{,} (| listFromRow | map go v)
+  -- b#{]}
 | if (eql TAG_JSON_MAP t)
-  ,, b#'{'
-  ,,  @ goKV ? (goKV pair)
+  -- b#'{'
+  --  @ goKV ? (goKV pair)
              @ k,v pair
-            ,, go (JSON_STR | natBar k)
-            ,, b#{:}
-            ,, go v
+            -- go (JSON_STR | natBar k)
+            -- b#{:}
+            -- go v
       | listIntersperse b#{,} (| listFromRow | map goKV | tabToPairs v)
-  ,, b#'}'
+  -- b#'}'
 | die ["impossible" t json]
 
 !! eql b#{["hi",null,true,false,99]}
    | printJSON
    | JSON_VEC
-  ,, JSON_STR b#hi
-  ,, JSON_NULL
-  ,, JSON_TRUE
-  ,, JSON_FALSE
-  ,, JSON_NUM 99
+  -- JSON_STR b#hi
+  -- JSON_NULL
+  -- JSON_TRUE
+  -- JSON_FALSE
+  -- JSON_NUM 99
 
 !! eql b#{{"null":null,"bools":[true,false]}}
    | printJSON
@@ -205,9 +205,9 @@ TAG_JSON_MAP='map'
   ## =bools JSON_VEC-[JSON_TRUE JSON_FALSE]
 
 !!  | eql
-       ,, b#{{}}
-       ,, b#{{}}
-       ,, b#{{"str":"x","null":null}}
-  ,, printJSON | idx 0 | parseValue b#{{}}
-  ,, printJSON | idx 0 | parseValue b#{ { }}
-  ,, printJSON | idx 0 | parseValue b#{ {"str":"x", "null":null}}
+       -- b#{{}}
+       -- b#{{}}
+       -- b#{{"str":"x","null":null}}
+  -- printJSON | idx 0 | parseValue b#{{}}
+  -- printJSON | idx 0 | parseValue b#{ { }}
+  -- printJSON | idx 0 | parseValue b#{ {"str":"x", "null":null}}

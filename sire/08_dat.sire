@@ -689,6 +689,7 @@
 openRowExpect={Expected something like (,, x), (,, f x y), etc}
 
 = (readOpenRow readExp rex err ok)
+@ topRune (rexRune rex)
 ^ _ NIL rex
 ? (go acc rex)
 @ sons (rexSons rex)
@@ -696,7 +697,7 @@ openRowExpect={Expected something like (,, x), (,, f x y), etc}
 @ rune (rexRune rex)
 | if (isZero rex)
     | ok (listToRowReversed acc)
-| if (neq {,,} rune)
+| if (neq topRune rune)
     | readExp rex err
     & exp
     @ acc (CONS exp acc)
@@ -719,6 +720,11 @@ openRowExpect={Expected something like (,, x), (,, f x y), etc}
 & res
 | ok p a (rowE res)
 
+= ({--} s p e a r err ok)
+| readOpenRow readRex r err
+& res
+| ok p a (rowE res)
+
 !!= [3 4 5] (,, 3)(,, 4)(,, 5)
 !!= [3 4 5] (,, 3)(,, 4)5
 !!= [3 4 5] (,,3)(,, 3 3)5
@@ -727,6 +733,11 @@ openRowExpect={Expected something like (,, x), (,, f x y), etc}
  ,, 3
  ,, 4
  ,, 5
+
+!!= [3 4 5]
+ -- 3
+ -- 4
+ -- 5
 
 
 """ Binary Search """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -915,7 +926,7 @@ F=found
 ^-^
 ^-^ readRex
 ^-^ readOpenRow
-^-^ ",,"
+^-^ {,,} {--}
 ^-^
 ^-^ lsearch lsearch_
 ^-^ bsearch bsearch_
