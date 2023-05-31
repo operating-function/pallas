@@ -47,9 +47,9 @@ installJetImpls = writeIORef vJetImpl jetImpls
 
 jetImpls :: Map Text Jet
 jetImpls = mapFromList
-  [ ( "pinItem"     , pinItemJet )
+  [ ( "_PinItem"    , pinItemJet )
   , ( "dec"         , decJet     )
-  , ( "seq"         , seqJet     )
+  , ( "_Seq"        , seqJet     )
   , ( "add"         , addJet     )
   , ( "mul"         , mulJet     )
   , ( "sub"         , subJet     )
@@ -73,7 +73,7 @@ jetImpls = mapFromList
   , ( "eql"         , eqlJet     )
   , ( "isZero"      , isZeroJet  )
   , ( "cmp"         , cmpJet     )
-  , ( "trk"         , trkJet     )
+  , ( "_Trk"        , trkJet     )
   , ( "idx"         , idxJet     )
   , ( "get"         , getJet     )
   , ( "len"         , lenJet     )
@@ -168,7 +168,7 @@ jetImpls = mapFromList
   , ( "and"         , andJet   )
   , ( "or"          , orJet    )
   , ( "neq"         , neqJet   )
-  , ( "isNat"       , isNatJet )
+  , ( "_IsNat"      , isNatJet )
 
   -- par
   , ( "par"         , parJet )
