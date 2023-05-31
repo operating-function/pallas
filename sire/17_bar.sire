@@ -29,14 +29,16 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [isLaw isApp isNat lawBody lawName lawArgs trk id]
+/+  01_fan  [isLaw isApp isNat lawBody lawName lawArgs trk]
 /+  01_fan  [seq inc die]
+/+  01_fan  [id compose]
 /+  02_bit  [bit not if else ifNot or and]
 /+  03_nat  [lteNat even isZero]
 /+  03_nat  [mod lsh rsh add bex mul sub dec div minNat takeBits]
 /+  04_app  [len get idx]
 /+  05_cmp  [eql neq gte]
 /+  06_row  [map foldl foldr gen weld v1 v2 v4]
+/+  06_row  [fst snd]
 /+  07_rex  [SHUT CURL WORD]
 /+  07_rex  [rexKids rexText '`']
 /+  07_rex  [rexGetLeaf]
@@ -154,6 +156,9 @@
 = (barFoldr f z b) | foldr f z (barBytes b)
 = (barAll f b)     | all f (barBytes b)
 
+rowFromBar=barBytes
+barToRow=barBytes
+
 ;; TODO Find other places that would benefit from pad operations.
 (barWeld x y)=(0 1 1 (padWeld lawBody-x lawBody-y))
 
@@ -181,10 +186,14 @@ emptyBar=(0 1 1 1)
 (barTakeWhile f b)=(barTake (barCountHeadMatching f b) b)
 
 = (barToList b)      | listGen (barLen b) (barGet b)
-= (barToRow b)       | gen (barLen b) (barGet b)
 = (barFindIndex f b) | listFindIndex f (barToList b)
 = (barElemIndex e b) | listElemIndex e (barToList b)
 = (barSplitAt i b)   | [(barTake i b) (barDrop i b)]
+= (barFromRow r)     | barGen (len r) (get r)
+= (barFilter f b)    | barFromRow | filter f (barToRow b)
+= (barMap f b)       | barGen (barLen b) (compose f barGet-b)
+
+rowToBar=barFromRow
 
 ; TODO: barElemIndex doesn't have a SOME/NONE interface, but should? There are
 ; a lot of methods in the stdlib where the haskell version returns a maybe but
@@ -283,6 +292,8 @@ emptyBar=(0 1 1 1)
 hexAlphabet=(b#{0123456789abcdef})
 (hexChar n)=(barGet hexAlphabet n)
 
+(charIsHex c)=(barHas c hexAlphabet) ;; TODO faster
+
 ; TODO: {hexByte} should construct a two-element bar manually (isntead
 ; of returning a string)
 
@@ -295,8 +306,23 @@ hexAlphabet=(b#{0123456789abcdef})
 ; TODO: {barToHex} should use {barCat} and then {barNat}.  {strCat}
 ; is slow.
 
-> Bar > STr
+> Bar > Str
 (barToHex val)=(| strCat | map hexByte | barToRow val)
+
+= (getHexBar bar fall ret)
+| if not-(barAll charIsHex bar) fall
+^ ret (snd _)
+^ barFoldr _ [1 0] bar
+& (char placeAcc)
+@ place | fst placeAcc
+@ acc   | snd placeAcc
+@ acc   | add acc | mul place (hexCharToNat char)
+@ place | mul 16 place
+| [place acc]
+
+!!= 0xff  | getHexBar b#{ff} 0 id
+!!= 0x123 | getHexBar b#{123} 0 id
+!!= 0     | getHexBar b#{1z3} 0 id
 
 ; TODO: {showBarLit} should use bare-words where possible.
 
@@ -422,6 +448,12 @@ newline=(natBar 10)
 !!= (SOME 0)  (barElemIndexEnd "/" b#{/})
 !!= (SOME 1)  (barElemIndexEnd "/" b#{//})
 
+!!= b#abc | barFromRow [%a %b %c]
+!!= b#bc  | barFilter (neq %a) b#abc
+!!= b#ac  | barFilter (neq %b) b#abc
+!!= b#bcd | barMap inc b#abc
+
+
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^ isBar padBar
@@ -433,7 +465,9 @@ newline=(natBar 10)
 ^-^ barFromHex barPad
 ^-^ barTake barDrop barSlice
 ^-^ barFlat barHas
-^-^ barToRow barToList
+^-^ barBytes barToRow rowFromBar barToList
+^-^ barFromRow rowToBar
+^-^ barMap barFilter
 ^-^ barFindIndex barElemIndex barElemIndexOff barElemIndexEnd
 ^-^ barSplitAt barSplitOne barSplitOneWith barSplitWith barSplit
 ^-^ barCountHeadMatching barDropWhile barTakeWhile
@@ -441,6 +475,7 @@ newline=(natBar 10)
 ^-^
 ^-^ hexAlphabet hexChar hexByte barToHex
 ^-^ readBarLit showBarLit
+^-^ getHexBar
 ^-^
 ^-^ "#b" "#x" "#"
 ^-^

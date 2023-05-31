@@ -42,26 +42,28 @@
 
 (showNat n)=(strCat digits-n)
 
-(showDigit d)=(add d 48)
+(showDigit d)=(add d '0')
 
-(loadDigit chr)=(mod (sub chr 48) 10)
+(loadDigit chr)=(mod (sub chr '0') 10)
 
 = (getDigit chr fall ret)
 @ res (**loadDigit chr)
 | ifNot (eql chr (**showDigit res)) fall
 | **ret res
 
+> Str > a > (Nat > a) > a
 = (getNatStr str fall ret)
 | if (isZero str) fall
 | traverseRow (c r)&(**getDigit c fall r) (explode str)
 & nums
-@ f
-        ? (f elem rest)
-        @ pos (idx 0 rest)
-        @ acc (idx 1 rest)
-       ,, mul 10 pos
-       ,, add acc (mul pos elem)
-| ret | idx 1 | foldr f [1 0] nums
+^ ret (idx 1 (foldr _ [1 0] nums))
+? (f elem rest)
+@ pos (idx 0 rest)
+@ acc (idx 1 rest)
+-- mul 10 pos
+-- add acc (mul pos elem)
+
+;;
 
 = rnWord | "Expected a bare word"
 = rnNumb | "Invalid number literal"

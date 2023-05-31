@@ -39,12 +39,13 @@
 """
 """ TODO: Parse all leaf-expressions:
 """
-""" - [ ] parse decimal literals
-""" - [ ] parse hex literals
+""" - [x] parse decimal literals
+""" - [x] parse hex literals
+""" - [x] identifiers (rejecting malformed ones)
 """
 """ DONE: Parse all built-in expression runes:
 """
-""" - [x] |
+""" - [x] | -
 """ - [x] @
 """ - [x] @@
 """ - [x] &
@@ -79,6 +80,8 @@
 """ - [x] #datacase
 """ - [x] #mutrec
 """ - [x] #switch
+""" - [ ] .
+""" - [ ] TODO: Make sure function literals support all details.
 """
 """ TODO: Parse expressions that don't exist yet.
 """
@@ -100,11 +103,11 @@
 """ - [ ] #hasProp
 """ - [ ] #getTypeNames
 """
-""" TODO: Name resolution
-"""
 """ TODO: Macro that takes any stew expression and compiles it to sire.
 """
 """ TODO: Redefine all runes to invoke TheBigStewMacro.
+"""
+""" TODO: Name resolution
 """
 """ TODO: Merge switch.sire and datatype.sire
 """ TODO: Implement #openrecord (#datacase on records)
@@ -521,6 +524,28 @@
     | EAPP valExp
     | ELAM pin (nam, nam, pats, bodyExp)
 
+> Chr > Bit
+(okIdnChar c)=(eql '_' c || isAlphaNum c)
+
+> Bar > Bit
+= (okIdn bar)
+@ c (barIdx 0 bar)
+| rowAnd
+-- not (barIsEmpty bar)
+-- not (isDigit c)
+-- barAll okIdnChar bar
+
+= leafExpect
+  """ Expected something like
+  """
+  """     foo
+  """     123
+  """     0xaf
+
+= (getHexLit bar fall ret)
+| if (neq b#0x | barTake 2 bar) fall
+| getHexBar (barDrop 2 bar) fall ret
+
 = (readLeaf rex err ok)
 @ txt (rexText rex)
 # switch (rexStyle rex)
@@ -530,8 +555,15 @@
 * PAGE ok-(ENAT txt)
 * CURL ok-(ENAT txt)
 * WORD
-; TODO: Parse nat literals
-| ok (EREF txt)
+@ bar    (natBar txt)
+@ natStr (barNat bar)
+| trk [=bar =natStr res=(getNatStr natStr NONE SOME)]
+^ getNatStr natStr _ (compose ok ENAT)
+^ getHexLit bar    _ (compose ok ENAT)
+| if (okIdn bar)
+    | ok (EREF txt)
+| else
+    | err rex leafExpect
 
 > Rex > Parser Exp
 = (readExp rex err ok)
@@ -542,6 +574,7 @@
 # switch (rexRune rex)
 * {^}   | readKet readExp rex err ok
 * {|}   | readApp readExp rex err ok
+* {-}   | readApp readExp rex err ok
 * {&}   | readPam readExp rex err ok
 * {?}   | readWut readExp FALSE rex err ok
 * {:}   | readCol readExp rex err ok
@@ -703,11 +736,11 @@
     * NONE     0
     * _        1
 
-!!= `(add (inc 2) (inc 3))
+!!= `(add (inc 2) (inc 383))
   ^ readExp _ v2 showSire
   ` | add
     * inc 2
-    * inc 3
+    * inc 0x17f
 
 !!= `(add 2 (Foo x ? add x x))
   ^ readExp _ v2 showSire

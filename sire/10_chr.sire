@@ -33,6 +33,8 @@
 (isAlpha c)=(or isUpper-c isLower-c)
 (isPrint c)=(lthNat (sub c 0x20) 0x5f)
 
+(isAlphaNum c)=(or isAlpha-c isDigit-c)
+
 (toLower c)=(if (isUpper c) (add 32 c) c)
 (toUpper c)=(if (isLower c) (sub c 32) c)
 
@@ -58,4 +60,5 @@
 
 ^-^  ord chr
 ^-^  isDigit isUpper isLower isAlpha isPrint
+^-^  isAlphaNum
 ^-^  toLower toUpper
