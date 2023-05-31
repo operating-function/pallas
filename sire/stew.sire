@@ -37,6 +37,11 @@
 """ - [ ] #record
 """ - [ ] #datatype
 """
+""" TODO: Parse all leaf-expressions:
+"""
+""" - [ ] parse decimal literals
+""" - [ ] parse hex literals
+"""
 """ DONE: Parse all built-in expression runes:
 """
 """ - [x] |
@@ -66,7 +71,7 @@
 """ - [x] , (rows)
 """ - [x] , (tabs)
 """ - [x] ,, --
-""" - [ ] :
+""" - [x] :
 """ - [x] ~
 """ - [x] ~~
 """ - [x] ::
@@ -211,8 +216,6 @@
 
 > (Exp > Rex) > Bit > Fun > Rex
 = (showFun showSire pin (FUN self tag args body))
-| if pin
-    | todo 'show pinned lambdas'
 | if (self /= tag)
     | todo 'show lambdas where name is different from tag'
 @ selfRex  | varE self
@@ -220,7 +223,10 @@
 | if (isZero tag)
     | INFX 0 {&} (showSig argRexes, showSire body) 0
 | else
-    | INFX 0 {?} (showSig (rowCons selfRex argRexes), showSire body) 0
+    | if pin
+        | INFX 0 {??} (showSig (rowCons selfRex argRexes), showSire body) 0
+    | else
+        | INFX 0 {?} (showSig (rowCons selfRex argRexes), showSire body) 0
 
 > Sym > Row Pat > Rex
 = (showCon cn pts)
@@ -504,6 +510,17 @@
     : exps <- traverseRow (x k & readExp x err k) kids
     | ok (EROW exps)
 
+= (readCol readExp rex err ok)
+: valExp oFunName pats bodyExp
+    < readColExp parseBinder readExp rex err
+| trk [=valExp =oFunName =pats =bodyExp]
+@ (nam, pin)
+    | fromSome (FALSE, "") oFunName
+| trk [=pin =nam]
+| ok
+    | EAPP valExp
+    | ELAM pin (nam, nam, pats, bodyExp)
+
 = (readLeaf rex err ok)
 @ txt (rexText rex)
 # switch (rexStyle rex)
@@ -527,6 +544,7 @@
 * {|}   | readApp readExp rex err ok
 * {&}   | readPam readExp rex err ok
 * {?}   | readWut readExp FALSE rex err ok
+* {:}   | readCol readExp rex err ok
 * {??}  | readWut readExp TRUE rex err ok
 * {**}  | readLin readExp rex err ok
 * {,}   | readCom readExp rex err ok
@@ -690,6 +708,11 @@
   ` | add
     * inc 2
     * inc 3
+
+!!= `(add 2 (Foo x ? add x x))
+  ^ readExp _ v2 showSire
+  ` : ?(Foo x) <- add 2
+    | add x x
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

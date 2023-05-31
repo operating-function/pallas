@@ -60,6 +60,7 @@
 /+  16_pad  []
 /+  17_bar  []
 /+  18_sug  [{``} {:} {~} {::} {~~} {==}]
+/+  18_sug  [readColExp colExpE]
 
 
 """ Pattern Matching On Rows """""""""""""""""""""""""""""""""""""""""""""""""""
@@ -762,6 +763,17 @@
      | foldr ([k v] t & tabIns k v t) #[] [[%x 0] [%y 1] [%z 2]]
 
 
+""" Col Sugar with Destroy """""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= ({:} s p e a r err ok)
+: valExp oFunName binds bodyExp
+    < readColExp parseBinder readRex r err
+: a sig bodyExp
+    < makeDestroyer a binds bodyExp
+| ok p a
+| colExpE valExp oFunName sig bodyExp
+
+
 """ Top-Level Definitions with Destroy """""""""""""""""""""""""""""""""""""""""
 
 = (keyE k)
@@ -930,4 +942,4 @@
 ^-^ destructureTabE  ;;  TODO: Don't export these, export a more general
 ^-^                  ;;  API instead.
 ^-^
-^-^ "@" "?" "&" "="
+^-^ {@} {?} {&} {=} {:}

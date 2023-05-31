@@ -58,6 +58,7 @@
 
 /+  01_fan
 /+  02_bit  [if ifNot and or not else]
+/+  02_bit  [TRUE FALSE]
 /+  03_nat  [add div inc dec isZero lthNat]
 /+  04_app  [idx len]
 /+  05_cmp  [eql neq lth]
@@ -70,9 +71,10 @@
 /+  07_rex  [rexStyle rexText rexEql]
 /+  07_rex  [rexSetRune rexSetHeir rexSetSons]
 /+  08_dat  [{,} {,,} {>} take drop switch]
+/+  08_dat  [NONE SOME maybeCase]
 /+  08_dat  [CONS NIL listToRowReversed listCase listFromRow]
 /+  08_dat  [LEFT RIGHT eitherCase]
-/+  08_dat  [traverseRow listMap listFoldr]
+/+  08_dat  [traverseRow listMap listFoldr rowCons]
 /+  08_dat  [readRex]
 /+  09_sci  []
 /+  10_chr  []
@@ -81,6 +83,7 @@
 /+  13_tab  [{#}]
 /+  14_exp  [readSymbol rexParseKids]
 /+  14_exp  [rowE natE letE cnsE txtE appE varE gensym]
+/+  14_exp  [lamE wutE wutWutE]
 /+  14_exp  [bloodline]
 /+  15_hax  []
 /+  16_pad  []
@@ -125,15 +128,13 @@
 
 = cbExpect | "Expected a <- (or <) node in : binder"
 
-= (readColBinder rex err ok)
-| rexGetNode rex (err rex cbExpect)
-& (rune sons heir)
-| if (eql rune "<-")
-        | ok (rexKids rex)
-| if (eql rune "<")
-        | ok (rexKids rex)
-| else
-        | err rex cbExpect
+= (readColBinder readExp rex err ok)
+@ rune (rexRune rex)
+| if (and (neq "<-" rune) (neq "<" rune))
+    | err rex cbExpect
+| if (null | rexKids rex)
+    | err rex {Empty bind expression}
+| readExp (rexSetRune "|" rex) err ok
 
 = (rexIsCapsSymbol rex)
 | and (neq 0 rex)
@@ -146,68 +147,118 @@
 !!= 0 | rexIsCapsSymbol `0
 !!= 0 | rexIsCapsSymbol `(hi there)
 
+= colSigExpect
+  """ Expected something like one of these:
+  """
+  """     arg
+  """     &(arg ...)
+  """     ?(fun arg ...)
+  """     ??(fun arg ...)
+
 ; ?(f x y) | ??(f x y) | (x y) | .*
-= (readColSig rex err ok)
-@ ryn (rexRune rex)
+> Rex > Read (Bit, Opt Text, Row Rex)
+= (readColSig readPat rex err ok)
+@ fail   (err rex colSigExpect)
+@ rune   (rexRune rex)
+@ heir   (rexHeir rex)
+@ sons   (rexSons rex)
+@ nSon   (len sons)
+@ item   (fst sons)
+@ params (rexKids item)
 ;
-| if (eql '&' ryn)
-    | ifNot | and (isZero rexHeir-rex) (eql 1 | len rexSons-rex)
-        | err rex '?(form .{:} signature)  <- has strange shape'
-    | ok ['&' (idx 0 rexSons-rex)]
+@ isPinned (eql '??' rune)
+@ isExplicit
+    | or (eql '&' rune)
+    | or (eql '?' rune)
+    | isPinned
 ;
-| if (eql '?' ryn)
-    | ifNot | and (isZero rexHeir-rex) (eql 1 | len rexSons-rex)
-        | err rex '?(form .{:} signature)  <- has strange shape'
-    | ok ['?' (idx 0 rexSons-rex)]
+| if not-isExplicit
+    ;
+    | readPat rex err
+    & pat
+    | ok NONE [pat]
 ;
-| if (eql '??' ryn)
-    | ifNot | and (isZero rexHeir-rex) (eql 1 | len rexSons-rex)
-        | err rex '??(form .{:} signature)  <- has strange shape'
-    | ok ['??' (idx 0 rexSons-rex)]
-;
-| ok ['&' (NEST 0 "|" [rex] 0)]
+@ isOkay
+    | and (eql 1 nSon)
+    | and (eql 0 heir)
+    | and (not | null params)
+          (or (eql '&' rune) not-(null params))
+| if (not isOkay) fail
+| if (eql '&' rune)
+    | traverseRow (flip readPat err) params
+    & params
+    | ok NONE params
+| readSymbol (idx 0 params) err
+& funName
+| traverseRow (flip readPat err) (drop 1 params)
+& params
+| ok (SOME funName,isPinned) params
 
-!!= ['&' `(| (Foo x))] (readColSig `(Foo x) id id)
+(tryColSig x)=(readColSig readSymbol x id v2)
 
-!!= ['&' `(Foo x)] (readColSig `(&(Foo x)) id id)
+!!= ( NONE                , [%Foo %x]    ) | tryColSig `(&(Foo x))
+!!= ( NONE                , [%Foo %x %y] ) | tryColSig `(&(Foo x y))
+!!= ( SOME ("Foo", FALSE) , [%x]         ) | tryColSig `(?(Foo x))
+!!= ( SOME ("Foo", FALSE) , [%x %y]      ) | tryColSig `(?(Foo x y))
+!!= ( SOME ("Foo", TRUE)  , [%x]         ) | tryColSig `(??(Foo x))
 
-!!= ['?' `(Foo x)] (readColSig `(?(Foo x)) id id)
+= (readColSigSeq readPat sigRexes err ok)
+| if (eql 1 | len sigRexes)
+    | readColSig readPat (idx 0 sigRexes) err ok
+| else
+    | traverseRow (flip readPat err) sigRexes (ok NONE)
 
-!!= ['??' `(Foo x)] (readColSig `(??(Foo x)) id id)
+(tryColSigSeq xs)=(readColSigSeq readSymbol xs id v2)
+
+!!= ( NONE                , [%Foo %x]    ) | tryColSigSeq [`Foo `x]
+!!= ( NONE                , [%Foo %x]    ) | tryColSigSeq [`(&(Foo x))]
+!!= ( NONE                , [%Foo %x %y] ) | tryColSigSeq [`(&(Foo x y))]
+!!= ( SOME ("Foo", FALSE) , [%x]         ) | tryColSigSeq [`(?(Foo x))]
+!!= ( SOME ("Foo", FALSE) , [%x %y]      ) | tryColSigSeq [`(?(Foo x y))]
+!!= ( SOME ("Foo", TRUE)  , [%x]         ) | tryColSigSeq [`(??(Foo x))]
 
 = colNeedsHeir | "Heir is required"
 = colTwoSons   | "Expected at least two sons"
 
-; TODO: This expands to `&` instead of `#&`.  This is a bit of a hack,
-; since we generally use the approach of expanding only to primitive runes
-; (avoiding repeated macro-expansion).  However, it is currently too
-; cumbersome for such a simple little sugar-macro.  Re-architect the
-; destructuring code so that it's easy to do this the right way.
+= (readColExp readPat readExp rex err ok)
+@ sons     (rexSons rex)
+@ nSon     (len sons)
+@ lastIdx  (dec nSon)
+@ sigRexes (take lastIdx sons)
+@ valRex   (idx lastIdx sons)
+@ bodyRex  (rexHeir rex)
 ;
-; As a consequence of this hack, we get error messages in the expansion,
-; instead of directly from this macro, which is a worse user experience.
+| if (isZero bodyRex) | err rex colNeedsHeir
+| if (lth nSon 2)     | err rex colTwoSons
+;
+| readExp bodyRex err
+& bodyExp
+;
+| readColBinder readExp valRex err
+& valExp
+;
+| readColSigSeq readPat sigRexes err
+& (oFunName pats)
+;
+| ok valExp oFunName pats bodyExp
+
+= (colExpE valRex oFunName argNames bodyRex)
+| maybeCase oFunName
+    | appE (valRex, lamE argNames bodyRex)
+& nameAndPinned
+@ funName (fst nameAndPinned)
+@ pinned  (snd nameAndPinned)
+| if pinned
+    ^ appE (valRex, _)
+    | wutWutE (rowCons funName argNames) bodyRex
+| else
+    ^ appE (valRex, _)
+    | wutE (rowCons funName argNames) bodyRex
+
 = ({:} s p e a r err ok)
-@ sons    (rexSons r)
-@ heir    (rexHeir r)
-@ numSons (len sons)
-| if (isZero heir)      | err r colNeedsHeir
-| if (lthNat numSons 2) | err r colTwoSons
-@ firstSons (take dec-numSons sons)
-@ lastSon   (idx dec-numSons sons)
-@ signature | if (eql 2 numSons) (idx 0 firstSons)
-            | (PREF 0 "&" [(NEST 0 "|" firstSons 0)] 0)
-; trk ['signature' signature]
-| readColSig signature err
-& sig
-@ sigRune | idx 0 sig
-@ sigExp  | idx 1 sig
-| readColBinder lastSon err
-& kids
-| ok p a
-; ^ trk [output=_] _
-| OPEN 0 "#|" kids
-| OPEN 0 sigRune [sigExp]
-| heir
+| readColExp readSymbol readRex r err
+& (valExp oFunName pats bodyExp)
+| ok p a (colExpE valExp oFunName pats bodyExp)
 
 = (rexGetRune rex fall ok)
 : rune kids heir <- rexGetNode rex fall
@@ -659,6 +710,8 @@ four=(WORD 0 {4} 0)
 ^-^ readQuasiQuotedRex splicedE
 ^-^ NODE LEAF binTreeFold
 ^-^ readInfixRight readInfixLeft
+^-^
+^-^ readColExp colExpE
 ^-^
 ^-^ {|}
 ^-^ {:}

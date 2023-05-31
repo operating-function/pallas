@@ -143,8 +143,9 @@
 = (gensymNm s n)  | strCat ["_" s showNat-n]
 = (gensymE n)     | varE (gensym n)
 = (sigE r)        | if (eql 1 len-r) varE-(idx 0 r) (NEST 0 "|" (map varE r) 0)
-= (lamE rs b)     | OPEN 0 "#&" [(sigE rs)] b
-= (wutE rs b)     | OPEN 0 "#?" [(sigE rs)] b
+= (lamE rs b)     | OPEN 0 "#&"  [(sigE rs)] b
+= (wutE rs b)     | OPEN 0 "#?"  [(sigE rs)] b
+= (wutWutE rs b)  | OPEN 0 "#??" [(sigE rs)] b
 
 = (inlinedLamE f rs b)
 ^ OPEN 0 "#?" [_] b
@@ -338,7 +339,8 @@ symTodo='todo: support .foo and .234'
 ^-^ readNodeWithoutHeirButWithRune
 ^-^
 ^-^ isSymbolChar strIsSymbol rexIsSymbol readSymbol
-^-^ natE litE varE varKE cnsE barE letE letKE recE recKE sigKE sigE lamE wutE
+^-^ natE litE varE varKE cnsE barE letE letKE recE recKE
+^-^ sigKE sigE lamE wutE wutWutE
 ^-^ inlinedLamE
 ^-^ txtE txtKE appE
 ^-^
