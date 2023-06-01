@@ -700,8 +700,6 @@ receiveResponse st = \case
       where
         getRandomNonConflictingId :: Moment -> STM CogId
         getRandomNonConflictingId moment = do
-          -- Word8 is a very temporary hack: this should not be a negative
-          -- number, but IntMap only is bound to +/- 2^29-1.
           r :: Word64 <- unsafeIOToSTM $ randomIO
           case lookup (COG_ID r) moment.val of
             Nothing -> pure $ COG_ID r
