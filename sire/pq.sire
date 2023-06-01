@@ -22,44 +22,44 @@
 /+  datatype ["#datatype" "#datacase"]
 /+  prelude
 
-# datatype Pq
-* Lf
-* Br a:Any l:Pq r:Pq
+# datatype (Pq a)
+* LF
+* BR x:a l:Pq r:Pq
 
 = (pqCase t lf br)
 # datacase t
-* Lf         lf
-* (Br a l r) (**br a l r)
+* LF         lf
+* (BR a l r) (**br a l r)
 
-!!= 7 | pqCase (Br 7 Lf Lf) 3 ((x l r)&x)
-!!= 3 | pqCase Lf 3 ((x l r)&x)
+!!= 7 | pqCase (BR 7 LF LF) 3 (x l r & x)
+!!= 3 | pqCase LF 3 (x l r & x)
 
-= pqEmpty Lf
+= pqEmpty LF
 
 = (pqNull t)
 | (t == pqEmpty)
 
-!!= 1 | pqNull Lf
-!!= 0 | pqNull (Br 7 Lf Lf)
+!!= 1 | pqNull LF
+!!= 0 | pqNull (BR 7 LF LF)
 
 = (pqInsert cmp w t)
 ^ _ w t
 ? (go w t)
 # datacase t
-* Lf (Br w Lf Lf)
-* (Br v t1 t2)
+* LF (BR w LF LF)
+* (BR v t1 t2)
   | if (cmp w v == GT)
-    | (Br v (go w t2) t1)
-  | (Br w (go v t2) t1)
+    | (BR v (go w t2) t1)
+  | (BR w (go v t2) t1)
 
 = (leftRem cmp t)
 # datacase t
-* Lf [NONE t]
-* (Br w t1 t2)
+* LF [NONE t]
+* (BR w t1 t2)
   | if (pqNull t1 && pqNull t2)
-      | (SOME w, Lf)
+      | (SOME w, LF)
     @ [mbW t] (leftRem cmp t1)
-    | (mbW, Br w t2 t)
+    | (mbW, BR w t2 t)
 
 = test1 | pqInsert cmpNat 0 pqEmpty
 = test2 | pqInsert cmpNat 1 test1
@@ -69,45 +69,45 @@
 ^ _ w t1 t2
 ? (go w t1 t2)
 # datacase t1
-* Lf
+* LF
   # datacase t2
-  * Lf (Br w Lf Lf)
+  * LF (BR w LF LF)
   * _  (go w t2 t1)
-* (Br v1 t1L t1R)
+* (BR v1 t1L t1R)
   # datacase t2
-  * Lf
+  * LF
     | if (and (pqNull t1L) (pqNull t1R))
       | if (cmp w v1 == GT)
-        | (Br v1 (Br w Lf Lf) Lf)
-      | (Br w t1 Lf)
+        | (BR v1 (BR w LF LF) LF)
+      | (BR w t1 LF)
     | die 'siftDown: wat'
-  * (Br v2 t2L t2R)
+  * (BR v2 t2L t2R)
     | if ((GT /= cmp w v1) && (GT /= cmp w v2))
-      | Br w t1 t2
+      | BR w t1 t2
     | if (GT == cmp v1 v2)
-      | Br v2 t1 (go w t2L t2R)
-    | Br v1 (go w t1L t1R) t2
+      | BR v2 t1 (go w t2L t2R)
+    | BR v1 (go w t1L t1R) t2
 
 = (pqDelMin cmp t)
 # datacase t
-* Lf [NONE Lf]
-* (Br v t1 t2)
+* LF [NONE LF]
+* (BR v t1 t2)
   @ [mbW t] (leftRem cmp t1)
-  : w <- maybeCase mbW (SOME v, Lf)
+  : w <- maybeCase mbW (SOME v, LF)
   | (SOME v, siftDown cmp w t2 t)
 
 = (pqMin t)
 # datacase t
-* Lf NONE
-* (Br w _ _) (SOME w)
+* LF NONE
+* (BR w _ _) (SOME w)
 
-!!= (SOME 7) | pqMin (Br 7 Lf Lf)
+!!= (SOME 7) | pqMin (BR 7 LF LF)
 
 = (heapify cmp ls)
 ^ _ (listLen ls) ls
 ? (go n vs)
 | if (eql 0 n)
-  | [Lf vs]
+  | [LF vs]
 @ v (listUnsafeHead vs)
 @ vs (listDrop 1 vs)
 @ [t1 vs1] | go (div n 2) vs
