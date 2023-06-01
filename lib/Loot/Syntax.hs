@@ -207,7 +207,7 @@ rowBox row =
     tal = if null row then
               (N 0 NEST_PREFIX "," [] Nothing)
           else
-              (openSeq ",," (fmap C . valBoxes <$> toList row))
+              (openSeq "++" (fmap C . valBoxes <$> toList row))
 
     wid :: Maybe (Int, Rex)
     wid = do
@@ -245,7 +245,7 @@ tabBox tab =
              )
 
     tal :: GRex Box
-    tal = openSeq "%%"
+    tal = openSeq "##"
         $ turn tab \(k,v) ->
             let kr = N 0 SHUT_PREFIX "=" [C(keyBox2 k)] Nothing
             in if keyIsValue k v
@@ -857,9 +857,9 @@ readVal = asum
     , rForm2c "?" readSigy readBod lamb
     , rForm2c "&" readArgs readBod anon
     , rFormNc "," readVal (XVROW . fromList)
-    , rune "%%" >> readOpenTabish
-    , do rune ",,"
-         sequ <- slip1N ",," readVal readVal
+    , rune "##" >> readOpenTabish
+    , do rune "++"
+         sequ <- slip1N "++" readVal readVal
          pure $ XVROW $ fromList $ fmap (uncurry xvap) sequ
     , rFormN1c "." readVal readVal appTo
     , do (rune "|" <|> rune "-")
@@ -883,12 +883,12 @@ readOpenTabish :: Red v XVal
 readOpenTabish = do
     rex <- readRex
     case rex of
-        N _ _ "%%" (N _ _ "=" [_] _ : _) _ -> readOpenTab
+        N _ _ "##" (N _ _ "=" [_] _ : _) _ -> readOpenTab
         _                                  -> XVCAB <$> readOpenCab
 
 readOpenTab :: Red v XVal
 readOpenTab = do
-    pairs <- slip1N "%%" (rune "=" >> form1 readKey2) readVal
+    pairs <- slip1N "##" (rune "=" >> form1 readKey2) readVal
     let keySet = setFromList (fst <$> pairs) :: Set XVal
     --
     when (length pairs /= length keySet) do
@@ -1036,13 +1036,13 @@ readBod = asum
     , rune "@" >> (xlet <$> form3c readSymb readBod readBod)
     , rForm2c "?" readSigy readBod lamb
     , rForm2c "&" readArgs readBod anon
-    , rune "%%" >> fmap XRAW readOpenTabish
+    , rune "##" >> fmap XRAW readOpenTabish
 
     -- TODO Separate out vals that are read XRAW, to avoid this
     -- duplication.
     , rFormNc "," readVal (XRAW . XVROW . fromList)
-    , do rune ",,"
-         sequ <- slip1N ",," readVal readVal
+    , do rune "++"
+         sequ <- slip1N "++" readVal readVal
          pure $ XRAW $ XVROW $ fromList $ fmap (uncurry xvap) sequ
     ]
   where
