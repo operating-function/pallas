@@ -164,6 +164,7 @@ responseToReceipt cogId didCrash =
         RespEval OKAY{}           -> (idx, ReceiptEvalOK)
         RespRecv PENDING_SEND{..} -> (idx, ReceiptRecv{..})
         RespSpin cog _            -> (idx, ReceiptSpun cog)
+        RespStop cog _            -> (idx, ReceiptStop cog)
         resp                      -> (idx, ReceiptVal (responseToVal resp))
 
 data CallRequest = CR
@@ -290,6 +291,8 @@ data CogReplayEffect
       { reCogId :: CogId
       , reFun   :: Fan
       }
+    | CStop
+      { reCogId :: CogId }
     deriving (Show)
 
 data ResponseTuple = RTUP
@@ -401,6 +404,13 @@ recomputeEvals ctx m (RECEIPT cogId _ tab) =
                     Nothing ->
                         throwIO INVALID_RECV_RECEIPT_IN_LOGBATCH
                     Just val -> pure (k, val, Nothing)
+            ReceiptStop{..} -> do
+                case M.lookup cogNum m.val of
+                    Nothing ->
+                        throwIO INVALID_STOP_RECEIPT_IN_LOGBATCH
+                    Just val -> do
+                        let ef = CStop cogNum
+                        pure (k, val, Just ef)
   where
     getEvalFunAt :: Moment -> CogId -> RequestIdx -> Maybe (Fan, Vector Fan)
     getEvalFunAt m cogId idx = withRequestAt m cogId idx $ \case
@@ -461,6 +471,7 @@ performReplay cache ctx replayFrom = do
 
         let runEffect m = \case
                 Just CSpin{..} -> pure $ m { val = M.insert reCogId reFun m.val }
+                Just CStop{..} -> pure $ m { val = M.delete reCogId m.val }
                 Nothing        -> pure m
 
         m <- foldlM runEffect m (map third eRes)

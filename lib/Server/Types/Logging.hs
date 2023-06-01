@@ -49,6 +49,9 @@ data ReceiptItem
 
   -- | Receipt of a spin. Contains the assigned cog id.
   | ReceiptSpun { cogNum :: CogId }
+
+  -- | Receipt of a cog stop.
+  | ReceiptStop { cogNum :: CogId }
   deriving (Eq, Ord, Show)
 
 data Receipt = RECEIPT
@@ -64,6 +67,7 @@ data CogFailure
     | INVALID_OK_RECEIPT_IN_LOGBATCH
     | INVALID_SPUN_RECEIPT_IN_LOGBATCH CogId
     | INVALID_RECV_RECEIPT_IN_LOGBATCH
+    | INVALID_STOP_RECEIPT_IN_LOGBATCH
   deriving (Eq, Ord, Show, Generic, Exception)
 
 -- | Log batches count up from 0.
