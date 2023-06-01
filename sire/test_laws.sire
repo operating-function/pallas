@@ -26,8 +26,8 @@
 """@ arg | drop 1 expr
 """@ kor | pinItem pin
 """| all eql-expect
-""",, rowApply pin arg
-""",, rowApply kor arg
+"""++ rowApply pin arg
+"""++ rowApply kor arg
 """
 """;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """;; Silly Pseudo-Random Number Generator ;;

@@ -43,8 +43,8 @@
 """      | SCHEME 1
 """      | TCON getBinderKey#List
 """      ,   | TCON getBinderKey#Either
-"""         ,, TVAR 0
-"""         ,, TVAR 0
+"""         ++ TVAR 0
+"""         ++ TVAR 0
 """
 
 (TCON key params)=[key params]
@@ -369,18 +369,18 @@ abstype#TyExp
 @ acc (rexSetHeir 0 rex)::acc
 | loop acc (rexHeir rex)
 
-!!=  ,, `` > Row Nat
+!!=  ++ `` > Row Nat
            > Row Nat
-     ,, 0
-     ,, `` = (id x) x
+     ++ 0
+     ++ `` = (id x) x
   ^ separateAnnotation _ v2 v3
  `` > Row Nat
     > Row Nat
     = (id x) x
 
-!!=  ,, `` > Row Nat > Row Nat
-     ,, 0
-     ,, `` = (id x) x
+!!=  ++ `` > Row Nat > Row Nat
+     ++ 0
+     ++ `` = (id x) x
   ^ separateAnnotation _ v2 v3
  `` > Row Nat > Row Nat
     = (id x) x

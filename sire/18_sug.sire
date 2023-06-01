@@ -70,7 +70,7 @@
 /+  07_rex  [rexGetNodeWithRune]
 /+  07_rex  [rexStyle rexText rexEql]
 /+  07_rex  [rexSetRune rexSetHeir rexSetSons]
-/+  08_dat  [{,} {,,} {>} take drop switch]
+/+  08_dat  [{,} {++} {>} take drop switch]
 /+  08_dat  [NONE SOME maybeCase]
 /+  08_dat  [CONS NIL listToRowReversed listCase listFromRow]
 /+  08_dat  [LEFT RIGHT eitherCase]
@@ -297,9 +297,9 @@
           * 2
           * inc 2
     ,
-   ,, ` add
-   ,, ` 2
-   ,, ` | inc 2
+   ++ ` add
+   ++ ` 2
+   ++ ` | inc 2
 
 = (readFancyApp readExp rex err ok)
 @ sons    | rexSons rex
@@ -484,13 +484,13 @@ four=(WORD 0 {4} 0)
         (r & r)
 | if (rexIsLeaf rex)
     ^ appE (cnsE R, appE _)
-   ,, cnsE (rexConstr rex 0 text)
-   ,, if (isZero heir) (cnsE 0) (splicedE heir)
+   ++ cnsE (rexConstr rex 0 text)
+   ++ if (isZero heir) (cnsE 0) (splicedE heir)
 | else
     ^ appE (cnsE R, appE _)
-   ,, cnsE (rexConstr rex 0 rune)
-   ,, rowE (map splicedE sons)
-   ,, if (isZero heir) (cnsE 0) (splicedE heir)
+   ++ cnsE (rexConstr rex 0 rune)
+   ++ rowE (map splicedE sons)
+   ++ if (isZero heir) (cnsE 0) (splicedE heir)
 
 ; $ splices in a constant value
 ; $$ splices in an expression

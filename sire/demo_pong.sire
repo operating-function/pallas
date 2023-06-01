@@ -21,10 +21,10 @@
 """
 """ = (delEf free fx idx)
 """ | if (eql len-fx inc-idx)
-"""    ,, free
-"""    ,, take idx fx
-""" ,, CONS idx free
-""" ,, put fx idx 0
+"""    ++ free
+"""    ++ take idx fx
+""" ++ CONS idx free
+""" ++ put fx idx 0
 """
 """ (secs n)=(lsh n 32)
 """
@@ -65,10 +65,10 @@
 """ pongPub=(get pongResp 0)
 """ pongKey=(get pongResp 1)
 """
-""" ,, [%pongKey pongKey]
-""" ,, [%pongPub pongPub]
-""" ,, [%sireKey sireKey]
-""" ,, [%sirePub sirePub]
+""" ++ [%pongKey pongKey]
+""" ++ [%pongPub pongPub]
+""" ++ [%sireKey sireKey]
+""" ++ [%sirePub sirePub]
 """
 """ = replyBot
 """ . [[%recv pongKey sirePub]]
@@ -76,8 +76,8 @@
 """ | trk %listen
 """ * _,msg r
 """ @ ackFx
-"""    ,, [%recv pongKey sirePub]
-"""    ,, [%send pongKey sirePub msg]
+"""    ++ [%recv pongKey sirePub]
+"""    ++ [%send pongKey sirePub msg]
 """ . ackFx
 """ ? (ack x i r)
 """ | trk %ack
@@ -123,15 +123,15 @@
 """
 """ ; Requests:
 """ ;
-""" ; ,, [%send ship data]          ; Send a message.
-""" ; ,, [%recv ship ...]           ; Listen for messages.
-""" ; ,, [%fish hash]               ; Fetch a hash.
-""" ; ,, [%wait time]               ; Wait until a certain time.
-""" ; ,, [%serv %library noun hash] ; Serve a static noun.
-""" ; ,, [%trak ship %library]      ; Track changes to a remote static noun.
-""" ; ,, [%fork seed]               ; Spawn a sub-ship.
-""" ; ,, [%rand]                    ; Get random entropy.
-""" ; ,, [%when]                    ; Get the current time.
+""" ; ++ [%send ship data]          ; Send a message.
+""" ; ++ [%recv ship ...]           ; Listen for messages.
+""" ; ++ [%fish hash]               ; Fetch a hash.
+""" ; ++ [%wait time]               ; Wait until a certain time.
+""" ; ++ [%serv %library noun hash] ; Serve a static noun.
+""" ; ++ [%trak ship %library]      ; Track changes to a remote static noun.
+""" ; ++ [%fork seed]               ; Spawn a sub-ship.
+""" ; ++ [%rand]                    ; Get random entropy.
+""" ; ++ [%when]                    ; Get the current time.
 """ ;
 """ ; send :: Addr -> Noun               -> IO ()
 """ ; recv :: Row Addr                   -> IO (Addr, Noun)

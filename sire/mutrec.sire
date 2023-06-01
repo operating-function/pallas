@@ -82,16 +82,16 @@
 : aft sig bod <- makeDestroyer aft binds body
 | ret aft [sym sig bod]
 
-!!=  ,, 5
-     ,, ,, [%f [%x] `x]
-        ,, [%g [%y] `0]
+!!=  ++ 5
+     ++ ++ [%f [%x] `x]
+        ++ [%g [%y] `0]
   ^ genCoreBody _ 5 v2
   | [[%f [[%v 0 %x]] `x] [%g [[%v 0 %y]] `0]]
 
-!!=  ,, 7
-     ,,  ,,  ,, 'f'
-             ,, ['_g5']
-             ,, `` #@ $$(varKE 6 '_g6') _g5
+!!=  ++ 7
+     ++  ++  ++ 'f'
+             ++ ['_g5']
+             ++ `` #@ $$(varKE 6 '_g6') _g5
                    #@ x (#| $(idx 0) _g6)
                    #@ y (#| $(idx 1) _g6)
                     x
@@ -111,9 +111,9 @@
 
 = (matchE x wildExp patExps)
 | OPEN 0 "#|"
-       ,, cnsE switch
-       ,, appE (cnsE idx, natE 0, x)
-       ,, wildExp
+       ++ cnsE switch
+       ++ appE (cnsE idx, natE 0, x)
+       ++ wildExp
 | bowE patExps
 
 !!= (matchE `[0 1 2] `0 [`1 `2 `3])
@@ -213,7 +213,7 @@
 ^ _ 0 start
 ? (loop b x)
 | switch b 0
-,, ifNot x 0 (loop 0 0)
+++ ifNot x 0 (loop 0 0)
 
 !!= (car looper)     4
 !!= (cdr looper)     loopFun
@@ -285,8 +285,8 @@
                     = extraArgs  | sub maxArgs numArgs
                 | pure aft
                 | OPEN 0 "#="
-                   ,, NEST 0 "|" (rowCons armIdn armArgIdns) 0
-                   ,, | appE
+                   ++ NEST 0 "|" (rowCons armIdn armArgIdns) 0
+                   ++ | appE
                       | weld (coreIdn, litE key)
                       | weld armArgIdns
                       | rep cnsE-0 extraArgs
@@ -307,8 +307,8 @@
         | bowE branches
 | ok p aft
 | OPEN 0 "#="
-       ,, NEST 0 "|" (rowCons coreIdn coreSig) 0
-       ,, bindArms coreBody arms
+       ++ NEST 0 "|" (rowCons coreIdn coreSig) 0
+       ++ bindArms coreBody arms
 | bloodline armDefuns
 
 # mutual even_odd

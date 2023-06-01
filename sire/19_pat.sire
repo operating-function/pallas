@@ -77,8 +77,8 @@
         | if (eql '_' bindVar) (go binds)
         | letE bindVar
                 | appE
-               ,, cnsE (idx (idx 0 bind))
-               ,, varE tmpVar
+               ++ cnsE (idx (idx 0 bind))
+               ++ varE tmpVar
         | go binds
 | if isVar id (letE tmpVar rowExpr)
 | go (listFromRow (tag lhs))
@@ -116,11 +116,11 @@
 ;     =>
 ;
 ;   | ROW
-;  ,, VAR 1 'x'
-;  ,, ROW
-;      ,, VAR 2 'y'
-;      ,, VAR 3 'z'
-;  ,, TAB
+;  ++ VAR 1 'x'
+;  ++ ROW
+;      ++ VAR 2 'y'
+;      ++ VAR 3 'z'
+;  ++ TAB
 ;      ## =a (VAR 4 'b')
 ;      ## =c (VAR 5 'd')
 ;      ## =e (VAR 6 'f')
@@ -248,45 +248,45 @@
         | err rex "Unknown binding pattern"
 
 !!= (parseBinder `[x y z] v2 id)
-       ,, %r
-       ,, ,, [%v 0 %x]
-          ,, [%v 0 %y]
-          ,, [%v 0 %z]
+       ++ %r
+       ++ ++ [%v 0 %x]
+          ++ [%v 0 %y]
+          ++ [%v 0 %z]
 
 !!= (parseBinder `[x y !z] v2 id)
-       ,, %r
-       ,, ,, [%v 0 %x]
-          ,, [%v 0 %y]
-          ,, [%s 0 %z]
+       ++ %r
+       ++ ++ [%v 0 %x]
+          ++ [%v 0 %y]
+          ++ [%s 0 %z]
 
 !!= (parseBinder `(#[=x y=b]) v2 id)
-       ,, %t
-       ,, ## =x [%v 0 %x]
+       ++ %t
+       ++ ## =x [%v 0 %x]
           ## =y [%v 0 %b]
 
 !!= (parseBinder `[=x y=b] v2 id)
-       ,, %t
-       ,, ## =x [%v 0 %x]
+       ++ %t
+       ++ ## =x [%v 0 %x]
           ## =y [%v 0 %b]
 
 !!= (parseBinder `[#[=x] [y]] v2 id)
-       ,, %r
-       ,, ,, [%t #[x=[%v 0 %x]]]
-          ,, [%r [[%v 0 %y]]]
+       ++ %r
+       ++ ++ [%t #[x=[%v 0 %x]]]
+          ++ [%r [[%v 0 %y]]]
 
 
 !!= (parseBinder `(foo@[#[=x] [y]]) v2 id)
-       ,, 'a'
-       ,, ['v' 0 'foo']
-       ,,  ,, 'r'
-           ,,  ,, ['t' #[x=['v' 0 'x']]]
-               ,, ['r' [['v' 0 'y']]]
+       ++ 'a'
+       ++ ['v' 0 'foo']
+       ++  ++ 'r'
+           ++  ++ ['t' #[x=['v' 0 'x']]]
+               ++ ['r' [['v' 0 'y']]]
 
 
 !!= (parseBinder ``[$$(varKE 1 %x) $$(varKE 2 %y)] v2 id)
-       ,, %r
-       ,, ,, [%v 1 %x]
-          ,, [%v 2 %y]
+       ++ %r
+       ++ ++ [%v 1 %x]
+          ++ [%v 2 %y]
 
 
 """ Sequence Binds """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -390,44 +390,44 @@
 ;
 | [aft (weld soFar extra) (weld deps depend)]
 
-!!=    ,, 5
-       ,, [[4 %y (`x)]]
-       ,, []
+!!=    ++ 5
+       ++ [[4 %y (`x)]]
+       ++ []
     | sequenceBinds 5 [[[%v 4 %y] `x]]
 
-!!=    ,, 5
-       ,, [[4 %y (`x)]]
-       ,, ['y']
+!!=    ++ 5
+       ++ [[4 %y (`x)]]
+       ++ ['y']
     | sequenceBinds 5 [[[%s 4 %y] `x]]
 
-!!=    ,, 8
-       ,,  ,, [5 '_g5'  ``(foo foo)]
-           ,, [6 '_g6'  ``(#| $(idx 0) _g5)]
-           ,, [1 %x     ``(#| $(idx 0) _g6)]
-           ,, [7 '_g7'  ``(#| $(idx 1) _g5)]
-           ,, [2 %y     ``(#| $(idx 0) _g7)]
-       ,,  [%x %y]
+!!=    ++ 8
+       ++  ++ [5 '_g5'  ``(foo foo)]
+           ++ [6 '_g6'  ``(#| $(idx 0) _g5)]
+           ++ [1 %x     ``(#| $(idx 0) _g6)]
+           ++ [7 '_g7'  ``(#| $(idx 1) _g5)]
+           ++ [2 %y     ``(#| $(idx 0) _g7)]
+       ++  [%x %y]
     | sequenceBinds 5
     | v1
-   ,,   | v2 %r
-       ,, [%r [[%s 1 %x]]]
-       ,, [%r [[%s 2 %y]]]
-   ,, `(foo foo)
+   ++   | v2 %r
+       ++ [%r [[%s 1 %x]]]
+       ++ [%r [[%s 2 %y]]]
+   ++ `(foo foo)
 
 !!=
-       ,, 8
-       ,,  ,, [5 '_g5'  ``(foo foo)]
-           ,, [6 '_g6'  ``(#| $(idx 0) _g5)]
-           ,, [2 %x     ``(#| $(tabIdx 'x') _g6)]
-           ,, [7 '_g7'  ``(#| $(idx 1) _g5)]
-           ,, [3 %y     ``(#| $(idx 0) _g7)]
-       ,, []
+       ++ 8
+       ++  ++ [5 '_g5'  ``(foo foo)]
+           ++ [6 '_g6'  ``(#| $(idx 0) _g5)]
+           ++ [2 %x     ``(#| $(tabIdx 'x') _g6)]
+           ++ [7 '_g7'  ``(#| $(idx 1) _g5)]
+           ++ [3 %y     ``(#| $(idx 0) _g7)]
+       ++ []
     | sequenceBinds 5
     | v1
-   ,,   | v2 %r
-       ,, [%t #[x=[%v 2 %x]]]
-       ,, [%r [[%v 3 %y]]]
-   ,, `(foo foo)
+   ++   | v2 %r
+       ++ [%t #[x=[%v 2 %x]]]
+       ++ [%r [[%v 3 %y]]]
+   ++ `(foo foo)
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -459,11 +459,11 @@
        #| $seq $$(varE %z)
         x
    | bindSeqE
-          ,, [5 '_g5'  ``(foo foo)]
-          ,, [6 '_g6'  ``(#| $(idx 1) _g5)]
-          ,, [1 %y     ``(#| $(idx 0) _g6)]
-          ,, [7 '_g7'  ``(#| $(idx 0) _g5)]
-          ,, [2 %x     ``(#| $(tabIdx 'x') _g7)]
+          ++ [5 '_g5'  ``(foo foo)]
+          ++ [6 '_g6'  ``(#| $(idx 1) _g5)]
+          ++ [1 %y     ``(#| $(idx 0) _g6)]
+          ++ [7 '_g7'  ``(#| $(idx 0) _g5)]
+          ++ [2 %x     ``(#| $(tabIdx 'x') _g7)]
        | `x
    | [%_g5 %y %z]
 
@@ -707,15 +707,15 @@
         @ #[pos=[px py pz] vel=[vx vy vz]]
                ## =pos [500 200 1]
                ## =vel [0 0 1000]
-       ,, add px vx
-       ,, add py vy
-       ,, add pz vz
+       ++ add px vx
+       ++ add py vy
+       ++ add pz vz
 
 !!=  [11 22 33]
     @ (addV3 [x1 y1 z1] [x2 y2 z2])
-        ,, add x1 x2
-        ,, add y1 y2
-        ,, add z1 z2
+        ++ add x1 x2
+        ++ add y1 y2
+        ++ add z1 z2
     | addV3 [1 2 3] [10 20 30]
 
 
@@ -802,13 +802,13 @@
     : bind <- parseBinder sigRex err
     | ok (bind, bodRex)
 
-!!=  ,, [%v 0 %x]
-     ,, `3
+!!=  ++ [%v 0 %x]
+     ++ `3
   ^ parseDefine _ v2 id
   ` = x 3
 
-!!=  ,, [%r [%v 0 %x],[%v 0 %y]]
-     ,, `3
+!!=  ++ [%r [%v 0 %x],[%v 0 %y]]
+     ++ `3
   ^ parseDefine _ v2 id
   ` = [x y] 3
 
@@ -817,10 +817,10 @@
 ;;     That way these two cases would slot right together, and we must
 ;;     do something like that already with `@ (f x) ...` patterns?
 
-!!=  ,, 0
-     ,, %f
-     ,, ([%v 0 %x], [%r ([%v 0 %y], [%v 0 %z])])
-     ,, `y
+!!=  ++ 0
+     ++ %f
+     ++ ([%v 0 %x], [%r ([%v 0 %y], [%v 0 %z])])
+     ++ `y
   ^ parseDefine _ v2 id
   ` = (f x [y z]) y
 

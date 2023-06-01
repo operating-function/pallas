@@ -62,12 +62,12 @@
 = (isBar b)
 @ bod (lawBody b)
 | rowAnd
-,, isLaw b
-,, eql 1 lawName-b
-,, eql 1 lawArgs-b
-,, isNat bod
-,, neq 0 bod
-,, isZero (mod padLen-bod 8)
+++ isLaw b
+++ eql 1 lawName-b
+++ eql 1 lawArgs-b
+++ isNat bod
+++ neq 0 bod
+++ isZero (mod padLen-bod 8)
 
 = (byteWidth n)
 ^ _ 0 n
@@ -330,11 +330,11 @@ hexAlphabet=(b#{0123456789abcdef})
 = (showBarLit bar)
 ^ SHUT 0 "#" _ 0
 | if (barAll isPrint bar)
-   ,, WORD 0 "b" 0
-   ,, CURL 0 (barNat bar) 0
+   ++ WORD 0 "b" 0
+   ++ CURL 0 (barNat bar) 0
 | else
-   ,, WORD 0 "x" 0
-   ,, CURL 0 (barToHex bar) 0
+   ++ WORD 0 "x" 0
+   ++ CURL 0 (barToHex bar) 0
 
 !!= (natBar-'asdf')       | readBarLit `(b#asdf) v2 id
 !!= [`(#b)    blTwoKids]  | readBarLit `(#b)     v2 id

@@ -370,8 +370,8 @@ NONE
       @ filename | getFilename url
       | mkBarPath [b#{img} (natBar | showNat id) filename]
     | **JSON_VEC
-   ,, **JSON_NUM id
-   ,, **JSON_STR path
+   ++ **JSON_NUM id
+   ++ **JSON_STR path
 | **JSON_MAP
 ## =tag      | **JSON_STR b#{OK}
 ## =contents | **JSON_MAP

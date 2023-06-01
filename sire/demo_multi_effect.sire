@@ -87,8 +87,8 @@ hexAlphabet=(b#{0123456789abcdef})
 = (parseInput bar)
 @ isSpace (i & or (eql " " i) (eql 10 i))
 @ [command rest] (barSplitOneWith isSpace bar)
-,, command
-,, barDropWhile isSpace rest
+++ command
+++ barDropWhile isSpace rest
 
 !! | eql [b#broadcast b#{Hello World!}]
    | parseInput
@@ -108,18 +108,18 @@ hexAlphabet=(b#{0123456789abcdef})
 (sockKill class)=(idx 4 class)
 
 = Telnet
-,, SOCK_OPEN
-,, SOCK_SEND
-,, SOCK_RECV
-,, SOCK_WAIT
-,, SOCK_KILL
+++ SOCK_OPEN
+++ SOCK_SEND
+++ SOCK_RECV
+++ SOCK_WAIT
+++ SOCK_KILL
 
 = WebSocket
-,, WOCK_OPEN
-,, WOCK_SEND
-,, WOCK_RECV
-,, WOCK_WAIT
-,, WOCK_KILL
+++ WOCK_OPEN
+++ WOCK_SEND
+++ WOCK_RECV
+++ WOCK_WAIT
+++ WOCK_KILL
 
 = (handleSocketInput broadcast class vOpen sock next)
 : stt <- getKernelState
@@ -171,7 +171,7 @@ hexAlphabet=(b#{0123456789abcdef})
         | done 0
 | recur broadcast class vOpen next
 
-;;;   ,, | tableAdd (TELNET_WAIT h) (onTelnetWait h)
+;;;   ++ | tableAdd (TELNET_WAIT h) (onTelnetWait h)
 ;;;      | tableAdd (TELNET_RECV h) (onTelnetRecv h)
 ;;;      | tableAdd TELNET_OPEN PIN-onTelnetOpen
 ;;;      | table

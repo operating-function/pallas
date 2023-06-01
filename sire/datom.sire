@@ -200,8 +200,8 @@ db
 > Db > [Nat Db]
 = (allocEntity db)
 # openDb db
-,, maxEid
-,, | DB eav aev ave vae (inc maxEid)
+++ maxEid
+++ | DB eav aev ave vae (inc maxEid)
 
 = (singletonCabDefault opt missing next)
 | **next
@@ -350,9 +350,9 @@ e
     * (RIGHT eid) | RIGHT [eid txnTmpIds db]
 ; temporarily, we're going to wrap temporary identifiers in cabs for ease of
 ; typing
-| if | rowAnd ,, isCab i
-              ,, eql 1 | cabLen i
-              ,, isNat | cabMin i
+| if | rowAnd ++ isCab i
+              ++ eql 1 | cabLen i
+              ++ isNat | cabMin i
     @ val | cabMin i
     : eid
         < maybeCase (tabLookup val txnTmpIds)
@@ -403,54 +403,54 @@ e
           ^ foldl _ [NIL NIL NIL txnTmpIds db] vVal
           & ([errs actions eids txnTmpIds db] i)
           | ifNot | isTab i
-            ,, (CONS (BAD_MAP_VAL i) errs)
-            ,, actions
-            ,, eids
-            ,, txnTmpIds
-            ,, db
+            ++ (CONS (BAD_MAP_VAL i) errs)
+            ++ actions
+            ++ eids
+            ++ txnTmpIds
+            ++ db
           ; we need to reparse map errors
           @ [mybEid suberrs subactions txnTmpIds db]
             | parseMapForm txnTmpIds db i
-          ,, | listWeld suberrs errs
-          ,, | listWeld subactions actions
-          ,, : eid <- **maybeCase mybEid eids
+          ++ | listWeld suberrs errs
+          ++ | listWeld subactions actions
+          ++ : eid <- **maybeCase mybEid eids
              | CONS eid eids
-          ,, txnTmpIds
-          ,, db
+          ++ txnTmpIds
+          ++ db
         @ newActions
           ^ listMap _ subeids
           & subeid
           (ACTADD eid aid aVal subeid writeAve unique isMany isRef)
-        ,, (listWeld suberrs errs)
-        ,, (listWeld newActions | listWeld subactions actions)
-        ,, txnTmpIds
-        ,, db
+        ++ (listWeld suberrs errs)
+        ++ (listWeld newActions | listWeld subactions actions)
+        ++ txnTmpIds
+        ++ db
       | if ((isTab vVal) && (not | isCab vVal))
         @ [mybEid suberrs subactions txnTmpIds db]
           | parseMapForm txnTmpIds db vVal
         : subeid <- **maybeCase mybEid
-                   ,, | listWeld suberrs errs
-                   ,, | listWeld subactions actions
-                   ,, txnTmpIds
-                   ,, db
+                   ++ | listWeld suberrs errs
+                   ++ | listWeld subactions actions
+                   ++ txnTmpIds
+                   ++ db
         @ topAdd | ACTADD eid aid aVal subeid writeAve unique isMany isRef
-        ,, | listWeld suberrs errs
-        ,, | CONS topAdd | listWeld subactions actions
-        ,, txnTmpIds
-        ,, db
+        ++ | listWeld suberrs errs
+        ++ | CONS topAdd | listWeld subactions actions
+        ++ txnTmpIds
+        ++ db
       ; we have one entity id as the rhs.
       # datacase | parseEntityId txnTmpIds db vVal
       * (LEFT err)
-        ,, (CONS err errs)
-        ,, actions
-        ,, txnTmpIds
-        ,, db
+        ++ (CONS err errs)
+        ++ actions
+        ++ txnTmpIds
+        ++ db
       * (RIGHT [rightEid txnTmpIds db])
-        ,, errs
-        ,, | CONS (ACTADD eid aid aVal rightEid writeAve unique isMany isRef)
+        ++ errs
+        ++ | CONS (ACTADD eid aid aVal rightEid writeAve unique isMany isRef)
                   actions
-        ,, txnTmpIds
-        ,, db
+        ++ txnTmpIds
+        ++ db
     | if isMany
       ; many, but not references. So if this is a row, parse each item as a
       ; value, otherwise
@@ -460,38 +460,38 @@ e
           | listFromRow vVal
         | CONS | ACTADD eid aid aVal vVal writeAve unique isMany isRef
           NIL
-      ,, errs
-      ,, listWeld adds actions
-      ,, txnTmpIds
-      ,, db
+      ++ errs
+      ++ listWeld adds actions
+      ++ txnTmpIds
+      ++ db
     ; sometimes a val is just a val
-    ,, errs
-    ,, | CONS (ACTADD eid aid aVal vVal writeAve unique isMany isRef)
+    ++ errs
+    ++ | CONS (ACTADD eid aid aVal vVal writeAve unique isMany isRef)
               actions
-    ,, txnTmpIds
-    ,, db
+    ++ txnTmpIds
+    ++ db
 
 > Db > Tab Any Any > (Row Error, Row TxnAction, Tab Any Any, Db)
 = (parseListForm txnTmpIds db row)
 ; rows are a tuple of [op espec attr val]
 | ifNot | eql 4 | len row
-    ,, (CONS (INVALID_ROW row) NIL)
-    ,, NIL
-    ,, txnTmpIds
-    ,, db
+    ++ (CONS (INVALID_ROW row) NIL)
+    ++ NIL
+    ++ txnTmpIds
+    ++ db
 @ op | idx 0 row
 | if | and | neq %add op
            | neq %rm op
-   ,, (CONS (INVALID_ROW_OP op) NIL)
-   ,, NIL
-   ,, txnTmpIds
-   ,, db
+   ++ (CONS (INVALID_ROW_OP op) NIL)
+   ++ NIL
+   ++ txnTmpIds
+   ++ db
 # datacase | parseEntityId txnTmpIds db (idx 1 row)
 * (LEFT err)
-    ,, (CONS err NIL)
-    ,, NIL
-    ,, txnTmpIds
-    ,, db
+    ++ (CONS err NIL)
+    ++ NIL
+    ++ txnTmpIds
+    ++ db
 * (RIGHT [eid txnTmpIds db])
     ; todo: in list form, attr is not just an attrName, but can also be a
     ; raw eid or a lookupref. we completely punt on this: it should be easy
@@ -507,15 +507,15 @@ e
         ; literally.
         @ val | idx 3 row
         | if (eql op %rm)
-            ,, NIL
-            ,, | CONS | ACTRM eid aid val
-            ,, txnTmpIds
-            ,, db
-        ,, NIL
-        ,, @ a | ACTADD eid aid attrName val writeAve unique isMany isRef
+            ++ NIL
+            ++ | CONS | ACTRM eid aid val
+            ++ txnTmpIds
+            ++ db
+        ++ NIL
+        ++ @ a | ACTADD eid aid attrName val writeAve unique isMany isRef
            | CONS a NIL
-        ,, txnTmpIds
-        ,, db
+        ++ txnTmpIds
+        ++ db
 
 ; Given a user-level structure of rows and tabs, parse it into a series of adds
 ; and retracts.
@@ -538,10 +538,10 @@ e
 ^ foldl _ [NIL NIL %[] db] items
 & ([errs actions txnTmpIds db] i)
 @ [newErrs newActions txnTmpIds db] | parseItem txnTmpIds db i
-,, | listWeld newErrs errs
-,, | listWeld newActions actions
-,, txnTmpIds
-,, db
+++ | listWeld newErrs errs
+++ | listWeld newActions actions
+++ txnTmpIds
+++ db
 
 ; User transaction function. Given transaction items, resolve any pending
 ; entity numbers in them and then apply them to the database.
@@ -564,8 +564,8 @@ e
         | if (cabIsEmpty oldEidCab)
             ; no previous value
             [errs (rawAdd eid aid val writeAve many isRef db)]
-        ,, | CONS (UNIQUE_VIOLATION attrName val (cabMin oldEidCab) eid) errs
-        ,, db
+        ++ | CONS (UNIQUE_VIOLATION attrName val (cabMin oldEidCab) eid) errs
+        ++ db
     * (ACTRM eid attr val)
         [errs (rawRm eid attr val db)]
 | ifNot (listIsEmpty errs) | LEFT | listToRow errs

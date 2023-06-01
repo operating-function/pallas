@@ -686,7 +686,7 @@
 
 """ Tall-Form Row Literals """""""""""""""""""""""""""""""""""""""""""""""""""""
 
-openRowExpect={Expected something like (,, x), (,, f x y), etc}
+openRowExpect={Expected something like (++ x), (++ f x y), etc}
 
 = (readOpenRow readExp rex err ok)
 @ topRune (rexRune rex)
@@ -715,21 +715,19 @@ openRowExpect={Expected something like (,, x), (,, f x y), etc}
 
 (readRex rex err ok)=(ok rex)
 
-= ({,,} s p e a r err ok)
+= ({++} s p e a r err ok)
 | readOpenRow readRex r err
 & res
 | ok p a (rowE res)
 
-{++}=(.{,,})
-
-!!= [3 4 5] (,, 3)(,, 4)(,, 5)
-!!= [3 4 5] (,, 3)(,, 4)5
-!!= [3 4 5] (,,3)(,, 3 3)5
+!!= [3 4 5] (++ 3)(++ 4)(++ 5)
+!!= [3 4 5] (++ 3)(++ 4)5
+!!= [3 4 5] (++3)(++ 3 3)5
 
 !!= [3 4 5]
- ,, 3
- ,, 4
- ,, 5
+ ++ 3
+ ++ 4
+ ++ 5
 
 !!= [3 4 5]
  ++ 3
@@ -763,18 +761,18 @@ openRowExpect={Expected something like (,, x), (,, f x y), etc}
 = (lsearch_ key row low end)
 | if (gte low end) (not_found low)
 | switch (cmp key | get row low) 0
-,, not_found low                   ;;  LT
-,, found low                       ;;  EQ
-,, lsearch_ key row (inc low) end  ;;  GT
+++ not_found low                   ;;  LT
+++ found low                       ;;  EQ
+++ lsearch_ key row (inc low) end  ;;  GT
 
 > Any > Row Any > Nat
 = (bsearch_ key row low end)
 | if (gte low end) (not_found low)
 @ index (rsh (add low end) 1)
 | switch (cmp key | get row index) 0
-,, bsearch_ key row low index        ;; LT
-,, found index                       ;; EQ
-,, bsearch_ key row (inc index) end  ;; GT
+++ bsearch_ key row low index        ;; LT
+++ found index                       ;; EQ
+++ bsearch_ key row (inc index) end  ;; GT
 
 (lsearch key row)=(lsearch_ key row 0 (len row))
 (bsearch key row)=(bsearch_ key row 0 (len row))
@@ -923,7 +921,7 @@ F=found
 ^-^
 ^-^ readRex
 ^-^ readOpenRow
-^-^ {,,} {++}
+^-^ {++}
 ^-^
 ^-^ lsearch lsearch_
 ^-^ bsearch bsearch_

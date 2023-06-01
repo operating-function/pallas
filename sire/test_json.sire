@@ -63,13 +63,13 @@
 %did_2
 
 '''
-''' ,, %1mb_is
-''' ,, mul 1024 1024
-''' ,, %bytes
+''' ++ %1mb_is
+''' ++ mul 1024 1024
+''' ++ %bytes
 '''
-''' ,, %ex_3_is
-''' ,, (| barLen | barCat | rep example 1817)
-''' ,, %bytes
+''' ++ %ex_3_is
+''' ++ (| barLen | barCat | rep example 1817)
+''' ++ %bytes
 '''
 ''' !!= 208956 (| len | unpackRight | jsonLexAll | barCat | rep example 1817)
 '''

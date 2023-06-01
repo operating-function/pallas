@@ -32,8 +32,8 @@ hexAlphabet=(natBar "0123456789abcdef")
 = (hexByte n)
 | implode
 | map hexChar
-,, takeBits 4 (rsh n 4)
-,, takeBits 4 n
+++ takeBits 4 (rsh n 4)
+++ takeBits 4 n
 
 (showByte n)=(strWeld "0x" hexByte-n)
 
@@ -69,8 +69,8 @@ hexAlphabet=(natBar "0123456789abcdef")
 !! eql 0xfe0011        | barNat  | barFromHex '''1100fe
 
 !! eql  | barCat
-       ,, x#7470ea5654831e01ffc04ee0e43a32fb
-       ,, x#90227162dc0faaa14f9627d8f5c718f7
+       ++ x#7470ea5654831e01ffc04ee0e43a32fb
+       ++ x#90227162dc0faaa14f9627d8f5c718f7
     | blake3 b#fdsafdsa
 
 ; All pins referenced by a val.
@@ -217,9 +217,9 @@ hexAlphabet=(natBar "0123456789abcdef")
         : x xs <- **listCase more (die "impossible")
         : y ys <- **listCase xs appE-[cnsE-eql varE-tmpVar x]
         | appE
-       ,, cnsE-and
-       ,, appE [cnsE-eql varE-tmpVar x]
-       ,, loop xs
+       ++ cnsE-and
+       ++ appE [cnsE-eql varE-tmpVar x]
+       ++ loop xs
 
 = ("==" s p e a r err ok)
 @ [a r] (multiEqlE a (rexKids r))
@@ -336,11 +336,11 @@ hexAlphabet=(natBar "0123456789abcdef")
         | **rexCase expr
             & (r x k)
             @ hed | barCat
-                 ,, b#"("
-                 ,, | barIntercalate b#" "
+                 ++ b#"("
+                 ++ | barIntercalate b#" "
                     | if (r == '|') map-showRex-x
                     | weld [natBar-r] map-showRex-x
-                 ,, b#")"
+                 ++ b#")"
             | if (k == 0) hed
             | barWeld hed showRex-k
           (name & natBar name)
@@ -370,8 +370,8 @@ hexAlphabet=(natBar "0123456789abcdef")
 * 8 %Eight
 * 9 %Nine
 | strCat
-,, loop (div n 10)
-,, natWords (mod n 10)
+++ loop (div n 10)
+++ natWords (mod n 10)
 
 !!= %ThreeFourFive natWords-345
 !!= %Zero          natWords-0
@@ -479,8 +479,8 @@ hexAlphabet=(natBar "0123456789abcdef")
 = (refsTable pin)
 | tabFromPairs
 | turn refs-pin
-& r ,, lawName pinItem-r
-    ,, pinHash r
+& r ++ lawName pinItem-r
+    ++ pinHash r
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

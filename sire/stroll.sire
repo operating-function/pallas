@@ -21,32 +21,32 @@
 = strollSchema
 ^ assertTransact _ emptyDB
 ; Page attributes
-,, ## =":db/ident" ":page/title"
+++ ## =":db/ident" ":page/title"
    ## =":db/unique" TRUE
    ## =":db/doc"
        "When set on a block, that block is treated as a page with this title."
 ; Block attributes
-,, ## =":db/ident" ":block/string"
+++ ## =":db/ident" ":block/string"
    ## =":db/cardinality" "one"
    ## =":db/doc" "String content of a block"
-,, ## =":db/ident" ":block/uid"
+++ ## =":db/ident" ":block/uid"
    ## =":db/cardinality" "one"
    ## =":db/unique" TRUE
    ## =":db/doc" "User referable text name for a block"
-,, ## =":db/ident" ":block/children"
+++ ## =":db/ident" ":block/children"
    ## =":db/cardinality" "many"
    ## =":db/valueType" "ref"
    ## =":db/doc" "Reference to all blocks under this block"
-,, ## =":db/ident" ":block/page"
+++ ## =":db/ident" ":block/page"
    ## =":db/cardinality" "one"
    ## =":db/valueType" "ref"
    ## =":db/indexed" TRUE
    ## =":db/doc" "Reference to the page this block is displayed on."
-,, ## =":db/ident" ":block/refs"
+++ ## =":db/ident" ":block/refs"
    ## =":db/cardinality" "many"
    ## =":db/valueType" "ref"
    ## =":db/doc" "Reference to all blocks `:block/string` textually refers to."
-,, ## =":db/ident" ":block/order"
+++ ## =":db/ident" ":block/order"
    ## =":db/cardinality" "one"
    ## =":db/doc" "The order of these blocks in the list of `:block/children`."
 
@@ -173,8 +173,8 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ; Find the implicit block that make up a page, along with all its children.
 = (findPageBlock pageTitle strollDb)
 # openStrollDb strollDb
-| pull ,, ":block/uid"
-       ,, childrenQuery
+| pull ++ ":block/uid"
+       ++ childrenQuery
        [":page/title" pageTitle]
        db
 
@@ -183,9 +183,9 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 > Row Any > DB > Either [Error] [(Tab Any Any)]
 = (findBlocksContent q strollDb)
 # openStrollDb strollDb
-| pullMany ,, ":block/uid"
-           ,, ":block/string"
-           ,, childrenQuery
+| pullMany ++ ":block/uid"
+           ++ ":block/string"
+           ++ childrenQuery
            q
            db
 
@@ -222,9 +222,9 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 = (findPageBlocksReferencing x strollDb)
 # openStrollDb strollDb
 @ uid | fromSome "" | tabLookup ":block/uid" x
-| pull ,, ## =":block/_refs" ,, ":block/uid"
-                             ,, ## =":block/page" ,, ":block/uid"
-                                                  ,, ":page/title"
+| pull ++ ## =":block/_refs" ++ ":block/uid"
+                             ++ ## =":block/page" ++ ":block/uid"
+                                                  ++ ":page/title"
        [":block/uid" uid]
        db
 
@@ -270,7 +270,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 | fromSome %[]
 | tabLookup ":block/refs"
 | assertRight
-| pull ,, ## =":block/refs" ,, ":db/id"
+| pull ++ ## =":block/refs" ++ ":db/id"
        [":block/uid" uid]
        db
 
@@ -356,11 +356,11 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ [pageUid strollDb]  | generateUniqueID strollDb
 ^ [pageUid _]
 ^ assertTransactStrollDb _ strollDb
-,, ## =":db/id" %["newpage"]
+++ ## =":db/id" %["newpage"]
    ## =":page/title" pageTitle
    ## =":block/uid" pageUid
    ## =":block/children"
-      ,, ## =":block/string" ""
+      ++ ## =":block/string" ""
          ## =":block/uid" pointUid
          ## =":block/order" 0
          ## =":block/page" %["newpage"]
@@ -387,10 +387,10 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ? (loop i bar out)
 | if | gth i len
     out
-| if | rowAnd ,, | eql (barIdx i bar) '('
-              ,, | eql (barIdx (inc i) bar) '('
-              ,, | eql (barIdx (add 11 i) bar) ')'
-              ,, | eql (barIdx (add 12 i) bar) ')'
+| if | rowAnd ++ | eql (barIdx i bar) '('
+              ++ | eql (barIdx (inc i) bar) '('
+              ++ | eql (barIdx (add 11 i) bar) ')'
+              ++ | eql (barIdx (add 12 i) bar) ')'
    ; todo: additionally validate that its base64
    @ ref | barNat | barSlice (add i 2) 9 bar
    | loop (add i 12) bar (CONS ref out)
@@ -418,12 +418,12 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ? (loop i bar stack out)
 | if | gth i len
     out
-| if | rowAnd ,, | eql (barIdx i bar) '['
-              ,, | eql (barIdx (inc i) bar) '['
+| if | rowAnd ++ | eql (barIdx i bar) '['
+              ++ | eql (barIdx (inc i) bar) '['
     ; we mark that this is where we have the beginning of a mark
     | loop (add 2 i) bar (CONS (add 2 i) stack) out
-| if | rowAnd ,, | eql (barIdx i bar) ']'
-              ,, | eql (barIdx (inc i) bar) ']'
+| if | rowAnd ++ | eql (barIdx i bar) ']'
+              ++ | eql (barIdx (inc i) bar) ']'
     : x xs < **listCase stack
                  ; extra unmatched right close. ignore it
                  | loop (add 2 i) bar stack out
@@ -482,9 +482,9 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ toDel | cabToRow | cabSub currentRefEids newRefEids
 ;
 ^ assertTransactStrollDb (cat _) strollDb
-,, [[%add [":block/uid" textUid] ":block/string" text]]
-,, | map a&[%add [":block/uid" textUid] ":block/refs" a] toAdd
-,, | map r&[%rm [":block/uid" textUid] ":block/refs" r] toDel
+++ [[%add [":block/uid" textUid] ":block/string" text]]
+++ | map a&[%add [":block/uid" textUid] ":block/refs" a] toAdd
+++ | map r&[%rm [":block/uid" textUid] ":block/refs" r] toDel
 
 ; Moves a bullet point to a new parent, updating all references and page
 ; entries.
@@ -509,9 +509,9 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
     | mkPageUpdates nodeUid dstPage strollDb
 ;
 ^ assertTransactStrollDb (cat _) strollDb
-,, [[%rm [":block/uid" curParentUid] ":block/children" nodeEid]]
-,, [[%add [":block/uid" newParentUid] ":block/children" nodeEid]]
-,, [[%add nodeEid ":block/order" newOrder]]
-,, prevReorders
-,, newReorders
-,, pageChanges
+++ [[%rm [":block/uid" curParentUid] ":block/children" nodeEid]]
+++ [[%add [":block/uid" newParentUid] ":block/children" nodeEid]]
+++ [[%add nodeEid ":block/order" newOrder]]
+++ prevReorders
+++ newReorders
+++ pageChanges

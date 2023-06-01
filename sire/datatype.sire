@@ -352,17 +352,17 @@ ex=(PAIR %a %b)
     | go acc that
 
 
-!!=  ,, [0 %FOO NONE [(0, 'x', `a)]]
-     ,, [0 %BAR NONE [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
-     ,, [0 %LOL NONE []]
+!!=  ++ [0 %FOO NONE [(0, 'x', `a)]]
+     ++ [0 %BAR NONE [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
+     ++ [0 %LOL NONE []]
   ^ readDataBranches _ v2 id
   ` * FOO x:a
     * BAR x:b y:c z:d
     * LOL
 
-!!=  ,, [0 %FOO (SOME %f) [(0, 'x', `a)]]
-     ,, [0 %BAR (SOME %b) [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
-     ,, [0 %LOL (SOME %l) []]
+!!=  ++ [0 %FOO (SOME %f) [(0, 'x', `a)]]
+     ++ [0 %BAR (SOME %b) [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
+     ++ [0 %LOL (SOME %l) []]
   ^ readDataBranches _ v2 id
   ` * FOO=f x:a
     * BAR=b x:b y:c z:d
@@ -570,11 +570,11 @@ ex=(PAIR %a %b)
 @ acc (DATA_CASE tag ari fields bodyRex)::acc
 | go hasTag fun acc remain
 
-!!=  ,, TRUE
-     ,, dataTag
-     ,, (natE 0)
-     ,,  ,, [0 0 []                      `[x "]"]]
-         ,, [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
+!!=  ++ TRUE
+     ++ dataTag
+     ++ (natE 0)
+     ++  ++ [0 0 []                      `[x "]"]]
+         ++ [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
   ^ _ v2 v4
   @ xpr `` * LNULL       [x "]"]
            * (LCONS _ _) [x " " (go xs)]
@@ -586,10 +586,10 @@ ex=(PAIR %a %b)
         ## =conHas #[3=TRUE 4=TRUE]
   | readDatacaseBody src prp xpr
 
-!!=  ,, TRUE
-     ,, dataTag
-     ,, `[x " " (go xs)]
-     ,,  ,, [0 0 [] `[x "]"]]
+!!=  ++ TRUE
+     ++ dataTag
+     ++ `[x " " (go xs)]
+     ++  ++ [0 0 [] `[x "]"]]
   ^ _ v2 v4
   @ xpr `` * LNULL [x "]"]
            * _     [x " " (go xs)]
@@ -604,8 +604,8 @@ ex=(PAIR %a %b)
 = xpr `` * _ 0
          * _ 0
 
-!!=  ,, xpr
-     ,, "Only one fallback-pattern is allowed"
+!!=  ++ xpr
+     ++ "Only one fallback-pattern is allowed"
   | readDatacaseBody %[] %[] xpr v2 v4
 
 

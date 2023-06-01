@@ -71,7 +71,7 @@
 """ - [x] /=
 """ - [x] , (rows)
 """ - [x] , (tabs)
-""" - [x] ,, ++
+""" - [x] ++
 """ - [x] :
 """ - [x] ~
 """ - [x] ~~
@@ -581,7 +581,6 @@
 * {??}  | readWut readExp TRUE rex err ok
 * {**}  | readLin readExp rex err ok
 * {,}   | readCom readExp rex err ok
-* {,,}  | readOpenRow readExp rex err (compose ok EROW)
 * {++}  | readOpenRow readExp rex err (compose ok EROW)
 * {@}   | parseLet readExp rex err ok
 * {@@}  | parseRec readExp rex err ok
@@ -669,12 +668,12 @@
 
 !!= `[3 (0 1)]
   ^ readExp _ v2 showSire
-  ` ,, 3
-    ,, 0 1
+  ` ++ 3
+    ++ 0 1
 
 !!= `[3 (0 1)]
   ^ readExp _ v2 showSire
-  ` ,, 3
+  ` ++ 3
      | 0 1
 
 !!= `[3 (0 1)]

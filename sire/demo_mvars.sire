@@ -48,9 +48,9 @@
           | return tim
 ;
 | die
-   ,, [=curTime]
-   ,, [=forTime]
-   ,, [=forPar]
+   ++ [=curTime]
+   ++ [=forTime]
+   ++ [=forPar]
 | return ()
 
 

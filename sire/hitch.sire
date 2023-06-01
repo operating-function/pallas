@@ -201,12 +201,12 @@
 | SOME [rightKey rightVal newCtx]
 
 = (putVal [leftKeys leftVals rightKeys rightVals] val)
-,, weld leftKeys rightKeys
-,, cat [leftVals [val] rightVals]
+++ weld leftKeys rightKeys
+++ cat [leftVals [val] rightVals]
 
 = (putIdx [leftKeys leftVals rightKeys rightVals] [keys vals])
-,, cat [leftKeys keys rightKeys]
-,, cat [leftVals vals rightVals]
+++ cat [leftKeys keys rightKeys]
+++ cat [leftVals vals rightVals]
 
 ;
 ; Find the val for recursing downwards
@@ -489,21 +489,21 @@ newRootNode
 [config (SOME node)]
 
 = hhMapTF
-,, packIndexNode                 ; mkNode
-,, hmLeaf                        ; mkLeaf
-,, caseImpl                      ; caseNode
-,, (tabUnionWith (a b)&b)        ; leafInsert
-,, (tabUnionWith (a b)&b)        ; leafMerge
-,, tabLen                        ; leafLength
-,, tabSplitAt                    ; leafSplitAt
-,, tabMinKey                     ; leafFirstKey
-,, %[]                           ; leafEmpty
-,, hhDeleteKey                   ; leafDelete
-,, (tabUnionWith (a b)&b)        ; hhMerge
-,, tabLen                        ; hhLength
-,, tabSplitLT                    ; hhSplit
-,, %[]                           ; hhEmpty
-,, hhDeleteKey                   ; hhDelete
+++ packIndexNode                 ; mkNode
+++ hmLeaf                        ; mkLeaf
+++ caseImpl                      ; caseNode
+++ (tabUnionWith (a b)&b)        ; leafInsert
+++ (tabUnionWith (a b)&b)        ; leafMerge
+++ tabLen                        ; leafLength
+++ tabSplitAt                    ; leafSplitAt
+++ tabMinKey                     ; leafFirstKey
+++ %[]                           ; leafEmpty
+++ hhDeleteKey                   ; leafDelete
+++ (tabUnionWith (a b)&b)        ; hhMerge
+++ tabLen                        ; hhLength
+++ tabSplitLT                    ; hhSplit
+++ %[]                           ; hhEmpty
+++ hhDeleteKey                   ; hhDelete
 
 = (hmSize [config r])
 | **maybeCase r 0
@@ -528,8 +528,8 @@ newRootNode
 & gr
 @ !index | insertRec config hhMapTF p gr
 @ !fixed | fixup config hhMapTF index
-,, config
-,, SOME fixed
+++ config
+++ SOME fixed
 
 = (hmInsertMany tab [config r])
 | if | tabIsEmpty tab
@@ -541,8 +541,8 @@ newRootNode
   & top
   | insertRec config hhMapTF tab top
 @ !fixed | fixup config hhMapTF index
-,, config
-,, SOME fixed
+++ config
+++ SOME fixed
 
 ; TODO: case guard statements would make this much more readable.
 = (hmDelete k [config r])
@@ -551,8 +551,8 @@ newRootNode
 @ newRootNode | deleteRec config hhMapTF k NONE gr
 # datacase (caseImpl newRootNode)
 * (LEAFNODE leaves)
-  ,, config
-  ,, if (tabIsEmpty leaves) NONE (SOME newRootNode)
+  ++ config
+  ++ if (tabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
   | **maybeCase | fromSingletonIndex index
     [config (SOME newRootNode)]
@@ -592,21 +592,21 @@ newRootNode
 (hsSingleton config v)=[config (hsRawSingleton v)]
 
 = hhSetTF
-,, packIndexNode                 ; mkNode
-,, hmLeaf                        ; mkLeaf
-,, caseImpl                      ; caseNode
-,, cabUnion                      ; leafInsert
-,, cabUnion                      ; leafMerge
-,, cabLen                        ; leafLength
-,, cabSplitAt                    ; leafSplitAt
-,, cabMin                        ; leafFirstKey
-,, %[]                           ; leafEmpty
-,, hsDeleteItem                  ; leafDelete
-,, cabUnion                      ; hhMerge
-,, cabLen                        ; hhLength
-,, cabSplitLT                    ; hhSplit
-,, %[]                           ; hhEmpty
-,, hsDeleteItem                  ; hhDelete
+++ packIndexNode                 ; mkNode
+++ hmLeaf                        ; mkLeaf
+++ caseImpl                      ; caseNode
+++ cabUnion                      ; leafInsert
+++ cabUnion                      ; leafMerge
+++ cabLen                        ; leafLength
+++ cabSplitAt                    ; leafSplitAt
+++ cabMin                        ; leafFirstKey
+++ %[]                           ; leafEmpty
+++ hsDeleteItem                  ; leafDelete
+++ cabUnion                      ; hhMerge
+++ cabLen                        ; hhLength
+++ cabSplitLT                    ; hhSplit
+++ %[]                           ; hhEmpty
+++ hsDeleteItem                  ; hhDelete
 
 = (hsRawInsert i config r)
 @ is | cabSing i
@@ -791,9 +791,9 @@ newRootNode
     | if | (eql 1 l)
       | [[leaves %[]] (idx 0 vals) NONE]
     | else
-      ,, cabSplitLT (idx 0 keys) leaves
-      ,, idx 0 vals
-      ,, SOME [(drop 1 keys) (drop 1 vals)]
+      ++ cabSplitLT (idx 0 keys) leaves
+      ++ idx 0 vals
+      ++ SOME [(drop 1 keys) (drop 1 vals)]
   | if (cabIsEmpty tryLeaves) | loop [restLeaves restIndex]
   @ !result | checkSetAgainst tryLeaves (caseImpl subNode)
   | if (isZero | len result) | loop [restLeaves restIndex]
@@ -852,8 +852,8 @@ newRootNode
 # mutrec %impl | top a b
 ;
 * (top a b)
-  ,, aconfig
-  ,, | build
+  ++ aconfig
+  ++ | build
      | consolidate minLeafItems maxLeafItems
      | find (flushDownwards hhSetTF a)
             (flushDownwards hhSetTF b)
@@ -890,10 +890,10 @@ newRootNode
       @ !bKeys | CONS bLeftmost bRestList
       | cat
       | unfoldr (findIntersectStep find)
-      ,, aKeys
-      ,, listFromRow aVals
-      ,, bKeys
-      ,, listFromRow bVals
+      ++ aKeys
+      ++ listFromRow aVals
+      ++ bKeys
+      ++ listFromRow bVals
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; HitchhikerSetMap ;;
@@ -936,41 +936,41 @@ newRootNode
 | tabAlter update k sm
 
 = (hhSetMapTF setConfig)
-,, packIndexNode                       ; mkNode
-,, hmLeaf                              ; mkLeaf
-,, caseImpl                            ; caseNode
-,, hsmLeafInsertImpl setConfig         ; leafInsert
-,, tabUnionWith (hsRawUnion setConfig) ; leafMerge
-,, tabLen                              ; leafLength
-,, tabSplitAt                          ; leafSplitAt
-,, tabMinKey                           ; leafFirstKey
-,, %[]                                 ; leafEmpty
-,, hsmLeafDeleteImpl setConfig         ; leafDelete
-,, tabUnionWith cabUnion               ; hhMerge
-,, & (a)                               ; hhLength
+++ packIndexNode                       ; mkNode
+++ hmLeaf                              ; mkLeaf
+++ caseImpl                            ; caseNode
+++ hsmLeafInsertImpl setConfig         ; leafInsert
+++ tabUnionWith (hsRawUnion setConfig) ; leafMerge
+++ tabLen                              ; leafLength
+++ tabSplitAt                          ; leafSplitAt
+++ tabMinKey                           ; leafFirstKey
+++ %[]                                 ; leafEmpty
+++ hsmLeafDeleteImpl setConfig         ; leafDelete
+++ tabUnionWith cabUnion               ; hhMerge
+++ & (a)                               ; hhLength
    ; since the point of hitchhikers is that they'll fit in an index node's
    ; grain, we count the number of items across all sets in the hitchhiker,
    ; not the number of tab entries.
    | sum | map cabLen | tabVals a
-,, tabSplitLT                          ; hhSplit
-,, %[]                                 ; hhEmpty
-,, hsmHHDeleteImpl                     ; hhDelete
+++ tabSplitLT                          ; hhSplit
+++ %[]                                 ; hhEmpty
+++ hsmHHDeleteImpl                     ; hhDelete
 
 = (hsmInsert k v [mapConfig setConfig r])
 | **maybeCase r
    @ raw  | hsRawSingleton v
    @ leaf | tabSing k raw
-   ,, mapConfig
-   ,, setConfig
-   ,, | SOME (PIN [1 leaf])
+   ++ mapConfig
+   ++ setConfig
+   ++ | SOME (PIN [1 leaf])
 & gr
 @ tf | hhSetMapTF setConfig
 @ hh | tabSing k (cabSing v)
 @ !index | insertRec mapConfig tf hh gr
 @ !fixed | fixup mapConfig tf index
-,, mapConfig
-,, setConfig
-,, SOME fixed
+++ mapConfig
+++ setConfig
+++ SOME fixed
 
 = (hsmInsertMany tabcab [mapConfig setConfig r])
 | if | tabIsEmpty tabcab
@@ -984,9 +984,9 @@ newRootNode
   & top
   | insertRec mapConfig tf tabcab top
 @ !fixed | fixup mapConfig tf index
-,, mapConfig
-,, setConfig
-,, | SOME fixed
+++ mapConfig
+++ setConfig
+++ | SOME fixed
 
 = (hsmDelete k v [mapConfig setConfig r])
 | **maybeCase r [mapConfig setConfig r]
@@ -994,9 +994,9 @@ newRootNode
 @ newRootNode | deleteRec mapConfig (hhSetMapTF setConfig) k (SOME v) gr
 # datacase (caseImpl newRootNode)
 * (LEAFNODE leaves)
-  ,, mapConfig
-  ,, setConfig
-  ,, if (tabIsEmpty leaves) NONE (SOME newRootNode)
+  ++ mapConfig
+  ++ setConfig
+  ++ if (tabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
   | **maybeCase | fromSingletonIndex index
     [mapConfig setConfig (SOME newRootNode)]
