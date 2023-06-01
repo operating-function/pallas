@@ -201,16 +201,20 @@
 * (PTAB xs)   | showTab showPat xs
 
 !!= (` #[])
-  | showPat | PTAB #[]
+  | showPat
+  | PTAB #[]
 
 !!= `[x=x y=(!y)]
-  | showPat | PTAB [x=(PVAR 0 %x) y=(PSEQ 0 %y)]
+  | showPat
+  | PTAB [x=(PVAR 0 %x) y=(PSEQ 0 %y)]
 
 !!= ` x@[a b@[c !d]]
-  | showPat | PALI (PVAR 0 %x)
-            | PROW ++ PVAR 0 %a
-                   ++ PALI (PVAR 0 %b)
-                        | PROW (PVAR 0 "c", PSEQ 0 "d")
+  | showPat
+  | PALI (PVAR 0 %x)
+  | PROW
+ ++ PVAR 0 %a
+ ++ PALI (PVAR 0 %b)
+      | PROW (PVAR 0 "c", PSEQ 0 "d")
 
 > Row Rex > Rex
 = (showSig rexes@[first])
@@ -225,11 +229,10 @@
 @ argRexes | map showPat args
 | if (isZero tag)
     | INFX 0 {&} (showSig argRexes, showSire body) 0
+| if pin
+    | INFX 0 {??} (showSig (rowCons selfRex argRexes), showSire body) 0
 | else
-    | if pin
-        | INFX 0 {??} (showSig (rowCons selfRex argRexes), showSire body) 0
-    | else
-        | INFX 0 {?} (showSig (rowCons selfRex argRexes), showSire body) 0
+    | INFX 0 {?} (showSig (rowCons selfRex argRexes), showSire body) 0
 
 > Sym > Row Pat > Rex
 = (showCon cn pts)
@@ -275,9 +278,10 @@
 | map showPat pats
 
 = (showMutRec showSire tag body arms)
-| NEST 0 {#} ++ varE 'mutrec'
-             ++ showSire (ENAT tag)
-             ++ showSire body
+| NEST 0 {#}
+   ++ varE 'mutrec'
+   ++ showSire (ENAT tag)
+   ++ showSire body
 | showMutRecArms showSire arms
 
 = (showSwitchArms showSire wild arms)
@@ -285,13 +289,14 @@
 ? (go arms)
 : [key exp] arms
     < listCase arms
-        | NEST 0 "*" (varE "_", showSire wild) 0
+    | NEST 0 "*" (varE "_", showSire wild) 0
 ^ NEST 0 "*" _ (go arms)
 | (showKey key, showSire exp)
 
 = (showSwitch showSire exp wild arms)
-| NEST 0 {#} ++ varE 'switch'
-             ++ showSire exp
+| NEST 0 {#}
+   ++ varE 'switch'
+   ++ showSire exp
 | showSwitchArms showSire wild arms
 
 > Exp > Rex

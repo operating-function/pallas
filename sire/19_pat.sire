@@ -175,9 +175,9 @@
 = (parseAliasedBinder parseBinder rex err ok)
 : kids <- readNodeWithoutHeirButWithRune "@" rex err
 | if (eql 1 len-kids)
-        | parseBinder (idx 0 kids) err ok
+    | parseBinder (idx 0 kids) err ok
 | if (neq 2 len-kids)
-        | err rex "Alias-Patterns expect two kids: x=y"
+    | err rex "Alias-Patterns expect two kids: x=y"
 : foo < parseBinder (idx 0 kids) err
 : bar < parseBinder (idx 1 kids) err
 | ok [%a foo bar]
@@ -187,9 +187,9 @@
 = (parsePinBinder parseBinder rex err ok)
 : kids <- readNodeWithoutHeirButWithRune "|" rex err
 | if (neq 2 len-kids)
-        | err rex "Pin-Pattern expects two kids: (PIN x)"
+    | err rex "Pin-Pattern expects two kids: (PIN x)"
 | ifNot (rexEql `PIN | idx 0 kids)
-        | err rex "Pin-Pattern expects rex-head to be `PIN"
+    | err rex "Pin-Pattern expects rex-head to be `PIN"
 : item < parseBinder (idx 1 kids) err
 | ok [%pin item]
 
@@ -198,9 +198,9 @@
 = (parseLawBinder parseBinder rex err ok)
 : kids <- readNodeWithoutHeirButWithRune "|" rex err
 | if (neq 4 len-kids)
-        | err rex "Law-Pattern expects four kids: (LAW n a b)"
+    | err rex "Law-Pattern expects four kids: (LAW n a b)"
 | ifNot (rexEql `LAW | idx 0 kids)
-        | err rex "Law-Pattern expects rex-head to be `LAW"
+    | err rex "Law-Pattern expects rex-head to be `LAW"
 : n < parseBinder (idx 1 kids) err
 : a < parseBinder (idx 2 kids) err
 : b < parseBinder (idx 3 kids) err
@@ -208,85 +208,83 @@
 
 = (parseBinder rex err ok)
 | if (rexIsLeaf rex)
-        : sym <- readSymbol rex err
-        | ok [%v (rexIdnt rex) sym]
+    : sym <- readSymbol rex err
+    | ok [%v (rexIdnt rex) sym]
 @ rune (rexRune rex)
 | if (eql rune ".")
-        : sym <- readSymbol rex err
-        | ok [%v (rexIdnt rex) sym]
+    : sym <- readSymbol rex err
+    | ok [%v (rexIdnt rex) sym]
 | if (eql rune "!")
-        | parseSeqBinder rex err ok
+    | parseSeqBinder rex err ok
 | if (eql rune ",")
-        | if (isTabSugar rex)
-            | parseTabBinder parseBinder rex err ok
-        | parseRowBinder parseBinder rex err ok
-| if (eql rune "#")
+    | if (isTabSugar rex)
         | parseTabBinder parseBinder rex err ok
+    | parseRowBinder parseBinder rex err ok
+| if (eql rune "#")
+    | parseTabBinder parseBinder rex err ok
 | if (eql rune "@")
-        | parseAliasedBinder parseBinder rex err ok
+    | parseAliasedBinder parseBinder rex err ok
 | if (eql rune "|")
-        ;
-        ; TODO: Gnarly hack, don't keep
-        ;
-        ; This just makes any unknown constror pattern works as if it
-        ; was a row.  This mostly works but is extremely jank.  The right
-        ; way involves looking up meta-information to verify that this
-        ; is a #record, checking the arity, etc.
-        ;
-        @ sons | rexSons rex
-        @ numb | len sons
-        @ head | idx 0 sons
-        | if (rexEql head `LAW)
-            | parseLawBinder parseBinder rex err ok
-        | if (rexEql head `PIN)
-            | parsePinBinder parseBinder rex err ok
-        ^ parseBinder _ err ok
-        | rexSetRune ","
-        | rexSetSons (drop 1 | rexSons rex)
-        | rex
+    ;
+    ; TODO: Gnarly hack, don't keep
+    ;
+    ; This just makes any unknown constror pattern works as if it
+    ; was a row.  This mostly works but is extremely jank.  The right
+    ; way involves looking up meta-information to verify that this
+    ; is a #record, checking the arity, etc.
+    ;
+    @ sons | rexSons rex
+    @ numb | len sons
+    @ head | idx 0 sons
+    | if (rexEql head `LAW)
+        | parseLawBinder parseBinder rex err ok
+    | if (rexEql head `PIN)
+        | parsePinBinder parseBinder rex err ok
+    ^ parseBinder _ err ok
+    | rexSetRune ","
+    | rexSetSons (drop 1 | rexSons rex)
+    | rex
 | else
-        | err rex "Unknown binding pattern"
+    | err rex "Unknown binding pattern"
 
 !!= (parseBinder `[x y z] v2 id)
-       ++ %r
-       ++ ++ [%v 0 %x]
-          ++ [%v 0 %y]
-          ++ [%v 0 %z]
+ ++ %r
+ ++  ++ [%v 0 %x]
+     ++ [%v 0 %y]
+     ++ [%v 0 %z]
 
 !!= (parseBinder `[x y !z] v2 id)
-       ++ %r
-       ++ ++ [%v 0 %x]
-          ++ [%v 0 %y]
-          ++ [%s 0 %z]
+ ++ %r
+ ++  ++ [%v 0 %x]
+     ++ [%v 0 %y]
+     ++ [%s 0 %z]
 
 !!= (parseBinder `(#[=x y=b]) v2 id)
-       ++ %t
-       ++ ## =x [%v 0 %x]
-          ## =y [%v 0 %b]
+ ++ %t
+ ++  ## =x [%v 0 %x]
+     ## =y [%v 0 %b]
 
 !!= (parseBinder `[=x y=b] v2 id)
-       ++ %t
-       ++ ## =x [%v 0 %x]
-          ## =y [%v 0 %b]
+ ++ %t
+ ++  ## =x [%v 0 %x]
+     ## =y [%v 0 %b]
 
 !!= (parseBinder `[#[=x] [y]] v2 id)
-       ++ %r
-       ++ ++ [%t #[x=[%v 0 %x]]]
-          ++ [%r [[%v 0 %y]]]
-
+ ++ %r
+ ++  ++ [%t #[x=[%v 0 %x]]]
+     ++ [%r [[%v 0 %y]]]
 
 !!= (parseBinder `(foo@[#[=x] [y]]) v2 id)
-       ++ 'a'
-       ++ ['v' 0 'foo']
-       ++  ++ 'r'
-           ++  ++ ['t' #[x=['v' 0 'x']]]
-               ++ ['r' [['v' 0 'y']]]
-
+ ++ %a
+ ++ [%v 0 'foo']
+ ++  ++ %r
+     ++  ++ [%t #[x=[%v 0 'x']]]
+         ++ [%r [[%v 0 'y']]]
 
 !!= (parseBinder ``[$$(varKE 1 %x) $$(varKE 2 %y)] v2 id)
-       ++ %r
-       ++ ++ [%v 1 %x]
-          ++ [%v 2 %y]
+ ++ %r
+ ++  ++ [%v 1 %x]
+     ++ [%v 2 %y]
 
 
 """ Sequence Binds """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
