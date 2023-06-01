@@ -372,9 +372,8 @@ recomputeEvals
     :: MachineContext
     -> Moment
     -> Receipt
-    -> StateT NanoTime IO (Bool, ReconstructedEvals)
-recomputeEvals ctx m (RECEIPT cogId didCrash tab) =
-    fmap (didCrash,) $
+    -> StateT NanoTime IO ReconstructedEvals
+recomputeEvals ctx m (RECEIPT cogId _ tab) =
     for (mapToList tab) \(idx, rVal) -> do
         let k = toNoun (fromIntegral idx :: Word)
         case rVal of
@@ -454,12 +453,11 @@ performReplay cache ctx replayFrom = do
     loop :: BatchNum -> Moment -> [Receipt] -> IO (BatchNum, Moment)
     loop bn m []     = pure (bn, m)
     loop bn m (x:xs) = do
-        ((didCrash, eRes), eWork)
-            <- flip runStateT 0 (recomputeEvals ctx m x)
+        (eRes, eWork) <- flip runStateT 0 (recomputeEvals ctx m x)
 
         let inp = TAB $ mapFromList $ map tripleToPair eRes
 
-        let arg = if didCrash then (0 %% inp) else inp
+        let arg = if x.didCrash then (0 %% inp) else inp
 
         let runEffect m = \case
                 Just CSpin{..} -> pure $ m { val = M.insert reCogId reFun m.val }
