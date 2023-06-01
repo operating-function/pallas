@@ -366,78 +366,48 @@ tripleToPair (a, b, _) = (a, b)
 third :: (a, b, c) -> c
 third (_, _, c) = c
 
--- | Loads and the state on disk from a given snapshot and the log batches
--- written on top of it.
-performReplay
-    :: Debug
-    => Cushion
-    -> MachineContext
-    -> ReplayFrom
-    -> IO (BatchNum, Moment)
-performReplay cache ctx replayFrom = do
-  let mkInitial (a, b) = (b, MOMENT a 0)
-  loadLogBatches ctx.machineName replayFrom mkInitial replayBatch ctx.lmdb cache
+type ReconstructedEvals = [(Fan, Fan, Maybe CogReplayEffect)]
+
+recomputeEvals
+    :: MachineContext
+    -> Moment
+    -> Receipt
+    -> StateT NanoTime IO (Bool, ReconstructedEvals)
+recomputeEvals ctx m (RECEIPT cogId didCrash tab) =
+    fmap (didCrash,) $
+    for (mapToList tab) \(idx, rVal) -> do
+        let k = toNoun (fromIntegral idx :: Word)
+        case rVal of
+            ReceiptVal val -> pure (k, val, Nothing)
+            ReceiptEvalOK  -> do
+                -- We performed an eval which succeeded the
+                -- first time.
+                case getEvalFunAt m cogId (RequestIdx idx) of
+                    Nothing ->
+                        throwIO INVALID_OK_RECEIPT_IN_LOGBATCH
+                    Just (fun, args)  -> do
+                        (runtime, res) <- withCalcRuntime do
+                            evaluate $ force (foldl' (%%) fun args)
+                        modify' (+ runtime)
+                        pure (k, ROW (singleton res), Nothing)
+            ReceiptSpun newCogId -> do
+                case getSpinFunAt m cogId (RequestIdx idx) of
+                    Nothing ->
+                        throwIO $ INVALID_SPUN_RECEIPT_IN_LOGBATCH newCogId
+                    Just fun -> do
+                        let ef = CSpin newCogId fun
+                        pure (k, NAT $ fromIntegral newCogId.int, Just ef)
+            ReceiptRecv{..} -> do
+                case getSendFunAt m sender cogId reqIdx of
+                    Nothing ->
+                        throwIO INVALID_RECV_RECEIPT_IN_LOGBATCH
+                    Just val -> pure (k, val, Nothing)
   where
-    replayBatch :: (BatchNum, Moment) -> LogBatch -> IO (BatchNum, Moment)
-    replayBatch (_, moment) LogBatch{batchNum,executed} =
-        batchLoop batchNum moment executed
-
-    recomputeEvals
-        :: Moment -> Receipt
-        -> StateT NanoTime IO (Bool, [(Fan, Fan, Maybe CogReplayEffect)])
-    recomputeEvals m (RECEIPT cogId didCrash tab) =
-        fmap (didCrash,) $
-        for (mapToList tab) \(idx, rVal) -> do
-            let k = toNoun (fromIntegral idx :: Word)
-            case rVal of
-                ReceiptVal val -> pure (k, val, Nothing)
-                ReceiptEvalOK  -> do
-                    -- We performed an eval which succeeded the
-                    -- first time.
-                    case getEvalFunAt m cogId (RequestIdx idx) of
-                        Nothing ->
-                            throwIO INVALID_OK_RECEIPT_IN_LOGBATCH
-                        Just (fun, args)  -> do
-                            (runtime, res) <- withCalcRuntime do
-                                evaluate $ force (foldl' (%%) fun args)
-                            modify' (+ runtime)
-                            pure (k, ROW (singleton res), Nothing)
-                ReceiptSpun newCogId -> do
-                    case getSpinFunAt m cogId (RequestIdx idx) of
-                        Nothing ->
-                            throwIO $ INVALID_SPUN_RECEIPT_IN_LOGBATCH newCogId
-                        Just fun -> do
-                            let ef = CSpin newCogId fun
-                            pure (k, NAT $ fromIntegral newCogId.int, Just ef)
-                ReceiptRecv{..} -> do
-                    case getSendFunAt m sender cogId reqIdx of
-                        Nothing ->
-                            throwIO INVALID_RECV_RECEIPT_IN_LOGBATCH
-                        Just val -> pure (k, val, Nothing)
-
-    batchLoop :: BatchNum -> Moment -> [Receipt] -> IO (BatchNum, Moment)
-    batchLoop bn m []     = pure (bn, m)
-    batchLoop bn m (x:xs) = do
-        ((didCrash, eRes), eWork) <- flip runStateT 0 (recomputeEvals m x)
-        let inp = TAB (mapFromList $ map tripleToPair eRes)
-        let arg = if didCrash then 0 %% inp else inp
-        m <- foldlM runEffect m (map third eRes)
-        case lookup x.cogNum m.val of
-          Nothing -> throwIO INVALID_COGID_IN_LOGBATCH
-          Just fun -> do
-            (iWork, new) <- withCalcRuntime $ evaluate $ force (fun %% arg)
-            let newWork = (m.work + eWork + iWork)
-            batchLoop bn MOMENT{work=newWork,
-                                val=(insertMap x.cogNum new m.val)} xs
-      where
-        runEffect m = \case
-          Just CSpin{..} -> pure $ m { val = M.insert reCogId reFun m.val }
-          Nothing        -> pure m
-
     getEvalFunAt :: Moment -> CogId -> RequestIdx -> Maybe (Fan, Vector Fan)
     getEvalFunAt m cogId idx = withRequestAt m cogId idx $ \case
         ReqEval er -> Just (er.func, er.args)
         _          -> Nothing
+
 
     getSpinFunAt :: Moment -> CogId -> RequestIdx -> Maybe Fan
     getSpinFunAt m cogId idx = withRequestAt m cogId idx $ \case
@@ -462,9 +432,60 @@ performReplay cache ctx replayFrom = do
                     Nothing  -> Nothing
                     Just val -> fun $ valToRequest ctx.machineName cogId val
 
+-- | Loads and the last snapshot from disk, and loops over the event loop
+-- (starting from that event) and processes each Receipt from each LogBatch.
+--
+-- At the end, we return the current batch number and the computed Moment
+-- (the current state of a running cog).
+performReplay
+    :: Debug
+    => Cushion
+    -> MachineContext
+    -> ReplayFrom
+    -> IO (BatchNum, Moment)
+performReplay cache ctx replayFrom = do
+    let mkInitial (a, b) = (b, MOMENT a 0)
+    loadLogBatches ctx.machineName replayFrom mkInitial doBatch ctx.lmdb cache
+  where
+    doBatch :: (BatchNum, Moment) -> LogBatch -> IO (BatchNum, Moment)
+    doBatch (_, moment) LogBatch{batchNum,executed} =
+        loop batchNum moment executed
+
+    loop :: BatchNum -> Moment -> [Receipt] -> IO (BatchNum, Moment)
+    loop bn m []     = pure (bn, m)
+    loop bn m (x:xs) = do
+        ((didCrash, eRes), eWork)
+            <- flip runStateT 0 (recomputeEvals ctx m x)
+
+        let inp = TAB $ mapFromList $ map tripleToPair eRes
+
+        let arg = if didCrash then (0 %% inp) else inp
+
+        let runEffect m = \case
+                Just CSpin{..} -> pure $ m { val = M.insert reCogId reFun m.val }
+                Nothing        -> pure m
+
+        m <- foldlM runEffect m (map third eRes)
+
+        fun <- maybe (throwIO INVALID_COGID_IN_LOGBATCH) pure
+                 (lookup x.cogNum m.val)
+
+        (iWork, new) <- withCalcRuntime $ evaluate $ force (fun %% arg)
+
+        let newMoment = MOMENT
+                { work = m.work + eWork + iWork
+                , val = insertMap x.cogNum new m.val
+                }
+
+        loop bn newMoment xs
+
 -- | Main entry point for starting running a Cog.
-replayAndCrankMachine :: Debug => Cushion -> MachineContext -> ReplayFrom
-                      -> IO Machine
+replayAndCrankMachine
+    :: Debug
+    => Cushion
+    -> MachineContext
+    -> ReplayFrom
+    -> IO Machine
 replayAndCrankMachine cache ctx replayFrom = do
   let threadName  = encodeUtf8 "Main"
 
