@@ -57,6 +57,7 @@ import Server.Types.Logging
 import qualified Data.IntMap as IM
 import qualified Data.Map    as M
 import qualified Data.Vector as V
+import qualified Fan.Prof    as Prof
 
 --------------------------------------------------------------------------------
 
@@ -256,7 +257,8 @@ data EvalCancelledError = EVAL_CANCELLED
 type CogSysCalls = IntMap (Fan, LiveRequest)
 type MachineSysCalls = Map CogId CogSysCalls
 
--- | A pending send
+-- | This is a record that a cog has an active SysCall requesting an
+-- IPC-send to another cog.  See `CogSendPool`
 data PendingSendRequest = PENDING_SEND
     { sender    :: CogId
     , reqIdx    :: RequestIdx
@@ -264,13 +266,18 @@ data PendingSendRequest = PENDING_SEND
     }
   deriving (Show)
 
+-- This is a collection of all {PendingSendRequest}s within all the cogs
+-- of a a machine.  This is part of the top-level Machine STM state,
+-- because these IPC interactions need happen transactionally.
+type CogSendPool = Map CogId (TVar (Pool PendingSendRequest))
+
 -- | Data used only by the Runner async. This is all the data needed to
 -- run the main thread of Fan evaluation and start Requests that it made.
 data Runner = RUNNER
     { ctx       :: MachineContext
-    , vMoment   :: TVar Moment    -- ^ Current value + cummulative CPU time
-    , vRequests :: TVar MachineSysCalls  -- ^ Current requests table
-    , vSends    :: TVar (Map CogId (TVar (Pool PendingSendRequest)))
+    , vMoment   :: TVar Moment          -- ^ Current value + cumulative CPU time
+    , vRequests :: TVar MachineSysCalls -- ^ Current requests table
+    , vSends    :: TVar CogSendPool
     }
 
 
@@ -842,6 +849,31 @@ runnerFun initialFlows machine processName st =
             (flows, receipts) <- runResponse st cogId valTuples False
             pure (flows, [], receipts)
 
+{-
+    Given a set of responses to syscalls in a cogs SysCall table, create
+    a new event value and pass that into the cog, to get the new cog state.
+
+    Side Effects:
+
+    -   The PLAN value for the cog is replaced.
+
+    -   The cog's requests row is updated to reflect the new set of
+        requests.
+
+    -   If we received an IPC message, the corresponding COG_SEND request
+        is also processed.
+
+    -   If we spawned a cog or stopped a cog, we inform every hardware
+        device that this happened.
+
+    Results:
+
+    -   The set of profiling events triggered by this change.
+
+    -   A list of event-log receipts (and the corresponding actions to
+        be triggered when those receipts have been committed to disk.
+        (This is for disk-synchronized syscalls).
+-}
 runResponse
     :: Debug
     => Runner
@@ -861,22 +893,32 @@ runResponse st cogid rets didCrash = do
           evalWithTimeout thirtySecondsInMicroseconds fun
               (if didCrash then (0 %% arg) else arg)
   case result of
-    TIMEOUT -> recordInstantEvent "Main Timeout"   "cog" mempty >> onCrash
-    CRASH{} -> recordInstantEvent "Main Exception" "cog" mempty >> onCrash
+    TIMEOUT -> do
+        Prof.recordInstantEvent "Main Timeout" "cog" mempty
+        onCrash
+
+    CRASH{} -> do
+        Prof.recordInstantEvent "Main Exception" "cog" mempty
+        onCrash
+
     OKAY _ result -> do
+
       withAlwaysTrace "Tick" "cog" do
+
         -- TODO: Actually should the following be a single atomically block?
         --
         -- Is it a problem that the spin effects could occur in a different
         -- atomically?
         (sideEffectFlows, sideEffectPersists) <- concatUnzip <$> atomically do
+
             -- Update the runner state, making sure to delete the consumed
             -- LiveRequest without formally canceling it because it already
             -- completed.
-            modifyTVar' st.vMoment   \m ->
+            modifyTVar' st.vMoment \m ->
                 MOMENT (insertMap cogid result m.val) (m.work + runtimeUs)
-            modifyTVar' st.vRequests $
-                adjustMap (\kals -> foldl' delReq kals (fst<$>rets)) cogid
+
+            modifyTVar' st.vRequests \tab ->
+                adjustMap (\kals -> foldl' delReq kals (fst<$>rets)) cogid tab
 
             -- If this was a successful run of the main event, do whatever side
             -- effect running this event was supposed to have.
@@ -885,8 +927,8 @@ runResponse st cogid rets didCrash = do
                 False -> forM rets $ \(_,RTUP{resp}) -> case resp of
                     RespSpin newCogId fun -> do
                         pool <- newTVar emptyPool
-                        modifyTVar' st.vSends $ M.insert newCogId pool
-
+                        modifyTVar' st.vSends \sends ->
+                            M.insert newCogId pool sends
                         modifyTVar' st.vMoment \m ->
                             m { val=insertMap newCogId fun m.val }
                         parseRequests st newCogId
@@ -896,31 +938,49 @@ runResponse st cogid rets didCrash = do
 
         afterResults <- forM rets
             \(_,rt) -> case rt.resp of
+
+                -- If we just spun up another cog, tell all the hardware
+                -- devices that it exists now.
                 RespSpin newCogId _ -> do
                   for_ st.ctx.hw.table $ \d ->
                     d.spin st.ctx.machineName newCogId
                   pure ([], [])
 
+                -- If we just stopped another cog, we need to to tell
+                -- all the hardware devices that it no longer exists.
                 RespStop dedCogId _ -> do
                   for_ st.ctx.hw.table $ \d ->
                     d.stop st.ctx.machineName dedCogId
                   pure ([], [])
 
-                -- If there were recvs executed on our responses, we must also
-                -- process the result to the send acknowledging whether it
-                -- crashed or not.
+                -- When an IPC message is received, the corresponding
+                -- send syscall on the sender cog must also be processed
+                -- within the same transaction.
+                --
+                -- We do this recursively invoking runResponse for that
+                -- syscall as well.
+                --
+                -- We are sure that the `reqIdx` still corresponds to
+                -- an active COG_SEND syscall because of reasons.
                 RespRecv PENDING_SEND{..} -> do
                   let outcome = if didCrash then SendCrash else SendOK
-                  -- TODO: Enable flows; how do we connect the recv completing
-                  -- to this?
-                  let rtup = RTUP{key=reqIdx,resp=RespSend outcome,work=0
-                                 ,flow=FlowDisabled}
+                  -- TODO: Enable profiling flows; how do we connect
+                  -- the recv completing to this?
+                  let rtup = RTUP { key  = reqIdx
+                                  , resp = RespSend outcome
+                                  , work = 0
+                                  , flow = FlowDisabled
+                                  }
                   runResponse st sender [(reqIdx.int, rtup)] False
+
                 _ -> pure ([], [])
+
         let (afterFlows, afterReceipts) = concatUnzip afterResults
 
-        let receiptPairs = [(responseToReceipt cogid didCrash rets,
-                             onPersists ++ sideEffectPersists)]
+        let receiptPairs = [ ( responseToReceipt cogid didCrash rets
+                             , onPersists ++ sideEffectPersists
+                             )
+                           ]
                         ++ afterReceipts
 
         pure ( startedFlows ++ afterFlows ++ sideEffectFlows
