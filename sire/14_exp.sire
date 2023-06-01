@@ -60,8 +60,8 @@
 ? (f elem rest)
 @ pos (idx 0 rest)
 @ acc (idx 1 rest)
--- mul 10 pos
--- add acc (mul pos elem)
+++ mul 10 pos
+++ add acc (mul pos elem)
 
 ;;
 

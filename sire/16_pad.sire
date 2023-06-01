@@ -50,7 +50,7 @@
 /+  05_cmp  [eql neq]
 /+  06_row  [map weld foldl]
 /+  07_rex  [rexKids rexText rexIsLeaf SHUT WORD CURL {`}]
-/+  08_dat  [{,} {--}]
+/+  08_dat  [{,} {++}]
 /+  08_dat  [listFromRow listCase listSnoc NIL CONS]
 /+  09_sci  []
 /+  10_chr  []
@@ -143,8 +143,8 @@ emptyPad=1
 
 = (showPadLit pad)
 ^ SHUT 0 "#" _ 0
--- WORD 0 "p" 0
--- CURL 0 (showPadStr pad) 0
+++ WORD 0 "p" 0
+++ CURL 0 (showPadStr pad) 0
 
 ; Rex > Read Bar
 = (readPadLit rex err ok)

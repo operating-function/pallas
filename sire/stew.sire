@@ -71,7 +71,7 @@
 """ - [x] /=
 """ - [x] , (rows)
 """ - [x] , (tabs)
-""" - [x] ,, --
+""" - [x] ,, ++
 """ - [x] :
 """ - [x] ~
 """ - [x] ~~
@@ -208,8 +208,8 @@
 
 !!= ` x@[a b@[c !d]]
   | showPat | PALI (PVAR 0 %x)
-            | PROW -- PVAR 0 %a
-                   -- PALI (PVAR 0 %b)
+            | PROW ++ PVAR 0 %a
+                   ++ PALI (PVAR 0 %b)
                         | PROW (PVAR 0 "c", PSEQ 0 "d")
 
 > Row Rex > Rex
@@ -275,9 +275,9 @@
 | map showPat pats
 
 = (showMutRec showSire tag body arms)
-| NEST 0 {#} -- varE 'mutrec'
-             -- showSire (ENAT tag)
-             -- showSire body
+| NEST 0 {#} ++ varE 'mutrec'
+             ++ showSire (ENAT tag)
+             ++ showSire body
 | showMutRecArms showSire arms
 
 = (showSwitchArms showSire wild arms)
@@ -290,8 +290,8 @@
 | (showKey key, showSire exp)
 
 = (showSwitch showSire exp wild arms)
-| NEST 0 {#} -- varE 'switch'
-             -- showSire exp
+| NEST 0 {#} ++ varE 'switch'
+             ++ showSire exp
 | showSwitchArms showSire wild arms
 
 > Exp > Rex
@@ -330,9 +330,9 @@
   | ELET (PVAR 0 "n") (ENAT %inc)
   | ELET (PVAR 0 "fanc")
       | foldl EAPP (ELIN | EREF %mkLaw)
-     -- EREF %n
-     -- EREF %a
-     -- EREF %b
+     ++ EREF %n
+     ++ EREF %a
+     ++ EREF %b
   | EAPP
       | EAPP
           | EAPP (ENAT 0) (EPAD p#111)
@@ -531,9 +531,9 @@
 = (okIdn bar)
 @ c (barIdx 0 bar)
 | rowAnd
--- not (barIsEmpty bar)
--- not (isDigit c)
--- barAll okIdnChar bar
+++ not (barIsEmpty bar)
+++ not (isDigit c)
+++ barAll okIdnChar bar
 
 = leafExpect
   """ Expected something like
@@ -582,7 +582,7 @@
 * {**}  | readLin readExp rex err ok
 * {,}   | readCom readExp rex err ok
 * {,,}  | readOpenRow readExp rex err (compose ok EROW)
-* {--}  | readOpenRow readExp rex err (compose ok EROW)
+* {++}  | readOpenRow readExp rex err (compose ok EROW)
 * {@}   | parseLet readExp rex err ok
 * {@@}  | parseRec readExp rex err ok
 * {#}   | parseHaxExp readExp rex err ok
@@ -679,7 +679,7 @@
 
 !!= `[3 (0 1)]
   ^ readExp _ v2 showSire
-  ` -- 3
+  ` ++ 3
      | 0 1
 
 

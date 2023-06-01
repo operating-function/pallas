@@ -11,9 +11,9 @@
 ;; Kernel State ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; State =
-;;;     ( List Nat      --  free slots
-;;;     , Row Any       --  slots row (vars or threads)
-;;;     , Row Request   --  requests row
+;;;     ( List Nat      ++  free slots
+;;;     , Row Any       ++  slots row (vars or threads)
+;;;     , Row Request   ++  requests row
 ;;;     )
 = emptyState (~[], [], [])
 

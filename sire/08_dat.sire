@@ -720,10 +720,7 @@ openRowExpect={Expected something like (,, x), (,, f x y), etc}
 & res
 | ok p a (rowE res)
 
-= ({--} s p e a r err ok)
-| readOpenRow readRex r err
-& res
-| ok p a (rowE res)
+{++}=(.{,,})
 
 !!= [3 4 5] (,, 3)(,, 4)(,, 5)
 !!= [3 4 5] (,, 3)(,, 4)5
@@ -735,9 +732,9 @@ openRowExpect={Expected something like (,, x), (,, f x y), etc}
  ,, 5
 
 !!= [3 4 5]
- -- 3
- -- 4
- -- 5
+ ++ 3
+ ++ 4
+ ++ 5
 
 
 """ Binary Search """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -926,7 +923,7 @@ F=found
 ^-^
 ^-^ readRex
 ^-^ readOpenRow
-^-^ {,,} {--}
+^-^ {,,} {++}
 ^-^
 ^-^ lsearch lsearch_
 ^-^ bsearch bsearch_
