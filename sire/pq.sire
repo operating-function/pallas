@@ -48,16 +48,18 @@
 # datacase t
 * LF (BR w LF LF)
 * (BR v t1 t2)
-  | if (cmp w v == GT)
+| if (cmp w v == GT)
     | (BR v (go w t2) t1)
-  | (BR w (go v t2) t1)
+| else
+    | (BR w (go v t2) t1)
 
 = (leftRem cmp t)
 # datacase t
 * LF [NONE t]
 * (BR w t1 t2)
-  | if (pqNull t1 && pqNull t2)
-      | (SOME w, LF)
+| if (pqNull t1 && pqNull t2)
+    | (SOME w, LF)
+| else
     @ [mbW t] (leftRem cmp t1)
     | (mbW, BR w t2 t)
 
@@ -70,31 +72,33 @@
 ? (go w t1 t2)
 # datacase t1
 * LF
-  # datacase t2
-  * LF (BR w LF LF)
-  * _  (go w t2 t1)
+    # datacase t2
+    * LF (BR w LF LF)
+    * _  (go w t2 t1)
 * (BR v1 t1L t1R)
-  # datacase t2
-  * LF
+# datacase t2
+* LF
     | if (and (pqNull t1L) (pqNull t1R))
-      | if (cmp w v1 == GT)
-        | (BR v1 (BR w LF LF) LF)
-      | (BR w t1 LF)
+        | if (cmp w v1 == GT)
+            | BR v1 (BR w LF LF) LF
+        | else
+            | BR w t1 LF
     | die 'siftDown: wat'
-  * (BR v2 t2L t2R)
+* (BR v2 t2L t2R)
     | if ((GT /= cmp w v1) && (GT /= cmp w v2))
-      | BR w t1 t2
+        | BR w t1 t2
     | if (GT == cmp v1 v2)
-      | BR v2 t1 (go w t2L t2R)
-    | BR v1 (go w t1L t1R) t2
+        | BR v2 t1 (go w t2L t2R)
+    | else
+        | BR v1 (go w t1L t1R) t2
 
 = (pqDelMin cmp t)
 # datacase t
 * LF [NONE LF]
 * (BR v t1 t2)
-  @ [mbW t] (leftRem cmp t1)
-  : w <- maybeCase mbW (SOME v, LF)
-  | (SOME v, siftDown cmp w t2 t)
+    @ [mbW t] (leftRem cmp t1)
+    : w <- maybeCase mbW (SOME v, LF)
+    | (SOME v, siftDown cmp w t2 t)
 
 = (pqMin t)
 # datacase t
@@ -106,13 +110,12 @@
 = (heapify cmp ls)
 ^ _ (listLen ls) ls
 ? (go n vs)
-| if (eql 0 n)
-  | [LF vs]
+| if (0 == n) [LF vs]
 @ v (listUnsafeHead vs)
 @ vs (listDrop 1 vs)
 @ [t1 vs1] | go (div n 2) vs
 @ [t2 vs2] | go (div (sub n 1) 2) vs1
-| [(siftDown cmp v t1 t2) vs2]
+| (siftDown cmp v t1 t2, vs2)
 
 = (pqFromList cmp vs)
 | idx 0 (heapify cmp vs)
@@ -138,9 +141,10 @@
 | xs
 
 !!= ~[0 1 2 3 5 7 9 9]
-      | pqSort  cmpNat ~[1 9 7 5 2 0 9 3]
+  | pqSort  cmpNat ~[1 9 7 5 2 0 9 3]
+
 !!= ~[0 1 2 3 5 7 9 9]
-      | pqSort0 cmpNat ~[1 9 7 5 2 0 9 3]
+  | pqSort0 cmpNat ~[1 9 7 5 2 0 9 3]
 
 ;; more sophisticated tests, examining laziness of pq values.
 ;; we ensure that infinite values at position 1 of a tuple can pass in/out of
@@ -153,9 +157,11 @@
 | z?(n::z)
 
 !!= 9
-  | maybeCase (pqMin (pqInsert cmpPairNatKey [9 (repeat 3)] pqEmpty))
-    | 7
-  | x&(idx 0 x)
+  # datacase
+      | pqMin
+      | pqInsert cmpPairNatKey (9, repeat 3) pqEmpty
+  * NONE     7
+  * (SOME x) (idx 0 x)
 
 ; insert in ascending order of key
 !!= 110
