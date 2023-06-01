@@ -62,8 +62,8 @@ createHardwareRand :: Debug => Acquire Device
 createHardwareRand = do
     st <- mkAcquire startup shutdown
     pure DEVICE
-        { spin = const pass
-        , stop = const pass
+        { spin = \_ _ -> pass -- Don't care which cog makes the calls.
+        , stop = \_ _ -> pass
         , call = runSysCall st
         , category = categoryCall
         , describe = describeCall

@@ -30,11 +30,8 @@ import Server.Time
 import Server.Types.Logging
 
 import Control.Concurrent (threadDelay)
-import Optics             (set)
 
-import qualified Data.IntMap as IntMap
 import qualified Data.Vector as V
-
 
 -- Types -----------------------------------------------------------------------
 
@@ -59,7 +56,8 @@ data Evaluator = EVALUATOR
     }
 
 data EvalRequest = EVAL_REQUEST
-    { cog       :: CogName
+    { machine   :: MachineName
+    , cogId     :: CogId
     , flow      :: Flow
     , timeoutMs :: Nat
     , func      :: Fan
@@ -104,13 +102,7 @@ runWorker st _workerId tid = do
     forever step
   where
     takeWork :: STM (EvalRequest, EvalStateVar)
-    takeWork = do
-        pool <- readTVar st.pending
-        case IntMap.minView pool.tab of
-            Nothing -> retry
-            Just ((req,var),more) -> do
-                writeTVar st.pending (set #tab more $ pool)
-                pure (req,var)
+    takeWork = readPool st.pending pure
 
     calcResult req = do
         let exe = (withCalcRuntime . evaluate . force)
@@ -128,7 +120,8 @@ runWorker st _workerId tid = do
         vRespFlow <- newEmptyTMVarIO
         vTimeout      <- newTVarIO False
 
-        let workName = ("Work:" <> encodeUtf8 req.cog.txt)
+        let workName = ("Work: (" <> encodeUtf8 req.machine.txt <> "," <>
+                        (encodeUtf8 $ tshow req.cogId.int) <> ")")
 
         execTid <- async $ withCopiedTid tid $ do
           -- Even if we timeout or crash, we always need a response flow to

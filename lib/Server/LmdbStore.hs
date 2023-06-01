@@ -13,14 +13,14 @@ module Server.LmdbStore
     , Cushion(..)
     --
     , openDatastore
-    , newCog
-    , loadCog
+    , newMachine
+    , loadMachine
     , loadLogBatches
     --
     , writeLogBatch
-    , writeCogSnapshot
+    , writeMachineSnapshot
     --
-    , getCogNames
+    , getMachineNames
     , loadPinByHash
     , internPin
     )
@@ -64,21 +64,21 @@ import qualified Jelly
 -- -----------------------------------------------------------------------
 
 data LmdbStore = LmdbStore
-    { dir               :: FilePath
-    , env               :: MDB_env
+    { dir                   :: FilePath
+    , env                   :: MDB_env
 
     -- | A map of tables where each table is the numeric kv
-    , cogEventlogTables :: TVar (Map CogName CogLogTable)
+    , machineEventlogTables :: TVar (Map MachineName MachineLogTable)
 
     -- | List of all processes this store contains.
-    , cogTable          :: MDB_dbi
+    , machineTable          :: MDB_dbi
 
     -- | A mapping of noun hash to serialized noun representation.
-    , pinCushion        :: MDB_dbi
+    , pinCushion            :: MDB_dbi
 
     -- | All known pins. This is loaded from `pinCushion` at startup and is
     -- meant to be kept in sync.
-    , knownPins         :: IORef (HashMap Hash256 PinState)
+    , knownPins             :: IORef (HashMap Hash256 PinState)
     }
 
 
@@ -99,37 +99,38 @@ data Pend = PEND {
     fsynced :: MVar ()           -- ^ Set once written data is durable on disk.
     }
 
--- | A table mapping a numeric batch number to a noun hash which has the
-data CogLogTable = CogLogTable
+-- | A table mapping which also stores (the number of logbatches written) in
+-- memory.
+data MachineLogTable = MachineLogTable
     { logTable      :: MDB_dbi
     , snapshotTable :: MDB_dbi
     , numBatches    :: TVar Word64
     }
 
-instance Show CogLogTable where
+instance Show MachineLogTable where
     show logs = unsafePerformIO do
         n <- readTVarIO logs.numBatches
-        pure ("CogLogTable{" <> show n <> "}")
+        pure ("MachineLogTable{" <> show n <> "}")
 
 data DecodeCtx
     = DECODE_PIN Hash256
-    | DECODE_BATCH CogName Word64
+    | DECODE_BATCH MachineName Word64
   deriving Show
 
 data StoreExn
-    = BadCogName CogName
-    | BadWriteCogTable CogName
-    | BadIndexInEventlog CogName
-    | BadWriteLogBatch CogName BatchNum
-    | BadWriteSnapshot CogName BatchNum
+    = BadMachineName MachineName
+    | BadWriteMachineTable MachineName
+    | BadIndexInEventlog MachineName
+    | BadWriteLogBatch MachineName BatchNum
+    | BadWriteSnapshot MachineName BatchNum
     | BadPinWrite Word64 Hash256
     | BadPinMissing Hash256 [Hash256]
     | BadBlob DecodeCtx Text
     | BadDependency ByteString
-    | BadLogEntry CogName
-    | BadSnapshot CogName
-    | EmptyLogTable CogName
-    | EmptySnapshotTable CogName
+    | BadLogEntry MachineName
+    | BadSnapshot MachineName
+    | EmptyLogTable MachineName
+    | EmptySnapshotTable MachineName
   deriving Show
 
 instance Exception StoreExn where
@@ -158,13 +159,13 @@ openEnv dir = liftIO $ do
 
 openTables :: MDB_txn -> IO (MDB_dbi, MDB_dbi)
 openTables txn =
-    (,) <$> mdb_dbi_open txn (Just "COGS") [MDB_CREATE]
+    (,) <$> mdb_dbi_open txn (Just "MACHINES") [MDB_CREATE]
         <*> mdb_dbi_open txn (Just "NOUNS") [MDB_CREATE, MDB_INTEGERKEY]
 
-logName :: CogName -> Maybe Text
+logName :: MachineName -> Maybe Text
 logName nm = Just ("LOG-" ++ nm.txt)
 
-snapshotName :: CogName -> Maybe Text
+snapshotName :: MachineName -> Maybe Text
 snapshotName nm = Just ("SNAPSHOT-" ++ nm.txt)
 
 open :: FilePath -> IO LmdbStore
@@ -173,15 +174,15 @@ open dir = do
     env <- openEnv dir
     with (writeTxn env) $ \txn -> do
         (t, n) <- openTables txn
-        cogTableData <- mapFromList <$> readCogs txn t
-        cogTables <- newTVarIO cogTableData
+        machineTableData <- mapFromList <$> readMachines txn t
+        machineTables <- newTVarIO machineTableData
 
         knownPinData <- mapFromList <$> readPins txn n
         knownPins <- newIORef knownPinData
-        pure $ LmdbStore dir env cogTables t n knownPins
+        pure $ LmdbStore dir env machineTables t n knownPins
   where
-    readCogs txn s =
-      getAllCogs txn s >>= traverse (openCogTable txn)
+    readMachines txn s =
+      getAllMachines txn s >>= traverse (openMachineTable txn)
 
     readPins :: MDB_txn -> MDB_dbi -> IO [(Hash256, PinState)]
     readPins txn pinCushion =
@@ -192,16 +193,16 @@ open dir = do
         -- print ("ReadPin"::Text, meta)
         pure (meta.hash, PIN_COMMITTED pinId)
 
-    openCogTable txn tn = do
+    openMachineTable txn tn = do
       logTbl <- mdb_dbi_open txn (unpack <$> logName tn) [MDB_INTEGERKEY]
       ssTbl  <- mdb_dbi_open txn (unpack <$> snapshotName tn) [MDB_INTEGERKEY]
       num  <- getNumBatches txn logTbl
       vNum <- newTVarIO num
-      pure $ (tn, CogLogTable logTbl ssTbl vNum)
+      pure $ (tn, MachineLogTable logTbl ssTbl vNum)
 
 close :: LmdbStore -> IO ()
 close db = do
-    tableMap <- readTVarIO db.cogEventlogTables
+    tableMap <- readTVarIO db.machineEventlogTables
     for_ (mapToList tableMap) \(_,s) ->
         mdb_dbi_close db.env s.logTable
     mdb_dbi_close db.env db.pinCushion
@@ -210,12 +211,12 @@ close db = do
 
 -- -----------------------------------------------------------------------
 
-getAllCogs :: MDB_txn -> MDB_dbi -> IO [CogName]
-getAllCogs txn cogTable =
-    with (cursor txn cogTable) \cur ->
+getAllMachines :: MDB_txn -> MDB_dbi -> IO [MachineName]
+getAllMachines txn machineTable =
+    with (cursor txn machineTable) \cur ->
         forAllKV cur \pKey _ -> do
             key <- peekMdbVal @ByteString pKey
-            pure $ COG_NAME $ decodeUtf8 key
+            pure $ MACHINE_NAME $ decodeUtf8 key
 
 getNumBatches :: MDB_txn -> MDB_dbi -> IO Word64
 getNumBatches txn logTable =
@@ -225,16 +226,16 @@ getNumBatches txn logTable =
                 False -> pure 0
                 True  -> peekMdbVal @Word64 k
 
-getCogNames :: LmdbStore -> IO [CogName]
-getCogNames lmdbStore =
-  keys <$> readTVarIO lmdbStore.cogEventlogTables
+getMachineNames :: LmdbStore -> IO [MachineName]
+getMachineNames lmdbStore =
+  keys <$> readTVarIO lmdbStore.machineEventlogTables
 
--- | Allocates structures for a new cog, returning True if it created a new Cog
--- and False if there's already an existing one.
-newCog :: Debug => LmdbStore -> CogName -> IO Bool
-newCog  lmdbStore cogName@(COG_NAME tnStr) = do
-    logTables <- readTVarIO lmdbStore.cogEventlogTables
-    case lookup cogName logTables of
+-- | Allocates structures for a new machine, returning True if it created a new
+-- Machine and False if there's already an existing one.
+newMachine :: Debug => LmdbStore -> MachineName -> IO Bool
+newMachine  lmdbStore machineName@(MACHINE_NAME tnStr) = do
+    logTables <- readTVarIO lmdbStore.machineEventlogTables
+    case lookup machineName logTables of
         Just _ -> pure False
         Nothing   -> do
             log <- withWriteAsync lmdbStore.env $ \txn -> do
@@ -242,27 +243,28 @@ newCog  lmdbStore cogName@(COG_NAME tnStr) = do
                   tnBS = encodeUtf8 tnStr
 
               -- TODO: Attach a value to the key. Empty for now for iteration.
-              writeKV flags txn lmdbStore.cogTable tnBS BS.empty
-                      (BadWriteCogTable cogName)
+              writeKV flags txn lmdbStore.machineTable tnBS BS.empty
+                      (BadWriteMachineTable machineName)
 
-              -- Build an empty table with that cog name.
-              logDb <- mdb_dbi_open txn (unpack <$> logName cogName)
+              -- Build an empty table with that machine name.
+              logDb <- mdb_dbi_open txn (unpack <$> logName machineName)
                                     [MDB_CREATE, MDB_INTEGERKEY]
-              ssDb <- mdb_dbi_open txn (unpack <$> snapshotName cogName)
+              ssDb <- mdb_dbi_open txn (unpack <$> snapshotName machineName)
                                    [MDB_CREATE, MDB_INTEGERKEY]
               numBatches <- newTVarIO 0
-              pure $ CogLogTable logDb ssDb numBatches
+              pure $ MachineLogTable logDb ssDb numBatches
 
             atomically $
-              modifyTVar' lmdbStore.cogEventlogTables (insertMap cogName log)
+              modifyTVar' lmdbStore.machineEventlogTables
+                          (insertMap machineName log)
             pure True
 
--- | Tries loading a cog. If the cog doesn't exist on disk, return Nothing,
--- otherwise returns the latest BatchNum.
-loadCog :: Debug => LmdbStore -> CogName -> IO (Maybe BatchNum)
-loadCog lmdbStore cogName = do
-    logTables <- readTVarIO lmdbStore.cogEventlogTables
-    case lookup cogName logTables of
+-- | Tries loading a machine. If the machine doesn't exist on disk, return
+-- Nothing, otherwise returns the latest BatchNum.
+loadMachine :: Debug => LmdbStore -> MachineName -> IO (Maybe BatchNum)
+loadMachine lmdbStore machineName = do
+    logTables <- readTVarIO lmdbStore.machineEventlogTables
+    case lookup machineName logTables of
         Nothing   -> pure Nothing
         Just logs -> do
           nb <- atomically $ readTVar logs.numBatches
@@ -271,17 +273,17 @@ loadCog lmdbStore cogName = do
 
 loadLogBatches
     :: forall a
-     . CogName
+     . MachineName
     -> ReplayFrom
-    -> ((F.Fan, BatchNum) -> a)
+    -> ((Map CogId F.Fan, BatchNum) -> a)
     -> (a -> LogBatch -> IO a)
     -> LmdbStore
     -> Cushion
     -> IO a
 loadLogBatches who replayFrom mkInitial fun lmdbStore cache = do
-    logTables <- readTVarIO lmdbStore.cogEventlogTables
+    logTables <- readTVarIO lmdbStore.machineEventlogTables
     case lookup who logTables of
-        Nothing   -> throwIO (BadCogName who)
+        Nothing   -> throwIO (BadMachineName who)
         Just logs -> with (readTxn lmdbStore.env) $
             loadBatches logs.logTable logs.snapshotTable
   where
@@ -313,15 +315,17 @@ loadLogBatches who replayFrom mkInitial fun lmdbStore cache = do
           vBS <- peekMdbVal @Hash256 v
 
           pin   <- loadPinByHash lmdbStore cache [] vBS
+          case fromNoun @(Map CogId F.Fan) pin.item of
+            Nothing -> error "Couldn't read snapshot"
+            Just ss ->
+              pure (key, mkInitial (ss, BatchNum $ fromIntegral key))
 
-          pure (key, mkInitial (pin.item, BatchNum $ fromIntegral key))
-
-writeLogBatch :: Debug => LmdbStore -> CogName -> LogBatch -> IO ()
+writeLogBatch :: Debug => LmdbStore -> MachineName -> LogBatch -> IO ()
 writeLogBatch lmdbStore who lb = do
     withTraceResultArgs "writeLogBatch" "log" do
-      logTables <- readTVarIO lmdbStore.cogEventlogTables
+      logTables <- readTVarIO lmdbStore.machineEventlogTables
       case lookup who logTables of
-          Nothing -> throwIO (BadCogName who)
+          Nothing -> throwIO (BadMachineName who)
           Just logs -> do
               (pinz, lbHead, lbBody, lbHash) <-
                 withSimpleTracingEvent "jar+hash" "log" $ do
@@ -364,13 +368,15 @@ writeLogBatch lmdbStore who lb = do
               topRep
               (BadWriteLogBatch who lb.batchNum)
 
-writeCogSnapshot :: Debug => LmdbStore -> CogName -> BatchNum -> F.Fan -> IO ()
-writeCogSnapshot lmdbStore who (BatchNum bn) f = do
-  logTables <- readTVarIO lmdbStore.cogEventlogTables
+writeMachineSnapshot :: Debug => LmdbStore -> MachineName -> BatchNum
+                     -> Map CogId F.Fan
+                     -> IO ()
+writeMachineSnapshot lmdbStore who (BatchNum bn) f = do
+  logTables <- readTVarIO lmdbStore.machineEventlogTables
   case lookup who logTables of
-      Nothing -> throwIO (BadCogName who)
+      Nothing -> throwIO (BadMachineName who)
       Just logs -> do
-          let p = coerceIntoPin f
+          let p = coerceIntoPin $ toNoun f
               logFlags = compileWriteFlags [MDB_NOOVERWRITE, MDB_APPEND]
 
           pinBatch <- gatherWriteBatch lmdbStore [p]
@@ -379,8 +385,8 @@ writeCogSnapshot lmdbStore who (BatchNum bn) f = do
 
           withWriteAsyncCommitPins lmdbStore (fst <$> toList pinBatch) $ \txn -> do
             -- Don't write duplicate snapshots. This can happen when you spin a
-            -- cog, and then shut down the cog before enough work is done to
-            -- naturally write a logbatch.
+            -- machine, and then shut down the machine before enough work is
+            -- done to naturally write a logbatch.
             let key = fromIntegral bn :: Word64
             pHash <- getPinHash p
             writeKVNoOverwrite logFlags txn logs.snapshotTable key pHash

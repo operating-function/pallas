@@ -24,8 +24,12 @@ instance FromNoun NanoTime where
     fromNoun (NAT n) = Just $ NanoTime n
     fromNoun _       = Nothing
 
-instance ToNoun   CogName where toNoun   = toNoun . (.txt)
-instance FromNoun CogName where fromNoun = fmap COG_NAME . fromNoun
+instance ToNoun   MachineName where toNoun   = toNoun . (.txt)
+instance FromNoun MachineName where fromNoun = fmap MACHINE_NAME . fromNoun
+
+instance ToNoun CogId where toNoun (COG_ID i) = NAT $ fromIntegral i
+instance FromNoun CogId where
+    fromNoun n = (COG_ID . fromIntegral) <$> fromNoun @Nat n
 
 instance ToNoun RequestIdx where
     toNoun (RequestIdx i) = NAT $ fromIntegral i
@@ -39,26 +43,37 @@ instance FromNoun BatchNum where
 
 instance ToNoun ReceiptItem where
     toNoun re = toNoun $ case re of
-                           ReceiptEvalOK  -> Nothing
-                           ReceiptVal val -> Just val
+                           ReceiptEvalOK   -> NAT 0
+                           ReceiptVal val  -> toNoun (NAT 1, val)
+                           ReceiptRecv{..} -> toNoun (NAT 2, sender, reqIdx)
+                           ReceiptSpun{..} -> toNoun (NAT 3, cogNum)
+                           ReceiptStop{..} -> toNoun (NAT 4, cogNum)
 
 instance FromNoun ReceiptItem where
-    fromNoun n = maybe ReceiptEvalOK ReceiptVal <$> fromNoun n
+    fromNoun n = case n of
+        NAT 0                     -> Just ReceiptEvalOK
+        ROW v -> case toList v of
+            [NAT 1, val]          -> Just $ ReceiptVal val
+            [NAT 2, cogN, reqN]   -> do
+                sender <- fromNoun cogN
+                reqIdx <- fromNoun reqN
+                Just ReceiptRecv{..}
+            [NAT 3, cogN]         -> do
+                cogNum <- fromNoun cogN
+                Just ReceiptSpun{..}
+            [NAT 4, cogN]         -> do
+                cogNum <- fromNoun cogN
+                Just ReceiptStop{..}
+            _                     -> Nothing
+        _                         -> Nothing
 
 instance ToNoun Receipt where
-    toNoun re | re.didCrash = 0 %% (toNoun re{didCrash=False})
-    toNoun re               = toNoun re.inputs
+    toNoun RECEIPT{..} = toNoun (cogNum, didCrash, inputs)
 
 instance FromNoun Receipt where
-    fromNoun = \case
-        KLO _ xs -> case toList xs of
-                        [NAT 0, TAB ts] -> RECEIPT True <$> decodeTab ts
-                        _               -> Nothing
-        TAB ts   -> RECEIPT False <$> decodeTab ts
-        _        -> Nothing
-      where
-        decodeTab :: Map Fan Fan -> Maybe (IntMap ReceiptItem)
-        decodeTab = fromNoun . TAB
+    fromNoun n = do
+        (cogNum,didCrash,inputs) <- fromNoun n
+        pure RECEIPT{..}
 
 instance ToNoun LogBatch where
     toNoun LogBatch{..} =
