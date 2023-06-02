@@ -233,11 +233,11 @@
 @ selfRex  | varE self
 @ argRexes | map showPat args
 | if (isZero tag)
-    | INFX 0 {&} (showSig argRexes, showSire body) 0
+    | NEST 0 {&}  ,(showSig argRexes)                   | showSire body
 | if pin
-    | INFX 0 {??} (showSig (rowCons selfRex argRexes), showSire body) 0
+    | NEST 0 {??} ,(showSig (rowCons selfRex argRexes)) | showSire body
 | else
-    | INFX 0 {?} (showSig (rowCons selfRex argRexes), showSire body) 0
+    | NEST 0 {?}  ,(showSig (rowCons selfRex argRexes)) | showSire body
 
 > Sym > Row Pat > Rex
 = (showCon cn pts)
@@ -318,8 +318,8 @@
 * (EAND x y)     | INFX 0 {&&} (showSire x, showSire y) 0
 * (EAPP x y)     | niceApp go exp
 * (EKET xs v)    | NEST 0 {^} (map go xs) (go v)
-* (ELET n x b)   | INFX 0 {@}  (showPat n, go x) (go b)
-* (EREC n x b)   | INFX 0 {@@} (showPat n, go x) (go b)
+* (ELET n x b)   | NEST 0 {@}  (showPat n, go x) (go b)
+* (EREC n x b)   | NEST 0 {@@} (showPat n, go x) (go b)
 * (ELAM pin fun) | showFun go pin fun
 * (ELIN x)       | PREF 0 {**} ,(showSire x) 0
 * (EROW xs)      | NEST 0 {,} (map go xs) 0
@@ -335,7 +335,7 @@
 * (ENEQ x y)     | INFX 0 "/=" (showSire x, showSire y) 0
 * _              | {showSire: Unknown syntax} exp
 
-!!= ` (n @ 6516329)(fanc @ **mkLaw n a b)(0 p#{111} b#{asdf} (2 fanc))
+!!= ` (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#{111} b#{asdf} (2 fanc))
   | showSire
   | ELET (PVAR 0 "n") (ENAT %inc)
   | ELET (PVAR 0 "fanc")
@@ -358,12 +358,12 @@
   | showSire
   | EROW (map ETAB [#[] [a=(ENAT 3)] [us=(EROW [EUNT EUNT])]])
 
-!!= ` (x y & x)
+!!= ` (& (x y))x
   | showSire
   | ELAM FALSE
   | FUN 0 0 (PVAR 0 %x, PVAR 0 %y) (EREF %x)
 
-!!= ` (const x y ? x)
+!!= ` (? (const x y))x
   | showSire
   | ELAM FALSE
   | FUN "const" "const" (PVAR 0 %x, PVAR 0 %y) (EREF %x)
@@ -631,25 +631,26 @@
 
 ; Assumes that the input formatting matches the printers formatting.
 = (sireRound rex)
-@ out (readExp rex v2 showSire)
-| if (rexEql rex out) 1
-| out
+@ expected | rex
+@ out      | readExp rex v2 showSire
+| if (rexEql expected out) 1
+| OPEN 0 '/=' [out] expected
 
 !! sireRound ` x
 !! sireRound ` 0
 !! sireRound ` (f x y)
 !! sireRound ` (**f x y)
 !! sireRound ` [p#{101} p#{}]
-!! sireRound ` (x & x)
-!! sireRound ` (x y & x)
-!! sireRound ` (id x ? x)
-!! sireRound ` (const x y ? x)
-!! sireRound ` (x @ 3)(x x x)
-!! sireRound ` (x @@ 3)x
+!! sireRound ` (& x)x
+!! sireRound ` (& (x y))x
+!! sireRound ` (? (id x))x
+!! sireRound ` (? (const x y))x
+!! sireRound ` (@ x 3)(x x x)
+!! sireRound ` (@@ x 3)x
 !! sireRound ` (^ f _ y)x
-!! sireRound ` (x @ [1 2])[x x]
-!! sireRound ` ([x y] @ [1 2])[y x]
-!! sireRound ` (z@[!x y] @ [1 2])(x y z)
+!! sireRound ` (@ x [1 2])[x x]
+!! sireRound ` (@ [x y] [1 2])[y x]
+!! sireRound ` (@ z@[!x y] [1 2])(x y z)
 !! sireRound ` (# mutrec 3 (three 5))(* (three _) 3)
 !! sireRound ` (# mutrec 3 (three 5))(* (three _) 3)(* (four _ _) (inc 3))
 !! sireRound ` (# switch 3)(* 3 3)(* 4 4)(* _ 9)
@@ -660,7 +661,7 @@
     * 3 3
     * 4 4
 
-!!= ` (span f r ? (l @ len r)(^ _ 0)(loop i ? if (eql i l) (v2 r v0) (if (f (idx i r)) (loop (inc i)) (v2 (take i r) (drop i r)))))
+!!= ` (? (span f r))(@ l (len r))(^ _ 0)(? (loop i))(if (eql i l) (v2 r v0) (if (f (idx i r)) (loop (inc i)) (v2 (take i r) (drop i r))))
   ^ readExp _ v2 showSire
   ` ? (span f r)
     @ l | len r
@@ -751,7 +752,7 @@
     * inc 2
     * inc 0x17f
 
-!!= `(add 2 (Foo x ? add x x))
+!!= `(add 2 (? (Foo x))(add x x))
   ^ readExp _ v2 showSire
   ` : ?(Foo x) <- add 2
     | add x x
