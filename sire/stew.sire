@@ -227,17 +227,17 @@
 | NEST 0 {|} rexes 0
 
 > (Exp > Rex) > Bit > Fun > Rex
-= (showFun showSire pin (FUN self tag args body))
+= (showFun showExp pin (FUN self tag args body))
 | if (self /= tag)
     | todo 'show lambdas where name is different from tag'
 @ selfRex  | varE self
 @ argRexes | map showPat args
 | if (isZero tag)
-    | NEST 0 {&}  ,(showSig argRexes)                   | showSire body
+    | NEST 0 {&}  ,(showSig argRexes)                   | showExp body
 | if pin
-    | NEST 0 {??} ,(showSig (rowCons selfRex argRexes)) | showSire body
+    | NEST 0 {??} ,(showSig (rowCons selfRex argRexes)) | showExp body
 | else
-    | NEST 0 {?}  ,(showSig (rowCons selfRex argRexes)) | showSire body
+    | NEST 0 {?}  ,(showSig (rowCons selfRex argRexes)) | showExp body
 
 > Sym > Row Pat > Rex
 = (showCon cn pts)
@@ -247,66 +247,66 @@
 | map showPat pts
 
 > (Exp > Rex) > Opt Exp > Row ConCase > Rex
-= (showDatacases showSire f xs)
+= (showDatacases showExp f xs)
 ^ _ (listFromRow xs)
 ? (go xs)
 : (cn,pts,b) xs
     < listCase xs
     # datacase f
     * NONE      | 0
-    * (SOME fb) | ``(* _ $$(showSire fb))
+    * (SOME fb) | ``(* _ $$(showExp fb))
 @ rest (go xs)
-| ``((* $$(showCon cn pts) $$(showSire b))($$rest))
+| ``((* $$(showCon cn pts) $$(showExp b))($$rest))
 
-= (niceApp showSire e)
+= (niceApp showExp e)
 ^ _ e ~[]
 ? (loop e acc)
 # datacase e
-* (EAPP f x) | loop f (showSire x)::acc
-* _          | NEST 0 {|} (listToRow (showSire e)::acc) 0
+* (EAPP f x) | loop f (showExp x)::acc
+* _          | NEST 0 {|} (listToRow (showExp e)::acc) 0
 
-= (showCase showSire x f cs)
-| NEST 0 {#} (varE 'datacase', showSire x)
-| showDatacases showSire f cs
+= (showCase showExp x f cs)
+| NEST 0 {#} (varE 'datacase', showExp x)
+| showDatacases showExp f cs
 
 > (Exp > Rex) > Opt Exp > Row ConCase > Rex
-= (showMutRecArms showSire arms)
+= (showMutRecArms showExp arms)
 ^ _ (listFromRow arms)
 ? (go arms)
 : [sym pats body] arms <- listCase arms 0
 @ symRex (varE sym)
-^ NEST 0 "*" (_, showSire body) (go arms)
+^ NEST 0 "*" (_, showExp body) (go arms)
 | if (null pats)
     | 'mutrec arm with no arguments'
     | ['impossible!' 'it makes no sense!']
 ^ NEST 0 "|" (rowCons symRex _) 0
 | map showPat pats
 
-= (showMutRec showSire tag body arms)
+= (showMutRec showExp tag body arms)
 | NEST 0 {#}
    ++ varE 'mutrec'
-   ++ showSire (ENAT tag)
-   ++ showSire body
-| showMutRecArms showSire arms
+   ++ showExp (ENAT tag)
+   ++ showExp body
+| showMutRecArms showExp arms
 
-= (showSwitchArms showSire wild arms)
+= (showSwitchArms showExp wild arms)
 ^ _ (tabToPairList arms)
 ? (go arms)
 : [key exp] arms
     < listCase arms
-    | NEST 0 "*" (varE "_", showSire wild) 0
+    | NEST 0 "*" (varE "_", showExp wild) 0
 ^ NEST 0 "*" _ (go arms)
-| (showKey key, showSire exp)
+| (showKey key, showExp exp)
 
-= (showSwitch showSire exp wild arms)
+= (showSwitch showExp exp wild arms)
 | NEST 0 {#}
    ++ varE 'switch'
-   ++ showSire exp
-| showSwitchArms showSire wild arms
+   ++ showExp exp
+| showSwitchArms showExp wild arms
 
 > Exp > Rex
-= (showSire exp)
-@ go showSire
+= (showExp exp)
+@ go showExp
 # datacase exp
 * (EBED x)       | EMBD x
 * (EREF x)       | WORD 0 x 0
@@ -314,29 +314,29 @@
 * (EPAD p)       | showPadLit p
 * (EBAR b)       | showBarLit b
 * (ECAB ks)      | showCab ks
-* (EOR x y)      | INFX 0 {||} (showSire x, showSire y) 0
-* (EAND x y)     | INFX 0 {&&} (showSire x, showSire y) 0
+* (EOR x y)      | INFX 0 {||} (showExp x, showExp y) 0
+* (EAND x y)     | INFX 0 {&&} (showExp x, showExp y) 0
 * (EAPP x y)     | niceApp go exp
 * (EKET xs v)    | NEST 0 {^} (map go xs) (go v)
 * (ELET n x b)   | NEST 0 {@}  (showPat n, go x) (go b)
 * (EREC n x b)   | NEST 0 {@@} (showPat n, go x) (go b)
 * (ELAM pin fun) | showFun go pin fun
-* (ELIN x)       | PREF 0 {**} ,(showSire x) 0
+* (ELIN x)       | PREF 0 {**} ,(showExp x) 0
 * (EROW xs)      | NEST 0 {,} (map go xs) 0
-* (ETAB xs)      | showTab showSire xs
+* (ETAB xs)      | showTab showExp xs
 * EUNT           | `()
 * (ECAS x f cs)  | showCase go x f cs
 * (EMUT t b as)  | showMutRec go t b as
 * (ESWI e f as)  | showSwitch go e f as
 * (EREX r)       | NEST 0 "`" [r] 0
-* (ECON x xs)    | INFX 0 "::" (showSire x, showSire xs) 0
+* (ECON x xs)    | INFX 0 "::" (showExp x, showExp xs) 0
 * ENIL           | `(~[])
-* (EEQL xs)      | INFX 0 "==" (map showSire xs) 0
-* (ENEQ x y)     | INFX 0 "/=" (showSire x, showSire y) 0
-* _              | {showSire: Unknown syntax} exp
+* (EEQL xs)      | INFX 0 "==" (map showExp xs) 0
+* (ENEQ x y)     | INFX 0 "/=" (showExp x, showExp y) 0
+* _              | {showExp: Unknown syntax} exp
 
 !!= ` (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#{111} b#{asdf} (2 fanc))
-  | showSire
+  | showExp
   | ELET (PVAR 0 "n") (ENAT %inc)
   | ELET (PVAR 0 "fanc")
       | foldl EAPP (ELIN | EREF %mkLaw)
@@ -351,25 +351,25 @@
   | EREF %fanc
 
 !!= ` [%[0 a b] %[0] %[]]
-  | showSire
+  | showExp
   | EROW (map ECAB [%[0 a b] %[0] %[]])
 
 !!= ` [#[] [a=3] [us=[() ()]]]
-  | showSire
+  | showExp
   | EROW (map ETAB [#[] [a=(ENAT 3)] [us=(EROW [EUNT EUNT])]])
 
 !!= ` (& (x y))x
-  | showSire
+  | showExp
   | ELAM FALSE
   | FUN 0 0 (PVAR 0 %x, PVAR 0 %y) (EREF %x)
 
 !!= ` (? (const x y))x
-  | showSire
+  | showExp
   | ELAM FALSE
   | FUN "const" "const" (PVAR 0 %x, PVAR 0 %y) (EREF %x)
 
 !!= ` (^ f _ y)x
-  | showSire
+  | showExp
   | EKET (EREF %f, EREF %_, EREF %y)
   | EREF %x
 
@@ -632,38 +632,38 @@
 ; Assumes that the input formatting matches the printers formatting,
 ; except that OPEN-form example inputs will be converted to NEST-form
 ; inputs, to void long lines on complex examples.
-= (sireRound rex)
+= (expRound rex)
 @ expected | rexClose rex
-@ out      | readExp rex v2 showSire
-| if (rexEql rexClose-rex out) 1
-| OPEN 0 "!=" [out expected] 0
+@ out      | readExp rex v2 showExp
+| if (rexEql expected out) 1
+| OPEN 0 '/=' [out] expected
 
-!! sireRound ` x
-!! sireRound ` 0
-!! sireRound ` (f x y)
-!! sireRound ` (**f x y)
-!! sireRound ` [p#{101} p#{}]
-!! sireRound ` (& x)x
-!! sireRound ` (& (x y))x
-!! sireRound ` (? (id x))x
-!! sireRound ` (? (const x y))x
-!! sireRound ` (@ x 3)(x x x)
-!! sireRound ` (@@ x 3)x
-!! sireRound ` (^ f _ y)x
-!! sireRound ` (@ x [1 2])[x x]
-!! sireRound ` (@ [x y] [1 2])[y x]
-!! sireRound ` (@ z@[!x y] [1 2])(x y z)
-!! sireRound ` (# mutrec 3 (three 5))(* (three _) 3)
-!! sireRound ` (# mutrec 3 (three 5))(* (three _) 3)(* (four _ _) (inc 3))
-!! sireRound ` (# switch 3)(* 3 3)(* 4 4)(* _ 9)
+!! expRound ` x
+!! expRound ` 0
+!! expRound ` (f x y)
+!! expRound ` (**f x y)
+!! expRound ` [p#{101} p#{}]
+!! expRound ` (& x)x
+!! expRound ` (& (x y))x
+!! expRound ` (? (id x))x
+!! expRound ` (? (const x y))x
+!! expRound ` (@ x 3)(x x x)
+!! expRound ` (@@ x 3)x
+!! expRound ` (^ f _ y)x
+!! expRound ` (@ x [1 2])[x x]
+!! expRound ` (@ [x y] [1 2])[y x]
+!! expRound ` (@ z@[!x y] [1 2])(x y z)
+!! expRound ` (# mutrec 3 (three 5))(* (three _) 3)
+!! expRound ` (# mutrec 3 (three 5))(* (three _) 3)(* (four _ _) (inc 3))
+!! expRound ` (# switch 3)(* 3 3)(* 4 4)(* _ 9)
 
 !!= ` (# switch 3)(* 3 3)(* 4 4)(* _ 0)
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` # switch 3
     * 3 3
     * 4 4
 
-!!  sireRound
+!!  expRound
  ` ? (span f r)
    @ l (len r)
    ^ _ 0
@@ -674,74 +674,74 @@
        | v2 (take i r) (drop i r)
 
 !!= `[x=3 y=4]
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` ## =x 3
     ## =y 4
 
 !!= `[3 (0 1)]
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` ++ 3
     ++ 0 1
 
 !!= `[3 (0 1)]
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` ++ 3
      | 0 1
 
-!! sireRound `((# datacase a)(* NONE 0)(* (SOME x) x))
+!! expRound `((# datacase a)(* NONE 0)(* (SOME x) x))
 
 !!= ` %[0 1 2 a b c]
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` %% a b c
     %% 0 1 2
 
 !!= ` (3 :: (4 :: (5 :: ~[])))
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` ~[3 4 5]
 
 !!= ` (3 :: (4 :: (5 :: ~[])))
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` ~~ 3
     ~~ 4
      5
 
-!! sireRound `(3 :: (4 :: (5 :: 6)))
+!! expRound `(3 :: (4 :: (5 :: 6)))
 
 !!= ` (3 :: (4 :: (5 :: 6)))
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` :: 3 4
     :: 5
     :: 6
 
 !!= ` (3 == 4 == 5)
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` (3 == 4 == 5)
 
 !!= ` (3 /= 4)
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` (3 /= 4)
 
 !!= ` (1 && (2 && 3))
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` (1 && 2 && 3)
 
 !!= ` (1 || (2 || 3))
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` (1 || 2 || 3)
 
-!! sireRound
+!! expRound
  ` # datacase a
    * NONE     0
    * _        1
 
 !!= `(add (inc 2) (inc 383))
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` | add
     * inc 2
     * inc 0x17f
 
 !!= `(add 2 (? (Foo x))(add x x))
-  ^ readExp _ v2 showSire
+  ^ readExp _ v2 showExp
   ` : ?(Foo x) <- add 2
     | add x x
 
@@ -765,6 +765,6 @@
 ^-^ EBED EREF ENAT EPAD EBAR ECAB EOR EAND EAPP EKET ELET EREC ELAM
 ^-^ ELIN EROW EUNT ETAB ESWI ECAS EMUT EREX ECON ENIL EEQL ENEQ
 ^-^
-^-^ readExp showSire
+^-^ readExp showExp
 ^-^ readCmd
 ^-^
