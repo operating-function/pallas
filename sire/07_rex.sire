@@ -357,6 +357,18 @@ shut=SHUT
 = (rexVal x)
 | rexEvery (rexSetIdnt 0) x
 
+; Changes the layout-style of a rex tree to closed-form by converting
+; every OPEN node into a NEST node.
+= (rexClose topRex)
+^ rexEvery _ topRex
+& rex
+| if (neq "OPEN" rexStyle-rex) rex
+| NEST
+    rexIdnt-rex
+    rexRune-rex
+    rexSons-rex
+    rexHeir-rex
+
 ;
 ; Value equality on Rex trees, ignoring identity.
 ;
@@ -479,7 +491,7 @@ sx=(OPEN 1 "=" (v2 wx w9) 0)
 ^-^ rexGetNodeWithRune
 ^-^ rexGetKidsOfNodeWithRune
 ^-^
-^-^ rexEvery rexVal rexEql
+^-^ rexEvery rexVal rexClose rexEql
 ^-^
 ^-^ "`"
 ^-^
