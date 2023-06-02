@@ -80,8 +80,8 @@
 """ - [x] #datacase
 """ - [x] #mutrec
 """ - [x] #switch
-""" - [ ] . (non-symbolic references)
-""" - [ ] Correctly print non-symbol references.
+""" - [x] . (non-symbolic references)
+""" - [x] Correctly print non-symbol references.
 """ - [ ] Fix inline annotations on function literals.
 """ - [ ] Make sure function literals support all details.
 """
@@ -304,12 +304,43 @@
    ++ showExp exp
 | showSwitchArms showExp wild arms
 
+> Chr > Bit
+(okIdnChar c)=(eql '_' c || isAlphaNum c)
+
+> Bar > Bit
+= (okIdn bar)
+@ c (barIdx 0 bar)
+| rowAnd
+++ not (barIsEmpty bar)
+++ not (isDigit c)
+++ barAll okIdnChar bar
+
+= (showRef str)
+@ bar (natBar str)
+| if (okIdn bar)
+    | WORD 0 str 0
+| if (not (barIsEmpty bar) && barAll isPrint bar)
+    ^ PREF 0 "." [_] 0
+    | CURL 0 str 0
+| else
+    ^ PREF 0 "." [_] 0
+    | WORD 0 (showNat str) 0
+
+; TODO: Fix loot printing for {...\{...}.
+; TODO: Fix vim highlighting for {...\{...}.
+
+!!= `abc      | showRef 'abc'
+!!= `(.0)     | showRef ''
+!!= `(.1)     | showRef 1
+!!= `(.{a c}) | showRef 'a c'
+!!= `(.{\{})  | showRef '{'
+
 > Exp > Rex
 = (showExp exp)
 @ go showExp
 # datacase exp
 * (EBED x)       | EMBD x
-* (EREF x)       | WORD 0 x 0
+* (EREF x)       | showRef x
 * (ENAT n)       | WORD 0 showNat-n 0
 * (EPAD p)       | showPadLit p
 * (EBAR b)       | showBarLit b
@@ -523,6 +554,10 @@
     : exps <- traverseRow (x k & readExp x err k) kids
     | ok (EROW exps)
 
+= (readDot rex err ok)
+: key <- rexParseKids rex [readKey] err
+| ok (EREF key)
+
 = (readCol readExp rex err ok)
 : valExp oFunName pats bodyExp
     < readColExp parseBinder readExp rex err
@@ -533,17 +568,6 @@
 | ok
     | EAPP valExp
     | ELAM pin (nam, nam, pats, bodyExp)
-
-> Chr > Bit
-(okIdnChar c)=(eql '_' c || isAlphaNum c)
-
-> Bar > Bit
-= (okIdn bar)
-@ c (barIdx 0 bar)
-| rowAnd
-++ not (barIsEmpty bar)
-++ not (isDigit c)
-++ barAll okIdnChar bar
 
 = leafExpect
   """ Expected something like
@@ -559,12 +583,12 @@
 = (readLeaf rex err ok)
 @ txt (rexText rex)
 # switch (rexStyle rex)
-* CORD ok-(ENAT txt)
-* TAPE ok-(ENAT txt)
-* LINE ok-(ENAT txt)
-* PAGE ok-(ENAT txt)
-* CURL ok-(ENAT txt)
-* WORD
+* {CORD} | ok | ENAT txt
+* {TAPE} | ok | ENAT txt
+* {LINE} | ok | ENAT txt
+* {PAGE} | ok | ENAT txt
+* {CURL} | ok | ENAT txt
+* {WORD}
 @ bar    (natBar txt)
 @ natStr (barNat bar)
 | trk [=bar =natStr res=(getNatStr natStr NONE SOME)]
@@ -592,6 +616,7 @@
 * {**}  | readLin readExp rex err ok
 * {,}   | readCom readExp rex err ok
 * {++}  | readOpenRow readExp rex err (compose ok EROW)
+* {.}   | readDot rex err ok
 * {@}   | parseLet readExp rex err ok
 * {@@}  | parseRec readExp rex err ok
 * {#}   | parseHaxExp readExp rex err ok
@@ -639,6 +664,9 @@
 | OPEN 0 '/=' [out] expected
 
 !! expRound ` x
+!! expRound ` .{||}
+!! expRound ` .0
+!! expRound ` .3
 !! expRound ` 0
 !! expRound ` (f x y)
 !! expRound ` (**f x y)
@@ -744,6 +772,10 @@
   ^ readExp _ v2 showExp
   ` : ?(Foo x) <- add 2
     | add x x
+
+!!= `asdf
+  ^ readExp _ v2 showExp
+  ` .{asdf}
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
