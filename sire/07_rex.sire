@@ -8,17 +8,14 @@
 """ Rex Syntax Trees
 """ ================
 """
-""" This is some basic utilities for working with Rune-Expressions.
+""" This defines the representation for the Rex datajet.  Some utilities
+""" for working with Rex values, and the {`} macro, for lisp-style
+""" rex quoting.
 """
-""" It includes the "`" macro for quoting.
-"""
-""" TODO This is going to be radicaly changed soon (different
-""" representation + datajet)
-"""
-""" ` is just a simple macro that quotes an expression (just like in LISP).
-"""
-""" It works by simply parsing out it's first kid and retuning it as an
-""" embeded plunder value.
+""" The need for data-jetting requires this representation to be somewhat
+""" unconventional and unintuitive.  It is also by-far the most
+""" complicated of the data-jets.  Hopefully it can eventually be
+""" eliminated, but it is very useful for the time being.
 """
 
 
@@ -35,11 +32,11 @@
 """ Rex Representation (possibly data-jetted) """"""""""""""""""""""""""""""""""
 
 """
-""" These are the datatypes that are used to represent Rex trees in
-""" macros.
+""" These are the datatypes that are used to represent Rex trees use in
+""" the Sire macro system.
 """
-""" The Sire compiler will give us rex trees representated in this way,
-""" and expect our expansions to also be represented in this way.
+""" Macros are passed Rex tress represented in this format, and are
+""" expected to produce Rex trees represented in this way.
 """
 """ All these basic Rex representations are defined using Scott
 """ Encoding.
@@ -47,6 +44,46 @@
 """ Scott encoding is less efficient than tagged-array encoding, but
 """ it makes sense in this context, since we haven't built up any of
 """ the operations required to work with that representation.
+"""
+""" TODO: Clarify the above.  We already have `idx`, `len`, `if`, `eql`,
+""" and row constructors.  Is that not enough?  It's possible that
+""" this comment (and therefore the representation) is stale.  IIRC,
+""" this module used to be very early in the bootstrapping sequence.
+"""
+""" TODO: If this representation is pointless, and we manage to get rid
+""" of the Rex ids, would something like the following representation
+""" be more appropriate?
+"""
+"""     (_Rex a b)=_Rex
+"""
+"""     = (EMBD x)                    | _Rex [x]
+"""     = (LEAF style text heir)      | _Rex [style text heir]
+"""     = (NODE style rune sons heir) | _Rex [style rune sons heir]
+"""
+""" This representation:
+"""
+""" 1)  Is still data-jettable
+""" 2)  Should be fairly efficient even unjetted.
+""" 3)  Can be pretty-printed effectively even without a data-jet.
+""" 4)  Can pretty-printing of rex trees that are not quite valid.
+"""
+""" That last point would address a currenty sticking point, where
+""" invalid rex has such insane printer-output, that it is difficult to
+""" find the mistake.
+"""
+""" The printer could use the non-ascii symbol ↑ for embeded values
+""" and ↓ for invalid values.
+"""
+""" For example:
+"""
+"""     NODE {nest} {|} (LEAF {word} {hi} 0, EMBD 3, 4) 0
+"""
+""" Could be printed as:
+"""
+"""     (hi ↑3 ↓4)
+"""
+""" This doesn't conflict with an existing syntax, since Sire and Loot
+""" only accept ASCII runes.
 """
 
 = (R x)
