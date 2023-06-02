@@ -50,6 +50,10 @@
         devPkgs = [
           hPkgs.ghc
 
+          # uncomment to get working HLS (warning: builds the world from
+          # source, you will need lots of time and memory).
+          # hPkgs.haskell-language-server
+
           # Doesn't need to strictly match GHC version, and builds from
           # source (cache miss) if I use `hPkgs.ghcid`
           pkgs.haskellPackages.ghcid
