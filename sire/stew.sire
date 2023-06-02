@@ -80,8 +80,10 @@
 """ - [x] #datacase
 """ - [x] #mutrec
 """ - [x] #switch
-""" - [ ] .
-""" - [ ] TODO: Make sure function literals support all details.
+""" - [ ] . (non-symbolic references)
+""" - [ ] Correctly print non-symbol references.
+""" - [ ] Fix inline annotations on function literals.
+""" - [ ] Make sure function literals support all details.
 """
 """ TODO: Parse expressions that don't exist yet.
 """
@@ -103,18 +105,21 @@
 """ - [ ] #hasProp
 """ - [ ] #getTypeNames
 """
-""" TODO: Macro that takes any stew expression and compiles it to sire.
+""" - [ ] Compile stew to sire.
 """
-""" TODO: Redefine all runes to invoke TheBigStewMacro.
+""" - [ ] Write a macro that parses stew, compiles it to sire, and
+"""       expands to that.
 """
-""" TODO: Name resolution
+""" - [ ] Redefine all runes to invoke TheBigStewMacro.
 """
-""" TODO: Merge switch.sire and datatype.sire
-""" TODO: Implement #openrecord (#datacase on records)
-""" TODO: Merge (#switch / #openrecord / #datacase) into #case
-""" TODO: #case supports multiple values.
-""" TODO: #case supports recursive patterns.
-""" TODO: Merge #record and #datatype into #data
+""" - [ ] Name resolution
+"""
+""" - [ ] Merge switch.sire and datatype.sire
+""" - [ ] Implement #openrecord (#datacase on records)
+""" - [ ] Merge (#switch / #openrecord / #datacase) into #case
+""" - [ ] #case supports multiple values.
+""" - [ ] #case supports recursive patterns.
+""" - [ ] Merge #record and #datatype into #data
 """
 
 """ Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
