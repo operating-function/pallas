@@ -192,6 +192,7 @@ emptyBar=(0 1 1 1)
 = (barFromRow r)     | barGen (len r) (get r)
 = (barFilter f b)    | barFromRow | filter f (barToRow b)
 = (barMap f b)       | barGen (barLen b) (compose f barGet-b)
+= (barCatMap f b)    | barCat | gen (barLen b) (compose f barGet-b)
 
 rowToBar=barFromRow
 
@@ -452,6 +453,8 @@ newline=(natBar 10)
 !!= b#bc  | barFilter (neq %a) b#abc
 !!= b#ac  | barFilter (neq %b) b#abc
 !!= b#bcd | barMap inc b#abc
+
+!!= b#aabbcc | barCatMap (x & barFromRow [x x]) b#abc
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
