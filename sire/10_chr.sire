@@ -31,7 +31,7 @@
 (isUpper c)=(and (gteNat c 'A') (lteNat c 'Z'))
 (isLower c)=(and (gteNat c 'a') (lteNat c 'z'))
 (isAlpha c)=(or isUpper-c isLower-c)
-(isPrint c)=(lthNat (sub c 0x20) 0x5f)
+(isPrint c)=(and (gteNat c ' ') (lteNat c '~'))
 
 (isAlphaNum c)=(or isAlpha-c isDigit-c)
 
@@ -54,6 +54,9 @@
 !!= 1 | not (isAlpha '0')
 !!= 1 | isDigit '0'
 !!= 1 | not (isDigit 'a')
+
+!!= 1 (isPrint 'a')
+!!= 0 (isPrint 1)
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
