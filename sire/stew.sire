@@ -748,6 +748,23 @@
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-^-^ EBED EREF ENAT EAPP EKET ELET EREC ELAM ELIN ECAS
+^-^
+^-^ ; Pat
+^-^ PVAR PSEQ PALI PROW PTAB
+^-^
+^-^ ; ConCase
+^-^ CON_CASE ; ConCase
+^-^
+^-^ ; Fun
+^-^ FUN
+^-^
+^-^ ; Cmd
+^-^ CEXP CMUT
+^-^
+^-^ ; Exp
+^-^ EBED EREF ENAT EPAD EBAR ECAB EOR EAND EAPP EKET ELET EREC ELAM
+^-^ ELIN EROW EUNT ETAB ESWI ECAS EMUT EREX ECON ENIL EEQL ENEQ
 ^-^
 ^-^ readExp showSire
+^-^ readCmd
+^-^
