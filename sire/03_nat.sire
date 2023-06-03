@@ -99,10 +99,6 @@ GT=2
 ; padTake?
 (takeBits n v)=(mod v bex-n)
 
-; TODO What use is this?  What laws does it follow?  Why not just padWeld?
-= (bitWeld x y)
-| add x | lsh y met-x
-
 
 """ Bitwise Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
