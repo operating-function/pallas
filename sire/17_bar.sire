@@ -34,7 +34,7 @@
 /+  01_fan  [id compose]
 /+  02_bit  [bit not if else ifNot or and]
 /+  03_nat  [lteNat even isZero]
-/+  03_nat  [mod lsh rsh add bex mul sub dec div minNat takeBits]
+/+  03_nat  [mod lsh rsh add bex mul sub dec div minNat]
 /+  04_app  [len get idx]
 /+  05_cmp  [eql neq gte]
 /+  06_row  [map foldl foldr gen weld v1 v2 v4]
@@ -96,6 +96,8 @@
 = (padBar pad)     | 0 1 1 pad
 = (mkBar xtr bits) | padBar (barEnc xtr bits)
 = (natBar n)       | mkBar 0 n
+= (barSing byt)    | natBar byt
+= (barDuo x y)     | natBar (add x | lsh y 8)
 = (barNat n)       | barDec (lawBody n)
 = (barLen bar)     | div (padLen lawBody-bar) 8
 = (barIsEmpty bar) | eql 1 (lawBody bar)
@@ -293,20 +295,14 @@ hexAlphabet=(b#{0123456789abcdef})
 
 (charIsHex c)=(barHas c hexAlphabet) ;; TODO faster
 
-; TODO: {hexByte} should construct a two-element bar manually (isntead
-; of returning a string)
+; Byt > Bar
+= (byteToHex n)
+| barDuo
+    (hexChar | mod (rsh n 4) 16)
+    (hexChar | mod n 16)
 
-> Byt > Str
-= (hexByte n)
-| strWeld
-  (hexChar (takeBits 4 (rsh n 4)))
-  (hexChar (takeBits 4 n))
-
-; TODO: {barToHex} should use {barCat} and then {barNat}.  {strCat}
-; is slow.
-
-> Bar > Str
-(barToHex val)=(| strCat | map hexByte | barToRow val)
+; Bar > Bar
+(barToHex val)=(barCatMap byteToHex val)
 
 = (getHexBar bar fall ret)
 | if not-(barAll charIsHex bar) fall
@@ -323,7 +319,8 @@ hexAlphabet=(b#{0123456789abcdef})
 !!= 0x123 | getHexBar b#{123} 0 id
 !!= 0     | getHexBar b#{1z3} 0 id
 
-; TODO: {showBarLit} should use bare-words where possible.
+; TODO: {showBarLit} should use bare-words where possible (instead of
+; always quoting everyting with CURL)
 
 ; Bar > Rex
 = (showBarLit bar)
@@ -333,7 +330,7 @@ hexAlphabet=(b#{0123456789abcdef})
    ++ CURL 0 (barNat bar) 0
 | else
    ++ WORD 0 "x" 0
-   ++ CURL 0 (barToHex bar) 0
+   ++ CURL 0 (barNat | barToHex bar) 0
 
 !!= (natBar-'asdf')       | readBarLit `(b#asdf) v2 id
 !!= [`(#b)    blTwoKids]  | readBarLit `(#b)     v2 id
@@ -345,7 +342,7 @@ hexAlphabet=(b#{0123456789abcdef})
 !!= [`(x#x#x) blTwoKids]  | readBarLit `(x#x#x)  v2 id
 !!= [`[]      blWantText] | readBarLit `(x#[])   v2 id
 
-!!= "deadbeef"      | barToHex x#deadbeef
+!!= b#"deadbeef"    | barToHex x#deadbeef
 !!= `(x#{deadbeef}) | showBarLit x#deadbeef
 !!= `(b#{deadbeef}) | showBarLit b#deadbeef
 !!= `(b#{})         | showBarLit x#{}
@@ -454,15 +451,19 @@ newline=(natBar 10)
 
 !!= b#aabbcc | barCatMap (x & barFromRow [x x]) b#abc
 
+!!= b#x  | barSing %x
+!!= b#xy | barDuo  %x %y
+
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^ isBar padBar
 ^-^ emptyBar barIsEmpty
 ^-^ byteWidth barTrail barEnc barDec mkBar natBar barNat barLen barIdx
+^-^ barSing barDuo
 ^-^ zEnd stripZEnd w8 bytesBar barGen barRep barGet barBytes barFoldl barFoldr
 ^-^ barAll
-^-^ barWeld barCat barIntercalate barCatList
+^-^ barWeld barCat barIntercalate barCatList barCatMap
 ^-^ barFromHex barPad
 ^-^ barTake barDrop barSlice
 ^-^ barFlat barHas
@@ -473,7 +474,7 @@ newline=(natBar 10)
 ^-^ barSplitAt barSplitOne barSplitOneWith barSplitWith barSplit
 ^-^ barCountHeadMatching barDropWhile barTakeWhile
 ^-^
-^-^ hexAlphabet hexChar hexByte barToHex
+^-^ hexAlphabet hexChar byteToHex barToHex
 ^-^ readBarLit showBarLit
 ^-^ getHexBar
 ^-^

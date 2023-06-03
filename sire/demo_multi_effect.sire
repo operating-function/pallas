@@ -57,19 +57,6 @@
 = (onHTTPExit conns table req val)
 | die "HTTP Server request should not return"
 
-hexAlphabet=(b#{0123456789abcdef})
-(hexChar n)=(barGet hexAlphabet n)
-
-= (hexByte n)
-| natBar
-| strWeld
-  (hexChar (takeBits 4 (rsh n 4)))
-  (hexChar (takeBits 4 n))
-
-(renderBar val)=(| barCat | map hexByte | barToRow val)
-
-!! eql b#ff00cccaba (renderBar x#ff00cccaba)
-
 = (guarenteeNewline bar)
 | if barIsEmpty-bar bar
 @ las (barGet bar (dec barLen-bar))
