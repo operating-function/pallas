@@ -12,16 +12,13 @@ import Jelly.Types
 --------------------------------------------------------------------------------
 
 ifHash :: Hash256
-ifHash = "9cFk4oxzbH92Bi8jgw7k5LYJNkhTLBxAiQfJ3x3baf6e"
-
-ifNotHash :: Hash256
-ifNotHash = "66DQ83azQBPKg3E5zy8TFyr7X9jcbNW3acZUtgJnhfdC"
+ifHash = "DiwZ6jrm6gs9AcVsNDvPfUoYXN1upQbDBMWcEDE66rYu"
 
 switchHash :: Hash256
-switchHash = "7PUddHfrSKjH19U4nEj8z5nwV35QqSNrt8AiFgkQ18GX"
+switchHash = "5fTpEJKMUwgigpUfUfgaENeiJCWyG1ahq2yy8f3UjNJT"
 
 tabSwitchHash :: Hash256
-tabSwitchHash = "66LcDLd15GTe48kuN1CS5BfRrrZaQPPo4VkYP5nEWMCp"
+tabSwitchHash = "G9jiYaJeWMwhCnRNQQTMcLNz6jMK5UEYpnjUmRAeNnnL"
 
 seqHash :: Hash256
 seqHash = "4bEt86gt6UWqH5zbjzCwD1ZsTUrQCma8Ur3e8KJAyNAq"
@@ -30,10 +27,10 @@ trkHash :: Hash256
 trkHash = "AXuX8gnKrPy5MNN4C3G4ZrqyjeAzCm5K5PVhibnFXFwM"
 
 idxHash :: Hash256
-idxHash = "GkNafYAwRbzsipgsEWBrt9NUSgbQhAueCYa4J1mtCjUa"
+idxHash = "C1RBvvDN37q5h3Mh4FVLqurHYELkT7zUBJhmfNS5WwLs"
 
 getHash :: Hash256
-getHash = "BJ3xwnsARKMVPxZSRckibgUMKKLd3Qo5XKvS8sK6BqU"
+getHash = "Gymg6Aruyn4NuFJTNcwUXK3qfCJik55ivDvPWwpvRbpu"
 
 addHash :: Hash256
 addHash = "K8EH4S4R28TjcWYdzeuFgb5mUSycAnXesRJtFskrebR"
@@ -45,19 +42,19 @@ mulHash :: Hash256
 mulHash = "BWNGj7CzE1got1H5pnp4nSYG8jbW8xBBGvrcDq7mHW5n"
 
 eqlHash :: Hash256
-eqlHash = "FKLUVd4DncStLVn75NiXLqW5JpHaLoTdVWpUnZY4hatg"
+eqlHash = "3C4qgiC3peyCXFTB73Q2oSugC7XnrE3fBA54FhZr8rxc"
 
 eqlNatHash :: Hash256
-eqlNatHash = "HinQSPoGNvnL6DG3mkeKKtiyCTnCYaS3oNzRsGSw3Ccx"
+eqlNatHash = "HnebHagjsdtJFXGboRA2T6W1uWN4jfu5EJhLwzhxLh7j"
 
 lteNatHash :: Hash256
-lteNatHash = "AhChaxy3yaRdMSLWzuhVkWb5sRHMtdUL6gV4FNNafE6g"
+lteNatHash = "HRtCMuhYa8zx7mPc7sLsV7vNBj2jfwcDpQJA3io8D5VA"
 
 lthNatHash :: Hash256
-lthNatHash = "2BDyomgtS4AkZutt77LiZtmipwPuKEYkPcdz6tr9URkD"
+lthNatHash = "UFfqirTSgN6Jm3uSLNL5kTqgc3HS3MacR7AyFG3bR29"
 
 gteNatHash :: Hash256
-gteNatHash = "BbKRjpR2Xs1XgGUb8ZSC1u4VceveHtyEkbo5t8tyRsJL"
+gteNatHash = "2NtUWyQY6K6Ge7s6V13nZo3gDoBBmnyofmGHNW1jwUWY"
 
 gthNatHash :: Hash256
-gthNatHash = "8itNV8d9SwGrkLb9VYE1oS9L1BsnxM1JtSehYvbcL57C"
+gthNatHash = "29oM85LS1JY1Raehi3K9rJaDzhM5qt6raWQsxb2k5rDK"

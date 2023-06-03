@@ -867,7 +867,7 @@ highFreqLaws = setFromList
     (
         [ "dec", "add", "mul", "sub", "bex", "lte", "lth", "div"
         , "mod", "aeq", "lsh", "rsh", "met", "mix", "dis", "con"
-        , "if", "ifNot", "eql", "trk", "idx", "get", "len"
+        , "if", "eql", "trk", "idx", "get", "len"
         , "weld", "map", "put", "mut", "take", "drop", "cat", "rev"
         , "w32", "add32", "mul32", "div32", "and32", "or32", "xor32"
         , "lsh32", "rsh32", "sub32", "ror32", "rol32", "isBar", "barIdx"
@@ -1347,7 +1347,6 @@ optimizeSpine = go
             unsafePerformIO $
             getPinHash p <&> \haz ->
             if | haz == ifHash        -> IF_ (go(r^0)) (go(r^1)) (go(r^2))
-               | haz == ifNotHash     -> IF_ (go(r^0)) (go(r^2)) (go(r^1))
                | haz == switchHash    -> tryMatchSwitch exe r
                | haz == tabSwitchHash -> tryMatchTabSwitch exe r
                | haz == seqHash       -> SEQ (go(r^0)) (go(r^1))
@@ -1392,7 +1391,6 @@ optimizeSpine = go
                 unsafePerformIO $
                 getPinHash p <&> \haz ->
                 if | haz == ifHash        -> shatterIt x s p r
-                   | haz == ifNotHash     -> shatterIt x s p r
                    | haz == switchHash    -> shatterIt x s p r
                    | haz == tabSwitchHash -> shatterIt x s p r
                    | haz == seqHash       -> shatterIt x s p r

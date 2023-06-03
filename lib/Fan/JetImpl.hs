@@ -48,8 +48,15 @@ installJetImpls = writeIORef vJetImpl jetImpls
 jetImpls :: Map Text Jet
 jetImpls = mapFromList
   [ ( "_PinItem"    , pinItemJet )
-  , ( "dec"         , decJet     )
+  , ( "_Trk"        , trkJet     )
   , ( "_Seq"        , seqJet     )
+  , ( "_If"         , ifJet      )
+  , ( "_Bit"        , bitJet   )
+  , ( "_Not"        , notJet   )
+  , ( "_And"        , andJet   )
+  , ( "_Or"         , orJet    )
+  , ( "_IsNat"      , isNatJet )
+  , ( "dec"         , decJet     )
   , ( "add"         , addJet     )
   , ( "mul"         , mulJet     )
   , ( "sub"         , subJet     )
@@ -68,12 +75,10 @@ jetImpls = mapFromList
   , ( "mix"         , mixJet     )
   , ( "dis"         , disJet     )
   , ( "con"         , conJet     )
-  , ( "if"          , ifJet      )
-  , ( "ifNot"       , ifNotJet   )
   , ( "eql"         , eqlJet     )
+  , ( "neq"         , neqJet   )
   , ( "isZero"      , isZeroJet  )
   , ( "cmp"         , cmpJet     )
-  , ( "_Trk"        , trkJet     )
   , ( "idx"         , idxJet     )
   , ( "get"         , getJet     )
   , ( "len"         , lenJet     )
@@ -163,12 +168,6 @@ jetImpls = mapFromList
   , ( "tabKeysRow"  , tabKeysRowJet )
   , ( "tabVals"     , tabValsJet )
   , ( "blake3"      , blake3Jet )
-  , ( "bit"         , bitJet   )
-  , ( "not"         , notJet   )
-  , ( "and"         , andJet   )
-  , ( "or"          , orJet    )
-  , ( "neq"         , neqJet   )
-  , ( "_IsNat"      , isNatJet )
 
   -- par
   , ( "par"         , parJet )
@@ -179,9 +178,6 @@ jetImpls = mapFromList
 
 ifJet :: Jet
 ifJet _ env = if toBit(env^1) then env^2 else env^3
-
-ifNotJet :: Jet
-ifNotJet _ env = if toBit(env^1) then env^3 else env^2
 
 isNatJet :: Jet
 isNatJet _ env =

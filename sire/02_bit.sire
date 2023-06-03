@@ -34,6 +34,15 @@
 """ down to a small set of core functions that benefit greatly from
 """ jetting.
 """
+"""
+""" Jetting
+""" -------
+"""
+""" All of the jets in this module are optional.
+"""
+""" If implementing a subset of these jets, then _If is the highest
+""" leverage, followed by _Bit and _Not.
+"""
 
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -46,17 +55,35 @@
 TRUE=1
 FALSE=0
 
-= (if x t e)      | 2 e _&t x
+= (_If x t e) | 2 e _&t x
+= (_Not x)    | _If x 0 1
+= (_Bit x)    | _If x 1 0
+= (_And x y)  | _If x (_Bit y) 0
+= (_Or x y)   | _If x 1 (_Bit y)
+= (_Xor x y)  | _If x (_Not y) (_Bit y)
+= (_Nand x y) | _Not (_And x y)
+= (_Nor x y)  | _Not (_Or x y)
+= (_Xnor x y) | _Not (_Xor x y)
+
+
+""" Aliases and Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= if   | _If
+= not  | _Not
+= bit  | _Bit
+= and  | _And
+= or   | _Or
+= xor  | _Xor
+= nand | _Nand
+= nor  | _Nor
+= xnor | _Xnor
+
 = (**ifNot x t e) | if x e t
 = (**else x)      | x
-= (not x)         | if x 0 1
-= (bit x)         | if x 1 0
-= (and x y)       | if x (bit y) 0
-= (or x y)        | if x 1 (bit y)
-= (xor x y)       | if x (not y) (bit y)
-= (nand x y)      | not (and x y)
-= (nor x y)       | not (or x y)
-= (xnor x y)      | not (xor x y)
+
+; Note that ifNot and else are marked as "always inline" and will not
+; appear in the resulting PLAN code.  They exist only to make code
+; look nicer.
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -73,13 +100,17 @@ FALSE=0
 !!= 1 | if if 0 1
 !!= 1 | not (if if 1 0)
 
-;; TODO More tests like this one
 !!= 0 | and 1 (x&x)
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+^-^
 ^-^ TRUE FALSE
+^-^
 ^-^ if ifNot else
+^-^
 ^-^ bit not
+^-^
 ^-^ and or xor nand nor xnor
+^-^

@@ -19,6 +19,17 @@
 """ In addition, this module includes some bread-and-butter utilities and
 """ combinators that are widely used but don't belong anywhere else.
 """
+"""
+""" Jetting
+""" -------
+"""
+""" All of the jets in this file (besides _Trk) are optional.
+"""
+""" There is an expectation that operations like _Car and _IsLaw be very
+""" cheap.  They are marked as jets so that implementations are free to
+""" optimize them.  However, the unoptimized legal code should also
+""" perform well enough in most cases.
+"""
 
 
 """ Names for PLAN Primitives """"""""""""""""""""""""""""""""""""""""""""""""""
