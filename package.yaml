@@ -23,7 +23,6 @@ library:
     - cbits/blake3_portable.c
     - cbits/harness.c
     - cbits/jelly.c
-    - cbits/main.c
     - cbits/xxhash.c
   when:
     - condition: arch(aarch64)
