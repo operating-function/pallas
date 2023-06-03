@@ -171,8 +171,6 @@ emptyBar=(0 1 1 1)
 = (barTake n b) | barGen (minNat n barLen-b) (barGet b)
 = (barDrop n b) | barGen (sub barLen-b n) (i & barGet b (add i n))
 
-(barTakeNatBytes n b)=(takeBits (mul n 8) barNat-b)
-
 (barSlice off wid bar)=(barTake wid (barDrop off bar))
 
 = (barCountHeadMatching match b)
@@ -474,7 +472,6 @@ newline=(natBar 10)
 ^-^ barFindIndex barElemIndex barElemIndexOff barElemIndexEnd
 ^-^ barSplitAt barSplitOne barSplitOneWith barSplitWith barSplit
 ^-^ barCountHeadMatching barDropWhile barTakeWhile
-^-^ barTakeNatBytes
 ^-^
 ^-^ hexAlphabet hexChar hexByte barToHex
 ^-^ readBarLit showBarLit
