@@ -407,7 +407,7 @@ abstype#TyExp
     | ok annRes
 | if (rexIsSymbol rex)
     : sym < readSymbol rex err
-    @ fst | strTake 1 sym
+    @ fst (mod sym 256)
     | if (isUpper fst)
         | ifNot (tabHas sym e)
             | err rex (strWeld 'Undefined type constructor: ' sym)
@@ -426,7 +426,7 @@ abstype#TyExp
     | if (isZero nKid) ; UNIT
         | ok | T_TUP []
     : sym < readSymbol head err
-    | ifNot (isUpper (strTake 1 sym))
+    | ifNot (isUpper | mod sym 256)
         | err head "expected: TypeName"
     | ifNot (tabHas sym e)
         | err rex (strWeld 'Undefined type constructor: ' sym)

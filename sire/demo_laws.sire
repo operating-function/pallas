@@ -29,18 +29,12 @@ hexAlphabet=(natBar "0123456789abcdef")
 
 (hexChar n)=(barGet hexAlphabet n)
 
-= (hexByte n)
-| implode
-| map hexChar
-++ takeBits 4 (rsh n 4)
-++ takeBits 4 n
-
-(showByte n)=(strWeld "0x" hexByte-n)
+(showByte n)=(barWeld b#0x byteToHex-n)
 
 = (showHash v)
 | strWeld "0x"
-| strCat
-| map hexByte v
+| barCat
+| map byteToHex v
 
 = (hexCharToNat v)
 | if (lteNat v %9) (sub v %0)
@@ -124,7 +118,9 @@ hexAlphabet=(natBar "0123456789abcdef")
 @ sSz met-aSz
 @ wid (add aSz dec-(add sSz sSz))
 @ bod | dropHighBit
-      | mix (takeBits dec-sSz aSz) (lsh nat dec-sSz)
+      | mix
+      * mod aSz (bex | dec sSz)
+      * lsh nat (dec sSz)
 | add (bex wid)
 | add (bex sSz)
 | lsh bod (inc sSz)
@@ -473,7 +469,7 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash multiEqlE
 
 {pinHash pinHash}
-!!= x#{83b96349c46658fda79c48e946297b65852cdb23fc7908de05281893d6454716}
+!!= x#{5c04bd0154baf7e246e975c27780dae11ee7bf1411c09000a97f503378479441}
   | pinHash pinHash
 
 = (refsTable pin)

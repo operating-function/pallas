@@ -92,14 +92,6 @@ GT=2
 !!= FALSE (natBitIndex 4 8)
 
 
-""" Pad Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-;; TODO Should these live in `pad.sire`?
-
-; padTake?
-(takeBits n v)=(mod v bex-n)
-
-
 """ Bitwise Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (bitwise f x y)
@@ -237,7 +229,6 @@ GT=2
 ^-^ natBitIndex
 ^-^ natFoldl
 ^-^ popCount
-^-^ takeBits
 ^-^ isNat toNat
 ^-^ exec
 ^-^ bitwise

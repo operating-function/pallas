@@ -18,7 +18,7 @@
 
 /+  01_fan
 /+  02_bit  [if ifNot and or not]
-/+  03_nat  [gteNat lteNat add sub lsh roundUp met takeBits mul rsh mod div]
+/+  03_nat  [gteNat lteNat add sub lsh roundUp met mul rsh mod div]
 /+  04_app  []
 /+  05_cmp  [eql neq]
 /+  06_row  [foldl]
@@ -32,8 +32,6 @@
 """ Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 (strWeld x y)=(| add x | lsh y | roundUp met-x 8)
-(strTake n c)=(takeBits (mul 8 n) c)
-(strDrop n c)=(rsh c (mul 8 n))
 (strCat vs)=(foldl strWeld 0 vs)
 
 = (strToList s)
@@ -98,7 +96,6 @@
 
 ^-^  strLen
 ^-^  strWeld strCat
-^-^  strTake strDrop
 ^-^  strToList strFromList
 ^-^  explode implode
 ^-^  strToUpper strToLower strCapitalize strIsCapitalized
