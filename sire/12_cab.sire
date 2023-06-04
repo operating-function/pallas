@@ -23,10 +23,10 @@
 
 /+  01_fan
 /+  02_bit  [if else ifNot and or not]
-/+  03_nat  [add sub mul dec isZero]
+/+  03_nat  [add sub mul dec]
 /+  03_nat  [even odd]
 /+  04_app  [idx get len]
-/+  05_cmp  [eql neq lte lth gth gte]
+/+  05_cmp  [eql neq lte lth gth gte isZero]
 /+  06_row  [null weld v2 isRow map foldl foldr fst snd]
 /+  07_rex
 /+  08_dat

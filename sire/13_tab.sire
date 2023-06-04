@@ -16,9 +16,9 @@
 
 /+  01_fan  [lawBody trk isLaw inc seq]
 /+  02_bit  [if ifNot and or not nor]
-/+  03_nat  [add toNat isZero]
+/+  03_nat  [add toNat]
 /+  04_app  [len idx head mut]
-/+  05_cmp  [eql neq lth lte gte gth]
+/+  05_cmp  [eql neq lth lte gte gth isZero]
 /+  06_row  [null map weld rowRepel rowApply rev foldl fst snd]
 /+  07_rex  [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
 /+  07_rex  [OPEN EMBD PREF]

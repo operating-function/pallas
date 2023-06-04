@@ -327,6 +327,12 @@ runCmd h scope vSrc vPrp vGen vMac itxt cmd = do
     ASSERT [] -> pure scope
     ASSERT (TEST_EQL raw v w : more) -> do
         profTrace ("==" <> tagify itxt) "repl" do
+
+            -- trace each assertion before testing it.
+            putStrLn $ rexFile
+              $ joinRex . (\rx -> N 0 OPEN "#!!=" rx Nothing)
+              $ fmap (fmap absurd) raw
+
             G val _ <- compileSire scope v
             G wal _ <- compileSire scope w
             let NAMED_CLOSURE _ _ vTop = nameClosure (loadShallow val)

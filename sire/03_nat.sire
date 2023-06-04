@@ -8,35 +8,77 @@
 """ Natural Numbers
 """ ===============
 """
-""" Core jets:
+""" This module defines the core operations on natural numbers.
 """
-""" - toNat,dec
-""" - add,sub ;;; - mul,div,mod ;;; - lsh,rsh,met
-""" - mix,dis,con
 """
-""" What about `nat_take`?
-""" What about `setBit`?
-""" What about `getBit`?
-""" What about `flipBit`?
+""" Jetting
+""" -------
+"""
+""" Many of these operations require jets.  These functions will be very
+""" slow without jet:
+"""
+""" - _Add
+""" - _Mul
+""" - _Sub
+""" - _Div
+""" - _Pow
+""" - _Bitwise
+""" - _NatFold
+"""
+""" These operations are defined in terms of other jets, and can function
+""" without jets, but still benefit greatly from optimization:
+"""
+""" - _Bex
+""" - _Bix
+""" - _Lsh
+""" - _Rsh
+""" - _Mod
+""" - _Dis
+""" - _Con
+""" - _Mix
+""" - _PopCount
+""" - _Met
+"""
+""" These operations do not need jets, but may be worth jetting anyways:
+"""
+""" - _ToNat
+""" - _Dec
+""" - _Exec
+""" - _IsOne
+""" - _OrdWeld
 """
 
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 /+  01_fan  [seq isNat cdr die const]
-/+  02_bit  [if else ifNot not bit and or xor TRUE FALSE]
+/+  02_bit  [TRUE FALSE]
+/+  02_bit  [if ifNot else]
+/+  02_bit  [not bit and or xor]
 
 
-""" Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Basic Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (toNat x)    | 2 0 3 x
-= inc          | 3
-= (dec x)      | 2 0 y&y x
-= (exec f z x) | 2 z (exec f f-z) x
+inc=3
 
-= (add x y) | exec inc toNat-x y
-= (mul x y) | exec add-x 0 y
-= (sub x y) | exec dec x y
+LT=0
+EQ=1
+GT=2
+
+= toNat   ( _ToNat x     ?? 2 0 3 x                 )
+= dec     ( _Dec x       ?? 2 0 y&y x               )
+= exec    ( _Exec f z x  ?? 2 z (_Exec f f-z) x     )
+= add     ( _Add x y     ?? exec inc (toNat x) y    )
+= mul     ( _Mul x y     ?? exec (add x) 0 y        )
+= sub     ( _Sub x y     ?? exec dec x y            )
+= isOne   ( _IsOne x     ?? and (bit x) not-(dec x) )
+= ordWeld ( _OrdWeld x y ?? if (isOne x) y x        )
+
+
+""" Comparison """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; Nat comparisons are not jetted.  These are just building blocks for
+; the full PLAN comparisons, use those instead.
 
 = (natLte x y) | not (sub x y)
 = (natLth x y) | natLte inc-x y
@@ -47,58 +89,81 @@
 = (natMax x y) | if natGte-x-y x y
 = (natCmp x y) | natMin 2 (sub inc-x y)
 
-LT=0
-EQ=1
-GT=2
 
-(ordWeld x y)=(if (natEql x EQ) y x)
+""" More Complex Operations """"""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (div x y) | if (natLth x y) 0 inc-(div sub-x-y y)
-= (mod x y) | sub x | mul y | div x y
-= (bex n)   | exec mul-2 1 n
-= (lsh v n) | mul bex-n v
-= (rsh v n) | div v bex-n
+= div
+?? (_Div x y)
+ | if (natLth x y) 0
+ | inc (_Div (sub x y) y)
 
-= (even n) | not mod-n-2
-= (odd n)  | mod n 2
-
-; TODO Can a better name be found for this?
-= (roundUp num x)
-| ifNot x           num
-| ifNot (mod num x) num
-| sub (add num x) (mod num x)
-
-; check if literally zero, not converted equivalent to 0.
-(isZero x)=(and (isNat x) (natEql 0 x))
-
-!!= 1 | isZero 0
-!!= 0 | isZero 1
-!!= 0 | isZero isZero
-
-
-(natBitIndex i n)=(mod (rsh n i) 2)
-
-!!= FALSE (natBitIndex 0 8)
-!!= FALSE (natBitIndex 1 8)
-!!= FALSE (natBitIndex 2 8)
-!!= TRUE  (natBitIndex 3 8)
-!!= FALSE (natBitIndex 4 8)
+= mod ( _Mod x y ?? sub x (mul y | div x y) )
+= pow ( _Pow b p ?? exec (mul b) 1 p        )
+= bex ( _Bex p   ?? pow 2 p                 )
+= lsh ( _Lsh v n ?? mul (bex n) v           )
+= rsh ( _Rsh v n ?? div v (bex n)           )
+= bix ( _Bix i n ?? mod (rsh n i) 2         )
 
 
 """ Bitwise Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (bitwise f x y)
-^ _ x y 0 0
-? (go a b off acc)
-| ifNot (add a b) acc
-@ bit | f (mod a 2) (mod b 2)
-@ acc | add acc (lsh bit off)
-| seq acc
-| go (div a 2) (div b 2) (inc off) acc
+= bitwise
+   ?? (_Bitwise f x y)
+    ^ _ x y 0 0
+    ? (go a b off acc)
+    | ifNot (add a b) acc
+    @ bit | f (mod a 2) (mod b 2)
+    @ acc | add acc (lsh bit off)
+    | seq acc
+    | go (div a 2) (div b 2) (inc off) acc
 
-= (dis x y) | bitwise or  x y
-= (con x y) | bitwise and x y
-= (mix x y) | bitwise xor x y
+= natFold
+   ?? (_NatFold f z n)
+    | if (not n) z
+    @ z (f z | mod n 2)
+    | seq z
+    | _NatFold f z (rsh n 1)
+
+= dis      ( _Dis x y    ?? bitwise or  x y           )
+= con      ( _Con x y    ?? bitwise and x y           )
+= mix      ( _Mix x y    ?? bitwise xor x y           )
+= popCount ( _PopCount n ?? natFold add 0 n           )
+= met      ( _Met n      ?? natFold (m _ & inc m) 0 n )
+
+
+""" Misc """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (even n) | not mod-n-2
+= (odd n)  | mod n 2
+
+= (roundUp n f)
+@ x (mod n f)
+| ifNot (and f x) n
+| sub (add n f) x
+
+!!= 1 (even 4)
+!!= 0 (even 5)
+!!= 0 (odd 4)
+!!= 1 (odd 5)
+
+!!= 0  (roundUp 0  3)
+!!= 3  (roundUp 1  3)
+!!= 3  (roundUp 2  3)
+!!= 3  (roundUp 3  3)
+!!= 6  (roundUp 4  3)
+!!= 6  (roundUp 5  3)
+!!= 6  (roundUp 6  3)
+!!= 9  (roundUp 7  3)
+!!= 21 (roundUp 19 3)
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+!!= FALSE (bix 0 8)
+!!= FALSE (bix 1 8)
+!!= FALSE (bix 2 8)
+!!= TRUE  (bix 3 8)
+!!= FALSE (bix 4 8)
 
 !!= 7 (con 7 7)
 !!= 5 (con 5 7)
@@ -108,19 +173,6 @@ GT=2
 !!= 7 (dis 1 7)
 !!= 7 (dis 7 1)
 
-; (a > Bit > a) > a > Nat > a
-= (natFoldl f z n)
-| if (isZero n) z
-@ z (f z | mod n 2)
-| seq z
-| natFoldl f z (rsh n 1)
-
-; Nat > Nat
-(popCount n)=(natFoldl add 0 n)
-
-(met n)=(natFoldl (m _ & inc m) 0 n)
-
-
 !!= 1 (popCount 1)
 !!= 1 (popCount 2)
 !!= 1 (popCount 4)
@@ -128,8 +180,16 @@ GT=2
 !!= 2 (popCount 6)
 !!= 3 (popCount 7)
 
+!!= 0 (met 0)
+!!= 1 (met 1)
+!!= 2 (met 2)
+!!= 3 (met 4)
+!!= 3 (met 7)
+!!= 4 (met 8)
+!!= 9 (met 256)
 
-""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+!!= 256 (bex 8)
+!!= 81  (pow 3 4)
 
 !!= 1 | inc ( add 0   0   )
 !!= 1 | inc ( add 0   0-0 )
@@ -147,7 +207,6 @@ GT=2
 !!= 1 | natEql 0 (sub 3 4)
 !!= 1 | natEql 0 (sub 3 3)
 !!= 1 | natEql 1 (sub 3 2)
-
 !!= 1 | natEql 3 (sub 3 0)
 
 !!= 1 | natEql 1 (mix 0 1)
@@ -210,20 +269,17 @@ GT=2
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ inc dec add sub mod mul div
-^-^ toNat
-^-^ natEql natCmp
-^-^ even odd
-^-^ met
-^-^ roundUp
-^-^ isZero
-^-^ lsh rsh con mix dis bex
-^-^ natBitIndex
-^-^ natFoldl
-^-^ popCount
-^-^ isNat toNat
-^-^ exec
-^-^ bitwise
+^-^ isNat ; re-export
+^-^
+^-^ toNat exec inc dec add sub mod mul div isOne
+^-^ lsh rsh con mix dis bex bix
 ^-^
 ^-^ LT EQ GT ordWeld
+^-^
+^-^ natEql natCmp ; (warning: not jetted, only use to define jets)
+^-^
+^-^ bitwise natFold
+^-^ met popCount
+^-^
+^-^ roundUp even odd
 ^-^

@@ -24,6 +24,7 @@
 /+  01_fan  [const id]
 /+  02_bit  [if ifNot else and not]
 /+  03_nat  [natEql natCmp LT EQ GT ordWeld]
+/+  03_nat  [natEql natCmp LT EQ GT ordWeld isOne]
 /+  04_app  [len]
 
 
@@ -170,14 +171,15 @@
 
 """ Specific Comparisons """"""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (eql x y) | natEql EQ (cmp x y)
-= (neq x y) | not (eql x y)
-= (lth x y) | eql LT (cmp x y)
-= (lte x y) | neq GT (cmp x y)
-= (gth x y) | eql GT (cmp x y)
-= (gte x y) | neq LT (cmp x y)
-= (min x y) | if (lte x y) x y
-= (max x y) | if (gte x y) x y
+= (eql x y)  | isOne (cmp x y)
+= (isZero x) | eql 0 x
+= (neq x y)  | not (eql x y)
+= (lth x y)  | eql LT (cmp x y)
+= (lte x y)  | neq GT (cmp x y)
+= (gth x y)  | eql GT (cmp x y)
+= (gte x y)  | neq LT (cmp x y)
+= (min x y)  | if (lte x y) x y
+= (max x y)  | if (gte x y) x y
 
 !!= 1 | eql 0              0
 !!= 1 | eql 99             99
@@ -194,7 +196,7 @@
 ^-^
 ^-^ ordWeld cmp
 ^-^
+^-^ eql neq isZero
 ^-^ lth lte gth gte
-^-^ eql neq
 ^-^ min max
 ^-^

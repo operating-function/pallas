@@ -18,7 +18,7 @@
 /+  02_bit  [if and or not]
 /+  03_nat  [add sub]
 /+  04_app  []
-/+  05_cmp  [gte lte lth eql]
+/+  05_cmp  [eql gte lte lth]
 /+  06_row  []
 /+  07_rex  []
 /+  08_dat  []

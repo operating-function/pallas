@@ -59,9 +59,9 @@
 /+  01_fan
 /+  02_bit  [if ifNot and or not else]
 /+  02_bit  [TRUE FALSE]
-/+  03_nat  [add div inc dec isZero]
+/+  03_nat  [add div inc dec]
 /+  04_app  [idx len]
-/+  05_cmp  [eql neq lth]
+/+  05_cmp  [eql neq lth isZero]
 /+  06_row  [weld map foldr null v1 v2 v3 v4 fst snd]
 /+  07_rex  [rexConstr rexIdnt rexRune rexSons rexHeir rexKids]
 /+  07_rex  [rexIsNode rexIsEmbd rexIsLeaf]
