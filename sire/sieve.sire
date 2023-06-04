@@ -41,7 +41,7 @@
  | spin wheel2357 n
 
 = (cmpPairNatKey [k1 _] [k2 _])
-| cmpNat k1 k2
+| cmp k1 k2
 
 = (adjust y pq)
 ^ _ pq

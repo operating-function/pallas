@@ -457,19 +457,19 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash mul
 
 {pinHash .{##}}
-!!= x#{ddb8867724c16730c2382ff3918d14a3e849ff166ba75eb6d458bc3fd33a5049}
+!!= x#{8bf301c9372e946d08a6c8437e6c5babfa3913653655d0f3fa7dc9341dad9049}
   | pinHash .{##}
 
 {pinHash cmp}
-!!= x#{8441dba828b0b5f0788383b02f6df0bd9fd6560194ec85c57ce2b7efdca7a01a}
+!!= x#{73791aa3eca29e14c65460a6f32536def9726ad2ef291e8cf6bb9ee551ab9860}
   | pinHash cmp
 
 {pinHash multiEqlE}
-!!= x#{62a4db21f28f5c44b4602bf28d8f2b5421bea5253db55ecbd33afd04307ce7f1}
+!!= x#{e41045de95c81ee967643095e83444734b8e26f2fcfb7329cdf70190ef3d4e2e}
   | pinHash multiEqlE
 
 {pinHash pinHash}
-!!= x#{a03f853d20013d2058eb6ae1c1e9483685c68751dd3d3e4f0cf3fe76e44b7c17}
+!!= x#{541525d2217cb6a1cd7509c9bc7a9d66f26e4aed51d2fc5e52bb74f4b927fb16}
   | pinHash pinHash
 
 = (refsTable pin)

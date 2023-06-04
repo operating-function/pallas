@@ -23,7 +23,7 @@
 /+  01_fan  [isNat]
 /+  01_fan  [const id]
 /+  02_bit  [if ifNot else and not]
-/+  03_nat  [eqlNat cmpNat LT EQ GT ordWeld]
+/+  03_nat  [natEql natCmp LT EQ GT ordWeld]
 /+  04_app  [len]
 
 
@@ -52,9 +52,9 @@
 ; deconstructing them.
 ;
 
-= (**cmpLaw cmp x y)
-| ordWeld (cmpNat (lawName x) (lawName y))
-| ordWeld (cmpNat (lawArgs x) (lawArgs y))
+= (**lawCmp cmp x y)
+| ordWeld (natCmp (lawName x) (lawName y))
+| ordWeld (natCmp (lawArgs x) (lawArgs y))
           (cmp (lawBody x) (lawBody y))
 
 ;
@@ -102,11 +102,11 @@
 ;         (because tab items are applied in reverse order).
 ;
 = (cmp x y)
-| if (isNat x) | ifNot (isNat y) LT (cmpNat x y)
+| if (isNat x) | ifNot (isNat y) LT (natCmp x y)
 | if (isNat y) | GT
 | if (isPin x) | ifNot (isPin y) LT (cmp (pinItem x) (pinItem y))
 | if (isPin y) | GT
-| if (isLaw x) | ifNot (isLaw y) LT (cmpLaw cmp x y)
+| if (isLaw x) | ifNot (isLaw y) LT (lawCmp cmp x y)
 | if (isLaw y) | GT
 | ordWeld
     (cmp (car x) (car y))
@@ -170,7 +170,7 @@
 
 """ Specific Comparisons """"""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (eql x y) | eqlNat EQ (cmp x y)
+= (eql x y) | natEql EQ (cmp x y)
 = (neq x y) | not (eql x y)
 = (lth x y) | eql LT (cmp x y)
 = (lte x y) | neq GT (cmp x y)

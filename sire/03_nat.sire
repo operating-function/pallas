@@ -38,22 +38,22 @@
 = (mul x y) | exec add-x 0 y
 = (sub x y) | exec dec x y
 
-= (lteNat x y) | not (sub x y)
-= (lthNat x y) | lteNat inc-x y
-= (gteNat x y) | lteNat y x
-= (gthNat x y) | lthNat y x
-= (eqlNat x y) | and lteNat-y-x lteNat-x-y
-= (minNat x y) | if lteNat-x-y x y
-= (maxNat x y) | if gteNat-x-y x y
-= (cmpNat x y) | minNat 2 (sub inc-x y)
+= (natLte x y) | not (sub x y)
+= (natLth x y) | natLte inc-x y
+= (natGte x y) | natLte y x
+= (natGth x y) | natLth y x
+= (natEql x y) | and natLte-y-x natLte-x-y
+= (natMin x y) | if natLte-x-y x y
+= (natMax x y) | if natGte-x-y x y
+= (natCmp x y) | natMin 2 (sub inc-x y)
 
 LT=0
 EQ=1
 GT=2
 
-(ordWeld x y)=(if (eqlNat x EQ) y x)
+(ordWeld x y)=(if (natEql x EQ) y x)
 
-= (div x y) | if (lthNat x y) 0 inc-(div sub-x-y y)
+= (div x y) | if (natLth x y) 0 inc-(div sub-x-y y)
 = (mod x y) | sub x | mul y | div x y
 = (bex n)   | exec mul-2 1 n
 = (lsh v n) | mul bex-n v
@@ -76,7 +76,7 @@ GT=2
 | sub (add num x) (mod num x)
 
 ; check if literally zero, not converted equivalent to 0.
-(isZero x)=(and (isNat x) (eqlNat 0 x))
+(isZero x)=(and (isNat x) (natEql 0 x))
 
 !!= 1 | isZero 0
 !!= 0 | isZero 1
@@ -142,51 +142,51 @@ GT=2
 !!= 1 | add 0 1
 !!= 1 | add 1 0
 
-!!= 1 | eqlNat 5 5
-!!= 1 | eqlNat 6 mul-2-3
-!!= 1 | eqlNat 2 sub-4-2
-!!= 1 | gthNat 4 3
-!!= 1 | gteNat 4 3
-!!= 1 | gteNat 4 4
-!!= 1 | eqlNat 0 (sub 3 4)
-!!= 1 | eqlNat 0 (sub 3 3)
-!!= 1 | eqlNat 1 (sub 3 2)
+!!= 1 | natEql 5 5
+!!= 1 | natEql 6 mul-2-3
+!!= 1 | natEql 2 sub-4-2
+!!= 1 | natGth 4 3
+!!= 1 | natGte 4 3
+!!= 1 | natGte 4 4
+!!= 1 | natEql 0 (sub 3 4)
+!!= 1 | natEql 0 (sub 3 3)
+!!= 1 | natEql 1 (sub 3 2)
 
-!!= 1 | eqlNat 3 (sub 3 0)
+!!= 1 | natEql 3 (sub 3 0)
 
-!!= 1 | eqlNat 1 (mix 0 1)
-!!= 1 | eqlNat 1 (mix 1 0)
-!!= 1 | eqlNat 3 (mix 2 1)
-!!= 1 | eqlNat 1 (mix 2 3)
+!!= 1 | natEql 1 (mix 0 1)
+!!= 1 | natEql 1 (mix 1 0)
+!!= 1 | natEql 3 (mix 2 1)
+!!= 1 | natEql 1 (mix 2 3)
 
-!!= 1 | eqlNat 0 (roundUp 0 4)
-!!= 1 | eqlNat 4 (roundUp 3 4)
-!!= 1 | eqlNat 8 (roundUp 5 4)
+!!= 1 | natEql 0 (roundUp 0 4)
+!!= 1 | natEql 4 (roundUp 3 4)
+!!= 1 | natEql 8 (roundUp 5 4)
 
 = (checkOrd x y)
-@ o (cmpNat x y)
-| if (eqlNat o LT)
-  | and (bit (lthNat x y))
-  | and (bit (lteNat x y))
-  | and (not (eqlNat x y))
-  | and (not (gteNat x y))
-  | and (not (gthNat x y))
-  | and (eqlNat x (minNat x y))
-        (eqlNat y (maxNat x y))
-| if (eqlNat o EQ)
-  | and (not (lthNat x y))
-  | and (bit (lteNat x y))
-  | and (bit (eqlNat x y))
-  | and (bit (gteNat x y))
-        (not (gthNat x y))
+@ o (natCmp x y)
+| if (natEql o LT)
+  | and (bit (natLth x y))
+  | and (bit (natLte x y))
+  | and (not (natEql x y))
+  | and (not (natGte x y))
+  | and (not (natGth x y))
+  | and (natEql x (natMin x y))
+        (natEql y (natMax x y))
+| if (natEql o EQ)
+  | and (not (natLth x y))
+  | and (bit (natLte x y))
+  | and (bit (natEql x y))
+  | and (bit (natGte x y))
+        (not (natGth x y))
 | else
-  | and (not (lthNat x y))
-  | and (not (lteNat x y))
-  | and (not (eqlNat x y))
-  | and (bit (gteNat x y))
-  | and (bit (gthNat x y))
-  | and (eqlNat y (minNat x y))
-        (eqlNat x (maxNat x y))
+  | and (not (natLth x y))
+  | and (not (natLte x y))
+  | and (not (natEql x y))
+  | and (bit (natGte x y))
+  | and (bit (natGth x y))
+  | and (natEql y (natMin x y))
+        (natEql x (natMax x y))
 
 !!= 1 (checkOrd 0 0)
 !!= 1 (checkOrd 0 1)
@@ -216,7 +216,7 @@ GT=2
 ^-^
 ^-^ inc dec add sub mod mul div
 ^-^ toNat
-^-^ eqlNat lthNat gthNat lteNat gteNat minNat maxNat cmpNat
+^-^ natEql natCmp
 ^-^ even odd
 ^-^ met
 ^-^ roundUp
