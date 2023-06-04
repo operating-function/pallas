@@ -94,7 +94,7 @@
 ? (go count off)
 | seq count
 @ chr (barIdx off input)
-| if (eqlNat chr '0')
+| if (eql '0' chr)
         | go (inc count) (inc off)
 | [count off]
 
@@ -120,7 +120,7 @@
 = (lexDecimal input off)
 @ c (barIdx off input)
 ;
-| ifNot (eqlNat '.' c) [0 off]
+| ifNot (eql '.' c) [0 off]
 @ off (inc off)
 ;
 @ [numZeros zof] (**consumeZeros input off)
@@ -237,7 +237,7 @@
 ;
 * _
     @ fst (barIdx off input)
-    @ neg (eqlNat '-' fst)
+    @ neg (eql '-' fst)
     @ off (add neg off) ; add bit+number to avoid branching.
     ;
     @ chr (barIdx off input)

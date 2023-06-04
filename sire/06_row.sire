@@ -43,9 +43,9 @@
 /+  01_fan  [isLaw lawName lawBody]
 /+  01_fan  [isApp car caar caaar caaaar]
 /+  02_bit  [if ifNot and or not]
-/+  03_nat  [eqlNat dec sub add lthNat isZero]
+/+  03_nat  [dec sub add isZero]
 /+  04_app  [head arity len null idx get mut put]
-/+  05_cmp  [eql]
+/+  05_cmp  [eql lth]
 
 
 """ Core Definitions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -159,7 +159,7 @@ v1=c1
 @ yw len-y
 | gen (add xw yw)
 & i
-| if (lthNat i xw) (idx i x)
+| if (lth i xw) (idx i x)
 | idx (sub i xw) y
 
 !!= (v3 1 2 3) | weld (v0) (v3 1 2 3)

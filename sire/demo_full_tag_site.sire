@@ -156,11 +156,11 @@
 | die msg
 
 = (assertMap jsonBS m@[h t])
-| **assertThat (eqlNat h %map) [%notAMap jsonBS m]
+| **assertThat (eql h %map) [%notAMap jsonBS m]
 t
 
 = (assertNum n@[h t])
-| **assertThat (eqlNat h %num) [%notANum n]
+| **assertThat (eql h %num) [%notANum n]
 t
 
 = (assertTabLookup key t)
@@ -169,11 +169,11 @@ t
 * (SOME v) | v
 
 = (assertVec v@[h t])
-| **assertThat (eqlNat h %vec) [%notAVec v]
+| **assertThat (eql h %vec) [%notAVec v]
 t
 
 = (assertStr s@[h t])
-| **assertThat (eqlNat h %str) [%notAStr s]
+| **assertThat (eql h %str) [%notAStr s]
 t
 
 = (jsonImgToRow jsonBS m)
@@ -293,7 +293,7 @@ t
 : r         <- **bindMaybe (asJsonRow jr)
 ^ forRow r _ t&(SOME (**SEARCHCMD offset t))
 ? (step [h t] pure)
-| if | eqlNat h %str
+| if | eql h %str
   | pure | barNat t
 NONE
 

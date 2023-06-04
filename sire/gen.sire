@@ -39,7 +39,7 @@
 ; This returns the new generator and a pad (bit array)
 = (genBits numBits gen)
 @ [bar pad] gen
-| if (gthNat numBits padLen-pad)
+| if (gth numBits padLen-pad)
         | genBits numBits (growRand gen)
 @ [looted remain]
         | padSplitAt numBits pad

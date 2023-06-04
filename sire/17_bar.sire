@@ -33,10 +33,10 @@
 /+  01_fan  [seq inc die]
 /+  01_fan  [id compose]
 /+  02_bit  [bit not if else ifNot or and]
-/+  03_nat  [lteNat even isZero]
-/+  03_nat  [mod lsh rsh add bex mul sub dec div minNat]
+/+  03_nat  [even isZero]
+/+  03_nat  [mod lsh rsh add bex mul sub dec div]
 /+  04_app  [len get idx]
-/+  05_cmp  [eql neq gte]
+/+  05_cmp  [eql neq gte lte min]
 /+  06_row  [map foldl foldr gen weld v1 v2 v4]
 /+  06_row  [fst snd]
 /+  07_rex  [SHUT CURL WORD]
@@ -170,7 +170,7 @@ emptyBar=(0 1 1 1)
 
 (barCatList bs)=(barCat (listToRow bs))
 
-= (barTake n b) | barGen (minNat n barLen-b) (barGet b)
+= (barTake n b) | barGen (min n barLen-b) (barGet b)
 = (barDrop n b) | barGen (sub barLen-b n) (i & barGet b (add i n))
 
 (barSlice off wid bar)=(barTake wid (barDrop off bar))
@@ -235,8 +235,8 @@ rowToBar=barFromRow
 | go (barCat acc,x,sep) xs
 
 = (hexCharToNat v)
-| if (lteNat v %9) (sub v %0)
-| add 10 (sub (minNat v %f) %a)
+| if (lte v %9) (sub v %0)
+| add 10 (sub (min v %f) %a)
 
 
 ; {barFromHex}  presumes valid input and just returns nonsense if given

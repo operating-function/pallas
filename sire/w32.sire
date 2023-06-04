@@ -33,11 +33,11 @@
 = (mul32 x y) | w32 (mul w32-x w32-y)
 = (div32 x y) | div w32-x w32-y
 = (not32 x)   | not w32-x
-= (lth32 x y) | lthNat w32-x w32-y
-= (gth32 x y) | gthNat w32-x w32-y
-= (lte32 x y) | lteNat w32-x w32-y
-= (gte32 x y) | gteNat w32-x w32-y
-= (eql32 x y) | eqlNat w32-x w32-y
+= (lth32 x y) | lth w32-x w32-y
+= (gth32 x y) | gth w32-x w32-y
+= (lte32 x y) | lte w32-x w32-y
+= (gte32 x y) | gte w32-x w32-y
+= (eql32 x y) | eql w32-x w32-y
 = (and32 x y) | con w32-x w32-y
 = (or32  x y) | dis w32-x w32-y
 = (xor32 x y) | mix w32-x w32-y

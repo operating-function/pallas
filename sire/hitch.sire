@@ -21,13 +21,13 @@
 
 = (compare x y)
 | if (eql x y) %eq
-| if (lteNat x y) %lt
+| if (lte x y) %lt
 %gt
 
 = (binFindIdxLte cmp r)
 ^ _ 0 (len r)
 ? (go_binfind l u)
-| if (lteNat u l) l
+| if (lte u l) l
 @ k | rsh (add u l) 1
 # switch | cmp | get r k
 * lt | go_binfind l k
@@ -123,7 +123,7 @@
 
 > Index k v > Opt v
 = (fromSingletonIndex [_ vals])
-| if (eqlNat 1 (len vals)) (SOME (get vals 0)) NONE
+| if (eql 1 (len vals)) (SOME (get vals 0)) NONE
 
 > Index k v > Nat
 = (indexKeyLen [keys _])
@@ -163,9 +163,9 @@
 ^ _ idx
 ? (loop idx)
 @ numVals      | **indexValLen idx
-| if (lteNat numVals maxIndexVals)
+| if (lte numVals maxIndexVals)
     | **singletonIndex | mkNode idx hhEmpty
-| if (lteNat numVals | mul 2 maxIndexVals)
+| if (lte numVals | mul 2 maxIndexVals)
     @ pos | dec | div numVals 2
     @ [lIdx middleKey rIdx] | splitIndexAt pos idx
     @ !leftNode  | mkNode lIdx hhEmpty
@@ -224,10 +224,10 @@
 # openTreeFun treeFun
 @ itemLen | leafLength items
 ; leaf items don't overflow a single node
-| if (lteNat itemLen maxLeafItems)
+| if (lte itemLen maxLeafItems)
     | **singletonIndex | mkLeaf items
 ; we have to split, but only into two nodes
-| if (lteNat itemLen | mul 2 maxLeafItems)
+| if (lte itemLen | mul 2 maxLeafItems)
     @ numLeft        | div itemLen 2
     @ [lLeaf rLeaf]  | leafSplitAt numLeft items
     @ rightFirstItem | leafFirstKey rLeaf
@@ -238,11 +238,11 @@
 ^ fixup (_ items NIL NIL)
 ? (loop items keys leafs)
 @ itemLen | leafLength items
-| if (gthNat itemLen | mul 2 maxLeafItems)
+| if (gth itemLen | mul 2 maxLeafItems)
     @ [leaf rem]   | leafSplitAt maxLeafItems items
     @ key          | leafFirstKey rem
     | loop rem (CONS key keys) (CONS leaf leafs)
-| if (gthNat itemLen maxLeafItems)
+| if (gth itemLen maxLeafItems)
     @ numLeft      | div itemLen 2
     @ [left right] | leafSplitAt numLeft items
     @ key          | leafFirstKey right
@@ -315,7 +315,7 @@ newRootNode
   # datacase (caseNode node)
   * (INDEXNODE children hitchhikers)
     @ !merged | hhMerge hitchhikers toAdd
-    | if | gthNat (hhLength merged) maxHitchhikers
+    | if | gth (hhLength merged) maxHitchhikers
       @ !distrib | distributeDownwards treeConfig treeFun merged children
       ; We have reached the maximum number of hitchhikers, we now need to
       ; flush these downwards.
@@ -375,8 +375,8 @@ newRootNode
 @ l | len keys
 ^ unfoldr _ [0 hh]
 & [i hh]
-| if (eqlNat i l) | SOME [hh [(inc i) hhEmpty]]
-| if (gthNat i l) | NONE
+| if (eql i l) | SOME [hh [(inc i) hhEmpty]]
+| if (gth i l) | NONE
 @ [!cur !rest] | hhSplit (idx i keys) hh
 | SOME [cur [(inc i) rest]]
 
@@ -420,9 +420,9 @@ newRootNode
 # openTreeFun treeFun
 # datacase (caseImpl node)
 * (INDEXNODE index hitchhikers)
-  | lthNat (indexKeyLen index) minIdxKeys
+  | lth (indexKeyLen index) minIdxKeys
 * (LEAFNODE leaves)
-  | lthNat (leafLength leaves) minLeafItems
+  | lth (leafLength leaves) minLeafItems
 
 = (mergeNodes config treeFun left middleKey right)
 # openTreeConfig config
@@ -824,22 +824,22 @@ newRootNode
 ; right range at end.
 | if bsNil
   : amax arest <- **listCase aminxs (die "missing a range")
-  | if (lteNat bmin amax)
+  | if (lte bmin amax)
     | SOME [(find a b) [aminxs as brange bnode]]
   | findIntersectStep find [aminxs as brange bnode]
 ; left range at end.
 | if asNil
   : bmax brest <- **listCase bminxs (die "missing b range")
-  | if (lteNat amin bmax)
+  | if (lte amin bmax)
     | SOME [(find a b) [arange anode bminxs bs]]
   | findIntersectStep find [arange anode bminxs bs]
 ; both ranges.
 : amax arest <- **listCase aminxs (die "missing a range")
 : bmax brest <- **listCase bminxs (die "missing b range")
-@ advances | if (eqlNat amax bmax) [aminxs as bminxs bs]
-           | if (gthNat amax bmax) [arange anode bminxs bs]
+@ advances | if (eql amax bmax) [aminxs as bminxs bs]
+           | if (gth amax bmax) [arange anode bminxs bs]
            [aminxs as brange bnode]
-| if (and (lthNat amin bmax) (lthNat bmin amax))
+| if (and (lth amin bmax) (lth bmin amax))
   | SOME [(find a b) advances]
 | findIntersectStep find advances
 

@@ -37,8 +37,8 @@ hexAlphabet=(natBar "0123456789abcdef")
 | map byteToHex v
 
 = (hexCharToNat v)
-| if (lteNat v %9) (sub v %0)
-| add 10 (sub (minNat v %f) %a)
+| if (lte v %9) (sub v %0)
+| add 10 (sub (min v %f) %a)
 
 = (barFromHex nat)
 @ dig | map hexCharToNat explode-nat
@@ -402,7 +402,7 @@ hexAlphabet=(natBar "0123456789abcdef")
             @ tel (lawBody noun)
             | **cel p t hed tel
     | if | and isNat-noun
-         | lteNat met-noun met-ref
+         | lte met-noun met-ref
       (**nat p t noun)
     (**backref p t ref)
 
@@ -457,7 +457,7 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash mul
 
 {pinHash .{##}}
-!!= x#{48a9ae1406ebedbf27de2014293be407f768a139dedfbee08be506443a2bccad}
+!!= x#{ddb8867724c16730c2382ff3918d14a3e849ff166ba75eb6d458bc3fd33a5049}
   | pinHash .{##}
 
 {pinHash cmp}
@@ -465,11 +465,11 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash cmp
 
 {pinHash multiEqlE}
-!!= x#{51f20d99062c856d1f90692c05410b4707d3b08e7b44dd3d5040ed01f2e46349}
+!!= x#{62a4db21f28f5c44b4602bf28d8f2b5421bea5253db55ecbd33afd04307ce7f1}
   | pinHash multiEqlE
 
 {pinHash pinHash}
-!!= x#{2d81911122b33050e7cc5d74c85fedef41605264700a8c3dff1d58ef828fe5d1}
+!!= x#{a03f853d20013d2058eb6ae1c1e9483685c68751dd3d3e4f0cf3fe76e44b7c17}
   | pinHash pinHash
 
 = (refsTable pin)

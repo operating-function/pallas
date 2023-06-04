@@ -1918,17 +1918,16 @@ fanIdx idxNat fan =
 
 op2Table :: Map Hash256 (String, (Fan -> Fan -> Fan))
 op2Table = mapFromList
-  [ ( idxHash,    ("idx", op2Idx) )
-  , ( getHash,    ("get", op2Get) )
-  , ( addHash,    ("add", op2Add) )
-  , ( subHash,    ("sub", op2Sub) )
-  , ( mulHash,    ("mul", op2Mul) )
-  , ( eqlHash,    ("eql", op2Eql) )
-  , ( eqlNatHash, ("eqlNat", op2EqlNat) )
-  , ( lteNatHash, ("lteNat", op2LteNat) )
-  , ( lthNatHash, ("lthNat", op2LthNat) )
-  , ( gteNatHash, ("gteNat", op2GteNat) )
-  , ( gthNatHash, ("gthNat", op2GthNat) )
+  [ ( idxHash, ("idx", op2Idx) )
+  , ( getHash, ("get", op2Get) )
+  , ( addHash, ("add", op2Add) )
+  , ( subHash, ("sub", op2Sub) )
+  , ( mulHash, ("mul", op2Mul) )
+  , ( eqlHash, ("eql", op2Eql) )
+  , ( lteHash, ("lte", op2Lte) )
+  , ( lthHash, ("lth", op2Lth) )
+  , ( gteHash, ("gte", op2Gte) )
+  , ( gthHash, ("gth", op2Gth) )
   ]
 
 op2Idx :: Fan -> Fan -> Fan
@@ -1949,22 +1948,19 @@ op2Mul :: Fan -> Fan -> Fan
 op2Mul a b = NAT $ toNat a * toNat b
 
 op2Eql :: Fan -> Fan -> Fan
-op2Eql a b = fromBit $ (fastValEq a b)
+op2Eql a b = fromBit (fastValEq a b)
 
-op2EqlNat :: Fan -> Fan -> Fan
-op2EqlNat a b = fromBit $ toNat a == toNat b
+op2Lte :: Fan -> Fan -> Fan
+op2Lte a b = fromBit (a <= b)
 
-op2LteNat :: Fan -> Fan -> Fan
-op2LteNat a b = fromBit $ toNat a <= toNat b
+op2Lth :: Fan -> Fan -> Fan
+op2Lth a b = fromBit (a < b)
 
-op2LthNat :: Fan -> Fan -> Fan
-op2LthNat a b = fromBit $ toNat a < toNat b
+op2Gte :: Fan -> Fan -> Fan
+op2Gte a b = fromBit (a >= b)
 
-op2GteNat :: Fan -> Fan -> Fan
-op2GteNat a b = fromBit $ toNat a >= toNat b
-
-op2GthNat :: Fan -> Fan -> Fan
-op2GthNat a b = fromBit $ toNat a > toNat b
+op2Gth :: Fan -> Fan -> Fan
+op2Gth a b = fromBit (a > b)
 
 -- Where should utility stuff like this go, which isn't directly related to
 -- anything?

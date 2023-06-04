@@ -61,12 +61,10 @@ jetImpls = mapFromList
   , ( "mul"         , mulJet     )
   , ( "sub"         , subJet     )
   , ( "bex"         , bexJet     )
-  , ( "lteNat"      , lteNatJet  )
-  , ( "lthNat"      , lthNatJet  )
-  , ( "gthNat"      , gthNatJet  )
-  , ( "gteNat"      , gteNatJet  )
-  , ( "eqlNat"      , eqlNatJet  )
-  , ( "cmpNat"      , cmpNatJet  )
+  , ( "lte"         , lteJet  )
+  , ( "lth"         , lthJet  )
+  , ( "gth"         , gthJet  )
+  , ( "gte"         , gteJet  )
   , ( "div"         , divJet     )
   , ( "mod"         , modJet     )
   , ( "lsh"         , lshJet     )
@@ -216,34 +214,26 @@ trkJet _ env = unsafePerformIO $ do
             Prof.withAlwaysTrace nm "trk" do
                 evaluate (env^2)
 
-
-eqlNatJet :: Jet
-eqlNatJet _ env = fromBit $ (toNat(env^1) == toNat(env^2))
-
 {-# INLINE ordFan #-}
 ordFan :: Ordering -> Nat
 ordFan LT = 0
 ordFan EQ = 1
 ordFan GT = 2
 
-cmpNatJet :: Jet
-cmpNatJet _ env = NAT $ ordFan $ compare (toNat(env^1)) (toNat(env^2))
-
 cmpJet :: Jet
 cmpJet _ env = NAT $ ordFan $ compare (env^1) (env^2)
 
+lthJet :: Jet
+lthJet _ env = if ((env^1) <  (env^2)) then NAT 1 else NAT 0
 
-lthNatJet :: Jet
-lthNatJet _ env = if (toNat(env^1) <  toNat(env^2)) then NAT 1 else NAT 0
+gthJet :: Jet
+gthJet _ env = if ((env^1) >  (env^2)) then NAT 1 else NAT 0
 
-gthNatJet :: Jet
-gthNatJet _ env = if (toNat(env^1) >  toNat(env^2)) then NAT 1 else NAT 0
+lteJet :: Jet
+lteJet _ env = if ((env^1) <= (env^2)) then NAT 1 else NAT 0
 
-lteNatJet :: Jet
-lteNatJet _ env = if (toNat(env^1) <= toNat(env^2)) then NAT 1 else NAT 0
-
-gteNatJet :: Jet
-gteNatJet _ env = if (toNat(env^1) >= toNat(env^2)) then NAT 1 else NAT 0
+gteJet :: Jet
+gteJet _ env = if ((env^1) >= (env^2)) then NAT 1 else NAT 0
 
 bexJet :: Jet
 bexJet _ env = NAT (bex $ toNat (env^1))

@@ -50,7 +50,7 @@
 | listCase ns
   | die 'adjust: invariant violation: empty list'
 & (n0 ns)
-| if (lteNat n y)
+| if (lte n y)
   @ pq0 (idx 1 (pqDelMin cmpPairNatKey pq))
   | go (pqInsert cmpPairNatKey [n0 ns] pq0)
 | pq
@@ -69,7 +69,7 @@
   | NIL
 & (y ys)
 @ nextComposite (maybeCase (pqMin pq) (die 'nextComposite: bad') (idx 0))
-| if (lteNat nextComposite y)
+| if (lte nextComposite y)
   | go ys (adjust y pq)
 | CONS y (go ys (insertPrime y ys pq))
 

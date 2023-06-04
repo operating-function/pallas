@@ -18,7 +18,7 @@
 
 /+  01_fan
 /+  02_bit  [if ifNot and or not]
-/+  03_nat  [gteNat lteNat add sub lsh roundUp met mul rsh mod div]
+/+  03_nat  [add sub lsh roundUp met mul rsh mod div]
 /+  04_app  []
 /+  05_cmp  [eql neq]
 /+  06_row  [foldl]

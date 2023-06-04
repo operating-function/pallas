@@ -308,7 +308,7 @@ black=[0 0 0]
 ? (m_loop i x0 y0)
 @ xx | mulFp x0 x0
 @ yy | mulFp y0 y0
-| if (gteNat i maxIter) black
+| if (gte i maxIter) black
 | if not-(iLth48 addFp-xx-yy 40000)
     | calcColor i
 @ x1 (addFp subFp-xx-yy cr)

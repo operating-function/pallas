@@ -15,8 +15,8 @@
 """
 
 /+  02_bit   [if and TRUE FALSE]
-/+  03_nat   [eqlNat cmpNat LT EQ GT div sub]
-/+  05_cmp   [neq]
+/+  03_nat   [LT EQ GT div sub]
+/+  05_cmp   [eql cmp neq]
 /+  08_dat   [listLen listUnsafeHead listDrop NIL listRev listFoldr]
 /+  08_dat   [SOME NONE maybeCase]
 /+  datatype ["#datatype" "#datacase"]
@@ -63,9 +63,9 @@
     @ [mbW t] (leftRem cmp t1)
     | (mbW, BR w t2 t)
 
-= test1 | pqInsert cmpNat 0 pqEmpty
-= test2 | pqInsert cmpNat 1 test1
-= test3 | leftRem cmpNat test2
+= test1 | pqInsert cmp 0 pqEmpty
+= test2 | pqInsert cmp 1 test1
+= test3 | leftRem cmp test2
 
 = (siftDown cmp w t1 t2)
 ^ _ w t1 t2
@@ -141,17 +141,17 @@
 | xs
 
 !!= ~[0 1 2 3 5 7 9 9]
-  | pqSort  cmpNat ~[1 9 7 5 2 0 9 3]
+  | pqSort  cmp ~[1 9 7 5 2 0 9 3]
 
 !!= ~[0 1 2 3 5 7 9 9]
-  | pqSort0 cmpNat ~[1 9 7 5 2 0 9 3]
+  | pqSort0 cmp ~[1 9 7 5 2 0 9 3]
 
 ;; more sophisticated tests, examining laziness of pq values.
 ;; we ensure that infinite values at position 1 of a tuple can pass in/out of
 ;; pqs, provided they are not touched.
 
 = (cmpPairNatKey p1 p2)
-| cmpNat idx-0-p1 idx-0-p2
+| cmp idx-0-p1 idx-0-p2
 
 = (repeat n)
 | z?(n::z)

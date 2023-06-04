@@ -18,7 +18,7 @@
 ;
 @ all  | put all idx | get val 1
 @ jobs | put jobs idx 0
-| if (eqlNat remaining 1) | trk [%fin all] all
+| if (eql remaining 1) | trk [%fin all] all
 | loop (dec remaining) all jobs
 
 

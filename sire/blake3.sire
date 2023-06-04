@@ -77,7 +77,7 @@ st
 
 ; welds up to four u8.
 = (u32weld v)
-| ifNot (eqlNat (len v) 4)
+| ifNot (eql (len v) 4)
     | die "u32weld requires 4 bytes"
 | u8weld (get v 0)
 | u8weld (get v 1)
@@ -200,7 +200,7 @@ st
        ++ outputBlockCounter
        ++ b3OutputGetBlockLen o
        ++ or32 (b3OutputGetFlags o) b3Root
-@ need | minNat outChunkLen remBytes
+@ need | min outChunkLen remBytes
 @ segm | take need
        | wordsToBytes words
 | loop
@@ -275,7 +275,7 @@ st
     @ c | b3ChunkstPutBlockLen c 0
     c
 @ want | sub b3BlockLen (b3ChunkstGetBlockLen c)
-@ need | minNat want (len input)
+@ need | min want (len input)
 @ c | b3ChunkstPutBlock c
     | weld (take need input)
     | drop need (b3ChunkstGetBlock c)
@@ -385,7 +385,7 @@ st
     @ want  | sub b3ChunkLen
             | b3ChunkstLen
             | b3HasherGetChunkst h
-    @ need  | minNat want (len input)
+    @ need  | min want (len input)
     @ temp  | b3ChunkstUpdate
             * b3HasherGetChunkst h
             * take need input

@@ -33,11 +33,11 @@
 = (mul48 x y) | w48 (mul w48-x w48-y)
 = (div48 x y) | div w48-x w48-y
 = (not48 x)   | not w48-x
-= (lth48 x y) | lthNat w48-x w48-y
-= (gth48 x y) | gthNat w48-x w48-y
-= (lte48 x y) | lteNat w48-x w48-y
-= (gte48 x y) | gteNat w48-x w48-y
-= (eql48 x y) | eqlNat w48-x w48-y
+= (lth48 x y) | lth w48-x w48-y
+= (gth48 x y) | gth w48-x w48-y
+= (lte48 x y) | lte w48-x w48-y
+= (gte48 x y) | gte w48-x w48-y
+= (eql48 x y) | eql w48-x w48-y
 
 isZero48=not48
 

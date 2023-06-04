@@ -25,11 +25,11 @@
 = (mul64 x y) | w64 (mul w64-x w64-y)
 = (div64 x y) | div w64-x w64-y
 = (not64 x)   | not w64-x
-= (lth64 x y) | lthNat w64-x w64-y
-= (gth64 x y) | gthNat w64-x w64-y
-= (lte64 x y) | lteNat w64-x w64-y
-= (gte64 x y) | gteNat w64-x w64-y
-= (eql64 x y) | eqlNat w64-x w64-y
+= (lth64 x y) | lth w64-x w64-y
+= (gth64 x y) | gth w64-x w64-y
+= (lte64 x y) | lte w64-x w64-y
+= (gte64 x y) | gte w64-x w64-y
+= (eql64 x y) | eql w64-x w64-y
 = (and64 x y) | con w64-x w64-y
 = (or64  x y) | dis w64-x w64-y
 = (xor64 x y) | mix w64-x w64-y

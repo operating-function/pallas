@@ -16,9 +16,9 @@
 
 /+  01_fan  []
 /+  02_bit  [if and or not]
-/+  03_nat  [gteNat lteNat lthNat add sub eqlNat]
+/+  03_nat  [add sub]
 /+  04_app  []
-/+  05_cmp  []
+/+  05_cmp  [gte lte lth eql]
 /+  06_row  []
 /+  07_rex  []
 /+  08_dat  []
@@ -27,11 +27,11 @@
 
 """ Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-(isDigit c)=(and (gteNat c '0') (lteNat c '9'))
-(isUpper c)=(and (gteNat c 'A') (lteNat c 'Z'))
-(isLower c)=(and (gteNat c 'a') (lteNat c 'z'))
+(isDigit c)=(and (gte c '0') (lte c '9'))
+(isUpper c)=(and (gte c 'A') (lte c 'Z'))
+(isLower c)=(and (gte c 'a') (lte c 'z'))
 (isAlpha c)=(or isUpper-c isLower-c)
-(isPrint c)=(and (gteNat c ' ') (lteNat c '~'))
+(isPrint c)=(and (gte c ' ') (lte c '~'))
 
 (isAlphaNum c)=(or isAlpha-c isDigit-c)
 
@@ -44,10 +44,10 @@
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-!!= 1 | eqlNat 1   (ord "1")
-!!= 1 | eqlNat "3" (chr 3)
-!!= 1 | eqlNat 5   (ord (chr 5))
-!!= 1 | eqlNat "9" (chr (ord "9"))
+!!= 1 | eql 1   (ord "1")
+!!= 1 | eql "3" (chr 3)
+!!= 1 | eql 5   (ord (chr 5))
+!!= 1 | eql "9" (chr (ord "9"))
 
 !!= 1 | isLower 'c'
 !!= 1 | isUpper 'C'

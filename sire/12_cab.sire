@@ -23,7 +23,7 @@
 
 /+  01_fan
 /+  02_bit  [if else ifNot and or not]
-/+  03_nat  [add sub mul dec gteNat isZero]
+/+  03_nat  [add sub mul dec isZero]
 /+  03_nat  [even odd]
 /+  04_app  [idx get len]
 /+  05_cmp  [eql neq lte lth gth gte]
@@ -87,7 +87,7 @@
 @ wid (len row)
 ^ _ (idx 0 row) 1
 ? (go las i)
-| or (gteNat i wid)
+| or (gte i wid)
 @ cur (idx i row)
 | and (chk las cur)
 | go cur (inc i)

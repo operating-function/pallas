@@ -153,8 +153,6 @@ GT=2
 !!= 1 | eqlNat 1 (sub 3 2)
 
 !!= 1 | eqlNat 3 (sub 3 0)
-!!= 1 | eqlNat 0 (1 2)
-!!= 1 | eqlNat (1 2) 0
 
 !!= 1 | eqlNat 1 (mix 0 1)
 !!= 1 | eqlNat 1 (mix 1 0)
@@ -202,8 +200,6 @@ GT=2
 !!= 1 (checkOrd 5 4)
 !!= 1 (checkOrd 6 4)
 !!= 1 (checkOrd 7 4)
-!!= 1 (checkOrd const 4)
-!!= 1 (checkOrd const 0)
 
 
 """ Check Literal Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""
