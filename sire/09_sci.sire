@@ -21,7 +21,7 @@
 /+  01_fan  [isNat]
 /+  02_bit  [if]
 /+  03_nat  []
-/+  05_app  [idx]
+/+  06_row  [idx]
 /+  04_cmp  []
 /+  06_row  [map]
 /+  07_rex  []

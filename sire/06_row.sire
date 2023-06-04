@@ -2,50 +2,86 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 06_row <- 05_app
+### 06_row <- 04_cmp
 
 """
 """ Rows
 """ ====
 """
-""" This module defines some very basic operations on rows (arrays).
-""" However, most row operations are defined in 08_dat.sire, since it is
-""" much easier to define those operations along with other operations,
-""" and also once we have macros for row literals.
+""" This module defines some very basic operations on rows, which are
+""" data-jetted arrays.  Since PLAN is untyped, these are also used
+""" the building block used for tuples/records/datatypes.
 """
-""" Rows are data-jetted arrays.  Since PLAN is untyped, these are used
-""" both as vectors and as tuples.
+""" The bulk of the row operations are defined in 08_dat.sire, since many
+""" operations are more naturally defined along with operations on other
+""" datat types (such as lists and optional values).
 """
 """ A row is represented as (cow n) partially applied to n argumnts,
 """ for example:
 """
-"""     [5 4 3]
-"""     ((cow 3) 3 4 5)
-"""     ((0 0 4 0) 3 4 5)
-"""     (0 0 4 0 3 4 5)
+"""     [5 4 3] = ((cow 3) 3 4 5)
+"""             = ((0 0 4 0) 3 4 5)
+"""             = (0 0 4 0 3 4 5)
 """
-""" Row operations like `len` and `map` work on any closures (the last
-""" partially applied argument is treated as the first element of the
-""" row), but if you use the special function (cow n), then the runtime
-""" system will optimize the elements into contiguous memory.
+""" `get`, `idx`, and `len` are primarily intended to be used with rows,
+""" however their legal code is defined to work on any closure.
+""" For example, then length of (1 2 3) is 2 and it's first element is 3.
 """
-""" Rows are also used as the building blocks for more complex data-types
-""" like lists and trees.
-"""
-""" This module defines the core primitives of the Row datajet, the bulk
-""" of the row operations are defined later.
+""" Similarly, operations like `map` and `gen` are defined in terms of
+""" these primitives also work with closures.
 """
 
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [LAW inc seq apply supply]
-/+  01_fan  [isLaw lawName lawBody]
-/+  01_fan  [isApp car caar caaar caaaar]
+/+  01_fan  [id apply supply]
+/+  01_fan  [seq inc]
+/+  01_fan  [car cdr caar caaar caaaar]
+/+  01_fan  [isApp isLaw lawName lawBody]
+/+  01_fan  [LAW inc seq]
 /+  02_bit  [if ifNot and or not]
 /+  03_nat  [dec sub add]
-/+  05_app  [head arity len null idx get mut put]
 /+  04_cmp  [eql lth isZero]
+
+
+""" Basic Closure Operations """""""""""""""""""""""""""""""""""""""""""""""""""
+
+(head non)=(if isApp-non (head car-non) non)
+
+(null row)=(not isApp-row)
+
+= (arity x)
+@ p i&(arity i)
+@ l (_ a _)&a
+@ a (f _)&(dec arity-f)
+@ n (2 3 (2 5 (2 3 _&1)))  ; 0->3, 1->5, 2->3, *->1
+| 1 p l a n x
+
+= (len v)
+^ _ 0 v
+? (go n v)
+| seq n
+| ifNot (isApp v) n
+| go (inc n) (car v)
+
+;;;
+;;; {put} modifies the closure {r}, returning a new closure where
+;;; the {k}th argument is replaced with {v}.
+;;;
+;;; Remember that the nth element of a closure is counted from the
+;;; right.  For example, (put (f a x) 0 y) => (f a y)
+;;;
+= (put r k v)
+| if (null r) | r
+| if (not k)  | (car r) v
+| put (car r) (dec k) v (cdr r)
+
+= (get r i)
+| if (null r) 0
+| 2 cdr-r (get car-r) i
+
+(idx k r)=(get r k)
+(mut k v r)=(put r k v)
 
 
 """ Core Definitions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -89,28 +125,6 @@ v1=c1
 = (isRow r)
 | and (eql 1 arity-r)
 | isCow head-r
-
-!!= 1 | isRow v0
-!!= 1 | isRow (v1 1)
-!!= 1 | isRow (v2 1 2)
-!!= 1 | not (isRow (0 0 3 (v2 0 1)))
-!!= 1 | not (isRow isRow)
-
-!!= (v3 3 4 5) | caaar  (v3 3 4 5) 5 4 3
-!!= (v2 3 4)   | caar   (v2 3 4)   4 3
-!!= (v1 3)     | car    (v1 3)     3
-!!= (v0)       | car    (v0)       0
-!!= (v1 3)     | caar   (v1 3)     0 3
-!!= (v2 3 4)   | caaar  (v2 3 4)   0 4 3
-!!= (v3 3 4 5) | caaaar (v3 3 4 5) 0 5 4 3
-
-!!= 3 | len (v3 0 0 0)
-!!= 2 | len (v2 0 0)
-!!= 1 | len (v1 0)
-!!= 0 | len (v0)
-
-!!= 1 | null (v0)
-!!= 0 | null (v1 "x")
 
 
 """ Generating Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -177,6 +191,83 @@ v1=c1
 = (rev xs)        @ wid len-xs | gen wid i&(get xs sub-wid-(inc i))
 = (rowApply f xs) | foldl apply f xs
 = (rowRepel f xs) | foldr supply f xs
+= (curry f x y)   | f (c2 y x)
+= (uncurry f xy)  | f (fst xy) (snd xy)
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+!!= 1 | isRow v0
+!!= 1 | isRow (v1 1)
+!!= 1 | isRow (v2 1 2)
+!!= 1 | not (isRow (0 0 3 (v2 0 1)))
+!!= 1 | not (isRow isRow)
+
+!!= (v3 3 4 5) | caaar  (v3 3 4 5) 5 4 3
+!!= (v2 3 4)   | caar   (v2 3 4)   4 3
+!!= (v1 3)     | car    (v1 3)     3
+!!= (v0)       | car    (v0)       0
+!!= (v1 3)     | caar   (v1 3)     0 3
+!!= (v2 3 4)   | caaar  (v2 3 4)   0 4 3
+!!= (v3 3 4 5) | caaaar (v3 3 4 5) 0 5 4 3
+
+!!= 3 | len (v3 0 0 0)
+!!= 2 | len (v2 0 0)
+!!= 1 | len (v1 0)
+!!= 0 | len (v0)
+
+!!= 1 | null (v0)
+!!= 0 | null (v1 "x")
+
+!!= 1 | eql 3 arity-0
+!!= 1 | eql 5 arity-1
+!!= 1 | eql 3 arity-2
+!!= 1 | eql 1 arity-3
+!!= 1 | eql 1 arity-4
+!!= 1 | eql 1 arity-5
+
+!!= 1 | arity arity
+!!= 1 | arity 3
+!!= 1 | arity 4
+!!= 1 | arity 0-1-2
+
+!!= 1 | eql 2 arity-(0 0)
+!!= 1 | eql 3 arity-0
+
+!!= 1 | cdr (0 0 2 0 1)
+!!= 1 | cdr (0 0 3 0 2 1)
+!!= 1 | cdr car-(0 0 3 0 1 2)
+
+!!= 1 | eql 0 | len v0
+!!= 1 | len (v1 0)
+!!= 1 | eql 1 | len (v1 0)
+
+!!= 1 | eql 2 | len (v2 0 0)
+!!= 1 | eql 0 | len 0
+!!= 1 | eql 1 | len (0 1)
+
+!!= 1 | eql 0 | idx 0 2
+!!= 1 | eql 3 | idx 0 (2 3)
+!!= 1 | eql 4 | idx 0 (2 3 4)
+!!= 1 | eql 3 | idx 1 (2 3 4)
+!!= 1 | eql 0 | idx 2 (2 3 4)
+
+!!= 1 | eql 0 | idx 0 1
+!!= 1 | eql 1 | idx 0 (1 0 1)
+!!= 1 | eql 0 | idx 1 (1 0 1)
+!!= 1 | eql 0 | idx 2 (1 0 1)
+
+!!= 1 | eql 0 | get 1 0
+!!= 1 | eql 1 | get (1 0 1) 0
+!!= 1 | eql 0 | get (1 0 1) 1
+!!= 1 | eql 0 | get (1 0 1) 2
+
+!!= 1 | null-get
+!!= 1 | null-0
+!!= 1 | not null-(0 'x')
+
+!!= 1        | uncurry sub (v2 4 3)
+!!= (v2 3 4) | curry id 3 4
 
 !!= 7 | rowApply add (v2 4 3)
 !!= 1 | rowApply sub (v2 4 3)
@@ -199,6 +290,11 @@ v1=c1
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+^-^
+^-^ head null arity len
+^-^ idx get
+^-^ mut put
+^-^
 ^-^ c0 c1 c2 c3 c4 c5 c6 c7 c8 c9
 ^-^ v0 v1 v2 v3 v4 v5 v6 v7 v8 v9
 ^-^
@@ -210,3 +306,4 @@ v1=c1
 ^-^ fst snd
 ^-^ map turn rev
 ^-^ rowApply rowRepel
+^-^

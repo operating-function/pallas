@@ -19,7 +19,7 @@
 /+  02_bit  [if else ifNot and or not bit TRUE FALSE]
 /+  03_nat  [dec sub add lsh rsh div roundUp mod even]
 /+  03_nat  [LT GT EQ]
-/+  05_app  [head arity len idx get mut]
+/+  06_row  [head arity len idx get mut]
 /+  04_cmp  [eql neq cmp lth lte gte min isZero]
 /+  06_row
 /+  07_rex

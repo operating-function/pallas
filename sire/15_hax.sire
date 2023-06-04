@@ -50,7 +50,7 @@
 /+  01_fan  [die trk pinItem]
 /+  02_bit  [if ifNot not]
 /+  03_nat  []
-/+  05_app  [len idx]
+/+  06_row  [len idx]
 /+  04_cmp  [eql neq]
 /+  06_row  [v1 v2 v4 null weld]
 /+  07_rex  [rexKids rexGetWord "`" rexVal rexRune]

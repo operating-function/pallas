@@ -35,7 +35,7 @@
 /+  02_bit  [bit not if else ifNot or and]
 /+  03_nat  [even]
 /+  03_nat  [mod lsh rsh add bex mul sub dec div]
-/+  05_app  [len get idx]
+/+  06_row  [len get idx]
 /+  04_cmp  [eql neq gte lte min isZero]
 /+  06_row  [map foldl foldr gen weld v1 v2 v4]
 /+  06_row  [fst snd]

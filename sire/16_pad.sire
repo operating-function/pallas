@@ -46,7 +46,7 @@
 /+  01_fan  [die seq isNat const]
 /+  02_bit  [if ifNot else]
 /+  03_nat  [add mul sub bex dec met lsh rsh mod]
-/+  05_app  [idx len]
+/+  06_row  [idx len]
 /+  04_cmp  [eql neq lte isZero]
 /+  06_row  [map weld foldl]
 /+  07_rex  [rexKids rexText rexIsLeaf SHUT WORD CURL {`}]

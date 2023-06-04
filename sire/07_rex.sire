@@ -24,7 +24,7 @@
 /+  01_fan  [lawName trk]
 /+  02_bit  [if ifNot or]
 /+  03_nat  []
-/+  05_app  [idx len]
+/+  06_row  [idx len]
 /+  04_cmp  [eql neq isZero]
 /+  06_row  [weld map c1 v0 v1 v2]
 

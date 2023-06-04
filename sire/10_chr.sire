@@ -17,7 +17,7 @@
 /+  01_fan  []
 /+  02_bit  [if and or not]
 /+  03_nat  [add sub]
-/+  05_app  []
+/+  06_row  []
 /+  04_cmp  [eql gte lte lth]
 /+  06_row  []
 /+  07_rex  []

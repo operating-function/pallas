@@ -25,7 +25,7 @@
 /+  02_bit  [if else ifNot and or not]
 /+  03_nat  [add sub mul dec]
 /+  03_nat  [even odd]
-/+  05_app  [idx get len]
+/+  06_row  [idx get len]
 /+  04_cmp  [eql neq lte lth gth gte isZero]
 /+  06_row  [null weld v2 isRow map foldl foldr fst snd]
 /+  07_rex
