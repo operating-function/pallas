@@ -457,24 +457,24 @@ hexAlphabet=(natBar "0123456789abcdef")
   | pinHash mul
 
 {pinHash .{##}}
-!!= x#{dd8aaffc09018afc22df22fba63374d3133887565363f3fd0528d09cc39ccaca}
+!!= x#{70549bf63cee4ceae0989ec7acd5706b1d04024daad0bcfa9389c678f3befa4c}
   | pinHash .{##}
 
 {pinHash cmp}
-!!= x#{ab01d8dd8a6558e25188c4aa64c60bf850928da7d062f821887f70ce6a267e46}
+!!= x#{fa26ff54d8e90e0903ff9b7de798df3a0eca67aa5a91e78a3f027aa69dc1d7df}
   | pinHash cmp
 
 {pinHash multiEqlE}
-!!= x#{c03926318aebc69cd7852b4baef525c87eacb0f1e51875f3218389084a2f0311}
+!!= x#{32635bbba736a093cfe09d55cf369e39442a581274bfe0510a2732dac608e4b1}
   | pinHash multiEqlE
 
 {pinHash pinHash}
-!!= x#{33d7d225c75816eca313cd1c6e54c911ccb3a08de0e399cd2ea51822c0758de2}
+!!= x#{8a64858e428423ed4ab1fa7c7178d1e09ac54139adf50aa438578f11fad17493}
   | pinHash pinHash
 
 = (refsTable pin)
 | tabFromPairs
-| turn refs-pin
+^ map _ refs-pin
 & r ++ lawName pinItem-r
     ++ pinHash r
 

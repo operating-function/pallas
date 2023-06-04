@@ -87,7 +87,8 @@ dataTag=_DataTag
 | defC [nam %t]
 | appE
 | rowCons (varE constr)
-| turn fields (f & appE (cnsE (tabIdx f), varE "t"))
+^ map _ fields
+| (f & appE (cnsE (tabIdx f), varE "t"))
 
 = (mkConstrC constr fields)
 | defC (rowCons constr fields)

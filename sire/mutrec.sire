@@ -141,7 +141,7 @@
 @ aft  | add aft 2
 @ maxArgs
     | maxRow
-    | turn (listToRow arms)
+    ^ map _ (listToRow arms)
     & [_ [_ args _]]
     | len args
 @ (bindArms body arms)
@@ -166,7 +166,7 @@
 @ coreArgs
     | rowCons tagArg coreArgs
 @ branches
-    | turn (listToRow arms)
+    ^ map _ (listToRow arms)
     & foo
     @ [key [fun args body]] foo
     ^ foldr _ body (drop 1 | tag (rowCons fun args))
@@ -250,7 +250,7 @@
     = !aft    | inc aft
     = arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
     = maxArgs | maxRow
-              | turn (listToRow arms)
+              ^ map _ (listToRow arms)
               & [_ [fun args _]]
               | len args
 @
@@ -295,7 +295,7 @@
     = coreSig
         | rowCons tagIdn coreArgIdns
     = branches
-        | turn (listToRow arms)
+        ^ map _ (listToRow arms)
         & foo
         @ [key [branchArm branchArgs body]] foo
         @ f

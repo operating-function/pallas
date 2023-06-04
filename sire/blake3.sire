@@ -95,13 +95,13 @@ st
 @ next (add i 4)
 | loop next (inc j)
 | acc | u32weld | slice bv i next
+  ; TODO: Can this be written using {gen} or something like that?
 
 > Row U8 > Row U32
 = (bytesToWords bv)
 | if (mod (len bv) 4)
     | die "byte-row length not a multiple of 4"
-@ wid (div (len bv) 4)
-| gen wid
+| gen (div (len bv) 4)
 & j
 @ i (mul j 4)
 | u32weld (slice bv i (add i 4))

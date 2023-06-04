@@ -34,11 +34,10 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [id apply supply]
-/+  01_fan  [seq inc]
+/+  01_fan  [LAW inc seq]
 /+  01_fan  [car cdr caar caaar caaaar]
 /+  01_fan  [isApp isLaw lawName lawBody]
-/+  01_fan  [LAW inc seq]
+/+  01_fan  [id const apply supply]
 /+  02_bit  [if ifNot and or not]
 /+  03_nat  [dec sub add]
 /+  04_cmp  [eql lth isZero]
@@ -51,10 +50,10 @@
 (null row)=(not isApp-row)
 
 = (arity x)
-@ p i&(arity i)
+@ p arity
 @ l (_ a _)&a
 @ a (f _)&(dec arity-f)
-@ n (2 3 (2 5 (2 3 _&1)))  ; 0->3, 1->5, 2->3, *->1
+@ n | 2 3 | 2 5 | 2 3 | const 1 ; [0=3 1=5 2=3 _=1]
 | 1 p l a n x
 
 = (len v)
@@ -73,14 +72,15 @@
 ;;;
 = (put r k v)
 | if (null r) | r
-| if (not k)  | (car r) v
+| if (not k)  | car r v
 | put (car r) (dec k) v (cdr r)
 
 = (get r i)
 | if (null r) 0
-| 2 cdr-r (get car-r) i
+| 2 (cdr r) (get (car r)) i
 
 (idx k r)=(get r k)
+
 (mut k v r)=(put r k v)
 
 
@@ -110,17 +110,17 @@ v1=c1
 (v8 a b c d e f g h)=(c8 h g f e d c b a)
 (v9 a b c d e f g h i)=(c9 i h g f e d c b a)
 
+; TODO: Get rid of {mkrow}.  It's archane and can be lived without.
 = (mkRow n)
-| 0 0 n
-^ _ n (2 cow-n)
+^ (0 0 n (_ n (2 cow-n)))
 ? (go i acc)
 | ifNot i acc
 | go (dec i) (0 acc i)
 
 = (isCow val)
-| and isLaw-val
-| and isZero-(lawName val)
-      isZero-(lawBody val)
+| and (isLaw val)
+| and (isZero | lawName val)
+      (isZero | lawBody val)
 
 = (isRow r)
 | and (eql 1 arity-r)
@@ -130,11 +130,11 @@ v1=c1
 """ Generating Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (gen n f)
-^ _ n cow-n
+^ _ n (cow n)
 ? (go mor acc)
 | ifNot mor acc
-@ nex dec-mor
-| go nex acc-(f nex)
+@ nex (dec mor)
+| go nex (acc | f nex)
 
 
 """ Folding Rows """"""""""""""""'""""""""""""""""""""""""""""""""""""""""""""""
@@ -144,15 +144,15 @@ v1=c1
 ? (go i rem)
 | ifNot rem z
 | f (get row i)
-| go inc-i dec-rem
+| go (inc i) (dec rem)
 
 = (foldl f z row)
 ^ _ z 0 (len row)
 ? (go acc i rem)
-| seq acc
 | ifNot rem acc
 @ rem (dec rem)
 @ acc (f acc (idx i row))
+| seq acc
 | go acc (inc i) rem
 
 (ADD x y k)=(k x y)
@@ -187,7 +187,6 @@ v1=c1
 = (fst x)         | idx 0 x
 = (snd x)         | idx 1 x
 = (map f v)       | gen len-v x&(f idx-x-v)
-= (turn v f)      | map f v
 = (rev xs)        @ wid len-xs | gen wid i&(get xs sub-wid-(inc i))
 = (rowApply f xs) | foldl apply f xs
 = (rowRepel f xs) | foldr supply f xs
@@ -304,6 +303,7 @@ v1=c1
 ^-^ gen foldr foldl
 ^-^ mut put
 ^-^ fst snd
-^-^ map turn rev
+^-^ map rev
+^-^ curry uncurry
 ^-^ rowApply rowRepel
 ^-^
