@@ -62,13 +62,6 @@ GT=2
 = (even n) | not mod-n-2
 = (odd n)  | mod n 2
 
-= (met n)
-^ _ 0 n
-? (go acc n)
-| seq acc
-| ifNot n acc
-| go (inc acc) (div n 2)
-
 ; TODO Can a better name be found for this?
 = (roundUp num x)
 | ifNot x           num
@@ -124,6 +117,9 @@ GT=2
 
 ; Nat > Nat
 (popCount n)=(natFoldl add 0 n)
+
+(met n)=(natFoldl (m _ & inc m) 0 n)
+
 
 !!= 1 (popCount 1)
 !!= 1 (popCount 2)
