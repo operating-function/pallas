@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 05_cmp <- 04_app
+### 04_cmp <- 03_nat
 
 """
 """ Equality and Ordering
@@ -25,7 +25,6 @@
 /+  02_bit  [if ifNot else and not]
 /+  03_nat  [natEql natCmp LT EQ GT ordWeld]
 /+  03_nat  [natEql natCmp LT EQ GT ordWeld isOne]
-/+  04_app  [len]
 
 
 """ Ordering """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

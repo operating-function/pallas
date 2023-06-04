@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 06_row <- 05_cmp
+### 06_row <- 05_app
 
 """
 """ Rows
@@ -44,8 +44,8 @@
 /+  01_fan  [isApp car caar caaar caaaar]
 /+  02_bit  [if ifNot and or not]
 /+  03_nat  [dec sub add]
-/+  04_app  [head arity len null idx get mut put]
-/+  05_cmp  [eql lth isZero]
+/+  05_app  [head arity len null idx get mut put]
+/+  04_cmp  [eql lth isZero]
 
 
 """ Core Definitions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""

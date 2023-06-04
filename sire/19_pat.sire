@@ -38,8 +38,8 @@
 /+  01_fan
 /+  02_bit  [if else ifNot not and or FALSE]
 /+  03_nat  [add div inc]
-/+  04_app  [len null idx]
-/+  05_cmp  [eql neq gte lth isZero]
+/+  05_app  [len null idx]
+/+  04_cmp  [eql neq gte lth isZero]
 /+  06_row  [weld map turn foldl foldr v1 v2 v4]
 /+  07_rex  [rexKids rexRune rexHeir rexSons rexText rexVal rexEql "`"]
 /+  07_rex  [rexIsNode rexIsLeaf]

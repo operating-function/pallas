@@ -21,8 +21,8 @@
 /+  01_fan
 /+  02_bit  [if else or ifNot FALSE and not]
 /+  03_nat  [even add mod sub mul]
-/+  04_app  [len idx]
-/+  05_cmp  [eql neq isZero]
+/+  05_app  [len idx]
+/+  04_cmp  [eql neq isZero]
 /+  06_row  [v1 v2 v3 foldr map rowApply]
 /+  07_rex  [rexHeir rexEmbd rexSons rexText rexRune]
 /+  07_rex  [rexIsLeaf rexIsEmbd rexIsNode]
