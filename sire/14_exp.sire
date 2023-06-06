@@ -201,9 +201,9 @@
 
 = needBar | "Expected a | node"
 
-!!= [`3 `4]          | readNodeWithoutHeirButWithRune "," `[3 4] v2 id
-!!= [`[3 4] needBar] | readNodeWithoutHeirButWithRune "|" `[3 4] v2 id
-!!= [`[3 4] needBar] | readNodeWithoutHeirButWithRune "|" `[3 4] v2 id
+!!= [`3 `4]          | readNodeWithoutHeirButWithRune {,} `[3 4] v2 id
+!!= [`[3 4] needBar] | readNodeWithoutHeirButWithRune {|} `[3 4] v2 id
+!!= [`[3 4] needBar] | readNodeWithoutHeirButWithRune {|} `[3 4] v2 id
 
 
 
@@ -240,7 +240,7 @@ symTodo='todo: support .foo and .234'
 @ rune (rexRune rex)
 @ kids (rexKids rex)
 @ nKid (len kids)
-| if (eql "." rune)
+| if (eql {.} rune)
     | if (neq 1 nKid)
         | err rex "Should be .x, .5, .{x}, etc"
     @ kid (idx 0 kids)

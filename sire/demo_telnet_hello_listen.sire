@@ -5,6 +5,10 @@
 ### demo_telnet_hello_listen <- demo_smallcheck
 
 /+  boot
+/+  stew
+
+
+""" Telnet Tests """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ;; TODO Support `(# x)("""...)("""...)
 = fav

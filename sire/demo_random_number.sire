@@ -8,6 +8,10 @@
 ;;; the Cog interface without even using the `kern.sire` exokernel.
 
 /+  boot
+/+  stew
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 (call count)=[%rand 0 %byte count]
 

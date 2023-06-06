@@ -25,9 +25,12 @@
 """ certain factors (in this case 2, 3, 5, 7).
 """
 
-/+ prelude
+/+  prelude
+/+  stew
+/+  pq       [pqInsert pqEmpty pqDelMin pqMin]
 
-/+ pq [pqInsert pqEmpty pqDelMin pqMin]
+
+""" Sieve """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (spin ls n)
 : x xs <- listCase ls NIL

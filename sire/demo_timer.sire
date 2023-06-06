@@ -8,6 +8,10 @@
 
 /+  boot
 /+  kern
+/+  stew
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (timeDemo count return)
 | trk %timeDemo,count,return

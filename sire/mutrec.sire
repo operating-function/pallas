@@ -91,7 +91,7 @@
 !!=  ++ 7
      ++  ++  ++ 'f'
              ++ ['_g5']
-             ++ `` #@ $$(varKE 6 '_g6') _g5
+             ++ `` #@ _g6 _g5
                    #@ x (#| $(idx 0) _g6)
                    #@ y (#| $(idx 1) _g6)
                     x
@@ -101,8 +101,8 @@
 ; TODO Move this to `17-exp.sire`
 ; TODO Avoid the @ where necessary.
 = (taggedLamE nam tag args body)
-@ idn (SHUT 0 "@" (varE nam, litE tag) 0)
-@ sig (NEST 0 "|" (rowCons idn args) 0)
+@ idn (SHUT 0 {@} (varE nam, litE tag) 0)
+@ sig (NEST 0 {|} (rowCons idn args) 0)
 | OPEN 0 "#?" [sig] body
 
 !!= (taggedLamE %f 2 [`x `y `z] `x)
@@ -112,13 +112,13 @@
 = (matchE x wildExp patExps)
 | OPEN 0 "#|"
        ++ cnsE switch
-       ++ appE (cnsE idx, natE 0, x)
+       ++ appE (cnsE (idx 0), x)
        ++ wildExp
 | bowE patExps
 
 !!= (matchE `[0 1 2] `0 [`1 `2 `3])
  ``
- #| $switch (#| $idx 0 [0 1 2]) 0
+ #| $switch (#| $(idx 0) [0 1 2]) 0
  #| $(cow 3) 3 2 1
 
 (maxRow x)=(foldl max (idx 0 x) x)
@@ -128,9 +128,7 @@
 !!= 5 | maxRow [5 3 4]
 !!= 0 | maxRow []
 
-= ("#mutrec" s p e a r err ok)
-: coreTag letBody coreBody
-    < readMutRecExp readRex r err
+= (genMutRecE a coreTag letBody coreBody ok)
 ;
 @ coreNam (gensymNm "core" a)
 ;
@@ -153,7 +151,7 @@
     | letE fun
         | inlinedLamE fun args
         | appE
-        | weld (varE coreNam, litE key)
+        | weld (varE coreNam, cnsE key)
         | weld (map varE args)
         | rep (cnsE 0) extras
     | bindArms body rest
@@ -175,11 +173,16 @@
 @ coreBody
     | OPEN 0 "#|" (cnsE switch, tagArg, cnsE 0)
     | bowE branches
-| ok p aft
+| ok aft
 | letE coreNam
     | taggedLamE coreNam coreTag coreArgs
     | bindArms coreBody arms
 | bindArms letBody arms
+
+= ("#mutrec" s p e a r err ok)
+: coreTag letBody coreBody < readMutRecExp readRex r err
+: a rex                    < genMutRecE a coreTag letBody coreBody
+| ok p a rex
 
 ; !!= 1
 ;         @ e
@@ -246,7 +249,7 @@
     = coreIdn | varKE (rexIdnt coreSymbol) coreName
     = tagKey  | aft
     = tagNam  | gensymNm "tag" tagKey
-    = tagIdn  | varKE tagKey tagNam
+    = tagIdn  | varE tagNam
     = !aft    | inc aft
     = arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
     = maxArgs | maxRow
@@ -263,14 +266,14 @@
         | letE fun
                 | inlinedLamE fun args
                 | appE
-                | weld (coreIdn, litE key)
+                | weld (coreIdn, cnsE key)
                 | weld (map varE args)
                 | gen extras (const | cnsE 0)
         | bindArms body rest
 : aft coreArgIdns
         < forRowWithState aft (gen maxArgs | const 0)
                 & (aft item pure)
-                @ idn  (varKE aft | gensymNm "arg" aft)
+                @ idn  (varE | gensymNm "arg" aft)
                 @ !aft (inc aft)
                 | pure aft idn
 : aft armDefuns
@@ -278,7 +281,7 @@
                 & (aft [key [armName argNames exp]] pure)
                 @
                     = armKey     | aft
-                    = armIdn     | varKE armKey armName
+                    = armIdn     | varE armName
                     = !aft       | inc aft
                     = armArgIdns | map varE argNames
                     = numArgs    | len armArgIdns
@@ -287,7 +290,7 @@
                 | OPEN 0 "#="
                    ++ NEST 0 "|" (rowCons armIdn armArgIdns) 0
                    ++ | appE
-                      | weld (coreIdn, litE key)
+                      | weld (coreIdn, cnsE key)
                       | weld armArgIdns
                       | rep cnsE-0 extraArgs
                 | 0
@@ -341,7 +344,7 @@
 ^-^ readSignature
 ^-^ bloodline
 ^-^
-^-^ readMutRecExp
+^-^ readMutRecExp genMutRecE
 ^-^
 ^-^ "#mutual"
 ^-^ "#mutrec"

@@ -44,7 +44,7 @@
 /+  07_rex  [rexGetLeaf]
 /+  08_dat
 /+  09_sci  []
-/+  10_chr  [isPrint]
+/+  10_chr  [isPrint toLower]
 /+  11_str  [explode strCat strWeld]
 /+  12_cab  ["%"]
 /+  13_tab  []
@@ -236,6 +236,7 @@ rowToBar=barFromRow
 
 = (hexCharToNat v)
 | if (lte v %9) (sub v %0)
+@ v (toLower v)
 | add 10 (sub (min v %f) %a)
 
 
@@ -290,10 +291,12 @@ rowToBar=barFromRow
 
 {#b}=(.{#x})
 
+allHexChars=(b#{0123456789abcdefABCDEF})
+
 hexAlphabet=(b#{0123456789abcdef})
 (hexChar n)=(barGet hexAlphabet n)
 
-(charIsHex c)=(barHas c hexAlphabet) ;; TODO faster
+(charIsHex c)=(barHas c allHexChars) ;; TODO faster
 
 ; Byt > Bar
 = (byteToHex n)
@@ -316,6 +319,7 @@ hexAlphabet=(b#{0123456789abcdef})
 | [place acc]
 
 !!= 0xff  | getHexBar b#{ff} 0 id
+!!= 0xff  | getHexBar b#{FF} 0 id
 !!= 0x123 | getHexBar b#{123} 0 id
 !!= 0     | getHexBar b#{1z3} 0 id
 

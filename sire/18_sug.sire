@@ -709,11 +709,12 @@ four=(WORD 0 {4} 0)
 ^-^ readItemized
 ^-^ readFancyApp
 ^-^ readTallListLit readWideListLit
-^-^ readNotEqlExp readEqlExp
+^-^ readNotEqlExp
 ^-^ readQuasiQuotedRex splicedE
 ^-^ NODE LEAF binTreeFold
 ^-^ readInfixRight readInfixLeft
 ^-^
+^-^ readEqlExp multiEqlE
 ^-^ readColExp colExpE
 ^-^
 ^-^ {|}

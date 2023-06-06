@@ -4,7 +4,11 @@
 
 ### demo_no_claim_fork_and_send <- demo_mvars
 
-/+ boot
+/+  boot
+/+  stew
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; this test case forks a logged process, prints its pid, and shuts down.
 

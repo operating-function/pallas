@@ -25,7 +25,11 @@
 """ specifically git revision d2692c3c87189f663e350b0148060f9e51c66ae7.
 """
 
-/+ prelude
+/+  prelude
+/+  stew
+
+
+""" Bit Mixing """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (shiftXor n w)
 | xor64 w

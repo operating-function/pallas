@@ -15,6 +15,7 @@
 /+  blake3
 /+  mutrec
 /+  switch
+/+  stew
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -196,52 +197,6 @@ hexAlphabet=(natBar "0123456789abcdef")
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Macro: Equality Operator ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-= (multiEqlE n exps)
-# switch len-exps
-* 0 , n | natE 1
-* 1 , n | appE (cnsE seq, idx 0 exps, natE 1)
-* 2 , n | appE (cnsE eql, idx 0 exps, idx 1 exps)
-* _
-        , (inc n)
-        @ tmpVar (gensym n)
-        | letE tmpVar (idx 0 exps)
-        ^ _ (listFromRow | drop 1 exps)
-        ? (loop more)
-        : x xs <- **listCase more (die "impossible")
-        : y ys <- **listCase xs appE-[cnsE-eql varE-tmpVar x]
-        | appE
-       ++ cnsE-and
-       ++ appE [cnsE-eql varE-tmpVar x]
-       ++ loop xs
-
-= ("==" s p e a r err ok)
-@ [a r] (multiEqlE a (rexKids r))
-| ok p a r
-
-= ("/=" s p e a r err ok)
-@ kids (rexKids r)
-| if (neq 2 len-kids) (err r "Need two kids")
-@ [a r] (multiEqlE a kids)
-| ok p a
-| appE [cnsE-not r]
-
-!!= 1 (eql == eql == eql)
-
-!!= (.{==} 0 0 0 5 `(eql == eql == eql) die v3)
-  | v3 0 6
- ``
- #@ _g5 eql
-  (#| $and (#| $eql _g5 eql) (#| $eql _g5 eql))
-
-!!= 1 (eql /= neq)
-!!= 0 (eql /= eql)
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Printing Rex Expressions ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -259,12 +214,13 @@ hexAlphabet=(natBar "0123456789abcdef")
 | (b#"(" , kids , b#")" )
 
 = (">=" s p e a r err ok)
-@ = heir (rexHeir r)
-  = sons (rexSons r)
-  = x,y  sons
+@ heir  | rexHeir r
+@ sons  | rexSons r
+@ [x y] | sons
 | if (neq 0 heir)     | err r "unexpected heir"
 | if (neq 2 len-sons) | err r "Expected two sons"
-| ok p a (appE [cnsE-gte x y])
+| ok p a
+| appE (cnsE gte, x, y)
 
 !!= 0 (3 >= 4)
 !!= 1 (4 >= 4)
@@ -327,22 +283,22 @@ hexAlphabet=(natBar "0123456789abcdef")
 
 = showRexExample
 | showRex
-       ``
-        = (showRex expr)
-        | **rexCase expr
-            & (r x k)
-            @ hed | barCat
-                 ++ b#"("
-                 ++ | barIntercalate b#" "
-                    | if (r == '|') map-showRex-x
-                    | weld [natBar-r] map-showRex-x
-                 ++ b#")"
-            | if (k == 0) hed
-            | barWeld hed showRex-k
-          (name & natBar name)
-          (cord & barCat [b#'"' natBar-cord b#'"'])
-          (page & showRex (CORD strCat-page))
-          (cnst & showRex valRex-cnst)
+   ``
+    = (showRex expr)
+    | **rexCase expr
+        & (r x k)
+        @ hed | barCat
+             ++ b#"("
+             ++ | barIntercalate b#" "
+                | if (r == '|') map-showRex-x
+                | weld [natBar-r] map-showRex-x
+             ++ b#")"
+        | if (k == 0) hed
+        | barWeld hed showRex-k
+      (name & natBar name)
+      (cord & barCat [b#'"' natBar-cord b#'"'])
+      (page & showRex (CORD strCat-page))
+      (cnst & showRex valRex-cnst)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -456,17 +412,9 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= x#{6d28120be06cf59c81efac6a030495ff7f647985241a66aa2389b58ee9d3a9cf}
   | pinHash mul
 
-{pinHash .{##}}
-!!= x#{70549bf63cee4ceae0989ec7acd5706b1d04024daad0bcfa9389c678f3befa4c}
-  | pinHash .{##}
-
 {pinHash cmp}
 !!= x#{fa26ff54d8e90e0903ff9b7de798df3a0eca67aa5a91e78a3f027aa69dc1d7df}
   | pinHash cmp
-
-{pinHash multiEqlE}
-!!= x#{32635bbba736a093cfe09d55cf369e39442a581274bfe0510a2732dac608e4b1}
-  | pinHash multiEqlE
 
 {pinHash pinHash}
 !!= x#{8a64858e428423ed4ab1fa7c7178d1e09ac54139adf50aa438578f11fad17493}
@@ -495,8 +443,11 @@ hexAlphabet=(natBar "0123456789abcdef")
 @ acc (CONS [sym rhs] acc)
 | loop acc (rexHeir rex)
 
-!!= [[%hi `there] [%bye `here]]
-  | readBindPairs `((hi=there)(bye=here)) v2 id
+
+!!= [[%hi (rexVal `there)] [%bye (rexVal `here)]]
+  ^ readBindPairs _ v2 id
+  | rexVal `((hi=there)(bye=here))
+  ; todo: kill rex identity
 
 ;;;
 ;;; TODO Broken macro.  Unit test the SHIT out of all of this macro code.

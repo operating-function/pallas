@@ -5,15 +5,16 @@
 ### demo_threads <- demo_telnet_hello_listen
 
 /+  boot
-/+  io      [">>" forever]
+/+  io      [forever]
 /+  io      [syscall RAND_BYTE TIME_WHEN TIME_WAIT]
 /+  io      [fork]
 /+  io      [myThreadId getKernelState]
 /+  io      [newRef readRef writeRef]
 /+  io      [runCog]
+/+  stew
 
 
-;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+""" Demo """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ;;; This will generate a random byte, get the current time,
 ;;; wait for $byte seconds, and repeat
@@ -42,7 +43,6 @@
 | runCog
 & k
 : v <- newRef 0
-; (randomWait v >> randomWait v) k
 | (forever (randomWait v)) k
 
 

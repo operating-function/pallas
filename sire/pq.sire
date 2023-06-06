@@ -14,13 +14,17 @@
 """ relation to each other.
 """
 
-/+  02_bit   [if and TRUE FALSE]
-/+  03_nat   [LT EQ GT div sub]
-/+  04_cmp   [eql cmp neq]
-/+  08_dat   [listLen listUnsafeHead listDrop NIL listRev listFoldr]
-/+  08_dat   [SOME NONE maybeCase]
-/+  datatype ["#datatype" "#datacase"]
+/+  02_bit    [if and TRUE FALSE]
+/+  03_nat    [LT EQ GT div sub]
+/+  04_cmp    [eql cmp neq]
+/+  08_dat    [listLen listUnsafeHead listDrop NIL listRev listFoldr]
+/+  08_dat    [SOME NONE maybeCase]
+/+  datatype  ["#datatype" "#datacase"]
 /+  prelude
+/+  stew
+
+
+""" Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 # datatype (Pq a)
 * LF

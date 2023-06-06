@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### datom <- stew
+### datom <- kern
 
 """
 """ Datom
@@ -18,6 +18,7 @@
 /+  switch    ["#switch"]
 /+  datatype  ["#record" "#datatype" "#datacase"]
 /+  mutrec
+/+  stew
 
 
 """ Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -62,7 +63,7 @@
 > Nat > Nat > Any > Bit > Bit > Bit > Db > Db
 = (rawAdd e a v writeAve many isRef db)
 ;| trk [%rawAdd e a v writeAve many isRef db]
-# openDb db
+@ DB(..) db
 ; only usable for tuples which end in [v] (eav, aev)
 @ (alterEndVal c in)
     | SOME
@@ -103,7 +104,7 @@
 ; raw remove
 > Nat > Nat > Any > Db > Db
 = (rawRm e a v db)
-# openDb db
+@ DB(..) db
 @ (alter2 c in)
     : cab <- **maybeCase in NONE
     @ rmed | cabDel c cab
@@ -199,7 +200,7 @@ db
 ; Return a new entity id and record the new max in the database.
 > Db > [Nat Db]
 = (allocEntity db)
-# openDb db
+@ DB(..) db
 ++ maxEid
 ++ | DB eav aev ave vae (inc maxEid)
 
@@ -211,28 +212,28 @@ db
 ; Internal functions on
 > Nat > Nat > Db > Cab Any
 = (lookupByEidAid eid aid db)
-# openDb db
+@ DB(..) db
 : av <- **maybeCase (tabLookup eid eav) %[]
 : v  <- **maybeCase (tabLookup aid av) %[]
 v
 
 > Nat > Nat > Db > Cab Any
 = (lookupByAidEid aid eid db)
-# openDb db
+@ DB(..) db
 : ev <- **maybeCase (tabLookup aid aev) %[]
 : v  <- **maybeCase (tabLookup eid ev) %[]
 v
 
 > Nat > Nat > Db > Cab Nat
 = (lookupByAidV aid val db)
-# openDb db
+@ DB(..) db
 : ve <- **maybeCase (tabLookup aid ave) %[]
 : e  <- **maybeCase (tabLookup val ve) %[]
 e
 
 > Any > Nat > Db > Cab Nat
 = (lookupByVAid val aid db)
-# openDb db
+@ DB(..) db
 : ae <- **maybeCase (tabLookup val vae) %[]
 : e  <- **maybeCase (tabLookup aid ae) %[]
 e

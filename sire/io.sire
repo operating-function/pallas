@@ -6,6 +6,7 @@
 
 /+  boot
 /+  switch  ["#switch"]
+/+  stew
 
 
 ;; Kernel State ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -408,9 +409,15 @@
 = (concurrently x y return)
 : xMVar   <- newEmptyMVar
 : yMVar   <- newEmptyMVar
-: xThread <- fork (x >>= putMVar xMVar)
+: xThread <- fork & ret
+                  : x <- x
+                  : r <- putMVar xMVar x
+                  | ret r
 ; trk [=xThread]
-: yThread <- fork (y >>= putMVar yMVar)
+: yThread <- fork & ret
+                  : x <- x
+                  : r <- putMVar yMVar x
+                  | ret r
 ; trk [=yThread]
 : xVal    <- takeMVar xMVar
 ; trk [=xVal]
@@ -422,7 +429,10 @@
 = (mapConcurrently f xs return)
 : pending <- for xs & (x return)
                     : xMVar   <- newEmptyMVar
-                    : xThread <- fork (f x >>= putMVar xMVar)
+                    : xThread <- fork & ret
+                                      : fx <- f x
+                                      : rs <- putMVar xMVar fx
+                                      | ret rs
                     | return xMVar
 : results <- for pending takeMVar
 | return results
@@ -433,7 +443,7 @@
 
 ;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-^-^ pure andThen ">>" forever
+^-^ pure andThen forever
 ^-^ exit cancel fork prepareFork finalizeFork cancelFork
 ^-^ myThreadId getKernelState
 ^-^ runCog

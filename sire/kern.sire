@@ -56,9 +56,10 @@
 ;; made fully strict.
 ;;
 
-/+ boot
-/+ datatype
-/+ switch
+/+  boot
+/+  datatype
+/+  switch
+/+  stew
 
 
 """ Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -368,3 +369,42 @@ cog
       | stepReturn val
 ;
 | return results
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+
+^-^
+^-^ ; MVar
+^-^ FULL EMPTY
+^-^ newMVar newEmptyMVar putMVar takeMVar
+^-^
+^-^ KERNEL DONE
+^-^ runCog syscall
+^-^ allocateSlot getKernelState
+^-^
+^-^ newRef readRef writeRef modifyRef freeRef
+^-^
+^-^ fork prepareFork finalizeFork
+^-^ cancelFork cancel
+^-^ myThreadId
+^-^
+^-^ pmap
+^-^
+^-^ EVAL EVAL1 EVAL2 EVAL3 EVAL4
+^-^ forceUnpackEvalResult
+^-^
+^-^ COG_SPIN COG_STOP COG_SEND COG_RECV COG_WHO
+^-^
+^-^ RAND_BYTE
+^-^
+^-^ HTTP_SERV HTTP_HEAR HTTP_HOLD HTTP_ECHO
+^-^
+^-^ SOCK_OPEN SOCK_KILL SOCK_WAIT SOCK_RECV SOCK_SEND
+^-^
+^-^ WOCK_OPEN WOCK_KILL WOCK_WAIT WOCK_RECV WOCK_SEND
+^-^
+^-^ TIME_WHEN TIME_WAIT
+^-^
+^-^ PORT_SIRE PORT_SEND PORT_RECV
+^-^

@@ -15,6 +15,8 @@
 /+  datatype  ["#record" "#datatype" "#datacase"]
 /+  datom
 /+  gen
+/+  stew
+
 
 """ Schema """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -129,7 +131,7 @@
 
 > Any > StrollDb > > Either (Row Error) StrollDb
 = (transactStrollDb txn strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 ;| trk [%txn db]
 # datacase | transact txn db
 * (LEFT l) | LEFT l
@@ -147,7 +149,7 @@
 ;
 > StrollDb > [uid StrollDb]
 = (generateUniqueID strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 ; generate a unique uid that doesn't exist in the database yet.
 @ [gen uid]
     ^ _ gen
@@ -172,7 +174,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 
 ; Find the implicit block that make up a page, along with all its children.
 = (findPageBlock pageTitle strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 | pull ++ ":block/uid"
        ++ childrenQuery
        [":page/title" pageTitle]
@@ -182,7 +184,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ; block for display.
 > Row Any > DB > Either [Error] [(Tab Any Any)]
 = (findBlocksContent q strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 | pullMany ++ ":block/uid"
            ++ ":block/string"
            ++ childrenQuery
@@ -203,7 +205,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 [":block/uid" (fromSome ('missing uid' 0) | tabLookup ":block/uid" r)]
 
 = (findBlocksChildrenUnsorted uid strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 # datacase | pull [childrenQuery] [":block/uid" uid] db
 * (LEFT l) []
 * (RIGHT r)
@@ -220,7 +222,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ; work with.
 ;
 = (findPageBlocksReferencing x strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 @ uid | fromSome "" | tabLookup ":block/uid" x
 | pull ++ ## =":block/_refs" ++ ":block/uid"
                              ++ ## =":block/page" ++ ":block/uid"
@@ -229,14 +231,14 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
        db
 
 = (getEidOf uid strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 | cabMin
 | lookupByAV ":block/uid" uid db
 
 ; Returns the uid of the parent
 ;
 = (getParentOf uid strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 | fromSome ""
 | tabLookup ":block/uid"
 | idx 0
@@ -250,12 +252,12 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ; Get the block order by eid.
 ;
 = (getOrderByEid eid strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 | cabMin
 | lookupByAE ":block/order" eid db
 
 = (getPageByEid eid strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 ; if this eid has a :page/title, it is a page.
 | ifNot (cabIsEmpty | lookupByAE ":page/title" eid db) eid
 | cabMin | lookupByAE ":block/page" eid db
@@ -264,7 +266,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;
 ; TODO: this is another function where query would be cleaner
 = (findAllRefEids uid strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 | map [k v]&v
 | catMap tabToPairs
 | fromSome %[]
@@ -276,7 +278,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 
 ; Given a uid, find all the uids of all the blocks this uid forward references
 = (findAllRefUids uid strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 | map [k v]&v
 | catMap tabToPairs
 | fromSome %[]
@@ -322,7 +324,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ; new block at pos.
 = (insertEmptyBlock parentUid pos strollDb)
 @ [uid strollDb] | generateUniqueID strollDb
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 ; new tuples for child nodes that must be updated.
 @ childUpdates | childrenUpdatesAfter inc parentUid pos strollDb
 ;
@@ -369,7 +371,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;
 > String > StrollDb > [Uid StrollDb]
 = (pageToUid pageTitle strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 @ eids | lookupByAV ":page/title" pageTitle db
 | if | cabIsEmpty eids
     | makeNewPage pageTitle strollDb
@@ -461,7 +463,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;
 > String > String > StrollDb > StrollDb
 = (setBlockText textUid text strollDb)
-# openStrollDb strollDb
+@ STROLL_DB(..) strollDb
 ; Calculate all the uid references that text refers to.
 @ refs   | parseRefs text
 @ [titleRefs strollDb]

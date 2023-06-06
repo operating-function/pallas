@@ -90,27 +90,35 @@ dataTag=_DataTag
 ^ map _ fields
 | (f & appE (cnsE (tabIdx f), varE "t"))
 
-= (mkConstrC constr fields)
-| defC (rowCons constr fields)
+= (mkConstrKC key constr fields)
+| defKC key (rowCons constr fields)
 | rowE (map varE fields)
 
 = (mkOpenerC constr fields)
-@ nam
-    (constrToCamel "#open" constr)
-``
+@ nam (constrToCamel "#open" constr)
+|
+   ``
     = ($$(txtE nam) s p e a r err ok)
-        : _ expr body
-               <- $rexParseKids r $[readRex readRex readRex] err
-        | ok p ($inc a)
-        | $destructureRowE ($gensym a) $$(rowE | map txtE fields) expr body
+       #| $rexParseKids r $[readRex readRex readRex] err
+       #& (_ expr body)
+       #| ok p (#| $inc a)
+       #| $destructureRowE
+            (#| $gensym a)
+            $$(rowE | map txtE fields)
+            expr
+            body
 
 !!= (mkOpenerC %pair [%fst %snd])
-       ``
-        = ('#openPair' s p e a r err ok)
-            : _ expr body
-               <- $rexParseKids r $[readRex readRex readRex] err
-            | ok p ($inc a)
-            | $destructureRowE ($gensym a) (#| $(cow 2) 'snd' 'fst') expr body
+ ``
+  = ('#openPair' s p e a r err ok)
+      #| $rexParseKids r $[readRex readRex readRex] err
+      #& (_ expr body)
+      #| ok p (#| $inc a)
+      #| $destructureRowE
+           (#| $gensym a)
+           (#| $(cow 2) 'snd' 'fst')
+           expr
+           body
 
 """
 """ This example:
@@ -286,7 +294,11 @@ fieldExpect="Expected something like (field:type)"
     | err sigRex "Record constructors are never tagged"
 ;
 ; trk [=key =constr =fields]
+@ constrKey | a
+@ a         | inc a
+@ p         | setProperty constrKey 'fieldNames' (map snd fields) p
 | ok p a
+; trk ('#record expands to', _) _
 | if (isZero len-fields)
     | bloodline
     ; ^ trk [bloodline=_] _
@@ -297,7 +309,7 @@ fieldExpect="Expected something like (field:type)"
 @ fields (map (idx 1) fields)  ;;  (Row (RexId, Symbol, Type)) -> Row Symbol
 | bloodline
 | listCat
-~~ ~~ mkConstrC constr fields
+~~ ~~ mkConstrKC constrKey constr fields
 ~~ ~~ mkOpenerC constr fields
 ~~ ~~ mkNamedC constr fields
 ~~ listMap mkGetterC (listIndexed (listFromRow fields))
@@ -517,15 +529,8 @@ ex=(PAIR %a %b)
 * fields : Row p
 * body   : e
 
-> Map Symbol Nat
-> Properties
-> Rex
-> Parser4 Bit (a -> Nat) Rex (Row | DataCase Rex Rex)
-;
-= (readDatacaseBody src prp casesRex err ok)
-;
-: oFallback branches < parseDatacaseBody readRex casesRex err
-@ fallback (fromSome (natE 0) oFallback)
+= (resolveDatacase src prp oFallback branches err ok)
+@ fallback (fromSome (cnsE 0) oFallback)
 ;
 ^ _ FALSE 0 NIL (listFromRow branches)
 ? (go hasTag fun acc remain)
@@ -571,9 +576,20 @@ ex=(PAIR %a %b)
 @ acc (DATA_CASE tag ari fields bodyRex)::acc
 | go hasTag fun acc remain
 
+
+> Map Symbol Nat
+> Properties
+> Rex
+> Parser4 Bit (a -> Nat) Rex (Row | DataCase Rex Rex)
+;
+= (readDatacaseBody src prp casesRex err ok)
+: oFallback branches  < parseDatacaseBody readRex casesRex err
+: hasTag fun fb cases < resolveDatacase src prp oFallback branches err
+| ok hasTag fun fb cases
+
 !!=  ++ TRUE
      ++ dataTag
-     ++ (natE 0)
+     ++ cnsE 0
      ++  ++ [0 0 []                      `[x "]"]]
          ++ [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
   ^ _ v2 v4
@@ -628,7 +644,7 @@ ex=(PAIR %a %b)
         | continue aft (tag, bindSeqE bSeq body deps)
 @ tagExp (appE (cnsE fun, tmpExp))
 @ result
-    | OPEN 0 '@' [tmpExp valExp]
+    | OPEN 0 '#@' [tmpExp valExp]
     | switchE tagExp fallback
     | tabFromPairs
     | pairs
@@ -781,6 +797,9 @@ setProp#(RIGHT.conHas)#TRUE
 ^-^
 ^-^ _DataTag
 ^-^ dataTag
-^-^ '#datacase' parseDatacase
+^-^
+^-^ parseDatacase resolveDatacase makeDatacaseExpr
+^-^
+^-^ '#datacase'
 ^-^ '#datatype'
 ^-^ '#record'

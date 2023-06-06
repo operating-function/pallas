@@ -9,6 +9,7 @@
 /+  mutrec  ["#mutrec"]
 /+  datatype
 /+  jlex
+/+  stew
 
 
 """ Json Values """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -211,3 +212,12 @@ TAG_JSON_MAP='map'
   ++ printJSON | idx 0 | parseValue b#{{}}
   ++ printJSON | idx 0 | parseValue b#{ { }}
   ++ printJSON | idx 0 | parseValue b#{ {"str":"x", "null":null}}
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+^-^
+^-^ parseValue printJSON
+^-^
+^-^ JSON_NULL JSON_TRUE JSON_FALSE JSON_STR JSON_NUM JSON_VEC JSON_MAP
+^-^

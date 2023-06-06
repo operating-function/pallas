@@ -4,8 +4,12 @@
 
 ### demo_token_ring <- demo_token_ring_chr
 
-/+ boot
-/+ io
+/+  boot
+/+  io
+/+  stew
+
+
+""" Talker """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (talker ourName us them white theMsg k)
 @ recur PIN-talker

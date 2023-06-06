@@ -7,6 +7,10 @@
 /+  boot
 /+  kern
 /+  demo_timer
+/+  stew
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (pongCog parent return)
 | trk [%pongwait]

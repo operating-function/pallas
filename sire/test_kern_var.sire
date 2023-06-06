@@ -4,11 +4,12 @@
 
 ### test_kern_var <- test_json
 
-/+ boot
-/+ kern
+/+  boot
+/+  kern
+/+  stew
 
 
-;; ThreadIDs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+""" ThreadIDs """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (checkThreadId expected return)
 : tid <- myThreadId

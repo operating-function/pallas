@@ -4,8 +4,12 @@
 
 ### demo_wait_loop <- demo_token_ring
 
-/+ boot
-/+ io
+/+  boot
+/+  io
+/+  stew
+
+
+""" Wait Loop """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (waitLoop k)
 | trk %waitLoop,k

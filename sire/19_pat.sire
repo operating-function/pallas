@@ -38,7 +38,7 @@
 /+  01_fan
 /+  02_bit  [if else ifNot not and or FALSE]
 /+  03_nat  [add div inc]
-/+  06_row  [len null idx]
+/+  06_row  [len null idx fst]
 /+  04_cmp  [eql neq gte lth isZero]
 /+  06_row  [weld map foldl foldr v1 v2 v4]
 /+  07_rex  [rexKids rexRune rexHeir rexSons rexText rexVal rexEql "`"]
@@ -173,7 +173,7 @@
 ; x@[a b c]
 ; TODO: support x@y@z, just for completeness (zero, one, or many)
 = (parseAliasedBinder parseBinder rex err ok)
-: kids <- readNodeWithoutHeirButWithRune "@" rex err
+: kids <- readNodeWithoutHeirButWithRune {@} rex err
 | if (eql 1 len-kids)
     | parseBinder (idx 0 kids) err ok
 | if (neq 2 len-kids)
@@ -207,22 +207,29 @@
 | ok [%law n a b]
 
 = (parseBinder rex err ok)
+@ heir (rexHeir rex)
 | if (rexIsLeaf rex)
-    : sym <- readSymbol rex err
-    | ok [%v (rexIdnt rex) sym]
+    : sym <- readSymbol (rexSetHeir 0 rex) err
+    | if (isZero heir)
+        | ok [%v (rexIdnt rex) sym]
+    | ifNot (eql '..' | rexRune heir)
+        | err rex (strWeld 'expected something like CONSTR(..) ; wrong rune' (rexRune heir))
+    | ifNot (null | rexKids heir)
+        | err rex 'expected something like CONSTR(..); has kids'
+    | ok [%o sym]
 @ rune (rexRune rex)
-| if (eql rune ".")
+| if (eql rune {.})
     : sym <- readSymbol rex err
     | ok [%v (rexIdnt rex) sym]
-| if (eql rune "!")
+| if (eql rune {!})
     | parseSeqBinder rex err ok
-| if (eql rune ",")
+| if (eql rune {,})
     | if (isTabSugar rex)
         | parseTabBinder parseBinder rex err ok
     | parseRowBinder parseBinder rex err ok
-| if (eql rune "#")
+| if (eql rune {#})
     | parseTabBinder parseBinder rex err ok
-| if (eql rune "@")
+| if (eql rune {@})
     | parseAliasedBinder parseBinder rex err ok
 | if (eql rune "|")
     ;
@@ -232,6 +239,11 @@
     ; was a row.  This mostly works but is extremely jank.  The right
     ; way involves looking up meta-information to verify that this
     ; is a #record, checking the arity, etc.
+    ;
+    ; TODO: Instead, we should just parse this as a constructor pattern,
+    ; and let the code generator handle it.  The code generator in this
+    ; module should ignore it, and a later module should compile these
+    ; down to something more sensible.
     ;
     @ sons | rexSons rex
     @ numb | len sons
@@ -252,6 +264,11 @@
  ++  ++ [%v 0 %x]
      ++ [%v 0 %y]
      ++ [%v 0 %z]
+
+!!= (parseBinder `[x FOO(..)] v2 id)
+ ++ %r
+ ++  ++ [%v 0 %x]
+     ++ [%o %FOO]
 
 !!= (parseBinder `[x y !z] v2 id)
  ++ %r
@@ -314,6 +331,12 @@
         | [nex (map (take 3) row) (cat | map idx-3 row)]
 ? (go exp bindSpec nex acc ok)
 @ typ (idx 0 bindSpec)
+| if (eql 'o' typ)
+        | todo
+      """ No codegen for record-wildcard patterns:
+      """
+      """ We don't know how to handle these yet, higher-level code should
+      """ compile them away before calling this codegen routine.
 | if (eql 'v' typ)
         @ key (idx 1 bindSpec)
         @ var (idx 2 bindSpec)
@@ -433,12 +456,11 @@
 = (bindSeqE binds body deps)
 @ addBind
         & (bind body)
-        @ key (idx 0 bind)
         @ var (idx 1 bind)
         @ exp (idx 2 bind)
         @ sameVar (readSymbol exp (_ _ & FALSE) (eql var))
         | if (or (eql var '_') sameVar) body
-        | letKE key var exp body
+        | letE var exp body
 @ addDep
         & (dep body)
         | bapE (cnsE seq, varE dep, body)
@@ -447,11 +469,11 @@
 | foldr addBind depBody binds
 
 !!=   ``
-       #@ $$(varKE 5 "_g5") (foo foo)
-       #@ $$(varKE 6 "_g6") (#| $(idx 1)     _g5)
-       #@ $$(varKE 1 "y")   (#| $(idx 0)     _g6)
-       #@ $$(varKE 7 "_g7") (#| $(idx 0)     _g5)
-       #@ $$(varKE 2 "x")   (#| $(tabIdx %x) _g7)
+       #@ _g5  (foo foo)
+       #@ _g6  (#| $(idx 1)     _g5)
+       #@ y    (#| $(idx 0)     _g6)
+       #@ _g7  (#| $(idx 0)     _g5)
+       #@ x    (#| $(tabIdx %x) _g7)
        #| $seq $$(varE %_g5)
        #| $seq $$(varE %y)
        #| $seq $$(varE %z)
@@ -473,23 +495,18 @@
 
 = mbNeedsTwo | "Each multi-bind needs at least two son"
 
-= (readMultiBinder rex err ok)
+= (readMultiBinder readExp rex err ok)
 | if (isZero rex) ok-[]
 : sons heir <- readNodeWithRune "=" rex err
 | if (lth len-sons 2) (err rex mbNeedsTwo)
 : bind < parseBinder (idx 0 sons) err
-: more < readMultiBinder heir err
-@ exp | appE (drop 1 sons)
+: exp  < readExp (appE | drop 1 sons) err
+: more < readMultiBinder readExp heir err
 | ok
-| rowCons [bind exp] more
+| rowCons RIGHT-[bind exp] more
 
-!!= (readMultiBinder `((= x 3)(= y 3 4)) v2 id)
-        [[[%v 0 %x] `3] [[%v 0 %y] `(#| 3 4)]]
-
-= (multiBindE binds bodyExpr)
-@ f     & (bind body)
-        | letE (idx 0 bind) (idx 1 bind) body
-| foldr f bodyExpr binds
+!!= (readMultiBinder readRex `((= x 3)(= y 3 4)) v2 id)
+        [RIGHT-[[%v 0 %x] `3] RIGHT-[[%v 0 %y] `(#| 3 4)]]
 
 
 """ Lambda Binders """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -582,12 +599,17 @@
 ;
 > Rex > RexParser2 Key (Row Pat)
 = (readDestroyer rex err ok)
+;
+| if (rexIsLeaf rex)
+    : sym <- readKey rex err
+    | ok sym []
+;
 : sons heir
         < rexGetNodeWithRune "|" rex
         | err rex symSigExpect
 | ifNot (isZero heir)
         | err rex symSigNoHeir
-| if (lth len-sons 2)
+| if (null sons)
         | err rex symSigExpect
 : sym
         < readKey (idx 0 sons) err
@@ -601,8 +623,9 @@
 
 !!= [%a [[%v 0 %b] [%v 0 %c]]]                  | tryRBSS `(a b c)
 !!= [%a [[%v 0 %b] [%r [[%v 0 %c] [%v 0 %d]]]]] | tryRBSS `(a b [c d])
-!!= [`a sigExpect]                              | tryRBSS `(a)
-!!= [`a sigExpect]                              | tryRBSS `a
+!!= [%a []]                                     | tryRBSS `a
+!!= [%a []]                                     | tryRBSS `(a)
+!!= [%a []]                                     | tryRBSS `(| a)
 !!= [`[a b] sigExpect]                          | tryRBSS `[a b]
 !!= [`([][]) sigExpect]                         | tryRBSS `([][])
 !!= [`((|)[]) sigNoHeir]                        | tryRBSS `((|)[])
@@ -623,41 +646,75 @@
 @ aft  (idx 0 res)
 @ bSeq (idx 1 res)
 @ deps (idx 2 res)
-; if (not null-deps) (die [['sequenceBinds' 'returned' res] [aft binder]])
 | pure aft sig
 | bindSeqE bSeq bodyExpr deps
 
-= ("@" s p e a r err ok)
-@ kids (rexKids r)
-| if (eql 2 len-kids)
-        @ binders  (idx 0 kids)
-        @ bodyExpr (idx 1 kids)
-        : binds <- readMultiBinder binders err
-        @ res  (sequenceBinds a binds)
-        @ a    (idx 0 res)
-        @ bSeq (idx 1 res)
-        @ deps (idx 2 res)
-        | ok p a
-        | bindSeqE bSeq bodyExpr deps
-| if (neq 3 len-kids)
-        | err r "@ requires 2 or 3 kids"
-@ binder    (idx 0 kids)
-@ valueExpr (idx 1 kids)
-@ bodyExpr  (idx 2 kids)
-| if (isLambdaBinder binder)
-        : sym binds       <- readDestroyer binder err
-        : a sig valueExpr <- makeDestroyer a binds valueExpr
-        | ok p a
-        | letE sym
-                | wutE (rowCons sym sig) valueExpr
-        | bodyExpr
-: bindSpec <- parseBinder binder err
-@ res  (sequenceBinds a [[bindSpec valueExpr]])
-@ a    (idx 0 res)
-@ bSeq (idx 1 res)
-@ deps (idx 2 res)
-| ok p a
-| bindSeqE bSeq bodyExpr deps
+# typedef (SugaredBinder e)
+| Either (Sym, Row Pat, e) (Pat, e)
+
+> (Rex > Read e) > Rex > Read2 (Row | SugaredBinder e) e
+= (readLet readExp rex err ok)
+@ kids (rexKids rex)
+@ nKid (len kids)
+| if (and (neq 3 nKid) (neq 2 nKid))
+    | err rex "@ requires 2 or 3 kids"
+| if (eql 2 nKid)
+    : binds      < readMultiBinder readExp (idx 0 kids) err
+    : letBodyExp < readExp                 (idx 1 kids) err
+    | ok binds letBodyExp
+| if (isLambdaBinder | idx 0 kids)
+    : sym args   < readDestroyer (idx 0 kids) err
+    : lamBodyExp < readExp       (idx 1 kids) err
+    : letBodyExp < readExp       (idx 2 kids) err
+    @ bind       | LEFT (sym, args, lamBodyExp)
+    | ok [bind] letBodyExp
+| else
+    : bind       < parseBinder (idx 0 kids) err
+    : valExp     < readExp     (idx 1 kids) err
+    : letBodyExp < readExp     (idx 2 kids) err
+    @ bind       | RIGHT (bind, valExp)
+    | ok [bind] letBodyExp
+
+> Nat > SugaredBinder Rex > Cont2 Nat (Pat, Rex)
+= (desugarBinder st sweetBind ok)
+^ eitherCase sweetBind _ (ok st)
+& nameArgsBody
+@ lawName (idx 0 nameArgsBody)
+@ argPats (idx 1 nameArgsBody)
+@ lawBody (idx 2 nameArgsBody)
+: st argList lawBody <- makeDestroyer st argPats lawBody
+| ok st
+| ([%v 0 lawName], wutE (rowCons lawName argList) lawBody)
+
+> Nat > SugaredBinder Rex > Cont2 Nat (Pat, Rex)
+= (desugarMultiBinder st sweetBinds ok)
+| traverseRowWithState st desugarBinder sweetBinds ok
+& (st sweetBind ret)
+^ eitherCase sweetBind _ (ret st)
+& nameArgsBody
+@ lawName (idx 0 nameArgsBody)
+@ argPats (idx 1 nameArgsBody)
+@ lawBody (idx 2 nameArgsBody)
+: st argList lawBody <- makeDestroyer st argPats lawBody
+| ret st
+| (lawName, wutE (rowCons lawName argList) lawBody)
+
+> Nat > Row (SugaredBinder Rex) > Rex > Cont2 Nat Rex
+= (multiLetE st sugaredBinds bodyExpr ok)
+: st binds
+    < traverseRowWithState st desugarBinder sugaredBinds
+@ stBindSeqDeps
+    | sequenceBinds st binds
+@ st      (idx 0 stBindSeqDeps)
+@ bindSeq (idx 1 stBindSeqDeps)
+@ deps    (idx 2 stBindSeqDeps)
+| ok st
+| bindSeqE bindSeq bodyExpr deps
+
+= ({@} s p e a r err ok)
+: binds body  < readLet readRex r err
+: a resultRex < multiLetE a binds body
+| ok p a resultRex
 
 !!= 7
        @ [x y z] [3 4]
@@ -939,5 +996,7 @@
 ^-^ destructureRowE
 ^-^ destructureTabE  ;;  TODO: Don't export these, export a more general
 ^-^                  ;;  API instead.
+^-^
+^-^ readLet
 ^-^
 ^-^ {@} {?} {&} {=} {:}

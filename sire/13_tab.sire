@@ -327,8 +327,6 @@ outerExpect={Expected something like #[x=1], [x=1], etc}
         | err rex outerExpect
     @ kid (idx 0 kids)
     | readTabBracket readVal kid err ok
-| if (null kids)
-    | err rex outerExpect
 | readTabBracket readVal rex err ok
 
 = (parseTallKey rex err ok)

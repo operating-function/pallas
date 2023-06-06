@@ -97,6 +97,13 @@
 ;
 | expand p a (cnsE has)
 
+= ({#getAllProps} s p e a r err ok)
+| ok p a (cnsE p)
+
+= ({#getAllSources} s p e a r err ok)
+| ok p a (cnsE s)
+
+
 = ('#getProp' s p e a r err expand)
 : _ [symbol property] <- rexParseKids r [readRex readSymbProp] err
 @ key (tabGet s symbol)
@@ -139,4 +146,6 @@ why=4
 ^-^ {#getKey} {#hasProp} {#getProp} {#setProp}
 ^-^
 ^-^ rexHasProp rexGetProp rexSetProp
+^-^
+^-^ {#getAllProps} {#getAllSources}
 ^-^

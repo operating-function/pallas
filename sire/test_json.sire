@@ -4,8 +4,13 @@
 
 ### test_json <- test_datom
 
+/+  boot
 /+  jlex
 /+  json
+/+  stew
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (jsonLexAll bar)
 | RIGHT (listToRow | lexJson bar)

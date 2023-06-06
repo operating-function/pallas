@@ -4,10 +4,12 @@
 
 ### demo_token_ring_multicog <- demo_timer
 
-/+ boot
-/+ io
+/+  boot
+/+  io
+/+  stew
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+""" Talker """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (talker ourName us them white theMsg k)
 ; trk [%talker ourName us them theMsg]

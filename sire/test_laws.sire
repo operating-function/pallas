@@ -4,6 +4,8 @@
 
 ### test_laws <- test_kern_var
 
+/+  stew
+
 """
 """ Rethink this now that we don't have a way to get random data in
 """ the REPL.

@@ -4,12 +4,16 @@
 
 ### demo_full_tag_site <- test
 
-/+ boot
-/+ kern
-/+ switch
-/+ hitch
-/+ json
-/+ datatype  ["#record" "#datatype" "#datacase"]
+/+  boot
+/+  kern
+/+  switch
+/+  hitch
+/+  json
+/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  stew
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; Design:
 ;
@@ -220,7 +224,7 @@ t
 
 = (calcLearnSt (PIN st) (PIN [rows addImgs addTags]))
 | trk [%calcLearnSt (len rows) %rows]
-# openState st
+@ STATE(..) st
 @ !nuImgs   | hmInsertMany addImgs imgs
 @ !nuTags   | hsmInsertMany addTags tags
 @ imgCount  | add imgCount  | len rows
@@ -326,7 +330,7 @@ NONE
 (tagToStr t)=(**JSON_STR (natBar t))
 
 = (buildStatus st)
-# openState st
+@ STATE(..) st
 | **JSON_MAP
 ## =bytes | **JSON_NUM fileBytes
 ## =imgs  | **JSON_NUM imgCount
@@ -334,7 +338,7 @@ NONE
 
 ; [hm hsm] [cord] > bar
 = (doSearch st [offset searchTags])
-# openState st
+@ STATE(..) st
 @ (lookupTag tag)
   @ hs | hsmLookup tag tags
   | if | hsNull hs

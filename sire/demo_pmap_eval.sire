@@ -5,6 +5,10 @@
 ### demo_pmap_eval <- demo_parallel_mandelbrot
 
 /+  boot
+/+  stew
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (pmap ms f args)
 @ jobs | map x&[0 ms f [x]] args

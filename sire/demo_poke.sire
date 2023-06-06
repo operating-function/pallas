@@ -14,6 +14,10 @@
 ;;; `plunder poke pokedemo listen sire/loop-val.sire`
 
 /+  boot
+/+  stew
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (PokeLoop calls response)
 @ val | tabGet response 0

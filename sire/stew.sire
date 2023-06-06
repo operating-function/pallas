@@ -2,13 +2,13 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### stew <- kern
+### stew <- types
 
 /+  boot
 /+  datatype
 /+  switch
-/+  datatype [parseDatacase]
-/+  mutrec   [readMutRecExp]
+/+  datatype  [parseDatacase resolveDatacase]
+/+  mutrec    [readMutRecExp genMutRecE]
 
 """
 """ stew.sire
@@ -63,7 +63,9 @@
 """ - [x] %%
 """ - [x] #  (tabs)
 """ - [x] ##
-""" - [x] `` (recognize but reject, too complicated)
+""" - [x] @   (lambda binds)
+""" - [x] @   (multi binds)
+""" - [x] ``
 """ - [x] `
 """ - [x] &&
 """ - [x] ||
@@ -84,6 +86,9 @@
 """ - [x] Correctly print non-symbol references.
 """ - [ ] Fix inline annotations on function literals.
 """ - [ ] Make sure function literals support all details.
+""" - [x] RECORD(..) patterns
+"""
+""" TODO: Support non-atomic keys in tabs.
 """
 """ TODO: Parse expressions that don't exist yet.
 """
@@ -105,12 +110,10 @@
 """ - [ ] #hasProp
 """ - [ ] #getTypeNames
 """
-""" - [ ] Compile stew to sire.
-"""
-""" - [ ] Write a macro that parses stew, compiles it to sire, and
+""" - [x] Compile stew to sire.
+""" - [x] Write a macro that parses stew, compiles it to sire, and
 """       expands to that.
-"""
-""" - [ ] Redefine all runes to invoke TheBigStewMacro.
+""" - [x] Redefine all runes to invoke TheBigStewMacro.
 """
 """ - [ ] Name resolution
 """
@@ -122,6 +125,23 @@
 """ - [ ] Merge #record and #datatype into #data
 """
 
+= (rexGuts rex)
+@ heir (rexHeir rex)
+| if rexIsNode-rex
+   ++ rexStyle rex
+   ++ rexIdnt rex
+   ++ rexRune rex
+   ++ map rexGuts (rexSons rex)
+   ++ if (isZero heir) heir (rexGuts heir)
+| if rexIsLeaf-rex
+   ++ rexStyle rex
+   ++ rexIdnt rex
+   ++ rexText rex
+   ++ if (isZero heir) heir (rexGuts heir)
+| else
+   ++ rexEmbd rex
+
+
 """ Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 # datatype Pat
@@ -130,6 +150,9 @@
 * PALI=a n:Sym p:Pat
 * PROW=r x:(Row Pat)
 * PTAB=t x:(Tab Any Pat)
+* POPN=o n:Sym
+* PPIN=pin x:Pat
+* PLAW=law n:Pat a:Pat b:Pat
 
 # record ConCase
 | CON_CASE con:Sym params:(Row Pat) body:Exp
@@ -151,7 +174,7 @@
 * EOR=or   x:Exp y:Exp
 * EAND=and x:Exp y:Exp
 * EAPP=app x:Exp y:Exp
-* EKET=ket xs:(Row Exp) v:Exp
+* EKET=ket x:Exp b:Exp
 * ELET=let n:Pat x:Exp b:Exp
 * EREC=rec n:Pat x:Exp b:Exp
 * ELAM=lam pin:Bit fun:(Str, Nat, Row Pat, Exp)
@@ -161,8 +184,9 @@
 * ETAB=tab xs:(Tab Nat Exp)
 * ESWI=swi x:Exp fb:Exp arms:(Tab Any Exp)
 * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
-* EMUT=mut tag:Nat body:Rex arms:(Row (Sym, Row Pat, Exp))
+* EMUT=mut tag:Nat body:Exp arms:(Row (Sym, Row Pat, Exp))
 * EREX=rex r:Rex
+* EQRX=qrx r:(RexWith (Either Exp Exp))
 * ECON=con x:Exp xs:Exp
 * ENIL=nil
 * EEQL=eql xs:(Row Exp)
@@ -199,11 +223,15 @@
 > Pat > Rex
 = (showPat p)
 # datacase p
-* (PVAR _k v) | varE v
-* (PSEQ _k v) | PREF 0 {!} ,(varE v) 0
-* (PALI x y)  | SHUT 0 {@} (showPat x, showPat y) 0
-* (PROW xs)   | NEST 0 {,} (map showPat xs) 0
-* (PTAB xs)   | showTab showPat xs
+* (PVAR _k v)  | varE v
+* (PSEQ _k v)  | PREF 0 {!} ,(varE v) 0
+* (PALI x y)   | SHUT 0 {@} (showPat x, showPat y) 0
+* (PROW xs)    | NEST 0 {,} (map showPat xs) 0
+* (PTAB xs)    | showTab showPat xs
+* (POPN n)     | rexSetHeir `(..) (varE n)
+* (PPIN p)     | `` @(PIN $$(showPat p))
+* (PLAW n a b) | `` @(LAW $$(showPat n) $$(showPat a) $$(showPat b))
+* _            | {invalid pattern} p
 
 !!= (` #[])
   | showPat
@@ -212,6 +240,10 @@
 !!= `[x=x y=(!y)]
   | showPat
   | PTAB [x=(PVAR 0 %x) y=(PSEQ 0 %y)]
+
+!!= `[x=(UNIT(..)) y=(!y)]
+  | showPat
+  | PTAB [x=(POPN %UNIT) y=(PSEQ 0 %y)]
 
 !!= ` x@[a b@[c !d]]
   | showPat
@@ -304,6 +336,11 @@
    ++ showExp exp
 | showSwitchArms showExp wild arms
 
+= (showQuotedRex showExp rex)
+| todo
+   ++ 'show quoted rex'
+   ++ rex
+
 > Chr > Bit
 (okIdnChar c)=(eql '_' c || isAlphaNum c)
 
@@ -315,32 +352,44 @@
 ++ not (isDigit c)
 ++ barAll okIdnChar bar
 
-= (showRef str)
+(okIdnStr str)=(okIdn | natBar str)
+
+= (showRef dot str)
 @ bar (natBar str)
 | if (okIdn bar)
     | WORD 0 str 0
 | if (not (barIsEmpty bar) && barAll isPrint bar)
-    ^ PREF 0 "." [_] 0
+    ^ PREF 0 dot [_] 0
     | CURL 0 str 0
 | else
-    ^ PREF 0 "." [_] 0
+    ^ PREF 0 dot [_] 0
     | WORD 0 (showNat str) 0
 
 ; TODO: Fix loot printing for {...\{...}.
 ; TODO: Fix vim highlighting for {...\{...}.
 
-!!= `abc      | showRef 'abc'
-!!= `(.0)     | showRef ''
-!!= `(.1)     | showRef 1
-!!= `(.{a c}) | showRef 'a c'
-!!= `(.{\{})  | showRef '{'
+!!= `abc      | showRef {.} 'abc'
+!!= `(.0)     | showRef {.} ''
+!!= `(.1)     | showRef {.} 1
+!!= `(.{a c}) | showRef {.} 'a c'
+!!= `(.{\{})  | showRef {.} '{'
+
+= (mkApp row)
+| if (null row)
+    | die 'mkApp: function application with no function'
+| foldl EAPP (idx 0 row) (drop 1 row)
+
+!!= 1                            | mkApp [1]
+!!= (EAPP 1 2)                   | mkApp [1 2]
+!!= (EAPP (EAPP 1 2) 3)          | mkApp [1 2 3]
+!!= (EAPP (EAPP (EAPP 1 2) 3) 4) | mkApp [1 2 3 4]
 
 > Exp > Rex
 = (showExp exp)
 @ go showExp
 # datacase exp
 * (EBED x)       | EMBD x
-* (EREF x)       | showRef x
+* (EREF x)       | showRef {.} x
 * (ENAT n)       | WORD 0 showNat-n 0
 * (EPAD p)       | showPadLit p
 * (EBAR b)       | showBarLit b
@@ -348,7 +397,7 @@
 * (EOR x y)      | INFX 0 {||} (showExp x, showExp y) 0
 * (EAND x y)     | INFX 0 {&&} (showExp x, showExp y) 0
 * (EAPP x y)     | niceApp go exp
-* (EKET xs v)    | NEST 0 {^} (map go xs) (go v)
+* (EKET b v)     | NEST 0 {^} [(go b)] (go v)
 * (ELET n x b)   | NEST 0 {@}  (showPat n, go x) (go b)
 * (EREC n x b)   | NEST 0 {@@} (showPat n, go x) (go b)
 * (ELAM pin fun) | showFun go pin fun
@@ -360,11 +409,13 @@
 * (EMUT t b as)  | showMutRec go t b as
 * (ESWI e f as)  | showSwitch go e f as
 * (EREX r)       | NEST 0 "`" [r] 0
+* (EQRX r)       | showQuotedRex go r
 * (ECON x xs)    | INFX 0 "::" (showExp x, showExp xs) 0
 * ENIL           | `(~[])
 * (EEQL xs)      | INFX 0 "==" (map showExp xs) 0
 * (ENEQ x y)     | INFX 0 "/=" (showExp x, showExp y) 0
 * _              | {showExp: Unknown syntax} exp
+
 
 !!= ` (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#{111} b#{asdf} (2 fanc))
   | showExp
@@ -399,9 +450,9 @@
   | ELAM FALSE
   | FUN "const" "const" (PVAR 0 %x, PVAR 0 %y) (EREF %x)
 
-!!= ` (^ f _ y)x
+!!= ` (^ (f _ y))x
   | showExp
-  | EKET (EREF %f, EREF %_, EREF %y)
+  | EKET (mkApp (EREF %f, EREF %_, EREF %y))
   | EREF %x
 
 
@@ -409,12 +460,17 @@
 
 > (Rex > Parser Exp) > Rex > Parser Exp
 = (parseLet readExp rex err ok)
-@ kids@[patRex expRex bodRex] (rexKids rex)
-| if (len kids /= 3) (err rex 'Bad let')
-: var < parseBinder patRex err
-: exp < readExp expRex err
-: bod < readExp bodRex err
-| ok (ELET var exp bod)
+: binds body < readLet readExp rex err
+| ok
+^ foldr _ body binds
+& (sweetBind body)
+# datacase sweetBind
+* (LEFT [lawName argPats lawBody])
+    ^ ELET (PVAR 0 lawName) _ body
+    | ELAM FALSE
+    | FUN lawName lawName argPats lawBody
+* (RIGHT [bind valExp])
+    | ELET bind valExp body
 
 > (Rex > Parser Exp) > Rex > Parser Exp
 = (parseRec readExp rex err ok)
@@ -442,6 +498,16 @@
 : tree <- readInfixRight readExp "&&" rex err
 | ok (binTreeFold EAND tree)
 
+= (readCom readExp rex err ok)
+@ rune (rexRune rex)
+@ kids (rexKids rex)
+| if (and (not null-kids) (eql "=" (rexRune fst-kids)))
+    : tab <- readWideTabLit readExp rex err
+    | ok (ETAB tab)
+| else
+    : exps <- traverseRow (x k & readExp x err k) kids
+    | ok (EROW exps)
+
 = (readHaxOutline rex err ok)
 @ kids@[keywordRex] | rexKids rex
 @ params            | drop 1 kids
@@ -452,7 +518,15 @@
 
 > (Rex > Parser Exp) > Rex > Parser Exp
 = (parseHaxExp readExp rex err ok)
-: symRex sym params <- readHaxOutline rex err
+@ kids (rexKids rex)
+@ rune (rexRune rex)
+| if ((1 == len kids) && (',' == rexRune fst-kids))
+    : tab <- readWideTabLit readExp fst-kids err
+    | ok (ETAB tab)
+;
+: symRex sym params
+    < readHaxOutline rex err
+;
 # switch sym
 * _   | err symRex 'Unknown # keyword'
 * {p} | readPadLit rex err (pad & ok (EPAD pad))
@@ -504,7 +578,23 @@
 @ kids (rexKids rex)
 | ifNot (eql 1 | len kids)
     | err rex {Expected something like `(rex)}
+| ok
 | EREX (idx 0 kids)
+
+= (parseTikTik readExp rex err ok)
+;
+@ (readVal rex err ok)
+    : exp < readExp rex err
+    | ok (LEFT exp)
+;
+@ (readExpRight rex err ok)
+    : exp < readExp rex err
+    | ok (RIGHT exp)
+;
+: quoted
+    < readQuasiQuotedRex readVal readExpRight rex err
+;
+| ok (EQRX quoted)
 
 = (readApp readExp rex err ok)
 : exps <- readFancyApp readExp rex err
@@ -513,13 +603,15 @@
 | foldl EAPP (idx 0 exps) (drop 1 exps)
 
 = (readKet readExp rex err ok)
-@ sons (rexSons rex)
-@ heir (rexHeir rex)
-| if (null sons && isZero heir)
-    | err rex "Bad ^ must be:  (^ f _ y)x"
-: exp <- traverseRow (x k & readExp x err k) sons
-: cab <- readExp heir err
-| ok | EKET exp cab
+@ kids (rexKids rex)
+@ nKid (len kids)
+| if (lth nKid 2)
+    | err rex "Expected something like (^ exp exp...)body"
+@ bodyRex  | get kids (dec nKid)
+@ expRexes | take (dec nKid) kids
+: bodyExps < traverseRow (x k & readExp x err k) expRexes
+: valExp   < readExp bodyRex err
+| ok | EKET (mkApp bodyExps) valExp
 
 = (readPam readExp rex err ok)
 @ kids (rexKids rex)
@@ -544,27 +636,18 @@
 : exp <- readExp expRex err
 | ok (ELIN exp)
 
-= (readCom readExp rex err ok)
-@ rune (rexRune rex)
-@ kids (rexKids rex)
-| if (and (not null-kids) (eql "=" (rexRune fst-kids)))
-    : tab <- readWideTabLit readExp rex err
-    | ok (ETAB tab)
-| else
-    : exps <- traverseRow (x k & readExp x err k) kids
-    | ok (EROW exps)
-
 = (readDot rex err ok)
-: key <- rexParseKids rex [readKey] err
+@ kids (rexKids rex)
+| if (len kids /= 1)
+    | err rex 'expected .key'
+: key <- readKey (fst kids) err
 | ok (EREF key)
 
 = (readCol readExp rex err ok)
 : valExp oFunName pats bodyExp
     < readColExp parseBinder readExp rex err
-| trk [=valExp =oFunName =pats =bodyExp]
 @ (nam, pin)
     | fromSome (FALSE, "") oFunName
-| trk [=pin =nam]
 | ok
     | EAPP valExp
     | ELAM pin (nam, nam, pats, bodyExp)
@@ -574,30 +657,27 @@
   """
   """     foo
   """     123
-  """     0xaf
+  """     0xAF
 
 = (getHexLit bar fall ret)
 | if (neq b#0x | barTake 2 bar) fall
 | getHexBar (barDrop 2 bar) fall ret
 
 = (readLeaf rex err ok)
-@ txt (rexText rex)
+@ txt | rexText rex
+@ bar | natBar txt
+;
 # switch (rexStyle rex)
 * {CORD} | ok | ENAT txt
 * {TAPE} | ok | ENAT txt
 * {LINE} | ok | ENAT txt
 * {PAGE} | ok | ENAT txt
 * {CURL} | ok | ENAT txt
-* {WORD}
-@ bar    (natBar txt)
-@ natStr (barNat bar)
-| trk [=bar =natStr res=(getNatStr natStr NONE SOME)]
-^ getNatStr natStr _ (compose ok ENAT)
-^ getHexLit bar    _ (compose ok ENAT)
-| if (okIdn bar)
-    | ok (EREF txt)
-| else
-    | err rex leafExpect
+* {WORD} | if (okIdn bar) (ok (EREF txt))
+         @ bar (barFilter (neq '_') bar)
+         ^ getNatStr (barNat bar) _ (compose ok ENAT)
+         ^ getHexLit bar          _ (compose ok ENAT)
+         | err rex leafExpect
 
 > Rex > Parser Exp
 = (readExp rex err ok)
@@ -627,12 +707,12 @@
 * {==}  | parseTisTis readExp rex err ok
 * {/=}  | parseFasTis readExp rex err ok
 * {`}   | parseTik rex err ok
-* {``}  | err rex "Stew doesn't yet support the `` rune."
+* {``}  | parseTikTik readExp rex err ok
 * {%}   | parseCen rex err ok
 * {%%}  | parseCenCen rex err ok
 * {&&}  | parseAndExp readExp rex err ok
 * {||}  | parseOrExp readExp rex err ok
-* _     | err rex (strWeld 'Unknown Rune')
+* _     | err rex (strWeld 'Unknown Rune: ' | rexRune rex)
 
 > (Rex > Parser Cmd) > (Rex > Parser Exp) > Rex > Parser Cmd
 = (readHaxCmd readCmd rex err ok)
@@ -677,13 +757,33 @@
 !! expRound ` (? (const x y))x
 !! expRound ` (@ x 3)(x x x)
 !! expRound ` (@@ x 3)x
-!! expRound ` (^ f _ y)x
+!! expRound ` (^ (f _ y))x
 !! expRound ` (@ x [1 2])[x x]
 !! expRound ` (@ [x y] [1 2])[y x]
 !! expRound ` (@ z@[!x y] [1 2])(x y z)
 !! expRound ` (# mutrec 3 (three 5))(* (three _) 3)
 !! expRound ` (# mutrec 3 (three 5))(* (three _) 3)(* (four _ _) (inc 3))
 !! expRound ` (# switch 3)(* 3 3)(* 4 4)(* _ 9)
+
+!!= `[x=3 y=4]
+  ^ readExp _ v2 showExp
+  ` #[x=3 y=4]
+
+!!= `[x=3 y=4]
+  ^ readExp _ v2 showExp
+  ` #["x"=3 {y}=4]
+
+!!= ` (@ f (? (f x))[x x])x
+  ^ readExp _ v2 showExp
+  ` @ (f x) [x x]
+    | x
+
+!!= ` (@ x 3)(@ y 4)(@ z 5)[x y z]
+  ^ readExp _ v2 showExp
+  ` @   = x 3
+        = y 4
+        = z 5
+    | [x y z]
 
 !!= ` (# switch 3)(* 3 3)(* 4 4)(* _ 0)
   ^ readExp _ v2 showExp
@@ -694,7 +794,7 @@
 !!  expRound
  ` ? (span f r)
    @ l (len r)
-   ^ _ 0
+   ^ (_ 0)
    ? (loop i)
    | if (eql i l) (v2 r v0)
      | if (f (idx i r))
@@ -706,10 +806,10 @@
   ` ## =x 3
     ## =y 4
 
-!!= `[3 (0 1)]
+!!= `[300000 (0 57005)]
   ^ readExp _ v2 showExp
-  ` ++ 3
-    ++ 0 1
+  ` ++ 300_000
+    ++ 0 0xD_E_A_D
 
 !!= `[3 (0 1)]
   ^ readExp _ v2 showExp
@@ -773,9 +873,544 @@
   ` : ?(Foo x) <- add 2
     | add x x
 
+!!= ` (^ (_ 3))(0 0)
+  ^ readExp _ v2 showExp
+  ` ^ _ 3
+    | 0 0
+
 !!= `asdf
   ^ readExp _ v2 showExp
   ` .{asdf}
+
+
+""" Traversal """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; TODO: Move these into the bootstrapping process?  Maybe into 13_tab.sire?
+
+= (traverseTabWithState st f tab ok)
+@ keys (tabKeysRow tab)
+: st rexes < traverseRowWithState st f tab
+| ok st (mkTab keys rexes)
+
+= (traverseTab f tab ok)
+@ keys (tabKeysRow tab)
+: rexes < traverseRow f tab
+| ok (mkTab keys rexes)
+
+= (traverseRexWithState st f rex ok)
+| if (isZero rex)
+    | ok st rex
+| if (rexIsEmbd rex)
+    : st newVal < f st (rexEmbd rex)
+    | ok st (EMBD newVal)
+: st heir < traverseRexWithState st f (rexHeir rex)
+| if (rexIsLeaf rex)
+    | ok st (rexSetHeir heir rex)
+: st sons
+  < ^ traverseRowWithState st _ (rexSons rex)
+    & (st son ret)
+    | traverseRexWithState st f son ret
+| ok st
+| rexSetHeir heir
+| rexSetSons sons
+| rex
+
+
+= (traverseRex f rex ok)
+: _ res
+    < ^ traverseRexWithState 0 _ rex
+      & (st rex ok)
+      : rex < f rex
+      | ok 0 rex
+| ok res
+
+
+= (traverseExp f exp ok)
+@ go (traverseExp f)
+# datacase exp
+* ENIL               | f exp ok
+* EUNT               | f exp ok
+* (EBED _)           | f exp ok
+* (EREF _)           | f exp ok
+* (ENAT _)           | f exp ok
+* (EPAD _)           | f exp ok
+* (EBAR _)           | f exp ok
+* (ECAB _)           | f exp ok
+* (EREX r)           | f exp ok
+* (EOR  x y)         | traverseRow go [x y] & [x y] | f (EOR x y)    ok
+* (EAND x y)         | traverseRow go [x y] & [x y] | f (EAND x y)   ok
+* (EAPP x y)         | traverseRow go [x y] & [x y] | f (EAPP x y)   ok
+* (EKET x y)         | traverseRow go [x y] & [x y] | f (EKET x y)   ok
+* (ELET n x b)       | traverseRow go [x b] & [x b] | f (ELET n x b) ok
+* (EREC n x b)       | traverseRow go [x b] & [x b] | f (EREC n x b) ok
+* (ENEQ x y)         | traverseRow go [x y] & [x y] | f (ENEQ x y)   ok
+* (ECON x z)         | traverseRow go [x z] & [x z] | f (ECON x z)   ok
+* (EROW xs)          | traverseRow go xs    & xs    | f (EROW xs)    ok
+* (EEQL xs)          | traverseRow go xs    & xs    | f (EEQL xs)    ok
+* (ETAB kv)          | traverseTab go kv    & kv    | f (ETAB kv)    ok
+* (ELAM p (n,t,a,b)) | go b & b | f (ELAM p (n,t,a,b)) ok
+* (ELIN x)           | go x & x | f (ELIN x)           ok
+* (ECAS x fb cases)
+    : x < go x
+    : fb
+        < & ok
+          # datacase fb
+          * NONE     | ok NONE
+          * (SOME e) | go e (compose ok SOME)
+    : cases
+        < ^ traverseRow _ cases
+          & ([con params body] ok)
+          : body < go body
+          | ok [con params body]
+    | f (ECAS x fb cases) ok
+* (EMUT tab body arms)
+    : body < go body
+    : arms
+        < ^ traverseRow _ arms
+          & ([sym pats armBody] ok)
+          : armBody < go armBody
+          | ok [sym pats armBody]
+    | ok (EMUT tab body arms)
+* (ESWI x fb arms)
+    : x    < go x
+    : fb   < go fb
+    : arms < traverseTab go arms
+    | f (ESWI x fb arms) ok
+* (EQRX rex)
+    : rex
+        < ^ traverseRex _ rex
+          & (embed ok)
+          # datacase embed
+          * (LEFT cns)
+              : cns < go cns
+              | ok (LEFT cns)
+          * (RIGHT splice)
+              : splice < go splice
+              | ok (RIGHT splice)
+    | f (EQRX rex) ok
+
+
+= (traversePat f pat ok)
+# datacase pat
+* (POPN _)   | f pat ok
+* (PVAR _ _) | f pat ok
+* (PSEQ _ _) | f pat ok
+* (PALI n p)
+    : p <- traversePat f p
+    | f (PALI n p) ok
+* (PROW xs)
+    : xs < traverseRow (traversePat f) xs
+    | f (PROW xs) ok
+* (PTAB kv)
+    : kv < traverseTab (traversePat f) kv
+    | f (PTAB kv) ok
+* (PPIN p)
+    : p <- traversePat f p
+    | f (PPIN p) ok
+* (PLAW n a b)
+    : n <- traversePat f n
+    : a <- traversePat f a
+    : b <- traversePat f b
+    | f (PLAW n a b) ok
+* _
+    | {invalid pattern} pat
+
+
+
+""" Resolution """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (resolvePat src prp err pat ok)
+^ traversePat _ pat ok
+& (pat ok)
+; trk 'hi',[=pat]
+# datacase pat
+* _
+    | ok pat
+* (POPN constr)
+    @ key    | tabGet src constr
+    | if (or (isZero key) not-(hasProperty key 'fieldNames' prp))
+        ^ die (showPat pat),(strWeld _ constr)
+        | "Unknown record constructor: "
+    @ fields (getProperty key 'fieldNames' prp)
+    | ok (PROW | map (PVAR 0) fields)
+
+= (resolve src prp exp err ok)
+; trk 'resolve',[=exp]
+@ goPat (resolvePat src prp err)
+^ traverseExp _ exp ok
+& (exp ok)
+# datacase exp
+* (ELET n x b)
+    : n <- goPat n
+    | ok (ELET n x b)
+* (ELAM p (n,t,as,b))
+    : as <- traverseRow goPat as
+    | ok | ELAM p (n, t, as, b)
+* (EMUT tag body arms)
+    : arms < ^ traverseRow _ arms
+             & ([sym pats exp] ret)
+             : pats < traverseRow goPat pats
+             | ret [sym pats exp]
+    | ok (EMUT tag body arms)
+* (ECAS x fb cases)
+    : cases
+        < ^ traverseRow _ cases
+          & ([con params body] ok)
+          : params < traverseRow goPat params
+          | ok (CON_CASE con params body)
+    | ok (ECAS x fb cases)
+* _
+    | ok exp
+
+
+""" Compiler """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+
+= (cQrx go st rex ok)
+: st rexWithSplices
+  < ^ traverseRexWithState st _ rex
+    & (st embd ret)
+    # datacase embd
+    * (LEFT cns)
+        : st rex < go st cns
+        | ret st (LEFT rex)
+    * (RIGHT val)
+        : st rex < go st val
+        | ret st (RIGHT rex)
+| ok st
+| splicedE rexWithSplices
+
+= (cApp go st exps ok)
+: st rexes < traverseRowWithState st go exps
+| ok st (appE rexes)
+
+= (cRow go st exps ok)
+: st rexes < traverseRowWithState st go exps
+| ok st (rowE rexes)
+
+= (cTab go st exps ok)
+: st rexesTab < traverseTabWithState st go exps
+| ok st (tabE rexesTab)
+
+= (cEql go st exps ok)
+: st rexes  < traverseRowWithState st go exps
+@ (st, rex) | multiEqlE st rexes
+| ok st rex
+
+= (cKet go st bodyExp valExp ok)
+: st bodyRex <- go st bodyExp
+: st valRex  <- go st valExp
+| ok st (letE '_' valRex bodyRex)
+
+= (cSwi go st x fb arms ok)
+: st xRex     <- go st x
+: st fbRex    <- go st fb
+: st patRexes <- traverseTabWithState st go arms
+| ok st (switchE xRex fbRex patRexes)
+
+= (cLam go st pin (nam, tag, pats, bodyExp) ok)
+: st bodyRex     <- go st bodyExp
+: st sig bodyRex <- makeDestroyer st pats bodyRex
+;
+@ bodyRex (rexVal bodyRex) ; TODO kill rex identity
+;
+| if (nam /= tag)
+    | todo {support mis-match between name and tag}
+;
+| if (pin && isZero tag)
+    | todo {support pinned, anonymous lambdas}
+;
+| ok st
+| if (isZero tag)
+    | lamE sig bodyRex
+| if pin
+    | wutWutE (rowCons nam sig) bodyRex
+| else
+    | wutE (rowCons nam sig) bodyRex
+
+= (cLet go st pat valExp bodExp ok)
+: st valRex < go st valExp
+: st bodRex < go st bodExp
+;
+@ (st, bSeq, deps) | sequenceBinds st [[pat valRex]]
+;
+| ok st
+| rexVal ; TODO: kill rex identity
+| bindSeqE bSeq bodRex deps
+
+= (cRec go st pat valExp bodExp ok)
+: st valRex < go st valExp
+: st bodRex < go st bodExp
+;
+@ var # datacase pat
+      * _            | todo 'support pattern matching in letrec bindings'
+      * (PVAR _ var) | var
+;
+| ok st (recE var valRex bodRex)
+
+
+= (cMut go st coreTag bodExp arms ok)
+: st bodRex
+    < go st bodExp
+: st armSpecs
+  < ^ traverseRowWithState st _ arms
+    & (st [funName pats funBodExp] ok)
+    : st funBodRex < go st funBodExp
+    | ok st [funName pats funBodRex]
+: st resultRex
+    < genMutRecE st coreTag bodRex armSpecs
+| ok st
+| rexVal    ; todo: kill rex identity
+| rexClose  ; todo: all macros expand to closed forms
+| resultRex
+
+= (cCas src prp go st valExp oWildExp arms ok)
+;
+; This on is extra tricky because we need to lookup information from
+; the environment, but we don't have that information here.
+;
+; I guess that needs to be passed in?
+;
+; Should this be resolved during type-checking?  If so, where should
+; the information be stored?
+;
+; Should the information be included in the datatype and filled in by
+; another pass?
+;
+: st valRex <- go st valExp
+: st oWildRex
+  < & ret
+    # datacase oWildExp
+    * NONE           | ret st NONE
+    * (SOME wildExp) : st wildRex < go st wildExp
+                     | ret st (SOME wildRex)
+;
+: st branches
+  < & ret
+    ^ traverseRowWithState st _ arms ret
+    & (st (CON_CASE constr pats armExp) ret)
+    : st armRex <- go st armExp
+    ;
+    | ret st [armRex constr pats armRex]
+;
+: hasTag fun fbRex caseSpecs
+    < resolveDatacase src prp oWildRex branches (curry die)
+;
+: st exp < makeDatacaseExpr hasTag fun st valRex fbRex caseSpecs
+;
+| ok st (rexVal (rexClose exp)) ; TODO: no rex identity, no open rune output
+
+; | CON_CASE con:Sym params:(Row Pat) body:Exp
+; * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
+
+> (?) > (?) > Nat > Exp > (Nat, Exp)
+= (compile src prp st exp)
+^   : st rex <- _ st exp
+    | (st, rexClose rex)
+? (go st exp ok)
+# datacase exp
+* ENIL             | ok st (cnsE 0)
+* EUNT             | ok st (cnsE 0)
+* (EBED b)         | ok st (cnsE b)
+* (EREF r)         | ok st (showRef {#.} r)
+* (ENAT n)         | ok st (cnsE n)
+* (EPAD n)         | ok st (cnsE n)
+* (EBAR n)         | ok st (cnsE n)
+* (ECAB n)         | ok st (cnsE n)
+* (EREX r)         | ok st (cnsE r)
+* (EQRX r)         | cQrx go st r ok
+* (EOR x y)        | cApp go st (EBED or, x, y)    ok
+* (EAND x y)       | cApp go st (EBED and, x, y)   ok
+* (EAPP x y)       | cApp go st (x, y)             ok
+* (ECON x xs)      | cApp go st (EBED CONS, x, xs) ok
+* (ENEQ x y)       | cApp go st (EBED neq, x, y)   ok
+* (EEQL xs)        | cEql go st xs                 ok
+* (EROW xs)        | cRow go st xs ok
+* (ETAB xs)        | cTab go st xs ok
+* (EKET b x)       | cKet go st b x ok
+* (ESWI x fb arms) | cSwi go st x fb arms ok
+* (ELAM p f)       | cLam go st p f ok
+* (ELET p v b)     | cLet go st p v b ok
+* (EREC p v b)     | cRec go st p v b ok
+* (EMUT t b as)    | cMut go st t b as ok
+* (ECAS v w as)    | cCas src prp go st v w as ok
+* (ELIN x)
+    : st rex < go st x
+    | ok st (NEST 0 "#**" [rex] 0)
+
+
+""" Compiler Testing """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+src=(#getAllSources)
+prp=(#getAllProps)
+
+= (comp st exp)
+| compile (#getAllSources) (#getAllProps) st exp
+
+!!= (comp 5 (ENAT 0))
+  | [5 ``($0)]
+
+!!= (comp 5 (EAPP ENAT-0 ENAT-1))
+  | [5 ``(#| $0 $1)]
+
+!!= (comp 5 (EEQL (ENAT 0, ENAT 1)))
+  | [5 ``(#| $eql $0 $1)]
+
+!!=   | comp 5 (EEQL (ENAT 0, ENAT 1, ENAT 2))
+ ++ 6
+ ++ ``((#@ _g5 $0)(#| $and (#| $eql _g5 $1) (#| $eql _g5 $2)))
+
+!!=   | comp 5 (ELIN (EAPP ELIN-(EREF 'id') (ENAT 1)))
+ ++ 5
+ ++ `` (#** (#| (#** id) $1))
+
+!!= [5 ``(#| ($ %[a b c]) (#| $0 $3) $2 $1)]
+  | comp 5
+  | ETAB
+ ## =a (ENAT 1)
+ ## =b (ENAT 2)
+ ## =c (EAPP ENAT-0 ENAT-3)
+
+!!=  ++ 5
+     ++ `` (#| $tabSwitch foo z (#| ($ %[a b]) y x))
+  ^ readExp _ (curry die) (comp 5)
+  ` (# switch foo)(* {a} x)(* {b} y)z
+
+!!=  ++ 5
+     ++ `` (#| $tabSwitch foo $0 (#| ($ %[a]) x))
+  ^ readExp _ (curry die) (comp 5)
+  ` (# switch foo)(* {a} x)
+
+; TODO Can these single-item switches be compiled to an if expression?
+
+!!= [5 ``((#?? (id x))x)]
+  | comp 5
+  | ELAM TRUE
+  | (%id, %id, [(PVAR 0 %x)], EREF 'x')
+
+!!= [5 ``((#& x)x)]
+  | comp 5
+  | ELAM FALSE
+  | (0, 0, [(PVAR 0 %x)], EREF 'x')
+
+!!= [5 ``((#? (f x z))z)]
+  | comp 5
+  | ELAM FALSE
+  | ('f', 'f', (PVAR 0 %x, PVAR 0 %z), EREF 'z')
+
+!!=  ++ 7
+     ++ `` (#& _g5)(#@ _g6 _g5)(#@ x (#| $(idx 0) _g6))(#@ z (#| $(idx 1) _g6))z
+  | comp 5
+  | ELAM FALSE
+  | (0, 0, [(PROW (PVAR 0 %x, PVAR 0 %z))], EREF 'z')
+
+!!=  ++ 6
+     ++ `` (#@ _g5 (#| $(cow 2) $2 $1))(#@ x (#| $(idx 0) _g5))x
+  | comp 5
+  | ELET (PROW [(PVAR 0 %x)])
+      | EROW (ENAT 1, ENAT 2)
+  | EREF 'x'
+
+!!=  ++ 5
+     ++ `` (#@ _ (#| $0 $1))(#| _ _)
+  | comp 5
+  | EKET (EAPP EREF-'_' EREF-'_')
+  | EAPP ENAT-0 ENAT-1
+
+!!=  ++ 5
+     ++ `` (#@@ x (#| $(cow 2) x $1))(#| car x)
+  | comp 5
+  | EREC (PVAR 0 'x')
+      | EROW (ENAT 1, EREF 'x')
+  | EAPP (EREF 'car')
+  | EREF 'x'
+
+; gross
+!!=  ++ 9
+     ++ rexClose
+        ``  #@ _core5
+                #? (_core5@'lol' _tag9 _arg7)
+                #@ even
+                    #? (**even x)
+                    #| _core5 $0 x
+                #| $switch _tag9 $0
+                #| $(cow 1) (#@ x _arg7)x
+            #@ even
+                #? (**even x)
+                #| _core5 $0 x
+             even
+  | comp 5
+  | EMUT 'lol' (EREF 'even')
+ ++ (%even, [(PVAR 0 %x)], EREF 'x')
+
+; such a beauty
+!!=  ++ 8
+     ++ rexClose
+       `` #@ _g5 x
+          #| $switch (#| $len _g5) $1
+              #| $(cow 2)
+                    #@ _g6 x
+                    #@ x (#| $(idx 0) _g6)
+                     x
+                #@ _g7 x
+                 ($0)
+  | comp 5
+  | ECAS EREF-'x' (SOME | ENAT 1)
+ ++ CON_CASE 'SOME' [(PVAR 0 'x')] EREF-'x'
+ ++ CON_CASE 'NONE' []             ENAT-0
+
+!!=  ++ 7
+     ++ rexClose
+       `` #@ _g5 sx
+          #| $tabSwitch (#| $len _g5) $0
+              #| ($ %[1])
+                    #@ _g6 sx
+                    #@ x (#| $(idx 0) _g6)
+                     x
+  | comp 5
+  | ECAS (EREF 'sx') NONE
+ ++ CON_CASE 'SOME' ,(PVAR 0 'x') EREF-'x'
+
+
+""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (macaroniStew s p e a r err ok)
+: stewExp < readExp r err
+: stewExp < resolve s p stewExp err
+@ (a, rex) | compile s p a stewExp
+| ok p a rex
+
+( {^}   #= macaroniStew )
+( {|}   #= macaroniStew )
+( {-}   #= macaroniStew )
+( {&}   #= macaroniStew )
+( {?}   #= macaroniStew )
+( {:}   #= macaroniStew )
+( {??}  #= macaroniStew )
+( {**}  #= macaroniStew )
+( {,}   #= macaroniStew )
+( {++}  #= macaroniStew )
+( {.}   #= macaroniStew )
+( {@}   #= macaroniStew )
+( {@@}  #= macaroniStew )
+( {#}   #= macaroniStew )
+( {##}  #= macaroniStew )
+( {~}   #= macaroniStew )
+( {~~}  #= macaroniStew )
+( {::}  #= macaroniStew )
+( {==}  #= macaroniStew )
+( {/=}  #= macaroniStew )
+( {`}   #= macaroniStew )
+( {%}   #= macaroniStew )
+( {%%}  #= macaroniStew )
+( {&&}  #= macaroniStew )
+( {||}  #= macaroniStew )
+( {``}  #= macaroniStew )
+
+!!= 6 (@ a 3)(add a a)
+!!= 0 (3 == 4)
+!!= 1 (3 == 3)
+!!= 0 (3 == 3 == 4)
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -785,7 +1420,7 @@
 ^-^ PVAR PSEQ PALI PROW PTAB
 ^-^
 ^-^ ; ConCase
-^-^ CON_CASE ; ConCase
+^-^ CON_CASE
 ^-^
 ^-^ ; Fun
 ^-^ FUN
@@ -795,8 +1430,14 @@
 ^-^
 ^-^ ; Exp
 ^-^ EBED EREF ENAT EPAD EBAR ECAB EOR EAND EAPP EKET ELET EREC ELAM
-^-^ ELIN EROW EUNT ETAB ESWI ECAS EMUT EREX ECON ENIL EEQL ENEQ
+^-^ ELIN EROW EUNT ETAB ESWI ECAS EMUT EQRX EREX ECON ENIL EEQL ENEQ
 ^-^
 ^-^ readExp showExp
 ^-^ readCmd
+^-^ compile
+^-^
+^-^ ; MAKE.  EVERYTHING.  STEW.
+^-^
+^-^ {^} {|}  {-}  {&}  {?}  {:} {??} {**} {,}  {++} {.} {@} {@@} {##}
+^-^ {~} {~~} {::} {==} {/=} {`} {%}  {%%} {&&} {||} {``}
 ^-^
