@@ -14,7 +14,9 @@ system calls made by Cogs is a part of its state. When it is reloaded,
 all of the calls will be resumed as well.
 
 There is no hidden state in machine. A machine can shutdown and resumed
-without an visible effect.
+without an visible effect. The formal state of a a full Machine is the
+plunder value `(Tab Nat Fan)`, where each cog has a process id mapping to
+its formal state.
 
 Cogs
 ----
@@ -30,7 +32,12 @@ set of syscall responses `(Map Nat Any)`:
     | %% =0 [5]
     | %% =1 x#0011223344556677
 
-System calls like `%rand` are CALLs to hardware.
+There are three types of syscalls: `%eval` requests, `%cog` requests, and
+everything else is treated as a CALL to hardware.
+
+A CALL to hardware looks like `[%rand 0 %byte 8]`. Breaking it down:
+
+-   `%rand` is the name of the hardware targeted.
 
 -   The `0` is the "durability" flag that tells the ships that the
     effect should not be executed until the input that lead to the
@@ -39,10 +46,9 @@ System calls like `%rand` are CALLs to hardware.
 -   `[%byte 8]` is the argument-list that is passed to the `%rand`
     device.
 
-`%eval` is the one special case. `%eval` asks for plunder code to be
-evaluated asynchronously.  The result is that we can take advantage
-of parallelism, and that the main loop is not slowed down when the Cog
-needs to perform an expensive computation.
+`%eval` asks for plunder code to be evaluated asynchronously.  The result
+is that we can take advantage of parallelism, and that the main loop is
+not slowed down when the Cog needs to perform an expensive computation.
 
 -   The `10` in `[%eval 10 add 2 3]` is an upper-bound on the number of
     seconds that an evaluation is allowed to run for. An evaluation that
@@ -58,6 +64,35 @@ needs to perform an expensive computation.
 
 -   This is important because it means that extremely large values can
     be returned by EVAL without bogging down the log.
+
+Finally, there is the `%cog` requests. A user is likely to have multiple
+processes that they wish to run, and having those processes communicate
+over hardware CALLs would mean that each IPC message must be written into
+the event log. So we have a few special calls for process management and
+IPC between cogs. Like `%eval`, most `%cog` requests have special event
+log representations so that you're storing a record that something
+happened that could be recalculated on log replay.
+
+(If cog A sends a message to cog B, all you need to do is record that B
+processed the message from cog A at a given request index, instead of
+serializing and storing the full noun sent in the event log.)
+
+The `%cog` requests are:
+
+-   `[%cog %spin fan] -> IO Pid`: Starts a cog and returns its cog id.
+
+-   `[%cog %stop pid] -> IO Fan`: Stops a cog and returns the cog's value.
+
+-   `[%cog %recv] -> IO Fan`: Waits for a message from another process.
+
+-   `[%cog %send pid fan] -> IO ()`: Sends the fan value to pid,
+    returning on success. `%recv`/`%send` are special in that they always
+    both execute atomically; you'll never have one without the other in
+    the event log.
+
+-   `[%cog %who] -> IO Pid`: Tells the cog who it is. Any other way of
+    implementing this would end up with changes to the type of the cog
+    function taking an extra `Pid ->`.
 
 <!---
 Local Variables:
