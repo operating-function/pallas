@@ -354,6 +354,7 @@ cog
 = (COG_SEND d m)        | [%cog %send d m]
 = COG_RECV              | [%cog %recv]
 = COG_WHO               | [%cog %who]
+= (WHAT c)              | [%what c]
 = (RAND_BYTE x)         | [%rand 0 %byte x]
 = (HTTP_SERV ss)        | [%http 0 %serv ss]
 = (HTTP_HEAR)           | [%http 0 %hear]
@@ -464,6 +465,8 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 ^-^ forceUnpackEvalResult
 ^-^
 ^-^ COG_SPIN COG_STOP COG_SEND COG_RECV COG_WHO
+^-^
+^-^ WHAT
 ^-^
 ^-^ RAND_BYTE
 ^-^

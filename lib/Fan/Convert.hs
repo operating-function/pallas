@@ -11,6 +11,7 @@ import PlunderPrelude
 import GHC.Word (Word(W#))
 
 import qualified Data.Map    as M
+import qualified Data.Set    as S
 import qualified Data.Vector as V
 import qualified GHC.Natural as GHC
 
@@ -138,6 +139,11 @@ getRawRow :: Fan -> Maybe (Vector Fan)
 getRawRow (ROW xs) = Just xs
 getRawRow _        = Nothing
 
+getRawCab :: Fan -> Maybe (Set Fan)
+getRawCab (CAb xs) = Just xs
+getRawCab (TAB t) | M.null t = Just S.empty
+getRawCab _        = Nothing
+
 getRawTable :: Fan -> Maybe (Map Fan Fan)
 getRawTable (TAB m) = Just m
 getRawTable _       = Nothing
@@ -160,6 +166,15 @@ instance ToNoun a => ToNoun [a] where
 -- at an API boundary, we represent lists as rows.
 instance FromNoun a => FromNoun [a] where
     fromNoun n = toList @(Vector a) <$> fromNoun n
+
+
+instance ToNoun a => ToNoun (Set a) where
+    toNoun = CAb . S.fromList . map toNoun . S.toList
+
+instance (Ord a, FromNoun a) => FromNoun (Set a) where
+    fromNoun n = do
+      r <- getRawCab n
+      S.fromList <$> forM (S.toList r) fromNoun
 
 instance (ToNoun k, ToNoun v) => ToNoun (Map k v) where
     toNoun = TAB . M.fromList . map (both toNoun toNoun) . M.toList

@@ -32,8 +32,10 @@ set of syscall responses `(Map Nat Any)`:
     | %% =0 [5]
     | %% =1 x#0011223344556677
 
-There are three types of syscalls: `%eval` requests, `%cog` requests, and
-everything else is treated as a CALL to hardware.
+There are four types of syscalls: `%eval` requests, `%cog` requests,
+`%what` requests to detect the attached hardware and everything else is
+treated as a CALL to hardware. The interpreter ignores any value that it
+does not understand.
 
 A CALL to hardware looks like `[%rand 0 %byte 8]`. Breaking it down:
 
@@ -45,6 +47,17 @@ A CALL to hardware looks like `[%rand 0 %byte 8]`. Breaking it down:
 
 -   `[%byte 8]` is the argument-list that is passed to the `%rand`
     device.
+
+If the current plunder VM does not have a piece of hardware given the
+passed in name, no attempt to handle the request will be made.
+
+That's why we need `%what` to synchronize what the cog thinks are the
+callable pieces of hardware. A cog doesn't detect when the plunder
+interpreter has been restarted or replaced with a different one and must
+know about what current capabilities are provided by CALL. At first, a
+cog issues a `[%what %[]]` request, receives a `%[%rand %http]` response
+and then holds open a `[%what %[%rand %http]]` request which will only
+change if the interpreter does.
 
 `%eval` asks for plunder code to be evaluated asynchronously.  The result
 is that we can take advantage of parallelism, and that the main loop is

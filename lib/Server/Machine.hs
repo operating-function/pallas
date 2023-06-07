@@ -55,6 +55,7 @@ import Server.Types.Logging
 
 import qualified Data.IntMap as IM
 import qualified Data.Map    as M
+import qualified Data.Set    as S
 import qualified Data.Vector as V
 import qualified Fan.Prof    as Prof
 
@@ -133,6 +134,7 @@ data SendOutcome
 data Response
     = RespEval EvalOutcome
     | RespCall Fan SysCall
+    | RespWhat (Set Nat)
     | RespRecv PendingSendRequest
     | RespSend SendOutcome
     | RespSpin CogId Fan
@@ -142,6 +144,7 @@ data Response
 
 responseToVal :: Response -> Fan
 responseToVal (RespCall f _) = f
+responseToVal (RespWhat w) = toNoun w
 responseToVal (RespRecv PENDING_SEND{msgParams}) = ROW msgParams
 responseToVal (RespSend SendOK) = NAT 0
 responseToVal (RespSend SendCrash) = NAT 1
@@ -190,6 +193,7 @@ data SendRequest = SNDR
 data Request
     = ReqEval EvalRequest
     | ReqCall CallRequest
+    | ReqWhat (Set Nat)
     | ReqSend SendRequest
     | ReqRecv
     | ReqSpin SpinRequest
@@ -209,9 +213,9 @@ valToRequest :: MachineName -> CogId -> Fan -> Request
 valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
     row <- getRow top
     tag <- fromNoun @DeviceName (row!0)
-    nat <- fromNoun @Nat (row!1)
 
     if tag == "eval" then do
+        nat <- fromNoun @Nat (row!1)
         let timeoutSecs = nat
         let timeoutMs   = timeoutSecs * 1000
         guard (length row >= 4)
@@ -221,7 +225,11 @@ valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
         let er = EVAL_REQUEST{func,args,machine,cogId,flow,timeoutMs}
         pure (ReqEval er)
         -- e (ReqEval $ error "_" timeoutSecs (row!2) (V.drop 3 row))
+    else if tag == "what" then do
+        what <- fromNoun @(Set Nat) (row!1)
+        pure $ ReqWhat what
     else if tag == "cog" then do
+        nat <- fromNoun @Nat (row!1)
         case nat of
             "spin" | length row == 3 -> pure (ReqSpin $ SR $ row!2)
             "stop" | length row == 3 -> ReqStop <$> fromNoun @CogId (row!2)
@@ -233,6 +241,7 @@ valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
             _ -> Nothing
     else do
         _   <- guard (length row >= 3)
+        nat <- fromNoun @Nat (row!1)
         case nat of
             0 -> pure (ReqCall $ CR False tag $ V.drop 2 row)
             1 -> pure (ReqCall $ CR True  tag $ V.drop 2 row)
@@ -314,6 +323,11 @@ data LiveRequest
     lcCancel  :: Cancel,
     lcSysCall :: SysCall
     }
+  | LiveWhat {
+    lwhIdx     :: RequestIdx,
+    lwhCog     :: Set Nat,
+    lwhRuntime :: Set Nat
+    }
   | LiveSend {
     lsndPool   :: TVar (Pool PendingSendRequest),
     lsndPoolId :: Int
@@ -340,6 +354,7 @@ instance Show LiveRequest where
     show = \case
         LiveEval{}  -> "EVAL"
         LiveCall{}  -> "CALL"
+        LiveWhat{}  -> "WHAT"
         LiveSend{}  -> "SEND"
         LiveRecv{}  -> "RECV"
         LiveSpin{}  -> "SPIN"
@@ -634,6 +649,14 @@ buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
         pure (startedFlows, LiveCall{lcIdx=reqIdx, lcSysCall, lcCancel},
               logCallback)
 
+    ReqWhat what -> do
+        -- NOTE: If we ever make the hardware set runtime dynamic, the
+        -- DeviceTable's data should be a `TVar (Map ...)` to let us detect
+        -- changes to the variable.
+        let runtime = S.fromList $ keys $ table ctx.hw
+        pure ([], LiveWhat{lwhIdx=reqIdx,lwhCog=what,lwhRuntime=runtime},
+              Nothing)
+
     ReqRecv -> do
         sends <- readTVar runner.vSends
         pool <- case M.lookup cogId sends of
@@ -664,6 +687,7 @@ buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
 cancelRequest :: LiveRequest -> STM ()
 cancelRequest LiveEval{..} = leRecord.cancel.action
 cancelRequest LiveCall{..} = lcCancel.action
+cancelRequest LiveWhat{}   = pure ()
 cancelRequest LiveRecv{}   = pure ()
 cancelRequest LiveSend{..} = poolUnregister lsndPool lsndPoolId
 cancelRequest LiveSpin{}   = pure () -- Not asynchronous
@@ -705,6 +729,11 @@ receiveResponse st = \case
                 -- TODO: Reconsider the above TODO?  Replay does not
                 -- run effects again.
                 pure (Just RTUP{key=lcIdx, resp, work=0, flow})
+
+    (_, LiveWhat{..}) -> do
+        guard (lwhCog /= lwhRuntime)
+        let resp = RespWhat lwhRuntime
+        pure (Just RTUP{key=lwhIdx,resp,work=0,flow=FlowDisabled})
 
     (_, LiveSend{}) ->
         -- Sends are never responded to normally, they're responded manually as
@@ -1101,6 +1130,7 @@ parseRequests runner cogId = do
         ReqEval{}  -> "%eval"
         ReqCall rc -> "%call " <> (encodeUtf8 $
                           describeSyscall runner.ctx.hw rc.device rc.params)
+        ReqWhat{}  -> "%what"
         ReqSend{}  -> "%send"
         ReqRecv{}  -> "%recv"
         ReqSpin{}  -> "%spin"
@@ -1113,6 +1143,7 @@ parseRequests runner cogId = do
         ReqEval{}  -> "%eval"
         ReqCall rc -> "%call " <> (encodeUtf8 $
                           syscallCategory runner.ctx.hw rc.device rc.params)
+        ReqWhat{}  -> "%what"
         ReqSend{}  -> "%cog"
         ReqRecv{}  -> "%cog"
         ReqSpin{}  -> "%cog"
