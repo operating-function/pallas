@@ -71,7 +71,7 @@ GT=2
 = add     ( _Add x y     ?? exec inc (toNat x) y    )
 = mul     ( _Mul x y     ?? exec (add x) 0 y        )
 = sub     ( _Sub x y     ?? exec dec x y            )
-= isOne   ( _IsOne x     ?? and (bit x) not-(dec x) )
+= isOne   ( _IsOne x     ?? and x not-(dec x)       )
 = ordWeld ( _OrdWeld x y ?? if (isOne x) y x        )
 
 
