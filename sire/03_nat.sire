@@ -61,24 +61,35 @@
 
 inc=3
 
+= toNat   ( _ToNat x     ?? 2 0 3 x              )
+= dec     ( _Dec x       ?? 2 0 id x             )
+= exec    ( _Exec f z x  ?? 2 z (_Exec f f-z) x  )
+= add     ( _Add x y     ?? exec inc (toNat x) y )
+= mul     ( _Mul x y     ?? exec (add x) 0 y     )
+= sub     ( _Sub x y     ?? exec dec x y         )
+= pow     ( _Pow b p     ?? exec (mul b) 1 p     )
+= bex     ( _Bex p       ?? pow 2 p              )
+
+
+""" Ordering """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+; data Ord = LT | EQ | GT
+
 LT=0
 EQ=1
 GT=2
 
-= toNat   ( _ToNat x     ?? 2 0 3 x                 )
-= dec     ( _Dec x       ?? 2 0 id x                )
-= exec    ( _Exec f z x  ?? 2 z (_Exec f f-z) x     )
-= add     ( _Add x y     ?? exec inc (toNat x) y    )
-= mul     ( _Mul x y     ?? exec (add x) 0 y        )
-= sub     ( _Sub x y     ?? exec dec x y            )
-= isOne   ( _IsOne x     ?? and x not-(dec x)       )
-= ordWeld ( _OrdWeld x y ?? if (isOne x) y x        )
+= isOne   ( _IsOne x     ?? and x not-(dec x) )
+= ordWeld ( _OrdWeld x y ?? if (isOne x) y x  )
 
 
 """ Comparison """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; Nat comparisons are not jetted.  These are just building blocks for
 ; the full PLAN comparisons, use those instead.
+;
+; Note that `natCmp` returns an `Ord` value in line with the definitions
+; above.
 
 = (natLte x y) | not (sub x y)
 = (natLth x y) | natLte inc-x y
@@ -90,7 +101,7 @@ GT=2
 = (natCmp x y) | natMin 2 (sub inc-x y)
 
 
-""" More Complex Operations """"""""""""""""""""""""""""""""""""""""""""""""""""
+""" Operations Involving Division """"""""""""""""""""""""""""""""""""""""""""""
 
 = div
    ?? (_Div x y)
@@ -98,8 +109,6 @@ GT=2
     | inc (_Div (sub x y) y)
 
 = mod ( _Mod x y ?? sub x (mul y | div x y) )
-= pow ( _Pow b p ?? exec (mul b) 1 p        )
-= bex ( _Bex p   ?? pow 2 p                 )
 = lsh ( _Lsh v n ?? mul (bex n) v           )
 = rsh ( _Rsh v n ?? div v (bex n)           )
 = bix ( _Bix i n ?? mod (rsh n i) 2         )
