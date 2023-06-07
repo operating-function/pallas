@@ -5,34 +5,11 @@
 ### 02_bit <- 01_fan
 
 """
-""" Bits
-""" ====
+""" Bits (Booleans)
+""" ===============
 """
-""" These around foundational operations on bits/booleans.
-"""
-""" There's many different ways to implement these operations, optimizing
-""" for different things.  What I've decided to optimize for here is
-""" "jet weight".
-"""
-""" Jetting only `if` gets you pretty far.  With an `if` jet + inlining,
-""" everything else is automatically implemented as a truth table.
-"""
-""" We could instead optimize for dependency depth, having most of these
-""" be implemented directly in terms of `2`, but `2` is much more
-""" cumbersome than `if`.
-"""
-""" We could inline everything besides `if`, which would make all of
-""" these functions literally truth tables.  However, we instead optimize
-""" for clarity of the PLAN code.
-"""
-""" The general principles are:
-"""
-""" -   Prefer fewer jets to shallow dependency trees.
-""" -   Prefer code clarity to shallow dependency trees
-"""
-""" So in general, we are going for short/clear definitions that boil
-""" down to a small set of core functions that benefit greatly from
-""" jetting.
+""" This module defines the the foundational operations on bits
+""" (booleans).
 """
 """
 """ Jetting
@@ -42,6 +19,30 @@
 """
 """ If implementing a subset of these jets, then _If is the highest
 """ leverage, followed by _Bit and _Not.
+"""
+"""
+""" The `_If` Jet
+""" -------------
+"""
+""" `_If` is a particularly important jet because, if the result is known
+""" to be demanded, it can avoid creating thunks for both branches.
+"""
+""" Consider something like the following:
+"""
+"""     | _If (cond expr) (big "then" expr) (big "else" expr))
+"""
+""" The naive behavior is to:
+"""
+""" 1.  Construct thunks for all three arguments.
+""" 2.  Evaluate the condition thunk.
+""" 3.  Choose either the `then` or `else` branch.
+""" 4.  Evaluate that version.
+"""
+""" An optimized version can avoid constructing these thunks and just:
+"""
+""" 1. Evaluate the conditional expression.
+""" 2. Choose a branch.
+""" 3. Evalualte the expression for that branch.
 """
 
 
@@ -61,9 +62,9 @@ FALSE=0
 = (_And x y)  | _If x (_Bit y) 0
 = (_Or x y)   | _If x 1 (_Bit y)
 = (_Xor x y)  | _If x (_Not y) (_Bit y)
-= (_Nand x y) | _Not (_And x y)
-= (_Nor x y)  | _Not (_Or x y)
-= (_Xnor x y) | _Not (_Xor x y)
+= (_Nand x y) | _If x (_Not y) 1
+= (_Nor x y)  | _If x 0 (_Not y)
+= (_Xnor x y) | _If x (_Bit y) (_Not y)
 
 
 """ Aliases and Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""""
