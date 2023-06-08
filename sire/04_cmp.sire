@@ -11,7 +11,7 @@
 """ This defines a universal ordering jet (`_Cmp`) and a handful of
 """ convenience wrappers around that:
 """
-"""     %[_Eql _IsZero _Neq _Lth _Lte _Gte _Gth _Min _Max]
+"""     %[_Eql _Neq _Lth _Lte _Gte _Gth _Min _Max]
 """
 """
 """ Jetting
@@ -99,13 +99,13 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [isPin pinItem]
+/+  01_fan  [isPin pinItem isOne isZero]
 /+  01_fan  [isLaw lawArgs lawName lawBody]
 /+  01_fan  [car cdr]
 /+  01_fan  [isNat]
 /+  01_fan  [const id]
 /+  02_bit  [if ifNot and not]
-/+  03_nat  [natCmp LT EQ GT ordWeld isOne]
+/+  03_nat  [natCmp LT EQ GT ordWeld]
 
 
 """ Ordering """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -186,15 +186,14 @@ cmp=(_Cmp)
 
 """ Specific Comparisons """"""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= eql    (_Eql x y  ?? isOne (cmp x y))
-= isZero (_IsZero x ?? eql 0 x)
-= neq    (_Neq x y  ?? not (eql x y))
-= lth    (_Lth x y  ?? eql LT (cmp x y))
-= lte    (_Lte x y  ?? neq GT (cmp x y))
-= gth    (_Gth x y  ?? eql GT (cmp x y))
-= gte    (_Gte x y  ?? neq LT (cmp x y))
-= min    (_Min x y  ?? if (lte x y) x y)
-= max    (_Max x y  ?? if (gte x y) x y)
+= eql (_Eql x y  ?? isOne (cmp x y))
+= neq (_Neq x y  ?? not (eql x y))
+= lth (_Lth x y  ?? eql LT (cmp x y))
+= lte (_Lte x y  ?? neq GT (cmp x y))
+= gth (_Gth x y  ?? eql GT (cmp x y))
+= gte (_Gte x y  ?? neq LT (cmp x y))
+= min (_Min x y  ?? if (lte x y) x y)
+= max (_Max x y  ?? if (gte x y) x y)
 
 !!= 1 | eql 0              0
 !!= 1 | eql 99             99
@@ -209,11 +208,10 @@ cmp=(_Cmp)
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ ordWeld isOne ; re-exports
+^-^ ordWeld isZero isOne ; re-exports
 ^-^
 ^-^ cmp
-^-^
-^-^ eql neq isZero
+^-^ eql neq
 ^-^ lth lte gth gte
 ^-^ min max
 ^-^

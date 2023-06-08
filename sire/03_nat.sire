@@ -44,14 +44,13 @@
 """ - _ToNat
 """ - _Dec
 """ - _Exec
-""" - _IsOne
 """ - _OrdWeld
 """
 
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [seq isNat cdr die id const]
+/+  01_fan  [seq isNat cdr die id const isOne]
 /+  02_bit  [TRUE FALSE]
 /+  02_bit  [if ifNot else]
 /+  02_bit  [not bit and or xor]
@@ -61,14 +60,14 @@
 
 inc=3
 
-= toNat   ( _ToNat x     ?? 2 0 3 x              )
-= dec     ( _Dec x       ?? 2 0 id x             )
-= exec    ( _Exec f z x  ?? 2 z (_Exec f f-z) x  )
-= add     ( _Add x y     ?? exec inc (toNat x) y )
-= mul     ( _Mul x y     ?? exec (add x) 0 y     )
-= sub     ( _Sub x y     ?? exec dec x y         )
-= pow     ( _Pow b p     ?? exec (mul b) 1 p     )
-= bex     ( _Bex p       ?? pow 2 p              )
+= toNat ( _ToNat x    ?? 2 0 3 x              )
+= dec   ( _Dec x      ?? 2 0 id x             )
+= exec  ( _Exec f z x ?? 2 z (_Exec f f-z) x  )
+= add   ( _Add x y    ?? exec inc (toNat x) y )
+= mul   ( _Mul x y    ?? exec (add x) 0 y     )
+= sub   ( _Sub x y    ?? exec dec x y         )
+= pow   ( _Pow b p    ?? exec (mul b) 1 p     )
+= bex   ( _Bex p      ?? pow 2 p              )
 
 
 """ Ordering """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -79,8 +78,7 @@ LT=0
 EQ=1
 GT=2
 
-= isOne   ( _IsOne x     ?? and x not-(dec x) )
-= ordWeld ( _OrdWeld x y ?? if (isOne x) y x  )
+= ordWeld ( _OrdWeld x y ?? if (isOne x) y x )
 
 
 """ Comparison """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

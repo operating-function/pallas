@@ -25,10 +25,10 @@
 """
 """ All of the jets in this file (besides _Trk) are optional.
 """
-""" There is an expectation that operations like _Car and _IsLaw be very
-""" cheap.  They are marked as jets so that implementations are free to
-""" optimize them.  However, the unoptimized legal code should also
-""" perform well enough in most cases.
+""" There is an expectation that operations like _Car, _IsLaw, and _IsZero
+""" be very cheap.  They are marked as jets so that implementations are
+""" free to optimize them.  However, the unoptimized legal code should
+""" also perform well enough for moderate use-cases.
 """
 
 
@@ -62,6 +62,9 @@
 = (_Car x)     | 1 (_ & 4) (n a _ & 0 n a) (h _ & h) (_ & 0) x
 = (_Cdr x)     | 1 (i & i) (_ _ b & b)     (_ t & t) (_ & 0) x
 
+= (_IsZero x)  | 1 (_ & 0) (_ _ _ & 0) (_ _ & 0) (2 1 (_ & 0)) x
+= (_IsOne x)   | 1 (_ & 0) (_ _ _ & 0) (_ _ & 0) (2 0 _IsZero) x
+
 
 """ Jet Aliases """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -81,6 +84,8 @@
 = lawBody | _LawBody
 = car     | _Car
 = cdr     | _Cdr
+= isZero  | _IsZero
+= isOne   | _IsOne
 
 
 """ Convenient Lisp-Styles Cell Accessors """"""""""""""""""""""""""""""""""""""
@@ -171,6 +176,8 @@
 ^-^ isApp car cdr
 ^-^ isNat
 ^-^ trk
+^-^
+^-^ isZero isOne
 ^-^
 ^-^ caar cadr cdar cddr caaar caadr cadar caddr cdaar cdadr cddar cdddr
 ^-^ caaaar
