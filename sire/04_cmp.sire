@@ -5,112 +5,128 @@
 ### 04_cmp <- 03_nat
 
 """
-""" Equality and Ordering
+""" Ordering and Equality
 """ =====================
 """
-""" This defines the equality jet (`eql`) for arbitrary Fan values
-""" and it's inverse `neq`.
+""" This defines a universal ordering jet (`_Cmp`) and a handful of
+""" convenience wrappers around that:
 """
-""" And we also define `compare` and some convenience functions wrapping
-""" that: (lth, lte, gte, gth, max, min)
+"""     %[_Eql _IsZero _Neq _Lth _Lte _Gte _Gth _Min _Max]
 """
+"""
+""" Jetting
+""" -------
+"""
+""" _Cmp is an extremely important jet.  While the legal code is fairly
+""" reasonable and mostly performs well unjetted, tearing apart large
+""" datajets with `car` and `cdr` can be somewhat expensive.
+"""
+""" _Eql is also very important, because an equality test on two non-equal
+""" pins can immediately return FALSE (just by checking hashes).
+""" In contrast, `_Cmp` needs to continue to traverse the body, since
+""" "not equal" isn't enough information to produce an order.
+"""
+""" The remaining jets are all nearly trivial, but are used frequently
+""" enough that larger implementations should still jet them.
+"""
+"""
+""" Ordering Rules
+""" --------------
+"""
+""" Nat < Pin < Law < App
+"""
+""" (PIN x), (LAW n a b), and (APP x y) are compared leftmost-field first.
+"""
+""" The leftmost-field-first is chosen because it:
+"""
+""" 1)  Maximizes laziness in APP nodes.
+"""
+""" 2)  Laws with different names or arities can be compared quickly.
+"""
+""" 3)  Row, Cabs, and Tabs of different lengths can be compared quickly.
+"""
+"""
+""" Lazy Evaluation Behavior
+""" ------------------------
+"""
+""" This section spells out the lazy evaluation of behavior of {_Cmp} jet
+""" in signifiant detail.  Everything in this section matches the legal
+""" code, and can be derived from the legal code.  However, spelling
+""" this out in detailed prose is still useful, as the behavior is
+""" somewhat subtle.
+"""
+""" The {_Cmp} function has the following lazy-evaluation behavior:
+"""
+""" -   Both argument are always evaluated to WHNF.
+"""
+""" -   Pins, laws, and Nats in WHNF are also in normal form.  So,
+"""     comparing values of these types always normalizes.
+"""
+""" -   The above also applies to data-jets that are built on laws:
+"""     Bar, Cow, Cab, and Rex.
+"""
+""" -   All of the remaining comparisons have to do with closures.
+"""
+""" -   If a closure is compared to a non-closure, none of it's arguments
+"""     are evaluated.
+"""
+""" -   If two closures of non-equal size are compared, none of their
+"""     arguments will be evaluated.
+"""
+""" -   If two closures with non-equal heads are compared, none of their
+"""     arguments are evaluated.
+"""
+""" -   If two closures are compared, and they have the same size and
+"""     the same head, then the argument list of both is traversed,
+"""     in application order.  And each each argument is compared until
+"""     one is found to be non-equal.
+"""
+""" -   The above rules apply in the same way to data-jets that are built
+"""     on closures (Rows and Tabs)
+"""
+"""     1)  Smaller rows/tabs are smaller that larger rows/tabs.  This is
+"""         true even when comparing a row to a tab.
+"""
+"""     2)  Rows are smaller than tabs, if the sizes are the same.
+"""
+"""     3)  When comparing two rows of equal size, compare the arguments
+"""         from right-to-left (rows are stored as reversed closure).
+"""
+"""     4)  When comparing two tabs of equal size, compare the parameters
+"""         starting from the greatest key, and working backwards.
+"""
+
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 /+  01_fan  [isPin pinItem]
 /+  01_fan  [isLaw lawArgs lawName lawBody]
-/+  01_fan  [isApp car cdr]
+/+  01_fan  [car cdr]
 /+  01_fan  [isNat]
 /+  01_fan  [const id]
-/+  02_bit  [if ifNot else and not]
-/+  03_nat  [natEql natCmp LT EQ GT ordWeld]
-/+  03_nat  [natEql natCmp LT EQ GT ordWeld isOne]
+/+  02_bit  [if ifNot and not]
+/+  03_nat  [natCmp LT EQ GT ordWeld isOne]
 
 
 """ Ordering """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-;
-; The ordering on Fan nouns is designed to find differences quickly.
-;
-; Laws are ordered left-to-right, so the name is compared first and the
-; body last.  Law bodies are large, so we avoid entering them unless
-; everything else is equal.
-;
-; Apps are first compared by closure-size, and then also compared
-; left-to-right.  Comparing closure size is a quick short-cut, and
-; comparing head-first maximizes laziness.
-;
-; For example, this terminates:
-;
-;     (cmp (v2 die-3 die-4) (v2 die-5))
-;
-; As does this:
-;
-;     (cmp const-(die 3) ignore-(die 3))
-;
-; This also a jetting implementation to compare data jets without
-; deconstructing them.
-;
 
 = (**lawCmp cmp x y)
 | ordWeld (natCmp (lawName x) (lawName y))
 | ordWeld (natCmp (lawArgs x) (lawArgs y))
           (cmp (lawBody x) (lawBody y))
 
-;
-; (Nat < Pin < Law < App)
-;
-; Nats comparisons are done in the obvious ways.
-;
-; Pins, Laws, and Apps are compared "lexicographically" (compare the
-; first thing first).
-;
-; Note that, (len x > len y) implies (x > y).  This is a useful property
-; for efficiently comparing data-jets, for example, a shorter array is
-; always smaller than a longer array.  There is no need to compare
-; the values.
-;
-; The {cmp} function has the following lazy-evaluation behavior:
-;
-; -   Pins, laws, and nats are always in normal form once evaluated,
-;     so these will always be fully evaluated if compared.
-;
-; -   The above also applies to data-jets that are built on laws:
-;     Bar, Cow, Cab, and Rex.
-;
-; -   If a closure is compared to a non-closure, the closure will be
-;     evaluated to WHNF (and no further)
-;
-; -   If a larger closure is compared to a smaller closure, both closures
-;     will be evaluated to WHNF (and no further).
-;
-; -   If two closures of the same size are compared, then both closures
-;     will be evaluated to WHNF, and then the items will be compared
-;     one-by-one in application order.  Any remaining items will not
-;     be evaluated.
-;
-; -   The above rules apply in the same way to data-jets that are built
-;     on closures:
-;
-;     1)  Smaller rows and tabs are smaller (and no of the values are
-;         evaluated).
-;
-;     2)  Rows of equal size are compared starting from the last value
-;         (because row items are applied in reverse order).
-;
-;     3)  Tabs of equal size are compared starting from the greatest key
-;         (because tab items are applied in reverse order).
-;
-= (cmp x y)
+= (_Cmp x y)
 | if (isNat x) | ifNot (isNat y) LT (natCmp x y)
 | if (isNat y) | GT
-| if (isPin x) | ifNot (isPin y) LT (cmp (pinItem x) (pinItem y))
+| if (isPin x) | ifNot (isPin y) LT (_Cmp (pinItem x) (pinItem y))
 | if (isPin y) | GT
-| if (isLaw x) | ifNot (isLaw y) LT (lawCmp cmp x y)
+| if (isLaw x) | ifNot (isLaw y) LT (lawCmp _Cmp x y)
 | if (isLaw y) | GT
 | ordWeld
-    (cmp (car x) (car y))
-    (cmp (cdr x) (cdr y))
+    (_Cmp (car x) (car y))
+    (_Cmp (cdr x) (cdr y))
+
+cmp=(_Cmp)
 
 !!= LT | cmp 9     const
 !!= EQ | cmp const const
@@ -170,15 +186,15 @@
 
 """ Specific Comparisons """"""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (eql x y)  | isOne (cmp x y)
-= (isZero x) | eql 0 x
-= (neq x y)  | not (eql x y)
-= (lth x y)  | eql LT (cmp x y)
-= (lte x y)  | neq GT (cmp x y)
-= (gth x y)  | eql GT (cmp x y)
-= (gte x y)  | neq LT (cmp x y)
-= (min x y)  | if (lte x y) x y
-= (max x y)  | if (gte x y) x y
+= eql    (_Eql x y  ?? isOne (cmp x y))
+= isZero (_IsZero x ?? eql 0 x)
+= neq    (_Neq x y  ?? not (eql x y))
+= lth    (_Lth x y  ?? eql LT (cmp x y))
+= lte    (_Lte x y  ?? neq GT (cmp x y))
+= gth    (_Gth x y  ?? eql GT (cmp x y))
+= gte    (_Gte x y  ?? neq LT (cmp x y))
+= min    (_Min x y  ?? if (lte x y) x y)
+= max    (_Max x y  ?? if (gte x y) x y)
 
 !!= 1 | eql 0              0
 !!= 1 | eql 99             99
@@ -193,7 +209,9 @@
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ ordWeld cmp
+^-^ ordWeld isOne ; re-exports
+^-^
+^-^ cmp
 ^-^
 ^-^ eql neq isZero
 ^-^ lth lte gth gte
