@@ -49,7 +49,7 @@ data CRes = CR
     This compiles a nested function directly into a PLAN value.
 
     We assume that the input contains no free variables, a property
-    that is guarenteed by `transformSire`.
+    that is guaranteed by `transformSire`.
 -}
 compileFun :: Bool -> Func -> ExceptT Text IO Fan
 compileFun pinned f = do
