@@ -68,44 +68,27 @@ S
 st
 
 = (b3Permute m)
-| gen 16
-& i
-| get m
-| get b3MsgPermutation i
+: i <- gen 16
+| get m (get b3MsgPermutation i)
 
-= (u8weld x y)
-| add x (lsh y 8)
-
-; welds up to four u8.
-= (u32weld v)
-| ifNot (eql (len v) 4)
-    | die "u32weld requires 4 bytes"
-| u8weld (get v 0)
-| u8weld (get v 1)
-| u8weld (get v 2)
-         (get v 3)
+= (u32FromBytesLSB a b c d)
+| add32 a
+| add32 (lsh32 b 8)
+| add32 (lsh32 c 16)
+        (lsh32 d 24)
 
 > Row U8 > Row U32
-= (bytesToWords bv)
-| if (mod (len bv) 4)
+= (bytesToWords bytes)
+@ numBytes | len bytes
+| if (mod numBytes 4)
     | die "byte-row length not a multiple of 4"
-@ wid (div (len bv) 4)
-^ _ 0 0 (mkRow wid)
-? (loop i j acc)
-| if (eql j wid) acc
-@ next (add i 4)
-| loop next (inc j)
-| acc | u32weld | slice bv i next
-  ; TODO: Can this be written using {gen} or something like that?
-
-> Row U8 > Row U32
-= (bytesToWords bv)
-| if (mod (len bv) 4)
-    | die "byte-row length not a multiple of 4"
-| gen (div (len bv) 4)
-& j
-@ i (mul j 4)
-| u32weld (slice bv i (add i 4))
+: wix <- gen (div numBytes 4)
+@ bix (mul 4 wix)
+| u32FromBytesLSB
+    (get bytes | bix)
+    (get bytes | add bix 1)
+    (get bytes | add bix 2)
+    (get bytes | add bix 3)
 
 ; breaks a nat that represents a word into
 ; its little-endian component bytes
@@ -163,13 +146,8 @@ st
 
 (first8words v)=(slice v 0 8)
 
-= | b3OutputNew
-    inChain
-    blockWords
-    counter
-    len
-    flags
-(inChain, blockWords, counter, len, flags)
+= (b3OutputNew inChain blockWords counter len flags)
+| (inChain, blockWords, counter, len, flags)
 
 (b3OutputGetInputChainingValue o)=(get o 0)
 (b3OutputGetBlockWords o)=(get o 1)
@@ -190,24 +168,21 @@ st
 @ outChunkLen
     | mul 2 b3OutLen
 @ wid
-    | div (roundUp outSize outChunkLen)
-          outChunkLen
-^ cat (_ 0 outSize (mkRow wid))
-? (loop outputBlockCounter remBytes acc)
-| if (eql outputBlockCounter wid) acc
-@ words | b3Compress
-       ++ b3OutputGetInputChainingValue o
-       ++ b3OutputGetBlockWords o
-       ++ outputBlockCounter
-       ++ b3OutputGetBlockLen o
-       ++ or32 (b3OutputGetFlags o) b3Root
-@ need | min outChunkLen remBytes
-@ segm | take need
-       | wordsToBytes words
-| loop
-* inc outputBlockCounter
-* sub remBytes need
-* acc segm
+    | div (roundUp outSize outChunkLen) outChunkLen
+^ cat (gen wid _)
+& outputBlockCounter
+@ words
+    | b3Compress
+   ++ b3OutputGetInputChainingValue o
+   ++ b3OutputGetBlockWords o
+   ++ outputBlockCounter
+   ++ b3OutputGetBlockLen o
+   ++ or32 (b3OutputGetFlags o) b3Root
+@ usedBytes | mul outChunkLen outputBlockCounter
+@ remBytes  | sub outSize usedBytes
+@ need      | min outChunkLen remBytes
+| take need (wordsToBytes words)
+
 
 ; = ChunkState
 ; , chainingVal

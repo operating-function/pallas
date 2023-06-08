@@ -190,5 +190,5 @@ jetHashes
     , e "sub32"               "CXLWuVNhEHfL6PdpzMFWksjAsvCEF53oLCkSvLXqmRYR"
     , e "ror32"               "HBCzYHuimPmfH3uDT7PcPZdAxL8NiJsSpZH5NPJy2NHT"
     , e "rol32"               "EDTt4s514xc88fuPwtRmAPQt4fcSi8Q9r5hwT2izqDJA"
-    , e "blake3"              "DsRCZjSBS9gR8rEoUoEgHmd8BSC2ECrAmPuVGVQNzYFq"
+    , e "blake3"              "Gt2XkzPDYBqCU3xDvjVVZesq6n2EVTHbmzGVyPujmxsS"
     ]

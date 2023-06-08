@@ -23,7 +23,11 @@
 """ Jetting
 """ -------
 """
-""" All of the jets in this file (besides _Trk) are optional.
+""" All of the jets in this file are optional.
+"""
+""" The _Trk jet prints it's first argument to some sort of debugging log.
+""" _Trk is the only is the only "effectful" jet, the effect is optional,
+""" and the effect is not observable from other PLAN code.
 """
 """ There is an expectation that operations like _Car, _IsLaw, and _IsZero
 """ be very cheap.  They are marked as jets so that implementations are
@@ -69,7 +73,7 @@
 """ Jet Aliases """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; The _JetNaming convention is used for laws that runtime systems are
-; expected to optimize.  It is unslightly, however.
+; expected to optimize.  It is unsightly, however.
 
 = force   | _Force
 = seq     | _Seq

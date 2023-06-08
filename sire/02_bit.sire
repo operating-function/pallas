@@ -8,8 +8,7 @@
 """ Bits (Booleans)
 """ ===============
 """
-""" This module defines the the foundational operations on bits
-""" (booleans).
+""" This module defines the foundational operations on bits (booleans).
 """
 """
 """ Jetting
@@ -42,7 +41,7 @@
 """
 """ 1. Evaluate the conditional expression.
 """ 2. Choose a branch.
-""" 3. Evalualte the expression for that branch.
+""" 3. Evaluate the expression for that branch.
 """
 
 
