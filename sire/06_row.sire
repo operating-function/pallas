@@ -14,7 +14,7 @@
 """
 """ The bulk of the row operations are defined in 08_dat.sire, since many
 """ operations are more naturally defined along with operations on other
-""" datat types (such as lists and optional values).
+""" data types (such as lists and optional values).
 """
 """ A row is represented as (cow n) partially applied to n argumnts,
 """ for example:
@@ -25,7 +25,7 @@
 """
 """ `get`, `idx`, and `len` are primarily intended to be used with rows,
 """ however their legal code is defined to work on any closure.
-""" For example, then length of (1 2 3) is 2 and it's first element is 3.
+""" For example, then length of (1 2 3) is 2 and its first element is 3.
 """
 """ Similarly, operations like `map` and `gen` are defined in terms of
 """ these primitives also work with closures.
@@ -110,7 +110,7 @@ v1=c1
 (v8 a b c d e f g h)=(c8 h g f e d c b a)
 (v9 a b c d e f g h i)=(c9 i h g f e d c b a)
 
-; TODO: Get rid of {mkrow}.  It's archane and can be lived without.
+; TODO: Get rid of {mkrow}.  It's arcane and can be lived without.
 = (mkRow n)
 ^ (0 0 n (_ n (2 cow-n)))
 ? (go i acc)

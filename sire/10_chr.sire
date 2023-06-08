@@ -8,8 +8,6 @@
 """ Characters
 """ ==========
 """
-""" TODO Expand this
-"""
 
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -61,7 +59,9 @@
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+^-^
 ^-^  ord chr
 ^-^  isDigit isUpper isLower isAlpha isPrint
 ^-^  isAlphaNum
 ^-^  toLower toUpper
+^-^

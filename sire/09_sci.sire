@@ -10,10 +10,8 @@
 """
 """ Utilities for inspecting Fan values.
 """
-""" TODO: Expand this.
-"""
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 /+  01_fan  [PIN isPin pinItem]
 /+  01_fan  [LAW isLaw lawBody lawArgs lawName]
@@ -59,7 +57,9 @@
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+^-^
 ^-^ inspect
 ^-^ fullInspection
 ^-^ reconstruct
 ^-^ unApply
+^-^

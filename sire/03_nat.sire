@@ -50,7 +50,7 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [seq isNat cdr die id const isOne]
+/+  01_fan  [seq isNat cdr die id const isZero isOne]
 /+  02_bit  [TRUE FALSE]
 /+  02_bit  [if ifNot else]
 /+  02_bit  [not bit and or xor]
@@ -226,29 +226,29 @@ GT=2
 !!= 1 | natEql 8 (roundUp 5 4)
 
 = (checkOrd x y)
-@ o (natCmp x y)
-| if (natEql o LT)
-  | and (bit (natLth x y))
-  | and (bit (natLte x y))
-  | and (not (natEql x y))
-  | and (not (natGte x y))
-  | and (not (natGth x y))
-  | and (natEql x (natMin x y))
-        (natEql y (natMax x y))
-| if (natEql o EQ)
-  | and (not (natLth x y))
-  | and (bit (natLte x y))
-  | and (bit (natEql x y))
-  | and (bit (natGte x y))
-        (not (natGth x y))
-| else
-  | and (not (natLth x y))
-  | and (not (natLte x y))
-  | and (not (natEql x y))
-  | and (bit (natGte x y))
-  | and (bit (natGth x y))
-  | and (natEql y (natMin x y))
-        (natEql x (natMax x y))
+@ ord (natCmp x y)
+| if (isZero ord) ; LT
+    | and (bit | natLth x y)
+    | and (bit | natLte x y)
+    | and (not | natEql x y)
+    | and (not | natGte x y)
+    | and (not | natGth x y)
+    | and (natEql x | natMin x y)
+          (natEql y | natMax x y)
+| if (isOne ord) ; EQ
+    | and (not | natLth x y)
+    | and (bit | natLte x y)
+    | and (bit | natEql x y)
+    | and (bit | natGte x y)
+          (not | natGth x y)
+| else ; GT
+    | and (not | natLth x y)
+    | and (not | natLte x y)
+    | and (not | natEql x y)
+    | and (bit | natGte x y)
+    | and (bit | natGth x y)
+    | and (natEql y | natMin x y)
+          (natEql x | natMax x y)
 
 !!= 1 (checkOrd 0 0)
 !!= 1 (checkOrd 0 1)
@@ -264,7 +264,7 @@ GT=2
 !!= 1 (checkOrd 7 4)
 
 
-""" Check Literal Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Test Sire Nat-Literals """""""""""""""""""""""""""""""""""""""""""""""""""""
 
 !!= 0x10   | 16
 !!= 0x0100 | 256

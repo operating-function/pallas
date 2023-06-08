@@ -108,7 +108,7 @@
 /+  03_nat  [natCmp LT EQ GT ordWeld]
 
 
-""" Ordering """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Comparisons """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (**lawCmp cmp x y)
 | ordWeld (natCmp (lawName x) (lawName y))
@@ -126,7 +126,28 @@
     (_Cmp (car x) (car y))
     (_Cmp (cdr x) (cdr y))
 
-cmp=(_Cmp)
+= cmp _Cmp
+
+= eql (_Eql x y ?? isOne (cmp x y))
+= neq (_Neq x y ?? not (eql x y))
+= lth (_Lth x y ?? eql LT (cmp x y))
+= lte (_Lte x y ?? neq GT (cmp x y))
+= gth (_Gth x y ?? eql GT (cmp x y))
+= gte (_Gte x y ?? neq LT (cmp x y))
+= min (_Min x y ?? if (lte x y) x y)
+= max (_Max x y ?? if (gte x y) x y)
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+!!= 1 | eql 0              0
+!!= 1 | eql 99             99
+!!= 1 | eql id             id
+!!= 1 | eql _&0            _&0
+!!= 1 | eql (0 0)          (0 0)
+!!= 1 | eql (const 0)      (const 0)
+!!= 1 | eql (const const)  (const const)
+!!= 1 | eql (1 0 1 2)      (1 0 1 2)
 
 !!= LT | cmp 9     const
 !!= EQ | cmp const const
@@ -182,27 +203,6 @@ cmp=(_Cmp)
 !!= GT | cmp (0 3 3 1) (0 2 2 2)
 !!= GT | cmp (0 3 3 2) (0 2 2 2)
 !!= GT | cmp (0 3 3 3) (0 2 2 2)
-
-
-""" Specific Comparisons """"""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-= eql (_Eql x y  ?? isOne (cmp x y))
-= neq (_Neq x y  ?? not (eql x y))
-= lth (_Lth x y  ?? eql LT (cmp x y))
-= lte (_Lte x y  ?? neq GT (cmp x y))
-= gth (_Gth x y  ?? eql GT (cmp x y))
-= gte (_Gte x y  ?? neq LT (cmp x y))
-= min (_Min x y  ?? if (lte x y) x y)
-= max (_Max x y  ?? if (gte x y) x y)
-
-!!= 1 | eql 0              0
-!!= 1 | eql 99             99
-!!= 1 | eql id             id
-!!= 1 | eql _&0            _&0
-!!= 1 | eql (0 0)          (0 0)
-!!= 1 | eql (const 0)      (const 0)
-!!= 1 | eql (const const)  (const const)
-!!= 1 | eql (1 0 1 2)      (1 0 1 2)
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

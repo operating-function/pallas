@@ -67,11 +67,11 @@
 """ 3)  Can be pretty-printed effectively even without a data-jet.
 """ 4)  Can pretty-printing of rex trees that are not quite valid.
 """
-""" That last point would address a currenty sticking point, where
+""" That last point would address a curent sticking point, where
 """ invalid rex has such insane printer-output, that it is difficult to
 """ find the mistake.
 """
-""" The printer could use the non-ascii symbol ↑ for embeded values
+""" The printer could use the non-ASCII symbol ↑ for embedded values
 """ and ↓ for invalid values.
 """
 """ For example:

@@ -43,7 +43,7 @@
 = todo    | "todo"  ; Calling a primop above 4 is a crash.
 
 
-""" Primps API """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Primops API """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (_Force x)    | 0 0 0 (2 x)
 = (_Seq x y)    | 2 y (_ & y) x
@@ -88,7 +88,7 @@
 = isOne   | _IsOne
 
 
-""" Convenient Lisp-Styles Cell Accessors """"""""""""""""""""""""""""""""""""""
+""" Convenient Lisp-Style Cell Accessors """""""""""""""""""""""""""""""""""""""
 
 = (caar x)   | car | car | x
 = (cadr x)   | car | cdr | x
@@ -105,7 +105,7 @@
 = (caaaar x) | car | car | car | car | x
 
 
-""" Combinators """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Common Combinators """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (id x)          | x
 = (const x y)     | x
@@ -159,7 +159,8 @@
 !!= 7 | (0 'f' 2 1)     7 0
 !!= 7 | (0 'f' 2 2)     0 7
 
-;; Note that zero-arity laws are possible (they evaluate immediately).
+; Note that zero-arity laws are possible (they evaluate immediately).
+
 !!= 7 | (0 'f' 0 7)
 !!= 7 | (0 'f' 0 (2 7))
 !!= 7 | (0 'f' 0 (1 7 1))
