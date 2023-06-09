@@ -404,20 +404,16 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= pinBytz-(2 0 3) | x#4c3e0d
 !!= pinBytz-toNat   | x#f8c0f745f5e614462f67f2e906
 
-{pinHash add}
 !!= x#{9cfae4b4de9b0ccc3de9b3aa00408bc33f50ca116ed034263b76af95d8736f7f}
   | pinHash add
 
-{pinHash mul}
 !!= x#{6d28120be06cf59c81efac6a030495ff7f647985241a66aa2389b58ee9d3a9cf}
   | pinHash mul
 
-{pinHash cmp}
 !!= x#{1cd7dcdd584a6a8944e33b039b5ef04058034db28cac1c2238c044f591bdf83d}
   | pinHash cmp
 
-{pinHash pinHash}
-!!= x#{0245f3e66680d57888bcd45f27a570a9ca6612dd4e16d16238f81f5803b30894}
+!!= x#{a0deaa782484ba4b3e12a244e0eed58c23a55982f18472ee7135df4bfb5434b4}
   | pinHash pinHash
 
 = (refsTable pin)

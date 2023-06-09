@@ -21,6 +21,10 @@
 """ reasonable and mostly performs well unjetted, tearing apart large
 """ datajets with `car` and `cdr` can be somewhat expensive.
 """
+""" _Cmp is also the building block upon which Maps and Sets will be
+""" built.  It is also the routine that the function used by the built-in
+""" sorting and searching routines.
+"""
 """ _Eql is also very important, because an equality test on two non-equal
 """ pins can immediately return FALSE (just by checking hashes).
 """ In contrast, `_Cmp` needs to continue to traverse the body, since

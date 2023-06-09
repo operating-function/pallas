@@ -15,7 +15,7 @@ ifHash :: Hash256
 ifHash = "DiwZ6jrm6gs9AcVsNDvPfUoYXN1upQbDBMWcEDE66rYu"
 
 switchHash :: Hash256
-switchHash = "6DKJViv9XnbgKHBASSsbWdZaJrUd1oSCbuUBztJegyNo"
+switchHash = "CYnCDku2uAq3AHU2wmYExoweU6BCwUNgZ8CVtP4JXzaB"
 
 tabSwitchHash :: Hash256
 tabSwitchHash = "23rjYDQU4Ai4hjE3vE4KkPV3SK4NFNRew3TyuQg8S6R4"

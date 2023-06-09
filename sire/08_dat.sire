@@ -17,7 +17,7 @@
 
 /+  01_fan
 /+  02_bit  [if else ifNot and or not bit TRUE FALSE]
-/+  03_nat  [dec sub add lsh rsh div roundUp mod even]
+/+  03_nat  [dec sub add lsh rsh div roundUp mod even mul]
 /+  03_nat  [LT GT EQ]
 /+  06_row  [head arity len idx get mut]
 /+  04_cmp  [eql neq cmp lth lte gte min isZero]
@@ -55,54 +55,50 @@
 
 (tag row)=(gen len-row i&(c2 idx-i-row i))
 
-= (rep i n)         | gen n _&i
+= (rep i n)         | gen n (const i)
 = (rowAnd v)        | foldr and TRUE v
 = (rowOr v)         | foldr or FALSE v
 = (sum v)           | foldr add FALSE v
-= (all f v)         | rowAnd map-f-v
-= (any f v)         | rowOr map-f-v
+= (all f v)         | rowAnd (map f v)
+= (any f v)         | rowOr (map f v)
 = (cat vs)          | foldr weld v0 vs
 = (catMap f r)      | cat (map f r)
 = (zipWith f a b)   | gen (min len-a len-b) i&(f idx-i-a idx-i-b)
 = (zip a b)         | zipWith v2 a b
 = (rowApply f xs)   | foldl apply f xs
 = (rowRepel f xs)   | foldr supply f xs
-= (take n v)        | gen (min n len-v) get-v
-= (drop n v)        | gen (sub len-v n) i&(get v add-i-n)
-= (has ele row)     | any eql-ele row
-= (slice v s e)     | gen (sub e s) (i & get v add-s-i)
+= (has ele row)     | any (eql ele) row
+= (slash v s e)     | gen (sub e s) i&(get v | add s i)
+= (slice v s e)     | slash v s (min e | len v)
+= (drop n v)        | slice v n (len v)
+= (take n v)        | slice v 0 n
+= (splitAt i r)     | **v2 (take i r) (drop i r)
 
-= (chunks i v)
-| ifNot (isApp v) v0
-| rev
-@ wid (div (roundUp len-v i) i)
-^ _ v cow-wid
-? (go v acc)
-| ifNot (len v) acc
-| go (drop i v)
-| acc
-| take i v
+= (chunks sz row)
+| gen | div (roundUp len-row sz) sz
+& ix
+@ start (mul ix sz)
+| slice row start (add start sz)
+
+; TODO: {span} should combine {elemIdx} and {splitAt}.
 
 = (span f r)
 @ l | len r
 ^ _ 0
 ? (loop i)
-| if (eql i l) (v2 r v0)
-| if (f (idx i r))
+| if (eql i l) (**v2 r v0)
+| if (f | idx i r)
     | loop (inc i)
-(v2 (take i r) (drop i r))
+| **v2 (take i r) (drop i r)
 
-= (splitAt i r)
-(v2 (take i r) (drop i r))
-
+; TODO: Doesn't work
 (strictRow a)=(foldl const a a)
 
 = (insert ix val row)
 | gen (inc len-row)
 & i
-| if (lth i ix) | idx i row
-| if (eql i ix)    | val
-| else             | idx (dec i) row
+| switch (cmp i ix) 0
+| **v3 (idx i row) val (idx (dec i) row)
 
 !!= (v2 9 0)   | insert 0 9 (v1 0)
 !!= (v2 0 9)   | insert 1 9 (v1 0)
@@ -242,8 +238,13 @@
 !!= 1 | has 4 [2 3 4]
 !!= 1 | not (has 5 [2 3 4])
 
-!!= (slice [3 4 5] 0 5) | [3 4 5 0 0]
-!!= (slice [3 4 5] 1 4) | [4 5 0]
+!!= (slash [3 4 5] 0 5) | [3 4 5 0 0]
+!!= (slash [3 4 5] 1 4) | [4 5 0]
+!!= (slash [3 4 5] 2 3) | [5]
+!!= (slash [3 4 5] 3 2) | []
+
+!!= (slice [3 4 5] 0 5) | [3 4 5]
+!!= (slice [3 4 5] 1 4) | [4 5]
 !!= (slice [3 4 5] 2 3) | [5]
 !!= (slice [3 4 5] 3 2) | []
 
@@ -274,22 +275,10 @@
 !!= [[1 2 3]]     | chunks 3 [1 2 3]
 !!= [[1 2 3] [4]] | chunks 3 [1 2 3 4]
 
+!!= [0,1,2 3,4,5 6,7,8 [9]] | chunks 3 [0 1 2 3 4 5 6 7 8 9]
+
 !!= 1 | has "aa" ["aa" "bb"]
 !!= 1 | not (has "aa" ["bb" "cc"])
-
-
-""" Switch """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-; TODO Rename to `rowSwitch`?
-= (switch i fb ps)
-| if (gte i len-ps) fb
-| idx i ps
-
-; TODO kill this?
-; TODO Rename to `rowMatch`?
-; TODO Or change this to (ifNat v v (cdr v))?
-= (match v fb ps)
-| switch idx-0-v fb ps
 
 
 """ Lists """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -873,8 +862,7 @@ F=found
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ slice chunks rep rowCons rowSnoc
-^-^ switch match
+^-^ slash slice chunks rep rowCons rowSnoc
 ^-^ tag findIdx elemIdx has
 ^-^ rowAnd rowOr sum all any zip zipWith
 ^-^ cat catMap

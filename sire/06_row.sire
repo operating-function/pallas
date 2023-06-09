@@ -40,7 +40,7 @@
 /+  01_fan  [id const apply supply]
 /+  02_bit  [if ifNot and or not]
 /+  03_nat  [dec sub add]
-/+  04_cmp  [eql lth isZero]
+/+  04_cmp  [eql isZero lth gte]
 
 
 """ Basic Closure Operations """""""""""""""""""""""""""""""""""""""""""""""""""
@@ -82,6 +82,10 @@
 (idx k r)=(get r k)
 
 (mut k v r)=(put r k v)
+
+= (switch ix fallback branches)
+| if (gte ix | len branches) fallback
+| get branches ix
 
 
 """ Core Definitions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -184,14 +188,14 @@ v1=c1
 
 """ More Basic Operations """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (fst x)         | idx 0 x
-= (snd x)         | idx 1 x
-= (map f v)       | gen len-v x&(f idx-x-v)
-= (rev xs)        @ wid len-xs | gen wid i&(get xs sub-wid-(inc i))
-= (rowApply f xs) | foldl apply f xs
-= (rowRepel f xs) | foldr supply f xs
-= (curry f x y)   | f (c2 y x)
-= (uncurry f xy)  | f (fst xy) (snd xy)
+= (fst x)          | idx 0 x
+= (snd x)          | idx 1 x
+= (map f v)        | gen len-v x&(f idx-x-v)
+= (rev xs)         @ wid len-xs | gen wid i&(get xs sub-wid-(inc i))
+= (rowApply f xs)  | foldl apply f xs
+= (rowRepel f xs)  | foldr supply f xs
+= (curry f x y)    | f (c2 y x)
+= (uncurry f xy)   | f (fst xy) (snd xy)
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -296,6 +300,7 @@ v1=c1
 ^-^ head null arity len
 ^-^ idx get
 ^-^ mut put
+^-^ switch
 ^-^
 ^-^ c0 c1 c2 c3 c4 c5 c6 c7 c8 c9
 ^-^ v0 v1 v2 v3 v4 v5 v6 v7 v8 v9
