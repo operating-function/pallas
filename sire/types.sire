@@ -1,3 +1,7 @@
+;;; Copyright 2023 The Plunder Authors
+;;; Use of this source code is governed by a BSD-style license that can be
+;;; found in the LICENSE file.
+
 ### types <- datatype
 
 /+ boot
@@ -187,6 +191,11 @@ abstype#(Fun a b)
 abstype#Bar
 abstype#Bit
 abstype#Str
+abstype#Rex
+abstype#(Read a)
+abstype#(Read2 a b)
+abstype#(Read3 a b c)
+abstype#(Read4 a b c d)
 abstype#(Tab k v)
 abstype#(Cab k)
 abstype#(Row a)
@@ -622,9 +631,10 @@ printType#Fun
 ^-^
 ^-^ '>'
 ^-^
-^-^ Void Any
+^-^ Void Any Type
 ^-^ Nat Pin Fun
 ^-^ Bit Str
+^-^ Rex Read
 ^-^ Row List Cab Tab
 ^-^ Opt Either
 ^-^ Bar

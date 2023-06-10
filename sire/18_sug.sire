@@ -428,11 +428,11 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 | if (eql {$} rune)
     | if (neq 1 nKid)
         | err rex {Too many/few sons for $ in `` macro}
-    | readVal (fst kids) err ok
+    | readVal (fst kids) err (compose ok EMBD)
 | if (eql {$$} rune)
     | if (neq 1 nKid)
         | err rex 'Too many/few sons for $$ in `` macro'
-    | readExp (fst kids) err ok
+    | readExp (fst kids) err (compose ok EMBD)
 : heir
     < & ret
       | if (isZero heir) (ret 0)
@@ -498,8 +498,8 @@ four=(WORD 0 {4} 0)
 ; TODO: Reverse these runes?
 
 = ({``} s p e a r err ok)
-@ readVal (rex err ok & ok (EMBD | LEFT rex))
-@ readExp (rex err ok & ok (EMBD | RIGHT rex))
+@ readVal (rex err ok & ok (LEFT rex))
+@ readExp (rex err ok & ok (RIGHT rex))
 : quoted < readQuasiQuotedRex readVal readExp r err
 | ok p a (splicedE quoted)
 

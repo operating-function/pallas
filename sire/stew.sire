@@ -9,6 +9,7 @@
 /+  switch
 /+  datatype  [parseDatacase resolveDatacase]
 /+  mutrec    [readMutRecExp genMutRecE]
+/+  types
 
 """
 """ stew.sire
@@ -144,6 +145,9 @@
 
 """ Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+* # typedef Sym Nat ; TODO: newtype
+* # typedef Chr Nat ; TODO: newtype
+
 # datatype Pat
 * PVAR=v k:Key n:Sym
 * PSEQ=s k:Key p:Sym
@@ -157,7 +161,7 @@
 # record ConCase
 | CON_CASE con:Sym params:(Row Pat) body:Exp
 
-# record Fun
+# record StewFun
 | FUN self:Sym tag:Nat args:(Row Pat) body:Exp
 
 # datatype Cmd
@@ -258,7 +262,7 @@
 | if (len rexes == 1) first
 | NEST 0 {|} rexes 0
 
-> (Exp > Rex) > Bit > Fun > Rex
+> (Exp > Rex) > Bit > StewFun > Rex
 = (showFun showExp pin (FUN self tag args body))
 | if (self /= tag)
     | todo 'show lambdas where name is different from tag'
@@ -336,10 +340,19 @@
    ++ showExp exp
 | showSwitchArms showExp wild arms
 
-= (showQuotedRex showExp rex)
-| todo
-   ++ 'show quoted rex'
-   ++ rex
+= (rexSplice f rex)
+| if (isZero rex)    | rex
+| if (rexIsEmbd rex) | f | rexEmbd rex
+| rexSetSons | map (rexSplice f) (rexSons rex)
+| rexSetHeir | rexSplice f (rexHeir rex)
+| rex
+
+= (showQuasiQuotedRex showExp rex)
+^ rexSplice _ rex
+& val
+# datacase val
+* (LEFT l)  | PREF 0 "$"  [showExp-l] 0
+* (RIGHT r) | PREF 0 "$$" [showExp-r] 0
 
 > Chr > Bit
 (okIdnChar c)=(eql '_' c || isAlphaNum c)
@@ -409,7 +422,7 @@
 * (EMUT t b as)  | showMutRec go t b as
 * (ESWI e f as)  | showSwitch go e f as
 * (EREX r)       | NEST 0 "`" [r] 0
-* (EQRX r)       | showQuotedRex go r
+* (EQRX r)       | showQuasiQuotedRex go r
 * (ECON x xs)    | INFX 0 "::" (showExp x, showExp xs) 0
 * ENIL           | `(~[])
 * (EEQL xs)      | INFX 0 "==" (map showExp xs) 0
@@ -458,7 +471,7 @@
 
 """ Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-> (Rex > Parser Exp) > Rex > Parser Exp
+> (Rex > Read Exp) > Rex > Read Exp
 = (parseLet readExp rex err ok)
 : binds body < readLet readExp rex err
 | ok
@@ -472,20 +485,20 @@
 * (RIGHT [bind valExp])
     | ELET bind valExp body
 
-> (Rex > Parser Exp) > Rex > Parser Exp
+> (Rex > Read Exp) > Rex > Read Exp
 = (parseRec readExp rex err ok)
 : e <- parseLet readExp rex err
 # datacase e
 * (ELET v e b) | ok | EREC v e b
 
-> (Rex > Parser Exp) > Rex > Parser Rex
+> (Rex > Read Exp) > Rex > Read Rex
 = (parseCen rex err ok)
 : eRes <- readCenLit rex err
 # datacase eRes
 * (LEFT val)  | ok (ENAT val)
 * (RIGHT cab) | ok (ECAB cab)
 
-> (Rex > Parser Exp) > Rex > Parser Rex
+> (Rex > Read Exp) > Rex > Read Rex
 = (parseCenCen rex err ok)
 : cab <- readTallCab rex err
 | ok (ECAB cab)
@@ -516,7 +529,7 @@
 : sym <- readSymbol keywordRex err
 | ok keywordRex sym params
 
-> (Rex > Parser Exp) > Rex > Parser Exp
+> (Rex > Read Exp) > Rex > Read Exp
 = (parseHaxExp readExp rex err ok)
 @ kids (rexKids rex)
 @ rune (rexRune rex)
@@ -544,32 +557,32 @@
          & [_ constr pats body]
          | CON_CASE constr pats body
 
-> (Rex > Parser Exp) > Rex > Parser Exp
+> (Rex > Read Exp) > Rex > Read Exp
 = (parseSig readExp rex err ok)
 : items <- readWideListLit readExp rex err
 | ok (listFoldr ECON ENIL items)
 
-> (Rex > Parser Exp) > Rex > Parser Exp
+> (Rex > Read Exp) > Rex > Read Exp
 = (parseSigSig readExp rex err ok)
 : items <- readTallListLit readExp rex err
 | ok (listFoldr ECON ENIL items)
 
-> (Rex > Parser Exp) > Rex > Parser Exp
+> (Rex > Read Exp) > Rex > Read Exp
 = (parseColCol readExp rex err ok)
 : tree <- readInfixRight readExp "::" rex err
 | ok (binTreeFold ECON tree)
 
-> (Rex > Parser Exp) > Rex > Parser Exp
+> (Rex > Read Exp) > Rex > Read Exp
 = (parseTisTis readExp rex err ok)
 : items <- readEqlExp readExp rex err
 | ok (EEQL items)
 
-> (Rex > Parser Exp) > Rex > Parser Exp
+> (Rex > Read Exp) > Rex > Read Exp
 = (parseFasTis readExp rex err ok)
 : x y <- readNotEqlExp readExp rex err
 | ok (ENEQ x y)
 
-> (Rex > Parser Exp) > Rex > Parser Rex
+> (Rex > Read Exp) > Rex > Read Rex
 = (parseHaxHax readExp rex err ok)
 : tab <- readTallTabLit readExp rex err
 | ok (ETAB tab)
@@ -583,7 +596,7 @@
 
 = (parseTikTik readExp rex err ok)
 ;
-@ (readVal rex err ok)
+@ (readValLeft rex err ok)
     : exp < readExp rex err
     | ok (LEFT exp)
 ;
@@ -592,7 +605,7 @@
     | ok (RIGHT exp)
 ;
 : quoted
-    < readQuasiQuotedRex readVal readExpRight rex err
+    < readQuasiQuotedRex readValLeft readExpRight rex err
 ;
 | ok (EQRX quoted)
 
@@ -679,7 +692,7 @@
          ^ getHexLit bar          _ (compose ok ENAT)
          | err rex leafExpect
 
-> Rex > Parser Exp
+> Rex > Read Exp
 = (readExp rex err ok)
 # switch (rexType rex)
 * "EMBD" | ok EBED-(rexGetEmbd rex)
@@ -714,7 +727,7 @@
 * {||}  | parseOrExp readExp rex err ok
 * _     | err rex (strWeld 'Unknown Rune: ' | rexRune rex)
 
-> (Rex > Parser Cmd) > (Rex > Parser Exp) > Rex > Parser Cmd
+> (Rex > Read Cmd) > (Rex > Read Exp) > Rex > Read Cmd
 = (readHaxCmd readCmd rex err ok)
 : symRex sym params <- readHaxOutline rex err
 # switch sym
@@ -725,7 +738,7 @@
     : exp <- parseHaxExp readExp err
     | ok (CEXP exp)
 
-> (Rex > Parser Cmd) > (Rex > Parser Exp) > Rex > Parser Cmd
+> (Rex > Read Cmd) > (Rex > Read Exp) > Rex > Read Cmd
 = (readCmd rex err ok)
 # switch (rexRune rex)
 * _
@@ -1203,7 +1216,7 @@
 ; | CON_CASE con:Sym params:(Row Pat) body:Exp
 ; * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
 
-> (?) > (?) > Nat > Exp > (Nat, Exp)
+> Tab Sym Nat > Tab Nat Any > Nat > Exp > (Nat, Exp)
 = (compile src prp st exp)
 ^   : st rex <- _ st exp
     | (st, rexClose rex)
@@ -1416,22 +1429,23 @@ prp=(#getAllProps)
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ ; Pat
+^-^ Pat
 ^-^ PVAR PSEQ PALI PROW PTAB
 ^-^
-^-^ ; ConCase
+^-^ ConCase
 ^-^ CON_CASE
 ^-^
-^-^ ; Fun
+^-^ StewFun
 ^-^ FUN
 ^-^
-^-^ ; Cmd
+^-^ Cmd
 ^-^ CEXP CMUT
 ^-^
-^-^ ; Exp
+^-^ Exp
 ^-^ EBED EREF ENAT EPAD EBAR ECAB EOR EAND EAPP EKET ELET EREC ELAM
 ^-^ ELIN EROW EUNT ETAB ESWI ECAS EMUT EQRX EREX ECON ENIL EEQL ENEQ
 ^-^
+^-^ showPat
 ^-^ readExp showExp
 ^-^ readCmd
 ^-^ compile
