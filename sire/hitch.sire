@@ -980,7 +980,7 @@ newRootNode
   | **maybeCase r
       @ TREE_CONFIG(..) mapConfig
       | splitLeafMany tf maxLeafItems
-      | tabMap (k v)&(hsRawFromCab setConfig v) tabcab
+      | tabMapWithKey (k v)&(hsRawFromCab setConfig v) tabcab
   & top
   | insertRec mapConfig tf tabcab top
 @ !fixed | fixup mapConfig tf index

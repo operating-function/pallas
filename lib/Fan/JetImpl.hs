@@ -157,7 +157,7 @@ jetImpls = mapFromList
   , ( "tabLookup"   , tabLookupJet )
   , ( "tabSplitAt"  , tabSplitAtJet )
   , ( "tabSplitLT"  , tabSplitLTJet )
-  , ( "tabMap"      , tabMapJet )
+  , ( "tabMapWithKey" , tabMapWithKeyJet )
   , ( "tabUnionWith", tabUnionWithJet )
   , ( "tabMinKey"   , tabMinKeyJet )
   , ( "tabFoldlWithKey" , tabFoldlWithKeyJet )
@@ -966,9 +966,9 @@ tabSplitLTJet f e =
     doSplitLT n s = let (a, b) = M.spanAntitone (< n) s
                     in ROW $ V.fromList [TAB a, TAB b]
 
-tabMapJet :: Jet
-tabMapJet f e =
-    orExecTrace "tabMap" (f e)
+tabMapWithKeyJet :: Jet
+tabMapWithKeyJet f e =
+    orExecTrace "tabMapWithKey" (f e)
                 (doMap <$> (Just $ e^1) <*> getTab (e^2))
   where
     doMap :: Fan -> Map Fan Fan -> Fan

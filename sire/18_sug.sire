@@ -310,7 +310,7 @@
   < & ret
     | if not-isFancy ret-kids
     : extras < unwrapTarSeq heir err
-    | trk #[=extras]
+    ; trk #[=extras]
     | ret (weld sons extras)
 : params < traverseRow (flip readExp err) params
 | ok params
@@ -371,7 +371,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 = (readItemized rune readItem readUnmatchingHeir rex err ok)
 ^ _ rex ok
 ? (go rex ret)
-| trk 'go',rex
+; trk 'go',rex
 | if (isZero rex)
     | ret NIL
 | if (neq rune | rexRune rex)
@@ -384,7 +384,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 | if (null sons)
     | err (rexSetHeir 0 rex) "Expected non-empty line"
 : item < readItem itemRex err
-| trk #[=item]
+; trk #[=item]
 : tail < go (rexHeir rex)
 | ret (CONS item tail)
 
@@ -393,7 +393,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 
 = ({~~} s p e a r err ok)
 : items <- readTallListLit readRex r err
-| trk 'items',items,'->',(listE items)
+; trk 'items',items,'->',(listE items)
 | ok p a (listE items)
 
 !!= ~[3 4 5] | [3 [4 [5 0]]]

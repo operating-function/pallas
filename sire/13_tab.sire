@@ -14,12 +14,13 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [lawBody trk isLaw inc seq]
+/+  01_fan  [lawBody trk isLaw inc seq const]
 /+  02_bit  [if ifNot and or not nor]
 /+  03_nat  [add toNat]
 /+  06_row  [len idx head mut]
 /+  04_cmp  [eql neq lth lte gte gth isZero]
-/+  06_row  [null map weld rowRepel rowApply rev foldl fst snd]
+/+  06_row  [null map weld rowRepel rowApply rev fst snd]
+/+  06_row  [foldl foldr]
 /+  07_rex  [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
 /+  07_rex  [OPEN EMBD PREF]
 /+  08_dat
@@ -230,7 +231,7 @@ tab=(tabFromAscPairs par)
 | mut ix new tab
 
 > (Nat > v > v) > Tab v > Tab v
-= (tabMap fun tab)
+= (tabMapWithKey fun tab)
 @ pairs | tabToPairs tab
 @ do
   ? (do p)
@@ -239,6 +240,9 @@ tab=(tabFromAscPairs par)
   @ nv | fun k v
   [k nv]
 | tabFromPairs | map do pairs
+
+> (Nat > v > v) > Tab v > Tab v
+(tabMap fun tab)=(tabMapWithKey (k v & fun v) tab)
 
 > (a > a > a) > Tab a > Tab a > Tab a
 = (tabUnionWith fun ar br)
@@ -263,6 +267,14 @@ tab=(tabFromAscPairs par)
 | if | lth ak bk
     | loop axs b (CONS ap xs)
 | loop a bxs (CONS bp xs)
+
+; left-biased
+(tabWeld ar br)=(tabUnionWith const ar br)
+
+tabUnion=tabWeld
+
+; left biased
+(tabCatRow tabs)=(foldr tabWeld emptyTab tabs)
 
 = (tabMinKey t)
 @ pairs | tabToPairs t
@@ -471,7 +483,9 @@ tallExpect={Expected something like (## =key val ...)(...)}
 ^-^
 ^-^ tabLen tabIdx tabKeys tabKeysRow tabHas tabGet tabVals tabSwitch
 ^-^ tabFromPairs tabToPairs tabToPairList tabToList tabPut tabIns
-^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter tabMap tabUnionWith
+^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter
+^-^ tabMapWithKey tabMap
+^-^ tabUnionWith tabUnion tabWeld tabCatRow
 ^-^ tabLookup tabMinKey tabFoldlWithKey tabElemIdx emptyTab tabInsWith
 ^-^
 ^-^ readRex
