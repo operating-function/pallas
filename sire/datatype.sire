@@ -16,6 +16,7 @@
 ''' -   conAri: The number of values on this branch.
 ''' -   conHas: Does this have a tag?  Should we offset our values
 '''             indecies by one when getting fields?
+''' -   conRaw: Field *is* the value, no fetching.
 '''
 ''' This design is at "get something running" levels of polish, and
 ''' will eventually need to be completely ripped apart, redesigned,
@@ -408,6 +409,7 @@ ex=(PAIR %a %b)
 @ prp | setProperty key 'conAri' ari      prp
 @ prp | setProperty key 'conFun' _DataTag prp
 @ prp | setProperty key 'conHas' TRUE     prp ; hasTag
+@ prp | setProperty key 'conRaw' FALSE    prp ; hasTag
 ;
 | if (isZero ari)
     @ bod | natE tag
@@ -528,6 +530,7 @@ ex=(PAIR %a %b)
 * arity  : Nat
 * fields : Row p
 * body   : e
+* isRaw  : Bit
 
 = (resolveDatacase src prp oFallback branches err ok)
 @ fallback (fromSome (cnsE 0) oFallback)
@@ -564,16 +567,21 @@ ex=(PAIR %a %b)
     ^ err sigRex (strWeld _ constr)
     | "Unknown constructor(has): "
 ;
+| ifNot (hasProperty key 'conRaw' prp)
+    ^ err sigRex (strWeld _ constr)
+    | "Unknown constructor(raw): "
+;
 @ tag    | getProperty key 'conTag' prp
 @ ari    | getProperty key 'conAri' prp
 @ fun    | getProperty key 'conFun' prp
 @ hasTag | getProperty key 'conHas' prp
+@ isRaw  | getProperty key 'conRaw' prp
 ;
 | if (len fields /= ari)
     ^ err sigRex (strWeld _ | showNat ari)
     | 'This constructor requires arity='
 ;
-@ acc (DATA_CASE tag ari fields bodyRex)::acc
+@ acc (DATA_CASE tag ari fields bodyRex isRaw)::acc
 | go hasTag fun acc remain
 
 
@@ -590,8 +598,8 @@ ex=(PAIR %a %b)
 !!=  ++ TRUE
      ++ dataTag
      ++ cnsE 0
-     ++  ++ [0 0 []                      `[x "]"]]
-         ++ [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)]]
+     ++  ++ [0 0 []                      `[x "]"]         FALSE]
+         ++ [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)] FALSE]
   ^ _ v2 v4
   @ xpr `` * LNULL       [x "]"]
            * (LCONS _ _) [x " " (go xs)]
@@ -601,12 +609,13 @@ ex=(PAIR %a %b)
         ## =conAri #[3=0 4=2]
         ## =conFun #[3=_DataTag 4=_DataTag]
         ## =conHas #[3=TRUE 4=TRUE]
+        ## =conRaw #[3=FALSE 4=FALSE]
   | readDatacaseBody src prp xpr
 
 !!=  ++ TRUE
      ++ dataTag
      ++ `[x " " (go xs)]
-     ++  ++ [0 0 [] `[x "]"]]
+     ++  ++ [0 0 [] `[x "]"] FALSE]
   ^ _ v2 v4
   @ xpr `` * LNULL [x "]"]
            * _     [x " " (go xs)]
@@ -616,6 +625,7 @@ ex=(PAIR %a %b)
         ## =conAri #[3=0 4=2]
         ## =conFun #[3=_DataTag 4=_DataTag]
         ## =conHas #[3=TRUE 4=TRUE]
+        ## =conRaw #[3=FALSE 4=FALSE]
   | readDatacaseBody src prp xpr
 
 = xpr `` * _ 0
@@ -634,8 +644,12 @@ ex=(PAIR %a %b)
 @ !aft (inc aft)
 : aft pairs
     < forRowWithState aft cases
-        & (aft [tag ari params body] continue)
+        & (aft [tag ari params body isRaw] continue)
         @ rowPat
+            | if isRaw
+                | if (len params /= 1)
+                    | die 'raw datatype with fields != 1??  Nonsense.'
+                | idx 0 params
             | if hasTag
             * (%r, rowCons [%v 0 '_'] params)
             * (%r, params)
@@ -715,13 +729,15 @@ two=2
 
 setProp#(TRUE.conTag)#one
 setProp#(TRUE.conAri)#zero
+setProp#(TRUE.conRaw)#FALSE
 setProp#(TRUE.conFun)#id
 setProp#(TRUE.conHas)#FALSE
 
-setProp#(FALSE.conTag)#zero
 setProp#(FALSE.conAri)#zero
 setProp#(FALSE.conFun)#id
 setProp#(FALSE.conHas)#FALSE
+setProp#(FALSE.conRaw)#FALSE
+setProp#(FALSE.conTag)#zero
 
 !!= 'true'
   # datacase TRUE
@@ -735,11 +751,13 @@ setProp#(NONE.conTag)#zero
 setProp#(NONE.conAri)#zero
 setProp#(NONE.conFun)#len
 setProp#(NONE.conHas)#FALSE
+setProp#(NONE.conRaw)#FALSE
 
 setProp#(SOME.conTag)#one
 setProp#(SOME.conAri)#one
 setProp#(SOME.conFun)#len
 setProp#(SOME.conHas)#FALSE
+setProp#(SOME.conRaw)#FALSE
 
 !!= ['some' %x]
   # datacase (SOME %x)
@@ -753,11 +771,13 @@ setProp#(CONS.conTag)#two
 setProp#(CONS.conAri)#two
 setProp#(CONS.conFun)#len
 setProp#(CONS.conHas)#FALSE
+setProp#(CONS.conRaw)#FALSE
 
 setProp#(NIL.conTag)#zero
 setProp#(NIL.conAri)#zero
 setProp#(NIL.conFun)#len
 setProp#(NIL.conHas)#FALSE
+setProp#(NIL.conRaw)#FALSE
 
 !!= 'xyz abcd'
   ^ _ ~[{x} {y} {z } {abcd}]
@@ -775,11 +795,13 @@ setProp#(LEFT.conTag)#zero
 setProp#(LEFT.conAri)#one
 setProp#(LEFT.conFun)#idx0
 setProp#(LEFT.conHas)#TRUE
+setProp#(LEFT.conRaw)#FALSE
 
 setProp#(RIGHT.conTag)#one
 setProp#(RIGHT.conAri)#one
 setProp#(RIGHT.conFun)#idx0
 setProp#(RIGHT.conHas)#TRUE
+setProp#(RIGHT.conRaw)#FALSE
 
 = (showEither eat)
 ; trk [=eat]
