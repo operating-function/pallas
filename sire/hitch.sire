@@ -13,6 +13,7 @@
 /+  datatype  ["#record" "#datatype" "#datacase"]
 /+  mutrec
 /+  stew
+/+  types
 
 
 """ Util """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -101,6 +102,8 @@
 # datatype HitchNode
 * INDEXNODE idx:Any hh:Any
 * LEAFNODE leaf:Any
+
+abstype#(Index k v) ; TODO: (???)
 
 ;; An index is a row of [a row of keys, a row of subnodes]
 > Index k v
@@ -766,6 +769,8 @@ newRootNode
 * (INDEXNODE [keys vals] _)
   | getLeftmostValue (idx 0 vals)
 
+abstype#(SetNode k) ; TODO: (???)
+
 ; implementation detail of intersection
 ;
 > Cab k > SetNode k > Row (Cab k)
@@ -899,6 +904,10 @@ newRootNode
 ;; HitchhikerSetMap ;;
 ;;;;;;;;;;;;;;;;;;;;;;
 
+abstype#(HSet a)
+abstype#(HMap k v)
+abstype#(HSetMap k v)
+
 = (hsmEmpty mapConfig setConfig)
 [mapConfig setConfig NONE]
 
@@ -1030,6 +1039,11 @@ newRootNode
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; shared configuration
+^-^
+^-^ HSet HMap HSetMap
+^-^
+^-^ TreeConfig TREE_CONFIG
+^-^
 ^-^ twoThreeConfig largeConfig
 ; hitchhikermap (hm)
 ^-^ hmEmpty hmSingleton hmSize hmKeys hmInsert hmInsertMany hmDelete hmLookup
@@ -1039,4 +1053,4 @@ newRootNode
 ; hitchhiersetmap (hsm)
 ^-^ hsmEmpty hsmInsert hsmInsertMany hsmDelete hsmLookup
 ^-^ tabSplitLT
-^-^ TREE_CONFIG
+^-^

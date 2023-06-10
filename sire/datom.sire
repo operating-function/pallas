@@ -17,6 +17,7 @@
 /+  hitch
 /+  switch    ["#switch"]
 /+  datatype  ["#record" "#datatype" "#datacase"]
+/+  types
 /+  mutrec
 /+  stew
 

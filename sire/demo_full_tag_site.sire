@@ -11,6 +11,7 @@
 /+  json
 /+  datatype  ["#record" "#datatype" "#datacase"]
 /+  stew
+/+  types
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -31,17 +32,19 @@
 ;
 ; - GET / -> frontpage
 
+> TreeConfig
 = imgmapConfig
 @ minFanout 128
 @ maxFanout | dec | mul 2 minFanout
 | TREE_CONFIG
-    minFanout
-    maxFanout
-    (dec minFanout)
-    (dec maxFanout)
-    minFanout
-    maxFanout
-    minFanout
+* minFanout
+* maxFanout
+* dec minFanout
+* dec maxFanout
+* minFanout
+* maxFanout
+* minFanout
+
 
 ; config for just the set part of the id setmap, optimized for nat -> bigset of
 ; nats.
@@ -51,82 +54,103 @@
 @ minFanout 128
 @ maxFanout | dec | mul 2 minFanout
 | TREE_CONFIG
-    minFanout
-    maxFanout
-    (dec minFanout)
-    (dec maxFanout)
-    minItems
-    maxItems
-    maxItems
+* minFanout
+* maxFanout
+* dec minFanout
+* dec maxFanout
+* minItems
+* maxItems
+* maxItems
 
 ; derpibooru's favicon
+> Pin Bar
 = favicon
 | PIN
 | barCat
-, x#0000010001001010000000000000680400001600000028000000100000002000
-  x#000001002000000000000004000000000000000000000000000000000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffff
-  x#ff00edd673ffedd673ffeed97ee6ffffff00ffffff00ffffff0000000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00fefdfb05edd6
-  x#73ffedd673fffbf8e9ffedd673ffedd673ffffffff00ffffff0000000000ffff
-  x#ff00ffffff00ffffff00ddc194ffffffff00ffffff00edd673feedd673ffedd6
-  x#73ffedd673ffedd673ffedd673ffedd673fff9f2d445ffffff0000000000ffff
-  x#ff00ffffff00ffffff00ddc194ffddc194ffedd673ffedd673fffbf8e9ffedd6
-  x#73ffedd673ffedd673ffedd673ffedd673ffedd673ffffffff0000000000fdfb
-  x#f213edd673ffedd673ffedd673ffddc194ffedd673ffedd673ffedd673ffedd6
-  x#73ffedd673ffedd673fffbf8e9ffedd673ffedd673ffffffff0000000000ffff
-  x#ff00ffffff00edd673ffedd673ffddc194ffddc194ffedd673ffedd673ffedd6
-  x#73ffedd673ffedd673ffedd673ffedd673ffedd673ffefda82dd00000000ffff
-  x#ff00ffffff00ffffff00ffffff00fefefe00ddc194fffefefd02ffffff00ffff
-  x#ff00ffffff00fdfaef18edd673ffedd673ffedd673ffedd673ff00000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194ffffffff00ffff
-  x#ff00ffffff00ffffff00ffffff00edd673fffbf8e9ffedd673ff00000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194fff1e5d360ffff
-  x#ff00ffffff00ffffff00ffffff00edd673ffedd673ffedd673ff00000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194fcffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00edd673ffedd673ff00000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00be85
-  x#23fff9efdf7cffffff00ffffff00ffffff00edd673ffedd673ff00000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00fdf9f428be85
-  x#23fff3e1c1fffdfaf61effffff00ffffff00f0dd8cffedd673ff00000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2c3ffddc1
-  x#94ffddc194ffe1c79cfff4e2c3fff7ebd6a2edd673ffefda83dc00000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2
-  x#c3ffddc194fff4e2c3ffffffff00ffffff00edd673ffffffff0000000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2
-  x#c3ffffffff00f3e1c2ffffffff00ffffff00edd673ffffffff0000000000ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffff
-  x#ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff0000000000ff8f
-  x#0000ff070000ec070000e003000080030000c0010000fbe10000fdf10000fdf1
-  x#0000fef90000ff790000ff390000fe010000ff1b0000ff5b0000ffff0000
+, x#{0000010001001010000000000000680400001600000028000000100000002000}
+  x#{000001002000000000000004000000000000000000000000000000000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffff}
+  x#{ff00edd673ffedd673ffeed97ee6ffffff00ffffff00ffffff0000000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00fefdfb05edd6}
+  x#{73ffedd673fffbf8e9ffedd673ffedd673ffffffff00ffffff0000000000ffff}
+  x#{ff00ffffff00ffffff00ddc194ffffffff00ffffff00edd673feedd673ffedd6}
+  x#{73ffedd673ffedd673ffedd673ffedd673fff9f2d445ffffff0000000000ffff}
+  x#{ff00ffffff00ffffff00ddc194ffddc194ffedd673ffedd673fffbf8e9ffedd6}
+  x#{73ffedd673ffedd673ffedd673ffedd673ffedd673ffffffff0000000000fdfb}
+  x#{f213edd673ffedd673ffedd673ffddc194ffedd673ffedd673ffedd673ffedd6}
+  x#{73ffedd673ffedd673fffbf8e9ffedd673ffedd673ffffffff0000000000ffff}
+  x#{ff00ffffff00edd673ffedd673ffddc194ffddc194ffedd673ffedd673ffedd6}
+  x#{73ffedd673ffedd673ffedd673ffedd673ffedd673ffefda82dd00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00fefefe00ddc194fffefefd02ffffff00ffff}
+  x#{ff00ffffff00fdfaef18edd673ffedd673ffedd673ffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194ffffffff00ffff}
+  x#{ff00ffffff00ffffff00ffffff00edd673fffbf8e9ffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194fff1e5d360ffff}
+  x#{ff00ffffff00ffffff00ffffff00edd673ffedd673ffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194fcffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00edd673ffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00be85}
+  x#{23fff9efdf7cffffff00ffffff00ffffff00edd673ffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00fdf9f428be85}
+  x#{23fff3e1c1fffdfaf61effffff00ffffff00f0dd8cffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2c3ffddc1}
+  x#{94ffddc194ffe1c79cfff4e2c3fff7ebd6a2edd673ffefda83dc00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2}
+  x#{c3ffddc194fff4e2c3ffffffff00ffffff00edd673ffffffff0000000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2}
+  x#{c3ffffffff00f3e1c2ffffffff00ffffff00edd673ffffffff0000000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff0000000000ff8f}
+  x#{0000ff070000ec070000e003000080030000c0010000fbe10000fdf10000fdf1}
+  x#{0000fef90000ff790000ff390000fe010000ff1b0000ff5b0000ffff0000}
 
+
+# typedef ContentType Bar ; TODO
+
+> HMap Str (ContentType, Pin Bar)
 = startingFiles
 ; TODO: Figure out tuned config for files.
-| hmSingleton largeConfig "/favicon.ico" [b#{image/x-icon} favicon]
+| hmSingleton
+* largeConfig
+* "/favicon.ico"
+* [b#{image/x-icon} favicon]
+
+* # typedef Lock  | MVar ()
+* # typedef Url   | Bar
+* # typedef ImgId | Nat
+
+# record ImgRow
+| IMG_ROW
+* imgId : ImgId
+* tags  : Row Str
+* url   : Url
+
+typedef#Tag#Str
 
 # record CogState
-| STATE
-* files      : Any
-* fileBytes  : Any
-* local      : Any
-* imgCount   : Any
-* pairCount  : Any
-* imgs       : Any
-* tags       : Any
-* servThread : Any
-* learnLock  : Any
+| COG_STATE
+* files      : (HMap Str (ContentType, Pin Bar))
+* fileBytes  : Nat
+* local      : Bit
+* imgCount   : Nat
+* pairCount  : Nat
+* imgs       : (HMap ImgId ImgRow)
+* tags       : (HSetMap Tag Image)
+* servThread : ThreadId
+* learnLock  : Lock
 
+> ThreadId > Lock > CogState
 = (newState servThread learnLock)
-| mkState
-  ## =files      | startingFiles
-  ## =fileBytes  | 0
-  ## =local      | FALSE
-  ## =imgCount   | 0
-  ## =pairCount  | 0
-  ## =imgs       | hmEmpty imgmapConfig
-  ## =tags       | hsmEmpty largeConfig idsetConfig
-  ## =servThread | servThread
-  ## =learnLock  | learnLock
+| COG_STATE
+* startingFiles
+* 0
+* FALSE
+* 0
+* 0
+* hmEmpty imgmapConfig
+* hsmEmpty largeConfig idsetConfig
+* servThread
+* learnLock
 
 (mkBarPath path)=(barFlat (b#{/}, listIntersperse b#{/} (listFromRow path)))
 
@@ -145,12 +169,13 @@
 ; Set of images from derpibooru where there was a proper non-deleted API
 ; response, but the thumbnail file referenced was non-existent. Handle these as
 ; exceptions.
+> Cab ImgId
 = missingImgs
-%% 79135 918505 3031483 3030628 3028888 3031523 1078315 3017754 500313
-%% 2899504 2460697 2944469 911039 1078318 543877 3032025 2999533 2662803
-%% 2863835 2916074 2929953 3023899 891477 2918755 2971526 2460696 2824778
-%% 3032519 2915600 918535 1772525 2905776 2871055 2983147 2937212 2825423
-%% 3019449 3032217 2836375 2668954 2938918 2994310 89769 2922373 3020597
+%% 79135   918505  3031483 3030628 3028888 3031523 1078315 3017754 500313
+%% 2899504 2460697 2944469 911039  1078318 543877  3032025 2999533 2662803
+%% 2863835 2916074 2929953 3023899 891477  2918755 2971526 2460696 2824778
+%% 3032519 2915600 918535  1772525 2905776 2871055 2983147 2937212 2825423
+%% 3019449 3032217 2836375 2668954 2938918 2994310 89769   2922373 3020597
 %% 2943107
 
 """ JSON Handling """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -202,6 +227,13 @@ t
 = (imgRowToPair imgRow@[id _ _])
 [id imgRow]
 
+# record LearnData
+| LEARN_DATA
+* addRows   : Any
+* addImages : Tab ImgId ImgRow
+* addTags   : Any
+
+> Bar > LearnData
 = (parseLearn (PIN jsonBS))
 @ [!json _]
   | trk %parse
@@ -220,17 +252,23 @@ t
 @ !addImgs
   | tabFromPairs
   | map imgRowToPair rows
-[rows addImgs addTags]
+| LEARN_DATA rows addImgs addTags
 
+abstype#Image ;; TODO: fix.  What is the real type?
+
+> Pin CogState
+> Pin LearnData
+> (HMap ImgId ImgRow, HSetMap Tag Image, Nat, Nat)
 = (calcLearnSt (PIN st) (PIN [rows addImgs addTags]))
 | trk [%calcLearnSt (len rows) %rows]
-@ STATE(..) st
+@ COG_STATE(..) st
 @ !nuImgs   | hmInsertMany addImgs imgs
 @ !nuTags   | hsmInsertMany addTags tags
 @ imgCount  | add imgCount  | len rows
 @ pairCount | add pairCount | tabLen addTags
-[nuImgs nuTags imgCount pairCount]
+| [nuImgs nuTags imgCount pairCount]
 
+> Any > EvalResult b > b
 = (forceUnpackEvalResult ctx res)
 # switch (len res)
 * 0 (die ('eval-timeout' ctx))
@@ -246,6 +284,7 @@ t
 * vec | SOME (idx 1 json)
 * _   | NONE
 
+> Bar > Opt (Tab Str Json)
 = (jsonMap jsonBS)
 @ res@[json leftover] (parseValue jsonBS)
 | if res NONE
@@ -287,7 +326,7 @@ t
 > Bar > Opt (Row Str)
 = (parseSearch jsonBS)
 : m <- **bindMaybe (jsonMap jsonBS)
-| if | not | eql (SOME [%str b#{Search}]) | tabLookup %tag m
+| if | (SOME (JSON_STR b#{Search}) /= tabLookup %tag m)
   NONE
 : jcontents <- **bindMaybe (tabLookup %contents m)
 : content   <- **bindMaybe (asJsonMap jcontents)
@@ -304,6 +343,7 @@ NONE
 ; todo: this is doing the quick hack of just calling the old parseSearch; I
 ; think all of this should be rewritten when we have more user friendly json
 ; usage components.
+> Bar > Opt Cmd
 = (parseCmd jsonBS)
 : jm <- **bindMaybe (jsonMap jsonBS)
 : jt <- **bindMaybe (tabLookup %tag jm)
@@ -330,7 +370,7 @@ NONE
 (tagToStr t)=(**JSON_STR (natBar t))
 
 = (buildStatus st)
-@ STATE(..) st
+@ COG_STATE(..) st
 | **JSON_MAP
 ## =bytes | **JSON_NUM fileBytes
 ## =imgs  | **JSON_NUM imgCount
@@ -338,7 +378,7 @@ NONE
 
 ; [hm hsm] [cord] > bar
 = (doSearch st [offset searchTags])
-@ STATE(..) st
+@ COG_STATE(..) st
 @ (lookupTag tag)
   @ hs | hsmLookup tag tags
   | if | hsNull hs
@@ -380,9 +420,9 @@ NONE
 ## =tag      | **JSON_STR b#{OK}
 ## =contents | **JSON_MAP
             ## =total  | **JSON_NUM | cabLen ids
-            ## =offset | **JSON_NUM offset
+            ## =offset | **JSON_NUM | offset
             ## =query  | **JSON_VEC | map tagToStr searchTags
-            ## =slice  | **JSON_VEC records
+            ## =slice  | **JSON_VEC | records
 ## =status   | **buildStatus st
 
 = (doStatus st)
@@ -419,6 +459,12 @@ NONE
   @ head | [(b#{content-type}, type)]
   [200 b#gotcha head content]
 
+; `modifyState` modifies the vSt ref and reboots the static server
+; in-place (keeping the same ThreadId).
+
+> Ref CogState
+> (CogState > CogState)
+> Cog ()
 = (modifyState vSt fun return)
 : (PIN old) < readRef vSt
 @ srv       | **getServThread old
@@ -427,6 +473,12 @@ NONE
 : _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
 | return ()
 
+; `addLearningsToState` inserts the new images and tags into the state.
+; We do this in an EVAL to free up the main loop, but it needs to be
+; transactional so we take the `learnLock` lock to prevent multiple
+; simultaneous insertions.
+
+> Ref CogState > Pin LearnData > Cog ()
 = (addLearningsToState vSt pBundle return)
 ;
 ; Take the lock, and inject the stuff
@@ -450,9 +502,7 @@ NONE
 | putMVar learnLock () return
 
 = (addToState vSt rid jsonPin return)
-;
-: ??(ats_evaled evalResult) <- syscall (**EVAL 1000 [parseLearn jsonPin])
-;
+: ??(ats_evaled evalResult) < syscall (EVAL1 1000 parseLearn jsonPin)
 # switch (len evalResult)
 * 0 | trk b#"TIMEOUT in /learn"
     | syscall (**HTTP_ECHO rid 408 b#timeout [] b#{})
@@ -467,7 +517,9 @@ NONE
 | syscall (**HTTP_ECHO rid 200 b#ok [] b#{})
 | return
 
-= (handleReq vSt [rid method path headers pBody@(PIN body)] return)
+> Ref CogState > HttpReq > Cog ()
+= (handleReq vSt request return)
+@ [rid method path headers pBody@(PIN body)] request
 # switch method
 * POST
   # switch path
@@ -505,11 +557,13 @@ NONE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+> Ref CogState > Cog Void
 = (runHttpServer vSt return)
 : ??(rhs_heard req) <- syscall HTTP_HEAR
 : _                 <- handleReq vSt req
 | runHttpServer vSt return
 
+> Cog ()
 = (launchFullTagDemo return)
 : servThread  <- fork (syscall (**HTTP_SERV emptyFileServer))
 : learnLock   <- newMVar ()
@@ -518,4 +572,5 @@ NONE
 : httpThread2 <- fork (runHttpServer vSt)
 | return ()
 
-(runCog launchFullTagDemo)
+> PausedCog
+_=(runCog launchFullTagDemo)

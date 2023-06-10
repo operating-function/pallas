@@ -10,6 +10,7 @@
 /+  datatype
 /+  jlex
 /+  stew
+/+  types
 
 
 """ Json Values """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -219,5 +220,6 @@ TAG_JSON_MAP='map'
 ^-^
 ^-^ parseValue printJSON
 ^-^
+^-^ Json
 ^-^ JSON_NULL JSON_TRUE JSON_FALSE JSON_STR JSON_NUM JSON_VEC JSON_MAP
 ^-^

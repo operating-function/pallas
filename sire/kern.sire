@@ -60,18 +60,14 @@
 /+  datatype
 /+  switch
 /+  stew
+/+  types
 
 
-""" Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Types """"""""""""""""""""'"""""""""""""""""""""""""""""""""""""""""""""""""
 
-# typedef (IO a)
-    > (a > Thread)
-    > Thread
+typedef#ThreadId#Nat
 
-# typedef Thread
-    > end:Action   ;; What should we do when we're done?
-    > me:ThreadId  ;; What thread is this?
-    > Action
+abstype#(Call a)
 
 ; A "running process".  This never returns, always invoking a callback instead.
 # typedef Action
@@ -81,10 +77,33 @@
     > Row Any  ; Syscalls.  The corresponding "slot" is the continuation.
     > Void
 
+# typedef Thread
+    > Action    ;; What should we do when we're done?
+    > ThreadId  ;; What thread is this?
+    > Action
+
+; An IO Action.  Returns a value by invoking a continuation.  Can be
+; strung together to form a compound action by binding it's continuation
+; to something.
+# typedef (Cog a)
+    > (a > Thread) > Thread
+
+abstype#PausedCog
+
+""" abstype#CogInput
+"""
+""" ; internally does (if (isTab e) ({cog_event} e) ({cog_crash} (cdr e)))
+""" case CogInput of
+"""     COG_EVENT e:(Tab Nat Any)
+"""     COG_CRASH e:(Tab Nat Any)
+"""
+""" # newtype PausedCog
+""" | PAUSED_COG m:(CogInput > PausedCog)
+
 
 """ Basic Control Flow """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-> Any > Thread
+> Cog a
 = (DONE _ end me fr kl sl rq)
 | end [me fr] kl sl rq
 ; This is called when a thread reaches the end of its program.  This does
@@ -95,6 +114,7 @@
 ; So, this doesn't need to do any of that.
 
 ; allocateSlot does not follow the convention.
+> List Nat > List Nat > Row Any > Row Any > (Nat > Thread)
 = (allocateSlot fr kl sl rq k)
 | if (0 == fr)
     @ key (len sl)
@@ -104,32 +124,34 @@
 @ [key fr] | fr
 | k key fr kl sl rq
 
-> IO ThreadId
+> Cog ThreadId
 = (myThreadId k end me fr kl sl rq)
 | k me end me fr kl sl rq
 
-> IO KernelState
+abstype#KernelState ; TODO
+
+> Cog KernelState
 = (getKernelState k end me fr kl sl rq)
 | k (end,me,fr,kl,sl,rq) end me fr kl sl rq
 
-> IO a > IO ThreadId
+> Cog a > Cog ThreadId
 = (fork act k end me fr kl sl rq)
 : tid fr kl sl rq <- allocateSlot fr kl sl rq
 | act DONE (k tid end me) tid fr kl sl rq
 
-> IO ThreadId
+> Cog ThreadId
 = (prepareFork k end me fr kl sl rq)
 : tid fr kl sl rq <- allocateSlot fr kl sl rq
 | k tid end me fr kl sl rq
 
-> ThreadId > IO a > IO ()
+> ThreadId > Cog a > Cog ()
 = (finalizeFork tid act k end me fr kl sl rq)
 | act DONE (k 0 end me) tid fr kl sl rq
 
-> ThreadId > IO () > IO ()
+> ThreadId > Cog () > Cog ()
 = (cancelFork tid act k end me fr kl sl rq)
 | if (tid == me)
-    | die 'TODO: cancelfork should support canceling the current thread'
+    | todo {cancelfork should support canceling the current thread}
 @ sl | put sl tid 0
 @ rq | put rq tid 0
 | act DONE (k 0 end me) tid fr kl sl rq
@@ -139,7 +161,7 @@
 ; a response in-flight on this thread.  Only use this if that case
 ; is impossible).
 
-> ThreadId > IO ()
+> ThreadId > Cog ()
 = (cancel tid k end me fr kl sl rq)
 @ sl (put sl tid 0)
 @ rq (put rq tid 0)
@@ -157,7 +179,9 @@
 
 """ Refs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-> a > IO (Ref a)
+abstype#(Ref a)
+
+> a > Cog (Ref a)
 = (newRef val k end me fr kl sl rq)
 | if (0 == fr)
     @ key (len sl)
@@ -168,21 +192,21 @@
 @ sl       | put sl key val
 | k key end me fr kl sl rq
 
-> Ref a > IO a
+> Ref a > Cog a
 = (readRef key k end me fr kl sl rq)
 | k (get sl key) end me fr kl sl rq
 
-> Ref a > a > IO ()
+> Ref a > a > Cog ()
 = (writeRef key val k end me fr kl sl rq)
 @ sl (put sl key val)
 | k 0 end me fr kl sl rq
 
-> Ref a > (a > a) > IO ()
+> Ref a > (a > a) > Cog ()
 = (modifyRef key fun k end me fr kl sl rq)
 @ sl (| put sl key | fun | get sl key)
 | k 0 end me fr kl sl rq
 
-> Ref a > IO ()
+> Ref a > Cog ()
 = (freeRef key k end me fr kl sl rq)
 @ sl (put sl key 0)
 @ fr [key fr]
@@ -191,18 +215,22 @@
 
 """ MVar """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-# datatype (Mvar a)
+abstype#(MVar a) ; TODO: #datatype should create this
+
+# datatype (MVar a)
 * FULL
   * val     : a
   * writers : (Row (a, ThreadId))
 * EMPTY
   * readers : Row ThreadId
 
+> a > Cog (MVar a)
 (newMVar val)=(newRef (**FULL val []))
 
+> Cog (MVar a)
 newEmptyMVar=(newRef (**EMPTY []))
 
-> MVar a > a > IO ()
+> MVar a > a > Cog ()
 = (putMVar key newVal k end me fr kl sl rq)
 # datacase (get sl key)
 * (FULL existingVal writers)
@@ -221,6 +249,7 @@ newEmptyMVar=(newRef (**EMPTY []))
         @ !exe | get sl them
         | exe newVal (k 0 end me) them fr kl sl rq
 
+> MVar a > Cog a
 = (takeMVar key k end me fr kl sl rq)
 # datacase (get sl key)
 * (EMPTY readers)
@@ -244,7 +273,7 @@ newEmptyMVar=(newRef (**EMPTY []))
 
 """ The Kernel """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-> Request > IO Response
+> Call a > Cog a
 = (syscall request k end me fr kl sl rq)
 @ rq (put rq me request)
 @ sl (put sl me k)
@@ -254,41 +283,51 @@ newEmptyMVar=(newRef (**EMPTY []))
 ; reference to `KERNEL` below with a reference to `TRACED KERNEL`.
 = (TRACED KERNEL fr kl sl rq)
 @ cog (KERNEL fr kl sl rq)
-| trk cog
+; trk #[=cog]
 cog
 
-= (STEP KERNEL stream fr kl sl rq)
-;
-| if (0 == stream) (KERNEL fr kl sl rq)
-;
-@ [key,response stream] stream
-;
-@ exe | get sl key
-@ rq  | put rq key 0
-@ sl  | put sl key 0
-;
-| if (0 == exe)
-    ; The thread was already canceled, so we just ignore the response
-    ; (rq[key] and sl[key] are already zero, so no need to set those).
-    | STEP KERNEL stream fr kl sl rq
-; Run the callback for the thread associated with the request that we got
-; a response for.  Pass ourselves (applied to the remaining events)
-; as the `end` callback.
-@ end | STEP KERNEL stream
-@ me  | key
-| exe response end me fr kl sl rq
+# typedef Kernel
+  > List Nat
+  > List Nat
+  > Row Any
+  > Row Any
+  > Tab Nat Any
+  > Void
 
 ; The final act of processing an event is to call this with three
 ; arguments.  That will yield control to the runtime system, which will
-; then supply the final two arguments.
+; then supply the final argument (`event`).
+;
+; TODO: Should `kl` be merged into `fr` at the end of `loop`?  I think
+; I did it after the yield, just to make debugging simpler?
+;
+> List Nat
+> List Nat
+> Row Any
+> Row Any
+> Tab Nat Any  ;;  The event
+> Void
 = (KERNEL fr kl sl rq event)
 | ifNot (isTab event)
     | die ["TODO: Crash handling is not implemented" event]
 @ fr | listWeld kl fr
 @ kl | ~[]
-| STEP KERNEL (tabToPairList event) fr kl sl rq
+;
+^ _ (tabToPairList event) fr kl sl rq
+? (kernel_loop stream fr kl sl rq)
+| if (isZero stream)                           ; no more events, yield to
+    | KERNEL fr kl sl rq                       ; the runtime
+@ [[key response] stream] stream
+@ exe | get sl key
+@ rq  | put rq key 0
+@ sl  | put sl key 0
+| if (isZero exe)                              ; call thread was canceled
+     | kernel_loop stream fr kl sl rq          ; earlier in this event, ignore
+@ end | kernel_loop stream
+@ me  | key                                    ; Give the syscall response to
+| exe response end me fr kl sl rq              ; its callback.
 
-> IO a > Machine
+> Cog () > PausedCog
 = (runCog startUp)
 @ k   | DONE
 @ end | KERNEL
@@ -299,8 +338,8 @@ cog
 @ rq  | [0]
 | startUp k end me fr kl sl rq
 ; We run the startup action on thread 0, and when it's done it will
-; call (KERNEL fr kl sl rq) which will give control back to the runtime
-; system.
+; call (KERNEL fr kl sl rq) which will give control back to
+; the runtime system.
 
 
 """ Sys Calls """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -335,6 +374,32 @@ cog
 = (PORT_SIRE)           | [%port 0 %sire]
 = (PORT_SEND m w)       | [%port 0 %send m w]
 = (PORT_RECV m u b)     | [%port 0 %recv m u b]
+
+typedef#TimeStamp#Nat
+typedef#HttpReqId#Nat
+typedef#HttpStatusCode#Nat
+typedef#HttpStatusMsg#Bar
+typedef#HttpHeader#(Row (Bar, Bar))
+
+abstype#ServReq
+abstype#ServResp
+abstype#HttpReq ; TODO Define using #record
+
+abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
+                       ; length-coding first)
+
+* # backfill EVAL1     > Nat > (a>b) > a > Call (EvalResult b)
+* # backfill EVAL2     > Nat > (a>b>c) > a > b > Call (EvalResult b)
+* # backfill EVAL3     > Nat > (a>b>c>d) > a > b > c > Call (EvalResult b)
+* # backfill RAND_BYTE > Nat > Call Bar
+* # backfill TIME_WHEN > Call TimeStamp
+* # backfill TIME_WAIT > TimeStamp > Call ()
+* # backfill HTTP_SERV > (ServReq > Opt ServResp) > Call Void
+* # backfill HTTP_HEAR > Call HttpReq
+* # backfill HTTP_HOLD > HttpReqId > Call ()
+
+# backfill HTTP_ECHO
+> HttpReqId > HttpStatusCode > HttpStatusMsg > HttpHeader > Bar > Call ()
 
 
 """ Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -375,22 +440,26 @@ cog
 
 
 ^-^
-^-^ ; MVar
+^-^ MVar
 ^-^ FULL EMPTY
 ^-^ newMVar newEmptyMVar putMVar takeMVar
 ^-^
+^-^ Cog PausedCog
 ^-^ KERNEL DONE
 ^-^ runCog syscall
 ^-^ allocateSlot getKernelState
 ^-^
+^-^ Ref
 ^-^ newRef readRef writeRef modifyRef freeRef
 ^-^
+^-^ ThreadId
 ^-^ fork prepareFork finalizeFork
 ^-^ cancelFork cancel
 ^-^ myThreadId
 ^-^
 ^-^ pmap
 ^-^
+^-^ EvalResult
 ^-^ EVAL EVAL1 EVAL2 EVAL3 EVAL4
 ^-^ forceUnpackEvalResult
 ^-^
@@ -398,12 +467,17 @@ cog
 ^-^
 ^-^ RAND_BYTE
 ^-^
+^-^ Call
+^-^
+^-^ ServReq ServResp
+^-^ HttpReq HttpReqId HttpStatusCode HttpStatusMsg HttpHeader
 ^-^ HTTP_SERV HTTP_HEAR HTTP_HOLD HTTP_ECHO
 ^-^
 ^-^ SOCK_OPEN SOCK_KILL SOCK_WAIT SOCK_RECV SOCK_SEND
 ^-^
 ^-^ WOCK_OPEN WOCK_KILL WOCK_WAIT WOCK_RECV WOCK_SEND
 ^-^
+^-^ TimeStamp
 ^-^ TIME_WHEN TIME_WAIT
 ^-^
 ^-^ PORT_SIRE PORT_SEND PORT_RECV
