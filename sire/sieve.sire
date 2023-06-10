@@ -1,4 +1,4 @@
-### sieve <- pq
+### sieve <- quickcheck
 
 """
 """ Sieve of Eratosthenes

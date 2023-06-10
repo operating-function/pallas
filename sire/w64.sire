@@ -52,8 +52,11 @@ isZero64=not64
 | or64 (lsh64 x y)
 | rsh64 x (sub64 64 y)
 
-= (bitFlip64 x) | sub64 wMax64 x
+(bitFlip64 x)=(sub64 wMax64 x)
 
+(iNeg64 x)=(inc64 (bitFlip64 x))
+
+= (iSub64 x y)  | add64 x (iNeg64 y)
 
 ;;;;;;;;;;;;;
 ;; Exports ;;
@@ -65,4 +68,5 @@ isZero64=not64
 ^-^ not64 and64 or64 xor64 lsh64 rsh64
 ^-^ chop64 isZero64 sub64 ror64 rol64
 ^-^ bitFlip64
+^-^ iNeg64 iSub64
 ^-^

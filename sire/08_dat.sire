@@ -501,6 +501,14 @@
 | if (eql x y) (go y ys)
 | CONS x (go y ys)
 
+= (listNub xs)
+| **listCase xs NIL
+& (x xs)
+| CONS x (listNub (listFilter neq-x xs))
+
+= (listIterate f x)
+| (CONS x (listIterate f (f x)))
+
 = (listSortBy cmp xs) | listFoldr (listInsertBy cmp) NIL xs
 = (listSort xs)       | listSortBy cmp xs
 = (listSortUniq xs)   | listUniq (listSort xs)
@@ -890,6 +898,7 @@ F=found
 ^-^ listHas listEnumFrom listWeld listCat listTake listDrop listDigits
 ^-^ listTakeWhile listDropWhile
 ^-^ digits listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn
+^-^ listNub listIterate
 ^-^ listGen listFindIndex listElemIndex
 ^-^ listIndexed
 ^-^ listIntersperse
