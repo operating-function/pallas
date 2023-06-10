@@ -162,7 +162,7 @@ Table of Runes
 -   Function Inlining
 
     ```
-    (*f x y)
+    (**f x y)
     ```
 
     Here, if `f` is a top-level function binding that takes two arguments,
@@ -171,7 +171,7 @@ Table of Runes
     TODO: Specify exactly when inlining is accepted and exactly what
     it does.
 
--   Lambdas: `&` is anonymous, `?` is named, and `?!` is named and pinned.
+-   Lambdas: `&` is anonymous, `?` is named, and `??` is named and pinned.
 
     ```
     (map (x & add 2 x) ~[3 4 5])
