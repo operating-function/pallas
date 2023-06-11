@@ -68,7 +68,6 @@ dataTag=_DataTag
 | if (c /= '_') (c :: fixUnderscores cs)
 | fixUnderscores (toUpper d :: ds)
 
-!!= 'openPair'     | constrToCamel %open 'PAIR'
 !!= 'mkTreeConfig' | constrToCamel %mk 'TREE_CONFIG'
 
 = (defC sig bodyExp)
@@ -106,32 +105,6 @@ dataTag=_DataTag
 = (mkConstrKC key constr fields)
 | defKC key (rowCons constr fields)
 | rowE (map varE fields)
-
-= (mkOpenerC constr fields)
-@ nam (constrToCamel "#open" constr)
-|
-   ``
-    = ($$(txtE nam) s p e a r err ok)
-       #| $rexParseKids r $[readRex readRex readRex] err
-       #& (_ expr body)
-       #| ok p (#| $inc a)
-       #| $destructureRowE
-            (#| $gensym a)
-            $$(rowE | map txtE fields)
-            expr
-            body
-
-!!= (mkOpenerC %pair [%fst %snd])
- ``
-  = ('#openPair' s p e a r err ok)
-      #| $rexParseKids r $[readRex readRex readRex] err
-      #& (_ expr body)
-      #| ok p (#| $inc a)
-      #| $destructureRowE
-           (#| $gensym a)
-           (#| $(cow 2) 'snd' 'fst')
-           expr
-           body
 
 """
 """ This example:
@@ -323,7 +296,6 @@ fieldExpect="Expected something like (field:type)"
 | bloodline
 | listCat
 ~~ ~~ mkConstrKC constrKey constr fields
-~~ ~~ mkOpenerC constr fields
 ~~ ~~ mkNamedC constr fields
 ~~ listMap mkGetterC (listIndexed (listFromRow fields))
 ~~ listMap mkSetterC (listIndexed (listFromRow fields))
@@ -342,8 +314,6 @@ ex=(PAIR %a %b)
 !!= (setSnd %x ex) | PAIR %a %x
 !!= ex             | mkPair [fst="a" snd="b"]
 !!= (BOX UNIT)     | BOX (mkUnit %[])
-!!= 3              | openBox#(BOX 3)#boxItem
-!!= 5              | openPair#(PAIR 2 3)#(add fst snd)
 
 
 """ Datatypes """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -838,7 +808,6 @@ setProp#(RIGHT.conHas)#TRUE
 setProp#(RIGHT.conRaw)#FALSE
 
 = (showEither eat)
-; trk [=eat]
 # datacase eat
 * (LEFT x)  ['left' x]
 * (RIGHT x) ['right' x]
