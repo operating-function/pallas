@@ -5,7 +5,6 @@
 ### test_json <- test_datom
 
 /+  boot
-/+  jlex
 /+  json
 /+  stew
 
@@ -59,7 +58,7 @@
 
 %did_1
 
-!!= exampleMinified (| printJSON | idx 0 | parseValue example)
+!!= exampleMinified (| printJson | idx 0 | parseJson example)
 
 %did_round_trip
 
@@ -106,11 +105,11 @@
 | allJSON _
 
 = (chk x)
-@ val   | parseValue x
-@ round | printJSON idx-0-val
+@ val   | parseJson x
+@ round | printJson idx-0-val
 | if (neq round x)
     | die [[x '!=' round] x]
 | 1
 
-!! (| rowAnd | map chk | map printJSON | listToRow | listTake 100 | allJSON 0)
-;; (| rowAnd | map chk | map printJSON | listToRow | listTake 1000 | allJSON 0)
+!! (| rowAnd | map chk | map printJson | listToRow | listTake 100 | allJSON 0)
+;; (| rowAnd | map chk | map printJson | listToRow | listTake 1000 | allJSON 0)

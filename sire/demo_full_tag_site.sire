@@ -177,6 +177,7 @@ typedef#Tag#Str
 %% 3019449 3032217 2836375 2668954 2938918 2994310 89769   2922373 3020597
 %% 2943107
 
+
 """ JSON Handling """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (assertThat x msg rest)
@@ -236,7 +237,7 @@ t
 = (parseLearn (PIN jsonBS))
 @ [!json _]
   | trk %parse
-  | parseValue jsonBS
+  | parseJson jsonBS
 @ !rows
   | catMaybes
   | map m&(jsonImgToRow jsonBS | assertMap jsonBS m)
@@ -276,7 +277,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
 
 ; TODO: user #datatype to define the json structure, and use #datacase here.
 = (jsonRow jsonBS)
-@ res@[json leftover] (parseValue jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
 | if res NONE
 | if (neq 0 leftover) NONE
 # switch (if json json (idx 0 json))
@@ -285,7 +286,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
 
 > Bar > Opt (Tab Str Json)
 = (jsonMap jsonBS)
-@ res@[json leftover] (parseValue jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
 | if (res || leftover) NONE
 # datacase json
 * JMAP|m | SOME m
@@ -452,11 +453,11 @@ abstype#Image ;; TODO: fix.  What is the real type?
     # datacase q
     * STATUSCMD
       @ statusJson | **doStatus st
-      @ statusBS   | printJSON statusJson
+      @ statusBS   | printJson statusJson
       | SOME [200 b#gotcha [] statusBS]
     * (SEARCHCMD offset tags)
       @ searchJson | doSearch st [offset tags]
-      @ searchBS   | printJSON searchJson
+      @ searchBS   | printJson searchJson
       | SOME [200 b#gotcha [] searchBS]
 * GET
   | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
@@ -560,7 +561,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
   | return ()
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 > Ref CogState > Cog Void
 = (runHttpServer vSt return)
