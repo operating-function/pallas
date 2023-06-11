@@ -90,18 +90,6 @@ dataTag=_DataTag
 | defC [nam 'x' 'record']
 | appE (cnsE (mut ix), varE 'x', varE 'record')
 
-> (Str, Row Str) > Cmd
-= (mkNamedC constr fields)
-@ nam
-        | strWeld "mk"
-        | strCapitalize
-        | strToLower constr
-| defC [nam %t]
-| appE
-| rowCons (varE constr)
-^ map _ fields
-| (f & appE (cnsE (tabIdx f), varE "t"))
-
 = (mkConstrKC key constr fields)
 | defKC key (rowCons constr fields)
 | rowE (map varE fields)
@@ -118,7 +106,6 @@ dataTag=_DataTag
 """     = (getSnd x)     | idx 1 x
 """     = (setFst v x)   | mut 0 v x
 """     = (setSnd v x)   | mut 1 v x
-"""     = (mkPair t)     | PAIR (tabGet %fst t) (tabGet %snd t)
 """
 """ This input format works too:
 """
@@ -279,26 +266,17 @@ fieldExpect="Expected something like (field:type)"
 | if (oTag /= NONE)
     | err sigRex "Record constructors are never tagged"
 ;
-; trk [=key =constr =fields]
+@ fields    | map snd fields  ;;  (Row (RexId, Symbol, Type)) -> Row Symbol
 @ constrKey | a
 @ a         | inc a
-@ p         | setProperty constrKey 'fieldNames' (map snd fields) p
+@ p         | setProperty constrKey 'fieldNames' fields p
 | ok p a
-; trk ('#record expands to', _) _
-| if (isZero len-fields)
-    | bloodline
-    ; ^ trk [bloodline=_] _
-   ~~ defC [constr] (natE 0)
-   ~~ @ nam (| strWeld "mk" | strCapitalize | strToLower constr)
-      | defC [nam '_'] (natE 0)
-; ^ trk [bloodline=_] _
-@ fields (map (idx 1) fields)  ;;  (Row (RexId, Symbol, Type)) -> Row Symbol
+| if (null fields) (defC [constr] cnsE-0)
 | bloodline
 | listCat
-~~ ~~ mkConstrKC constrKey constr fields
-~~ ~~ mkNamedC constr fields
-~~ listMap mkGetterC (listIndexed (listFromRow fields))
-~~ listMap mkSetterC (listIndexed (listFromRow fields))
+~~ listSing (mkConstrKC constrKey constr fields)
+~~ listMap mkGetterC (listIndexed | listFromRow fields)
+~~ listMap mkSetterC (listIndexed | listFromRow fields)
 
 record#Unit#UNIT
 record#(Box a)#(BOX boxItem:a)
@@ -312,8 +290,6 @@ ex=(PAIR %a %b)
 !!= (getSnd ex)    | %b
 !!= (setFst %x ex) | PAIR %x %b
 !!= (setSnd %x ex) | PAIR %a %x
-!!= ex             | mkPair [fst="a" snd="b"]
-!!= (BOX UNIT)     | BOX (mkUnit %[])
 
 
 """ Datatypes """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
