@@ -92,17 +92,17 @@
 | listAlternate as bs
 
 = (allJSON _)
-| CONS JSON_NULL
-| CONS JSON_TRUE
-| CONS JSON_FALSE
-| CONS (JSON_NUM 0)
-| CONS (JSON_STR b#{})
-| CONS (JSON_VEC [])
-| CONS (JSON_MAP %[])
+| CONS JNULL
+| CONS JTRUE
+| CONS JFALSE
+| CONS (JNUM 0)
+| CONS (JSTR b#{})
+| CONS (JVEC [])
+| CONS (JMAP %[])
 | listAlternate
-    | listMap (x & JSON_VEC [x])
+    | listMap (x & JVEC [x])
     | allJSON _
-| listMap (x & JSON_MAP [=x])
+| listMap (x & JMAP [=x])
 | allJSON _
 
 = (chk x)

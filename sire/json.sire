@@ -13,21 +13,87 @@
 /+  types
 
 
-""" Json Values """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Native Representation """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
-TAG_JSON_STR='str'
-TAG_JSON_NUM='num'
-TAG_JSON_VEC='vec'
-TAG_JSON_MAP='map'
+abstype#Json
 
-# datatype Json
-* ( JSON_NULL  = null  )
-* ( JSON_TRUE  = true  )
-* ( JSON_FALSE = false )
-* ( JSON_STR   = str   ) s:Bar
-* ( JSON_NUM   = num   ) n:Nat
-* ( JSON_VEC   = vec   ) r:(Row Json)
-* ( JSON_MAP   = map   ) t:(Tab Str Json)
+> Json > Nat
+= (jsonTag x)
+@ t (typeTag x)
+| if (t == natTag) x t
+
+#= JNULL       | {null}
+#= JTRUE       | {true}
+#= JFALSE      | {false}
+#= (**JSTR x)  | x
+#= (**JNUM n)  | 0 n
+#= (**JVEC xs) | xs
+#= (**JMAP kv) | kv
+
+zero=0
+one=1
+
+setProp#(JNULL.conTag)#JNULL
+setProp#(JNULL.conAri)#zero
+setProp#(JNULL.conFun)#jsonTag
+setProp#(JNULL.conHas)#FALSE
+setProp#(JNULL.conRaw)#FALSE
+
+setProp#(JTRUE.conTag)#JTRUE
+setProp#(JTRUE.conAri)#zero
+setProp#(JTRUE.conFun)#jsonTag
+setProp#(JTRUE.conHas)#FALSE
+setProp#(JTRUE.conRaw)#FALSE
+
+setProp#(JFALSE.conTag)#JFALSE
+setProp#(JFALSE.conAri)#zero
+setProp#(JFALSE.conFun)#jsonTag
+setProp#(JFALSE.conHas)#FALSE
+setProp#(JFALSE.conRaw)#FALSE
+
+setProp#(JSTR.conTag)#barTag
+setProp#(JSTR.conAri)#one
+setProp#(JSTR.conFun)#jsonTag
+setProp#(JSTR.conHas)#FALSE
+setProp#(JSTR.conRaw)#TRUE
+
+setProp#(JNUM.conTag)#appTag
+setProp#(JNUM.conAri)#one
+setProp#(JNUM.conFun)#jsonTag
+setProp#(JNUM.conHas)#FALSE   ; Fetching with idx-0 works on (0 _)
+setProp#(JNUM.conRaw)#FALSE   ; False because wrapper in (0 _)
+
+setProp#(JVEC.conTag)#rowTag
+setProp#(JVEC.conAri)#one
+setProp#(JVEC.conFun)#jsonTag
+setProp#(JVEC.conHas)#FALSE
+setProp#(JVEC.conRaw)#TRUE
+
+setProp#(JMAP.conTag)#tabTag
+setProp#(JMAP.conAri)#one
+setProp#(JMAP.conFun)#jsonTag
+setProp#(JMAP.conHas)#FALSE
+setProp#(JMAP.conRaw)#TRUE
+
+= (jsonWithType j)
+# datacase j
+* JNULL   [{n} j]
+* JTRUE   [{t} j]
+* JFALSE  [{f} j]
+* JSTR|x  [{s} x]
+* JNUM|n  [{u} n]
+* JVEC|xs [{v} xs]
+* JMAP|kv [{m} kv]
+
+!!=   | map jsonWithType
+      | [ "null" "true" "false" b#"lol" 0-9 [0-3 0-4 0-5] #[foo="null"] ]
+ ++ [%n %null]
+ ++ [%t %true]
+ ++ [%f %false]
+ ++ [%s b#lol]
+ ++ [%u 9]
+ ++ [%v [0-3 0-4 0-5]]
+ ++ [%m [foo={null}]]
 
 
 """ Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -43,13 +109,13 @@ TAG_JSON_MAP='map'
    @ stream | eatSpace stream
    : t ts   <- **listCase stream (fail "value" stream)
    # switch (dataTag t)
-   * null   | ok JSON_NULL ts
-   * true   | ok JSON_TRUE ts
-   * false  | ok JSON_FALSE ts
+   * null   | ok JNULL ts
+   * true   | ok JTRUE ts
+   * false  | ok JFALSE ts
    * l_brak | arr NIL ts fail ok
    * l_curl | obj #[] ts fail ok
-   * str    | ok (**JSON_STR | idx 1 t) ts
-   * num    | ok (**JSON_NUM | idx 2 t) ts  ; todo: more data.
+   * str    | ok (JSTR | idx 1 t) ts
+   * num    | ok (JNUM | idx 2 t) ts  ; todo: more data.
    * err    @ [_ off why] t
             @ msg (strCat ["lex error @" showNat-off ": " why])
             | fail msg stream
@@ -62,9 +128,10 @@ TAG_JSON_MAP='map'
    : t@[k v] ts <- **listCase stream (fail "'}', or key" stream)
    ;
    | if (t == TRCURL)
-       | ok (**JSON_MAP acc) ts
+       | ok (JMAP acc) ts
    ;
-   | if (or isNat-t (k /= TAG_JSON_STR))
+   | if (isNat t || neq {str} k)
+       | trk #[=t =k =v]
        | fail "'}', or key" stream
    ;
    @ newKey   | barNat v
@@ -93,7 +160,7 @@ TAG_JSON_MAP='map'
    : t ts     < **listCase stream complain
    ;
    | if (t == TRBRAK)
-       @ res (**JSON_VEC (listToRowReversed acc))
+       @ res (JVEC | listToRowReversed acc)
        | ok res ts
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [val]
    : val more <- val stream fail
@@ -104,7 +171,7 @@ TAG_JSON_MAP='map'
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [final]
    | if (TRBRAK == m)
        @ acc (CONS val acc)
-       @ !res (**JSON_VEC (listToRowReversed acc))
+       @ !res (JVEC | listToRowReversed acc)
        | ok res ms
    | if (TCOMMA == m)
        @ acc (CONS val acc)
@@ -121,41 +188,41 @@ TAG_JSON_MAP='map'
   | 'lex error @0: Unexpected EOF (string)'
 
 !!= (parseValue b#{[null]})
-  ^ (JSON_VEC [_], NIL)
-  | JSON_NULL
+  ^ (JVEC [_], NIL)
+  | JNULL
 
 !!= (parseValue b#{ [null,null,true,false] })
-  ^ (JSON_VEC _, [TSPACE 0])
- ++ JSON_NULL
- ++ JSON_NULL
- ++ JSON_TRUE
- ++ JSON_FALSE
+  ^ (JVEC _, [TSPACE 0])
+ ++ JNULL
+ ++ JNULL
+ ++ JTRUE
+ ++ JFALSE
 
 !!= (parseValue b#{[[]]})
-  ^ (JSON_VEC [_], NIL)
-  | JSON_VEC []
+  ^ (JVEC [_], NIL)
+  | JVEC []
 
 !!= (parseValue b#{[[null,null]]})
-  ^ (JSON_VEC [_], NIL)
-  | (JSON_VEC (JSON_NULL, JSON_NULL))
+  ^ (JVEC [_], NIL)
+  | (JVEC (JNULL, JNULL))
 
 !!= (parseValue b#{[[0,0],[0, 0],[0 ,0],[0 , 0]]})
-  ^ (JSON_VEC _, NIL)
- ++ JSON_VEC (JSON_NUM 0, JSON_NUM 0)
- ++ JSON_VEC (JSON_NUM 0, JSON_NUM 0)
- ++ JSON_VEC (JSON_NUM 0, JSON_NUM 0)
- ++ JSON_VEC (JSON_NUM 0, JSON_NUM 0)
+  ^ (JVEC _, NIL)
+ ++ JVEC (JNUM 0, JNUM 0)
+ ++ JVEC (JNUM 0, JNUM 0)
+ ++ JVEC (JNUM 0, JNUM 0)
+ ++ JVEC (JNUM 0, JNUM 0)
 
 !!= (parseValue b#{[0, ",", 1]})
-  ^ (JSON_VEC _, NIL)
-  | (JSON_NUM 0, JSON_STR b#{,}, JSON_NUM 1)
+  ^ (JVEC _, NIL)
+  | (JNUM 0, JSTR b#{,}, JNUM 1)
 
-!!= (parseValue b#{{}})   (JSON_MAP #[], NIL)
-!!= (parseValue b#{ { }}) (JSON_MAP #[], NIL)
+!!= (parseValue b#{{}})   (JMAP #[], NIL)
+!!= (parseValue b#{ { }}) (JMAP #[], NIL)
 !!= (parseValue b#{ {"str":"x", "null":null}})
-  ^ (JSON_MAP _, NIL)
- ## =str  | JSON_STR b#x
- ## =null | JSON_NULL
+  ^ (JMAP _, NIL)
+ ## =str  | JSTR b#x
+ ## =null | JNULL
 
 
 """ Printer """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -163,41 +230,43 @@ TAG_JSON_MAP='map'
 """ TODO: Substitue escape characters.
 """ TODO: Handle edge-cases with "\u1234" escapes.
 
+= (printVec go vec)
+^ [b#{[} _ b#{]}]
+| listIntersperse b#{,}
+| listFromRow
+| map go vec
+
+= (printMap go map)
+^ [b#'{' _ b#'}']
+^ (| listIntersperse b#{,} | listMap _ | tabToPairList map)
+& [k v]
+| (go (JSTR | natBar k), b#{:}, go v)
+
 = (printJSON input)
 ^ barFlat (_ input)
-? (go json@[t v])
-;
-| if (JSON_NULL == json)  | b#null
-| if (JSON_TRUE == json)  | b#true
-| if (JSON_FALSE == json) | b#false
-| if (TAG_JSON_STR == t)  | [b#{"} v b#{"}]
-| if (TAG_JSON_NUM == t)  | natBar (showNat v)
-| if (TAG_JSON_VEC == t)
-   ++ b#{[}
-   ++ listIntersperse b#{,} (| listFromRow | map go v)
-   ++ b#{]}
-| if (TAG_JSON_MAP == t)
-   ++ b#'{'
-   ++  ^ listIntersperse b#{,} (| listFromRow | map _ | tabToPairs v)
-       ? (goKV [k v])
-      ++ go (JSON_STR | natBar k)
-      ++ b#{:}
-      ++ go v
-   ++ b#'}'
-| die ["impossible" t json]
+? (go json)
+# datacase json
+* JNULL  | b#null
+* JTRUE  | b#true
+* JFALSE | b#false
+* JSTR|s | [b#{"} s b#{"}]
+* JNUM|n | natBar (showNat n)
+* JVEC|v | printVec go v
+* JMAP|t | printMap go t
+* _      | {bad json} [json [tag=(jsonTag json)]]
 
 !!= b#{["hi",null,true,false,99]}
-  ^ printJSON (JSON_VEC _)
- ++ JSON_STR b#hi
- ++ JSON_NULL
- ++ JSON_TRUE
- ++ JSON_FALSE
- ++ JSON_NUM 99
+  ^ printJSON (JVEC _)
+ ++ JSTR b#hi
+ ++ JNULL
+ ++ JTRUE
+ ++ JFALSE
+ ++ JNUM 99
 
 !!= b#{{"null":null,"bools":[true,false]}}
-  ^ printJSON (JSON_MAP _)
- ## =null  | JSON_NULL
- ## =bools | JSON_VEC [JSON_TRUE JSON_FALSE]
+  ^ printJSON (JMAP _)
+ ## =null  | JNULL
+ ## =bools | JVEC [JTRUE JFALSE]
 
 !!=  ++ b#{{}}
      ++ b#{{}}
@@ -213,5 +282,5 @@ TAG_JSON_MAP='map'
 ^-^ parseValue printJSON
 ^-^
 ^-^ Json
-^-^ JSON_NULL JSON_TRUE JSON_FALSE JSON_STR JSON_NUM JSON_VEC JSON_MAP
+^-^ JNULL JTRUE JFALSE JSTR JNUM JVEC JMAP
 ^-^

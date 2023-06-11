@@ -718,6 +718,28 @@ ex=(PAIR %a %b)
 ;          | 'hi'
 
 
+""" Dynamic Typing """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+pinTag=0
+lawTag=1
+appTag=2
+natTag=3
+barTag=4
+rowTag=5
+tabTag=6
+cowTag=7
+cabTag=8
+
+= (_TypeTag x)
+| if isBar-x barTag ;BAR
+| if isRow-x rowTag ;ROW
+| if isTab-x tabTag ;TAB
+| if isCow-x cowTag ;COW
+| if isCab-x cabTag ;CAB
+| planTag x
+
+typeTag=(_TypeTag)
+
 """ Backfills """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 zero=0
@@ -815,13 +837,18 @@ setProp#(RIGHT.conRaw)#FALSE
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+^-^
 ^-^ defKC defC ;; TODO Move this elsewhere
 ^-^
 ^-^ _DataTag
 ^-^ dataTag
+^-^
+^-^ typeTag
+^-^ pinTag lawTag appTag natTag barTag rowTag tabTag cowTag cabTag
 ^-^
 ^-^ parseDatacase resolveDatacase makeDatacaseExpr
 ^-^
 ^-^ '#datacase'
 ^-^ '#datatype'
 ^-^ '#record'
+^-^

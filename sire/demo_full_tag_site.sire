@@ -159,9 +159,8 @@ typedef#Tag#Str
 
 = (getFilename path)
 # datacase (barElemIndexEnd "/" path)
-* NONE (die "weird filename")
-* (SOME lastIdx)
-| barDrop (inc lastIdx) path
+* NONE           | {weird filename} path
+* (SOME lastIdx) | barDrop (inc lastIdx) path
 
 !!= (getFilename b#{http://blah/blah/two.html})
    b#{two.html}
@@ -194,8 +193,8 @@ t
 
 = (assertTabLookup key t)
 # datacase (tabLookup key t)
-* NONE     | die [%missingKey key]
-* (SOME v) | v
+* NONE   | die [%missingKey key]
+* SOME|v | v
 
 = (assertVec v@[h t])
 | **assertThat (eql h %vec) [%notAVec v]
@@ -287,31 +286,30 @@ abstype#Image ;; TODO: fix.  What is the real type?
 > Bar > Opt (Tab Str Json)
 = (jsonMap jsonBS)
 @ res@[json leftover] (parseValue jsonBS)
-| if res NONE
-| if (neq 0 leftover) NONE
-# switch (if json json (idx 0 json))
-* map | SOME (idx 1 json)
-* _   | NONE
+| if (res || leftover) NONE
+# datacase json
+* JMAP|m | SOME m
+* _      | NONE
 
 = (asJsonMap m)
-# switch (idx 0 m)
-* map | SOME (idx 1 m)
-* _   | NONE
+# datacase m
+* JMAP|m | SOME m
+* _      | NONE
 
 = (asJsonRow m)
-# switch (idx 0 m)
-* vec | SOME (idx 1 m)
-* _   | NONE
+# datacase m
+* JVEC|v | SOME v
+* _      | NONE
 
 = (asJsonNum m)
-# switch (idx 0 m)
-* num | SOME (idx 1 m)
-* _   | NONE
+# datacase m
+* JNUM|n | SOME n
+* _      | NONE
 
 = (asJsonStr m)
-# switch (idx 0 m)
-* str | SOME | barNat (idx 1 m)
-* _   | NONE
+# datacase m
+* JSTR|s | SOME (barNat s)
+* _      | NONE
 
 ; List of commands we parse out of the incoming json
 # datatype Cmd
@@ -325,20 +323,22 @@ abstype#Image ;; TODO: fix.  What is the real type?
 ;
 > Bar > Opt (Row Str)
 = (parseSearch jsonBS)
-: m <- **bindMaybe (jsonMap jsonBS)
-| if | (SOME (JSON_STR b#{Search}) /= tabLookup %tag m)
-  NONE
-: jcontents <- **bindMaybe (tabLookup %contents m)
+: map <- **bindMaybe (jsonMap jsonBS)
+@ isSearch
+    (SOME (JSTR b#{Search}) == tabLookup %tag map)
+| ifNot isSearch NONE
+: jcontents <- **bindMaybe (tabLookup %contents map)
 : content   <- **bindMaybe (asJsonMap jcontents)
 : joffset   <- **bindMaybe (tabLookup %offset content)
 : offset    <- **bindMaybe (asJsonNum joffset)
 : jr        <- **bindMaybe (tabLookup %tags content)
 : r         <- **bindMaybe (asJsonRow jr)
-^ forRow r _ t&(SOME (**SEARCHCMD offset t))
-? (step [h t] pure)
-| if | eql h %str
-  | pure | barNat t
-NONE
+: terms     <- ^ (traverseRow _ r)
+               & (item pure)
+               # datacase item
+               * JSTR|s | pure (barNat s)
+               * _      | NONE
+| SOME (**SEARCHCMD offset terms)
 
 ; todo: this is doing the quick hack of just calling the old parseSearch; I
 ; think all of this should be rewritten when we have more user friendly json
@@ -352,29 +352,34 @@ NONE
 * Search | parseSearch jsonBS
 * Status | SOME 0 ; STATUSCMD (but #datatype generated [0], not 0)
 
-!!= NONE         | parseCmd b#{"}
-!!= NONE         | parseCmd b#{{"x":3}}
-!!= NONE         | parseCmd b#{[]}
-!!= SOME-[1 5 [%x]]
-   | parseCmd b#{{"tag": "Search", "contents": {"offset":5, "tags":["x"]}}}
-!!= NONE
-   | parseCmd b#{{"tag": "bonk",   "contents": {"offset":0, "tags":["x"]}}}
-!!= NONE
-   | parseCmd b#{{"tag": "Search", "contents": [234]}}
-!!= SOME-[1 8 [%x %y]]
-   | parseCmd
-   b#{{"tag": "Search", "contents": {"offset":8, "tags":["x", "y"]}}}
-!!= (SOME 0)
-   | parseCmd b#{{"tag": "Status"}}
+!!= NONE | parseCmd b#{"}
+!!= NONE | parseCmd b#{{"x":3}}
+!!= NONE | parseCmd b#{[]}
 
-(tagToStr t)=(**JSON_STR (natBar t))
+!!= (SOME [1 5 [%x]])
+  | parseCmd b#{{"tag": "Search", "contents": {"offset":5, "tags":["x"]}}}
+
+!!= NONE
+  | parseCmd b#{{"tag": "bonk",   "contents": {"offset":0, "tags":["x"]}}}
+
+!!= NONE
+  | parseCmd b#{{"tag": "Search", "contents": [234]}}
+
+!!= SOME-[1 8 [%x %y]]
+  | parseCmd
+  | b#{{"tag": "Search", "contents": {"offset":8, "tags":["x", "y"]}}}
+
+!!= (SOME 0)
+  | parseCmd b#{{"tag": "Status"}}
+
+(tagToStr t)=(JSTR | natBar t)
 
 = (buildStatus st)
 @ COG_STATE(..) st
-| **JSON_MAP
-## =bytes | **JSON_NUM fileBytes
-## =imgs  | **JSON_NUM imgCount
-## =pairs | **JSON_NUM pairCount
+| JMAP
+## =bytes | JNUM fileBytes
+## =imgs  | JNUM imgCount
+## =pairs | JNUM pairCount
 
 ; [hm hsm] [cord] > bar
 = (doSearch st [offset searchTags])
@@ -388,9 +393,9 @@ NONE
 ;| trk [%results missing idsets]
 | if | not | isZero | len missing
   ; send back the missing tags
-  | **JSON_MAP
- ## =tag      | **JSON_STR b#{BadTag}
- ## =contents | **JSON_VEC (map tagToStr missing)
+  | JMAP
+ ## =tag      | JSTR b#{BadTag}
+ ## =contents | JVEC (map tagToStr missing)
  ## =status   | **buildStatus st
 ;
 @ ids
@@ -413,21 +418,21 @@ NONE
       ; generate a local server path from the id and the filename
       @ filename | getFilename url
       | mkBarPath [b#{img} (natBar | showNat id) filename]
-    | **JSON_VEC
-   ++ **JSON_NUM id
-   ++ **JSON_STR path
-| **JSON_MAP
-## =tag      | **JSON_STR b#{OK}
-## =contents | **JSON_MAP
-            ## =total  | **JSON_NUM | cabLen ids
-            ## =offset | **JSON_NUM | offset
-            ## =query  | **JSON_VEC | map tagToStr searchTags
-            ## =slice  | **JSON_VEC | records
+    | JVEC
+   ++ JNUM id
+   ++ JSTR path
+| JMAP
+## =tag      | JSTR b#{OK}
+## =contents | JMAP
+            ## =total  | JNUM | cabLen ids
+            ## =offset | JNUM | offset
+            ## =query  | JVEC | map tagToStr searchTags
+            ## =slice  | JVEC | records
 ## =status   | **buildStatus st
 
 = (doStatus st)
-| **JSON_MAP
-## =tag      | **JSON_STR b#{Status}
+| JMAP
+## =tag      | JSTR b#{Status}
 ## =contents | **buildStatus st
 
 
