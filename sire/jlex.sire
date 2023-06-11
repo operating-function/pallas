@@ -7,24 +7,33 @@
 /+  boot
 /+  switch  ["#switch"]
 /+  mutrec  ["#mutrec"]
+/+  datatype
+/+  types
 /+  stew
 
 
 """ Lexems """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= TOK_SPACE                 | %_
-= TOK_NULL                  | %n
-= TOK_TRUE                  | %t
-= TOK_FALSE                 | %f
-= TOK_COMMA                 | ','
-= TOK_COLON                 | ':'
-= TOK_L_BRAK                | '['
-= TOK_R_BRAK                | ']'
-= TOK_L_CURL                | '{'
-= TOK_R_CURL                | '}'
-= (TOK_STR t)               | [%str t]
-= (TOK_NUM neg num dec exp) | [%num neg num dec exp]
-= (TOK_ERR off why)         | [%err off why]
+abstype#(Result2 a b) ; type (Result2 a b) = (Or Str (a, b))
+abstype#(Opt2 a b)    ; type (Opt2 a b)    = (Or Zero (a, b))
+
+typedef#Deci#(Opt2 Nat Nat)
+typedef#Expo#(Opt2 Nat Nat)
+
+# datatype JLexeme
+* ( TSPACE = space  )
+* ( TNULL  = null   )
+* ( TTRUE  = true   )
+* ( TFALSE = false  )
+* ( TCOMMA = comma  )
+* ( TCOLON = colon  )
+* ( TLBRAK = l_brak )
+* ( TRBRAK = r_brak )
+* ( TLCURL = l_curl )
+* ( TRCURL = r_curl )
+* ( TSTR   = str    ) str:Bar
+* ( TNUM   = num    ) neg:Bit num:Nat dec:Deci exp:Expo
+* ( TERR   = err    ) off:Nat why:Str
 
 
 """ Consume Whitespace """""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -45,33 +54,33 @@
 = (lexStringLoop input top off)
 @ off (barElemIndexOff '"' off input)
 | if (eql off barLen-input)
-        | 'Unexpected EOF (string)'
+    | 'Unexpected EOF (string)'
 @ (countSlashes off count)
     | if (eql '\' | barIdx off input)
-      | countSlashes (dec off) (inc count)
-    count
+        | countSlashes (dec off) (inc count)
+    | count
 @ numSlashes | **countSlashes (dec off) 0
 | if (and (gth numSlashes 0) (mod numSlashes 2))
     | lexStringLoop input top (inc off)
 | else
-        @ tok (**TOK_STR (barSlice top (sub off top) input))
-        | (tok, inc off)
+    @ tok (**TSTR (barSlice top (sub off top) input))
+    | (tok, inc off)
 
 (lexString input off)=(lexStringLoop input off off)
 
-!!= [(TOK_STR b#{fdsafdsa}) 10]
-        | lexString b#{"fdsafdsa"} 1
+!!= (TSTR b#{fdsafdsa}, 10)
+  | lexString b#{"fdsafdsa"} 1
 
-!!= [(TOK_STR b#'fdsafdsa\"more') 16]
-        | lexString b#'"fdsafdsa\"more"' 1
+!!= (TSTR b#'fdsafdsa\"more', 16)
+  | lexString b#'"fdsafdsa\"more"' 1
 
 ; TODO: Sol says that escaping slashes wasn't intended in the parser for {}
 ; literals. Remove that later.
-!!= [(TOK_STR b#'fdsafdsa\\') 12]
-        | lexString b#{"fdsafdsa\\\\"} 1
+!!= (TSTR b#'fdsafdsa\\', 12)
+  | lexString b#{"fdsafdsa\\\\"} 1
 
 !!= 'Unexpected EOF (string)'
-        | lexString b#'"fdsafdsa\"more' 1
+  | lexString b#'"fdsafdsa\"more' 1
 
 
 """ Lex Numbers """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -92,11 +101,9 @@
 
 = (consumeZeros input startOff)
 ^ _ 0 startOff
-? (go count off)
-| seq count
-@ chr (barIdx off input)
-| if (eql '0' chr)
-        | go (inc count) (inc off)
+? (go !count off)
+| if ('0' == barIdx off input)
+    | go (inc count) (inc off)
 | [count off]
 
 !!= [0 0] | consumeZeros b#{+0000+} 0
@@ -117,18 +124,15 @@
 ; in the body of a let-binding, so all of the branches become calls to
 ; `if` instead of being a part of the law's code.
 ;
-> Bar > Nat > (| Or Zero | Or Nat | [Nat Nat Nat])
+> Bar > Nat > Result2 Deci Nat
 = (lexDecimal input off)
-@ c (barIdx off input)
+| ifNot ('.' == barIdx off input) [0 off]
 ;
-| ifNot (eql '.' c) [0 off]
-@ off (inc off)
-;
-@ [numZeros zof] (**consumeZeros input off)
-@ [nat dof]      (**consumeDigits input zof)
+@ off            | inc off
+@ [numZeros zof] | **consumeZeros input off
+@ [nat dof]      | **consumeDigits input zof
 ;
 | if (dof == off) noDig
-;
 | [[numZeros nat] dof]
 
 !!= [[2 33] 6] | lexDecimal b#'#.0033#' 1
@@ -157,7 +161,7 @@
 ; because it's used in the body of a let-binding, so all of the branches
 ; become calls to `if` instead of being a part of the law's code.
 ;
-> Bar > Nat > (Or Nat (Or Zero (Nat,Nat), Nat))
+> Bar > Nat > Result2 Expo Nat
 = (lexExponent input off)
 ;
 @ chr    (barIdx off input)
@@ -171,9 +175,6 @@
 @ posi   (chr == '+')
 @ signed (nega || posi)
 @ off    (add off signed)
-;
-; trk [=input =off =nega =posi =signed]
-; trk 'REST',(barDrop off input)
 ;
 @ [nat dof] (**consumeDigits input off)
 ;
@@ -200,81 +201,101 @@
 = (lexJson input)
 ^ _ 0
 ? (loop off)
-;
 # switch (barIdx off input)
-;
 * 0
     | NIL
-;
 * n
     | ifNot (b#null == barSlice off 4 input) 0
-    [TOK_NULL (loop (add 4 off))]
-;
+    | (TNULL, loop (add 4 off))
 * t
     | ifNot (b#true == barSlice off 4 input) 0
-    [TOK_TRUE (loop (add 4 off))]
-; false
+    | (TTRUE, loop (add 4 off))
 * f
     | ifNot (b#false == barSlice off 5 input) 0
-    [TOK_FALSE (loop (add 5 off))]
-; runes
-* ',' [TOK_COMMA  (loop inc-off)]
-* ':' [TOK_COLON  (loop inc-off)]
-* '[' [TOK_L_BRAK (loop inc-off)]
-* ']' [TOK_R_BRAK (loop inc-off)]
-* '{' [TOK_L_CURL (loop inc-off)]
-* '}' [TOK_R_CURL (loop inc-off)]
+    | (TFALSE, loop (add 5 off))
+;
+* ',' (TCOMMA, loop (inc off))
+* ':' (TCOLON, loop (inc off))
+* '[' (TLBRAK, loop (inc off))
+* ']' (TRBRAK, loop (inc off))
+* '{' (TLCURL, loop (inc off))
+* '}' (TRCURL, loop (inc off))
 ;
 * '"'
     @ res (**lexString input (inc off))
-    | if res [(**TOK_ERR off res) 0]
+    | if res (**TERR off res, 0)
     @ [tok off] res
     [tok (loop off)]
 ;
-* 32 [TOK_SPACE loop-(chomp input | inc off)]
-* 9  [TOK_SPACE loop-(chomp input | inc off)]
-* 10 [TOK_SPACE loop-(chomp input | inc off)]
-* 13 [TOK_SPACE loop-(chomp input | inc off)]
-;
+* 32 (TSPACE, loop (chomp input | inc off))
+* 9  (TSPACE, loop (chomp input | inc off))
+* 10 (TSPACE, loop (chomp input | inc off))
+* 13 (TSPACE, loop (chomp input | inc off))
 * _
-    @ fst (barIdx off input)
-    @ neg (eql '-' fst)
-    @ off (add neg off) ; add bit+number to avoid branching.
-    ;
-    @ chr (barIdx off input)
-    @ [nat dof] (**consumeDigits input off)
+    @ fst       | barIdx off input
+    @ neg       | eql {-} fst
+    @ off       | add neg off ; add bit+number to avoid branching.
+    @ chr       | barIdx off input
+    @ [nat dof] | **consumeDigits input off
     | if (dof == off)
-            | if neg [(**TOK_ERR off 'Bad number, no digits') 0]
-            | [(**TOK_ERR off 'Unexpected Character') 0]
-    @ off dof
+        | if neg (**TERR off 'Bad number, no digits', 0)
+        | (**TERR off 'Unexpected Character', 0)
     ;
-    @ decRes (lexDecimal input off)
-    | if decRes [(**TOK_ERR off decRes) 0]
-    @ [deci off] decRes
+    @ off               | dof
+    @ [deci off]@decRes | lexDecimal input off
+    | if decRes (**TERR off decRes, 0)
+    @ [expi off]@expRes | lexExponent input off
+    | if expRes (**TERR off expRes, 0)
     ;
-    @ expRes (lexExponent input off)
-    | if expRes [(**TOK_ERR off expRes) 0]
-    @ [expi off] expRes
-    ;
-    | [(**TOK_NUM neg nat deci expi) (loop off)]
+    | (**TNUM neg nat deci expi, loop off)
 
-!!=     | listToRow | lexJson b#'{"x":999}'
-    ('{', [%str b#x], ':', [%num 0 999 0 0], '}')
+!!= (listToRow | lexJson b#'{"x":999}')
+ ++ TLCURL
+ ++ TSTR b#x
+ ++ TCOLON
+ ++ TNUM FALSE 999 0 0
+ ++ TRCURL
 
-!!=     | listToRow | lexJson b#'{"x":-999}'
-    ('{', [%str b#x], ':', [%num 1 999 0 0], '}')
+!!= (listToRow | lexJson b#'{"x":-999}')
+ ++ TLCURL
+ ++ TSTR b#x
+ ++ TCOLON
+ ++ TNUM TRUE 999 0 0
+ ++ TRCURL
 
-!!=     | listToRow | lexJson b#'{"x":9.9}'
-    ('{', [%str b#x], ':', [%num 0 9 [0 9] 0], '}')
+!!= (listToRow | lexJson b#'{"x":9.9}')
+ ++ TLCURL
+ ++ TSTR b#x
+ ++ TCOLON
+ ++ TNUM FALSE 9 [0 9] 0
+ ++ TRCURL
 
-!!=     | listToRow | lexJson b#'{"x":9e9}'
-    ('{', [%str b#x], ':', [%num 0 9 0 [0 9]], '}')
+!!= (listToRow | lexJson b#'{"x":9e9}')
+ ++ TLCURL
+ ++ TSTR b#x
+ ++ TCOLON
+ ++ TNUM FALSE 9 0 [0 9]
+ ++ TRCURL
 
-!!=     | listToRow | lexJson b#'{"x":09.09e9}'
-    ('{', [%str b#x], ':', [%num 0 9 [1 9] [0 9]], '}')
+!!= (listToRow | lexJson b#'{"x":09.09e9}')
+ ++ TLCURL
+ ++ TSTR b#x
+ ++ TCOLON
+ ++ TNUM FALSE 9 [1 9] [0 9]
+ ++ TRCURL
 
-!!=     | listToRow | lexJson b#' { "x" : 999 } '
-    ('_', '{', '_', [%str b#x], '_', ':', '_', [%num 0 999 0 0], '_', '}', '_')
+!!= (listToRow | lexJson b#' { "x" : 999 } ')
+ ++ TSPACE
+ ++ TLCURL
+ ++ TSPACE
+ ++ TSTR b#x
+ ++ TSPACE
+ ++ TCOLON
+ ++ TSPACE
+ ++ TNUM FALSE 999 0 0
+ ++ TSPACE
+ ++ TRCURL
+ ++ TSPACE
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -282,8 +303,8 @@
 ^-^
 ^-^ lexJson
 ^-^
-^-^ TOK_SPACE TOK_NULL TOK_TRUE TOK_FALSE
-^-^ TOK_COMMA TOK_COLON
-^-^ TOK_L_BRAK TOK_R_BRAK TOK_L_CURL TOK_R_CURL
-^-^ TOK_STR TOK_NUM
+^-^ TSPACE TNULL TTRUE TFALSE
+^-^ TCOMMA TCOLON
+^-^ TLBRAK TRBRAK TLCURL TRCURL
+^-^ TSTR TNUM
 ^-^
