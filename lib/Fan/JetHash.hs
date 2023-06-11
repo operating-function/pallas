@@ -191,4 +191,6 @@ jetHashes
     , e "ror32"               "HBCzYHuimPmfH3uDT7PcPZdAxL8NiJsSpZH5NPJy2NHT"
     , e "rol32"               "EDTt4s514xc88fuPwtRmAPQt4fcSi8Q9r5hwT2izqDJA"
     , e "blake3"              "Bq5g65cBpgvuZG7TkpcteCQ38fnYVZdpoJS19DdTp6pG"
+    , e "_DataTag"            "2Wg9tRdyQP8EUXGTmGvi4yEcKp8a4NZbEopDNKQGdgA3"
+    , e "_TypeTag"            "En1ABUDPRhqRrNstJMmJMTmjdTuR9fCDaiHmtqUR45S1"
     ]

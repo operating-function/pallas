@@ -170,6 +170,10 @@ jetImpls = mapFromList
   -- par
   , ( "par"         , parJet )
   , ( "pseq"        , pseqJet )
+
+  -- par
+  , ( "_DataTag"        , dataTagJet )
+  , ( "_TypeTag"        , typeTagJet )
   ]
 
 --------------------------------------------------------------------------------
@@ -1043,6 +1047,41 @@ tabValsJet f e = orExecTrace "tabVals" (f e) (tv <$> getTab(e^1))
   where
     tv :: Map Fan Fan -> Fan
     tv = ROW . V.fromList . M.elems
+
+typeTagJet :: Jet
+typeTagJet _ e =
+    case (e^1) of
+        PIN{} -> 0
+        FUN{} -> 1
+        KLO{} -> 2
+        NAT{} -> 3
+        BAR{} -> 4
+        ROW{} -> 5
+        TAB{} -> 6
+        COw{} -> 7
+        CAb{} -> 8
+        REX{} -> 1 -- law (TODO: update this when repr changes)
+
+{-
+    Returns either a nat, the first element of a closure (the last
+    element applied), or 0 (for law/pin).
+
+    TODO: Maybe cleaner to implement with (snd . boom)?  Same logic,
+    right?
+-}
+dataTagJet :: Jet
+dataTagJet _ e =
+    case (e^1) of
+        KLO _ x -> x ^ (sizeofSmallArray x - 1)       -- app (never empty)
+        ROW xs  -> if null xs then 0 else xs!0        -- app
+        TAB kv  -> fromMaybe 0 (fst <$> M.minView kv) -- app (empty=0)
+        PIN{}   -> 0 -- pin
+        FUN{}   -> 0 -- law
+        BAR{}   -> 0 -- law
+        COw{}   -> 0 -- law
+        CAb{}   -> 0 -- law
+        REX{}   -> 0 -- law (TODO: update this when repr changes)
+        n@NAT{} -> n
 
 w32Jet :: Jet
 w32Jet _ env =
