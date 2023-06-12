@@ -145,7 +145,8 @@ data Response
 responseToVal :: Response -> Fan
 responseToVal (RespCall f _) = f
 responseToVal (RespWhat w) = toNoun w
-responseToVal (RespRecv PENDING_SEND{msgParams}) = ROW msgParams
+responseToVal (RespRecv PENDING_SEND{..}) =
+  ROW $ fromList [toNoun sender, ROW msgParams]
 responseToVal (RespSend SendOK) = NAT 0
 responseToVal (RespSend SendCrash) = NAT 1
 responseToVal (RespSpin (COG_ID id) _) = fromIntegral id
@@ -417,7 +418,9 @@ recomputeEvals ctx m (RECEIPT cogId _ tab) =
                 case getSendFunAt m sender cogId reqIdx of
                     Nothing ->
                         throwIO INVALID_RECV_RECEIPT_IN_LOGBATCH
-                    Just val -> pure (k, val, Nothing)
+                    Just val ->
+                      let out = ROW $ fromList [toNoun sender, val]
+                      in pure (k, out, Nothing)
             ReceiptStop{..} -> do
                 case M.lookup cogNum m.val of
                     Nothing ->

@@ -94,14 +94,16 @@ The `%cog` requests are:
 
 -   `[%cog %spin fan] -> IO Pid`: Starts a cog and returns its cog id.
 
--   `[%cog %stop pid] -> IO Fan`: Stops a cog and returns the cog's value.
-
--   `[%cog %recv] -> IO Fan`: Waits for a message from another process.
-
 -   `[%cog %send pid fan] -> IO ()`: Sends the fan value to pid,
     returning on success. `%recv`/`%send` are special in that they always
     both execute atomically; you'll never have one without the other in
     the event log.
+
+-   `[%cog %recv] -> IO (Pid, Fan)`: Waits for a message from another process.
+
+
+-   `[%cog %stop pid] -> IO Fan`: Stops a cog and returns the cog's value.
+
 
 -   `[%cog %who] -> IO Pid`: Tells the cog who it is. Any other way of
     implementing this would end up with changes to the type of the cog
