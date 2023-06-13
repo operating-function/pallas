@@ -13,6 +13,10 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (stopDemo return)
+; first test stopping invalid ids works
+: ??(stop_bad_id_is_zero val) <- syscall (COG_STOP 111111111)
+| if | isSome val
+  | 'COG_STOP returned a value for an invalid cog: ' val
 : ??(spin_got_id id) <- syscall (COG_SPIN (runCog-(timeDemo 5)))
 | trk [%cogId id]
 ;
@@ -23,7 +27,9 @@
 ;
 ; stop and steal that cog's value.
 : ??(stop_get_val val) <- syscall (COG_STOP id)
-| trk [%stopVal val]
+| if | isNone val
+  | 'COG_STOP did not return the val for cog: ' val
+| trk [%stopVal (fromSome 0 val)]
 | return ()
 
 (runCog stopDemo)

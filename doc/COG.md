@@ -101,8 +101,8 @@ The `%cog` requests are:
 
 -   `[%cog %recv] -> IO (Pid, Fan)`: Waits for a message from another process.
 
-
--   `[%cog %stop pid] -> IO Fan`: Stops a cog and returns the cog's value.
+-   `[%cog %stop pid] -> IO (Maybe Fan)`: Stops a cog and returns the
+    cog's value, if it exists.
 
 
 -   `[%cog %who] -> IO Pid`: Tells the cog who it is. Any other way of

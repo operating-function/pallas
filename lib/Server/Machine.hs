@@ -138,7 +138,7 @@ data Response
     | RespRecv PendingSendRequest
     | RespSend SendOutcome
     | RespSpin CogId Fan
-    | RespStop CogId Fan
+    | RespStop CogId (Maybe Fan)
     | RespWho CogId
   deriving (Show)
 
@@ -150,7 +150,7 @@ responseToVal (RespRecv PENDING_SEND{..}) =
 responseToVal (RespSend SendOK) = NAT 0
 responseToVal (RespSend SendCrash) = NAT 1
 responseToVal (RespSpin (COG_ID id) _) = fromIntegral id
-responseToVal (RespStop _ f) = f
+responseToVal (RespStop _ f) = toNoun f
 responseToVal (RespWho (COG_ID id)) = fromIntegral id
 responseToVal (RespEval e)   =
     ROW case e of
@@ -424,10 +424,10 @@ recomputeEvals ctx m (RECEIPT cogId _ tab) =
             ReceiptStop{..} -> do
                 case M.lookup cogNum m.val of
                     Nothing ->
-                        throwIO INVALID_STOP_RECEIPT_IN_LOGBATCH
+                        pure (k, NAT 0, Nothing)
                     Just val -> do
                         let ef = CStop cogNum
-                        pure (k, val, Just ef)
+                        pure (k, (NAT 0) %% val, Just ef)
   where
     getEvalFunAt :: Moment -> CogId -> RequestIdx -> Maybe (Fan, Vector Fan)
     getEvalFunAt m cogId idx = withRequestAt m cogId idx $ \case
@@ -770,7 +770,9 @@ receiveResponse st = \case
         do
           myb <- (lookup lstCogId . (.val)) <$> readTVar st.vMoment
           case myb of
-            Nothing -> retry
+            Nothing ->
+              pure (Just RTUP{key=lstIdx, resp=RespStop lstCogId Nothing,
+                              work=0, flow=FlowDisabled})
             Just cogval -> do
               modifyTVar' st.vSends $ M.delete lstCogId
               modifyTVar' st.vMoment
@@ -779,8 +781,8 @@ receiveResponse st = \case
               reqs <- stateTVar st.vRequests getAndRemoveReqs
               mapM_ cancelRequest reqs
 
-              pure (Just RTUP{key=lstIdx, resp=RespStop lstCogId cogval, work=0,
-                              flow=FlowDisabled})
+              pure (Just RTUP{key=lstIdx, resp=RespStop lstCogId (Just cogval),
+                              work=0, flow=FlowDisabled})
         where
           getAndRemoveReqs s =
               ( getLiveReqs $ fromMaybe mempty $ lookup lstCogId s
