@@ -54,7 +54,7 @@
 > Str > a > (Nat > a) > a
 = (getNatStr str fall ret)
 | if (isZero str) fall
-| traverseRow (c r)&(**getDigit c fall r) (explode str)
+| rowTraverse (c r)&(**getDigit c fall r) (explode str)
 & nums
 ^ ret (idx 1 (foldr _ [1 0] nums))
 ? (f elem rest)
@@ -270,7 +270,7 @@ symTodo='todo: support .foo and .234'
 
 
 = (rexParseRow rexRow readRow err ok)
-^ traverseRow _ (zip readRow rexRow) ok
+^ rowTraverse _ (zip readRow rexRow) ok
 ? (step pair ret)
 @ read (idx 0 pair)
 @ rex  (idx 1 pair)
@@ -314,7 +314,7 @@ symTodo='todo: support .foo and .234'
     @ step
         ? (step son ret)
         | readSymbol son err ret
-    | traverseRow step (rexSons rex) ok
+    | rowTraverse step (rexSons rex) ok
 | if (eql "WORD" rexStyle-rex)
     | readSymbol rex err
     & sym

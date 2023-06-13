@@ -334,7 +334,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
 : offset    <- **bindMaybe (asJsonNum joffset)
 : jr        <- **bindMaybe (tabLookup %tags content)
 : r         <- **bindMaybe (asJsonRow jr)
-: terms     <- ^ (traverseRow _ r)
+: terms     <- ^ (rowTraverse _ r)
                & (item pure)
                # datacase item
                * JSTR|s | pure (barNat s)

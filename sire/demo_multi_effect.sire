@@ -12,20 +12,6 @@
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (forList_ list f next)
-: x xs <- listCase list (next 0)
-: _    <- f x
-| forList_ xs f next
-
-(forRow_ row f next)=(forList_ (listFromRow row) f next)
-(forCab_ cab f next)=(**forRow_ (cabToRow cab) f next)
-(traverseList_ f cab next)=(forList_ cab f next)
-(traverseRow_ f cab next)=(**forRow_ cab f next)
-(traverseCab_ f cab next)=(**forCab_ cab f next)
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 ;; TODO Support `(# x)("""...)("""...)
 = favicon
 | PIN

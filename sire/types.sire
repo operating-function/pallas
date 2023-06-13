@@ -320,7 +320,7 @@ abstype#TyExp
     : r <- tyApp 'Fun' Fun [x y] err
     | ret r
 * (T_REF nam scheme args)
-    : params < traverseRow go args
+    : params < rowTraverse go args
     : result < tyApp nam scheme params err
     | ret result
 * (T_VAR sym)
@@ -328,7 +328,7 @@ abstype#TyExp
     * NONE     | err varE-sym 'unbound type variable'
     * (SOME i) | ret (TVAR i)
 * (T_TUP exps)
-    : params < traverseRow go exps
+    : params < rowTraverse go exps
     @ scheme | tupleType (len exps)
     : result < tyApp 'TUP' scheme params err
     | ret result
@@ -439,16 +439,16 @@ abstype#TyExp
         | err head "expected: TypeName"
     | ifNot (tabHas sym e)
         | err rex (strWeld 'Undefined type constructor: ' sym)
-    : params < traverseRow loop para
+    : params < rowTraverse loop para
     | ok (T_REF sym (tabGet e sym) params)
 * '>'
-    : kidTypes < traverseRow loop (rexKids rex)
+    : kidTypes < rowTraverse loop (rexKids rex)
     | ok (bigFun kidTypes)
 * '->'
-    : kidTypes < traverseRow loop (rexKids rex)
+    : kidTypes < rowTraverse loop (rexKids rex)
     | ok (bigFun kidTypes)
 * ','
-    : kidTypes < traverseRow loop (rexKids rex)
+    : kidTypes < rowTraverse loop (rexKids rex)
     | if (len kidTypes == 1)
         | err rex 'Write (Row x), not [x]'
     | ok (T_TUP kidTypes)

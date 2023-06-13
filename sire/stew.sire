@@ -518,7 +518,7 @@
     : tab <- readWideTabLit readExp rex err
     | ok (ETAB tab)
 | else
-    : exps <- traverseRow (x k & readExp x err k) kids
+    : exps <- rowTraverse (x k & readExp x err k) kids
     | ok (EROW exps)
 
 = (readHaxOutline rex err ok)
@@ -622,7 +622,7 @@
     | err rex "Expected something like (^ exp exp...)body"
 @ bodyRex  | get kids (dec nKid)
 @ expRexes | take (dec nKid) kids
-: bodyExps < traverseRow (x k & readExp x err k) expRexes
+: bodyExps < rowTraverse (x k & readExp x err k) expRexes
 : valExp   < readExp bodyRex err
 | ok | EKET (mkApp bodyExps) valExp
 
@@ -732,7 +732,7 @@
 : symRex sym params <- readHaxOutline rex err
 # switch sym
 * {mutual}
-    : cmds <- traverseRow (flip readCmd err) params
+    : cmds <- rowTraverse (flip readCmd err) params
     | ok (CMUT cmds)
 * _
     : exp <- parseHaxExp readExp err
@@ -900,29 +900,29 @@
 
 ; TODO: Move these into the bootstrapping process?  Maybe into 13_tab.sire?
 
-= (traverseTabWithState st f tab ok)
+= (tabTraverseState st f tab ok)
 @ keys (tabKeysRow tab)
-: st rexes < traverseRowWithState st f tab
+: st rexes < rowTraverseState st f tab
 | ok st (mkTab keys rexes)
 
 = (traverseTab f tab ok)
 @ keys (tabKeysRow tab)
-: rexes < traverseRow f tab
+: rexes < rowTraverse f tab
 | ok (mkTab keys rexes)
 
-= (traverseRexWithState st f rex ok)
+= (rexTraverseState st f rex ok)
 | if (isZero rex)
     | ok st rex
 | if (rexIsEmbd rex)
     : st newVal < f st (rexEmbd rex)
     | ok st (EMBD newVal)
-: st heir < traverseRexWithState st f (rexHeir rex)
+: st heir < rexTraverseState st f (rexHeir rex)
 | if (rexIsLeaf rex)
     | ok st (rexSetHeir heir rex)
 : st sons
-  < ^ traverseRowWithState st _ (rexSons rex)
+  < ^ rowTraverseState st _ (rexSons rex)
     & (st son ret)
-    | traverseRexWithState st f son ret
+    | rexTraverseState st f son ret
 | ok st
 | rexSetHeir heir
 | rexSetSons sons
@@ -931,7 +931,7 @@
 
 = (traverseRex f rex ok)
 : _ res
-    < ^ traverseRexWithState 0 _ rex
+    < ^ rexTraverseState 0 _ rex
       & (st rex ok)
       : rex < f rex
       | ok 0 rex
@@ -950,16 +950,16 @@
 * (EBAR _)           | f exp ok
 * (ECAB _)           | f exp ok
 * (EREX r)           | f exp ok
-* (EOR  x y)         | traverseRow go [x y] & [x y] | f (EOR x y)    ok
-* (EAND x y)         | traverseRow go [x y] & [x y] | f (EAND x y)   ok
-* (EAPP x y)         | traverseRow go [x y] & [x y] | f (EAPP x y)   ok
-* (EKET x y)         | traverseRow go [x y] & [x y] | f (EKET x y)   ok
-* (ELET n x b)       | traverseRow go [x b] & [x b] | f (ELET n x b) ok
-* (EREC n x b)       | traverseRow go [x b] & [x b] | f (EREC n x b) ok
-* (ENEQ x y)         | traverseRow go [x y] & [x y] | f (ENEQ x y)   ok
-* (ECON x z)         | traverseRow go [x z] & [x z] | f (ECON x z)   ok
-* (EROW xs)          | traverseRow go xs    & xs    | f (EROW xs)    ok
-* (EEQL xs)          | traverseRow go xs    & xs    | f (EEQL xs)    ok
+* (EOR  x y)         | rowTraverse go [x y] & [x y] | f (EOR x y)    ok
+* (EAND x y)         | rowTraverse go [x y] & [x y] | f (EAND x y)   ok
+* (EAPP x y)         | rowTraverse go [x y] & [x y] | f (EAPP x y)   ok
+* (EKET x y)         | rowTraverse go [x y] & [x y] | f (EKET x y)   ok
+* (ELET n x b)       | rowTraverse go [x b] & [x b] | f (ELET n x b) ok
+* (EREC n x b)       | rowTraverse go [x b] & [x b] | f (EREC n x b) ok
+* (ENEQ x y)         | rowTraverse go [x y] & [x y] | f (ENEQ x y)   ok
+* (ECON x z)         | rowTraverse go [x z] & [x z] | f (ECON x z)   ok
+* (EROW xs)          | rowTraverse go xs    & xs    | f (EROW xs)    ok
+* (EEQL xs)          | rowTraverse go xs    & xs    | f (EEQL xs)    ok
 * (ETAB kv)          | traverseTab go kv    & kv    | f (ETAB kv)    ok
 * (ELAM p (n,t,a,b)) | go b & b | f (ELAM p (n,t,a,b)) ok
 * (ELIN x)           | go x & x | f (ELIN x)           ok
@@ -971,7 +971,7 @@
           * NONE     | ok NONE
           * (SOME e) | go e (compose ok SOME)
     : cases
-        < ^ traverseRow _ cases
+        < ^ rowTraverse _ cases
           & ([con params body] ok)
           : body < go body
           | ok [con params body]
@@ -979,7 +979,7 @@
 * (EMUT tab body arms)
     : body < go body
     : arms
-        < ^ traverseRow _ arms
+        < ^ rowTraverse _ arms
           & ([sym pats armBody] ok)
           : armBody < go armBody
           | ok [sym pats armBody]
@@ -1012,7 +1012,7 @@
     : p <- traversePat f p
     | f (PALI n p) ok
 * (PROW xs)
-    : xs < traverseRow (traversePat f) xs
+    : xs < rowTraverse (traversePat f) xs
     | f (PROW xs) ok
 * (PTAB kv)
     : kv < traverseTab (traversePat f) kv
@@ -1057,19 +1057,19 @@
     : n <- goPat n
     | ok (ELET n x b)
 * (ELAM p (n,t,as,b))
-    : as <- traverseRow goPat as
+    : as <- rowTraverse goPat as
     | ok | ELAM p (n, t, as, b)
 * (EMUT tag body arms)
-    : arms < ^ traverseRow _ arms
+    : arms < ^ rowTraverse _ arms
              & ([sym pats exp] ret)
-             : pats < traverseRow goPat pats
+             : pats < rowTraverse goPat pats
              | ret [sym pats exp]
     | ok (EMUT tag body arms)
 * (ECAS x fb cases)
     : cases
-        < ^ traverseRow _ cases
+        < ^ rowTraverse _ cases
           & ([con params body] ok)
-          : params < traverseRow goPat params
+          : params < rowTraverse goPat params
           | ok (CON_CASE con params body)
     | ok (ECAS x fb cases)
 * _
@@ -1081,7 +1081,7 @@
 
 = (cQrx go st rex ok)
 : st rexWithSplices
-  < ^ traverseRexWithState st _ rex
+  < ^ rexTraverseState st _ rex
     & (st embd ret)
     # datacase embd
     * (LEFT cns)
@@ -1094,19 +1094,19 @@
 | splicedE rexWithSplices
 
 = (cApp go st exps ok)
-: st rexes < traverseRowWithState st go exps
+: st rexes < rowTraverseState st go exps
 | ok st (appE rexes)
 
 = (cRow go st exps ok)
-: st rexes < traverseRowWithState st go exps
+: st rexes < rowTraverseState st go exps
 | ok st (rowE rexes)
 
 = (cTab go st exps ok)
-: st rexesTab < traverseTabWithState st go exps
+: st rexesTab < tabTraverseState st go exps
 | ok st (tabE rexesTab)
 
 = (cEql go st exps ok)
-: st rexes  < traverseRowWithState st go exps
+: st rexes  < rowTraverseState st go exps
 @ (st, rex) | multiEqlE st rexes
 | ok st rex
 
@@ -1118,7 +1118,7 @@
 = (cSwi go st x fb arms ok)
 : st xRex     <- go st x
 : st fbRex    <- go st fb
-: st patRexes <- traverseTabWithState st go arms
+: st patRexes <- tabTraverseState st go arms
 | ok st (switchE xRex fbRex patRexes)
 
 = (cLam go st pin (nam, tag, pats, bodyExp) ok)
@@ -1166,7 +1166,7 @@
 : st bodRex
     < go st bodExp
 : st armSpecs
-  < ^ traverseRowWithState st _ arms
+  < ^ rowTraverseState st _ arms
     & (st [funName pats funBodExp] ok)
     : st funBodRex < go st funBodExp
     | ok st [funName pats funBodRex]
@@ -1200,7 +1200,7 @@
 ;
 : st branches
   < & ret
-    ^ traverseRowWithState st _ arms ret
+    ^ rowTraverseState st _ arms ret
     & (st (CON_CASE constr pats armExp) ret)
     : st armRex <- go st armExp
     ;

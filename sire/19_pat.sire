@@ -162,7 +162,7 @@
 | if (not (rexIsNode rex))   | err rex rbBadForm
 | if (neq (rexRune rex) ",") | err rex rbBadForm
 | if (neq (rexHeir rex) 0)   | err rex rbBadHeir
-: elems <- traverseRow (son ret & parseBinder son err ret) (rexSons rex)
+: elems <- rowTraverse (son ret & parseBinder son err ret) (rexSons rex)
 | ok [%r elems]
 
 = (parseTabBinder parseBinder rex err ok)
@@ -574,7 +574,7 @@
     @ sons (rexSons rex)
     | if (isZero len-sons)
         | err rex sigExpect
-    ^ traverseRow _ sons ok
+    ^ rowTraverse _ sons ok
     ? (step son ret)
     | parseBinder son err ret
 | else
@@ -613,7 +613,7 @@
         | err rex symSigExpect
 : sym
         < readKey (idx 0 sons) err
-: binds <- ^ traverseRow _ (drop 1 sons)
+: binds <- ^ rowTraverse _ (drop 1 sons)
            ? (step son ret)
            | parseBinder son err ret
 | ok sym binds
@@ -636,11 +636,11 @@
 
 = (makeDestroyer aft binds bodyExpr pure)
 : aft sig
-        < forRowWithState aft binds
-        & (aft bind ret)
-        | if (eql %v (idx 0 bind))
-                | ret aft (idx 2 bind)
-        | ret (inc aft) (gensym aft)
+        < ^ rowTraverseState aft _ binds
+          & (aft bind ret)
+          | if (eql %v (idx 0 bind))
+                  | ret aft (idx 2 bind)
+          | ret (inc aft) (gensym aft)
 @ binder (zip binds (map varE sig))
 @ res  (sequenceBinds aft binder)
 @ aft  (idx 0 res)
@@ -688,7 +688,7 @@
 
 > Nat > SugaredBinder Rex > Cont2 Nat (Pat, Rex)
 = (desugarMultiBinder st sweetBinds ok)
-| traverseRowWithState st desugarBinder sweetBinds ok
+| rowTraverseState st desugarBinder sweetBinds ok
 & (st sweetBind ret)
 ^ eitherCase sweetBind _ (ret st)
 & nameArgsBody
@@ -702,7 +702,7 @@
 > Nat > Row (SugaredBinder Rex) > Rex > Cont2 Nat Rex
 = (multiLetE st sugaredBinds bodyExpr ok)
 : st binds
-    < traverseRowWithState st desugarBinder sugaredBinds
+    < rowTraverseState st desugarBinder sugaredBinds
 @ stBindSeqDeps
     | sequenceBinds st binds
 @ st      (idx 0 stBindSeqDeps)

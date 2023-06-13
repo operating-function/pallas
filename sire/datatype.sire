@@ -121,13 +121,6 @@ dataTag=_DataTag
 
 = sigExpect | "Expected `x` or signature `(x y z)`"
 
-; = (readConstructorSig rex err ok)
-; ^ traverseRow _ (rexSons rex) ok
-; ? (step son ret)
-; | readSymbol son err
-; & sym
-; | ret (rexIdnt son, sym)
-
 fieldExpect="Expected something like (field:type)"
 
 = (parseField rex err ret)
@@ -141,7 +134,7 @@ fieldExpect="Expected something like (field:type)"
 | ret (rexIdnt rex, sym, typ)
 
 = (parseManyFields rexes err ret)
-^ traverseRow _ rexes ret
+^ rowTraverse _ rexes ret
 & (rex ret)
 | parseField rex err ret
 
@@ -601,19 +594,19 @@ ex=(PAIR %a %b)
 @ !tmpExp (varE tmpVar)
 @ !aft (inc aft)
 : aft pairs
-    < forRowWithState aft cases
-        & (aft [tag ari params body isRaw] continue)
-        @ rowPat
-            | if isRaw
-                | if (len params /= 1)
-                    | die 'raw datatype with fields != 1??  Nonsense.'
-                | idx 0 params
-            | if hasTag
-            * (%r, rowCons [%v 0 '_'] params)
-            * (%r, params)
-        @ binds [(rowPat, valExp)]
-        @ [aft bSeq deps] (sequenceBinds aft binds)
-        | continue aft (tag, bindSeqE bSeq body deps)
+    < ^ rowTraverseState aft _ cases
+      & (aft [tag ari params body isRaw] continue)
+      @ rowPat
+          | if isRaw
+              | if (len params /= 1)
+                  | die 'raw datatype with fields != 1??  Nonsense.'
+              | idx 0 params
+          | if hasTag
+          * (%r, rowCons [%v 0 '_'] params)
+          * (%r, params)
+      @ binds [(rowPat, valExp)]
+      @ [aft bSeq deps] (sequenceBinds aft binds)
+      | continue aft (tag, bindSeqE bSeq body deps)
 @ tagExp (appE (cnsE fun, tmpExp))
 @ result
     | OPEN 0 '#@' [tmpExp valExp]

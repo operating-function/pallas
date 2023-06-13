@@ -417,7 +417,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 = (pmap ms f args return)
 ;
 : resultMVars
-    < ^ traverseRow _ args
+    < ^ rowTraverse _ args
       & (arg stepReturn)
       : var <- newEmptyMVar
       : tid <- fork & threadExit
@@ -429,7 +429,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
       | stepReturn var
 ;
 : results
-    < ^ traverseRow _ resultMVars
+    < ^ rowTraverse _ resultMVars
       & (var stepReturn)
       : val <- takeMVar var
       | stepReturn val

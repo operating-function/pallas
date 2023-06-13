@@ -315,14 +315,14 @@ tabExpect={Expected something like [], [x=1 ...], [=x ...]}
 = (readTabBracket readVal rex err ok)
 | if (neq "," | rexRune rex)
     | err rex tabExpect
-| forRowWithState emptyTab (rexKids rex)
-    & (acc kid yield)
-    | seq acc
-    | readTabPair readVal kid err
-    & (key val)
-    | if (cabHas key acc)
-        | err kid "duplicate key"
-    | yield (tabIns key val acc) 0
+| ^ rowTraverseState emptyTab _ (rexKids rex)
+  & (acc kid yield)
+  | seq acc
+  | readTabPair readVal kid err
+  & (key val)
+  | if (cabHas key acc)
+      | err kid "duplicate key"
+  | yield (tabIns key val acc) 0
 & (acc _)
 | ok acc
 

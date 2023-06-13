@@ -177,7 +177,7 @@
 | rexGetNodeWithRune {%%} rex
     | err rex "Expected a %% node (in a tall-form cab literal)"
 & (sons heir)
-^ forRow sons _ (keys & ok keys heir)
+^ rowTraverse _ sons (keys & ok keys heir)
 ? (step son pure)
 | readKey son err pure
 
@@ -222,13 +222,13 @@ cenExpect="% expects something like %foo or %[...]"
 = (readCenBracket rex err ok)
 | if (neq "," | rexRune rex)
     | err rex cenExpect
-| forRowWithState emptyCab (rexKids rex)
-    & (acc kid yield)
-    | seq acc
-    | readCabKey kid err
-    & key
-    | if (cabHas key acc) (err kid "duplicate key")
-    | yield (cabIns key acc) key
+| ^ rowTraverseState emptyCab _ (rexKids rex)
+  & (acc kid yield)
+  | seq acc
+  | readCabKey kid err
+  & key
+  | if (cabHas key acc) (err kid "duplicate key")
+  | yield (cabIns key acc) key
 & (acc keys)
 | ok acc
 

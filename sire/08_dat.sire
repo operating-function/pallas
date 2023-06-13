@@ -811,8 +811,6 @@ F=found
 & newHead
 | go (CONS newHead acc) tail
 
-(forList xs f return)=(**traverseList f xs return)
-
 !!= 0         | traverseList (x ret)&(if even-x ret-x 0) [3 [4 0]] id
 !!= 0         | traverseList (x ret)&(if even-x ret-x 0) [4 [5 0]] id
 !!= [4 [6 0]] | traverseList (x ret)&(if even-x ret-x 0) [4 [6 0]] id
@@ -823,7 +821,7 @@ F=found
 > st
 > List a
 > m st (List b)
-= (traverseListWithState st f xs return)
+= (listTraverseState st f xs return)
 ^ _ st NIL xs
 ? (go st acc remain)
 | listCase remain (return st (listRev acc))
@@ -833,10 +831,8 @@ F=found
 @ acc (CONS newHead acc)
 | go st acc tail
 
-(forListWithState st xs f return)=(**traverseListWithState st f xs return)
-
 !!= 17,(, 3 , 4 , 5 0)
-  ^ forListWithState 5 [3 [4 [5 0]]] _ v2
+  ^ listTraverseState 5 _ [3 [4 [5 0]]] v2
   ? (step st item pure)
   | pure (add st item) item
 
@@ -844,28 +840,24 @@ F=found
 """ Traversing Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 > (a > (b>r)) > Row a > m (Row b)
-= (traverseRow f xs return)
+= (rowTraverse f xs return)
 | traverseList f (listFromRow xs)
 & out
 | return (listToRow out)
 
-(forRow xs f return)=(**traverseRow f xs return)
-
-!!= 0     | traverseRow (x ret)&(if even-x ret-x 0) [3 4] id
-!!= 0     | traverseRow (x ret)&(if even-x ret-x 0) [4 5] id
-!!= [4 6] | traverseRow (x ret)&(if even-x ret-x 0) [4 6] id
+!!= 0     | rowTraverse (x ret)&(if even-x ret-x 0) [3 4] id
+!!= 0     | rowTraverse (x ret)&(if even-x ret-x 0) [4 5] id
+!!= [4 6] | rowTraverse (x ret)&(if even-x ret-x 0) [4 6] id
 
 
 > (a > (st>b>r)) > st > Row a > m st (Row b)
-= (traverseRowWithState st f xs return)
-| traverseListWithState st f (listFromRow xs)
+= (rowTraverseState st f xs return)
+| listTraverseState st f (listFromRow xs)
 & (st out)
 | return st (listToRow out)
 
-(forRowWithState st xs f return)=(**traverseRowWithState st f xs return)
-
 !!= 17,[4 5 6]
-  ^ forRowWithState 5 [3 4 5] _ v2
+  ^ rowTraverseState 5 _ [3 4 5] v2
   ? (step st item pure)
   | pure (add st item) (inc item)
 
@@ -926,8 +918,8 @@ F=found
 ^-^ lsearch lsearch_
 ^-^ bsearch bsearch_
 ^-^
-^-^ traverseList forList traverseListWithState forListWithState
-^-^ traverseRow forRow traverseRowWithState forRowWithState
+^-^ traverseList listTraverseState
+^-^ rowTraverse rowTraverseState
 ^-^
 ^-^ ">" "#typedef" "\"
 ^-^

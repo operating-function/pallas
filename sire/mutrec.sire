@@ -50,7 +50,7 @@
   < ^ unrollSlip2Rune rune rex _ err
     ? (nonMatchingTail x err ret)
     | err x 'Not a core arm'
-^ traverseRow _ clauses ok
+^ rowTraverse _ clauses ok
 & (sigBody ret)
 @ [sigRex bodyRex] sigBody
 : sym binds <- readDestroyer sigRex err
@@ -76,7 +76,7 @@
 | ok coreTag letBody coreBody
 
 = (genCoreBody arms aft ok)
-^ traverseRowWithState aft _ arms ok
+^ rowTraverseState aft _ arms ok
 & (aft [sym binds body] ret)
 | trk #[=sym =binds =body]
 : aft sig bod <- makeDestroyer aft binds body
@@ -156,9 +156,9 @@
         | rep (cnsE 0) extras
     | bindArms body rest
 : aft coreArgs
-    < forRowWithState aft (rep 0 maxArgs)
-    & (aft item pure)
-    | pure (inc aft) (varE | gensymNm "arg" aft)
+    < ^ rowTraverseState aft _ (rep 0 maxArgs)
+      & (aft item pure)
+      | pure (inc aft) (varE | gensymNm "arg" aft)
 @ tagArg | varE (gensymNm "tag" | inc aft)
 @ aft    | inc aft
 @ coreArgs
@@ -272,29 +272,29 @@
                 | gen extras (const | cnsE 0)
         | bindArms body rest
 : aft coreArgIdns
-        < forRowWithState aft (gen maxArgs | const 0)
-                & (aft item pure)
-                @ idn  (varE | gensymNm "arg" aft)
-                @ !aft (inc aft)
-                | pure aft idn
+        < ^ rowTraverseState aft _ (gen maxArgs | const 0)
+          & (aft item pure)
+          @ idn  (varE | gensymNm "arg" aft)
+          @ !aft (inc aft)
+          | pure aft idn
 : aft armDefuns
-        < forListWithState aft arms
-                & (aft [key [armName argNames exp]] pure)
-                @
-                    = armKey     | aft
-                    = armIdn     | varE armName
-                    = !aft       | inc aft
-                    = armArgIdns | map varE argNames
-                    = numArgs    | len armArgIdns
-                    = extraArgs  | sub maxArgs numArgs
-                | pure aft
-                | OPEN 0 "#="
-                   ++ NEST 0 "|" (rowCons armIdn armArgIdns) 0
-                   ++ | appE
-                      | weld (coreIdn, cnsE key)
-                      | weld armArgIdns
-                      | rep cnsE-0 extraArgs
-                | 0
+        < ^ listTraverseState aft _ arms
+          & (aft [key [armName argNames exp]] pure)
+          @
+              = armKey     | aft
+              = armIdn     | varE armName
+              = !aft       | inc aft
+              = armArgIdns | map varE argNames
+              = numArgs    | len armArgIdns
+              = extraArgs  | sub maxArgs numArgs
+          | pure aft
+          | OPEN 0 "#="
+             ++ NEST 0 "|" (rowCons armIdn armArgIdns) 0
+             ++ | appE
+                | weld (coreIdn, cnsE key)
+                | weld armArgIdns
+                | rep cnsE-0 extraArgs
+          | 0
 @
     = coreSig
         | rowCons tagIdn coreArgIdns

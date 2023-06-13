@@ -366,12 +366,12 @@ hexAlphabet=(natBar "0123456789abcdef")
 | **maybeCase (tabLookup pin cache)
     @ depz | pinRefs pin
     : cache head
-        < forRowWithState cache depz
-            & (cache item pure)
-            @ [cache res] | jarMemo cache item
-            @ [hash _ _]  | res
-            @ cache       | tabIns item res cache
-            | pure cache hash
+        < ^ rowTraverseState cache _ depz
+          & (cache item pure)
+          @ [cache res] | jarMemo cache item
+          @ [hash _ _]  | res
+          @ cache       | tabIns item res cache
+          | pure cache hash
     @ pack | jam depz pinItem-pin
     @ byts | natBar pack
     @ sepr | barRep 32 0
@@ -413,7 +413,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= x#{1cd7dcdd584a6a8944e33b039b5ef04058034db28cac1c2238c044f591bdf83d}
   | pinHash cmp
 
-!!= x#{bb134769e47ff72ff9719f6fefeb26b21b2c2c9ac49d4c515476c322f45b151a}
+!!= x#{63d50507d48973d79ed995e29b5eff3a903ebba77da13962cf9a3389df771fbf}
   | pinHash pinHash
 
 = (refsTable pin)

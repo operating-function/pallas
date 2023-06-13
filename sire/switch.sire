@@ -43,9 +43,9 @@
 | if (eql ryn "#")
         | readBarLit rex err ret
 | if (eql ryn ",")
-        : vals  < forRow kids
-                & (kid ret)
-                | readFanLit kid err ret
+        : vals < ^ rowTraverse _ kids
+                 & (kid ret)
+                 | readFanLit kid err ret
         | ret vals
 | else
         | err rex (strWeld "Unexpected rune: " ryn)
@@ -143,14 +143,14 @@ foo=(x e o & o (varE "_", x))
       ? (onNonMatchingTail x err ret)
       | ret (varE "_", x)
 : cases
-    < forRow clauses
-    & ([key exp] ret)
-    : exp < readExp exp err
-    : nat < & pure
-            | readSwitchPat key err
-            * pure NONE
-            * compose pure SOME
-    | ret [nat exp]
+    < ^ rowTraverse _ clauses
+      & ([key exp] ret)
+      : exp < readExp exp err
+      : nat < & pure
+              | readSwitchPat key err
+              * pure NONE
+              * compose pure SOME
+      | ret [nat exp]
 ^ ok (foldl _ (defaultFallback, #[]) cases)
 & ([wild acc] [mKey exp])
 : key <- **maybeCase mKey [exp acc]
