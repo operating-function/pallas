@@ -410,7 +410,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
     | cabDrop offset ids
 @ records
     | listToRow
-    | listTurnMaybe targetIds
+    ^ (listMapMaybe _ targetIds)
     & id
     | **fmapMaybe (hmLookup id imgs)
     & [_ _ url]

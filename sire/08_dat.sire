@@ -271,8 +271,6 @@
 & (x xs)
 | CONS f-x listMap-f-xs
 
-(listTurn l f)=(listMap f l)
-
 = (listHead l)
 | **listCase l NONE
 & (h _)
@@ -334,8 +332,6 @@
 | **listCase l NIL
 & (x xs)
 | CONS f-x listMap-f-xs
-
-(listTurn l f)=(listMap f l)
 
 '''
 ''' TODO: Create a versions of {listToRow} and {listToRowReversed}
@@ -431,7 +427,7 @@
 = (listFilter f lis)
 | **listCase lis NIL
 & (x xs)
-| if f-x (CONS x listFilter-f-xs)
+| if f-x (CONS x | listFilter f xs)
 | listFilter f xs
 
 (listIsEmpty xs)=(isNat xs)
@@ -670,8 +666,6 @@
 
 = (catMaybes lis)       | listToRow (listCatMaybes (listFromRow lis))
 = (listMapMaybe f lis)  | listCatMaybes (listMap f lis)
-= (listTurnMaybe lis f) | listMapMaybe f lis
-= (turnMaybe row f)     | mapMaybe f row
 
 !!= [1 [2 0]] | listCatMaybes [SOME-1 [SOME-2 0]]
 !!= [1 [2 0]] | listCatMaybes [SOME-1 [SOME-2 [NONE 0]]]
@@ -683,7 +677,7 @@
 !!= [1 2] | catMaybes ( SOME 1 , NONE   , SOME 2 , NONE )
 !!= [1 2] | catMaybes ( NONE   , SOME 1 , NONE   , SOME 2 )
 
-!!= [2 4 6] | turnMaybe [1 2 3 4 5 6] x&(if (even x) SOME-x NONE)
+!!= [2 4 6] | (mapMaybe _ [1 2 3 4 5 6])^(x & if (even x) SOME-x NONE)
 !!= [1 4 5] | catMaybes [SOME-1 NONE SOME-4 SOME-5 NONE]
 
 
@@ -879,16 +873,16 @@ F=found
 ^-^ fromSome unpackSome
 ^-^ isSome isNone fmapMaybe
 ^-^
-^-^ mapMaybe turnMaybe catMaybes
-^-^ listMapMaybe listTurnMaybe listCatMaybes
+^-^ mapMaybe catMaybes
+^-^ listMapMaybe listCatMaybes
 ^-^
 ^-^ NIL CONS
 ^-^ listCase
 ^-^ listSing
-^-^ listMap listTurn
+^-^ listMap
 ^-^ listHead listSafeHead listUnsafeHead listLast
 ^-^
-^-^ listFoldl listFoldr listMap listTurn listLen listSum listToRow
+^-^ listFoldl listFoldr listMap listLen listSum listToRow
 ^-^ listToRowReversed listFromRow listAnd listOr listSum listAll listAny
 ^-^ listHas listEnumFrom listWeld listCat listTake listDrop listDigits
 ^-^ listTakeWhile listDropWhile
