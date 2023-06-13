@@ -70,7 +70,7 @@
 = (slice v s e)     | slash v s (min e | len v)
 = (drop n v)        | slice v n (len v)
 = (take n v)        | slice v 0 n
-= (splitAt i r)     | **v2 (take i r) (drop i r)
+= (splitAt i r)     | v2 (take i r) (drop i r)
 
 = (chunks sz row)
 | gen | div (roundUp len-row sz) sz
@@ -84,10 +84,10 @@
 @ l | len r
 ^ _ 0
 ? (loop i)
-| if (eql i l) (**v2 r v0)
+| if (eql i l) (v2 r v0)
 | if (f | idx i r)
     | loop (inc i)
-| **v2 (take i r) (drop i r)
+| v2 (take i r) (drop i r)
 
 ; TODO: Doesn't work
 (strictRow a)=(foldl const a a)
@@ -96,7 +96,7 @@
 | gen (inc len-row)
 & i
 | switch (cmp i ix) 0
-| **v3 (idx i row) val (idx (dec i) row)
+| v3 (idx i row) val (idx (dec i) row)
 
 !!= (v2 9 0)   | insert 0 9 (v1 0)
 !!= (v2 0 9)   | insert 1 9 (v1 0)
