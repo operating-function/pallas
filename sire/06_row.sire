@@ -9,196 +9,257 @@
 """ ====
 """
 """ This module defines some very basic operations on rows, which are
-""" data-jetted arrays.  Since PLAN is untyped, these are also used
+""" data-jetted arrays.  Since PLAN is untyped, these are also used as
 """ the building block used for tuples/records/datatypes.
 """
 """ The bulk of the row operations are defined in 08_dat.sire, since many
 """ operations are more naturally defined along with operations on other
 """ data types (such as lists and optional values).
 """
-""" A row is represented as (cow n) partially applied to n argumnts,
+""" A row is represented as (_Cow n) partially applied to n arguments,
 """ for example:
 """
-"""     [5 4 3] = ((cow 3) 3 4 5)
+"""     [5 4 3] = ((_Cow 3) 3 4 5)
 """             = ((0 0 4 0) 3 4 5)
 """             = (0 0 4 0 3 4 5)
 """
-""" `get`, `idx`, and `len` are primarily intended to be used with rows,
-""" however their legal code is defined to work on any closure.
+""" `_Get`, `_Idx`, and `_Len` are primarily intended to be used with
+""" rows, however their legal code is defined to work on any closure.
 """ For example, then length of (1 2 3) is 2 and its first element is 3.
 """
 """ Similarly, operations like `map` and `gen` are defined in terms of
 """ these primitives also work with closures.
 """
+""" Jetting
+""" =======
+"""
+""" Without jetting, the row operations all degrade into, essentially,
+""" linked-list operations.  Because of this, the core operations on
+""" rows are very important:
+"""
+""" -   _Head
+""" -   _Null
+""" -   _Arity
+""" -   _Len
+""" -   _Put
+""" -   _Get
+""" -   _Switch
+""" -   _IsCow
+""" -   _IsRow
+""" -   _Gen
+"""
+""" `_Switch` in particular should be optimized in the same was as `_If`.
+""" If the result is know to be demanded, the runtime can avoid creating
+""" thunks for each branch.
+"""
+"""
+""" Less Important Jets
+""" -------------------
+"""
+""" These jets are very helpful, but are defined in terms of other
+""" core jets, and thus perform well without jetting.
+"""
+""" -   _Map
+""" -   _Weld
+""" -   _Rev
+"""
+""" These jets are trivial, but are executed extremely often, and are
+""" often used in hot loops.
+"""
+""" -   _Idx
+""" -   _Mut
+"""
+"""
+""" Unimportant Jets
+""" ----------------
+"""
+""" These jets are used rarely and perform well without jets:
+"""
+""" -   _CowSize
 
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 /+  01_fan  [LAW inc seq]
 /+  01_fan  [car cdr caar caaar caaaar]
-/+  01_fan  [isApp isLaw lawName lawBody]
+/+  01_fan  [isApp isLaw lawName lawArgs lawBody]
 /+  01_fan  [id const apply supply]
+/+  01_fan  [isOne]
 /+  02_bit  [if ifNot and or not]
 /+  03_nat  [dec sub add]
 /+  04_cmp  [eql isZero lth gte]
 
 
-""" Basic Closure Operations """""""""""""""""""""""""""""""""""""""""""""""""""
+""" Core Jets """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-(head non)=(if isApp-non (head car-non) non)
+= (_Null x) | not isApp-x
+= (_Head x) | if (_Null x) x (_Head | car x)
 
-(null row)=(not isApp-row)
-
-= (arity x)
-@ p arity
+= (_Arity x)
+@ p _Arity
 @ l (_ a _)&a
-@ a (f _)&(dec arity-f)
+@ a (f _)&(dec (_Arity f))
 @ n | 2 3 | 2 5 | 2 3 | const 1 ; [0=3 1=5 2=3 _=1]
 | 1 p l a n x
 
-= (len v)
+= (_Len v)
 ^ _ 0 v
 ? (go n v)
 | seq n
-| ifNot (isApp v) n
+| if (_Null v) n
 | go (inc n) (car v)
 
 ;;;
-;;; {put} modifies the closure {r}, returning a new closure where
+;;; {_Put} modifies the closure {r}, returning a new closure where
 ;;; the {k}th argument is replaced with {v}.
 ;;;
 ;;; Remember that the nth element of a closure is counted from the
-;;; right.  For example, (put (f a x) 0 y) => (f a y)
+;;; right.  For example, (_Put (f a x) 0 y) => (f a y)
 ;;;
-= (put r k v)
-| if (null r) | r
-| if (not k)  | car r v
-| put (car r) (dec k) v (cdr r)
+= (_Put r k v)
+| if (_Null r) | r
+| ifNot k      | car r v
+| _Put (car r) (dec k) v (cdr r)
 
-= (get r i)
-| if (null r) 0
-| 2 (cdr r) (get (car r)) i
+= (_Get r i)
+| if (_Null r) 0
+| 2 (cdr r) (_Get | car r) i
 
-(idx k r)=(get r k)
+= (_Idx k r)   | _Get r k
+= (_Mut k v r) | _Put r k v
 
-(mut k v r)=(put r k v)
+= (_Switch ix fallback branches)
+| if (gte ix | _Len branches) fallback
+| _Get branches ix
 
-= (switch ix fallback branches)
-| if (gte ix | len branches) fallback
-| get branches ix
+(_Cow n)=(LAW 0 inc-n 0)
 
+(_CowSize cow)=(dec | lawArgs cow)
 
-""" Core Definitions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-(cow n)=(LAW 0 inc-n 0)
-
-c0=(cow 0)
-c1=(cow 1)
-c2=(cow 2)
-c3=(cow 3)
-c4=(cow 4)
-c5=(cow 5)
-c6=(cow 6)
-c7=(cow 7)
-c8=(cow 8)
-c9=(cow 9)
-
-v0=c0
-v1=c1
-(v2 a b)=(c2 b a)
-(v3 a b c)=(c3 c b a)
-(v4 p q r s)=(c4 s r q p)
-(v5 a b c d e)=(c5 e d c b a)
-(v6 a b c d e f)=(c6 f e d c b a)
-(v7 a b c d e f g)=(c7 g f e d c b a)
-(v8 a b c d e f g h)=(c8 h g f e d c b a)
-(v9 a b c d e f g h i)=(c9 i h g f e d c b a)
-
-; TODO: Get rid of {mkrow}.  It's arcane and can be lived without.
-= (mkRow n)
-^ (0 0 n (_ n (2 cow-n)))
-? (go i acc)
-| ifNot i acc
-| go (dec i) (0 acc i)
-
-= (isCow val)
+= (_IsCow val)
 | and (isLaw val)
 | and (isZero | lawName val)
       (isZero | lawBody val)
 
-= (isRow r)
-| and (eql 1 arity-r)
-| isCow head-r
+= (_IsRow r)
+| and (isOne | _Arity r)
+| _IsCow (_Head r)
 
-
-""" Generating Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-= (gen n f)
-^ _ n (cow n)
+= (_Gen n f)
+^ _ n (_Cow n)
 ? (go mor acc)
 | ifNot mor acc
 @ nex (dec mor)
 | go nex (acc | f nex)
 
 
+""" Aliases for Core Operations """"""""""""""""""""""""""""""""""""""""""""""""
+
+= head    | _Head
+= null    | _Null
+= arity   | _Arity
+= len     | _Len
+= put     | _Put
+= get     | _Get
+= idx     | _Idx
+= mut     | _Mut
+= switch  | _Switch
+= cowSize | _CowSize
+= isCow   | _IsCow
+= isRow   | _IsRow
+= gen     | _Gen
+= cow     | _Cow
+= c0      | _Cow 0
+= c1      | _Cow 1
+= c2      | _Cow 2
+= c3      | _Cow 3
+= c4      | _Cow 4
+= c5      | _Cow 5
+= c6      | _Cow 6
+= c7      | _Cow 7
+= c8      | _Cow 8
+= c9      | _Cow 9
+
+= v0                       | c0
+= v1                       | c1
+= (**v2 a b)               | c2 b a
+= (**v3 a b c)             | c3 c b a
+= (**v4 p q r s)           | c4 s r q p
+= (**v5 a b c d e)         | c5 e d c b a
+= (**v6 a b c d e f)       | c6 f e d c b a
+= (**v7 a b c d e f g)     | c7 g f e d c b a
+= (**v8 a b c d e f g h)   | c8 h g f e d c b a
+= (**v9 a b c d e f g h i) | c9 i h g f e d c b a
+
+
 """ Folding Rows """"""""""""""""'""""""""""""""""""""""""""""""""""""""""""""""
 
 = (foldr f z row)
-^ _ 0 (len row)
+^ _ 0 (_Len row)
 ? (go i rem)
 | ifNot rem z
 | f (get row i)
 | go (inc i) (dec rem)
 
 = (foldl f z row)
-^ _ z 0 (len row)
+^ (_ z 0 (_Len row))
 ? (go acc i rem)
 | ifNot rem acc
-@ rem (dec rem)
-@ acc (f acc (idx i row))
+@ rem | dec rem
+@ acc | f acc (idx i row)
 | seq acc
 | go acc (inc i) rem
 
-(ADD x y k)=(k x y)
 
-!!= (foldr ADD "z" (v0))       | "z"
-!!= (foldl ADD "z" (v0))       | "z"
-!!= (foldr ADD "z" (v3 1 2 3)) | ADD 1 | ADD 2 | ADD 3 "z"
-!!= (foldl ADD "z" (v3 1 2 3)) | ADD (ADD (ADD "z" 1) 2) 3
-!!= (foldl ADD "z" 1)          | "z"
-!!= (foldl ADD "z" (0 1))      | ADD "z" 1
-!!= (foldl ADD "z" (0 2 1))    | ADD (ADD "z" 1) 2
+""" Higher-Level Jets """"""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-
-""" Concatenation """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-= (weld x y)
-@ xw len-x
-@ yw len-y
+= (_Weld x y)
+@ xw | len x
+@ yw | len y
 | gen (add xw yw)
 & i
 | if (lth i xw) (idx i x)
 | idx (sub i xw) y
 
+= (_Map f v)
+| gen (len v) x&(f | idx x v)
+
+= (_Rev xs)
+@ wid (len-xs)
+| gen wid
+| (i & get xs (sub wid | inc i))
+
+= weld | _Weld
+= map  | _Map
+= rev  | _Rev
+
+
+""" Convenience Functions """"""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (**fst x)       | idx 0 x
+= (**snd x)       | idx 1 x
+= (rowApply f xs) | foldl apply f xs
+= (rowRepel f xs) | foldr supply f xs
+= (curry f x y)   | f (v2 x y)
+= (uncurry f xy)  | f (fst xy) (snd xy)
+
+
+""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+(FOO x y k)=(k x y)
+
+!!= (foldr FOO "z" (v0))       | "z"
+!!= (foldl FOO "z" (v0))       | "z"
+!!= (foldr FOO "z" (v3 1 2 3)) | FOO 1 | FOO 2 | FOO 3 "z"
+!!= (foldl FOO "z" (v3 1 2 3)) | FOO (FOO (FOO "z" 1) 2) 3
+!!= (foldl FOO "z" 1)          | "z"
+!!= (foldl FOO "z" (0 1))      | FOO "z" 1
+!!= (foldl FOO "z" (0 2 1))    | FOO (FOO "z" 1) 2
+
 !!= (v3 1 2 3) | weld (v0) (v3 1 2 3)
 !!= (v3 1 2 3) | weld (v1 1) (v2 2 3)
 !!= (v3 1 2 3) | weld (v2 1 2) (v1 3)
 !!= (v3 1 2 3) | weld (v3 1 2 3) (v0)
-
-
-""" More Basic Operations """"""""""""""""""""""""""""""""""""""""""""""""""""""
-
-= (fst x)          | idx 0 x
-= (snd x)          | idx 1 x
-= (map f v)        | gen len-v x&(f idx-x-v)
-= (rev xs)         @ wid len-xs | gen wid i&(get xs sub-wid-(inc i))
-= (rowApply f xs)  | foldl apply f xs
-= (rowRepel f xs)  | foldr supply f xs
-= (curry f x y)    | f (c2 y x)
-= (uncurry f xy)   | f (fst xy) (snd xy)
-
-
-""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 !!= 1 | isRow v0
 !!= 1 | isRow (v1 1)
@@ -277,15 +338,15 @@ v1=c1
 !!= 7 | rowRepel add (v2 3 4)
 !!= 1 | rowRepel sub (v2 3 4)
 
-!!= (ADD 0 1) | rowApply ADD (v2 0 1)
-!!= (2 0 1)   | rowApply ADD (v3 0 1 2)
+!!= (FOO 0 1) | rowApply FOO (v2 0 1)
+!!= (2 0 1)   | rowApply FOO (v3 0 1 2)
 !!= 1         | rowApply add (v2 0 1)
 !!= (1 1)     | rowApply add (v3 0 1 1)
 !!= (1 1)     | rowApply add (v2 0 1) 1
 !!= (1 1 1)   | rowApply add (v2 0 1) 1 1
 
-!!= (rowRepel ADD (v2 1 0))   | ADD 0 1
-!!= (rowRepel ADD (v3 2 1 0)) | 2 0 1
+!!= (rowRepel FOO (v2 1 0))   | FOO 0 1
+!!= (rowRepel FOO (v3 2 1 0)) | 2 0 1
 
 !!= (v3 5 4 3) | rev | v3 3 4 5
 !!= (v0)       | rev | v0
@@ -305,8 +366,9 @@ v1=c1
 ^-^ c0 c1 c2 c3 c4 c5 c6 c7 c8 c9
 ^-^ v0 v1 v2 v3 v4 v5 v6 v7 v8 v9
 ^-^
-^-^ cow isCow isRow
-^-^ mkRow null
+^-^ cow isCow cowSize
+^-^ isRow
+^-^ null
 ^-^ weld
 ^-^ gen foldr foldl
 ^-^ mut put

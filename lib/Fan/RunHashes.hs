@@ -15,10 +15,10 @@ ifHash :: Hash256
 ifHash = "DiwZ6jrm6gs9AcVsNDvPfUoYXN1upQbDBMWcEDE66rYu"
 
 switchHash :: Hash256
-switchHash = "CYnCDku2uAq3AHU2wmYExoweU6BCwUNgZ8CVtP4JXzaB"
+switchHash = "7CQTVw7xCfqkznhkeWoYo8PdhBqbLyLcXv8bDYpfVp13"
 
 tabSwitchHash :: Hash256
-tabSwitchHash = "23rjYDQU4Ai4hjE3vE4KkPV3SK4NFNRew3TyuQg8S6R4"
+tabSwitchHash = "6G7PmxRehpbJiba1do15wZ4BXwvrpLjz7VqAPZu6zDDs"
 
 seqHash :: Hash256
 seqHash = "4bEt86gt6UWqH5zbjzCwD1ZsTUrQCma8Ur3e8KJAyNAq"
@@ -27,10 +27,10 @@ trkHash :: Hash256
 trkHash = "AXuX8gnKrPy5MNN4C3G4ZrqyjeAzCm5K5PVhibnFXFwM"
 
 idxHash :: Hash256
-idxHash = "C1RBvvDN37q5h3Mh4FVLqurHYELkT7zUBJhmfNS5WwLs"
+idxHash = "2HHYTgGduTBgZMmP9AtKk2vRZ2N7p3WpFuqA7wSGJ83Z"
 
 getHash :: Hash256
-getHash = "Gymg6Aruyn4NuFJTNcwUXK3qfCJik55ivDvPWwpvRbpu"
+getHash = "EJ5VWbFAtZmB8zqj2bhmGvEvdn12uGAHsYA4NGr6Avr3"
 
 addHash :: Hash256
 addHash = "8r4PSHT5eB44W7NmQgYc9aZ8thEAfaReAS5nP1w9mQhf"

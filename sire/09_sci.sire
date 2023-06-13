@@ -21,9 +21,9 @@
 /+  03_nat  []
 /+  06_row  [idx]
 /+  04_cmp  []
-/+  06_row  [map]
+/+  06_row  [map rowApply]
 /+  07_rex  []
-/+  08_dat  ["," drop rowApply CONS NIL listToRow]
+/+  08_dat  ["," drop CONS NIL listToRow]
 
 
 """ Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

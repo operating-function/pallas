@@ -65,8 +65,6 @@
 = (catMap f r)      | cat (map f r)
 = (zipWith f a b)   | gen (min len-a len-b) i&(f idx-i-a idx-i-b)
 = (zip a b)         | zipWith v2 a b
-= (rowApply f xs)   | foldl apply f xs
-= (rowRepel f xs)   | foldr supply f xs
 = (has ele row)     | any (eql ele) row
 = (slash v s e)     | gen (sub e s) i&(get v | add s i)
 = (slice v s e)     | slash v s (min e | len v)
@@ -875,7 +873,7 @@ F=found
 ^-^ rowAnd rowOr sum all any zip zipWith
 ^-^ cat catMap
 ^-^ take drop rev
-^-^ rowApply rowRepel unfoldr span splitAt strictRow insert
+^-^ unfoldr span splitAt strictRow insert
 ^-^
 ^-^ bopE bapE bowE appE rowE
 ^-^ ","
