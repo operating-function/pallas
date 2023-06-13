@@ -130,8 +130,8 @@ ex=(mkTab [1 2 3] [4 5 6])
 """ Raw Table Construction from Ordered Pairs """"""""""""""""""""""""""""""""""
 
 = (tabFromAscPairs pairs)
-@ keys | map idx-0 pairs
-@ vals | map idx-1 pairs
+@ keys | map fst pairs
+@ vals | map snd pairs
 | mkTab keys vals
 
 = (tabToPairs tab)
@@ -217,7 +217,7 @@ tab=(tabFromAscPairs par)
     | **maybeCase (fun NONE) tab
     & val
     | tabFromPairs
-    | weld [[key val]]
+    | rowCons [key val]
     | tabToPairs tab
 @ found
     & ix

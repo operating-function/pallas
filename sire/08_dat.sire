@@ -145,8 +145,8 @@
 
 ''' TODO Use (0 | [x])
 
-= NONE       0
-= (**SOME x) (0 x)
+= NONE       | 0
+= (**SOME x) | 0 x
 
 = (maybeCase opt non som)
 | if isNat-opt non
@@ -701,10 +701,7 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
 | if (isZero rex)
     | ok (listToRowReversed acc)
 | if (neq topRune rune)
-    | readExp rex err
-    & exp
-    @ acc (CONS exp acc)
-    | go acc 0
+    | readExp rex err exp&(go (CONS exp acc) 0)
 | if (null sons)
     | err rex openRowExpect
 @ itemRex
