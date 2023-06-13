@@ -167,7 +167,7 @@
     ^ map _ (listToRow arms)
     & foo
     @ [key [fun args body]] foo
-    ^ foldr _ body (drop 1 | tag (rowCons fun args))
+    ^ foldr _ body (drop 1 | rowIndexed (rowCons fun args))
     & ([ix var] rest)
     | letE var (idx ix coreArgs) rest
 @ coreBody
@@ -301,10 +301,9 @@
         ^ map _ (listToRow arms)
         & foo
         @ [key [branchArm branchArgs body]] foo
-        @ f
-                & ([ix var] rest)
-                | letE var (idx ix coreSig) rest
-        | foldr f body (drop 1 | tag (rowCons branchArm branchArgs))
+        ^ foldr _ body (drop 1 | rowIndexed (rowCons branchArm branchArgs))
+        & ([ix var] rest)
+        | letE var (idx ix coreSig) rest
     = coreBody
         | OPEN 0 "#|" (cnsE switch, tagIdn, cnsE 0)
         | bowE branches

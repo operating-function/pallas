@@ -81,7 +81,7 @@
                ++ varE tmpVar
         | go binds
 | if isVar id (letE tmpVar rowExpr)
-| go (listFromRow (tag lhs))
+| go (listIndexed | listFromRow lhs)
 
 !!= (destructureRowE %_g1 [%x %y %z] `(a b) (appE [`x `y]))
        ``
@@ -378,7 +378,7 @@
                 : nex acc <- go exp pat nex acc
                 | [nex acc]
         | if (eql 'r' typ)
-                ^ foldl _ [nex acc] (tag dat)
+                ^ listFoldl _ [nex acc] (listIndexed | listFromRow dat)
                 & (st elem)
                 @ nex (idx 0 st)
                 @ acc (idx 1 st)

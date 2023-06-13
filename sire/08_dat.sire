@@ -53,7 +53,7 @@
 !!= (rowSnoc (v1 3) 4)   (v2 3 4)
 !!= (rowSnoc (v2 3 4) 5) (v3 3 4 5)
 
-(tag row)=(gen len-row i&(c2 idx-i-row i))
+(rowIndexed row)=(gen len-row i&(v2 i | idx i row))
 
 = (rep i n)         | gen n (const i)
 = (rowAnd v)        | foldr and TRUE v
@@ -194,7 +194,7 @@
 ; TODO Consider returning (0 | (idx+1)) to avoid the boxing the result
 ;      in SOME.
 = (findIdx f row)
-^ foldr _ NONE tag-row
+^ foldr _ NONE rowIndexed-row
 & (iv rest)
 | if f-(snd iv) SOME-(fst iv) rest
 
@@ -559,10 +559,10 @@
 (delete val row)=(filter (neq val) row)
 
 = (findIdxMany f row)
-^ foldr _ NIL tag-row
-& (iv rest)
-| ifNot f-(snd iv) rest
-| CONS (fst iv) rest
+^ listFoldr _ NIL (listIndexed | listFromRow row)
+& (idxVal rest)
+| ifNot (f | snd idxVal) rest
+| CONS (fst idxVal) rest
 
 (elemIdxMany key row)=(findIdxMany (eql key) row)
 
@@ -786,11 +786,11 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
 N=not_found
 F=found
 
-!!= 1 | search_chk []        | tag [N|0 N|0 N|0]
-!!= 1 | search_chk [1]       | tag [N|0 F|0 N|1]
-!!= 1 | search_chk [1 3 5]   | tag [N|0 F|0 N|1 F|1 N|2 F|2 N|3 N|3]
-!!= 1 | search_chk [1 3 5 7] | tag [N|0 F|0 N|1 F|1 N|2 F|2 N|3 F|3 N|4]
-!!= 1 | search_chk [1 3 5 6] | tag [N|0 F|0 N|1 F|1 N|2 F|2 F|3 N|4 N|4]
+!!= 1 | search_chk []        | rowIndexed [N|0 N|0 N|0]
+!!= 1 | search_chk [1]       | rowIndexed [N|0 F|0 N|1]
+!!= 1 | search_chk [1 3 5]   | rowIndexed [N|0 F|0 N|1 F|1 N|2 F|2 N|3 N|3]
+!!= 1 | search_chk [1 3 5 7] | rowIndexed [N|0 F|0 N|1 F|1 N|2 F|2 N|3 F|3 N|4]
+!!= 1 | search_chk [1 3 5 6] | rowIndexed [N|0 F|0 N|1 F|1 N|2 F|2 F|3 N|4 N|4]
 
 
 """ Traversing Lists """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -869,7 +869,7 @@ F=found
 
 ^-^
 ^-^ slash slice chunks rep rowCons rowSnoc
-^-^ tag findIdx elemIdx has
+^-^ rowIndexed findIdx elemIdx has
 ^-^ rowAnd rowOr sum all any zip zipWith
 ^-^ cat catMap
 ^-^ take drop rev
