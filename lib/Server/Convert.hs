@@ -16,6 +16,8 @@ import Fan.Convert
 import Server.Time
 import Server.Types.Logging
 
+import qualified Data.Vector as V
+
 --------------------------------------------------------------------------------
 
 instance ToNoun NanoTime where
@@ -67,12 +69,30 @@ instance FromNoun ReceiptItem where
             _                     -> Nothing
         _                         -> Nothing
 
+instance ToNoun ResultReceipt where
+    toNoun RESULT_OK           = NAT 0
+    toNoun RESULT_CRASHED{..}  = ROW $ V.fromList [NAT 1, NAT op, arg]
+    toNoun RESULT_TIME_OUT{..} = ROW $ V.fromList [NAT 2, toNoun timeoutAmount]
+
+instance FromNoun ResultReceipt where
+    fromNoun = \case
+        NAT 0 -> pure $ RESULT_OK
+        ROW v -> case toList v of
+            [NAT 1, opFan, arg] -> do
+                op <- fromNoun opFan
+                Just RESULT_CRASHED{..}
+            [NAT 2, timeoutFan] -> do
+                timeoutAmount <- fromNoun timeoutFan
+                Just RESULT_TIME_OUT{..}
+            _     -> Nothing
+        _ -> Nothing
+
 instance ToNoun Receipt where
-    toNoun RECEIPT{..} = toNoun (cogNum, didCrash, inputs)
+    toNoun RECEIPT{..} = toNoun (cogNum, result, inputs)
 
 instance FromNoun Receipt where
     fromNoun n = do
-        (cogNum,didCrash,inputs) <- fromNoun n
+        (cogNum,result,inputs) <- fromNoun n
         pure RECEIPT{..}
 
 instance ToNoun LogBatch where
@@ -83,3 +103,19 @@ instance FromNoun LogBatch where
     fromNoun n = do
         (batchNum,writeTime,executed) <- fromNoun n
         pure LogBatch{..}
+
+instance ToNoun CogState where
+  toNoun (CG_SPINNING fan)          = toNoun (NAT 0, fan)
+  toNoun CG_CRASHED{op,arg,final}   = toNoun (NAT 1, NAT op, arg, final)
+  toNoun CG_TIMEOUT{duration,final} = toNoun (NAT 2, duration, final)
+
+instance FromNoun CogState where
+  fromNoun n = case n of
+    ROW v -> case toList v of
+      [NAT 0, fan]                 -> Just $ CG_SPINNING fan
+      [NAT 1, NAT op, arg, final]  -> Just $ CG_CRASHED{..}
+      [NAT 2, natDuration, final] -> do
+        duration <- fromNoun natDuration
+        Just $ CG_TIMEOUT{..}
+      _                            -> Nothing
+    _ -> Nothing

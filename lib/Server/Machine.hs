@@ -57,12 +57,12 @@ import qualified Data.IntMap as IM
 import qualified Data.Map    as M
 import qualified Data.Set    as S
 import qualified Data.Vector as V
-import qualified Fan.Prof    as Prof
+-- import qualified Fan.Prof    as Prof
 
 --------------------------------------------------------------------------------
 
 data Moment = MOMENT {
-  val  :: Map CogId Fan,
+  val  :: Map CogId CogState,
   work :: NanoTime
   }
 
@@ -138,7 +138,7 @@ data Response
     | RespRecv PendingSendRequest
     | RespSend SendOutcome
     | RespSpin CogId Fan
-    | RespStop CogId (Maybe Fan)
+    | RespStop CogId (Maybe CogState)
     | RespWho CogId
   deriving (Show)
 
@@ -158,9 +158,9 @@ responseToVal (RespEval e)   =
         OKAY _ r  -> singleton r         -- [f]
         CRASH n e -> fromList [NAT n, e] -- [n e]
 
-responseToReceipt :: CogId -> Bool -> [(Int, ResponseTuple)] -> Receipt
-responseToReceipt cogId didCrash =
-    RECEIPT cogId didCrash . mapFromList . fmap f
+responseToReceipt :: CogId -> ResultReceipt -> [(Int, ResponseTuple)] -> Receipt
+responseToReceipt cogId resultReceipt =
+    RECEIPT cogId resultReceipt . mapFromList . fmap f
   where
     f :: (Int, ResponseTuple) -> (Int, ReceiptItem)
     f (idx, tup) = case tup.resp of
@@ -205,7 +205,7 @@ data Request
 
 {-
   [%eval timeout/@ fun/fan arg/Fan ...]
-  [%cog %spin fun/Fan]  -- COG_ID 0 only
+  [%cog %spin fun/Fan]
   [%cog %send dst/Nat param/Fan]
   [%cog %recv]
   [$call synced/? param/Fan ...]
@@ -427,7 +427,7 @@ recomputeEvals ctx m (RECEIPT cogId _ tab) =
                         pure (k, NAT 0, Nothing)
                     Just val -> do
                         let ef = CStop cogNum
-                        pure (k, (NAT 0) %% val, Just ef)
+                        pure (k, (NAT 0) %% toNoun val, Just ef)
   where
     getEvalFunAt :: Moment -> CogId -> RequestIdx -> Maybe (Fan, Vector Fan)
     getEvalFunAt m cogId idx = withRequestAt m cogId idx $ \case
@@ -452,7 +452,9 @@ recomputeEvals ctx m (RECEIPT cogId _ tab) =
     withRequestAt m cogId (RequestIdx idx) fun = do
         case lookup cogId m.val of
             Nothing -> Nothing
-            Just cog -> do
+            Just CG_CRASHED{} -> Nothing
+            Just CG_TIMEOUT{} -> Nothing
+            Just (CG_SPINNING cog) -> do
                 let row = getCurrentReqNoun cog
                 case row V.!? idx of
                     Nothing  -> Nothing
@@ -479,31 +481,65 @@ performReplay cache ctx replayFrom = do
 
     loop :: BatchNum -> Moment -> [Receipt] -> IO (BatchNum, Moment)
     loop bn m []     = pure (bn, m)
-    loop bn m (x:xs) = do
-        (eRes, eWork) <- flip runStateT 0 (recomputeEvals ctx m x)
+    loop bn m (x:xs) =
+        let mybCogFun = case M.lookup x.cogNum m.val of
+                Nothing -> Nothing
+                Just x  -> cogSpinningFun x
+        in case x.result of
+            RESULT_TIME_OUT{..} -> do
+                -- Evaluating this bundle of responses timed out the first time
+                -- we ran it, so just don't run it and just recreate the
+                -- timed-out state from the recorded timeout amount.
+                case mybCogFun of
+                    Nothing -> throwIO INVALID_TIMEOUT_IN_LOGBATCH
+                    Just fun -> do
+                        let cog = CG_TIMEOUT timeoutAmount fun
+                        pure (bn, m { val = M.insert x.cogNum cog m.val})
 
-        let inp = TAb $ mapFromList $ map tripleToPair eRes
+            RESULT_CRASHED{..} -> do
+                -- While it's deterministic whether a plunder computation
+                -- crashes or not, its crash value is not deterministic so we
+                -- must reconstitute the crash from the recorded result.
+                case mybCogFun of
+                    Nothing -> throwIO INVALID_CRASHED_IN_LOGBATCH
+                    Just final -> do
+                        let cog = CG_CRASHED{op,arg,final}
+                        pure (bn, m { val = M.insert x.cogNum cog m.val})
 
-        let arg = if x.didCrash then (0 %% inp) else inp
+            RESULT_OK -> do
+                -- The original run succeeded, rebuild the value from the
+                -- receipt items.
+                (eRes, eWork) <- flip runStateT 0 (recomputeEvals ctx m x)
 
-        let runEffect m = \case
-                Just CSpin{..} -> pure $ m { val = M.insert reCogId reFun m.val }
-                Just CStop{..} -> pure $ m { val = M.delete reCogId m.val }
-                Nothing        -> pure m
+                let arg = TAb $ mapFromList $ map tripleToPair eRes
 
-        m <- foldlM runEffect m (map third eRes)
+                let runEffect m = \case
+                        Just CSpin{..} -> pure $ m {
+                            val = M.insert reCogId (CG_SPINNING reFun) m.val }
+                        Just CStop{..} -> pure $ m {
+                            val = M.delete reCogId m.val }
+                        Nothing        -> pure m
 
-        fun <- maybe (throwIO INVALID_COGID_IN_LOGBATCH) pure
-                 (lookup x.cogNum m.val)
+                m <- foldlM runEffect m (map third eRes)
 
-        (iWork, new) <- withCalcRuntime $ evaluate $ force (fun %% arg)
+                fun <- case mybCogFun of
+                    Nothing  -> throwIO INVALID_COGID_IN_LOGBATCH
+                    Just fun -> pure fun
 
-        let newMoment = MOMENT
-                { work = m.work + eWork + iWork
-                , val = insertMap x.cogNum new m.val
-                }
+                (iWork, outcome) <- evalCheckingCrash fun arg
 
-        loop bn newMoment xs
+                newVal <- case outcome of
+                    TIMEOUT ->
+                        error "performReplay: impossible timeout on replay"
+                    CRASH o e -> pure $ CG_CRASHED o e fun
+                    OKAY _ result -> pure $ CG_SPINNING result
+
+                let newMoment = MOMENT
+                        { work = m.work + eWork + iWork
+                        , val = insertMap x.cogNum newVal m.val
+                        }
+
+                loop bn newMoment xs
 
 -- | Main entry point for starting running a Cog.
 replayAndCrankMachine
@@ -907,7 +943,7 @@ runnerFun initialFlows machine processName st =
                        $ fmap fst valTuples
 
           withTracingFlow "Response" "cog" traceArg endFlows $ do
-            (flows, receipts) <- runResponse st cogId valTuples False
+            (flows, receipts) <- runResponse st cogId valTuples
             pure (flows, [], receipts)
 
 {-
@@ -940,121 +976,128 @@ runResponse
     => Runner
     -> CogId
     -> [(Int, ResponseTuple)]
-    -> Bool
     -> IO ([Flow], [(Receipt, [STM OnCommitFlow])])
-runResponse st cogid rets didCrash = do
+runResponse st cogid rets = do
   let arg = TAb
           $ mapFromList
           $ flip fmap rets
           $ \(k,v) -> (NAT (fromIntegral k), responseToVal v.resp)
   moment <- atomically (readTVar st.vMoment)
-  let fun = fromMaybe (error "Invalid cogid") $ lookup cogid moment.val
+  let fun = fromMaybe (error "Trying to run a stopped cog")
+          $ cogSpinningFun
+          $ fromMaybe (error "Invalid cogid")
+          $ lookup cogid moment.val
   (runtimeUs, result) <- do
       withAlwaysTrace "Eval" "cog" do
-          evalWithTimeout thirtySecondsInMicroseconds fun
-              (if didCrash then (0 %% arg) else arg)
-  case result of
-    TIMEOUT -> do
-        Prof.recordInstantEvent "Main Timeout" "cog" mempty
-        onCrash
+          evalWithTimeout thirtySecondsInMicroseconds fun arg
 
-    CRASH{} -> do
-        Prof.recordInstantEvent "Main Exception" "cog" mempty
-        onCrash
+  let resultReceipt = case result of
+        TIMEOUT      -> RESULT_TIME_OUT runtimeUs
+        CRASH op arg -> RESULT_CRASHED{..}
+        OKAY{}       -> RESULT_OK
 
-    OKAY _ result -> do
+  let newState = case result of
+        OKAY _ resultFan -> CG_SPINNING resultFan
+        CRASH op arg     -> CG_CRASHED op arg fun
+        TIMEOUT          -> CG_TIMEOUT runtimeUs fun
 
-      withAlwaysTrace "Tick" "cog" do
+  withAlwaysTrace "Tick" "cog" do
+      let responses = ((.resp) . snd) <$> rets
 
-        -- TODO: Actually should the following be a single atomically block?
+      (sideEffects, startedFlows, onPersists) <- atomically do
+          modifyTVar' st.vMoment \m ->
+              MOMENT (insertMap cogid newState m.val) (m.work + runtimeUs)
+
+          sideEffects <- case resultReceipt of
+              RESULT_OK -> do
+                -- Delete the consumed `LiveRequest`s without formally
+                -- canceling it because it completed.
+                modifyTVar' st.vRequests \tab ->
+                    adjustMap (\kals -> foldl' delReq kals (fst<$>rets))
+                              cogid tab
+                mapM performSpinEffects responses
+              _ -> do
+                -- If we crashed, do nothing. We'll formally cancel all
+                -- requests when we reparse in the next step, and we have no
+                -- valid responses to process side effects from.
+                pure mempty
+
+          (startedFlows, onPersists) <- parseRequests st cogid
+
+          pure (sideEffects, startedFlows, onPersists)
+
+      afterResults <- mapM (performAfterEffect resultReceipt) responses
+
+      let (sideEffectFlows, sideEffectPersists) = concatUnzip sideEffects
+          (afterFlows, afterReceipts) = concatUnzip afterResults
+          receiptPairs = [ ( responseToReceipt cogid resultReceipt rets
+                           , onPersists ++ sideEffectPersists
+                           )
+                         ]
+                      ++ afterReceipts
+
+      pure ( startedFlows ++ afterFlows ++ sideEffectFlows
+           , receiptPairs )
+
+  where
+    delReq :: CogSysCalls -> Int -> CogSysCalls
+    delReq acc k = IM.delete k acc
+
+    performSpinEffects :: Response
+                       -> STM ([Flow], [STM OnCommitFlow])
+    performSpinEffects (RespSpin newCogId fun) = do
+        pool <- newTVar emptyPool
+        modifyTVar' st.vSends \sends ->
+            M.insert newCogId pool sends
+        modifyTVar' st.vMoment \m ->
+            m { val=insertMap newCogId (CG_SPINNING fun) m.val }
+        parseRequests st newCogId
+
+    performSpinEffects _ = pure mempty
+
+    -- Performed outside the Big Atomically Block
+    performAfterEffect :: ResultReceipt
+                       -> Response
+                       -> IO ([Flow], [(Receipt, [STM OnCommitFlow])])
+    performAfterEffect _ (RespSpin newCogId _) = do
+        -- If we just spun up another cog, tell all the hardware
+        -- devices that it exists now.
+        for_ st.ctx.hw.table $ \d ->
+            d.spin st.ctx.machineName newCogId
+        pure ([], [])
+
+    performAfterEffect _ (RespStop dedCogId _) = do
+        -- If we just stopped another cog, we need to to tell
+        -- all the hardware devices that it no longer exists.
+        for_ st.ctx.hw.table $ \d ->
+            d.stop st.ctx.machineName dedCogId
+        pure ([], [])
+
+    performAfterEffect result (RespRecv PENDING_SEND{..}) = do
+        -- When an IPC message is received, the corresponding
+        -- send syscall on the sender cog must also be processed
+        -- within the same transaction.
         --
-        -- Is it a problem that the spin effects could occur in a different
-        -- atomically?
-        (sideEffectFlows, sideEffectPersists) <- concatUnzip <$> atomically do
+        -- We do this recursively invoking runResponse for that
+        -- syscall as well.
+        --
+        -- We are sure that the `reqIdx` still corresponds to
+        -- an active COG_SEND syscall because of reasons.
+        let outcome = case result of
+              RESULT_OK -> SendOK
+              _         -> SendCrash
 
-            -- Update the runner state, making sure to delete the consumed
-            -- LiveRequest without formally canceling it because it already
-            -- completed.
-            modifyTVar' st.vMoment \m ->
-                MOMENT (insertMap cogid result m.val) (m.work + runtimeUs)
+        -- TODO: Enable profiling flows; how do we connect
+        -- the recv completing to this?
+        let rtup = RTUP { key  = reqIdx
+                        , resp = RespSend outcome
+                        , work = 0
+                        , flow = FlowDisabled
+                        }
+        runResponse st sender [(reqIdx.int, rtup)]
 
-            modifyTVar' st.vRequests \tab ->
-                adjustMap (\kals -> foldl' delReq kals (fst<$>rets)) cogid tab
+    performAfterEffect _ _ = pure ([], [])
 
-            -- If this was a successful run of the main event, do whatever side
-            -- effect running this event was supposed to have.
-            case didCrash of
-                True -> pure mempty
-                False -> forM rets $ \(_,RTUP{resp}) -> case resp of
-                    RespSpin newCogId fun -> do
-                        pool <- newTVar emptyPool
-                        modifyTVar' st.vSends \sends ->
-                            M.insert newCogId pool sends
-                        modifyTVar' st.vMoment \m ->
-                            m { val=insertMap newCogId fun m.val }
-                        parseRequests st newCogId
-                    _ -> pure (mempty, mempty)
-
-        (startedFlows, onPersists) <- atomically (parseRequests st cogid)
-
-        afterResults <- forM rets
-            \(_,rt) -> case rt.resp of
-
-                -- If we just spun up another cog, tell all the hardware
-                -- devices that it exists now.
-                RespSpin newCogId _ -> do
-                  for_ st.ctx.hw.table $ \d ->
-                    d.spin st.ctx.machineName newCogId
-                  pure ([], [])
-
-                -- If we just stopped another cog, we need to to tell
-                -- all the hardware devices that it no longer exists.
-                RespStop dedCogId _ -> do
-                  for_ st.ctx.hw.table $ \d ->
-                    d.stop st.ctx.machineName dedCogId
-                  pure ([], [])
-
-                -- When an IPC message is received, the corresponding
-                -- send syscall on the sender cog must also be processed
-                -- within the same transaction.
-                --
-                -- We do this recursively invoking runResponse for that
-                -- syscall as well.
-                --
-                -- We are sure that the `reqIdx` still corresponds to
-                -- an active COG_SEND syscall because of reasons.
-                RespRecv PENDING_SEND{..} -> do
-                  let outcome = if didCrash then SendCrash else SendOK
-                  -- TODO: Enable profiling flows; how do we connect
-                  -- the recv completing to this?
-                  let rtup = RTUP { key  = reqIdx
-                                  , resp = RespSend outcome
-                                  , work = 0
-                                  , flow = FlowDisabled
-                                  }
-                  runResponse st sender [(reqIdx.int, rtup)] False
-
-                _ -> pure ([], [])
-
-        let (afterFlows, afterReceipts) = concatUnzip afterResults
-
-        let receiptPairs = [ ( responseToReceipt cogid didCrash rets
-                             , onPersists ++ sideEffectPersists
-                             )
-                           ]
-                        ++ afterReceipts
-
-        pure ( startedFlows ++ afterFlows ++ sideEffectFlows
-             , receiptPairs )
-
- where
-   onCrash =
-       if didCrash
-       then throwIO COG_DOUBLE_CRASH
-       else runResponse st cogid rets True
-
-   delReq :: CogSysCalls -> Int -> CogSysCalls
-   delReq acc k = IM.delete k acc
 
 {-
     Hack to avoid comparing SERV requests.
@@ -1093,7 +1136,7 @@ parseAllRequests runner = do
 -- | Given a noun in a runner, update the `requests`
 parseRequests :: Debug => Runner -> CogId -> STM ([Flow], [STM OnCommitFlow])
 parseRequests runner cogId = do
-    moment   <- (fromMaybe (error "no cogid m") . lookup cogId . (.val)) <$>
+    cogState <- (fromMaybe (error "no cogid m") . lookup cogId . (.val)) <$>
                 readTVar runner.vMoment
     syscalls <- (fromMaybe mempty . lookup cogId) <$>
                 readTVar runner.vRequests
@@ -1102,7 +1145,10 @@ parseRequests runner cogId = do
 
     st <- flip execStateT init do
               let expected = syscalls
-              let actual   = getCurrentReqNoun moment
+              let actual   = case cogState of
+                    CG_CRASHED{}       -> mempty
+                    CG_TIMEOUT{}       -> mempty
+                    CG_SPINNING cogFun -> getCurrentReqNoun cogFun
 
               for_ (mapToList expected) \(i,(v,_)) ->
                   case actual V.!? i of
@@ -1195,6 +1241,20 @@ evalWithTimeout msTimeout fun arg = do
     Just (Left(o,e)) -> pure (runtime, CRASH o e)
     Just (Right v)   -> pure (runtime, OKAY runtime v)
 
+evalCheckingCrash
+    :: Debug
+    => Fan
+    -> Fan
+    -> IO (NanoTime, EvalOutcome)
+evalCheckingCrash fun arg = do
+  (runtime, raw) <- withCalcRuntime $ do
+    try (evaluate $ force (fun %% arg)) >>= \case
+      Left (PRIMOP_CRASH op val) -> do debug ("crash"::Text, NAT op, val)
+                                       pure (Left (op,val))
+      Right f                    -> pure (Right f)
+  case raw of
+    Left (o,e) -> pure (runtime, CRASH o e)
+    Right v    -> pure (runtime, OKAY runtime v)
 
 -- The EventLog Routine --------------------------------------------------------
 

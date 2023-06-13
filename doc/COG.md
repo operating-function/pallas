@@ -94,20 +94,38 @@ The `%cog` requests are:
 
 -   `[%cog %spin fan] -> IO Pid`: Starts a cog and returns its cog id.
 
--   `[%cog %send pid fan] -> IO ()`: Sends the fan value to pid,
-    returning on success. `%recv`/`%send` are special in that they always
+-   `[%cog %send pid fan] -> IO Nat`: Sends the fan value to pid,
+    returning afterwards. `%recv`/`%send` are special in that they always
     both execute atomically; you'll never have one without the other in
     the event log.
 
+    The returned nat is 0 if the message was sent successfully, and 1 if
+    the cog crashed.
+
 -   `[%cog %recv] -> IO (Pid, Fan)`: Waits for a message from another process.
 
--   `[%cog %stop pid] -> IO (Maybe Fan)`: Stops a cog and returns the
-    cog's value, if it exists.
-
+-   `[%cog %stop pid] -> IO (Maybe CogState)`: Stops a cog and returns
+    the cog's value, if it exists.
 
 -   `[%cog %who] -> IO Pid`: Tells the cog who it is. Any other way of
     implementing this would end up with changes to the type of the cog
     function taking an extra `Pid ->`.
+
+The on disk snapshot of a whole Machine is just the noun value of `(Tab
+Pid CogState)` serialized, where Pid is a natural number and `CogState`
+is a row matching one of the following patterns:
+
+-   `[0 fan]`: represents a spinning cog which has requests and can
+    process responses.
+
+-   `[1 (op : nat) (arg : fan) (final : fan)]`: represents a crashed cog,
+    with the `op` and `arg` being the values that caused the crash and
+    `fun` being the final value of the cog before the crashing event.
+
+-   `[2 (duration : nat) (final : fan)]`: represents a cog which had a
+    request timeout.
+
+These patterns are also what are returned in the `[%cog %stop]` request.
 
 <!---
 Local Variables:

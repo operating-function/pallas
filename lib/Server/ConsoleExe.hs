@@ -842,7 +842,7 @@ doBoot st machineName pak = do
         error ("Trying to overwrite existing machine " <> show machineName)
     else
         DB.writeMachineSnapshot st.lmdb machineName (BatchNum 0)
-                                (singletonMap firstCogId pak.fan)
+                                (singletonMap firstCogId (CG_SPINNING pak.fan))
 
 -- {-
 --     Deliver a noun from the outside to a given cog.

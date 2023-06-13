@@ -54,16 +54,24 @@ data ReceiptItem
   | ReceiptStop { cogNum :: CogId }
   deriving (Eq, Ord, Show)
 
+data ResultReceipt
+  = RESULT_OK
+  | RESULT_CRASHED { op :: Nat, arg :: Fan }
+  | RESULT_TIME_OUT { timeoutAmount :: NanoTime }
+  deriving (Eq, Ord, Show)
+
 data Receipt = RECEIPT
-    { cogNum   :: CogId
-    , didCrash :: Bool
-    , inputs   :: IntMap ReceiptItem
+    { cogNum :: CogId
+    , result :: ResultReceipt
+    , inputs :: IntMap ReceiptItem
     }
   deriving (Eq, Ord, Show)
 
 data CogFailure
     = COG_DOUBLE_CRASH
     | INVALID_COGID_IN_LOGBATCH
+    | INVALID_TIMEOUT_IN_LOGBATCH
+    | INVALID_CRASHED_IN_LOGBATCH
     | INVALID_OK_RECEIPT_IN_LOGBATCH
     | INVALID_SPUN_RECEIPT_IN_LOGBATCH CogId
     | INVALID_RECV_RECEIPT_IN_LOGBATCH
@@ -91,6 +99,20 @@ data LogBatch = LogBatch {
   executed  :: [Receipt]
   }
   deriving (Show)
+
+-- -----------------------------------------------------------------------
+
+-- | Whether a cog is spinning, or in an error state.
+data CogState
+  = CG_SPINNING Fan
+  | CG_CRASHED { op :: Nat, arg :: Fan, final :: Fan }
+  | CG_TIMEOUT { duration :: NanoTime, final :: Fan }
+  deriving (Show)
+
+cogSpinningFun :: CogState -> Maybe Fan
+cogSpinningFun (CG_SPINNING fan) = Just fan
+cogSpinningFun CG_CRASHED{}      = Nothing
+cogSpinningFun CG_TIMEOUT{}      = Nothing
 
 -- -----------------------------------------------------------------------
 
