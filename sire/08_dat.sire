@@ -180,20 +180,20 @@
 
 """ Unfolding """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (unfoldr f b)
-^ _ 0 b
-? (go idx b)
-| **maybeCase (f b) (cow idx)
-& xs
-@ a | get xs 0
-@ newB | get xs 1
-| (go (inc idx) newB) a
+; TODO: Would it be better to just use the list version and then generate
+; a row from that?  This is a very natural function on lazy lists.
 
-!!= 1 @ testUnfoldr
-           & x
-           | if (lte x 5) (SOME [x (inc x)]) NONE
-      | eql [0 1 2 3 4 5]
-      | unfoldr testUnfoldr 0
+= (unfoldr f seed)
+^ _ 0 seed
+? (go idx seed)
+| **maybeCase (f seed) (cow idx)
+& valSeed
+| go (inc idx) (snd valSeed) (fst valSeed)
+
+!!= [0 1 2 3 4 5]
+  ^ unfoldr _ 0
+  & x
+  | if (lte x 5) (SOME [x (inc x)]) NONE
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -318,6 +318,17 @@
 | **listCase l z
 & (x xs)
 | f x (listFoldr f z xs)
+
+= (listUnfoldr f seed)
+| **maybeCase (f seed) NIL
+& valSeed
+| CONS (fst valSeed)
+| listUnfoldr f (snd valSeed)
+
+!!= (, 0 , 1 , 2 , 3 , 4 , 5 0)
+  ^ listUnfoldr _ 0
+  & x
+  | if (lte x 5) (SOME [x (inc x)]) NONE
 
 = (listMap f l)
 | **listCase l NIL

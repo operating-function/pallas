@@ -119,7 +119,7 @@ jetHashes
     , e "zip"                 "95SXVT334juwuFURsBBgtJu6KDzxarJexxGcFNpJY3cZ"
     , e "drop"                "7zwbJa4uQ2DCzTec6WSHBBMmmUnvTonBFibqmTMoFCNh"
     , e "take"                "AEhdPSNfwEWkRGABM7zECRCe8wCcjrm8w9tJwfa2H4xT"
-    , e "unfoldr"             "2gfx8wf5fPpWtHrtL8qknGY19bGK6DQWtRoctHo17tj2"
+    , e "unfoldr"             "DKjdVSxF662rrzisipv2xySGAcTnkbCM8qp8A8n7smPa"
     , e "listToRow"           "4bgGturnvrdjjKa4RGRWsu4CYMuMg7qUsmVND1sgTWSc"
     , e "listToRowReversed"   "7WixiwheGSP1LBmoNNJzTY41zXH3c7ZpxFVWYfZHBAMR"
     , e "isDigit"             "GWxivSETStPa86suK4SEGw4MnXKnRHdo2QcqJ9ggFtPb"
