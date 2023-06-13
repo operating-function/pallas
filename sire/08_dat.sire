@@ -560,14 +560,21 @@
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (listIntersperse sep lis)
-| **listCase lis lis
+= (listIntersperse sep xs)
+| **listCase xs xs
 & (x xs)
-| **listCase xs lis
-& (y ys)
-| CONS x
-| CONS sep
-| listIntersperse sep xs
+^ CONS x (_ xs)
+? (go xs)
+    | **listCase xs xs
+    & (x xs)
+    | CONS sep
+    | CONS x
+    | go xs
+
+!!= []          | listToRow | listIntersperse 0 | listFromRow []
+!!= [1]         | listToRow | listIntersperse 0 | listFromRow [1]
+!!= [1 0 2]     | listToRow | listIntersperse 0 | listFromRow [1 2]
+!!= [1 0 2 0 3] | listToRow | listIntersperse 0 | listFromRow [1 2 3]
 
 (listRev xs)=(listFoldl (flip CONS) NIL xs)
 
