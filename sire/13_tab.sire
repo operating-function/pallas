@@ -14,10 +14,10 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [lawBody trk isLaw inc seq const]
+/+  01_fan  [lawBody trk isLaw inc seq const id]
 /+  02_bit  [if ifNot and or not nor]
 /+  03_nat  [add toNat]
-/+  06_row  [len idx head mut]
+/+  06_row  [len get idx head mut]
 /+  04_cmp  [eql neq lth lte gte gth isZero]
 /+  06_row  [null map weld rowRepel rowApply rev fst snd]
 /+  06_row  [foldl foldr]
@@ -51,8 +51,7 @@ emptyTab=emptyCab
 
 = (tabIdx key tab)
 @ keys (lawBody head-tab)
-| **maybeCase (elemIdx key keys) 0
-(ix & idx ix tab)
+| elemIdx key keys 0 (get tab)
 
 (**tabGet tab key)=(tabIdx key tab)
 
@@ -73,14 +72,11 @@ ex=(mkTab [1 2 3] [4 5 6])
 = (tabHas k t)     | cabHas k (tabKeys t)
 = (tabLookup k t)  | if (tabHas k t) (SOME | tabIdx k t) NONE
 
-;; TODO: Rename tabHas to tabHas.
-
 
 """ Tab Insertion """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (findInsIdx key keys)
-@ midx (findIdx lte-key keys)
-| **maybeCase midx (len keys) (ix & ix)
+| findIdx (lte key) keys len-keys id
 
 !!= 0 (findInsIdx 0 [1 2 3])
 !!= 0 (findInsIdx 1 [1 2 3])
@@ -90,11 +86,12 @@ ex=(mkTab [1 2 3] [4 5 6])
 
 = (tabIns key val tab)
 @ keys (tabKeysRow tab)
-| **maybeCase (elemIdx key keys)
+@ notFound
     @ ix (findInsIdx key keys)
     | mkTab (insert ix key keys) (insert ix val tab)
-& ix
-| mut ix val tab
+@ found
+    ix&(mut ix val tab)
+| elemIdx key keys notFound found
 
 (tabPut x k v)=(tabIns k v x)
 
@@ -216,19 +213,20 @@ tab=(tabFromAscPairs par)
 
 = (tabAlter fun key tab)
 @ keys (lawBody head-tab)
-| **maybeCase (elemIdx key keys)
-    | **maybeCase (fun NONE)
-      tab
+@ notFound
+    | **maybeCase (fun NONE) tab
     & val
     | tabFromPairs
     | weld [[key val]]
     | tabToPairs tab
-& ix
-@ prev | idx ix tab
-| **maybeCase (fun (SOME prev))
-    | tabDel key tab
-& new
-| mut ix new tab
+@ found
+    & ix
+    @ prev (idx ix tab)
+    | **maybeCase (fun (SOME prev))
+        | tabDel key tab
+    & new
+    | mut ix new tab
+| elemIdx key keys notFound found
 
 > (Nat > v > v) > Tab v > Tab v
 = (tabMapWithKey fun tab)

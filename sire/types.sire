@@ -324,7 +324,7 @@ abstype#TyExp
     : result < tyApp nam scheme params err
     | ret result
 * (T_VAR sym)
-    # datacase (elemIdx sym vars)
+    # datacase (elemIdx sym vars NONE SOME)
     * NONE     | err varE-sym 'unbound type variable'
     * (SOME i) | ret (TVAR i)
 * (T_TUP exps)

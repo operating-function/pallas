@@ -140,8 +140,8 @@ GT=2
 
 """ Misc """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (even n) | not mod-n-2
 = (odd n)  | mod n 2
+= (even n) | not (odd n)
 
 = (roundUp n f)
 @ x (mod n f)

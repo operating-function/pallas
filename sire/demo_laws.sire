@@ -413,7 +413,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= x#{1cd7dcdd584a6a8944e33b039b5ef04058034db28cac1c2238c044f591bdf83d}
   | pinHash cmp
 
-!!= x#{b9d7d1d794b1e23782009e88734016b609a7ccd1b9d3a36df4529620d1d3ff4e}
+!!= x#{39ee8551bd7a74f68527d606aab349057e65088a058d01e77e3e4b7d246c890e}
   | pinHash pinHash
 
 = (refsTable pin)

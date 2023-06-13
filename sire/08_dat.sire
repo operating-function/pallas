@@ -17,10 +17,11 @@
 
 /+  01_fan
 /+  02_bit  [if else ifNot and or not bit TRUE FALSE]
-/+  03_nat  [dec sub add lsh rsh div roundUp mod even mul]
+/+  03_nat  [dec sub add lsh rsh div roundUp mod mul]
+/+  03_nat  [even odd]
 /+  03_nat  [LT GT EQ]
 /+  06_row  [head arity len idx get mut]
-/+  04_cmp  [eql neq cmp lth lte gte min isZero]
+/+  04_cmp  [eql neq cmp lth gth lte gte min isZero]
 /+  06_row
 /+  07_rex
 
@@ -78,25 +79,13 @@
 @ start (mul ix sz)
 | slice row start (add start sz)
 
-; TODO: {span} should combine {elemIdx} and {splitAt}.
-
-= (span f r)
-@ l | len r
-^ _ 0
-? (loop i)
-| if (eql i l) (v2 r v0)
-| if (f | idx i r)
-    | loop (inc i)
-| v2 (take i r) (drop i r)
-
-; TODO: Doesn't work
 (strictRow a)=(foldl const a a)
 
 = (insert ix val row)
 | gen (inc len-row)
 & i
 | switch (cmp i ix) 0
-| v3 (idx i row) val (idx (dec i) row)
+| v3 (idx i row) val (idx dec-i row)
 
 !!= (v2 9 0)   | insert 0 9 (v1 0)
 !!= (v2 0 9)   | insert 1 9 (v1 0)
@@ -187,24 +176,6 @@
 !!= 0 | isSome NONE
 !!= 0 | isNone (SOME 0)
 !!= 1 | isNone NONE
-
-
-""" Scanning Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-; TODO Consider returning (0 | (idx+1)) to avoid the boxing the result
-;      in SOME.
-= (findIdx f row)
-^ foldr _ NONE rowIndexed-row
-& (iv rest)
-| if f-(snd iv) SOME-(fst iv) rest
-
-= (elemIdx key row)
-| findIdx (eql key) row
-
-!!= SOME-0 | elemIdx 5 [5 6 7]
-!!= SOME-1 | elemIdx 6 [5 6 7]
-!!= SOME-2 | elemIdx 7 [5 6 7]
-!!= NONE   | elemIdx 8 [5 6 7]
 
 
 """ Unfolding """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -446,11 +417,6 @@
 !!= | CONS [3 4] | CONS [4 5] NIL
   | listZip listFromRow-[3 4] listFromRow-[4 5]
 
-(listIndexed l)=(listZip (listEnumFrom 0) l)
-
-!!= (listIndexed (, "a" , "b" , "c" 0))
-        (, [0 "a"] , [1 "b"] , [2 "c"] 0)
-
 = (listFilter f lis)
 | **listCase lis NIL
 & (x xs)
@@ -537,26 +503,28 @@
 !!= [0 5 0]     | uniq [0 0 5 5 0 0]
 !!= [0 5]       | sortUniq [0 0 5 5 0 0]
 
-= (listFindIndex f xs)
-^ _ 0 xs
-? (loop ix rest)
-| seq ix
-| **listCase rest NONE
-& (x xs)
-| if (f x) (SOME ix)
-| loop (inc ix) xs
 
-(listElemIndex e xs)=(listFindIndex (eql e) xs)
+""" Searching """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-!!= (0 0) | listElemIndex 0 (, 0 , 1 , 2 , 3 0)
-!!= (0 1) | listElemIndex 1 (, 0 , 1 , 2 , 3 0)
-!!= (0 2) | listElemIndex 2 (, 0 , 1 , 2 , 3 0)
-!!= (0 3) | listElemIndex 3 (, 0 , 1 , 2 , 3 0)
-!!= 0     | listElemIndex 4 (, 0 , 1 , 2 , 3 0)
+(listIndexed l)=(listZip (listEnumFrom 0) l)
 
-(filter f row)=(| listToRow | listFilter f | listFromRow row)
+= (listFindIndex pred xs notFound found)
+^ listFoldr _ notFound (listIndexed xs)
+& (idxVal rest)
+| ifNot (pred | snd idxVal) rest
+| found (fst idxVal)
 
-(delete val row)=(filter (neq val) row)
+= (listElemIndex e xs not_found found)
+| listFindIndex (eql e) xs not_found found
+
+= (findIdx p row nf f) | listFindIndex p (listFromRow row) nf f
+= (elemIdx e row nf f) | findIdx (eql e) row nf f
+
+= (span pred row)
+| findIdx (compose not pred) row (row,[]) (flip splitAt row)
+
+= (filter f row)   | rowPort (listFilter f) row
+= (delete val row) | filter (neq val) row
 
 = (findIdxMany f row)
 ^ listFoldr _ NIL (listIndexed | listFromRow row)
@@ -566,8 +534,31 @@
 
 (elemIdxMany key row)=(findIdxMany (eql key) row)
 
-!!= [0 [2 0]]
-  | elemIdxMany 5 [5 0 5]
+!!= (| listToRow | listIndexed | listFromRow ["a" "b" "c"])
+  [[0 "a"] [1 "b"] [2 "c"]]
+
+!!= SOME-0 | elemIdx 5 [5 6 7] NONE SOME
+!!= SOME-1 | elemIdx 6 [5 6 7] NONE SOME
+!!= SOME-2 | elemIdx 7 [5 6 7] NONE SOME
+!!= NONE   | elemIdx 8 [5 6 7] NONE SOME
+
+!!= ( [],        [2 4 5 6] ) | span lte-9 [2 4 5 6]
+!!= ( [2 4 5 6], []        ) | span gth-9 [2 4 5 6]
+!!= ( [2],       [4 5 6]   ) | span eql-2 [2 4 5 6]
+!!= ( [2 4],     [5 6]     ) | span even  [2 4 5 6]
+!!= ( [],        [2 4 5 6] ) | span odd   [2 4 5 6]
+
+!!= (0 0) | listElemIndex 0 (, 0 , 1 , 2 , 3 0) NONE SOME
+!!= (0 1) | listElemIndex 1 (, 0 , 1 , 2 , 3 0) NONE SOME
+!!= (0 2) | listElemIndex 2 (, 0 , 1 , 2 , 3 0) NONE SOME
+!!= (0 3) | listElemIndex 3 (, 0 , 1 , 2 , 3 0) NONE SOME
+!!= 0     | listElemIndex 4 (, 0 , 1 , 2 , 3 0) NONE SOME
+
+!!= [0 2]
+  | listToRow | elemIdxMany 5 [5 0 5]
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = (listIntersperse sep lis)
 | **listCase lis lis

@@ -186,8 +186,8 @@ emptyBar=(0 1 1 1)
 (barTakeWhile f b)=(barTake (barCountHeadMatching f b) b)
 
 = (barToList b)      | listGen (barLen b) (barGet b)
-= (barFindIndex f b) | listFindIndex f (barToList b)
-= (barElemIndex e b) | listElemIndex e (barToList b)
+= (barFindIndex f b) | listFindIndex f (barToList b) NONE SOME
+= (barElemIndex e b) | listElemIndex e (barToList b) NONE SOME
 = (barSplitAt i b)   | [(barTake i b) (barDrop i b)]
 = (barFromRow r)     | barGen (len r) (get r)
 = (barFilter f b)    | barFromRow | filter f (barToRow b)
