@@ -224,10 +224,11 @@
 = (_Map f v)
 | gen (len v) x&(f | idx x v)
 
-= (_Rev xs)
-@ wid (len-xs)
+= (_Rev row)
+@ wid    | len row
+@ lastIx | dec wid
 | gen wid
-| (i & get xs (sub wid | inc i))
+& i (get row | sub lastIx i)
 
 = weld | _Weld
 = map  | _Map
