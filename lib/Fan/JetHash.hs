@@ -157,7 +157,7 @@ jetHashes
     , e "tabSplitLT"          "3piVjrexs2LYLr5593fUvNoLq5giWSzjHRPdg4SntjVw"
     , e "tabAlter"            "h3acwX8hLfAtBSJErLTnsrP35w4p1ZxqaqeAoRF5oc9"
     , e "tabMapWithKey"       "7rB3mSNqPfnrjk3pD1VyAqbuSZyCS1AM7TbERYDTiGSi"
-    , e "tabUnionWith"        "7svnbNKRNkjtjkXTDWC7AnaBhPbEAk7PTW5UGDYLHPh6"
+    , e "tabUnionWith"        "83F6j6LwXCjPy1C6n5CEjuQ5p8FMK4poZhgnBDrFj3yz"
     , e "tabMinKey"           "6dq3qQAA8FcehnUMKycJeke7dQMqECcrwZJADxmCpKce"
     , e "tabFoldlWithKey"     "7FjEsh2j1ZBFCnTJYBmyNJJYAzye2atAFSLzGD7dgaZT"
     , e "padWeld"             "7MZnYrEPYprcB2CUFxULKQSbq15rQjQSynpgHb2W8uVH"

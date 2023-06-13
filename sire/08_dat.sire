@@ -569,17 +569,16 @@
 | CONS sep
 | listIntersperse sep xs
 
-= (listRev a)
-^ _ a NIL
-? (loop a xs)
-| if (listIsEmpty a) xs
-| loop (snd a) (CONS (fst a) xs)
+(listRev xs)=(listFoldl (flip CONS) NIL xs)
 
 = (listSnoc xs e)
 | **listCase xs (CONS e NIL)
 & (x xs)
 | CONS x
 | listSnoc xs e
+
+!!= (, 3 , 4 , 5 NIL)
+  | listRev (, 5 , 4 , 3 NIL)
 
 !!= (listSnoc [0 [1 0]] 2)
   | [0 [1 [2 0]]]
