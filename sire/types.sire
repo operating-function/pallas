@@ -288,7 +288,7 @@ abstype#TyExp
 | trk
     | OPEN 0 "=" [(varE symbol)]
     | showType p scheme
-| ok p a `0
+| ok p a `(#*)
 
 = (tyApp name scheme params err ok)
 @ [arity topTy] scheme
@@ -603,7 +603,7 @@ printType#Fun
 @ tyVars       | cabToRow (txpFree typExp)
 : scheme       < compileType tyVars typExp err
 @ p (setProperty valKey 'type' scheme p)
-| ok p a `0
+| ok p a `(#*)
 
 """
 """ {#typeof} prints the type of a binding.  It is meant to be used
@@ -619,7 +619,7 @@ printType#Fun
 | if (isZero vlKey)  | 'undefined' symbol
 | if (isZero scheme) | 'untyped' symbol
 | trk (NEST 0 "\" [(varE symbol)] | showType p scheme)
-| ok p a `0
+| ok p a `(#*)
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

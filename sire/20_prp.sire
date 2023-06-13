@@ -126,7 +126,7 @@
 @ key (tabGet s symbol)
 @ val (tabGet e valSym)
 @ p (setProperty key property val p)
-| expand p a (cnsE 0)
+| expand p a `(#*)
 
 why=3
 whySrc=(`(why=3))
