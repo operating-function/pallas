@@ -142,7 +142,7 @@
 # datacase (transactStrollDb txn strollDb)
 * (LEFT l)
     | trk [%l l]
-    | 'transaction failed: ' l
+    | 'stroll transaction failed: ' l
 * (RIGHT r) r
 
 ; Generates a unique id, checking that the uid isn't in the database
@@ -269,7 +269,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ STROLL_DB(..) strollDb
 | map [k v]&v
 | catMap tabToPairs
-| fromSome %[]
+| fromSome [] ; catMap expects a row of tabs
 | tabLookup ":block/refs"
 | assertRight
 | pull ++ ## =":block/refs" ++ ":db/id"
@@ -281,7 +281,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ STROLL_DB(..) strollDb
 | map [k v]&v
 | catMap tabToPairs
-| fromSome %[]
+| fromSome [] ; catMap expects a row of tabs
 | tabLookup ":block/refs"
 | assertRight
 | pull [[":block/refs"=[":block/uid"]]]

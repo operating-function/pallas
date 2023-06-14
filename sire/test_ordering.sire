@@ -128,29 +128,44 @@ raw=(pinItem cmp)
 !! checkOrder GT [0 1] %[0 1]
 !! checkOrder GT [0 1] %[0 1]
 
-; Rows are compared with tabs first by comparing the sizes.
-!! checkOrder GT [0]     #[]
-!! checkOrder LT [0]     #[0=0 1=1]
-!! checkOrder LT []      #[0=0 1=1]
-!! checkOrder GT [0 0 0] #[0=0 1=1]
+; Tabs are always bigger than cabs (because tabs are apps)
+!! checkOrder LT %[]    #[]
+!! checkOrder LT %[9]   #[]
+!! checkOrder LT %[8 9] #[]
 
-; If the sizes are the same, rows are always smaller.
-!! checkOrder LT []      | #[]
-!! checkOrder LT [0]     | #[8=8]
-!! checkOrder LT [0 0]   | #[8=8 9=9]
-!! checkOrder LT [0 0 0] | #[8=8 9=9 10=10]
+; Tabs have size one and are bigger than size-one rows.
+!! checkOrder LT []     #[]
+!! checkOrder LT [0]    #[]
+!! checkOrder GT [0 0]  #[]
 
-; If the sizes are the same, rows are always smaller.
-!! checkOrder LT []      | #[]
-!! checkOrder LT [0]     | #[8=8]
-!! checkOrder LT [0 0]   | #[8=8 9=9]
-!! checkOrder LT [0 0 0] | #[8=8 9=9 10=10]
+; Bigger tabs are bigger than smaller ones
+!! checkOrder LT #[]      #[=1]
+!! checkOrder LT #[=0]    #[=1]
+!! checkOrder EQ #[=1]    #[=1]
+!! checkOrder GT #[=0 =1] #[=1]
 
-; Rows are pretty small closures.  Only closures with nat-heads are smaller.
-!! checkOrder LT [0]   | (cdr-const 0)
-!! checkOrder LT [0]   | ((x y & x) 0)
-!! checkOrder LT [0 0] | (pinItem-v3 0 0)
-!! checkOrder GT [0]   | (0 0)
+; Tabs with different keys are compared by key in decending order.
+!! checkOrder LT #[=1 =3 =5] #[=0 =3 =6]
+!! checkOrder GT #[=1 =3 =5] #[=0 =3 =5]
+!! checkOrder EQ #[=1 =3 =5] #[=1 =3 =5]
+
+; Rows are smaller than all other (same sized) law-headed closures.
+!! checkOrder LT [0] | ((x y   & x) 0)
+!! checkOrder LT [0] | ((x y z & x) 0)
+!! checkOrder LT [0] | ((f x y ? f) 0)
+!! checkOrder EQ [0] | 0 0 2 0 0
+
+
+; Rows are larger than (same sized) pin-headed closures.
+anonConst=(4 (x y & x))
+
+!! checkOrder GT [0] | (4 c1 0)
+!! checkOrder GT [0] | (const 0)
+!! checkOrder GT [0] | (anonConst 0)
+
+; Rows are larger than (same sized) nat-headed closures.
+!! checkOrder GT [0] | (0 1)
+!! checkOrder GT [0] | (2 1)
 
 
 """ Fun, Pin, Bar, Cow, Rex """"""""""""""""""""""""""""""""""""""""""""""""""""

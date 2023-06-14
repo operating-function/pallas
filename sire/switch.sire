@@ -181,9 +181,9 @@ foo=(x e o & o (varE "_", x))
 @ canUseRowIndex
         | listAnd
         | listZipWith eql (listEnumFrom 0)
-        | cabToList (tabKeys pats)
+        | tabKeysList pats
 | if canUseRowIndex
-        | bopE (cnsE switch,    expr, wild, bowE (tabVals pats))
+        | bopE (cnsE switch,    expr, wild, bowE (tabValsRow pats))
 | else
         | bopE (cnsE tabSwitch, expr, wild, tabE pats)
 

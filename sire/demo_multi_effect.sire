@@ -194,8 +194,8 @@
 
 = (effectDemo done)
 : vCount          <- newRef 0
-: vTelnetOpen     <- newRef %[]
-: vWebSockOpen    <- newRef %[]
+: vTelnetOpen     <- newRef %[] ;; cab
+: vWebSockOpen    <- newRef %[] ;; cab
 @ bc (sendAll vTelnetOpen vWebSockOpen)
 : telnetThread    <- fork (runSocketLoop bc Telnet vTelnetOpen)
 : webSocketThread <- fork (runSocketLoop bc WebSocket vWebSockOpen)

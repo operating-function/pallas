@@ -140,12 +140,11 @@ getRawRow (ROW xs) = Just xs
 getRawRow _        = Nothing
 
 getRawCab :: Fan -> Maybe (Set Fan)
-getRawCab (CAb xs) = Just xs
-getRawCab (TAB t) | M.null t = Just S.empty
+getRawCab (CAB xs) = Just xs
 getRawCab _        = Nothing
 
 getRawTable :: Fan -> Maybe (Map Fan Fan)
-getRawTable (TAB m) = Just m
+getRawTable (TAb m) = Just m
 getRawTable _       = Nothing
 
 getRawBar :: Fan -> Maybe ByteString
@@ -169,7 +168,7 @@ instance FromNoun a => FromNoun [a] where
 
 
 instance ToNoun a => ToNoun (Set a) where
-    toNoun = CAb . S.fromList . map toNoun . S.toList
+    toNoun = CAB . S.fromList . map toNoun . S.toList
 
 instance (Ord a, FromNoun a) => FromNoun (Set a) where
     fromNoun n = do
@@ -177,7 +176,7 @@ instance (Ord a, FromNoun a) => FromNoun (Set a) where
       S.fromList <$> forM (S.toList r) fromNoun
 
 instance (ToNoun k, ToNoun v) => ToNoun (Map k v) where
-    toNoun = TAB . M.fromList . map (both toNoun toNoun) . M.toList
+    toNoun = TAb . M.fromList . map (both toNoun toNoun) . M.toList
       where
         both f g (a, b) = (f a, g b)
 
@@ -204,13 +203,13 @@ instance (FromNoun a) => FromNoun (Maybe a) where
 
 -- Hack: inputs are cast to unsigned
 instance ToNoun a => ToNoun (IntMap a) where
-    toNoun = TAB . mapFromList . fmap f . mapToList
+    toNoun = TAb . mapFromList . fmap f . mapToList
       where
         f (k,v) = (NAT (fromIntegral k), toNoun v)
 
 instance FromNoun a => FromNoun (IntMap a) where
     fromNoun = \case
-        TAB t -> fmap mapFromList
+        TAb t -> fmap mapFromList
                    $ for (mapToList t) \(kF,vF) -> do
                        k::Word64 <- fromNoun kF
                        v         <- fromNoun vF

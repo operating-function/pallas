@@ -902,13 +902,15 @@
 
 = (tabTraverseState st f tab ok)
 @ keys (tabKeysRow tab)
-: st rexes < rowTraverseState st f tab
-| ok st (mkTab keys rexes)
+@ vals (tabValsRow tab)
+: st rexes < rowTraverseState st f vals
+| ok st (_MkTab keys rexes)
 
 = (traverseTab f tab ok)
 @ keys (tabKeysRow tab)
-: rexes < rowTraverse f tab
-| ok (mkTab keys rexes)
+@ vals (tabValsRow tab)
+: rexes < rowTraverse f vals
+| ok (_MkTab keys rexes)
 
 = (rexTraverseState st f rex ok)
 | if (isZero rex)
@@ -1277,7 +1279,7 @@ prp=(#getAllProps)
  ++ 5
  ++ `` (#** (#| (#** id) $1))
 
-!!= [5 ``(#| ($ %[a b c]) (#| $0 $3) $2 $1)]
+!!= [5 ``(#| $(%[a b c]) (#| $(cow 3) (#| $0 $3) $2 $1))]
   | comp 5
   | ETAB
  ## =a (ENAT 1)
@@ -1285,12 +1287,12 @@ prp=(#getAllProps)
  ## =c (EAPP ENAT-0 ENAT-3)
 
 !!=  ++ 5
-     ++ `` (#| $tabSwitch foo z (#| ($ %[a b]) y x))
+     ++ `` (#| $tabSwitch foo z (#| $(%[a b]) (#| $(cow 2) y x)))
   ^ readExp _ (curry die) (comp 5)
   ` (# switch foo)(* {a} x)(* {b} y)z
 
 !!=  ++ 5
-     ++ `` (#| $tabSwitch foo $0 (#| ($ %[a]) x))
+     ++ `` (#| $tabSwitch foo $0 (#| $(%[a]) (#| $(cow 1) x)))
   ^ readExp _ (curry die) (comp 5)
   ` (# switch foo)(* {a} x)
 
@@ -1376,7 +1378,8 @@ prp=(#getAllProps)
      ++ rexClose
        `` #@ _g5 sx
           #| $tabSwitch (#| $len _g5) $0
-              #| ($ %[1])
+              #| $(%[1])
+                 #| $(cow 1)
                     #@ _g6 sx
                     #@ x (#| $(idx 0) _g6)
                      x

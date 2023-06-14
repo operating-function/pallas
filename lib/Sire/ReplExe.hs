@@ -56,7 +56,7 @@ replMain filz = do
         handle (\(F.PRIMOP_CRASH o v) -> dieFan o v) do
           vEnv <- newIORef mempty
           vMac <- newIORef mempty
-          vPrp <- newIORef (F.TAB mempty)
+          vPrp <- newIORef (F.TAb mempty)
           vGen <- newIORef (1::Nat)
           vSrc <- newIORef mempty
           writeIORef F.vShowFan  showFan
@@ -85,7 +85,7 @@ loadFile file = do
     writeIORef F.vTrkFan   trkFan
     writeIORef F.vJetMatch (F.jetMatch)
     vSrc <- newIORef mempty
-    vPrp <- newIORef (F.TAB mempty)
+    vPrp <- newIORef (F.TAb mempty)
     vGen <- newIORef (1::Nat)
     replFile file (runBlockFan stdout False vSrc vPrp vGen vEnv vMac)
     env <- readIORef vEnv

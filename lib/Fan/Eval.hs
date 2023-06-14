@@ -50,6 +50,8 @@ module Fan.Eval
     , saveFan
     , trkName
     , loadPinFromBlob
+    , tabValsRow
+    , cabToRow
     )
 where
 
@@ -178,8 +180,8 @@ quickHash = \case
     KLO _ xs -> hashSum (toList xs)
     BAR b    -> length b
     ROW r    -> hashSum' (length r) (toList r)
-    TAB r    -> hashSum' (length r) (keys r)
-    CAb r    -> hashSum' (length r) (toList r)
+    TAb r    -> hashSum' (length r) (keys r)
+    CAB r    -> hashSum' (length r) (toList r)
     COw c    -> natQHash c
     REX{}    -> 5
 
@@ -194,7 +196,7 @@ normalize top =
             KLO{} -> False
             _     -> all isNormal (toList xs)
     isNormal (ROW v) = all isNormal v
-    isNormal (TAB t) = all isNormal t
+    isNormal (TAb t) = all isNormal t
     isNormal !_      = True
 
     go tp = case tp of
@@ -203,10 +205,10 @@ normalize top =
         PIN !_ -> tp
         FUN !_ -> tp
         COw !_ -> tp
-        CAb !_ -> tp
+        CAB !_ -> tp
         REX r  -> REX (go <$> r)
         ROW r  -> ROW (go <$> r)
-        TAB t  -> TAB (go <$> t)
+        TAb t  -> TAb (go <$> t)
         KLO r eRaw ->
             let e = mapSmallArray' go eRaw in
             case (e ^ 0) of
@@ -262,8 +264,8 @@ instance Eq Fan where
     PIN p   == PIN q   = (p==q)
     BAR b   == BAR d   = (b==d)
     ROW r   == ROW s   = (r==s)
-    TAB t   == TAB u   = (t==u)
-    CAb c   == CAb d   = (c==d)
+    TAb t   == TAb u   = (t==u)
+    CAB c   == CAB d   = (c==d)
     COw n   == COw m   = (n==m)
     FUN l   == FUN a   = (l==a)
     v@KLO{} == w@KLO{} = (kloWalk v == kloWalk w)
@@ -311,7 +313,7 @@ instance Ord Fan where
              <> concat (zipWith compare (fanSeq x) (fanSeq y))
       where
         fanLen (ROW r)   = length r
-        fanLen (TAB t)   = length t
+        fanLen TAb{}     = 1
         fanLen (KLO _ k) = (sizeofSmallArray k) - 1
           -- ^ TODO: This is false if the fan is not normalized.  Not a
           -- safe assumption.
@@ -324,10 +326,10 @@ instance Ord Fan where
             FUN{}   -> [f]
             BAR{}   -> [f]
             PIN{}   -> [f]
-            CAb{}   -> [f]
+            CAB{}   -> [f]
             COw{}   -> [f]
             REX{}   -> [f]
-            TAB t   -> if null t then [f] else CAb (keysSet t)     : (snd <$> M.toDescList t)
+            TAb t   -> [CAB (keysSet t), ROW (fromList $ toList t)]
             ROW r   -> if null r then [f] else COw (nat(length r)) : reverse (toList r) -- COw here is never empty
             KLO _ k -> toList k
 
@@ -343,8 +345,8 @@ lawName = \case
     KLO{} -> 0
     BAR{} -> 1
     ROW{} -> 0
-    TAB{} -> 0
-    CAb{} -> 0
+    TAb{} -> 0
+    CAB{} -> 0
     COw{} -> 0
     REX{} -> 82
 
@@ -356,22 +358,25 @@ lawArgs = \case
     BAR{} -> 1
     COw c -> c+1
     ROW r -> if null r then 1 else 0 -- Only a law if empty
-    TAB t -> if null t then 1 else 0 -- Only a law if empty
-    CAb c -> fromIntegral (length c + 1)
+    CAB{} -> 2
     REX{} -> 3
+    TAb{} -> 0 -- Not a function
     KLO{} -> 0 -- Not a function
     NAT{} -> 0 -- Not a function
+
+cabToRow :: Set Fan -> Fan
+cabToRow cab = ROW $ V.fromListN (length cab) $ S.toAscList cab
 
 {-# INLINE lawBody #-}
 lawBody :: Fan -> Fan
 lawBody = \case
     FUN l -> l.body
     BAR b -> NAT (barBody b)
-    TAB k -> if null k then ROW mempty else 0
-    CAb k -> ROW $ fromList $ S.toAscList k
+    CAB k -> cabToRow k
     REX r -> (0 %% (0 %% (0 %% rexNoun r %% 1) %% 2) %% 3)
     COw{} -> NAT 0 -- Actual law body is 0
     ROW{} -> NAT 0 -- Actual law body is 0
+    TAb{} -> NAT 0 -- Not a law
     NAT{} -> NAT 0 -- Not a law
     KLO{} -> NAT 0 -- Not a law
     PIN{} -> NAT 0 -- Not a law
@@ -421,30 +426,13 @@ boom = \case
                    row!0
                  )
 
-    -- Builds lazy list of two-element KLO nodes.
-    TAB tab ->
-        let !len = length tab
-            !cab = CAb (M.keysSet tab)
-        in
-        case len of
-            0 -> boom cab
-            1 -> (cab, snd (M.findMin tab))
-            _ -> let
-                    (fir, rest) = case M.elems tab of
-                                      []    -> error "impossible"
-                                      (f:r) -> (f,r)
+    TAb tab ->
+        ( CAB $ M.keysSet tab
+        , ROW $ V.fromListN (length tab) $ toList tab
+        )
 
-                    fill !_ []     = CAb (M.keysSet tab) -- never empty
-                    fill !i (v:vs) = KLO i (a2 (fill (i+1) vs) v)
-                 in
-                 ( fill 1 rest
-                 , fir
-                 )
-
-    CAb ks ->
-        rul (LN 0)
-            (fromIntegral (length ks + 1))
-            (ROW $ fromList $ S.toAscList ks)
+    CAB ks ->
+        rul (LN 0) 1 (ROW $ fromList $ S.toAscList ks)
 
     REX rex ->
         rul (LN rTag) 3
@@ -585,8 +573,8 @@ instance Show Fan where
     show (PIN p)   = show p
     show (COw n)   = "R" <> show n
     show (ROW v)   = "(ROW " <> show v <> ")"
-    show (TAB t)   = "(TAB " <> show (showTab t) <> ")"
-    show (CAb k)   = "(CAB " <> show (toList k) <> ")"
+    show (TAb t)   = "(TAB " <> show (showTab t) <> ")"
+    show (CAB k)   = "(CAB " <> show (toList k) <> ")"
     show (BAR b)   = "(BAR " <> show b <> ")"
     show (REX _)   = "(REX _)" -- TODO
 
@@ -628,14 +616,13 @@ trueArity :: Fan -> Nat
 trueArity = \case
     COw 0          -> error "Should be jet matched as V0"
     COw n          -> succ $ fromIntegral n
-    CAb t | null t -> error "Should be jet matched as T0"
-    CAb n          -> succ $ fromIntegral (length n)
+    CAB n          -> succ $ fromIntegral (length n)
     KLO _ xs       -> trueArity (xs^0) - fromIntegral (sizeofSmallArray xs - 1)
     FUN l          -> l.args
     NAT n          -> natArity n
     PIN p          -> p.args
     ROW _          -> 1
-    TAB _          -> 1
+    TAb _          -> 1
     BAR _          -> 1
     REX _          -> 3
 
@@ -654,12 +641,11 @@ evalArity (NAT n) = case n of GHC.NatS# 0## -> 3
                               _             -> 1
 evalArity (KLO r _) = r
 evalArity (PIN p)   = natToArity p.args
-evalArity (CAb t)   = if null t then error "Should be jet matched as T0"
-                                else length t
+evalArity (CAB _)   = 1
 evalArity (COw 0)   = error "Should be jet matched as V0"
 evalArity (COw n)   = natToArity n
 evalArity (ROW _)   = 1
-evalArity (TAB _)   = 1
+evalArity (TAb _)   = 1
 evalArity (BAR _)   = 1
 evalArity (REX _)   = 3
 
@@ -673,9 +659,9 @@ barBody bytes =
 --------------------------------------------------------------------------------
 
 matchData :: LawName -> Nat -> Fan -> Maybe Fan
-matchData (LN 0)  1 (NAT 0) = Just $ ROW (fromList [])
+matchData (LN 0)  1 (NAT 0) = Just $ ROW mempty
 matchData (LN 0)  n (NAT 0) = Just $ COw (n-1) -- n-1 is never zero
-matchData (LN 0)  n (ROW v) = matchCab n v
+matchData (LN 1)  2 (ROW v) = matchCab v
 matchData (LN 1)  1 (NAT n) = matchBar n
 matchData (LN 82) 3 body    = REX <$> matchRex body
 matchData (LN _)  _ _       = Nothing
@@ -819,14 +805,13 @@ matchRexHead =
 -- #? (SHUT idnt rune sons heir e l n) #| n SHUT idnt rune sons heir
 
 
-matchCab :: Nat -> Vector Fan -> Maybe Fan
-matchCab arity vs = do
-    guard (arity == (1 + fromIntegral (length vs)))
+matchCab :: Vector Fan -> Maybe Fan
+matchCab vs = do
     case toList vs of
-        []   -> TAB <$> pure mempty
-        a:es -> CAb <$> collect mempty a es -- nevery empty
+        []   -> Just (CAB mempty)
+        a:es -> collect mempty a es
   where
-    collect !acc i []           = pure (insertSet i acc)
+    collect !acc i []           = pure (CAB $ insertSet i acc)
     collect !acc i (w:ws) | w>i = collect (insertSet i acc) w ws
     collect _    _ _            = Nothing
 
@@ -1034,20 +1019,28 @@ execFrame buf =
         NAT n -> execNat n buf
         BAR b -> if null b then buf^1 else NAT (barBody b)
         REX b -> rexNoun b %% (buf^1) %%(buf^2) %%(buf^3)
-        TAB t -> ROW $ fromList $ M.elems t
+        TAb t -> ROW $ V.fromListN (length t) (M.keys t) --tabs return keys row
         COw n ->
             let !las = fromIntegral n in
             ROW $ V.generate (fromIntegral n) \i ->
                       (buf ^ (las - i))
 
-
-        CAb ks -> TAB $ M.fromDistinctAscList (zip keyList valList)
-          where
-            getV 0 = []
-            getV n = (buf^n) : getV (n-1)
-
-            valList = getV (length ks)
-            keyList = S.toAscList ks
+        CAB ks ->
+            if sizeofSmallArray buf == 3 -- (cab badVals arg)
+            then
+                -- This only happens if the first arguments was not a
+                -- valid values-row.  Here we run the actual legal
+                -- behavior, which is to return the keys row.
+                ROW (V.fromList $ S.toAscList ks)
+            else
+                case buf^1 of
+                    ROW vals | (length vals == length ks) ->
+                        TAb (M.fromDistinctAscList $ zip keyList valList)
+                          where
+                            keyList = S.toAscList ks
+                            valList = toList vals
+                    _ ->
+                        KLO 1 buf
 
 eval2 :: Fan -> Fan -> Fan
 eval2 fn x1 =
@@ -1151,12 +1144,10 @@ wut p l a n = \case
     BAR b -> app4 l (NAT 1) (NAT 1) (NAT $ barBody b)
     COw m -> wutCow m
 
-    v@(TAB t) ->
-        if null t then wutCab mempty else
-        let (hd,tl) = boom v
-        in app3 a hd tl
+    -- Always a pair
+    v@TAb{} -> let (hd,tl) = boom v in app3 a hd tl
 
-    CAb k -> wutCab k
+    CAB k -> wutCab k
 
     x@(ROW v) ->
         if null v
@@ -1169,9 +1160,8 @@ wut p l a n = \case
     wutCow m = app4 l (NAT 0) (NAT (m+1)) (NAT 0)
 
     wutCab k =
-        let args = NAT $ fromIntegral(length k) + 1
-            keyz = ROW $ fromList $ S.toAscList k
-        in app4 l (NAT 0) args keyz
+        app4 l (NAT 1) (NAT 2)
+          (ROW $ fromList $ S.toAscList k)
 
 {-
     PIN p -> rul (LN 0) args (pinBody args p.item)
@@ -1215,8 +1205,8 @@ showCns v@FUN{}  = cnsName v
 showCns v@PIN{}  = cnsName v
 showCns (ROW xs) = "(row " <> intercalate " " (fmap showCns xs) <> ")"
 showCns COw{}    = "COW"
-showCns TAB{}    = "TAB"
-showCns CAb{}    = "CAB"
+showCns TAb{}    = "TAB"
+showCns CAB{}    = "CAB"
 showCns BAR{}    = "BAR"
 showCns REX{}    = "REX"
 showCns (NAT n)  = show n
@@ -1361,13 +1351,13 @@ optimizeSpine = go
         case run of
             -- These branches are only introduced by this pass, if we
             -- see them in the input, something has run afowl.
-            IF_{}      -> error "impossible"
-            SWI{}      -> error "impossible"
-            JMP{}      -> error "impossible"
-            JMP_WORD{} -> error "impossible"
-            SEQ{}      -> error "impossible"
-            LAZ{}      -> error "impossible"
-            TRK{}      -> error "impossible"
+            IF_{}      -> error "goLazy: impossible"
+            SWI{}      -> error "goLazy: impossible"
+            JMP{}      -> error "goLazy: impossible"
+            JMP_WORD{} -> error "goLazy: impossible"
+            SEQ{}      -> error "goLazy: impossible"
+            LAZ{}      -> error "goLazy: impossible"
+            TRK{}      -> error "goLazy: impossible"
 
             CNS{} -> run
             ARG{} -> run
@@ -1493,14 +1483,14 @@ spineFragment freeTable =
 
         ARG 0 -> pure (ARG 0)
         ARG x -> pure $ ARG
-                      $ fromMaybe (error "impossible")
+                      $ fromMaybe (error "spineFragment: impossible")
                       $ lookup (Left x)
                       $ freeTable
 
         VAR x -> case (lookup (Right x) freeTable, lookup x loc) of
                    (Just f, _) -> pure (ARG f)
                    (_, Just l) -> pure (VAR l)
-                   _           -> error "impossible"
+                   _           -> error "spineFragment: impossible"
 
 shatterSpine :: Run -> (Prog, SmallArray Run)
 shatterSpine top =
@@ -1518,7 +1508,7 @@ matchConstructors :: Run -> Run
 matchConstructors = go
   where
     go = \case
-        LAZ{}               -> error "impossible"
+        LAZ{}               -> error "matchConstructors: impossible"
         SEQ v x             -> SEQ (go v) (go x)
         REC vs              -> REC (go <$> vs)
         KAL vs              -> KAL (go <$> vs)
@@ -1550,8 +1540,15 @@ matchConstructors = go
             , Just (name, fun) <- matchPin p op2Table
                 -> go $ OP2 name fun (CNS a) b
 
-        EXE _ _ (CAb s) r ->
-            go $ MK_TAB $ mapFromList $ zip (S.toDescList s) (toList r)
+        EXE x s (CAB ks) r ->
+            if sizeofSmallArray r /= 1 then
+                error "TODO: Remove this check, since this should never happen"
+            else
+            case go (r^0) of
+                MK_ROW vs | length vs == length ks ->
+                    MK_TAB $ mapFromList $ zip (S.toList ks) (toList vs)
+                _ ->
+                    EXE x s (CAB ks) (go <$> r)
 
         EXE x s (KLO n e) r ->
             case e^0 of
@@ -1559,12 +1556,6 @@ matchConstructors = go
                     go $ MK_ROW
                        $ fromList
                        $ reverse
-                       $ ((fmap CNS $ drop 1 $ toList e) <>)
-                       $ toList r
-                CAb tabKeys ->
-                    go $ MK_TAB
-                       $ mapFromList
-                       $ zip (S.toDescList tabKeys)
                        $ ((fmap CNS $ drop 1 $ toList e) <>)
                        $ toList r
                 _ ->
@@ -1585,28 +1576,28 @@ valCode = \case
     NAT n     -> execNat n
     ROW{}     -> execFrame
     BAR{}     -> execFrame
-    TAB{}     -> execFrame
+    TAb{}     -> execFrame
     COw{}     -> execFrame
-    CAb{}     -> execFrame
+    CAB{}     -> execFrame
     REX{}     -> execFrame
 
 -- Saturated calls become EXE nodes, undersaturated calls become KLO nodes.
 resaturate :: Int -> Run -> Run
 resaturate selfArgs = go
   where
-    go LAZ{}       = error "impossible"
-    go EXE{}       = error "impossible"
-    go PAR{}       = error "impossible"
-    go MK_ROW{}    = error "impossible"
-    go MK_TAB{}    = error "impossible"
-    go IF_{}       = error "impossible"
-    go SWI{}       = error "impossible"
-    go JMP{}       = error "impossible"
-    go JMP_WORD{}  = error "impossible"
-    go SEQ{}       = error "impossible"
-    go REC{}       = error "impossible"
-    go TRK{}       = error "impossible"
-    go OP2{}       = error "impossible"
+    go LAZ{}       = error "resaturate: impossible"
+    go EXE{}       = error "resaturate: impossible"
+    go PAR{}       = error "resaturate: impossible"
+    go MK_ROW{}    = error "resaturate: impossible"
+    go MK_TAB{}    = error "resaturate: impossible"
+    go IF_{}       = error "resaturate: impossible"
+    go SWI{}       = error "resaturate: impossible"
+    go JMP{}       = error "resaturate: impossible"
+    go JMP_WORD{}  = error "resaturate: impossible"
+    go SEQ{}       = error "resaturate: impossible"
+    go REC{}       = error "resaturate: impossible"
+    go TRK{}       = error "resaturate: impossible"
+    go OP2{}       = error "resaturate: impossible"
 
     go c@CNS{}     = c
     go r@VAR{}     = r
@@ -1770,7 +1761,7 @@ executeLaw self recPro exePro args =
 
         MK_TAB es -> do
             -- print ("mk_tab"::Text, res)
-            TAB <$> traverse (go vs) es
+            TAb <$> traverse (go vs) es
 
         EXE x sz (KLO _ e) xs -> do
             -- traceM "EXE_KLO"
@@ -1892,6 +1883,9 @@ trkName fan = do
 mkRow :: [Fan] -> Fan
 mkRow = ROW . fromList
 
+tabValsRow :: Map Fan Fan -> Fan
+tabValsRow tab = ROW $ V.fromListN (length tab) $ toList tab
+
 fanIdx :: Nat -> Fan -> Fan
 fanIdx idxNat fan =
     if idxNat > fromIntegral (maxBound::Int) then
@@ -1903,7 +1897,7 @@ fanIdx idxNat fan =
   where
     go idx = \case
         ROW vec | idx < length vec -> vec ! idx
-        TAB tab | idx < length tab -> snd (M.elemAt idx tab)
+        TAb tab | idx < length tab -> if idxNat==0 then tabValsRow tab else 0
         KLO _ env                  -> idxKlo idx env
         _                          -> 0
 

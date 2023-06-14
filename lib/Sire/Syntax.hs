@@ -159,7 +159,7 @@ readAssert = ASSERT <$> go
     withRex :: Red v -> Red (Rex, v)
     withRex red = (,) <$> getRex <*> red
       where
-       getRex = fmap (const $ error "impossible") <$> readRex
+       getRex = fmap (const $ error "readAssert: impossible") <$> readRex
 
 readCmd :: (RexColor, HasMacroEnv) => Red XCmd
 readCmd = do
@@ -312,7 +312,7 @@ readSigHead = (rune "**" >> form1 ((True,) <$> normal))
 -- Macro Runner ----------------------------------------------------------------
 
 sourcesTable :: Map Nat Nat -> Fan
-sourcesTable = Fan.TAB . mapFromList . fmap f . mapToList
+sourcesTable = Fan.TAb . mapFromList . fmap f . mapToList
   where
     f :: (Nat, Nat) -> (Fan, Fan)
     f (k, v) = (Fan.NAT k, Fan.NAT v)
@@ -361,7 +361,7 @@ loadMacroExpansion = \case
     ROW (toList -> [r,a,p]) -> do
         expr <- getRex r
         prop <- case valFan p of
-                 vl@Fan.TAB{} -> pure vl
+                 vl@Fan.TAb{} -> pure vl
                  _            -> Left (valFanRex p, "BAD PROPERTIES")
         atNx <- case valFan a of
                   Fan.NAT n -> pure n

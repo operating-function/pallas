@@ -19,7 +19,6 @@ module Fan.Types
     , Rex
     , setExec
     , toNat
-    , mkCab
     , mkCow
     , Prog(..)
     , Run(..)
@@ -32,8 +31,6 @@ import PlunderPrelude hiding (hash, (^))
 import Jelly.Types (Hash256)
 import Rex         (GRex)
 
-import qualified Data.Map             as M
-import qualified Data.Set             as S
 import qualified Data.Vector.Storable as SV
 
 -- Types -----------------------------------------------------------------------
@@ -93,8 +90,8 @@ data Fan
     | KLO !Int {-# UNPACK #-} !(SmallArray Fan)
     | BAR !ByteString
     | ROW !(Vector Fan)
-    | TAB !(Map Fan Fan)
-    | CAb !(Set Fan)
+    | TAb !(Map Fan Fan)
+    | CAB !(Set Fan)
     | COw !Nat
     | REX !Rex
   deriving (Generic, NFData)
@@ -119,11 +116,6 @@ type Rex = GRex Fan
 mkCow :: Nat -> Fan
 mkCow 0 = ROW mempty
 mkCow n = COw n
-
-{-# INLINE mkCab #-}
-mkCab :: Set Fan -> Fan
-mkCab ks | S.null ks = TAB M.empty
-mkCab ks             = CAb ks
 
 
 -- Internal DSL used to execute Laws -------------------------------------------

@@ -236,7 +236,7 @@ jannie reaper raw = do
 seedKeys :: Seed -> (PublicKey, SecretKey)
 seedKeys seed =
     case createKeypairFromSeed_ seed.bytes of
-        Nothing -> error "impossible"
+        Nothing -> error "seedKeys: impossible"
         Just kp -> kp
 
 addrKey :: Addr -> PublicKey

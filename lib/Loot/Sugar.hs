@@ -161,7 +161,7 @@ resugarRul pu idn rul@(RUL nam arg bod) =
     yNam = resugarTag $ TAG idn nam
     nex = 1 + arg
     argNames = case take (fromIntegral arg) argSupply of
-                   []   -> error "impossible"
+                   []   -> error "resugarRul: impossible"
                    x:xs -> (x:|xs)
     supply = idn : argSupply
     weUsed = union pu $ setFromList $ (idn:) $ take (numBindsUsed rul) varNames

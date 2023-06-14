@@ -15,7 +15,6 @@ import Data.Maybe
 import Fan.Convert
 import Fan.Eval
 import Fan.Jets
-import Fan.Types
 import PlunderPrelude   hiding ((^))
 
 import Data.ByteString.Builder (byteString, toLazyByteString)
@@ -150,11 +149,11 @@ jetImpls = mapFromList
   , ( "tabIdx"      , tabIdxJet )
   , ( "tabIns"      , tabInsJet )
   , ( "tabElemIdx"  , tabElemIdxJet )
-  , ( "tabLen"      , tabLenJet )
+  , ( "_TabLen"      , tabLenJet )
   , ( "tabToPairs"  , tabToPairsJet )
   , ( "tabFromPairs", tabFromPairsJet )
-  , ( "tabToPairList", tabToPairListJet )
-  , ( "tabLookup"   , tabLookupJet )
+  , ( "tabToPairList" , tabToPairListJet )
+  , ( "_TabLookup"    , tabLookupJet )
   , ( "tabSplitAt"  , tabSplitAtJet )
   , ( "tabSplitLT"  , tabSplitLTJet )
   , ( "tabMapWithKey" , tabMapWithKeyJet )
@@ -162,9 +161,10 @@ jetImpls = mapFromList
   , ( "tabMinKey"   , tabMinKeyJet )
   , ( "tabFoldlWithKey" , tabFoldlWithKeyJet )
   , ( "tabAlter"    , tabAlterJet )
-  , ( "tabHas"      , tabHasKeyJet )
-  , ( "tabKeysRow"  , tabKeysRowJet )
-  , ( "tabVals"     , tabValsJet )
+  , ( "_TabHas"      , tabHasKeyJet )
+  , ( "_TabKeys"  , tabKeysCabJet )
+  , ( "_TabKeysRow"  , tabKeysRowJet )
+  , ( "_TabVals"     , tabValsJet )
   , ( "blake3"      , blake3Jet )
 
   -- par
@@ -429,11 +429,11 @@ getJet _ env = fanIdx (toNat (env^2)) (env^1)
 fanLength :: Fan -> Int
 fanLength = \case
     ROW x   -> length x
-    TAB t   -> length t
     KLO _ t -> fanLength (t^0) + (sizeofSmallArray t - 1)
+    TAb{}   -> 1 -- always (keys args)
     NAT{}   -> 0
     BAR{}   -> 0
-    CAb{}   -> 0
+    CAB{}   -> 0
     FUN{}   -> 0
     REX{}   -> 0
     PIN{}   -> 0
@@ -569,7 +569,7 @@ barFlatJet _ env =
   where
     go (BAR b) = byteString b
     go (ROW r) = concat (go <$> r)
-    go (TAB r) = concat (go <$> toList r)
+    go (TAb r) = concat (go <$> toList r)
     go FUN{}   = mempty
     go NAT{}   = mempty
     go _       = error "TODO"
@@ -655,7 +655,7 @@ padFlatSeq =
     go item acc = case item of
         NAT 0   -> 1 : acc
         NAT n   -> n : acc
-        TAB xs  -> foldr go acc (toList xs)
+        TAb xs  -> foldr go acc (toList xs)
         ROW xs  -> foldr go acc (toList xs)
         KLO _ x -> foldr go acc (drop 1 $ toList x)
         _       -> 1 : acc
@@ -726,24 +726,21 @@ blake3Jet f e =
             pure (BAR res)
 
 cabSingletonJet :: Jet
-cabSingletonJet _ e = CAb $ S.singleton (e^1)
-                      -- Never empty
+cabSingletonJet _ e = CAB $ S.singleton (e^1)
 
 cabInsJet :: Jet
 cabInsJet f e =
     orExecTrace "cabIns" (f e) (i (e^1) <$> getCab (e^2))
   where
     i :: Fan -> Set Fan -> Fan
-    i n s = CAb (S.insert n s)
-            -- Never empty
+    i n s = CAB (S.insert n s)
 
 cabDelJet :: Jet
 cabDelJet f e =
     orExecTrace "cabDel" (f e) (d (e^1) <$> getCab (e^2))
   where
     d :: Fan -> Set Fan -> Fan
-    d n s = mkCab $ S.delete n s
-            -- Could be empty
+    d n s = CAB (S.delete n s)
 
 cabMinJet :: Jet
 cabMinJet f e =
@@ -766,15 +763,14 @@ cabWeldJet f e =
     orExecTrace "cabWeld" (f e) (u <$> getCab (e^1) <*> getCab (e^2))
   where
     u :: Set Fan -> Set Fan -> Fan
-    u a b = mkCab $ S.union a b
-              -- This one could be empty.
+    u a b = CAB (S.union a b)
 
 cabCatRowAscJet :: Jet
 cabCatRowAscJet f e = orExecTrace "cabCatRowAsc" (f e) do
   r <- getRow (e^1)
   cabs <- filter (not . S.null) <$> traverse getCab r
   guard (isAsc $ V.toList cabs)
-  pure $ mkCab $ S.fromDistinctAscList (concat (map toList cabs))
+  pure $ CAB $ S.fromDistinctAscList $ concat $ map toList cabs
   where
     isAsc []       = True
     isAsc [_]      = True
@@ -793,14 +789,14 @@ cabTakeJet f e =
     orExecTrace "cabTake" (f e) (doTake (toNat(e^1)) <$> getCab (e^2))
   where
     doTake :: Nat -> Set Fan -> Fan
-    doTake n s = mkCab $ S.take (fromIntegral n) s
+    doTake n s = CAB (S.take (fromIntegral n) s)
 
 cabDropJet :: Jet
 cabDropJet f e =
     orExecTrace "cabDrop" (f e) (doDrop (toNat(e^1)) <$> getCab (e^2))
   where
     doDrop :: Nat -> Set Fan -> Fan
-    doDrop n s = mkCab $ S.drop (fromIntegral n) s
+    doDrop n s = CAB (S.drop (fromIntegral n) s)
 
 cabIsEmptyJet :: Jet
 cabIsEmptyJet f e =
@@ -816,8 +812,7 @@ cabSplitAtJet f e =
   where
     doSplitAt :: Nat -> Set Fan -> Fan
     doSplitAt n s = let (a, b) = S.splitAt (fromIntegral n) s
-                    in ROW $ V.fromList [mkCab a, mkCab b]
-                              -- Either could be empty
+                    in ROW $ V.fromList [CAB a, CAB b]
 
 cabSplitLTJet :: Jet
 cabSplitLTJet f e =
@@ -826,8 +821,7 @@ cabSplitLTJet f e =
   where
     doSplitLT :: Fan -> Set Fan -> Fan
     doSplitLT n s = let (a, b) = S.spanAntitone (< n) s
-                    in ROW $ V.fromList [mkCab a, mkCab b]
-                              -- Either could be empty
+                    in ROW $ V.fromList [CAB a, CAB b]
 
 cabIntersectionJet :: Jet
 cabIntersectionJet f e =
@@ -835,8 +829,7 @@ cabIntersectionJet f e =
                 (doIntersection <$> getCab (e^1) <*> getCab (e^2))
   where
     doIntersection :: Set Fan -> Set Fan -> Fan
-    doIntersection a b = mkCab $ S.intersection a b
-                         -- Could be empty
+    doIntersection a b = CAB (S.intersection a b)
 
 cabSubJet :: Jet
 cabSubJet f e =
@@ -844,18 +837,17 @@ cabSubJet f e =
                 (doDifference <$> getCab (e^1) <*> getCab (e^2))
   where
     doDifference :: Set Fan -> Set Fan -> Fan
-    doDifference a b = mkCab $ S.difference a b
-                       -- Could be empty
+    doDifference a b = CAB (S.difference a b)
 
 tabSingletonJet :: Jet
-tabSingletonJet _ e = TAB $ M.singleton (e^1) (e^2)
+tabSingletonJet _ e = TAb $ M.singleton (e^1) (e^2)
 
 -- An empty cab is a tab, but the runtime always makes sure to represent
 -- empty cabs as tabs.
 isTabJet :: Jet
 isTabJet _ e =
     case (e^1) of
-        TAB{} -> NAT 1
+        TAb{} -> NAT 1
         _     -> NAT 0
 
 -- Just jetting this so that it will show up "NOT MATCHED" if the hash
@@ -882,7 +874,7 @@ tabInsJet f e =
     orExecTrace "tabIns" (f e) (tmut (e^1) (e^2) <$> getTab (e^3))
   where
     tmut :: Fan -> Fan -> Map Fan Fan -> Fan
-    tmut k v t = TAB $ M.insert k v t
+    tmut k v t = TAb $ M.insert k v t
 
 tabElemIdxJet :: Jet
 tabElemIdxJet f e =
@@ -928,7 +920,7 @@ tabFromPairsJet f e =
     orExecTrace "tabFromPairs" (f e) (toP <$> getPairs (e^1))
   where
     toP :: [(Fan, Fan)] -> Fan
-    toP = TAB . mapFromList
+    toP = TAb . mapFromList
 
     getPairs :: Fan -> Maybe [(Fan, Fan)]
     getPairs x = do
@@ -959,7 +951,7 @@ tabSplitAtJet f e =
   where
     doSplitAt :: Nat -> Map Fan Fan -> Fan
     doSplitAt n s = let (a, b) = M.splitAt (fromIntegral n) s
-                    in ROW $ V.fromList [TAB a, TAB b]
+                    in ROW $ V.fromList [TAb a, TAb b]
 
 tabSplitLTJet :: Jet
 tabSplitLTJet f e =
@@ -968,7 +960,7 @@ tabSplitLTJet f e =
   where
     doSplitLT :: Fan -> Map Fan Fan -> Fan
     doSplitLT n s = let (a, b) = M.spanAntitone (< n) s
-                    in ROW $ V.fromList [TAB a, TAB b]
+                    in ROW $ V.fromList [TAb a, TAb b]
 
 tabMapWithKeyJet :: Jet
 tabMapWithKeyJet f e =
@@ -976,7 +968,7 @@ tabMapWithKeyJet f e =
                 (doMap <$> (Just $ e^1) <*> getTab (e^2))
   where
     doMap :: Fan -> Map Fan Fan -> Fan
-    doMap fun a = TAB $ M.mapWithKey (apply fun) a
+    doMap fun a = TAb $ M.mapWithKey (apply fun) a
 
     apply :: Fan -> Fan -> Fan -> Fan
     apply fun k v = fun %% k %% v
@@ -987,7 +979,7 @@ tabUnionWithJet f e =
                 (doUnionWith <$> (Just $ e^1) <*> getTab (e^2) <*> getTab (e^3))
   where
     doUnionWith :: Fan -> Map Fan Fan -> Map Fan Fan -> Fan
-    doUnionWith fun a b = TAB $ M.unionWith (apply fun) a b
+    doUnionWith fun a b = TAb $ M.unionWith (apply fun) a b
 
     apply :: Fan -> Fan -> Fan -> Fan
     apply fun a b = fun %% a %% b
@@ -1015,7 +1007,7 @@ tabAlterJet f e =
     orExecTrace "tabAlter" (f e) (alt (e^1) (e^2) <$> getTab (e^3))
   where
     alt :: Fan -> Fan -> Map Fan Fan -> Fan
-    alt fun key m = TAB $ M.alter (someAsMaybe . wrap fun) key m
+    alt fun key m = TAb $ M.alter (someAsMaybe . wrap fun) key m
 
     -- Figuring this out is the next big thing
     wrap :: Fan -> Maybe Fan -> Fan
@@ -1037,10 +1029,16 @@ tabHasKeyJet f e =
         True  -> NAT 1
 
 tabKeysRowJet :: Jet
-tabKeysRowJet f e = orExecTrace "tabKeysRow" (f e) (tk <$> getTab(e^1))
+tabKeysRowJet f e = orExecTrace "_TabKeysRow" (f e) (tk <$> getTab(e^1))
   where
     tk :: Map Fan Fan -> Fan
     tk = ROW . V.fromList . M.keys
+
+tabKeysCabJet :: Jet
+tabKeysCabJet f e = orExecTrace "_TabKeys" (f e) (tk <$> getTab(e^1))
+  where
+    tk :: Map Fan Fan -> Fan
+    tk = CAB . M.keysSet
 
 tabValsJet :: Jet
 tabValsJet f e = orExecTrace "tabVals" (f e) (tv <$> getTab(e^1))
@@ -1057,31 +1055,31 @@ typeTagJet _ e =
         NAT{} -> 3
         BAR{} -> 4
         ROW{} -> 5
-        TAB{} -> 6
+        TAb{} -> 6
         COw{} -> 7
-        CAb{} -> 8
+        CAB{} -> 8
         REX{} -> 1 -- law (TODO: update this when repr changes)
 
 {-
     Returns either a nat, the first element of a closure (the last
     element applied), or 0 (for law/pin).
 
-    TODO: Maybe cleaner to implement with (snd . boom)?  Same logic,
-    right?
+    The (idx 0) of a tab is the values array.
 -}
 dataTagJet :: Jet
 dataTagJet _ e =
-    case (e^1) of
-        KLO _ x -> x ^ (sizeofSmallArray x - 1)       -- app (never empty)
-        ROW xs  -> if null xs then 0 else xs!0        -- app
-        TAB kv  -> fromMaybe 0 (fst <$> M.minView kv) -- app (empty=0)
-        PIN{}   -> 0 -- pin
-        FUN{}   -> 0 -- law
-        BAR{}   -> 0 -- law
-        COw{}   -> 0 -- law
-        CAb{}   -> 0 -- law
-        REX{}   -> 0 -- law (TODO: update this when repr changes)
-        n@NAT{} -> n
+    let v = e^1 in
+    case v of
+        ROW r -> if null r then 0 else r!0 -- app
+        KLO{} -> snd $ boom v              -- app
+        TAb{} -> snd $ boom v              -- app
+        PIN{} -> 0 -- pin
+        FUN{} -> 0 -- law
+        BAR{} -> 0 -- law
+        COw{} -> 0 -- law
+        CAB{} -> 0 -- law
+        REX{} -> 0 -- law (TODO: update this when repr changes)
+        NAT{} -> v
 
 w32Jet :: Jet
 w32Jet _ env =
@@ -1157,12 +1155,11 @@ getBar (BAR b) = Just b
 getBar _       = Nothing
 
 getCab :: Fan -> Maybe (Set Fan)
-getCab (CAb c)            = Just c
-getCab (TAB t) | M.null t = Just $ S.empty
-getCab _                  = Nothing
+getCab (CAB c) = Just c
+getCab _       = Nothing
 
 getTab :: Fan -> Maybe (Map Fan Fan)
-getTab (TAB b) = Just b
+getTab (TAb b) = Just b
 getTab _       = Nothing
 
 orExec :: Fan -> Maybe Fan -> Fan

@@ -63,7 +63,6 @@
 ; raw operation to add a resolved tuple to the database
 > Nat > Nat > Any > Bit > Bit > Bit > Db > Db
 = (rawAdd e a v writeAve many isRef db)
-;| trk [%rawAdd e a v writeAve many isRef db]
 @ DB(..) db
 ; only usable for tuples which end in [v] (eav, aev)
 @ (alterEndVal c in)
@@ -76,8 +75,7 @@
     | SOME
     : tab
         < **maybeCase in
-        | cabSing b
-        | cabSing c
+        | tabSing b (cabSing c)
     | tabAlter (alterEndVal c) b tab
 ; only usable for tuples whose middle IS v (ave)
 @ (alterEndNonV c in)
@@ -87,10 +85,8 @@
 ; only usable for tuples whose middle IS v (ave)
 @ (alterMiddleEndNonV b c in)
     | SOME
-    : tab
-        < **maybeCase in
-        | cabSing b
-        | cabSing c
+    : tab < **maybeCase in
+          | tabSing b (cabSing c)
     | tabAlter (alterEndNonV c) b tab
 @ eav | tabAlter (alterNotVal a v) e eav
 @ aev | tabAlter (alterNotVal e v) a aev
@@ -141,10 +137,10 @@
 
 = emptyDB
 @ db
-    @ eav    %[]
-    @ aev    %[]
-    @ ave    %[]
-    @ vae    %[]
+    @ eav    #[]  ;  tab
+    @ aev    #[]  ;  tab
+    @ ave    #[]  ;  tab
+    @ vae    #[]  ;  tab
     @ maxEid 6
     | DB eav aev ave vae maxEid
 @ (baseAdd e a v db)
@@ -214,29 +210,29 @@ db
 > Nat > Nat > Db > Cab Any
 = (lookupByEidAid eid aid db)
 @ DB(..) db
-: av <- **maybeCase (tabLookup eid eav) %[]
-: v  <- **maybeCase (tabLookup aid av) %[]
-v
+: av <- **maybeCase (tabLookup eid eav) %[] ; result is cab
+: v  <- **maybeCase (tabLookup aid av) %[]  ; result is cab
+| v
 
 > Nat > Nat > Db > Cab Any
 = (lookupByAidEid aid eid db)
 @ DB(..) db
-: ev <- **maybeCase (tabLookup aid aev) %[]
-: v  <- **maybeCase (tabLookup eid ev) %[]
-v
+: ev <- **maybeCase (tabLookup aid aev) %[]  ; result is cab
+: v  <- **maybeCase (tabLookup eid ev) %[]   ; result is cab
+| v
 
 > Nat > Nat > Db > Cab Nat
 = (lookupByAidV aid val db)
 @ DB(..) db
-: ve <- **maybeCase (tabLookup aid ave) %[]
-: e  <- **maybeCase (tabLookup val ve) %[]
-e
+: ve <- **maybeCase (tabLookup aid ave) %[] ; result is cab
+: e  <- **maybeCase (tabLookup val ve) %[]  ; result is cab
+| e
 
 > Any > Nat > Db > Cab Nat
 = (lookupByVAid val aid db)
 @ DB(..) db
-: ae <- **maybeCase (tabLookup val vae) %[]
-: e  <- **maybeCase (tabLookup aid ae) %[]
+: ae <- **maybeCase (tabLookup val vae) %[] ; result is cab
+: e  <- **maybeCase (tabLookup aid ae) %[]  ; result is cab
 e
 
 ; Given a user level attribute name, translate that to a numeric attribute
@@ -372,7 +368,7 @@ e
 ; TODO: Rewrite and reflow this function to the new 4 space standard. As is, the
 ; deep nesting makes editing most of this hard.
 ;
-> Db > Tab Any Any > (Opt Nat, Row Error, Row TxnAction, Tab Any Any, Db)
+> Tab Any Any > Db > (Opt Nat, Row Error, Row TxnAction, Tab Any Any, Db)
 = (parseMapForm txnTmpIds db tab)
 ; if there's a :db/id, than use that. But if there's not, we have to assign
 ; a new temporary id.
@@ -526,7 +522,7 @@ e
 ; and we have to lookup the properties of those attributes to know how to parse
 ; them.
 ;
-> Db > Any > (Row Error, Row TxnAction, Tab Any Any, Db)
+> Tab Any Any > Db > Any > (Row Error, Row TxnAction, Tab Any Any, Db)
 = (parseItem txnTmpIds db item)
 | if (isTab item)
     | drop 1 | parseMapForm txnTmpIds db item
@@ -537,12 +533,12 @@ e
 
 > Db > Row Any > Either (Row Error) (Row TxnAction, Db)
 = (parseAllItems db items)
-^ foldl _ [NIL NIL %[] db] items
+^ foldl _ [NIL NIL #[] db] items
 & ([errs actions txnTmpIds db] i)
 @ [newErrs newActions txnTmpIds db] | parseItem txnTmpIds db i
 ++ | listWeld newErrs errs
 ++ | listWeld newActions actions
-++ txnTmpIds
+++ txnTmpIds ; Tab Any Any
 ++ db
 
 ; User transaction function. Given transaction items, resolve any pending
@@ -576,8 +572,8 @@ e
 > Row TxnAction > Db > Db
 = (assertTransact items db)
 # datacase (transact items db)
-* (LEFT l)  | 'transaction failed: ' l
-* (RIGHT r) r
+* (LEFT l)  | 'datom transaction failed: ' [errors=l =db]
+* (RIGHT r) | r
 
 """ Pull """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -648,14 +644,14 @@ e
 | if (val == "*")
     | RIGHT PULL_WILDCARD
 | if (val == dbIdStr)
-    | RIGHT | **PULL_ATTR | ATTR_EID %[]
+    | RIGHT | **PULL_ATTR | ATTR_EID #[] ; ATTR_EID takes a tab
 | if (isNat val)
     | RIGHT
     | **PULL_ATTR
     : realName
         < maybeCase | isBackwardsAttribute val
-        | ATTR_EXPR val %[]
-    | ATTR_BACKWARDS realName %[]
+        | ATTR_EXPR val #[]        ;  ATTR_EXPR takes tab
+    | ATTR_BACKWARDS realName #[]  ;  ATTR_BACKWARDS takes a tab
 | LEFT | **BAD_PULL_TERM val
 
 > Db
@@ -727,7 +723,7 @@ e
 ;
 > Any > Any > Db > Either (Row Error) (Tab Any Any)
 = (pull pullSpec eidSpec db)
-# datacase | parseEntityId %[] db eidSpec
+# datacase | parseEntityId #[] db eidSpec ; parseEntityId takes a tab
 * (LEFT l) (LEFT [l])
 * (RIGHT [eid _ _ _])
 | ifNot | isRow pullSpec
@@ -744,7 +740,8 @@ e
     < collectErrors
     ^ map _ rowEidSpec
     & eidSpec
-    : [eid _ _] <- doRight | parseEntityId %[] db eidSpec
+    : [eid _ _] <- doRight | parseEntityId #[] db eidSpec
+    ;;;;;;;;;;;;;;;;;;;;;;;; parseEntityId takes a tab
     | RIGHT eid
 : specs
     < collectErrors | map (parse db) pullSpec
@@ -756,8 +753,10 @@ e
     | RIGHT | tabFromPairs result
 | RIGHT results
 
+
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+^-^
 ^-^ fromSingletonCab
 ^-^
 ^-^ UNIQUE_VIOLATION LOOKUP_NO_ATTRIBUTE LOOKUP_ATTRIBUTE_NOT_UNIQUE
@@ -768,6 +767,7 @@ e
 ^-^ lookupByEA lookupByAE lookupByAV lookupByVA transact assertTransact
 ^-^ pull pullMany
 ^-^
-; These shouldn't be exported, but are for testing. Remove these when there's
-; a proper complete pull api implementation.
+^-^ ; These shouldn't be exported, but are for testing. Remove these
+^-^ ; when there's a proper complete pull api implementation.
 ^-^ lookupByAidV lookupByVAid lookupByIdentA dbIdentId
+^-^

@@ -51,9 +51,9 @@ dataTag=_DataTag
 ('foo' !!= dataTag 'foo')
 ('bar' !!= dataTag ['bar' 9])
 (0     !!= dataTag [0 1 2 3])
-(3     !!= dataTag [a=3 b=4])
+([3 4] !!= dataTag [a=3 b=4])
 (2     !!= dataTag (0 1 2))
-(0     !!= dataTag #[])
+([]    !!= dataTag #[])
 
 
 """ Opening Records """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""

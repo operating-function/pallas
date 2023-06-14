@@ -247,7 +247,7 @@ t
   | json
 @ !addTags
   | trk %addTags
-  | foldl (tabUnionWith cabUnion) %[]
+  | foldl (tabUnionWith cabUnion) #[]
   | map imgRowToTagTabCab rows
 @ !addImgs
   | tabFromPairs

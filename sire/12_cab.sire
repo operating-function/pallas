@@ -37,28 +37,29 @@
 
 """ Cabs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= emptyCab         | 0 0 1 []
-= (cabSing x)      | 0 0 2 [x]
-= (cabIsEmpty cab) | eql 1 (lawArgs cab)
-= (cabToRow cab)   | lawBody cab
+; {_MkCab} is an internal routine that expects to be given a
+; "row set" a sorted row with no duplicates.
+
+= (_MkCab x)       | 0 1 2 x
+= (_CabToRow cab)  | lawBody cab
+= cabFromRowAsc    | _MkCab
+= emptyCab         | _MkCab []
+= (cabSing x)      | _MkCab [x]
+= (cabIsEmpty cab) | null (_CabToRow cab)
 
 !!= 1 | cabIsEmpty emptyCab
 !!= 1 | not (cabIsEmpty | cabSing "a")
 
-= (cabLen cab)    | len (cabToRow cab)
-= (cabToList cab) | listFromRow (cabToRow cab)
-= (cabHas k cab)  | has k (cabToRow cab)
-= (cabMin cab)    | idx 0 (cabToRow cab)
-
-; {mkCab} is an internal routine that expects to be given a
-; "row set" a sorted row with no duplicates.
+= (cabLen cab)    | len (_CabToRow cab)
+= (cabToList cab) | listFromRow (_CabToRow cab)
+= (cabHas k cab)  | has k (_CabToRow cab)
+= (cabMin cab)    | idx 0 (_CabToRow cab)
 
 ; {cabPort} ports a row operation to a cab.  For this to work, the row
 ; operation must always return a result that is in ascending order and
 ; contains no duplicates.
 
-= (mkCab row)      | 0 0 (inc | len row) row
-= (cabPort op cab) | mkCab | op | cabToRow cab
+= (cabPort op cab) | _MkCab | op | _CabToRow cab
 
 ; {cabPortSplit} ports a row splitting function (Row a > (Row a, Row a))
 ; to cabs.  Like {cabPort}, {cabPortSplit} expects both of the rows
@@ -66,17 +67,16 @@
 ; no duplicates.
 
 = (cabPortSplit op cab)
-@ xy | op (cabToRow cab)
-| (mkCab (fst xy), mkCab (snd xy))
+@ xy | op (_CabToRow cab)
+| (_MkCab (fst xy), _MkCab (snd xy))
 
-= (cabFromRow row)  | mkCab (sortUniq row)
-= (cabIns itm c)    | cabFromRow (rowCons itm | cabToRow c)
-= (cabDel itm c)    | mkCab (delete itm | cabToRow c)
-= (cabPop c)        | (idx 0 c, mkCab (drop 1 | cabToRow c))
-= (cabWeld a b)     | cabFromRow (weld (cabToRow a) (cabToRow b))
+= (cabFromRow row)  | _MkCab (sortUniq row)
+= (cabIns itm c)    | cabFromRow (rowCons itm | _CabToRow c)
+= (cabDel itm c)    | _MkCab (delete itm | _CabToRow c)
+= (cabWeld a b)     | cabFromRow (weld (_CabToRow a) (_CabToRow b))
 = (cabCatList l)    | listFoldl cabWeld emptyCab l
 = (cabCatRow r)     | foldl cabWeld emptyCab r
-= (cabCatRowAsc cs) | mkCab (catMap cabToRow cs)
+= (cabCatRowAsc cs) | _MkCab (catMap _CabToRow cs)
 
 ; {cabCatRowAsc} expects a row of cabs, each strictly ascending (the
 ; greatest element of each cab is smaller than all elements of the next
@@ -122,18 +122,15 @@
 !!= 1 | isOrderedWith lth []
 
 = (isCab cab)
-| and (isLaw cab)
-@ arg (lawArgs cab)
-@ nam (lawName cab)
-@ bod (lawBody cab)
-| and (eql 0 nam)
-| and (isRow bod)
-| and (eql arg (inc | len bod))
-      (isOrderedWith lth bod)
+@ head (car cab)
+@ body (cdr cab)
+| and (eql (0 1 2) head)
+| and (isRow body)
+      (isOrderedWith lth body)
 
-= (cabElem i c)         | idx i (cabToRow c)
-= (cabFoldl f z c)      | foldl f z (cabToRow c)
-= (cabFoldr f z c)      | foldr f z (cabToRow c)
+= (cabElem i c)         | idx i (_CabToRow c)
+= (cabFoldl f z c)      | foldl f z (_CabToRow c)
+= (cabFoldr f z c)      | foldr f z (_CabToRow c)
 = (cabDrop n c)         | cabPort (drop n) c
 = (cabTake n c)         | cabPort (take n) c
 = (cabFilter f c)       | cabPort (filter f) c
@@ -142,6 +139,7 @@
 = (cabIntersect a b)    | cabFilter (flip cabHas a) b
 = (cabSub a b)          | cabFoldl (flip cabDel) a b
 = (cabSplitLT key c)    | cabSpan (gth key) c
+= (cabPop c)            | (cabMin c, cabDrop 1 c)
 
 
 """ % Rune: Atoms, Tabs, and Cabs """"""""""""""""""""""""""""""""""""""""""""""
@@ -266,21 +264,21 @@ cenExpect="% expects something like %foo or %[...]"
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-!!= %[a] (cabFromRow [%a %a])
-!!= %[a b] (cabFromRow [%a %b])
-!!= %[a b] (cabFromRow [%b %a])
-!!= %[a b] (cabFromRow [%b %a %b])
+!!= %[a]   | cabFromRow [%a %a]
+!!= %[a b] | cabFromRow [%a %b]
+!!= %[a b] | cabFromRow [%b %a]
+!!= %[a b] | cabFromRow [%b %a %b]
 
 !!= 1 | isCab %[]
 !!= 1 | isCab %[1]
 !!= 1 | isCab %[1 a]
 !!= 1 | isCab %[a 9 1]
-!!= 1 | isCab (0 0 1 (0 0 1 0))
-!!= 0 | isCab (0 1 1 (0 0 1 0))
-!!= 0 | isCab (0 0 1 (0 0 1 1))
-!!= 0 | isCab (0 0 2 (0 0 1 0))
-!!= 1 | isCab (0 0 2 (0 0 2 0 9))
-!!= 0 | isCab (0 0 1 (0 0 2 0 9))
+!!= 1 | isCab (0 1 2 [])
+!!= 1 | isCab (0 1 2 [1])
+!!= 1 | isCab (0 1 2 [1 2])
+!!= 0 | isCab (0 1 2 [2 1])
+!!= 0 | isCab (0 2 2 [])
+!!= 0 | isCab (0 1 1 [])
 
 !!= %a   | "a"
 !!= %3   | "3"
@@ -332,7 +330,7 @@ cenExpect="% expects something like %foo or %[...]"
 !!= %[]        | cabSub %[] %[3 5]
 
 ; cabCatRowAsc deopt behaviour
-!!= (a b c d & [7 9 8])
+!!= (0 1 2 [7 9 8])
   | cabCatRowAsc [%[7 9] %[8]]
 
 !!= %[3]       | %% 3
@@ -369,6 +367,7 @@ cabDifference=cabSub
 cabSubtract=cabSub
 cabInsert=cabIns
 cabIntersection=cabIntersect
+cabToRow=(_CabToRow)
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -378,7 +377,7 @@ cabIntersection=cabIntersect
 ^-^
 ^-^ emptyCab cabIsEmpty
 ^-^
-^-^ cabSing cabFromRow
+^-^ cabSing cabFromRow cabFromRowAsc
 ^-^ cabToRow cabLen cabToList
 ^-^ cabFoldl cabFoldr
 ^-^

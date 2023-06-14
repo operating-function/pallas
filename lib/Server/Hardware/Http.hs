@@ -213,7 +213,7 @@ decodeHttpRequest top = (dec . toList) top
 --------------------------------------------------------------------------------
 
 getTab :: Fan -> Maybe (Map Fan Fan)
-getTab (TAB x) = pure x
+getTab (TAb x) = pure x
 getTab _       = Nothing
 
 instance FromNoun File where

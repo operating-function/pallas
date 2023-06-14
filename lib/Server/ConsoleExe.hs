@@ -288,7 +288,7 @@ ctlServer st =
     machines = do
         cgz <- liftIO (DB.getMachineNames st.lmdb)
         let tab = mapFromList (cgz <&> \c -> (c, c))
-        liftIO $ for tab (getMachineStatus >=> maybe (error "impossible") pure)
+        liftIO $ for tab (getMachineStatus >=> maybe (error "ctlServer: impossible") pure)
 
     start :: MachineName -> ReplayFrom -> Handler ()
     start machine rf = do

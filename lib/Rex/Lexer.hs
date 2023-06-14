@@ -102,8 +102,8 @@ cord = ((THICK,) <$> cord' '"')
 plix :: Form -> Parser Nest
 plix initialForm = do
     fart (Right initialForm) >>= \case
-        []        -> error "impossible"
-        Left{}:_  -> error "impossible"
+        []        -> error "plix: impossible"
+        Left{}:_  -> error "plix: impossible"
         [Right i] -> pure (WRAPD i)
         is ->
           case unravel [] is of

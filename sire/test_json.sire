@@ -97,7 +97,7 @@
 | CONS (JNUM 0)
 | CONS (JSTR b#{})
 | CONS (JVEC [])
-| CONS (JMAP %[])
+| CONS (JMAP #[])
 | listAlternate
     | listMap (x & JVEC [x])
     | allJSON _

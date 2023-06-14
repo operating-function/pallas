@@ -47,7 +47,7 @@ main = colorsOnlyInTerminal do
 
     -- TODO Need to reset this after each test.
     vSrc <- liftIO $ newIORef mempty
-    vPrp <- liftIO $ newIORef (F.TAB mempty)
+    vPrp <- liftIO $ newIORef (F.TAb mempty)
     vEnv <- liftIO $ newIORef mempty
     vGen <- liftIO $ newIORef 1
     langTest ".sire" (let ?rexColors = NoColors in goldenSire vSrc vPrp vGen vEnv)

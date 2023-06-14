@@ -237,11 +237,14 @@ tabBox tab =
             wideKeys = snd <$> wsk
 
         let siz = if null tab
-                  then 3
-                  else 2 + length keySizes + sum keySizes
+                  then 2
+                  else 1 + length keySizes + sum keySizes
 
         pure ( siz
-             , N 0 SHUT_PREFIX "%" [N 0 NEST_PREFIX "," wideKeys NONE] NONE
+             , if null wideKeys then
+                   N 0 SHUT_PREFIX "#" [N 0 NEST_PREFIX "," [] NONE] NONE
+               else
+                   N 0 NEST_PREFIX "," wideKeys NONE
              )
 
     tal :: GRex Box
@@ -521,7 +524,8 @@ keyBox nat =
         _                 -> natBox nat
 
 keyBox2 :: XVal -> Box
-keyBox2 = valBox
+keyBox2 (XVNAT n) = keyBox n
+keyBox2 other     = valBox other
 
 okTxt :: Text -> Bool
 okTxt txt =
@@ -542,7 +546,7 @@ pattern NONE :: Maybe a
 pattern NONE = Nothing
 
 runeSeq :: Text -> [GRex v] -> GRex v
-runeSeq _   []     = error "impossible"
+runeSeq _   []     = error "runeSeq: impossible"
 runeSeq ryn [x]    = N 0 OPEN ryn [x] Nothing
 runeSeq ryn (x:xs) = N 0 OPEN ryn [x] (Just $ runeSeq ryn xs)
 
@@ -1054,9 +1058,9 @@ readBod = asum
 
     xlet = \(n,v,k) -> XLET n v k
     xbad = \v vx -> XBAD (xvap v vx)
-    xbab = \case []   -> error "impossible"
+    xbab = \case []   -> error "readBod.xbab: impossible"
                  v:vx -> xbad v vx
-    xkak = \case []   -> error "impossible"
+    xkak = \case []   -> error "readBod.xkak: impossible"
                  v:vx -> xcns v vx
     xcns = \v vx -> XCNS (xvap v vx)
     xvap = foldl' XVAPP

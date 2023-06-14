@@ -31,7 +31,7 @@ import Data.Bits                        (clearBit, testBit, (.&.))
 import Data.Vector                      ((!))
 import Fan.Convert
 import Fan.Eval                         (boom, evalArity, mkLawPreNormalized,
-                                         mkPin', mkRow, (^))
+                                         mkPin', mkRow, (^), (%%), tabValsRow)
 import Foreign.C.Types                  (CBool(..))
 import Foreign.Ptr                      (Ptr, castPtr)
 import Foreign.Storable                 (peek, poke)
@@ -296,7 +296,7 @@ loadBody pinz bodByt = do
                    _                 -> lift $ throwE "Invalid law literal"
 
            COw{} -> hydrateLaw hed arg
-           CAb{} -> hydrateLaw hed arg
+           CAB{} -> hydrateLaw hed arg
            _     -> lift $ throwE ("Result is not in normal form: " <> tshow (hed, toList arg))
 
 {-
@@ -324,9 +324,15 @@ loadBody pinz bodByt = do
             -- Either this is an actually-saturated form (no good),
             -- or it's a row/tab literal.
 
-            COw{} -> pure $ ROW $ reverse args
-            CAb k -> pure $ TAB $ mapFromList
-                                $ zip (S.toAscList k) (toList $ reverse args)
+            COw{}  -> pure $ ROW $ reverse args
+            CAB ks ->
+                case toList args of
+                    [ROW vs] | length ks == length vs ->
+                        pure $ TAb $ mapFromList $ zip (S.toList ks) (toList vs)
+                    [arg] ->
+                        pure (hed %% arg) -- malformed cab, just use eval path
+                    _ -> error "what?"
+
             _     -> lift (throwE "Oversatured law")
 
 
@@ -436,15 +442,13 @@ saveFanWorker !ctx !vPins !vTemp !top = do
                                acc' <- Jelly.c_cons ctx acc key
                                go acc' xs
         z    <- Jelly.c_word ctx 0
-        zz   <- Jelly.c_cons ctx z z
-        r    <- Jelly.c_word ctx (fromIntegral (len + 1))
-        zzr  <- Jelly.c_cons ctx zz r
-        -- zzrz <- Jelly.c_cons ctx zzr z {- TODO: wtf? This breaks but the below crashes #-}
+        o    <- Jelly.c_word ctx 1
+        zo   <- Jelly.c_cons ctx z o
+        t    <- Jelly.c_word ctx 2
+        zot  <- Jelly.c_cons ctx zo t
         zzrz <- doCow (fromIntegral len)
         row  <- go zzrz keyz
-        Jelly.c_cons ctx zzr row
-        -- Also, the note above causes crash!  Which should never happen!
-        -- Do investigate.
+        Jelly.c_cons ctx zot row
 
     doNat (GHC.NatS# w) = do
         Jelly.c_word ctx (fromIntegral (W# w))
@@ -480,7 +484,7 @@ saveFanWorker !ctx !vPins !vTemp !top = do
         COw n ->
             doCow n
 
-        CAb ks -> do
+        CAB ks -> do
             let wid  = length ks
             let keyz = S.toDescList ks
             doCab wid keyz
@@ -520,16 +524,12 @@ saveFanWorker !ctx !vPins !vTemp !top = do
             let lastIx = length row - 1
             go start lastIx
 
-        --  %[3=4 5=6] = (%[5 3] 6 4)
-        TAB tab -> do
-            let go acc []     = pure acc
-                go acc (x:xs) = do val  <- loop x
-                                   acc' <- Jelly.c_cons ctx acc val
-                                   go acc' xs
-            let len  = length tab
-            let keyz = fst <$> M.toDescList tab
-            cab <- doCab len keyz
-            go cab (snd <$> M.toDescList tab)
+        --  #[3=4 5=6] = (%[3 5] [4 6])
+        TAb tab -> do
+            ks <- doCab (length tab) (M.keys tab)
+            vs <- loop (tabValsRow tab)
+            kv <- Jelly.c_cons ctx ks vs
+            pure kv
 
         KLO _ env -> do
             let !end = sizeofSmallArray env
@@ -629,7 +629,7 @@ collectWorker ctx pin = do
     forciblyGetHashRef :: Pin -> IO Hash256
     forciblyGetHashRef pin =
         readIORef pin.node >>= \case
-            Nothing -> error "impossible"
+            Nothing -> error "collectWorker: impossible"
             Just vl -> pure vl.hash
 
 {-
@@ -658,8 +658,8 @@ subPins (PIN p)    = pure p
 subPins (FUN f)    = subPins f.body
 subPins (KLO _ xs) = do x <- toList xs; subPins x
 subPins (ROW xs)   = do x <- toList xs; subPins x
-subPins (TAB xs)   = do (k,v) <- mapToList xs; subPins k <> subPins v
-subPins (CAb fs)   = do x <- toList fs; subPins x
+subPins (TAb xs)   = do (k,v) <- mapToList xs; subPins k <> subPins v
+subPins (CAB fs)   = do x <- toList fs; subPins x
 subPins (REX r)    = do x <- toList r; subPins x
 
 

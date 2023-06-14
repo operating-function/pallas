@@ -482,7 +482,7 @@ performReplay cache ctx replayFrom = do
     loop bn m (x:xs) = do
         (eRes, eWork) <- flip runStateT 0 (recomputeEvals ctx m x)
 
-        let inp = TAB $ mapFromList $ map tripleToPair eRes
+        let inp = TAb $ mapFromList $ map tripleToPair eRes
 
         let arg = if x.didCrash then (0 %% inp) else inp
 
@@ -943,7 +943,7 @@ runResponse
     -> Bool
     -> IO ([Flow], [(Receipt, [STM OnCommitFlow])])
 runResponse st cogid rets didCrash = do
-  let arg = TAB
+  let arg = TAb
           $ mapFromList
           $ flip fmap rets
           $ \(k,v) -> (NAT (fromIntegral k), responseToVal v.resp)
@@ -1125,7 +1125,7 @@ parseRequests runner cogId = do
         -- traceM ("cancelReq:" <> show key)
         slot <- use (#syscalls % at key)
         case slot of
-            Nothing -> error "impossible"
+            Nothing -> error "cancelReq: impossible"
             Just (_, liveReq) -> do
                 modifying' #syscalls (deleteMap key)
                 lift (cancelRequest liveReq)

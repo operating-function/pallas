@@ -80,7 +80,7 @@ instance Arbitrary Fan where
         [ F.NAT <$> arbitrary
         , F.BAR <$> genZeros
         , F.BAR <$> arbitrary
-        , F.mkCow <$> arbitrary -- (COW 0) -> TAB
+        , F.mkCow <$> arbitrary -- (COW 0) == (ROW [])
         , genFanClosure
         , F.REX <$> genRex
         , arbitraryLaw
@@ -122,12 +122,9 @@ genFanContainer :: Gen Fan
 genFanContainer = do
     scale (`div` 2) $ do
         oneof [ F.ROW . fromList <$> arbitrary
-              , F.TAB . mapFromList <$> arbitrary
-              , F.mkCab . setFromList . neverEmpty <$> arbitrary
+              , F.TAb . mapFromList <$> arbitrary
+              , F.CAB . setFromList <$> arbitrary
               ]
-  where
-    neverEmpty [] = [0]
-    neverEmpty x  = x
 
 instance Arbitrary Nat where
   arbitrary = fromInteger . abs <$> arbitrary @Integer
