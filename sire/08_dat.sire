@@ -597,6 +597,16 @@
 !!= (listSnoc [0 [1 0]] 2)
   | [0 [1 [2 0]]]
 
+= (listProd xs ys)
+| listCat
+^ listFoldl _ NIL listRev-xs
+& (acc x)
+^ CONS (listFoldl _ NIL listRev-ys) acc
+& (acc y)
+| CONS (x, y) acc
+
+!!= (listProd [1 [2 0]] [3 [4 0]])
+  | [[1 3] [[1 4] [[2 3] [[2 4] 0]]]]
 
 """ Either """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -891,7 +901,7 @@ F=found
 ^-^ listGen listFindIndex listElemIndex
 ^-^ listIndexed
 ^-^ listIntersperse
-^-^ listRev listSnoc
+^-^ listRev listSnoc listProd
 ^-^
 ^-^ LEFT RIGHT
 ^-^ fromLeft unpackLeft
