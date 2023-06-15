@@ -104,8 +104,18 @@ The `%cog` requests are:
 
 -   `[%cog %recv] -> IO (Pid, Fan)`: Waits for a message from another process.
 
--   `[%cog %stop pid] -> IO (Maybe CogState)`: Stops a cog and returns
-    the cog's value, if it exists.
+-   `[%cog %stop pid] -> IO (Maybe CogState)`: If the cog does not exist,
+    immediately returns None. Otherwise, stops and removes the cog from
+    the set of cogs and returns the `CogState` value.
+
+-   `[%cog %reap pid] -> IO (Maybe CogState)`: If the cog does not exist,
+    immediately returns None. Otherwise, waits for a cog to enter an
+    error state, removes the cog from the set of cogs and returns the
+    `CogState`.
+
+    (In the case where there's a %reap and a %stop open, the calling
+    `%stop` takes precedent and receives the cog value, and the `%reap`
+    receives None.)
 
 -   `[%cog %who] -> IO Pid`: Tells the cog who it is. Any other way of
     implementing this would end up with changes to the type of the cog
@@ -125,7 +135,8 @@ is a row matching one of the following patterns:
 -   `[2 (duration : nat) (final : fan)]`: represents a cog which had a
     request timeout.
 
-These patterns are also what are returned in the `[%cog %stop]` request.
+These patterns are also what are returned in the `[%cog %stop]` and
+`[%cog %reap]` requests.
 
 <!---
 Local Variables:

@@ -49,7 +49,8 @@ instance ToNoun ReceiptItem where
                            ReceiptVal val  -> toNoun (NAT 1, val)
                            ReceiptRecv{..} -> toNoun (NAT 2, sender, reqIdx)
                            ReceiptSpun{..} -> toNoun (NAT 3, cogNum)
-                           ReceiptStop{..} -> toNoun (NAT 4, cogNum)
+                           ReceiptReap{..} -> toNoun (NAT 4, cogNum)
+                           ReceiptStop{..} -> toNoun (NAT 5, cogNum)
 
 instance FromNoun ReceiptItem where
     fromNoun n = case n of
@@ -64,6 +65,9 @@ instance FromNoun ReceiptItem where
                 cogNum <- fromNoun cogN
                 Just ReceiptSpun{..}
             [NAT 4, cogN]         -> do
+                cogNum <- fromNoun cogN
+                Just ReceiptReap{..}
+            [NAT 5, cogN]         -> do
                 cogNum <- fromNoun cogN
                 Just ReceiptStop{..}
             _                     -> Nothing

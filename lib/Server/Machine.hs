@@ -138,6 +138,7 @@ data Response
     | RespRecv PendingSendRequest
     | RespSend SendOutcome
     | RespSpin CogId Fan
+    | RespReap CogId (Maybe CogState)
     | RespStop CogId (Maybe CogState)
     | RespWho CogId
   deriving (Show)
@@ -150,6 +151,7 @@ responseToVal (RespRecv PENDING_SEND{..}) =
 responseToVal (RespSend SendOK) = NAT 0
 responseToVal (RespSend SendCrash) = NAT 1
 responseToVal (RespSpin (COG_ID id) _) = fromIntegral id
+responseToVal (RespReap _ f) = toNoun f
 responseToVal (RespStop _ f) = toNoun f
 responseToVal (RespWho (COG_ID id)) = fromIntegral id
 responseToVal (RespEval e)   =
@@ -167,6 +169,7 @@ responseToReceipt cogId resultReceipt =
         RespEval OKAY{}           -> (idx, ReceiptEvalOK)
         RespRecv PENDING_SEND{..} -> (idx, ReceiptRecv{..})
         RespSpin cog _            -> (idx, ReceiptSpun cog)
+        RespReap cog _            -> (idx, ReceiptReap cog)
         RespStop cog _            -> (idx, ReceiptStop cog)
         resp                      -> (idx, ReceiptVal (responseToVal resp))
 
@@ -198,6 +201,7 @@ data Request
     | ReqSend SendRequest
     | ReqRecv
     | ReqSpin SpinRequest
+    | ReqReap CogId
     | ReqStop CogId
     | ReqWho
     | UNKNOWN Fan
@@ -233,6 +237,7 @@ valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
         nat <- fromNoun @Nat (row!1)
         case nat of
             "spin" | length row == 3 -> pure (ReqSpin $ SR $ row!2)
+            "reap" | length row == 3 -> ReqReap <$> fromNoun @CogId (row!2)
             "stop" | length row == 3 -> ReqStop <$> fromNoun @CogId (row!2)
             "send" | length row >= 3 -> do
                 dst <- fromNoun @CogId (row!2)
@@ -341,6 +346,10 @@ data LiveRequest
     lsIdx :: RequestIdx,
     lsFun :: Fan
     }
+  | LiveReap {
+    lrIdx   :: RequestIdx,
+    lrCogId :: CogId
+    }
   | LiveStop {
     lstIdx   :: RequestIdx,
     lstCogId :: CogId
@@ -359,6 +368,7 @@ instance Show LiveRequest where
         LiveSend{}  -> "SEND"
         LiveRecv{}  -> "RECV"
         LiveSpin{}  -> "SPIN"
+        LiveReap{}  -> "REAP"
         LiveStop{}  -> "STOP"
         LiveWho{}   -> "WHO"
         LiveUnknown -> "UNKNOWN"
@@ -421,6 +431,15 @@ recomputeEvals ctx m (RECEIPT cogId _ tab) =
                     Just val ->
                       let out = ROW $ fromList [toNoun sender, val]
                       in pure (k, out, Nothing)
+            ReceiptReap{..} -> do
+                case M.lookup cogNum m.val of
+                    Nothing ->
+                        throwIO INVALID_REAP_RECEIPT_IN_LOGBATCH
+                    Just CG_SPINNING{} ->
+                        throwIO INVALID_REAP_RECEIPT_IN_LOGBATCH
+                    Just val -> do
+                        let ef = CStop cogNum
+                        pure (k, (NAT 0) %% toNoun val, Just ef)
             ReceiptStop{..} -> do
                 case M.lookup cogNum m.val of
                     Nothing ->
@@ -714,6 +733,9 @@ buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
     ReqSpin (SR func) -> do
         pure ([], LiveSpin{lsIdx=reqIdx, lsFun=func}, Nothing)
 
+    ReqReap cogid -> do
+        pure ([], LiveReap{lrIdx=reqIdx, lrCogId=cogid}, Nothing)
+
     ReqStop cogid -> do
         pure ([], LiveStop{lstIdx=reqIdx, lstCogId=cogid}, Nothing)
 
@@ -730,6 +752,7 @@ cancelRequest LiveWhat{}   = pure ()
 cancelRequest LiveRecv{}   = pure ()
 cancelRequest LiveSend{..} = poolUnregister lsndPool lsndPoolId
 cancelRequest LiveSpin{}   = pure () -- Not asynchronous
+cancelRequest LiveReap{}   = pure ()
 cancelRequest LiveStop{}   = pure ()
 cancelRequest LiveWho{}    = pure ()
 cancelRequest LiveUnknown  = pure ()
@@ -802,6 +825,18 @@ receiveResponse st = \case
             Nothing -> pure $ COG_ID r
             Just _  -> getRandomNonConflictingId moment
 
+    (_, LiveReap{..}) -> do
+        do
+          myb <- (lookup lrCogId . (.val)) <$> readTVar st.vMoment
+          case myb of
+            Nothing -> do
+              pure (Just RTUP{key=lrIdx, resp=RespReap lrCogId Nothing,
+                              work=0, flow=FlowDisabled})
+            Just cogval -> case cogval of
+              CG_SPINNING{} -> pure Nothing
+              _             -> do
+                performStoplike RespReap lrIdx lrCogId cogval
+
     (_, LiveStop{..}) -> do
         do
           myb <- (lookup lstCogId . (.val)) <$> readTVar st.vMoment
@@ -809,22 +844,7 @@ receiveResponse st = \case
             Nothing ->
               pure (Just RTUP{key=lstIdx, resp=RespStop lstCogId Nothing,
                               work=0, flow=FlowDisabled})
-            Just cogval -> do
-              modifyTVar' st.vSends $ M.delete lstCogId
-              modifyTVar' st.vMoment
-                          \m -> m { val=deleteMap lstCogId m.val }
-
-              reqs <- stateTVar st.vRequests getAndRemoveReqs
-              mapM_ cancelRequest reqs
-
-              pure (Just RTUP{key=lstIdx, resp=RespStop lstCogId (Just cogval),
-                              work=0, flow=FlowDisabled})
-        where
-          getAndRemoveReqs s =
-              ( getLiveReqs $ fromMaybe mempty $ lookup lstCogId s
-              , deleteMap lstCogId s
-              )
-          getLiveReqs csc = map (\(_,(_,lr)) -> lr) $ mapToList csc
+            Just cogval -> performStoplike RespStop lstIdx lstCogId cogval
 
     (_, LiveWho{..}) -> do
         pure (Just RTUP{key=lwIdx, resp=RespWho lwCogId, work=0,
@@ -832,6 +852,32 @@ receiveResponse st = \case
 
     (_, LiveUnknown) -> do
         pure Nothing
+
+  where
+    -- Common implementation of %stop and %reap, building a response while also
+    -- removing the current cog's state and canceling all open requests.
+    performStoplike :: (CogId -> Maybe CogState -> Response)
+                    -> RequestIdx
+                    -> CogId
+                    -> CogState
+                    -> STM (Maybe ResponseTuple)
+    performStoplike mkResponse reqIdx cogId cogVal = do
+        modifyTVar' st.vSends $ M.delete cogId
+        modifyTVar' st.vMoment
+                    \m -> m { val=deleteMap cogId m.val }
+
+        reqs <- stateTVar st.vRequests getAndRemoveReqs
+        mapM_ cancelRequest reqs
+
+        pure (Just RTUP{key=reqIdx, resp=mkResponse cogId (Just cogVal),
+                        work=0, flow=FlowDisabled})
+      where
+        getAndRemoveReqs s =
+            ( getLiveReqs $ fromMaybe mempty $ lookup cogId s
+            , deleteMap cogId s
+            )
+        getLiveReqs csc = map (\(_,(_,lr)) -> lr) $ mapToList csc
+
 
 -- Design point: Why not use optics and StateT in Runner? Because StateT in IO
 -- doesn't have a MonandUnliftIO instance, which means that we can't bracket
@@ -1185,6 +1231,7 @@ parseRequests runner cogId = do
         ReqSend{}  -> "%send"
         ReqRecv{}  -> "%recv"
         ReqSpin{}  -> "%spin"
+        ReqReap{}  -> "%reap"
         ReqStop{}  -> "%stop"
         ReqWho{}   -> "%who"
         UNKNOWN{}  -> "UNKNOWN"
@@ -1198,6 +1245,7 @@ parseRequests runner cogId = do
         ReqSend{}  -> "%cog"
         ReqRecv{}  -> "%cog"
         ReqSpin{}  -> "%cog"
+        ReqReap{}  -> "%reap"
         ReqStop{}  -> "%cog"
         ReqWho{}   -> "%cog"
         UNKNOWN{}  -> "UNKNOWN"

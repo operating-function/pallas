@@ -350,6 +350,7 @@ cog
 = (EVAL3 tim f p q r)   | [%eval tim f p q r]
 = (EVAL4 tim f p q r s) | [%eval tim f p q r s]
 = (COG_SPIN f)          | [%cog %spin f]
+= (COG_REAP c)          | [%cog %reap c]
 = (COG_STOP c)          | [%cog %stop c]
 = (COG_SEND d m)        | [%cog %send d m]
 = COG_RECV              | [%cog %recv]
@@ -464,7 +465,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 ^-^ EVAL EVAL1 EVAL2 EVAL3 EVAL4
 ^-^ forceUnpackEvalResult
 ^-^
-^-^ COG_SPIN COG_STOP COG_SEND COG_RECV COG_WHO
+^-^ COG_SPIN COG_REAP COG_STOP COG_SEND COG_RECV COG_WHO
 ^-^
 ^-^ WHAT
 ^-^
