@@ -362,38 +362,57 @@ abstype#TyExp
 """     > Type
 """     = Binding ...
 
-= (separateAnnotation topRex err ok)
+= (separateAnnotation nex topRex err ok)
 ^ _ NONE topRex
 ? (loop acc rex)
 | if (isZero rex)
     | err topRex annBindExpected
 @ rune (rexRune rex)
 | if ((rune == "=") || (rune == "#="))
-    @ sigRex (idx 0 (rexKids rex))
-    @ keyRex | if (rexIsNode sigRex)
-             * idx 0 (rexKids sigRex) ;; TODO Actually parse
-             * sigRex
-    | ok (bloodline (listRev acc)) (rexIdnt keyRex) rex
+    @ sons    (rexSons rex)
+    @ kids    (rexKids rex)
+    @ typeRex (bloodline | listRev acc)
+    | if (len kids == 3)
+        : key    < readKey (idx 0 kids) err
+        | ok nex typeRex key rex
+    | if (len kids == 2)
+        @ key nex
+        @ nex (inc key)
+        @ newRex | rexSetSons (rowCons (natE key) sons) rex
+        | ok nex typeRex key newRex
+    | else
+        | err rex "What is this nonsense = node?"
 | if (rune /= ">")
     | err topRex annBindExpected
 @ acc (rexSetHeir 0 rex)::acc
 | loop acc (rexHeir rex)
 
-!!=  ++ `` > Row Nat
+!!=  ++ 8
+     ++ `` > Row Nat
            > Row Nat
-     ++ 0
-     ++ `` = (id x) x
-  ^ separateAnnotation _ v2 v3
+     ++ 7
+     ++ `` = 7 (id x) x
+  ^ separateAnnotation 7 _ v2 v4
  `` > Row Nat
     > Row Nat
     = (id x) x
 
-!!=  ++ `` > Row Nat > Row Nat
-     ++ 0
-     ++ `` = (id x) x
-  ^ separateAnnotation _ v2 v3
+!!=  ++ 8
+     ++ `` > Row Nat > Row Nat
+     ++ 7
+     ++ `` = 7 (id x) x
+  ^ separateAnnotation 7 _ v2 v4
  `` > Row Nat > Row Nat
     = (id x) x
+
+!!=  ++ 7
+     ++ `` > Row Nat > Row Nat
+     ++ 32
+     ++ `` = 32 (id x) x
+  ^ separateAnnotation 7 _ v2 v4
+ `` > Row Nat > Row Nat
+    = 32 (id x) x
+
 
 = (isTypeAnn rex)
 @ style (rexStyle rex)
@@ -491,10 +510,10 @@ abstype#TyExp
 = (parseType spe rex err ok)
 | parseType_ parseTypeAnnotation spe rex err ok
 
-= (parseTypeAnnotatedBinding spe rex err ok)
-: annRex bindKey bindRex < separateAnnotation rex err
-: annTy                  < parseType spe annRex err
-| ok annTy bindKey bindRex
+= (parseTypeAnnotatedBinding nex spe rex err ok)
+: nex annRex bindKey bindRex < separateAnnotation nex rex err
+: annTy                      < parseType spe annRex err
+| ok nex annTy bindKey bindRex
 
 
 """ Macros """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -576,8 +595,8 @@ printType#Fun
 """
 
 = ('>' s p e a r err ok)
-: tExp bindKey binding
-    < parseTypeAnnotatedBinding [s p e] r err
+: a tExp bindKey binding
+    < parseTypeAnnotatedBinding a [s p e] r err
 @ vars | cabToRow (txpFree tExp)
 : type < compileType vars tExp err
 @ p (setProperty bindKey 'type' type p)
