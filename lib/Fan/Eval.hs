@@ -452,15 +452,15 @@ rexNoun = \case
     Rex.C val ->
         rexEMBD %% val
 
-    Rex.T key style text heir ->
+    Rex.T style text heir ->
         textStyleConstr style
-            %% NAT key
+            %% NAT 0
             %% NAT (bytesNat $ encodeUtf8 text)
             %% goHeir heir
 
-    Rex.N key style ryne sons heir ->
+    Rex.N style ryne sons heir ->
         nodeStyleConstr style
-            %% NAT key
+            %% NAT 0
             %% NAT (bytesNat $ encodeUtf8 ryne)
             %% ROW (fromList (REX <$> sons))
             %% goHeir heir
@@ -716,18 +716,18 @@ matchRexHead =
 
      [FUN l, i, t, h] -> do
          styl <- readLeaf l
-         idnt <- readIdnt i
+         _    <- readIdnt i
          text <- readText t
          heir <- readHeir h
-         pure (Rex.T idnt styl text heir)
+         pure (Rex.T styl text heir)
 
      [FUN n, i, r, s, h] -> do
-         idnt <- readIdnt i
+         _    <- readIdnt i
          styl <- readNode n
          rune <- readRune r
          sons <- readSons s
          heir <- readHeir h
-         pure (Rex.N idnt styl rune sons heir)
+         pure (Rex.N styl rune sons heir)
 
      _ -> do
          Nothing
@@ -774,7 +774,8 @@ matchRexHead =
     readHeir (REX x) = Just (Just x)
     readHeir _       = Nothing
 
-    readIdnt (NAT n) = pure n
+    readIdnt (NAT 0) = pure ()
+    readIdnt (NAT _) = error "Rex node constructed with identity"
     readIdnt _       = Nothing
 
     -- TODO Make sure it's valid text (no decodeLenient nonsense)

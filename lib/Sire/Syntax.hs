@@ -55,9 +55,9 @@ rexCmd rex = do
     -- This is a dumb hack.  How to do for real?
     dropEmbed :: GRex Fan -> Rex
     dropEmbed = \case
-        T k s t h     -> T k s t                    (dropEmbed <$> h)
-        C c           -> T 0 THIN_CORD (tshow c)    Nothing
-        N k m r xs mK -> N k m r (dropEmbed <$> xs) (dropEmbed <$> mK)
+        T s t h     -> T s t                    (dropEmbed <$> h)
+        C c         -> T THIN_CORD (tshow c)    Nothing
+        N m r xs mK -> N m r (dropEmbed <$> xs) (dropEmbed <$> mK)
 
 -- This combines sequences of line-strings into a single line-string
 -- that contains newlines.
@@ -71,18 +71,18 @@ rewriteMultiLineString :: Rex -> Rex
 rewriteMultiLineString = go
   where
     go = \case
-      T k s@THIC_LINE t (Just x) -> multiLine k s [t] (Just x)
-      T k s@THIN_LINE t (Just x) -> multiLine k s [t] (Just x)
-      T k s t h                  -> T k s t (go <$> h)
-      N k m r p h                -> N k m r (go <$> p) (go <$> h)
-      C x                        -> absurd x
+      T s@THIC_LINE t (Just x) -> multiLine s [t] (Just x)
+      T s@THIN_LINE t (Just x) -> multiLine s [t] (Just x)
+      T s t h                  -> T s t (go <$> h)
+      N m r p h                -> N m r (go <$> p) (go <$> h)
+      C x                      -> absurd x
 
-    multiLine k style acc mHeir =
+    multiLine style acc mHeir =
         case mHeir of
-            Just (T _ style2 txt heir2) | style==style2 ->
-                multiLine k style (txt:acc) heir2
+            Just (T style2 txt heir2) | style==style2 ->
+                multiLine style (txt:acc) heir2
             _ ->
-                T k style (intercalate "\n" $ reverse acc) (go <$> mHeir)
+                T style (intercalate "\n" $ reverse acc) (go <$> mHeir)
 
 runReading :: Red a -> GRex Fan -> Result Fan a
 runReading act = unsafePerformIO . runResultT . runReadT act
@@ -171,8 +171,8 @@ gensym = do
 itemized :: Red a -> Red [a]
 itemized readItem = do
     readRex >>= \case
-        N k s ryn ss (Just heir@(N _ _ subRyn _ _)) | ryn==subRyn -> do
-            item <- readThis readItem (N k s ryn ss Nothing)
+        N s ryn ss (Just heir@(N _ subRyn _ _)) | ryn==subRyn -> do
+            item <- readThis readItem (N s ryn ss Nothing)
             rest <- readThis (itemized readItem) heir
             pure (item : rest)
         _ -> do
@@ -203,7 +203,7 @@ readDefine = do
 
     (k, b, x) = (Loot.readKey, simple <|> complex, readExpr)
 
-    simple = withIdent Loot.readBymb <&> \a  ->
+    simple = Loot.readBymb <&> \a  ->
                 ((False, Loot.simpleTag a), [])
 
     complex = rune "|" >> form1N readSigHead Loot.readKey
@@ -299,10 +299,10 @@ readSigHead = (rune "**" >> form1 ((True,) <$> normal))
           <|> (False,) <$> normal
   where
     normal = asum
-        [ Loot.readKEY <&> \(n,k) -> XTAG n Nothing k
+        [ Loot.readKey <&> \n -> XTAG n Nothing 0
         , rune "@" >> asum
-              [ form2 Loot.readKEY Loot.readKey <&> \((n,k),t) -> XTAG n (Just t) k
-              , form1 Loot.readKEY              <&> \(n,k)     -> XTAG n Nothing k
+              [ form2 Loot.readKey Loot.readKey <&> \(n,t) -> XTAG n (Just t) 0
+              , form1 Loot.readKey              <&> \n     -> XTAG n Nothing 0
               ]
         ]
 

@@ -46,14 +46,14 @@ class Rexy a where
   toRex :: a -> R.Rex
 
 instance Rexy Eye where
-  toRex (I t x k) = R.N 0 R.OPEN t (reverse x) k
-  toRex (T f t k) = R.T 0 (if f then R.THIC_LINE else R.THIN_LINE) t k
+  toRex (I t x k) = R.N R.OPEN t (reverse x) k
+  toRex (T f t k) = R.T (if f then R.THIC_LINE else R.THIN_LINE) t k
 
 instance Rexy TFrag where
-  toRex (TRUNE rune)    = R.N 0 R.OPEN rune [] Nothing
+  toRex (TRUNE rune)    = R.N R.OPEN rune [] Nothing
   toRex (TFORM wide)    = formToRex wide
-  toRex (TLINE True t)  = R.T 0 R.THIC_LINE t Nothing
-  toRex (TLINE False t) = R.T 0 R.THIN_LINE t Nothing
+  toRex (TLINE True t)  = R.T R.THIC_LINE t Nothing
+  toRex (TLINE False t) = R.T R.THIN_LINE t Nothing
 
 
 -- Converting Forms into Runic Trees -------------------------------------------
@@ -107,21 +107,21 @@ formToRex = form
   itmz (i :| k:ks) = rexAddCont (item i) (itmz (k:|ks))
 
   item :: Item -> R.Rex
-  item (LEAF (N t))       = R.T 0 R.BARE_WORD t Nothing
-  item (LEAF (C THICK t)) = R.T 0 R.THIC_CORD t Nothing
-  item (LEAF (C THIN t))  = R.T 0 R.THIN_CORD t Nothing
-  item (LEAF (C CURL t))  = R.T 0 R.CURL_CORD t Nothing
+  item (LEAF (N t))       = R.T R.BARE_WORD t Nothing
+  item (LEAF (C THICK t)) = R.T R.THIC_CORD t Nothing
+  item (LEAF (C THIN t))  = R.T R.THIN_CORD t Nothing
+  item (LEAF (C CURL t))  = R.T R.CURL_CORD t Nothing
   item (NEST n)           = nest n
 
   -- "Rune Node"
-  rn m r cs = R.N 0 m r cs Nothing
+  rn m r cs = R.N m r cs Nothing
 
   rexAddCont :: R.GRex Void -> R.GRex Void -> R.GRex Void
-  rexAddCont (R.T _ s t Nothing) c    = R.T 0 s t (Just c)
-  rexAddCont (R.T _ s t (Just k)) c   = R.T 0 s t (Just $ rexAddCont k c)
-  rexAddCont (R.N _ m r x Nothing) c  = R.N 0 m r x (Just c)
-  rexAddCont (R.N _ m r x (Just k)) c = R.N 0 m r x (Just $ rexAddCont k c)
-  rexAddCont (R.C x) _                = absurd x
+  rexAddCont (R.T s t Nothing) c    = R.T s t (Just c)
+  rexAddCont (R.T s t (Just k)) c   = R.T s t (Just $ rexAddCont k c)
+  rexAddCont (R.N m r x Nothing) c  = R.N m r x (Just c)
+  rexAddCont (R.N m r x (Just k)) c = R.N m r x (Just $ rexAddCont k c)
+  rexAddCont (R.C x) _              = absurd x
 
 
 -- Reducing the Eye Stack -----------------------------------------------------

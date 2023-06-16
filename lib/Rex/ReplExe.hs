@@ -26,16 +26,16 @@ main = colorsOnlyInTerminal do
 forceOpen :: Rex -> Rex
 forceOpen = go
   where
-    go (N _ _ r cs k) = N 0 OPEN r (go <$> cs) (go <$> k)
-    go (T _ th t k)   = T 0 th t (go <$> k)
-    go (C c)          = absurd c
+    go (N _ r cs k) = N OPEN r (go <$> cs) (go <$> k)
+    go (T th t k)   = T th t (go <$> k)
+    go (C c)        = absurd c
 
 forceNest :: Rex -> Rex
 forceNest = go
   where
-    go (N _ _ r cs k) = N 0 NEST_PREFIX r (go <$> cs) (go <$> k)
-    go (T _ th t k)   = T 0 th t (go <$> k)
-    go (C c)          = absurd c
+    go (N _ r cs k) = N NEST_PREFIX r (go <$> cs) (go <$> k)
+    go (T th t k)   = T th t (go <$> k)
+    go (C c)        = absurd c
 
 dent :: Text -> Text -> Text
 dent pre =

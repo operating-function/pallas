@@ -11,7 +11,6 @@ module Rex.Types
     , GRex(..)
     , Leaf
     , Rex
-    , rexIdent
     )
 where
 
@@ -42,8 +41,8 @@ data TextShape
 type Leaf = (TextShape, Text)
 
 data GRex v
-    = N !Nat RuneShape Text [GRex v] (Maybe (GRex v))
-    | T !Nat TextShape Text (Maybe (GRex v))
+    = N RuneShape Text [GRex v] (Maybe (GRex v))
+    | T TextShape Text (Maybe (GRex v))
     | C v
   deriving (Eq, Ord, Show, Generic, NFData, Functor, Foldable, Traversable)
 
@@ -60,10 +59,3 @@ instance (Hashable v, Eq v) => Hashable (GRex v) where
 -- All methods default to Foldable methods, which is what we want.
 instance MonoFoldable (GRex a) where
 type instance Element (GRex a) = a
-
---------------------------------------------------------------------------------
-
-rexIdent :: GRex a -> Nat
-rexIdent (N k _ _ _ _) = k
-rexIdent (T k _ _ _)   = k
-rexIdent (C _)         = 0

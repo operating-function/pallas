@@ -182,40 +182,40 @@ wideLeaf = curry \case
    TOOD Test this.
 -}
 fixWide :: TextShape -> Text -> Maybe Rex
-fixWide THIN_LINE t = Just (T 0 THIN_CORD t Nothing)
-fixWide THIC_LINE t = Just (T 0 THIC_CORD t Nothing)
+fixWide THIN_LINE t = Just (T THIN_CORD t Nothing)
+fixWide THIC_LINE t = Just (T THIC_CORD t Nothing)
 fixWide CURL_CORD _ = Nothing
 fixWide BARE_WORD t =
     if isName t
     then Nothing
-    else Just (T 0 THIN_CORD t Nothing)
+    else Just (T THIN_CORD t Nothing)
 
 
 fixWide THIC_CORD t =
     case (elem '"' t, elem '\'' t) of
         (False, _) -> Nothing
-        (_, False) -> Just (T 0 THIN_CORD t Nothing)
+        (_, False) -> Just (T THIN_CORD t Nothing)
         (_, _)     -> let (x,qy) = T.breakOn "\"" t
                           y = drop 1 qy
-                      in Just ( T 0 THIC_CORD x
+                      in Just ( T THIC_CORD x
                               $ Just
-                              $ T 0 THIC_CORD y
+                              $ T THIC_CORD y
                               $ Nothing
                               )
 
 fixWide THIN_CORD t =
     case (elem '"' t, elem '\'' t) of
         (_, False) -> Nothing
-        (False, _) -> Just (T 0 THIC_CORD t Nothing)
+        (False, _) -> Just (T THIC_CORD t Nothing)
         (_, _)     -> let (x,qy) = T.breakOn "'" t
                           y = drop 1 qy
-                      in Just (T 0 THIN_CORD x $ Just $ T 0 THIN_CORD y $ Nothing)
+                      in Just (T THIN_CORD x $ Just $ T THIN_CORD y $ Nothing)
 
 isShut :: Rex -> Bool
-isShut (N _ SHUT_PREFIX  _ _ _) = True
-isShut (N _ SHUT_INFIX   _ _ _) = True
-isShut (C v)                    = absurd v
-isShut _                        = False
+isShut (N SHUT_PREFIX  _ _ _) = True
+isShut (N SHUT_INFIX   _ _ _) = True
+isShut (C v)                  = absurd v
+isShut _                      = False
 
 rexLine :: RexColor => Rex -> Text
 rexLine = rbRun . rexLineBuilder
@@ -228,8 +228,8 @@ wrapRex x | isShut x = cNest "(" <> rexLineBuilder x <> cNest ")"
 wrapRex x            = rexLineBuilder x
 
 wrapHeir :: RexColor => Rex -> RexBuilder
-wrapHeir x@(N _ SHUT_PREFIX _ _ _) = wrapRex x
-wrapHeir x                         = rexLineBuilder x
+wrapHeir x@(N SHUT_PREFIX _ _ _) = wrapRex x
+wrapHeir x                       = rexLineBuilder x
 
 barNest :: RexColor => [RexBuilder] -> RexBuilder
 barNest [x] = parens [rbText "|", x]
@@ -244,14 +244,14 @@ rexLineBuilder = go
 
   go :: Rex -> RexBuilder
   go = \case
-    T _ s t Nothing         -> case fixWide s t of
+    T s t Nothing         -> case fixWide s t of
                                  Nothing -> wideLeaf s t
                                  Just rx -> go rx
-    T _ s t (Just k)        -> go (T 0 s t Nothing) <> wrapHeir k
-    N _ OPEN  r ps k        -> go (N 0 NEST_PREFIX r ps k)
-    N _ s     r ps (Just k) -> wrapRex (N 0 s r ps Nothing) <> wrapHeir k
-    C c                     -> absurd c
-    N _ s     r ps Nothing  ->
+    T s t (Just k)        -> go (T s t Nothing) <> wrapHeir k
+    N OPEN  r ps k        -> go (N NEST_PREFIX r ps k)
+    N s     r ps (Just k) -> wrapRex (N s r ps Nothing) <> wrapHeir k
+    C c                   -> absurd c
+    N s     r ps Nothing  ->
       case s of
         SHUT_PREFIX -> cRune r <> wrapRex (unsafeHead ps)
         SHUT_INFIX  -> intercalate (cRune r) (wrapRex <$> ps)
@@ -265,9 +265,9 @@ rexLineBuilder = go
   brackets xs = cNest "[" <> intercalate " " xs <> cNest "]"
 
   infixApp :: Rex -> RexBuilder
-  infixApp x@T{}            = go x
-  infixApp x@(C{})          = go x
-  infixApp x@(N _ t r ps k) =
+  infixApp x@T{}          = go x
+  infixApp x@(C{})        = go x
+  infixApp x@(N t r ps k) =
     if isApp
     then rbIntercalate " " (go <$> params)
     else go x

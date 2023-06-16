@@ -94,8 +94,8 @@ genRex = do
     sz  <- getSize
     bit <- arbitrary
     case (sz, bit) of
-        (0, _)     -> pure (Rex.T 0 Rex.BARE_WORD "x" Nothing)
-        (_, False) -> pure (Rex.N 0 Rex.OPEN "|" [] Nothing)
+        (0, _)     -> pure (Rex.T Rex.BARE_WORD "x" Nothing)
+        (_, False) -> pure (Rex.N Rex.OPEN "|" [] Nothing)
         _          -> scale (`div` 2) $ oneof
                           [ Rex.C <$> arbitrary ]
 

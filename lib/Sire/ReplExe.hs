@@ -330,7 +330,7 @@ runCmd h scope vSrc vPrp vGen vMac itxt cmd = do
 
             -- trace each assertion before testing it.
             putStrLn $ rexFile
-              $ joinRex . (\rx -> N 0 OPEN "#!!=" rx Nothing)
+              $ joinRex . (\rx -> N OPEN "#!!=" rx Nothing)
               $ fmap (fmap absurd) raw
 
             G val _ <- compileSire scope v
@@ -339,10 +339,10 @@ runCmd h scope vSrc vPrp vGen vMac itxt cmd = do
             let NAMED_CLOSURE _ _ wTop = nameClosure (loadShallow wal)
             unless (val == wal)
                 $ throwError . rexFile
-                $ N 0 OPEN "!=" [ (joinRex . valRex . resugarVal mempty) vTop
+                $ N OPEN "!=" [ (joinRex . valRex . resugarVal mempty) vTop
                                 , (joinRex . valRex . resugarVal mempty) wTop
                                 ]
-                $ Just . joinRex . (\rx -> N 0 OPEN "#!!=" rx Nothing)
+                $ Just . joinRex . (\rx -> N OPEN "#!!=" rx Nothing)
                 $ fmap (fmap absurd) raw
         runCmd h scope vSrc vPrp vGen vMac itxt (ASSERT more)
 

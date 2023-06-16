@@ -31,14 +31,13 @@ module Rex.ReadT
     , slip1, slip2, slip3, slipN, slip1N
     , slip_1_2, slip_N_2
     , form2N
-    , withIdent
     )
 where
 
 import PlunderPrelude hiding (bracket, exp, many, some, try)
 
 import Control.Monad.Trans.Class (MonadTrans(..))
-import Rex.Types                 (GRex(..), Leaf, TextShape(..), rexIdent)
+import Rex.Types                 (GRex(..), Leaf, TextShape(..))
 
 import qualified Data.Text as T
 
@@ -173,8 +172,8 @@ readResult = READT . const . REST . pure
 
 readNode :: Monad m => ReadT z m (Text, [GRex z], Maybe (GRex z))
 readNode = READT $ \case
-    N _ _ r xs mK -> resty $ Success (r, xs, mK)
-    expr          -> resty $ Expected [(expr, "node")]
+    N _ r xs mK -> resty $ Success (r, xs, mK)
+    expr        -> resty $ Expected [(expr, "node")]
 
 readExtra :: ∀m z. Monad m => ReadT z m z
 readExtra = READT \case
@@ -190,18 +189,18 @@ resty = REST . pure
 rune :: Monad m => Text -> ReadT z m ()
 rune r = READT go
  where
-  go (N _ _ run _ _) | run==r = resty $ Success ()
-  go expr                     = resty $ Expected [(expr, r)]
+  go (N _ run _ _) | run==r = resty $ Success ()
+  go expr                   = resty $ Expected [(expr, r)]
 
 matchLeaf :: Monad m => Text -> (Leaf -> Maybe a) -> ReadT z m a
 matchLeaf expect f = READT \case
-  x@(T _ s t Nothing) -> resty $ maybe (Expected [(x, expect)]) pure (f (s,t))
-  x                   -> resty $ Expected [(x, expect)]
+  x@(T s t Nothing) -> resty $ maybe (Expected [(x, expect)]) pure (f (s,t))
+  x                 -> resty $ Expected [(x, expect)]
 
 matchLeafCont :: Monad m => Text -> (Leaf -> GRex z -> Maybe a) -> ReadT z m a
 matchLeafCont expect f = READT \case
-  x@(T _ s t (Just k)) -> resty $ maybe (Expected [(x, expect)]) pure (f (s,t) k)
-  x                    -> resty $ Expected [(x, expect)]
+  x@(T s t (Just k)) -> resty $ maybe (Expected [(x, expect)]) pure (f (s,t) k)
+  x                  -> resty $ Expected [(x, expect)]
 
 leaf :: Monad m => ReadT z m Leaf
 leaf = matchLeaf "leaf" Just
@@ -215,19 +214,19 @@ matchNameCord :: Monad m => Text -> (Text -> Text -> Maybe a) -> ReadT z m a
 matchNameCord expect f =
     matchLeafCont expect go
   where
-    go (BARE_WORD, n) (T _ THIN_CORD t Nothing) = f n t
-    go (BARE_WORD, n) (T _ THIC_CORD t Nothing) = f n t
-    go _              _                         = Nothing
+    go (BARE_WORD, n) (T THIN_CORD t Nothing) = f n t
+    go (BARE_WORD, n) (T THIC_CORD t Nothing) = f n t
+    go _              _                       = Nothing
 
 matchNameText :: Monad m => Text -> (Text -> Text -> Maybe a) -> ReadT z m a
 matchNameText expect f =
     matchLeafCont expect go
   where
-    go (BARE_WORD, n) (T _ THIN_CORD t Nothing) = f n t
-    go (BARE_WORD, n) (T _ THIC_CORD t Nothing) = f n t
-    go (BARE_WORD, n) (T _ THIN_LINE t Nothing) = f n t
-    go (BARE_WORD, n) (T _ THIC_LINE t Nothing) = f n t
-    go _              _                         = Nothing
+    go (BARE_WORD, n) (T THIN_CORD t Nothing) = f n t
+    go (BARE_WORD, n) (T THIC_CORD t Nothing) = f n t
+    go (BARE_WORD, n) (T THIN_LINE t Nothing) = f n t
+    go (BARE_WORD, n) (T THIC_LINE t Nothing) = f n t
+    go _              _                       = Nothing
 
 matchCord :: Monad m => Text -> (Text -> Maybe a) -> ReadT z m a
 matchCord expect f = matchLeaf expect \case
@@ -243,13 +242,13 @@ matchPage expect f = matchLeaf expect \case
 
 formMatch :: Monad m => (GRex z -> ([GRex z], Maybe (GRex z)) -> ResultT z m c) -> ReadT z m c
 formMatch f = READT \case
-  x@(N _ _ _ ps mK) -> f x (ps, mK)
-  x                 -> resty $ Expected [(x, "expression")]
+  x@(N _ _ ps mK) -> f x (ps, mK)
+  x               -> resty $ Expected [(x, "expression")]
 
 formMatchNoCont :: Monad m => (GRex z -> [GRex z] -> ResultT z m c) -> ReadT z m c
 formMatchNoCont f = READT \case
-  x@(N _ _ _ ps Nothing) -> f x ps
-  x@(N _ _ _ _  _)       -> resty $ Expected [(x, "no heir")]
+  x@(N _ _ ps Nothing) -> f x ps
+  x@(N _ _ _  _)       -> resty $ Expected [(x, "no heir")]
   x                      -> resty $ Expected [(x, "runic")]
 
 formMatchCont
@@ -613,7 +612,3 @@ slip_N_2 (ra,a) (rp,p,q) = loop
   formP = asum [ form2 p q       <&> \(x,y)   -> [Right (x,y)]
                , form2C p q loop <&> \(x,y,c) -> (Right (x,y)):c
                ]
-
-withIdent :: Functor m => ReadT z m a -> ReadT z m (a, Nat)
-withIdent act = READT \rex ->
-    (, rexIdent rex) <$> runReadT act rex

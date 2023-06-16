@@ -99,8 +99,8 @@ showPin :: RexColor => Symb -> Hash256 -> Val Symb -> Text
 showPin self _pinKey =
     rexFile . joinRex . showIt
   where
-    hackup (N _ SHUT_INFIX "-" cs Nothing) = N 0 NEST_PREFIX "|" cs Nothing
-    hackup x                               = x
+    hackup (N SHUT_INFIX "-" cs Nothing) = N NEST_PREFIX "|" cs Nothing
+    hackup x                             = x
 
     showIt (LAW ln lt lb) =
         let (t,as,b) = case resugarRul mempty self (RUL ln lt lb) of
@@ -108,14 +108,14 @@ showPin self _pinKey =
                          XLAM as_ b_    -> (XTAG 0 Nothing 0, as_, b_)
             vl = hackup (bodRex b)
         in chooseMode vl
-             (\vl2 -> absurd<$>(N 0 SHUT_INFIX "=" [xtagApp t as, joinRex vl2] Nothing))
-             (\vl2 -> absurd<$>(N 0 OPEN       "=" [xtagApp t as] (Just $ joinRex vl2)))
+             (\vl2 -> absurd<$>(N SHUT_INFIX "=" [xtagApp t as, joinRex vl2] Nothing))
+             (\vl2 -> absurd<$>(N OPEN       "=" [xtagApp t as] (Just $ joinRex vl2)))
 
     showIt v =
         let vl = hackup (valRex (resugarVal mempty v))
         in chooseMode vl
-             (\vl2 -> absurd<$>(N 0 SHUT_INFIX "=" [parens [keyRex self], joinRex vl2] Nothing))
-             (\vl2 -> absurd<$>(N 0 OPEN       "=" [parens [keyRex self]] (Just $ joinRex vl2)))
+             (\vl2 -> absurd<$>(N SHUT_INFIX "=" [parens [keyRex self], joinRex vl2] Nothing))
+             (\vl2 -> absurd<$>(N OPEN       "=" [parens [keyRex self]] (Just $ joinRex vl2)))
 
 plunRex :: Fan -> Rex
 plunRex pln = joinRex $ valRex (resugarVal mempty val)
@@ -133,15 +133,15 @@ showAlias mSymb vl =
     rx = case mSymb of
              Nothing   -> chooseMode vr id id
              Just symb -> chooseMode vr
-                 (\vr2 -> absurd<$>(N 0 SHUT_INFIX "=" [keyRex symb, joinRex vr2] Nothing))
-                 (\vr2 -> absurd<$>(N 0 OPEN "=" [keyRex symb] (Just $ joinRex vr2)))
+                 (\vr2 -> absurd<$>(N SHUT_INFIX "=" [keyRex symb, joinRex vr2] Nothing))
+                 (\vr2 -> absurd<$>(N OPEN "=" [keyRex symb] (Just $ joinRex vr2)))
 
 -- TODO Jank AF.  Much hack.
 chooseMode :: GRex a -> (GRex a -> GRex a) -> (GRex a -> GRex a) -> GRex a
-chooseMode vr@(N _ OPEN _ _ _)          _    open = open vr
-chooseMode vr@(T _ THIC_LINE _ _)       _    open = open vr
-chooseMode vr@(T _ THIN_LINE _ _)       _    open = open vr
-chooseMode    (N 0 SHUT_INFIX "-" k h)  wide _    = wide (N 0 NEST_PREFIX "|" k h)
+chooseMode vr@(N OPEN _ _ _)          _    open = open vr
+chooseMode vr@(T THIC_LINE _ _)       _    open = open vr
+chooseMode vr@(T THIN_LINE _ _)       _    open = open vr
+chooseMode    (N SHUT_INFIX "-" k h)  wide _    = wide (N NEST_PREFIX "|" k h)
 chooseMode vr@_                         wide _    = wide vr
 
 printValue
@@ -234,9 +234,9 @@ runCmd h vEnv =
             let NAMED_CLOSURE _ _ top = nameClosure (loadShallow pln)
             unless (top == 1) do
                 let heir = joinRex $ valRex raw
-                let oneV = T 0 BARE_WORD "1" Nothing
+                let oneV = T BARE_WORD "1" Nothing
                 let expr = joinRex $ valRex $ resugarVal mempty top
-                let errE = N 0 OPEN "!=" [oneV, expr] (Just heir)
+                let errE = N OPEN "!=" [oneV, expr] (Just heir)
                 throw $ REPL_ERR $ rexFile errE
 
 

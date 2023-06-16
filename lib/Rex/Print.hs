@@ -79,12 +79,12 @@ rexBlock rex = case rex of
     C v ->
         absurd v
 
-    T _ s t k | isLineStr s ->
+    T s t k | isLineStr s ->
         case rexBlock <$> k of
             Nothing   -> (2, LINED (thic s) t Nothing)
             Just heir -> (max 2 (fst heir), LINED (thic s) t (Just heir))
 
-    N _ OPEN runeTex kids heir ->
+    N OPEN runeTex kids heir ->
         (max ourPad heirPad, RUNIC RUNIC_BLOCK{..})
       where
         nextOne = rexBlock <$> heir
@@ -134,10 +134,10 @@ isLineStr THIN_LINE = True
 isLineStr _         = False
 
 isPhrasic :: Rex -> Bool
-isPhrasic (N _ OPEN _ _ _)    = False
-isPhrasic (T _ THIC_LINE _ _) = False
-isPhrasic (T _ THIN_LINE _ _) = False
-isPhrasic _                   = True
+isPhrasic (N OPEN _ _ _)    = False
+isPhrasic (T THIC_LINE _ _) = False
+isPhrasic (T THIN_LINE _ _) = False
+isPhrasic _                 = True
 
 indent :: Int -> RexBuilder
 indent depth = rbText (T.replicate depth " ")
