@@ -131,7 +131,7 @@ fieldExpect="Expected something like (field:type)"
 : sym <- readSymbol (idx 0 sKids) err
 @ typ (idx 1 sKids)
 ; Ignoring the type for now.
-| ret (rexIdnt rex, sym, typ)
+| ret (0, sym, typ)
 
 = (parseManyFields rexes err ret)
 ^ rowTraverse _ rexes ret
@@ -158,24 +158,23 @@ fieldExpect="Expected something like (field:type)"
     | err rex fieldItemExpect
 : sym   < readSymbol (idx 0 sons) err
 @ typ   | idx 1 sons
-@ field | (rexIdnt rex, sym, typ)
+@ field | (0, sym, typ)
 | go (field :: acc) (rexHeir rex)
 
 > Rex > Parser (Nat, Symbol, Opt Nat)
 = (readSymbolMaybeWithTag rex err ok)
 | ifNot (rexIsNode rex)
     : sym < readSymbol rex err
-    | ok (rexIdnt rex, sym, NONE)
+    | ok (0, sym, NONE)
 ;
 @ kids@[symRex tagRex] (rexKids rex)
 ;
 | if ((rexRune rex /= "=") || (len kids /= 2))
     | err rex "Expecting CONSTR or CONSTR=tag"
 ;
-@ key | rexIdnt symRex
 : sym < readSymbol symRex err
 : tag < readKey tagRex err
-| ok (key, sym, SOME tag)
+| ok (0, sym, SOME tag)
 
 """ {readConstructorSig} accepts inputs that look like one of the
 """ following:
@@ -195,13 +194,13 @@ fieldExpect="Expected something like (field:type)"
 ;
 | ifNot (rexIsNode r)
     : cnstr <- readSymbol r err
-    | ok (rexIdnt r, cnstr, NONE, [])
+    | ok (0, cnstr, NONE, [])
 ;
 @ rune | rexRune r
 ;
 | if (rune == "=")
-    : (cnstrId, cnstr, oTag) < readSymbolMaybeWithTag r err
-    | ok (cnstrId, cnstr, oTag, [])
+    : (_, cnstr, oTag) < readSymbolMaybeWithTag r err
+    | ok (0, cnstr, oTag, [])
 ;
 @ kids@[cnstrRex] | rexKids r
 @ numKids         | len kids
@@ -209,20 +208,20 @@ fieldExpect="Expected something like (field:type)"
 | if ((rune /= "|") || isZero numKids)
     | err r sigExpect
 ;
-: (cnstrId, cnstr, oTag)
+: (_, cnstr, oTag)
     < readSymbolMaybeWithTag cnstrRex err
 ;
 | if (eql 1 numKids)
-    | ok (cnstrId, cnstr, oTag, [])
+    | ok (0, cnstr, oTag, [])
 ;
 @ fields     | drop 1 kids
 @ firstField | idx 0 fields
 ;
 | if (eql 2 numKids && ("*" == rexRune firstField))
     : fields <- parseItemizedFields (idx 1 kids) err
-    | ok (cnstrId, cnstr, oTag, fields)
+    | ok (0, cnstr, oTag, fields)
 : fields <- parseManyFields (drop 1 kids) err
-| ok (cnstrId, cnstr, oTag, fields)
+| ok (0, cnstr, oTag, fields)
 
 """ {readDatatypeSig} uses an inglorious short-term hack: it simply runs
 """ the record-signature parser against a fudged input.
@@ -334,6 +333,12 @@ ex=(PAIR %a %b)
     * LOL=l
 
 
+= (assignKeysToBranches nex branches ok)
+^ rowTraverseState nex _ branches ok
+& (nex [_ cns oTag arg] ok)
+| ok (inc nex) [nex cns oTag arg]
+
+
 ''' defDataTypeC '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 > RexSources
@@ -387,8 +392,9 @@ ex=(PAIR %a %b)
 = ({#datatype} s p e a r err ok)
 @ kids (rexKids r)
 | if (len kids /= 3) (err r datatypeExpected)
-: branches < readDataBranches (idx 2 kids) err
-@ [prp rex] | defDataTypeC s p e branches
+: branches   < readDataBranches (idx 2 kids) err
+: a branches < assignKeysToBranches a branches
+@ [prp rex]  | defDataTypeC s p e branches
 | ok prp a rex
 
 # datatype (Either a b)
