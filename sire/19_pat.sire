@@ -835,23 +835,43 @@
 
 = (parseDefine rex err ok)
 @ kids            | rexKids rex
-@ [sigRex bodRex] | kids
-@ sigRune         | rexRune sigRex
-| if (neq 2 | len kids)
-    | err rex "Expected two kids"
-| if (eql "|" sigRune)
-    : sym binds < readDestroyer sigRex err
-    | ok (0, sym, binds, bodRex)
+@ nKids           | len kids
+| if (eql 3 nKids)
+    @ [keyRex sigRex bodRex] | kids
+    @ sigRune                | rexRune sigRex
+    : key <- readKey keyRex err
+    | if (eql "|" sigRune)
+        : sym binds < readDestroyer sigRex err
+        | ok (key, sym, binds, bodRex)
+    | else
+        : bind <- parseBinder sigRex err
+        | ok (key, bind, bodRex)
+| if (eql 2 nKids)
+    @ [sigRex bodRex] | kids
+    @ sigRune         | rexRune sigRex
+    | if (eql "|" sigRune)
+        : sym binds < readDestroyer sigRex err
+        | ok (0, sym, binds, bodRex)
+    | else
+        : bind <- parseBinder sigRex err
+        | ok (0, bind, bodRex)
 | else
-    : bind <- parseBinder sigRex err
-    | ok (bind, bodRex)
+    | err rex "Expected two kids"
 
-!!=  ++ [%v %x]
+!!=  ++ 0
+     ++ [%v %x]
      ++ `3
   ^ parseDefine _ v2 id
   ` = x 3
 
-!!=  ++ [%r [%v %x],[%v %y]]
+!!=  ++ 99
+     ++ [%v %x]
+     ++ `3
+  ^ parseDefine _ v2 id
+  ` = 99 x 3
+
+!!=  ++ 0
+     ++ [%r [%v %x],[%v %y]]
      ++ `3
   ^ parseDefine _ v2 id
   ` = [x y] 3
@@ -890,17 +910,17 @@
 ^ listFoldr _ (a, 0) defBinds
 & (def [a acc])
 | if (len def == 4)
-    @ [_ sym binds bodRex] def
+    @ [key sym binds bodRex] def
     : a sig bod <- makeDestroyer a binds bodRex
     , a
-    | OPEN 0 "#=" (sogE sym sig, bod) acc
+    | OPEN 0 "#=" (natE key, sogE sym sig, bod) acc
 | else
-    @ [bind bodRex] def
+    @ [key bind bodRex] def
     @ [a bSeq] (sequenceBinds a [[bind bodRex]])
     ^ foldr _ [a acc] bSeq
     & ([_ var exp] [a acc])
     , a
-    | OPEN 0 "#=" (keyE var, exp) acc
+    | OPEN 0 "#=" (natE key, keyE var, exp) acc
 
 = ("=" s p e a r err ok)
 @ defRexes | unrollTis r
