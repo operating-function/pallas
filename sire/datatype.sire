@@ -549,8 +549,8 @@ ex=(PAIR %a %b)
 !!=  ++ TRUE
      ++ dataTag
      ++ cnsE 0
-     ++  ++ [0 0 []                      `[x "]"]         FALSE]
-         ++ [1 2 [[%v 0 '_'] [%v 0 '_']] `[x " " (go xs)] FALSE]
+     ++  ++ [0 0 []                  `[x "]"]         FALSE]
+         ++ [1 2 [[%v '_'] [%v '_']] `[x " " (go xs)] FALSE]
   ^ _ v2 v4
   @ xpr `` * LNULL       [x "]"]
            * (LCONS _ _) [x " " (go xs)]
@@ -602,7 +602,7 @@ ex=(PAIR %a %b)
                   | die 'raw datatype with fields != 1??  Nonsense.'
               | idx 0 params
           | if hasTag
-          * (%r, rowCons [%v 0 '_'] params)
+          * (%r, rowCons [%v '_'] params)
           * (%r, params)
       @ binds [(rowPat, valExp)]
       @ [aft bSeq deps] (sequenceBinds aft binds)

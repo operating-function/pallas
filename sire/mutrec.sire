@@ -57,10 +57,10 @@
 : body      <- readExp bodyRex err
 | ret [sym binds body]
 
-!!= [[%f [[%v 0 %x]] `x] [%g [[%v 0 %y]] `0]]
+!!= [[%f [[%v %x]] `x] [%g [[%v %y]] `0]]
   | readCoreBody '=' readRex `((f x = x)(g y = 0)) v2 id
 
-!!= [[%f [[%r [[%v 0 %x] [%v 0 %y]]]] `x]]
+!!= [[%f [[%r [[%v %x] [%v %y]]]] `x]]
   | readCoreBody '=' readRex `((f [x y] = x)) v2 id
 
 !!= [`(*) 'Not a core arm']
@@ -86,7 +86,7 @@
      ++ ++ [%f [%x] `x]
         ++ [%g [%y] `0]
   ^ genCoreBody _ 5 v2
-  | [[%f [[%v 0 %x]] `x] [%g [[%v 0 %y]] `0]]
+  | [[%f [[%v %x]] `x] [%g [[%v %y]] `0]]
 
 !!=  ++ 7
      ++  ++  ++ 'f'
@@ -96,7 +96,7 @@
                    #@ y (#| $(idx 1) _g6)
                     x
   ^ genCoreBody _ 5 v2
-  | [[%f [[%r [[%v 0 %x] [%v 0 %y]]]] `x]]
+  | [[%f [[%r [[%v %x] [%v %y]]]] `x]]
 
 ; TODO Move this to `17-exp.sire`
 ; TODO Avoid the @ where necessary.

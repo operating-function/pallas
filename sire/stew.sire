@@ -149,7 +149,7 @@
 * # typedef Chr Nat ; TODO: newtype
 
 # datatype Pat
-* PVAR=v k:Key n:Sym
+* PVAR=v n:Sym
 * PSEQ=s p:Sym
 * PALI=a n:Sym p:Pat
 * PROW=r x:(Row Pat)
@@ -227,7 +227,7 @@
 > Pat > Rex
 = (showPat p)
 # datacase p
-* (PVAR _k v)  | varE v
+* (PVAR v)     | varE v
 * (PSEQ v)     | PREF 0 {!} ,(varE v) 0
 * (PALI x y)   | SHUT 0 {@} (showPat x, showPat y) 0
 * (PROW xs)    | NEST 0 {,} (map showPat xs) 0
@@ -243,7 +243,7 @@
 
 !!= `[x=x y=(!y)]
   | showPat
-  | PTAB [x=(PVAR 0 %x) y=(PSEQ %y)]
+  | PTAB [x=(PVAR %x) y=(PSEQ %y)]
 
 !!= `[x=(UNIT(..)) y=(!y)]
   | showPat
@@ -251,11 +251,11 @@
 
 !!= ` x@[a b@[c !d]]
   | showPat
-  | PALI (PVAR 0 %x)
+  | PALI (PVAR %x)
   | PROW
- ++ PVAR 0 %a
- ++ PALI (PVAR 0 %b)
-      | PROW (PVAR 0 "c", PSEQ "d")
+ ++ PVAR %a
+ ++ PALI (PVAR %b)
+      | PROW (PVAR "c", PSEQ "d")
 
 > Row Rex > Rex
 = (showSig rexes@[first])
@@ -432,8 +432,8 @@
 
 !!= ` (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#{111} b#{asdf} (2 fanc))
   | showExp
-  | ELET (PVAR 0 "n") (ENAT %inc)
-  | ELET (PVAR 0 "fanc")
+  | ELET (PVAR "n") (ENAT %inc)
+  | ELET (PVAR "fanc")
       | foldl EAPP (ELIN | EREF %mkLaw)
      ++ EREF %n
      ++ EREF %a
@@ -456,12 +456,12 @@
 !!= ` (& (x y))x
   | showExp
   | ELAM FALSE
-  | FUN 0 0 (PVAR 0 %x, PVAR 0 %y) (EREF %x)
+  | FUN 0 0 (PVAR %x, PVAR %y) (EREF %x)
 
 !!= ` (? (const x y))x
   | showExp
   | ELAM FALSE
-  | FUN "const" "const" (PVAR 0 %x, PVAR 0 %y) (EREF %x)
+  | FUN "const" "const" (PVAR %x, PVAR %y) (EREF %x)
 
 !!= ` (^ (f _ y))x
   | showExp
@@ -479,7 +479,7 @@
 & (sweetBind body)
 # datacase sweetBind
 * (LEFT [lawName argPats lawBody])
-    ^ ELET (PVAR 0 lawName) _ body
+    ^ ELET (PVAR lawName) _ body
     | ELAM FALSE
     | FUN lawName lawName argPats lawBody
 * (RIGHT [bind valExp])
@@ -1008,7 +1008,7 @@
 = (traversePat f pat ok)
 # datacase pat
 * (POPN _)   | f pat ok
-* (PVAR _ _) | f pat ok
+* (PVAR _)   | f pat ok
 * (PSEQ _)   | f pat ok
 * (PALI n p)
     : p <- traversePat f p
@@ -1047,7 +1047,7 @@
         ^ die (showPat pat),(strWeld _ constr)
         | "Unknown record constructor: "
     @ fields (getProperty key 'fieldNames' prp)
-    | ok (PROW | map (PVAR 0) fields)
+    | ok (PROW | map PVAR fields)
 
 = (resolve src prp exp err ok)
 ; trk 'resolve',[=exp]
@@ -1158,8 +1158,8 @@
 : st bodRex < go st bodExp
 ;
 @ var # datacase pat
-      * _            | todo 'support pattern matching in letrec bindings'
-      * (PVAR _ var) | var
+      * _          | todo 'support pattern matching in letrec bindings'
+      * (PVAR var) | var
 ;
 | ok st (recE var valRex bodRex)
 
@@ -1301,28 +1301,28 @@ prp=(#getAllProps)
 !!= [5 ``((#?? (id x))x)]
   | comp 5
   | ELAM TRUE
-  | (%id, %id, [(PVAR 0 %x)], EREF 'x')
+  | (%id, %id, [(PVAR %x)], EREF 'x')
 
 !!= [5 ``((#& x)x)]
   | comp 5
   | ELAM FALSE
-  | (0, 0, [(PVAR 0 %x)], EREF 'x')
+  | (0, 0, [(PVAR %x)], EREF 'x')
 
 !!= [5 ``((#? (f x z))z)]
   | comp 5
   | ELAM FALSE
-  | ('f', 'f', (PVAR 0 %x, PVAR 0 %z), EREF 'z')
+  | ('f', 'f', (PVAR %x, PVAR %z), EREF 'z')
 
 !!=  ++ 7
      ++ `` (#& _g5)(#@ _g6 _g5)(#@ x (#| $(idx 0) _g6))(#@ z (#| $(idx 1) _g6))z
   | comp 5
   | ELAM FALSE
-  | (0, 0, [(PROW (PVAR 0 %x, PVAR 0 %z))], EREF 'z')
+  | (0, 0, [(PROW (PVAR %x, PVAR %z))], EREF 'z')
 
 !!=  ++ 6
      ++ `` (#@ _g5 (#| $(cow 2) $2 $1))(#@ x (#| $(idx 0) _g5))x
   | comp 5
-  | ELET (PROW [(PVAR 0 %x)])
+  | ELET (PROW [(PVAR %x)])
       | EROW (ENAT 1, ENAT 2)
   | EREF 'x'
 
@@ -1335,7 +1335,7 @@ prp=(#getAllProps)
 !!=  ++ 5
      ++ `` (#@@ x (#| $(cow 2) x $1))(#| car x)
   | comp 5
-  | EREC (PVAR 0 'x')
+  | EREC (PVAR 'x')
       | EROW (ENAT 1, EREF 'x')
   | EAPP (EREF 'car')
   | EREF 'x'
@@ -1356,7 +1356,7 @@ prp=(#getAllProps)
              even
   | comp 5
   | EMUT 'lol' (EREF 'even')
- ++ (%even, [(PVAR 0 %x)], EREF 'x')
+ ++ (%even, [(PVAR %x)], EREF 'x')
 
 ; such a beauty
 !!=  ++ 8
@@ -1371,7 +1371,7 @@ prp=(#getAllProps)
                  ($0)
   | comp 5
   | ECAS EREF-'x' (SOME | ENAT 1)
- ++ CON_CASE 'SOME' [(PVAR 0 'x')] EREF-'x'
+ ++ CON_CASE 'SOME' [(PVAR 'x')] EREF-'x'
  ++ CON_CASE 'NONE' []             ENAT-0
 
 !!=  ++ 7
@@ -1385,7 +1385,7 @@ prp=(#getAllProps)
                      x
   | comp 5
   | ECAS (EREF 'sx') NONE
- ++ CON_CASE 'SOME' ,(PVAR 0 'x') EREF-'x'
+ ++ CON_CASE 'SOME' ,(PVAR 'x') EREF-'x'
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
