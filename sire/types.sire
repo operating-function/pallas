@@ -83,16 +83,16 @@
 = (parseSchemeSig rex err ok)
 @ rune (rexRune rex)
 | ifNot (rune == '|')
-    : sym < readSymbol rex err
-    | ok sym []
-: ks < readKeySignature rex err
+    : lawName < readSymbol rex err
+    | ok lawName []
+: names < readSignature rex err
 | if (lth len 2)
     | err rex schemeExpected
-@ [key sym] (idx 0 ks)
-@ varNames  (map idx-1 (drop 1 ks))
+@ lawName  (idx 0 names)
+@ varNames (drop 1 names)
 | if (len varNames /= cabLen (cabFromRow varNames))
     | err rex "type params must be unique"
-| ok sym varNames
+| ok lawName varNames
 
 """
 """ {#abstype} is used to backfill things that were earlier in the
@@ -130,13 +130,12 @@
     | err r absExpected
 @ rune (rexRune sigRex)
 | if (rune == '|')
-    : ks < readKeySignature sigRex err
+    : names < readSignature sigRex err
     | if (lth len 2)
         | err r absExpected
-    @ [_ sym] (idx 0 ks)
-    @ numVars   (dec (len ks))
-    @ varKeys   (map idx-0 (drop 1 ks))
-    @ varNames  (map idx-1 (drop 1 ks))
+    @ sym      (idx 0 names)
+    @ numVars  (dec | len names)
+    @ varNames (drop 1 names)
     | if (len varNames /= cabLen (cabFromRow varNames))
         | err r "type params must be unique"
     @ key | a

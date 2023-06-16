@@ -63,7 +63,7 @@
 /+  06_row  [idx len null switch fst snd]
 /+  06_row  [weld map foldr v1 v2 v3 v4]
 /+  04_cmp  [eql neq lth isZero]
-/+  07_rex  [rexConstr rexIdnt rexRune rexSons rexHeir rexKids]
+/+  07_rex  [rexConstr rexRune rexSons rexHeir rexKids]
 /+  07_rex  [rexIsNode rexIsEmbd rexIsLeaf]
 /+  07_rex  [rexGetNode rexEmbd rexVal {`}]
 /+  07_rex  [R PREF NEST EMBD OPEN WORD CORD]
@@ -95,7 +95,7 @@
 = sigExpect | "Expected `x` or signature `(x y z)`"
 = sigNoHeir | "name-sequence cannot have an heir"
 
-= (readKeySignature rex err ok)
+= (readSignature rex err ok)
 | ifNot (isZero rexHeir-rex)
         | err rex sigNoHeir
 | if (rexIsNode rex)
@@ -103,25 +103,14 @@
                 | (err rex sigExpect)
         ^ rowTraverse _ (rexSons rex) ok
         ? (step son ret)
-        | readSymbol son err
-        & sym
-        | ret (rexIdnt son, sym)
-| readSymbol rex err
-& sym
-| ok [(rexIdnt rex, sym)]
-
-= (readSignature rex err ok)
-| readKeySignature rex err
-& bindings
-| ok (map idx-1 bindings)
+        | readSymbol son err ret
+| readSymbol rex err (compose ok v1)
 
 !!= [%a %b %c]          | readSignature `(a b c) v2 id
 !!= [%a]                | readSignature `(a)     v2 id
 !!= [%a]                | readSignature `a       v2 id
 !!= [`[a b] sigExpect]  | readSignature `[a b]   v2 id
 !!= [`([][]) sigNoHeir] | readSignature `([][])  v2 id
-
-!!= [[0 %a] [0 %b] [0 %c]] | readKeySignature `(a b c) v2 id
 
 
 """ The Col Macro """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -705,7 +694,7 @@ four=(WORD 0 {4} 0)
 
 ^-^
 ^-^ rexGetRune
-^-^ readKeySignature readSignature
+^-^ readSignature
 ^-^ readItemized
 ^-^ readFancyApp
 ^-^ readTallListLit readWideListLit
