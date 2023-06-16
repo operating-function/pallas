@@ -582,8 +582,8 @@ argsBox (n:|ns) = simpleAppBox (symbBox <$> (n:ns))
 -}
 xtagBox :: XTag -> Box
 xtagBox = \case
-    XTAG n Nothing  _ -> symbBox n
-    XTAG n (Just t) _ ->
+    XTAG n Nothing  -> symbBox n
+    XTAG n (Just t) ->
         BOX wid tal
       where
         tal =
@@ -755,8 +755,8 @@ xtagApp t as = parens (xtagRex t : fmap symbRex (toList as))
 
 xtagRex :: XTag -> Rex
 xtagRex = \case
-    XTAG n Nothing  _ -> keyRex n
-    XTAG n (Just t) _ -> N SHUT_INFIX "@" [keyRex n, keyRex t] NONE
+    XTAG n Nothing  -> keyRex n
+    XTAG n (Just t) -> N SHUT_INFIX "@" [keyRex n, keyRex t] NONE
 
 boxCoerceWideRex :: Box -> Rex
 boxCoerceWideRex (BOX (Just(_, wid)) _) = wid
@@ -1075,21 +1075,21 @@ readTag = (simpleTag <$> readIdnt)
     keyTag = simpleTag <$> readKey
     explicitTag = do
         (n,t) <- form2 readKey readKey
-        pure (XTAG n (Just t) 0)
+        pure (XTAG n (Just t))
 
 readXTag :: Red v XTag
 readXTag = asum
     [ idnXTag <$> readKey
     , rune "@" >> asum
-          [ form2 readKey readKey <&> \(n,t) -> XTAG n (Just t) 0
-          , form1 readKey         <&> \n     -> XTAG n Nothing 0
+          [ form2 readKey readKey <&> \(n,t) -> XTAG n (Just t)
+          , form1 readKey         <&> \n     -> XTAG n Nothing
           ]
     ]
   where
-    idnXTag n = XTAG n NONE 0
+    idnXTag n = XTAG n NONE
 
 simpleTag :: Symb -> XTag
-simpleTag t = XTAG t Nothing 0
+simpleTag t = XTAG t Nothing
 
 readIdnt :: Red v Symb
 readIdnt = utf8Nat <$> readIdnTxt

@@ -105,7 +105,7 @@ showPin self _pinKey =
     showIt (LAW ln lt lb) =
         let (t,as,b) = case resugarRul mempty self (RUL ln lt lb) of
                          XLAW t_ as_ b_ -> (t_, as_, b_)
-                         XLAM as_ b_    -> (XTAG 0 Nothing 0, as_, b_)
+                         XLAM as_ b_    -> (XTAG 0 Nothing, as_, b_)
             vl = hackup (bodRex b)
         in chooseMode vl
              (\vl2 -> absurd<$>(N SHUT_INFIX "=" [xtagApp t as, joinRex vl2] Nothing))

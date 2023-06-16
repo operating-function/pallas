@@ -148,13 +148,12 @@ data XBod
 data XTag = XTAG
     { xtagIdn :: !Symb
     , xtagOpt :: !(Maybe Symb)
-    , xtagKey :: !Nat
     }
   deriving (Eq, Ord, Show, Generic, NFData)
 
 xtagTag :: XTag -> Symb
-xtagTag (XTAG _ (Just s) _) = s
-xtagTag (XTAG s Nothing _)  = s
+xtagTag (XTAG _ (Just s)) = s
+xtagTag (XTAG s Nothing)  = s
 
 type Word256 = ByteString -- Always 256 bytes
 

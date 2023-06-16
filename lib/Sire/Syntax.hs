@@ -184,18 +184,16 @@ readDefine = do
     itemized go
   where
     go = do
-        (mKey, ((i,t),args), f) <- asum
-            [ form2c b x   >>= \(bv, xv)     -> pure (Nothing, bv, xv)
-            , form3c k b x >>= \(kv, bv, xv) -> pure (Just kv, bv, xv)
+        (key, ((i,t),args), f) <- asum
+            [ form2c b x   >>= \(bv, xv)     -> pure (0, bv, xv)
+            , form3c k b x >>= \(kv, bv, xv) -> pure (kv, bv, xv)
             ]
 
         let nm = xtagIdn t
             tg = xtagTag t
 
-        -- Remove (xtagKey t) nonsense once macros updated
         ky <- do
-            let ky = fromMaybe (xtagKey t) mKey
-            if ky>0 then pure ky else gensym
+            if key>0 then pure key else gensym
 
         pure case args of
                 []   -> BIND ky nm f
@@ -299,10 +297,10 @@ readSigHead = (rune "**" >> form1 ((True,) <$> normal))
           <|> (False,) <$> normal
   where
     normal = asum
-        [ Loot.readKey <&> \n -> XTAG n Nothing 0
+        [ Loot.readKey <&> \n -> XTAG n Nothing
         , rune "@" >> asum
-              [ form2 Loot.readKey Loot.readKey <&> \(n,t) -> XTAG n (Just t) 0
-              , form1 Loot.readKey              <&> \n     -> XTAG n Nothing 0
+              [ form2 Loot.readKey Loot.readKey <&> \(n,t) -> XTAG n (Just t)
+              , form1 Loot.readKey              <&> \n     -> XTAG n Nothing
               ]
         ]
 

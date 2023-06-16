@@ -50,12 +50,12 @@ desugarCmd (XDEFINE ds) = DEFINE (go <$> ds)
 
 desugarTag :: XTag -> Tag
 desugarTag = \case
-    XTAG idn (Just nam) _ -> TAG idn (LN nam)
-    XTAG idn Nothing    _ -> TAG idn (LN idn)
+    XTAG idn (Just nam) -> TAG idn (LN nam)
+    XTAG idn Nothing    -> TAG idn (LN idn)
 
 resugarTag :: Tag -> XTag
-resugarTag (TAG nm (LN tg)) | nm==tg = XTAG nm Nothing 0
-resugarTag (TAG nm (LN tg))          = XTAG nm (Just tg) 0
+resugarTag (TAG nm (LN tg)) | nm==tg = XTAG nm Nothing
+resugarTag (TAG nm (LN tg))          = XTAG nm (Just tg)
 
 desugarVal :: HasEnv => XVal -> Val Symb
 desugarVal = \case
