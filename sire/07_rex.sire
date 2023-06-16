@@ -22,11 +22,11 @@
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 /+  01_fan  [lawName trk]
-/+  02_bit  [if ifNot or]
+/+  02_bit  [if ifNot or else]
 /+  03_nat  []
 /+  06_row  [idx len]
 /+  04_cmp  [eql neq isZero]
-/+  06_row  [weld map c1 v0 v1 v2]
+/+  06_row  [weld map c1 v0 v1 v2 v4 v5]
 
 
 """ Rex Representation (possibly data-jetted) """"""""""""""""""""""""""""""""""
@@ -387,6 +387,26 @@ shut=SHUT
 | eql (rexVal x) (rexVal y)
 
 
+""" Helpers """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+= (rexGuts rex)
+@ heir (rexHeir rex)
+| if rexIsNode-rex
+    | v5 (rexStyle rex)
+         (rexIdnt rex)
+         (rexRune rex)
+         (map rexGuts (rexSons rex))
+         (if (isZero heir) heir (rexGuts heir))
+| if rexIsLeaf-rex
+    | v4 (rexStyle rex)
+         (rexIdnt rex)
+         (rexText rex)
+         (if (isZero heir) heir (rexGuts heir))
+| else
+    | v1 (rexEmbd rex)
+
+
+
 """ Quoting """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = ("`" s p e a r err ok)
@@ -491,7 +511,7 @@ sx=(OPEN 1 "=" (v2 wx w9) 0)
 ^-^ rexGetNodeWithRune
 ^-^ rexGetKidsOfNodeWithRune
 ^-^
-^-^ rexEvery rexVal rexClose rexEql
+^-^ rexEvery rexVal rexClose rexEql rexGuts
 ^-^
 ^-^ "`"
 ^-^

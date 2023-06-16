@@ -126,22 +126,6 @@
 """ - [ ] Merge #record and #datatype into #data
 """
 
-= (rexGuts rex)
-@ heir (rexHeir rex)
-| if rexIsNode-rex
-   ++ rexStyle rex
-   ++ rexIdnt rex
-   ++ rexRune rex
-   ++ map rexGuts (rexSons rex)
-   ++ if (isZero heir) heir (rexGuts heir)
-| if rexIsLeaf-rex
-   ++ rexStyle rex
-   ++ rexIdnt rex
-   ++ rexText rex
-   ++ if (isZero heir) heir (rexGuts heir)
-| else
-   ++ rexEmbd rex
-
 
 """ Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
