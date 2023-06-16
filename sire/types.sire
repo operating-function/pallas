@@ -84,8 +84,7 @@
 @ rune (rexRune rex)
 | ifNot (rune == '|')
     : sym < readSymbol rex err
-    @ key | rexIdnt rex
-    | ok key sym []
+    | ok sym []
 : ks < readKeySignature rex err
 | if (lth len 2)
     | err rex schemeExpected
@@ -93,7 +92,7 @@
 @ varNames  (map idx-1 (drop 1 ks))
 | if (len varNames /= cabLen (cabFromRow varNames))
     | err rex "type params must be unique"
-| ok key sym varNames
+| ok sym varNames
 
 """
 """ {#abstype} is used to backfill things that were earlier in the
@@ -134,18 +133,21 @@
     : ks < readKeySignature sigRex err
     | if (lth len 2)
         | err r absExpected
-    @ [key sym] (idx 0 ks)
+    @ [_ sym] (idx 0 ks)
     @ numVars   (dec (len ks))
     @ varKeys   (map idx-0 (drop 1 ks))
     @ varNames  (map idx-1 (drop 1 ks))
     | if (len varNames /= cabLen (cabFromRow varNames))
         | err r "type params must be unique"
+    @ key | a
+    @ !a  | inc a
     @ prp | setProperty key 'typeName' sym p
     | ok prp a
     | defKC key [sym]
     | cnsE (SCHEME numVars | TCON key (gen numVars TVAR))
 : sym < readSymbol sigRex err
-@ key | rexIdnt sigRex
+@ key | a
+@ !a  | inc a
 @ prp | setProperty key 'typeName' sym p
 | ok prp a
 | defKC key [sym]
@@ -503,14 +505,19 @@ abstype#TyExp
 """
 
 = ({#typedef} s p e a r err ok)
-@ kids (rexKids r)
+@ kids                    | rexKids r
+@ [_typedef sigRex tyRex] | kids
+;
 | if (len kids /= 3)
     | err r 'Usage: # typedef Type (a > b)'
-@ [_typedef sigRex tyRex] kids
-: key sym vars < parseSchemeSig sigRex err
-: expr         < parseType [s p e] tyRex err
-: scheme       < compileType vars expr err
-@ prp          | setProperty key 'typeName' sym p
+;
+: sym vars < parseSchemeSig sigRex err
+: expr     < parseType [s p e] tyRex err
+: scheme   < compileType vars expr err
+;
+@ key | a
+@ !a  | inc a
+@ prp | setProperty key 'typeName' sym p
 | ok prp a
 | defKC key [sym] (cnsE scheme)
 
