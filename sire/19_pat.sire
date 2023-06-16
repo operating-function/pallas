@@ -41,7 +41,7 @@
 /+  06_row  [len null idx fst]
 /+  04_cmp  [eql neq gte lth isZero]
 /+  06_row  [weld map foldl foldr v1 v2 v4]
-/+  07_rex  [rexKids rexRune rexHeir rexSons rexText rexVal rexEql "`"]
+/+  07_rex  [rexKids rexRune rexHeir rexSons rexText "`"]
 /+  07_rex  [rexIsNode rexIsLeaf]
 /+  07_rex  [rexGetKidsOfNodeWithRune rexGetWord]
 /+  07_rex  [rexGetNodeWithRune]
@@ -67,7 +67,7 @@
 ; TODO: Rebuild this as a call to (sequenceBinds >=> bindSeqE).
 
 = (destructureRowE tmpVar lhs rowExpr bodyExpr)
-@ isVar  | rexEql rowExpr varE-(rexText rowExpr)
+@ isVar  | eql rowExpr varE-(rexText rowExpr)
 @ tmpVar | if isVar (rexText rowExpr) tmpVar
 @ go
         ? (go binds)
@@ -187,7 +187,7 @@
 : kids <- readNodeWithoutHeirButWithRune "|" rex err
 | if (neq 2 len-kids)
     | err rex "Pin-Pattern expects two kids: (PIN x)"
-| ifNot (rexEql `PIN | idx 0 kids)
+| ifNot (eql `PIN | idx 0 kids)
     | err rex "Pin-Pattern expects rex-head to be `PIN"
 : item < parseBinder (idx 1 kids) err
 | ok [%pin item]
@@ -198,7 +198,7 @@
 : kids <- readNodeWithoutHeirButWithRune "|" rex err
 | if (neq 4 len-kids)
     | err rex "Law-Pattern expects four kids: (LAW n a b)"
-| ifNot (rexEql `LAW | idx 0 kids)
+| ifNot (eql `LAW | idx 0 kids)
     | err rex "Law-Pattern expects rex-head to be `LAW"
 : n < parseBinder (idx 1 kids) err
 : a < parseBinder (idx 2 kids) err
@@ -247,9 +247,9 @@
     @ sons | rexSons rex
     @ numb | len sons
     @ head | idx 0 sons
-    | if (rexEql head `LAW)
+    | if (eql head `LAW)
         | parseLawBinder parseBinder rex err ok
-    | if (rexEql head `PIN)
+    | if (eql head `PIN)
         | parsePinBinder parseBinder rex err ok
     ^ parseBinder _ err ok
     | rexSetRune ","

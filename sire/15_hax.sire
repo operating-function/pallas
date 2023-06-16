@@ -53,7 +53,7 @@
 /+  06_row  [len idx]
 /+  04_cmp  [eql neq]
 /+  06_row  [v1 v2 v4 null weld]
-/+  07_rex  [rexKids rexGetWord "`" rexVal rexRune]
+/+  07_rex  [rexKids rexGetWord "`" rexRune]
 /+  08_dat  ["," drop]
 /+  09_sci  []
 /+  10_chr  []
@@ -99,7 +99,7 @@ oldHax=(.{#})
 | fun s p e a r err ok
 
 = ("#foo" s p e a r err ok) ; envr next kids heir)
-| ok p a (cnsE | rexVal r)
+| ok p a (cnsE r)
 
 = ("#quote" s p e a r err ok)
 @ kids rexKids-r

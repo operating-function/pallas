@@ -440,10 +440,9 @@ hexAlphabet=(natBar "0123456789abcdef")
 | loop acc (rexHeir rex)
 
 
-!!= [[%hi (rexVal `there)] [%bye (rexVal `here)]]
+!!= [[%hi `there] [%bye `here]]
   ^ readBindPairs _ v2 id
-  | rexVal `((hi=there)(bye=here))
-  ; todo: kill rex identity
+  ` ((hi=there)(bye=here))
 
 ;;;
 ;;; TODO Broken macro.  Unit test the SHIT out of all of this macro code.

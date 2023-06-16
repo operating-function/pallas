@@ -737,7 +737,7 @@
 = (expRound rex)
 @ expected | rexClose rex
 @ out      | readExp rex v2 showExp
-| if (rexEql expected out) 1
+| if (expected == out) 1
 | OPEN '/=' [out] expected
 
 !! expRound ` x
@@ -1111,7 +1111,7 @@
 : st bodyRex     <- go st bodyExp
 : st sig bodyRex <- makeDestroyer st pats bodyRex
 ;
-@ bodyRex (rexVal bodyRex) ; TODO kill rex identity
+@ bodyRex bodyRex
 ;
 | if (nam /= tag)
     | todo {support mis-match between name and tag}
@@ -1134,7 +1134,6 @@
 @ (st, bSeq, deps) | sequenceBinds st [[pat valRex]]
 ;
 | ok st
-| rexVal ; TODO: kill rex identity
 | bindSeqE bSeq bodRex deps
 
 = (cRec go st pat valExp bodExp ok)
@@ -1159,7 +1158,6 @@
 : st resultRex
     < genMutRecE st coreTag bodRex armSpecs
 | ok st
-| rexVal    ; todo: kill rex identity
 | rexClose  ; todo: all macros expand to closed forms
 | resultRex
 
@@ -1197,7 +1195,7 @@
 ;
 : st exp < makeDatacaseExpr hasTag fun st valRex fbRex caseSpecs
 ;
-| ok st (rexVal (rexClose exp)) ; TODO: no rex identity, no open rune output
+| ok st (rexClose exp) ; TODO: no open rune output
 
 ; | CON_CASE con:Sym params:(Row Pat) body:Exp
 ; * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)

@@ -145,20 +145,6 @@ shut=SHUT
 
 ;;;;;;;;;;
 
-= (rexIdnt rex)
-@ E ? (E c v)       | 0
-@ L ? (L c i t h)   | i
-@ N ? (N c i r s h) | i
-| rex E L N
-
-= (rexSetIdnt newIdnt rex)
-@ E ? (E c v)       | rex
-@ L ? (L c i t h)   | R | c newIdnt t h
-@ N ? (N c i r s h) | R | c newIdnt r s h
-| rex E L N
-
-;;;;;;;;;;
-
 = (rexRune rex)
 @ E ? (E c v)       | 0
 @ L ? (L c i t h)   | 0
@@ -353,10 +339,6 @@ shut=SHUT
         | f | R | c i r s h
 | rex E L N
 
-; Remove the identity key from every node of a Rex tree.
-= (rexVal x)
-| rexEvery (rexSetIdnt 0) x
-
 ; Changes the layout-style of a rex tree to closed-form by converting
 ; every OPEN node into a NEST node.
 = (rexClose topRex)
@@ -368,23 +350,6 @@ shut=SHUT
     rexSons-rex
     rexHeir-rex
 
-;
-; Value equality on Rex trees, ignoring identity.
-;
-; Since every Rex node has a unique key (which is used to store
-; associated attributes), only "pointer equals" Rex nodes are equal with
-; `eql`.
-;
-; In order to calculate structural equality, we set all of the "identity
-; keys" to zero and then compare them with `eql`.
-;
-; This does not handle the case where EMBD nodes contain Rex subnouns,
-; those rex trees are just treated as nouns and the usual "pointer
-; equality" semantics apply.
-;
-= (rexEql x y)
-| eql (rexVal x) (rexVal y)
-
 
 """ Helpers """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -392,13 +357,11 @@ shut=SHUT
 @ heir (rexHeir rex)
 | if rexIsNode-rex
     | v5 (rexStyle rex)
-         (rexIdnt rex)
          (rexRune rex)
          (map rexGuts (rexSons rex))
          (if (isZero heir) heir (rexGuts heir))
 | if rexIsLeaf-rex
     | v4 (rexStyle rex)
-         (rexIdnt rex)
          (rexText rex)
          (if (isZero heir) heir (rexGuts heir))
 | else
@@ -413,7 +376,7 @@ shut=SHUT
 | if (neq 1 len-args)
     | **err r "Expected 1 Parameter"
 | **ok p a
-| EMBD (rexVal (idx 0 args))
+| EMBD (idx 0 args)
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -454,12 +417,12 @@ sx=(OPEN "=" (v2 wx w9) 0)
 = (nestNod rune sons)      | NEST rune sons 0
 
 
-!!= 1 | rexEql `3        | (w "3")
-!!= 1 | rexEql `(3 4)    | nestNod "|" (v2 (w "3") (w "4"))
-!!= 1 | rexEql `([a][b]) | nestAnd "," (v1 (w "a"))
-                         | nestNod "," (v1 (w "b"))
+!!= 1 | eql `3        | (w "3")
+!!= 1 | eql `(3 4)    | nestNod "|" (v2 (w "3") (w "4"))
+!!= 1 | eql `([a][b]) | nestAnd "," (v1 (w "a"))
+                      | nestNod "," (v1 (w "b"))
 !!= 1
-  | rexEql
+  | eql
       | NEST "*" (v2 (WORD "hi" 0) (WORD "yo" 0))
       | WORD ""
       | WORD "heh"
@@ -503,7 +466,7 @@ sx=(OPEN "=" (v2 wx w9) 0)
 ^-^ rexGetNodeWithRune
 ^-^ rexGetKidsOfNodeWithRune
 ^-^
-^-^ rexEvery rexVal rexClose rexEql rexGuts
+^-^ rexEvery rexClose rexGuts
 ^-^
 ^-^ "`"
 ^-^
