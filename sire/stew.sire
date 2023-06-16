@@ -150,7 +150,7 @@
 
 # datatype Pat
 * PVAR=v k:Key n:Sym
-* PSEQ=s k:Key p:Sym
+* PSEQ=s p:Sym
 * PALI=a n:Sym p:Pat
 * PROW=r x:(Row Pat)
 * PTAB=t x:(Tab Any Pat)
@@ -228,7 +228,7 @@
 = (showPat p)
 # datacase p
 * (PVAR _k v)  | varE v
-* (PSEQ _k v)  | PREF 0 {!} ,(varE v) 0
+* (PSEQ v)     | PREF 0 {!} ,(varE v) 0
 * (PALI x y)   | SHUT 0 {@} (showPat x, showPat y) 0
 * (PROW xs)    | NEST 0 {,} (map showPat xs) 0
 * (PTAB xs)    | showTab showPat xs
@@ -243,11 +243,11 @@
 
 !!= `[x=x y=(!y)]
   | showPat
-  | PTAB [x=(PVAR 0 %x) y=(PSEQ 0 %y)]
+  | PTAB [x=(PVAR 0 %x) y=(PSEQ %y)]
 
 !!= `[x=(UNIT(..)) y=(!y)]
   | showPat
-  | PTAB [x=(POPN %UNIT) y=(PSEQ 0 %y)]
+  | PTAB [x=(POPN %UNIT) y=(PSEQ %y)]
 
 !!= ` x@[a b@[c !d]]
   | showPat
@@ -255,7 +255,7 @@
   | PROW
  ++ PVAR 0 %a
  ++ PALI (PVAR 0 %b)
-      | PROW (PVAR 0 "c", PSEQ 0 "d")
+      | PROW (PVAR 0 "c", PSEQ "d")
 
 > Row Rex > Rex
 = (showSig rexes@[first])
@@ -1009,7 +1009,7 @@
 # datacase pat
 * (POPN _)   | f pat ok
 * (PVAR _ _) | f pat ok
-* (PSEQ _ _) | f pat ok
+* (PSEQ _)   | f pat ok
 * (PALI n p)
     : p <- traversePat f p
     | f (PALI n p) ok

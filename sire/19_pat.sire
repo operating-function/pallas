@@ -103,7 +103,7 @@
 
 ; # datatype Pat
 ; * PVAR=v k:Key n:Sym
-; * PSEQ=s k:Key p:Sym
+; * PSEQ=s p:Sym
 ; * PALI=a n:Sym p:Pat
 ; * PROW=r x:(Row Pat)
 ; * PTAB=t x:(Tab Any Pat)
@@ -153,7 +153,7 @@
 | if (neq (len sons) 1)      | err rex sbBadForm
 | if (neq (rexHeir rex) 0)   | err rex sbBadHeir
 : sym <- readSymbol expr err
-| ok [%s (rexIdnt expr) sym]
+| ok [%s sym]
 
 = rbBadForm | "Row-Patterns must be a row of symbols [x y z]"
 = rbBadHeir | "Row-Patterns may not have an heir"
@@ -274,7 +274,7 @@
  ++ %r
  ++  ++ [%v 0 %x]
      ++ [%v 0 %y]
-     ++ [%s 0 %z]
+     ++ [%s %z]
 
 !!= (parseBinder `(#[=x y=b]) v2 id)
  ++ %t
@@ -342,9 +342,8 @@
         @ var (idx 2 bindSpec)
         | ok nex [key var exp []]::acc
 | if (eql 's' typ)
-        @ key (idx 1 bindSpec)
-        @ var (idx 2 bindSpec)
-        | ok nex [key var exp [var]]::acc
+        @ var (idx 1 bindSpec)
+        | ok nex [0 var exp [var]]::acc
 @ tey nex
 @ tmp (gensym tey)
 @ nex (inc nex)
@@ -417,22 +416,22 @@
     | sequenceBinds 5 [[[%v 4 %y] `x]]
 
 !!=    ++ 5
-       ++ [[4 %y (`x)]]
+       ++ [[0 %y (`x)]]
        ++ ['y']
-    | sequenceBinds 5 [[[%s 4 %y] `x]]
+    | sequenceBinds 5 [[[%s %y] `x]]
 
 !!=    ++ 8
        ++  ++ [5 '_g5'  ``(foo foo)]
            ++ [6 '_g6'  ``(#| $(idx 0) _g5)]
-           ++ [1 %x     ``(#| $(idx 0) _g6)]
+           ++ [0 %x     ``(#| $(idx 0) _g6)]
            ++ [7 '_g7'  ``(#| $(idx 1) _g5)]
-           ++ [2 %y     ``(#| $(idx 0) _g7)]
+           ++ [0 %y     ``(#| $(idx 0) _g7)]
        ++  [%x %y]
     | sequenceBinds 5
     | v1
    ++   | v2 %r
-       ++ [%r [[%s 1 %x]]]
-       ++ [%r [[%s 2 %y]]]
+       ++ [%r [[%s %x]]]
+       ++ [%r [[%s %y]]]
    ++ `(foo foo)
 
 !!=
@@ -584,7 +583,7 @@
 !!= ,[[%v 0 %a] [%v 0 %b] [%v 0 %c]]
         | readBindSig `(a b c) v2 v1
 
-!!= [[[%r [[%v 0 %x] [%s 0 %a]]] [%v 0 %y] [%s 0 %z]]]
+!!= [[[%r [[%v 0 %x] [%s %a]]] [%v 0 %y] [%s %z]]]
         | readBindSig `([x !a] y !z) v2 v1
 
 = symSigExpect | "Expected `x` or signature `(x y z)`"
