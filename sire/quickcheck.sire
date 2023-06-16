@@ -288,25 +288,25 @@ getSize=(sized pureGen)
 # datacase result
 * (OK passed dropped)
    ``
-    | $$(TAPE 0 name 0) SUCCESS
-   ## =passed  $$(WORD 0 showNat-passed 0)
-   ## =dropped $$(WORD 0 showNat-dropped 0)
+    | $$(TAPE name 0) SUCCESS
+   ## =passed  $$(WORD showNat-passed 0)
+   ## =dropped $$(WORD showNat-dropped 0)
 * (FAIL gen size passed dropped failed)
   ``
-   | $$(TAPE 0 name 0) FAILURE
+   | $$(TAPE name 0) FAILURE
    | =parameters
-      ## =seed    $$(WORD 0 showNat-seed 0)
+      ## =seed    $$(WORD showNat-seed 0)
       ## =stdgen  $$(EMBD gen)
-      ## =size    $$(WORD 0 showNat-size 0)
-      ## =passed  $$(WORD 0 showNat-passed 0)
-      ## =dropped $$(WORD 0 showNat-dropped 0)
+      ## =size    $$(WORD showNat-size 0)
+      ## =passed  $$(WORD showNat-passed 0)
+      ## =dropped $$(WORD showNat-dropped 0)
    | {counter example:}
    | $$(EMBD failed)
 * (GAVE_UP passed dropped)
   ``
-   | $$(TAPE 0 name 0) GAVE UP
-  ## =passed  $$(WORD 0 showNat-passed 0)
-  ## =dropped $$(WORD 0 showNat-dropped 0)
+   | $$(TAPE name 0) GAVE UP
+  ## =passed  $$(WORD showNat-passed 0)
+  ## =dropped $$(WORD showNat-dropped 0)
 
 = (qc_exec1 seed name prop [gen shrink] isExpectedResult)
 @ sg        | mkSMGen seed

@@ -328,13 +328,13 @@ hexAlphabet=(b#{0123456789abcdef})
 
 ; Bar > Rex
 = (showBarLit bar)
-^ SHUT 0 "#" _ 0
+^ SHUT "#" _ 0
 | if (barAll isPrint bar)
-   ++ WORD 0 "b" 0
-   ++ CURL 0 (barNat bar) 0
+   ++ WORD "b" 0
+   ++ CURL (barNat bar) 0
 | else
-   ++ WORD 0 "x" 0
-   ++ CURL 0 (barNat | barToHex bar) 0
+   ++ WORD "x" 0
+   ++ CURL (barNat | barToHex bar) 0
 
 !!= (natBar-'asdf')       | readBarLit `(b#asdf) v2 id
 !!= [`(#b)    blTwoKids]  | readBarLit `(#b)     v2 id

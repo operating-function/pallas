@@ -101,16 +101,16 @@
 ; TODO Move this to `17-exp.sire`
 ; TODO Avoid the @ where necessary.
 = (taggedLamE nam tag args body)
-@ idn (SHUT 0 {@} (varE nam, litE tag) 0)
-@ sig (NEST 0 {|} (rowCons idn args) 0)
-| OPEN 0 "#?" [sig] body
+@ idn (SHUT {@} (varE nam, litE tag) 0)
+@ sig (NEST {|} (rowCons idn args) 0)
+| OPEN "#?" [sig] body
 
 !!= (taggedLamE %f 2 [`x `y `z] `x)
   ` #? (f@2 x y z)
      x
 
 = (matchE x wildExp patExps)
-| OPEN 0 "#|"
+| OPEN "#|"
        ++ cnsE switch
        ++ appE (cnsE (idx 0), x)
        ++ wildExp
@@ -172,7 +172,7 @@
     & ([ix var] rest)
     | letE var (idx ix coreArgs) rest
 @ coreBody
-    | OPEN 0 "#|" (cnsE switch, tagArg, cnsE 0)
+    | OPEN "#|" (cnsE switch, tagArg, cnsE 0)
     | bowE branches
 | ok aft
 | letE coreNam
@@ -288,8 +288,8 @@
               = numArgs    | len armArgIdns
               = extraArgs  | sub maxArgs numArgs
           | pure aft
-          | OPEN 0 "#="
-             ++ NEST 0 "|" (rowCons armIdn armArgIdns) 0
+          | OPEN "#="
+             ++ NEST "|" (rowCons armIdn armArgIdns) 0
              ++ | appE
                 | weld (coreIdn, cnsE key)
                 | weld armArgIdns
@@ -310,11 +310,11 @@
         & ([ix var] rest)
         | letE var (idx ix coreSig) rest
     = coreBody
-        | OPEN 0 "#|" (cnsE switch, tagIdn, cnsE 0)
+        | OPEN "#|" (cnsE switch, tagIdn, cnsE 0)
         | bowE branches
 | ok p aft
-| OPEN 0 "#="
-       ++ NEST 0 "|" (rowCons coreIdn coreSig) 0
+| OPEN "#="
+       ++ NEST "|" (rowCons coreIdn coreSig) 0
        ++ bindArms coreBody arms
 | bloodline armDefuns
 

@@ -190,7 +190,7 @@
 @ isKey
     | and (neq 0 k)
     | barAll isAlpha (natBar k)
-| WORD 0 (if isKey k | showNat k) 0
+| WORD (if isKey k | showNat k) 0
 
 !!= `a (showKey %a)
 !!= `5 (showKey 5)
@@ -199,22 +199,22 @@
 > (v > Rex) > Tab Any v > Rex
 = (showTab showVal tab)
 | if (tabIsEmpty tab) `(#[])
-^ NEST 0 {,} (map _ tabToPairs-tab) 0
+^ NEST {,} (map _ tabToPairs-tab) 0
 & [key val]
-| SHUT 0 {=} (showKey key, showVal val) 0
+| SHUT {=} (showKey key, showVal val) 0
 
 = (showCab cab)
-^ PREF 0 "%" [_] 0
-^ NEST 0 "," _ 0
+^ PREF "%" [_] 0
+^ NEST "," _ 0
 | map showKey (cabToRow cab)
 
 > Pat > Rex
 = (showPat p)
 # datacase p
 * (PVAR v)     | varE v
-* (PSEQ v)     | PREF 0 {!} ,(varE v) 0
-* (PALI x y)   | SHUT 0 {@} (showPat x, showPat y) 0
-* (PROW xs)    | NEST 0 {,} (map showPat xs) 0
+* (PSEQ v)     | PREF {!} ,(varE v) 0
+* (PALI x y)   | SHUT {@} (showPat x, showPat y) 0
+* (PROW xs)    | NEST {,} (map showPat xs) 0
 * (PTAB xs)    | showTab showPat xs
 * (POPN n)     | rexSetHeir `(..) (varE n)
 * (PPIN p)     | `` @(PIN $$(showPat p))
@@ -244,7 +244,7 @@
 > Row Rex > Rex
 = (showSig rexes@[first])
 | if (len rexes == 1) first
-| NEST 0 {|} rexes 0
+| NEST {|} rexes 0
 
 > (Exp > Rex) > Bit > StewFun > Rex
 = (showFun showExp pin (FUN self tag args body))
@@ -253,16 +253,16 @@
 @ selfRex  | varE self
 @ argRexes | map showPat args
 | if (isZero tag)
-    | NEST 0 {&}  ,(showSig argRexes)                   | showExp body
+    | NEST {&}  ,(showSig argRexes)                   | showExp body
 | if pin
-    | NEST 0 {??} ,(showSig (rowCons selfRex argRexes)) | showExp body
+    | NEST {??} ,(showSig (rowCons selfRex argRexes)) | showExp body
 | else
-    | NEST 0 {?}  ,(showSig (rowCons selfRex argRexes)) | showExp body
+    | NEST {?}  ,(showSig (rowCons selfRex argRexes)) | showExp body
 
 > Sym > Row Pat > Rex
 = (showCon cn pts)
 | if (null pts) (varE cn)
-^ NEST 0 {|} _ 0
+^ NEST {|} _ 0
 | rowCons (varE cn)
 | map showPat pts
 
@@ -283,10 +283,10 @@
 ? (loop e acc)
 # datacase e
 * (EAPP f x) | loop f (showExp x)::acc
-* _          | NEST 0 {|} (listToRow (showExp e)::acc) 0
+* _          | NEST {|} (listToRow (showExp e)::acc) 0
 
 = (showCase showExp x f cs)
-| NEST 0 {#} (varE 'datacase', showExp x)
+| NEST {#} (varE 'datacase', showExp x)
 | showDatacases showExp f cs
 
 > (Exp > Rex) > Opt Exp > Row ConCase > Rex
@@ -295,15 +295,15 @@
 ? (go arms)
 : [sym pats body] arms <- listCase arms 0
 @ symRex (varE sym)
-^ NEST 0 "*" (_, showExp body) (go arms)
+^ NEST "*" (_, showExp body) (go arms)
 | if (null pats)
     | 'mutrec arm with no arguments'
     | ['impossible!' 'it makes no sense!']
-^ NEST 0 "|" (rowCons symRex _) 0
+^ NEST "|" (rowCons symRex _) 0
 | map showPat pats
 
 = (showMutRec showExp tag body arms)
-| NEST 0 {#}
+| NEST {#}
    ++ varE 'mutrec'
    ++ showExp (ENAT tag)
    ++ showExp body
@@ -314,12 +314,12 @@
 ? (go arms)
 : [key exp] arms
     < listCase arms
-    | NEST 0 "*" (varE "_", showExp wild) 0
-^ NEST 0 "*" _ (go arms)
+    | NEST "*" (varE "_", showExp wild) 0
+^ NEST "*" _ (go arms)
 | (showKey key, showExp exp)
 
 = (showSwitch showExp exp wild arms)
-| NEST 0 {#}
+| NEST {#}
    ++ varE 'switch'
    ++ showExp exp
 | showSwitchArms showExp wild arms
@@ -335,8 +335,8 @@
 ^ rexSplice _ rex
 & val
 # datacase val
-* (LEFT l)  | PREF 0 "$"  [showExp-l] 0
-* (RIGHT r) | PREF 0 "$$" [showExp-r] 0
+* (LEFT l)  | PREF "$"  [showExp-l] 0
+* (RIGHT r) | PREF "$$" [showExp-r] 0
 
 > Chr > Bit
 (okIdnChar c)=(eql '_' c || isAlphaNum c)
@@ -354,13 +354,13 @@
 = (showRef dot str)
 @ bar (natBar str)
 | if (okIdn bar)
-    | WORD 0 str 0
+    | WORD str 0
 | if (not (barIsEmpty bar) && barAll isPrint bar)
-    ^ PREF 0 dot [_] 0
-    | CURL 0 str 0
+    ^ PREF dot [_] 0
+    | CURL str 0
 | else
-    ^ PREF 0 dot [_] 0
-    | WORD 0 (showNat str) 0
+    ^ PREF dot [_] 0
+    | WORD (showNat str) 0
 
 ; TODO: Fix loot printing for {...\{...}.
 ; TODO: Fix vim highlighting for {...\{...}.
@@ -387,30 +387,30 @@
 # datacase exp
 * (EBED x)       | EMBD x
 * (EREF x)       | showRef {.} x
-* (ENAT n)       | WORD 0 showNat-n 0
+* (ENAT n)       | WORD showNat-n 0
 * (EPAD p)       | showPadLit p
 * (EBAR b)       | showBarLit b
 * (ECAB ks)      | showCab ks
-* (EOR x y)      | INFX 0 {||} (showExp x, showExp y) 0
-* (EAND x y)     | INFX 0 {&&} (showExp x, showExp y) 0
+* (EOR x y)      | INFX {||} (showExp x, showExp y) 0
+* (EAND x y)     | INFX {&&} (showExp x, showExp y) 0
 * (EAPP x y)     | niceApp go exp
-* (EKET b v)     | NEST 0 {^} [(go b)] (go v)
-* (ELET n x b)   | NEST 0 {@}  (showPat n, go x) (go b)
-* (EREC n x b)   | NEST 0 {@@} (showPat n, go x) (go b)
+* (EKET b v)     | NEST {^} [(go b)] (go v)
+* (ELET n x b)   | NEST {@}  (showPat n, go x) (go b)
+* (EREC n x b)   | NEST {@@} (showPat n, go x) (go b)
 * (ELAM pin fun) | showFun go pin fun
-* (ELIN x)       | PREF 0 {**} ,(showExp x) 0
-* (EROW xs)      | NEST 0 {,} (map go xs) 0
+* (ELIN x)       | PREF {**} ,(showExp x) 0
+* (EROW xs)      | NEST {,} (map go xs) 0
 * (ETAB xs)      | showTab showExp xs
 * EUNT           | `()
 * (ECAS x f cs)  | showCase go x f cs
 * (EMUT t b as)  | showMutRec go t b as
 * (ESWI e f as)  | showSwitch go e f as
-* (EREX r)       | NEST 0 "`" [r] 0
+* (EREX r)       | NEST "`" [r] 0
 * (EQRX r)       | showQuasiQuotedRex go r
-* (ECON x xs)    | INFX 0 "::" (showExp x, showExp xs) 0
+* (ECON x xs)    | INFX "::" (showExp x, showExp xs) 0
 * ENIL           | `(~[])
-* (EEQL xs)      | INFX 0 "==" (map showExp xs) 0
-* (ENEQ x y)     | INFX 0 "/=" (showExp x, showExp y) 0
+* (EEQL xs)      | INFX "==" (map showExp xs) 0
+* (ENEQ x y)     | INFX "/=" (showExp x, showExp y) 0
 * _              | {showExp: Unknown syntax} exp
 
 
@@ -738,7 +738,7 @@
 @ expected | rexClose rex
 @ out      | readExp rex v2 showExp
 | if (rexEql expected out) 1
-| OPEN 0 '/=' [out] expected
+| OPEN '/=' [out] expected
 
 !! expRound ` x
 !! expRound ` .{||}
@@ -1235,7 +1235,7 @@
 * (ECAS v w as)    | cCas src prp go st v w as ok
 * (ELIN x)
     : st rex < go st x
-    | ok st (NEST 0 "#**" [rex] 0)
+    | ok st (NEST "#**" [rex] 0)
 
 
 """ Compiler Testing """""""""""""""""""""""""""""""""""""""""""""""""""""""""""

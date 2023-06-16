@@ -831,7 +831,7 @@
 | if (strIsSymbol k) (varE k) (txtE k)
 
 = (sogE f rs)
-| (NEST 0 "|" (rowCons (keyE f) (map varE rs)) 0)
+| (NEST "|" (rowCons (keyE f) (map varE rs)) 0)
 
 = (parseDefine rex err ok)
 @ kids            | rexKids rex
@@ -913,14 +913,14 @@
     @ [key sym binds bodRex] def
     : a sig bod <- makeDestroyer a binds bodRex
     , a
-    | OPEN 0 "#=" (natE key, sogE sym sig, bod) acc
+    | OPEN "#=" (natE key, sogE sym sig, bod) acc
 | else
     @ [key bind bodRex] def
     @ [a bSeq] (sequenceBinds a [[bind bodRex]])
     ^ foldr _ [a acc] bSeq
     & ([_ var exp] [a acc])
     , a
-    | OPEN 0 "#=" (natE key, keyE var, exp) acc
+    | OPEN "#=" (natE key, keyE var, exp) acc
 
 = ("=" s p e a r err ok)
 @ defRexes | unrollTis r

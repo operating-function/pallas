@@ -142,9 +142,9 @@ emptyPad=1
 ; TODO: {showPadLit} should use bare-words for non-empty pads.
 
 = (showPadLit pad)
-^ SHUT 0 "#" _ 0
-++ WORD 0 "p" 0
-++ CURL 0 (showPadStr pad) 0
+^ SHUT "#" _ 0
+++ WORD "p" 0
+++ CURL (showPadStr pad) 0
 
 ; Rex > Read Bar
 = (readPadLit rex err ok)

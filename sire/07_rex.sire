@@ -122,18 +122,18 @@ shut=SHUT
 
 = (EMBD valu) | R | embd valu
 
-= (WORD idnt text heir) | R | word idnt text heir
-= (CORD idnt text heir) | R | cord idnt text heir
-= (TAPE idnt text heir) | R | tape idnt text heir
-= (LINE idnt text heir) | R | line idnt text heir
-= (PAGE idnt text heir) | R | page idnt text heir
-= (CURL idnt text heir) | R | brak idnt text heir
+= (WORD text heir) | R | word 0 text heir
+= (CORD text heir) | R | cord 0 text heir
+= (TAPE text heir) | R | tape 0 text heir
+= (LINE text heir) | R | line 0 text heir
+= (PAGE text heir) | R | page 0 text heir
+= (CURL text heir) | R | brak 0 text heir
 
-= (OPEN idnt rune sons heir) | R | open idnt rune sons heir
-= (NEST idnt rune sons heir) | R | nest idnt rune sons heir
-= (INFX idnt rune sons heir) | R | infx idnt rune sons heir
-= (PREF idnt rune sons heir) | R | pref idnt rune sons heir
-= (SHUT idnt rune sons heir) | R | shut idnt rune sons heir
+= (OPEN rune sons heir) | R | open 0 rune sons heir
+= (NEST rune sons heir) | R | nest 0 rune sons heir
+= (INFX rune sons heir) | R | infx 0 rune sons heir
+= (PREF rune sons heir) | R | pref 0 rune sons heir
+= (SHUT rune sons heir) | R | shut 0 rune sons heir
 
 ;;;;;;;;;;
 
@@ -364,7 +364,6 @@ shut=SHUT
 & rex
 | if (neq "OPEN" rexStyle-rex) rex
 | NEST
-    rexIdnt-rex
     rexRune-rex
     rexSons-rex
     rexHeir-rex
@@ -419,26 +418,20 @@ shut=SHUT
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-!!= | OPEN 0 "&" v0 0
-  | OPEN 0 "&" v0 0
+!!= | OPEN "&" v0 0
+  | OPEN "&" v0 0
 
-!!= | OPEN 0 "*" v0 0
+!!= | OPEN "*" v0 0
   | rexSetRune "*"
-  | OPEN 0 "-" v0 0
+  | OPEN "-" v0 0
 
-!!= | OPEN 5 "-" v0 0
-  | rexSetIdnt 5 | OPEN 0 "-" v0 0
-
-!!= | CORD 9 "hi" | CORD 5 "bye" 0
-  | rexSetIdnt 9 | CORD 4 "hi" | CORD 5 "bye" 0
-
-wx=(WORD 2 "x" 0)
-w9=(WORD 3 "9" 0)
-hi=(TAPE 0 "hi" 0)
-yo=(CORD 0 "yo" 0)
-rw=(NEST 0 "," v0 0)
+wx=(WORD "x" 0)
+w9=(WORD "9" 0)
+hi=(TAPE "hi" 0)
+yo=(CORD "yo" 0)
+rw=(NEST "," v0 0)
 e6=(EMBD 6)
-sx=(OPEN 1 "=" (v2 wx w9) 0)
+sx=(OPEN "=" (v2 wx w9) 0)
 
 !!= 0 (rexIsNode hi)
 !!= 0 (rexIsNode yo)
@@ -455,10 +448,10 @@ sx=(OPEN 1 "=" (v2 wx w9) 0)
 !!= 0 (rexIsEmbd sx)
 !!= 0 (rexIsEmbd sx)
 
-(w x)=(WORD 0 x 0)
+(w x)=(WORD x 0)
 
-= (nestAnd rune sons heir) | NEST 0 rune sons heir
-= (nestNod rune sons)      | NEST 0 rune sons 0
+= (nestAnd rune sons heir) | NEST rune sons heir
+= (nestNod rune sons)      | NEST rune sons 0
 
 
 !!= 1 | rexEql `3        | (w "3")
@@ -467,13 +460,13 @@ sx=(OPEN 1 "=" (v2 wx w9) 0)
                          | nestNod "," (v1 (w "b"))
 !!= 1
   | rexEql
-      | NEST 1 "*" (v2 (WORD 2 "hi" 0) (WORD 3 "yo" 0))
-      | WORD 4 ""
-      | WORD 8 "heh"
+      | NEST "*" (v2 (WORD "hi" 0) (WORD "yo" 0))
+      | WORD ""
+      | WORD "heh"
       | 0
-  | NEST 2 "*" (v2 (WORD 3 "hi" 0) (WORD 3 "yo" 0))
-  | WORD 5 ""
-  | WORD 9 "heh"
+  | NEST "*" (v2 (WORD "hi" 0) (WORD "yo" 0))
+  | WORD ""
+  | WORD "heh"
   | 0
 
 !!= "NEST" | rexStyle ` []
@@ -496,7 +489,6 @@ sx=(OPEN 1 "=" (v2 wx w9) 0)
 ^-^ rexIsNode rexIsLeaf rexIsEmbd
 ^-^
 ^-^ rexConstr
-^-^ rexIdnt rexSetIdnt
 ^-^ rexRune rexSetRune
 ^-^ rexHeir rexSetHeir
 ^-^ rexText rexSetText

@@ -71,10 +71,10 @@ dataTag=_DataTag
 !!= 'mkTreeConfig' | constrToCamel %mk 'TREE_CONFIG'
 
 = (defC sig bodyExp)
-| OPEN 0 "#=" (sigE sig, bodyExp) 0
+| OPEN "#=" (sigE sig, bodyExp) 0
 
 = (defKC key sig bodyExp)
-| OPEN 0 "#=" (natE key, sigE sig, bodyExp) 0
+| OPEN "#=" (natE key, sigE sig, bodyExp) 0
 
 > (Nat, Str) > Cmd
 = (mkGetterC pair)
@@ -615,7 +615,7 @@ ex=(PAIR %a %b)
       | continue aft (tag, bindSeqE bSeq body deps)
 @ tagExp (appE (cnsE fun, tmpExp))
 @ result
-    | OPEN 0 '#@' [tmpExp valExp]
+    | OPEN '#@' [tmpExp valExp]
     | switchE tagExp fallback
     | tabFromPairs
     | pairs

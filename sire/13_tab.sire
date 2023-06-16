@@ -390,7 +390,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 & (keyRex newKey)
 @ valRex
     | if (eql 1 nSons) keyRex
-    | OPEN 0 "|" moreSons 0
+    | OPEN "|" moreSons 0
 | readVal valRex err
 & newVal
 | if (_TabHas newKey acc)

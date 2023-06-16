@@ -369,7 +369,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 @ sons (rexSons rex)
 @ itemRex
     | if (eql 1 | len sons) (idx 0 sons)
-    | OPEN 0 {|} sons 0
+    | OPEN {|} sons 0
 | if (null sons)
     | err (rexSetHeir 0 rex) "Expected non-empty line"
 : item < readItem itemRex err
@@ -449,7 +449,7 @@ quasiExpected={Expected something like: ``rex}
     | err rex quasiExpected
 | readQuasiTree readVal readExp tree err ok
 
-four=(WORD 0 {4} 0)
+four=(WORD {4} 0)
 
 ; {splicedE} takes a rex whose embded values represent splices.
 ; Each splice is either a expression that should be interpreted as
@@ -492,10 +492,10 @@ four=(WORD 0 {4} 0)
 : quoted < readQuasiQuotedRex readVal readExp r err
 | ok p a (splicedE quoted)
 
-four=(WORD 0 {4} 0)
+four=(WORD {4} 0)
 
 !!= `(3 4 5) | ``(3 4 5)
-!!= `(3 4 5) | ``($$(WORD 0 {3} 0) 4 5)
+!!= `(3 4 5) | ``($$(WORD {3} 0) 4 5)
 
 !!= ``(3 $$(cnsE four) 5)
      ``(3 $four 5)
@@ -591,7 +591,7 @@ four=(WORD 0 {4} 0)
 | if (isZero exps) `(#*)
 | bloodline
 ^ listMap _ exps
-& exp (OPEN 0 {#!!=} (natE 1, exp) 0)
+& exp (OPEN {#!!=} (natE 1, exp) 0)
 
 !!=   | assertE
      ~~ `(eql 3 (add 1 2))

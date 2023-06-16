@@ -15,10 +15,10 @@
 ; TODO: Move these into 14_exp (or wherever).
 
 = (defC sig bodyExp)
-| OPEN 0 "#=" (sigE sig, bodyExp) 0
+| OPEN "#=" (sigE sig, bodyExp) 0
 
 = (defKC key sig bodyExp)
-| OPEN 0 "#=" (natE key, sigE sig, bodyExp) 0
+| OPEN "#=" (natE key, sigE sig, bodyExp) 0
 
 
 """ Type Values """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -260,7 +260,7 @@ abstype#TyExp
 | if (eql con pentKey)
     @ [p q r s t] kids | ``($$p , $$q , $$r , $$s , $$t)
 | else
-    ^ NEST 0 "|" _ 0
+    ^ NEST "|" _ 0
     | rowCons (varE nam) kids
 
 = (showType p scheme@[arity x])
@@ -287,7 +287,7 @@ abstype#TyExp
 : symbol key scheme
     < readDefinedSymbol s e (idx 1 kids) err
 | trk
-    | OPEN 0 "=" [(varE symbol)]
+    | OPEN "=" [(varE symbol)]
     | showType p scheme
 | ok p a `(#*)
 
@@ -493,7 +493,7 @@ abstype#TyExp
     @ sons | take lastSonIx sons
     | if (any isTypeAnn sons)
         | err rex "bad annotation (don't be weird)"
-    @ iRex | if (len sons == 1) (idx 0 sons) (NEST 0 "|" sons 0)
+    @ iRex | if (len sons == 1) (idx 0 sons) (NEST "|" sons 0)
     : item < parseType_ parseTypeAnnotation spe iRex err
     @ acc  | item::acc
     : acc  < loop TRUE acc lastSon
@@ -502,7 +502,7 @@ abstype#TyExp
 @ sons (rexSons rex)
 | if (any isTypeAnn sons)
     | err rex "bad annotation (don't be weird)"
-@ iRex | if (len sons == 1) (idx 0 sons) (NEST 0 "|" sons 0)
+@ iRex | if (len sons == 1) (idx 0 sons) (NEST "|" sons 0)
 : item < parseType_ parseTypeAnnotation spe iRex err
 @ acc | item::acc
 | loop fancy acc heir ret
@@ -643,7 +643,7 @@ printType#Fun
 @ scheme | getProperty vlKey 'type' p
 | if (isZero vlKey)  | 'undefined' symbol
 | if (isZero scheme) | 'untyped' symbol
-| trk (NEST 0 "\" [(varE symbol)] | showType p scheme)
+| trk (NEST "\" [(varE symbol)] | showType p scheme)
 | ok p a `(#*)
 
 

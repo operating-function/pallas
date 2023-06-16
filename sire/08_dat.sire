@@ -101,20 +101,20 @@
 = (appE exps)
 | if (eql 1 (len exps))
     | idx 0 exps
-| NEST 0 "#|" exps 0
+| NEST "#|" exps 0
 
 ; Same as `appE` but formatted in open mode.
 = (bopE exps)
 | if (eql 1 (len exps))
     | idx 0 exps
-| OPEN 0 "#|" exps 0
+| OPEN "#|" exps 0
 
 ; Same as `appE` but formatted in open mode with last argument as heir.
 = (bapE exps)
 @ siz (len exps)
 @ las (dec siz)
 | if (eql 1 siz) (idx 0 exps)
-| OPEN 0 "#|" (take las exps) (idx las exps)
+| OPEN "#|" (take las exps) (idx las exps)
 
 = (rowE exps)
 @ widt (len exps)
@@ -710,7 +710,7 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
     | err rex openRowExpect
 @ itemRex
     | if (eql 1 | len sons) (idx 0 sons)
-    | OPEN 0 "|" sons 0
+    | OPEN "|" sons 0
 | readExp itemRex err
 & exp
 @ acc (CONS exp acc)

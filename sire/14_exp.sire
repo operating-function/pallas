@@ -130,25 +130,25 @@
 
 """ Expresssions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (natE n)        | WORD 0 (showNat n) 0
-= (varE v)        | WORD 0 v 0
+= (natE n)        | WORD (showNat n) 0
+= (varE v)        | WORD v 0
 = (cnsE v)        | EMBD v
-= (barE xs)       | NEST 0 "#|" xs 0
-= (letE i x b)    | OPEN 0 "#@"  [varE-i    x] b
-= (recE i x b)    | OPEN 0 "#@@" [varE-i    x] b
-= (txtE t)        | CORD 0 t 0
+= (barE xs)       | NEST "#|" xs 0
+= (letE i x b)    | OPEN "#@"  [varE-i    x] b
+= (recE i x b)    | OPEN "#@@" [varE-i    x] b
+= (txtE t)        | CORD t 0
 = (gensym n)      | strWeld "_g" showNat-n
 = (gensymNm s n)  | strCat ["_" s showNat-n]
 = (gensymE n)     | varE (gensym n)
-= (sigE r)        | if (eql 1 len-r) varE-(idx 0 r) (NEST 0 "|" (map varE r) 0)
-= (lamE rs b)     | OPEN 0 "#&"  [(sigE rs)] b
-= (wutE rs b)     | OPEN 0 "#?"  [(sigE rs)] b
-= (wutWutE rs b)  | OPEN 0 "#??" [(sigE rs)] b
+= (sigE r)        | if (eql 1 len-r) varE-(idx 0 r) (NEST "|" (map varE r) 0)
+= (lamE rs b)     | OPEN "#&"  [(sigE rs)] b
+= (wutE rs b)     | OPEN "#?"  [(sigE rs)] b
+= (wutWutE rs b)  | OPEN "#??" [(sigE rs)] b
 
 = (inlinedLamE f rs b)
-^ OPEN 0 "#?" [_] b
-^ NEST 0 "|" (rowCons _ | map varE rs) 0
-| PREF 0 "**" [(varE f)] 0
+^ OPEN "#?" [_] b
+^ NEST "|" (rowCons _ | map varE rs) 0
+| PREF "**" [(varE f)] 0
 
 
 """ Bloodlines """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
