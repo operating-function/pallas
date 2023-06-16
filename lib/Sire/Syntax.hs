@@ -45,36 +45,13 @@ type Red = ReadT Fan IO
 
 -- Parsing ---------------------------------------------------------------------
 
-impartIdentity :: GRex a -> State Nat (GRex a)
-impartIdentity = go
-  where
-    key :: State Nat Nat
-    key = do
-        !nex <- get
-        traceM (show nex)
-        put $! (nex+1)
-        pure nex
-
-    tgo :: Traversable t => t (GRex a) -> State Nat (t (GRex a))
-    tgo x = traverse go x
-
-    go = \case
-        C c          -> pure (C c)
-        T _ ty t h   -> T <$> key <*> pure ty <*> pure t <*> tgo h
-        N _ ty r s h -> N <$> key <*> pure ty <*> pure r <*> tgo s <*> tgo h
-
 rexCmd :: (RexColor, HasMacroEnv) => Rex -> IO (Either Text XCmd)
 rexCmd rex = do
-    nex <- readIORef ((?macEnv).attrNext)
-    let (rex', nex') = runState (preProcess rex) nex
-    writeIORef ((?macEnv).attrNext) nex'
     pure $ Loot.resultEitherText dropEmbed rex
          $ runReading readCmd
          $ fmap absurd
-         $ rex'
+         $ rewriteMultiLineString rex
   where
-    preProcess = impartIdentity . rewriteMultiLineString
-
     -- This is a dumb hack.  How to do for real?
     dropEmbed :: GRex Fan -> Rex
     dropEmbed = \case
