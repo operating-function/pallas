@@ -154,17 +154,6 @@
 ^ NEST 0 "|" (rowCons _ | map varE rs) 0
 | PREF 0 "**" [(varE f)] 0
 
-= (sigKE k r)
-| if (eql 1 len-r)
-  | varKE-k-(idx 0 r)
-@ kids
-  | rowCons varKE-k-(idx 0 r)
-  | map varE (drop 1 r)
-| NEST 0 "|" kids 0
-
-!!= `(a b c) | sigE [%a %b %c]
-!!= `a       | sigE [%a]
-
 
 """ Bloodlines """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -342,7 +331,7 @@ symTodo='todo: support .foo and .234'
 ^-^
 ^-^ isSymbolChar strIsSymbol rexIsSymbol readSymbol
 ^-^ natE litE varE varKE cnsE barE letE letKE recE recKE
-^-^ sigKE sigE lamE wutE wutWutE
+^-^ sigE lamE wutE wutWutE
 ^-^ inlinedLamE
 ^-^ txtE txtKE appE
 ^-^

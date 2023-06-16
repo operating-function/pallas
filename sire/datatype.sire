@@ -71,10 +71,10 @@ dataTag=_DataTag
 !!= 'mkTreeConfig' | constrToCamel %mk 'TREE_CONFIG'
 
 = (defC sig bodyExp)
-| OPEN 0 "=" (sigE sig, bodyExp) 0
+| OPEN 0 "#=" (sigE sig, bodyExp) 0
 
 = (defKC key sig bodyExp)
-| OPEN 0 "=" (sigKE key sig, bodyExp) 0
+| OPEN 0 "#=" (natE key, sigE sig, bodyExp) 0
 
 > (Nat, Str) > Cmd
 = (mkGetterC pair)
