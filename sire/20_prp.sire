@@ -63,13 +63,6 @@
   | 0
 
 
-""" Convenience Wrappers to use Rex nodes as keys """"""""""""""""""""""""""""""
-
-(rexHasProp rex pro tab)=(hasProperty (rexIdnt rex) pro tab)
-(rexGetProp rex pro tab)=(getProperty (rexIdnt rex) pro tab)
-(rexSetProp rex pro val tab)=(setProperty (rexIdnt rex) pro val tab)
-
-
 """ Convenience Macros to Query properties of bindings. """"""""""""""""""""""""
 
 = ('#getKey' s p e a r err ok)
@@ -144,8 +137,6 @@ why=4
 ^-^ hasProperty getProperty setProperty
 ^-^
 ^-^ {#getKey} {#hasProp} {#getProp} {#setProp}
-^-^
-^-^ rexHasProp rexGetProp rexSetProp
 ^-^
 ^-^ {#getAllProps} {#getAllSources}
 ^-^
