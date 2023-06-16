@@ -47,7 +47,6 @@
 /+  07_rex  [rexGetNodeWithRune]
 /+  07_rex  [rexSetRune rexSetSons rexSetHeir]
 /+  07_rex  [NEST OPEN WORD]
-/+  07_rex  [rexIdnt]
 /+  08_dat
 /+  09_sci  []
 /+  10_chr  []
@@ -842,8 +841,7 @@
     | err rex "Expected two kids"
 | if (eql "|" sigRune)
     : sym binds < readDestroyer sigRex err
-    @ key       | rexIdnt (idx 0 | rexKids sigRex)
-    | ok (key, sym, binds, bodRex)
+    | ok (0, sym, binds, bodRex)
 | else
     : bind <- parseBinder sigRex err
     | ok (bind, bodRex)
@@ -892,17 +890,17 @@
 ^ listFoldr _ (a, 0) defBinds
 & (def [a acc])
 | if (len def == 4)
-    @ [key sym binds bodRex] def
+    @ [_ sym binds bodRex] def
     : a sig bod <- makeDestroyer a binds bodRex
     , a
-    | OPEN 0 "#=" (natE key, sogE sym sig, bod) acc
+    | OPEN 0 "#=" (sogE sym sig, bod) acc
 | else
     @ [bind bodRex] def
     @ [a bSeq] (sequenceBinds a [[bind bodRex]])
     ^ foldr _ [a acc] bSeq
-    & ([key var exp] [a acc])
+    & ([_ var exp] [a acc])
     , a
-    | OPEN 0 "#=" (natE key, keyE var, exp) acc
+    | OPEN 0 "#=" (keyE var, exp) acc
 
 = ("=" s p e a r err ok)
 @ defRexes | unrollTis r
