@@ -343,27 +343,26 @@
 | if (eql 's' typ)
         @ var (idx 1 bindSpec)
         | ok nex [0 var exp [var]]::acc
-@ tey nex
-@ tmp (gensym tey)
+@ tmp (gensym nex)
 @ nex (inc nex)
 | if (eql 'a' typ)
-        @ acc [tey tmp exp []]::acc
+        @ acc [0 tmp exp []]::acc
         : nex acc <- go (varE tmp) (idx 1 bindSpec) nex acc
         : nex acc <- go (varE tmp) (idx 2 bindSpec) nex acc
         | ok nex acc
 | if (eql 'pin' typ)
-        @ acc [tey tmp exp []]::acc
+        @ acc [0 tmp exp []]::acc
         @ exp (appE (cnsE pinItem, varE tmp))
         : nex acc <- go exp (idx 1 bindSpec) nex acc
         | ok nex acc
 | if (eql 'law' typ)
-        @ acc [tey tmp exp []]::acc
+        @ acc [0 tmp exp []]::acc
         : nex acc <- go appE|(cnsE lawName, varE tmp) (idx 1 bindSpec) nex acc
         : nex acc <- go appE|(cnsE lawArgs, varE tmp) (idx 2 bindSpec) nex acc
         : nex acc <- go appE|(cnsE lawBody, varE tmp) (idx 3 bindSpec) nex acc
         | ok nex acc
 @ dat (idx 1 bindSpec)
-@ acc [tey tmp exp []]::acc
+@ acc [0 tmp exp []]::acc
 @ res
         | if (eql 't' typ)
                 ^ foldl _ [nex acc] (tabToPairs dat)
@@ -420,10 +419,10 @@
     | sequenceBinds 5 [[[%s %y] `x]]
 
 !!=    ++ 8
-       ++  ++ [5 '_g5'  ``(foo foo)]
-           ++ [6 '_g6'  ``(#| $(idx 0) _g5)]
+       ++  ++ [0 '_g5'  ``(foo foo)]
+           ++ [0 '_g6'  ``(#| $(idx 0) _g5)]
            ++ [0 %x     ``(#| $(idx 0) _g6)]
-           ++ [7 '_g7'  ``(#| $(idx 1) _g5)]
+           ++ [0 '_g7'  ``(#| $(idx 1) _g5)]
            ++ [0 %y     ``(#| $(idx 0) _g7)]
        ++  [%x %y]
     | sequenceBinds 5
@@ -435,10 +434,10 @@
 
 !!=
        ++ 8
-       ++  ++ [5 '_g5'  ``(foo foo)]
-           ++ [6 '_g6'  ``(#| $(idx 0) _g5)]
+       ++  ++ [0 '_g5'  ``(foo foo)]
+           ++ [0 '_g6'  ``(#| $(idx 0) _g5)]
            ++ [0 %x     ``(#| $(tabIdx 'x') _g6)]
-           ++ [7 '_g7'  ``(#| $(idx 1) _g5)]
+           ++ [0 '_g7'  ``(#| $(idx 1) _g5)]
            ++ [0 %y     ``(#| $(idx 0) _g7)]
        ++ []
     | sequenceBinds 5
