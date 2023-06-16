@@ -185,25 +185,47 @@ readCmdSeq = do
     cmds <- formNc readCmd
     pure cmds
 
+gensym :: (HasMacroEnv, MonadIO m) => m Nat
+gensym = do
+    res <- readIORef (?macEnv).attrNext
+    writeIORef (?macEnv).attrNext (res+1)
+    pure res
+
+itemized :: Red a -> Red [a]
+itemized readItem = do
+    readRex >>= \case
+        N k s ryn ss (Just heir@(N _ _ subRyn _ _)) | ryn==subRyn -> do
+            item <- readThis readItem (N k s ryn ss Nothing)
+            rest <- readThis (itemized readItem) heir
+            pure (item : rest)
+        _ -> do
+            singleton <$> readItem
+
 readDefine :: (RexColor, HasMacroEnv) => Red [Bind Symb Symb]
 readDefine = do
     rune "#=" <|> rune "="
-    (((i,t),args), f, andThen) <- go
-    let nm = xtagIdn t
-        ky = xtagKey t
-        tg = xtagTag t
-        res = case args of
+    itemized go
+  where
+    go = do
+        (mKey, ((i,t),args), f) <- asum
+            [ form2c b x   >>= \(bv, xv)     -> pure (Nothing, bv, xv)
+            , form3c k b x >>= \(kv, bv, xv) -> pure (Just kv, bv, xv)
+            ]
+
+        let nm = xtagIdn t
+            tg = xtagTag t
+
+        ky <- case mKey of
+                 Just key -> pure key
+                 Nothing  -> do
+                     let ky = xtagKey t -- Remove once macros updated
+                     if ky > 0 then pure ky else gensym
+
+        pure case args of
                 []   -> BIND ky nm f
                 r:rs -> BIND ky nm $ ELAM True $ FUN i nm (LN tg) (r:rs) f
-    pure (res : andThen)
-  where
-    go = asum
-           [ form2C b x c >>= \(bv, xv, cv) -> pure (bv ,xv, cv)
-           , form1C b x   >>= \(bv, xv)     -> pure (bv, xv, [])
-           , form2  b x   >>= \(bv, xv)     -> pure (bv, xv, [])
-           ]
 
-    (b, x, c) = (simple <|> complex, readExpr, readDefine)
+    (k, b, x) = (Loot.readKey, simple <|> complex, readExpr)
 
     simple = withIdent Loot.readBymb <&> \a  ->
                 ((False, Loot.simpleTag a), [])

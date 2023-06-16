@@ -13,6 +13,7 @@ module Rex.ReadT
     , ReadT(..)
     , Reading
     , doRead
+    , readThis
     , matchLeaf, leaf, matchName, matchCord, matchPage
     , matchLeafCont, matchNameCord, matchNameText
     , formMatch, formMatchNoCont, formMatchCont, formMatchEither
@@ -106,6 +107,9 @@ type Reading z = ReadT z Identity
 
 doRead :: Reading z a -> GRex z -> Result z a
 doRead (READT act) = runIdentity . runResultT . act
+
+readThis :: ReadT z m a -> GRex z -> ReadT z m a
+readThis reader rex = READT $ const $ runReadT reader rex
 
 instance MonadIO m => MonadIO (ReadT z m) where
     liftIO a = READT (\_ -> REST $ fmap Success $ liftIO a)
