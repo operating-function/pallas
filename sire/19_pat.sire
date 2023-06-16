@@ -298,10 +298,10 @@
      ++  ++ [%t #[x=[%v 0 'x']]]
          ++ [%r [[%v 0 'y']]]
 
-!!= (parseBinder ``[$$(varKE 1 %x) $$(varKE 2 %y)] v2 id)
+!!= (parseBinder ``[x y] v2 id)
  ++ %r
- ++  ++ [%v 1 %x]
-     ++ [%v 2 %y]
+ ++  ++ [%v 0 %x]
+     ++ [%v 0 %y]
 
 
 """ Sequence Binds """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -837,12 +837,6 @@
 = (sogE f rs)
 | (NEST 0 "|" (rowCons (keyE f) (map varE rs)) 0)
 
-= (keyKE i k)
-| if (strIsSymbol k) (varKE i k) (txtKE i k)
-
-= (sogKE k f rs)
-| (NEST 0 "|" (rowCons (keyKE k f) (map varE rs)) 0)
-
 = (parseDefine rex err ok)
 @ kids            | rexKids rex
 @ [sigRex bodRex] | kids
@@ -904,14 +898,14 @@
     @ [key sym binds bodRex] def
     : a sig bod <- makeDestroyer a binds bodRex
     , a
-    | OPEN 0 "#=" (sogKE key sym sig, bod) acc
+    | OPEN 0 "#=" (natE key, sogE sym sig, bod) acc
 | else
     @ [bind bodRex] def
     @ [a bSeq] (sequenceBinds a [[bind bodRex]])
     ^ foldr _ [a acc] bSeq
     & ([key var exp] [a acc])
     , a
-    | OPEN 0 "#=" (keyKE key var, exp) acc
+    | OPEN 0 "#=" (natE key, keyE var, exp) acc
 
 = ("=" s p e a r err ok)
 @ defRexes | unrollTis r

@@ -247,7 +247,7 @@
 : aft sigExpPairs     < genCoreBody arms aft
 : coreName            < readSymbol coreSymbol err
 @
-    = coreIdn | varKE (rexIdnt coreSymbol) coreName
+    = coreIdn | varE coreName
     = tagKey  | aft
     = tagNam  | gensymNm "tag" tagKey
     = tagIdn  | varE tagNam

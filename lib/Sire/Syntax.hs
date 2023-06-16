@@ -215,11 +215,10 @@ readDefine = do
         let nm = xtagIdn t
             tg = xtagTag t
 
-        ky <- case mKey of
-                 Just key -> pure key
-                 Nothing  -> do
-                     let ky = xtagKey t -- Remove once macros updated
-                     if ky > 0 then pure ky else gensym
+        -- Remove (xtagKey t) nonsense once macros updated
+        ky <- do
+            let ky = fromMaybe (xtagKey t) mKey
+            if ky>0 then pure ky else gensym
 
         pure case args of
                 []   -> BIND ky nm f

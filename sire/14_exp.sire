@@ -132,15 +132,11 @@
 
 = (natE n)        | WORD 0 (showNat n) 0
 = (varE v)        | WORD 0 v 0
-= (varKE i v)     | WORD i v 0
 = (cnsE v)        | EMBD v
 = (barE xs)       | NEST 0 "#|" xs 0
-= (letKE k i x b) | OPEN 0 "#@"  [varKE-k-i x] b
 = (letE i x b)    | OPEN 0 "#@"  [varE-i    x] b
 = (recE i x b)    | OPEN 0 "#@@" [varE-i    x] b
-= (recKE k i x b) | OPEN 0 "#@@" [varE-k-i  x] b
 = (txtE t)        | CORD 0 t 0
-= (txtKE k t)     | CORD k t 0
 = (gensym n)      | strWeld "_g" showNat-n
 = (gensymNm s n)  | strCat ["_" s showNat-n]
 = (gensymE n)     | varE (gensym n)
@@ -330,10 +326,10 @@ symTodo='todo: support .foo and .234'
 ^-^ readNodeWithoutHeirButWithRune
 ^-^
 ^-^ isSymbolChar strIsSymbol rexIsSymbol readSymbol
-^-^ natE litE varE varKE cnsE barE letE letKE recE recKE
+^-^ natE litE varE cnsE barE letE recE
 ^-^ sigE lamE wutE wutWutE
 ^-^ inlinedLamE
-^-^ txtE txtKE appE
+^-^ txtE appE
 ^-^
 ^-^ bloodline
 ^-^
