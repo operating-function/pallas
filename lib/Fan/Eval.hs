@@ -346,7 +346,7 @@ lawName = \case
     BAR{} -> 1
     ROW{} -> 0
     TAb{} -> 0
-    CAB{} -> 0
+    CAB{} -> 1
     COw{} -> 0
     REX{} -> 82
 
@@ -432,7 +432,7 @@ boom = \case
         )
 
     CAB ks ->
-        rul (LN 0) 1 (ROW $ fromList $ S.toAscList ks)
+        rul (LN 1) 2 (ROW $ fromList $ S.toAscList ks)
 
     REX rex ->
         rul (LN rTag) 3
@@ -616,7 +616,7 @@ trueArity :: Fan -> Nat
 trueArity = \case
     COw 0          -> error "Should be jet matched as V0"
     COw n          -> succ $ fromIntegral n
-    CAB n          -> succ $ fromIntegral (length n)
+    CAB{}          -> 2
     KLO _ xs       -> trueArity (xs^0) - fromIntegral (sizeofSmallArray xs - 1)
     FUN l          -> l.args
     NAT n          -> natArity n
@@ -1162,7 +1162,7 @@ wut p l a n = \case
 
     wutCab k =
         app4 l (NAT 1) (NAT 2)
-          (ROW $ fromList $ S.toAscList k)
+          (ROW $ V.fromListN (length k) $ S.toAscList k)
 
 {-
     PIN p -> rul (LN 0) args (pinBody args p.item)

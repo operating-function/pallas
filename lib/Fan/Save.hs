@@ -421,7 +421,7 @@ saveFanWorker !ctx !vPins !vTemp !top = do
     --
     -- Example Shape:
     --
-    --     %[y x] = (0 0 3 (0 0 3 0 y x))
+    --     %[y x] = (0 1 2 (0 0 3 0 y x))
     --
     -- Example Insertion Order:
     --
@@ -526,7 +526,7 @@ saveFanWorker !ctx !vPins !vTemp !top = do
 
         --  #[3=4 5=6] = (%[3 5] [4 6])
         TAb tab -> do
-            ks <- doCab (length tab) (M.keys tab)
+            ks <- doCab (length tab) (fst <$> M.toDescList tab)
             vs <- loop (tabValsRow tab)
             kv <- Jelly.c_cons ctx ks vs
             pure kv
