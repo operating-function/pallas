@@ -373,7 +373,7 @@ lawBody = \case
     FUN l -> l.body
     BAR b -> NAT (barBody b)
     CAB k -> cabToRow k
-    REX r -> (0 %% (0 %% (0 %% rexNoun r %% 1) %% 2) %% 3)
+    REX r -> rexNoun r
     COw{} -> NAT 0 -- Actual law body is 0
     ROW{} -> NAT 0 -- Actual law body is 0
     TAb{} -> NAT 0 -- Not a law
@@ -435,12 +435,9 @@ boom = \case
         rul (LN 1) 2 (ROW $ fromList $ S.toAscList ks)
 
     REX rex ->
-        rul (LN rTag) 3
-            (0 %% (0 %% (0 %% rexNoun rex %% 1) %% 2) %% 3)
+        rul (LN "_Rex") 1 (rexNoun rex)
 
   where
-    rTag = bytesNat (encodeUtf8 "R")
-
     rul :: LawName -> Nat -> Fan -> (Fan, Fan)
     rul (LN n) a b =
         ( KLO 1 (a3 (NAT 0) (NAT n) (NAT a))
@@ -449,77 +446,37 @@ boom = \case
 
 rexNoun :: GRex Fan -> Fan
 rexNoun = \case
-    Rex.C val ->
-        rexEMBD %% val
+    Rex.C val -> ROW (singleton val)
 
     Rex.T style text heir ->
-        textStyleConstr style
-            %% NAT 0
-            %% NAT (bytesNat $ encodeUtf8 text)
-            %% goHeir heir
+        (ROW . V.fromListN 3)
+        [ textStyleConstr style
+        , NAT (bytesNat $ encodeUtf8 text)
+        , maybe 0 REX heir
+        ]
 
     Rex.N style ryne sons heir ->
-        nodeStyleConstr style
-            %% NAT 0
-            %% NAT (bytesNat $ encodeUtf8 ryne)
-            %% ROW (fromList (REX <$> sons))
-            %% goHeir heir
-
+        (ROW . V.fromListN 4)
+        [ nodeStyleConstr style
+        , NAT (bytesNat $ encodeUtf8 ryne)
+        , ROW (fromList (REX <$> sons))
+        , maybe 0 REX heir
+        ]
   where
-
-    goHeir = maybe 0 REX
-
     nodeStyleConstr = \case
-        Rex.OPEN        -> rexOPEN
-        Rex.NEST_PREFIX -> rexNEST
-        Rex.NEST_INFIX  -> rexINFX
-        Rex.SHUT_PREFIX -> rexPREF
-        Rex.SHUT_INFIX  -> rexSHUT
+        Rex.OPEN        -> NAT "OPEN"
+        Rex.NEST_PREFIX -> NAT "NEST"
+        Rex.NEST_INFIX  -> NAT "INFX"
+        Rex.SHUT_PREFIX -> NAT "PREF"
+        Rex.SHUT_INFIX  -> NAT "SHUT"
 
     textStyleConstr = \case
-        Rex.BARE_WORD -> rexWORD
-        Rex.THIN_CORD -> rexCORD
-        Rex.THIC_CORD -> rexTAPE
-        Rex.THIN_LINE -> rexLINE
-        Rex.THIC_LINE -> rexPAGE
-        Rex.CURL_CORD -> rexCURL
-
-    rexWORD,rexCORD,rexTAPE,rexLINE,rexPAGE,rexCURL :: Fan
-    rexWORD = rexText "WORD"
-    rexCORD = rexText "CORD"
-    rexTAPE = rexText "TAPE"
-    rexLINE = rexText "LINE"
-    rexPAGE = rexText "PAGE"
-    rexCURL = rexText "CURL"
-
-    rexOPEN,rexNEST,rexINFX,rexPREF,rexSHUT :: Fan
-    rexOPEN = rexNode "OPEN"
-    rexNEST = rexNode "NEST"
-    rexINFX = rexNode "INFX"
-    rexPREF = rexNode "PREF"
-    rexSHUT = rexNode "SHUT"
-
-    -- WORD=(EMBD valu e l n ? e EMBD value)
-    -- WORD=((0 "EMBD" 4) (0 (0 2 0) 1))
-    rexEMBD =
-       mkLaw "EMBD" 4 rexEmbdBody
-
-    -- WORD=(WORD key text heir e l n ? l WORD key text heir)
-    -- WORD=((0 "WORD" 6) (0 (0 (0 (0 5 0) 1) 2) 3)
-    rexText :: LawName -> Fan
-    rexText tag =
-        mkLaw tag 6 rexLeafBody
-
-    -- OPEN=(OPEN key rune sons heir e l n ? n OPEN key rune sons heir)
-    -- OPEN=((0 "OPEN" 7) (((((7 0) 1) 2) 3) 4))
-    rexNode :: LawName -> Fan
-    rexNode tag =
-        mkLaw tag 7 rexNodeBody
-
-rexEmbdBody, rexLeafBody, rexNodeBody :: Fan
-rexEmbdBody = normalize (0 %% (0 %% 2 %% 0) %% 1)
-rexLeafBody = normalize (0 %% (0 %% (0 %% (0 %% 5 %% 0) %% 1) %% 2) %% 3)
-rexNodeBody = normalize (0 %% (0 %% (0 %% (0 %% (0 %% 7 %% 0) %% 1) %% 2) %% 3) %% 4)
+        Rex.BARE_WORD -> NAT "WORD"
+        Rex.THIN_CORD -> NAT "CORD"
+        Rex.THIC_CORD -> NAT "TAPE"
+        Rex.THIN_LINE -> NAT "LINE"
+        Rex.THIC_LINE -> NAT "PAGE"
+        Rex.CURL_CORD -> NAT "CURL"
 
 a2 :: a -> a -> SmallArray a
 a2 p q = createSmallArray 2 p \a -> do
@@ -659,12 +616,12 @@ barBody bytes =
 --------------------------------------------------------------------------------
 
 matchData :: LawName -> Nat -> Fan -> Maybe Fan
-matchData (LN 0)  1 (NAT 0) = Just $ ROW mempty
-matchData (LN 0)  n (NAT 0) = Just $ COw (n-1) -- n-1 is never zero
-matchData (LN 1)  2 (ROW v) = matchCab v
-matchData (LN 1)  1 (NAT n) = matchBar n
-matchData (LN 82) 3 body    = REX <$> matchRex body
-matchData (LN _)  _ _       = Nothing
+matchData (LN 0)          1 (NAT 0) = Just $ ROW mempty
+matchData (LN 0)          n (NAT 0) = Just $ COw (n-1) -- n-1 is never zero
+matchData (LN 1)          2 (ROW v) = matchCab v
+matchData (LN 1)          1 (NAT n) = matchBar n
+matchData (LN "_Rex")     1 body    = REX <$> matchRex body
+matchData (LN _)          _ _       = Nothing
 
 matchBar :: Nat -> Maybe Fan
 matchBar n = do
@@ -675,136 +632,57 @@ matchBar n = do
     pure $ BAR $ take bytWidth $ natBytes n
 
 matchRex :: Fan -> Maybe Rex
-matchRex kabc = do
-    -- traceM "matchRex.kabc"
-    kab <- case readKlo kabc of
-             Just [NAT 0, kab, NAT 3] -> Just kab
-             _                        -> Nothing
-
-    -- traceM "matchRex.kab"
-    ka <- case readKlo kab of
-            Just [NAT 0, ka, NAT 2] -> pure ka
-            _                       -> Nothing
-
-    -- traceM "matchRex.ka"
-    k <- readKlo ka >>= \case
-           [NAT 0, k, NAT 1] -> pure k
-           _                 -> Nothing
-
-    -- traceM "matchRex.k"
-    readKlo k >>= matchRexHead
+matchRex = \case
+    ROW x -> match (toList x)
+    _     -> Nothing
   where
-    readKlo (KLO _ r) = pure (toList r)
-    readKlo _         = Nothing
+    match = \case
+        [x] ->
+            pure (Rex.C x)
 
-matchRexHead :: [Fan] -> Maybe Rex
-matchRexHead =
-   \fans -> do
-       -- traceM "matchRexHead"
-       case go fans of
-           Nothing -> do
-               _ <- traceM (unlines ("matchRexHead(NOT OK)\n" : fmap show fans))
-               Nothing
-           Just res -> do
-               -- traceM "matchRexHead(OK)"
-               pure res
-  where
-    go = \case
-     [FUN embd, valu] -> do
-         () <- readEmbd embd
-         pure (Rex.C valu)
+        [shape, text, heir] -> do
+            shape' <- matchTextShape shape
+            text'  <- readText text
+            heir'  <- readHeir heir
+            pure (Rex.T shape' text' heir')
 
-     [FUN l, i, t, h] -> do
-         styl <- readLeaf l
-         _    <- readIdnt i
-         text <- readText t
-         heir <- readHeir h
-         pure (Rex.T styl text heir)
+        [shape, rune, ROW sons, heir] -> do
+            shape' <- matchNodeShape shape
+            rune'  <- readText rune -- TODO: validate
+            sons'  <- traverse readRex sons
+            heir'  <- readHeir heir
+            pure (Rex.N shape' rune' (toList sons') heir')
 
-     [FUN n, i, r, s, h] -> do
-         _    <- readIdnt i
-         styl <- readNode n
-         rune <- readRune r
-         sons <- readSons s
-         heir <- readHeir h
-         pure (Rex.N styl rune sons heir)
+        _ -> do
+            Nothing
 
-     _ -> do
-         Nothing
-
-    -- EMBD=(EMBD valu e l n ? e EMBD valu)
-    -- EMBD=((0 "EMBD" 4) (0 (0 2 0) 1)
-    readEmbd :: Law -> Maybe ()
-    readEmbd law = do
-        guard (law.args == 4)
-        guard (law.name == "EMBD")
-        guard (law.body == rexEmbdBody)
-        pure ()
-
-    -- WORD=(WORD key text heir r l n ? l WORD key text heir)
-    -- WORD=((0 "WORD" 6) (0 (0 (0 (0 5 0) 1) 2) 3)
-    readLeaf :: Law -> Maybe Rex.TextShape
-    readLeaf law = do
-        guard (law.args == 6)
-        guard (law.body == rexLeafBody)
-        case law.name of
-             "WORD" -> Just Rex.BARE_WORD
-             "CORD" -> Just Rex.THIN_CORD
-             "TAPE" -> Just Rex.THIC_CORD
-             "LINE" -> Just Rex.THIN_LINE
-             "PAGE" -> Just Rex.THIC_LINE
-             "CURL" -> Just Rex.CURL_CORD
-             _      -> Nothing
-
-    -- OPEN=(OPEN key rune sons heir r l n ? n OPEN key rune sons heir)
-    -- OPEN=((0 "OPEN" 7) (((((7 0) 1) 2) 3) 4))
-    readNode :: Law -> Maybe Rex.RuneShape
-    readNode law = do
-        guard (law.args == 7)
-        guard (law.body == rexNodeBody)
-        case law.name of
-            "OPEN" -> Just Rex.OPEN
-            "NEST" -> Just Rex.NEST_PREFIX
-            "INFX" -> Just Rex.NEST_INFIX
-            "PREF" -> Just Rex.SHUT_PREFIX
-            "SHUT" -> Just Rex.SHUT_INFIX
-            _      -> Nothing
+    readRex (REX x) = Just x
+    readRex _       = Nothing
 
     readHeir (NAT 0) = Just Nothing
     readHeir (REX x) = Just (Just x)
     readHeir _       = Nothing
 
-    readIdnt (NAT 0) = pure ()
-    readIdnt (NAT _) = error "Rex node constructed with identity"
-    readIdnt _       = Nothing
+    matchTextShape = \case
+        NAT "WORD" -> Just Rex.BARE_WORD
+        NAT "CORD" -> Just Rex.THIN_CORD
+        NAT "TAPE" -> Just Rex.THIC_CORD
+        NAT "LINE" -> Just Rex.THIN_LINE
+        NAT "PAGE" -> Just Rex.THIC_LINE
+        NAT "CURL" -> Just Rex.CURL_CORD
+        _          -> Nothing
+            
+    matchNodeShape = \case
+        NAT "OPEN" -> Just Rex.OPEN
+        NAT "NEST" -> Just Rex.NEST_PREFIX
+        NAT "INFX" -> Just Rex.NEST_INFIX
+        NAT "PREF" -> Just Rex.SHUT_PREFIX
+        NAT "SHUT" -> Just Rex.SHUT_INFIX
+        _          -> Nothing
 
     -- TODO Make sure it's valid text (no decodeLenient nonsense)
     readText (NAT t) = pure (decodeUtf8 $ natBytes t)
     readText _       = Nothing
-
-    -- TODO Make sure it's a valid rune
-    readRune (NAT t) = pure (decodeUtf8 $ natBytes t)
-    readRune _       = Nothing
-
-    readSons (ROW xs) = traverse readRex (toList xs)
-    readSons _        = Nothing
-
-    readRex (REX x) = pure x
-    readRex _       = Nothing
-
--- #? (WORD idnt text heir e l n) #| l WORD idnt text heir
--- #? (CORD idnt text heir e l n) #| l CORD idnt text heir
--- #? (TAPE idnt text heir e l n) #| l TAPE idnt text heir
--- #? (LINE idnt text heir e l n) #| l LINE idnt text heir
--- #? (PAGE idnt text heir e l n) #| l PAGE idnt text heir
--- #? (CURL idnt text heir e l n) #| l CURL idnt text heir
-
--- #? (OPEN idnt rune sons heir e l n) #| n OPEN idnt rune sons heir
--- #? (NEST idnt rune sons heir e l n) #| n NEST idnt rune sons heir
--- #? (INFX idnt rune sons heir e l n) #| n INFX idnt rune sons heir
--- #? (PREF idnt rune sons heir e l n) #| n PREF idnt rune sons heir
--- #? (SHUT idnt rune sons heir e l n) #| n SHUT idnt rune sons heir
-
 
 matchCab :: Vector Fan -> Maybe Fan
 matchCab vs = do
@@ -1019,7 +897,7 @@ execFrame buf =
         KLO{} -> error "Invalid stack frame, closure as head"
         NAT n -> execNat n buf
         BAR b -> if null b then buf^1 else NAT (barBody b)
-        REX b -> rexNoun b %% (buf^1) %%(buf^2) %%(buf^3)
+        REX b -> rexNoun b
         TAb t -> ROW $ V.fromListN (length t) (M.keys t) --tabs return keys row
         COw n ->
             let !las = fromIntegral n in

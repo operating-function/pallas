@@ -63,10 +63,10 @@
 /+  06_row  [idx len null switch fst snd]
 /+  06_row  [weld map foldr v1 v2 v3 v4]
 /+  04_cmp  [eql neq lth isZero]
-/+  07_rex  [rexConstr rexRune rexSons rexHeir rexKids]
+/+  07_rex  [rexRune rexSons rexHeir rexKids]
 /+  07_rex  [rexIsNode rexIsEmbd rexIsLeaf]
 /+  07_rex  [rexGetNode rexEmbd {`}]
-/+  07_rex  [R PREF NEST EMBD OPEN WORD CORD]
+/+  07_rex  [REX PREF NEST EMBD OPEN WORD CORD]
 /+  07_rex  [rexGetNodeWithRune]
 /+  07_rex  [rexStyle rexText]
 /+  07_rex  [rexSetRune rexSetHeir rexSetSons]
@@ -427,13 +427,13 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
       | if (isZero heir) (ret 0)
       | readQuasiTree readVal readExp heir err ret
 | if (rexIsLeaf rex)
-    | ok (R | rexConstr rex 0 (rexText rex) heir)
+    | ok (rexSetHeir heir rex)
 | else
     : sons
         < ^ rowTraverse _ (rexSons rex)
           & (r k)
           | readQuasiTree readVal readExp r err k
-    | ok (R | rexConstr rex 0 rune sons heir)
+    | ok | rexSetHeir heir | rexSetSons sons rex
 
 quasiExpected={Expected something like: ``rex}
 
@@ -472,12 +472,14 @@ four=(WORD {4} 0)
         (l & appE (cnsE EMBD, l))
         (r & r)
 | if (rexIsLeaf rex)
-    ^ appE (cnsE R, appE _)
-   ++ cnsE (rexConstr rex 0 text)
+    ^ appE (cnsE REX, rowE _)
+   ++ cnsE (rexStyle rex)
+   ++ cnsE (rexText rex)
    ++ if (isZero heir) (cnsE 0) (splicedE heir)
 | else
-    ^ appE (cnsE R, appE _)
-   ++ cnsE (rexConstr rex 0 rune)
+    ^ appE (cnsE REX, rowE _)
+   ++ cnsE (rexStyle rex)
+   ++ cnsE (rexRune rex)
    ++ rowE (map splicedE sons)
    ++ if (isZero heir) (cnsE 0) (splicedE heir)
 

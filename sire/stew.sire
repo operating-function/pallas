@@ -738,7 +738,10 @@
 @ expected | rexClose rex
 @ out      | readExp rex v2 showExp
 | if (expected == out) 1
-| OPEN '/=' [out] expected
+| OPEN '/=' []
+| OPEN '*' [out]
+| OPEN '*' [expected]
+| 0
 
 !! expRound ` x
 !! expRound ` .{||}
