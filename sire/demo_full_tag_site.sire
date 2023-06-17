@@ -180,44 +180,44 @@ typedef#Tag#Str
 
 """ JSON Handling """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (assertThat x msg rest)
-| if x | rest
-| die msg
+= (unsafeGetJsonMap json)
+# datacase json
+* JMAP|m | m
+* _      | %notAMap json
 
-= (assertMap jsonBS m@[h t])
-| **assertThat (eql h %map) [%notAMap jsonBS m]
-t
+= (unsafeGetJsonNumber json)
+# datacase json
+* JNUM|n | n
+* _      | 'unsafeGetJsonNumber: not a number' json
 
-= (assertNum n@[h t])
-| **assertThat (eql h %num) [%notANum n]
-t
-
-= (assertTabLookup key t)
+= (unsafeTabLookup key t)
 # datacase (tabLookup key t)
-* NONE   | die [%missingKey key]
 * SOME|v | v
+* NONE   | 'unsafeTabLookup: missing key' key
 
-= (assertVec v@[h t])
-| **assertThat (eql h %vec) [%notAVec v]
-t
+= (unsafeGetJsonArray json)
+# datacase json
+* JVEC|v | v
+* _      | 'unsafeGetJsonArray: not an array' json
 
-= (assertStr s@[h t])
-| **assertThat (eql h %str) [%notAStr s]
-t
+= (unsafeGetJsonStr json)
+# datacase json
+* JSTR|s | s
+* _      | 'unsafeGetJsonStr: not a string' json
 
 = (jsonImgToRow jsonBS m)
-@ id | assertNum | assertTabLookup %id m
+@ id | unsafeGetJsonNumber | unsafeTabLookup %id m
 | if (cabHas id missingImgs) NONE
 @ !rawTags
   | strictRow
-  | map assertStr
-  | assertVec
-  | assertTabLookup %tags m
+  | map unsafeGetJsonStr
+  | unsafeGetJsonArray
+  | unsafeTabLookup %tags m
 @ !thumbnailURL
-  | assertStr
-  | assertTabLookup %thumb
-  | assertMap jsonBS
-  | assertTabLookup %representations m
+  | unsafeGetJsonStr
+  | unsafeTabLookup %thumb
+  | unsafeGetJsonMap
+  | unsafeTabLookup %representations m
 | SOME [id rawTags thumbnailURL]
 
 = (imgRowToTagTabCab [id tags _])
@@ -240,11 +240,10 @@ t
   | parseJson jsonBS
 @ !rows
   | catMaybes
-  | map m&(jsonImgToRow jsonBS | assertMap jsonBS m)
-  | assertVec
-  | assertTabLookup %images
-  | assertMap jsonBS
-  | json
+  | map m&(jsonImgToRow jsonBS | unsafeGetJsonMap m)
+  | unsafeGetJsonArray
+  | unsafeTabLookup %images
+  | unsafeGetJsonMap json
 @ !addTags
   | trk %addTags
   | foldl (tabUnionWith cabUnion) #[]
