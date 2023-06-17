@@ -160,18 +160,18 @@ responseToVal (RespEval e)   =
         OKAY _ r  -> singleton r         -- [f]
         CRASH n e -> fromList [NAT n, e] -- [n e]
 
-responseToReceipt :: CogId -> ResultReceipt -> [(Int, ResponseTuple)] -> Receipt
-responseToReceipt cogId resultReceipt =
-    RECEIPT cogId resultReceipt . mapFromList . fmap f
-  where
-    f :: (Int, ResponseTuple) -> (Int, ReceiptItem)
-    f (idx, tup) = case tup.resp of
-        RespEval OKAY{}           -> (idx, ReceiptEvalOK)
-        RespRecv PENDING_SEND{..} -> (idx, ReceiptRecv{..})
-        RespSpin cog _            -> (idx, ReceiptSpun cog)
-        RespReap cog _            -> (idx, ReceiptReap cog)
-        RespStop cog _            -> (idx, ReceiptStop cog)
-        resp                      -> (idx, ReceiptVal (responseToVal resp))
+responseToReceiptItem :: (Int, ResponseTuple) -> (Int, ReceiptItem)
+responseToReceiptItem (idx, tup) = case tup.resp of
+    RespEval OKAY{}           -> (idx, ReceiptEvalOK)
+    RespRecv PENDING_SEND{..} -> (idx, ReceiptRecv{..})
+    RespSpin cog _            -> (idx, ReceiptSpun cog)
+    RespReap cog _            -> (idx, ReceiptReap cog)
+    RespStop cog _            -> (idx, ReceiptStop cog)
+    resp                      -> (idx, ReceiptVal (responseToVal resp))
+
+makeOKReceipt :: CogId -> [(Int, ResponseTuple)] -> Receipt
+makeOKReceipt cogId =
+    RECEIPT_OK cogId . mapFromList . fmap responseToReceiptItem
 
 data CallRequest = CR
     { durable :: Bool
@@ -399,9 +399,10 @@ type ReconstructedEvals = [(Fan, Fan, Maybe CogReplayEffect)]
 recomputeEvals
     :: MachineContext
     -> Moment
-    -> Receipt
+    -> CogId
+    -> IntMap ReceiptItem
     -> StateT NanoTime IO ReconstructedEvals
-recomputeEvals ctx m (RECEIPT cogId _ tab) =
+recomputeEvals ctx m cogId tab =
     for (mapToList tab) \(idx, rVal) -> do
         let k = toNoun (fromIntegral idx :: Word)
         case rVal of
@@ -504,8 +505,8 @@ performReplay cache ctx replayFrom = do
         let mybCogFun = case M.lookup x.cogNum m.val of
                 Nothing -> Nothing
                 Just x  -> cogSpinningFun x
-        in case x.result of
-            RESULT_TIME_OUT{..} -> do
+        in case x of
+            RECEIPT_TIME_OUT{..} -> do
                 -- Evaluating this bundle of responses timed out the first time
                 -- we ran it, so just don't run it and just recreate the
                 -- timed-out state from the recorded timeout amount.
@@ -515,7 +516,7 @@ performReplay cache ctx replayFrom = do
                         let cog = CG_TIMEOUT timeoutAmount fun
                         pure (bn, m { val = M.insert x.cogNum cog m.val})
 
-            RESULT_CRASHED{..} -> do
+            RECEIPT_CRASHED{..} -> do
                 -- While it's deterministic whether a plunder computation
                 -- crashes or not, its crash value is not deterministic so we
                 -- must reconstitute the crash from the recorded result.
@@ -525,10 +526,10 @@ performReplay cache ctx replayFrom = do
                         let cog = CG_CRASHED{op,arg,final}
                         pure (bn, m { val = M.insert x.cogNum cog m.val})
 
-            RESULT_OK -> do
+            RECEIPT_OK{..} -> do
                 -- The original run succeeded, rebuild the value from the
                 -- receipt items.
-                (eRes, eWork) <- flip runStateT 0 (recomputeEvals ctx m x)
+                (eRes, eWork) <- runStateT (recomputeEvals ctx m cogNum inputs) 0
 
                 let arg = TAb $ mapFromList $ map tripleToPair eRes
 
@@ -1023,7 +1024,7 @@ runResponse
     -> CogId
     -> [(Int, ResponseTuple)]
     -> IO ([Flow], [(Receipt, [STM OnCommitFlow])])
-runResponse st cogid rets = do
+runResponse st cogNum rets = do
   let arg = TAb
           $ mapFromList
           $ flip fmap rets
@@ -1032,15 +1033,15 @@ runResponse st cogid rets = do
   let fun = fromMaybe (error "Trying to run a stopped cog")
           $ cogSpinningFun
           $ fromMaybe (error "Invalid cogid")
-          $ lookup cogid moment.val
+          $ lookup cogNum moment.val
   (runtimeUs, result) <- do
       withAlwaysTrace "Eval" "cog" do
           evalWithTimeout thirtySecondsInMicroseconds fun arg
 
   let resultReceipt = case result of
-        TIMEOUT      -> RESULT_TIME_OUT runtimeUs
-        CRASH op arg -> RESULT_CRASHED{..}
-        OKAY{}       -> RESULT_OK
+        TIMEOUT      -> RECEIPT_TIME_OUT{cogNum,timeoutAmount=runtimeUs}
+        CRASH op arg -> RECEIPT_CRASHED{..}
+        OKAY{}       -> makeOKReceipt cogNum rets
 
   let newState = case result of
         OKAY _ resultFan -> CG_SPINNING resultFan
@@ -1052,15 +1053,15 @@ runResponse st cogid rets = do
 
       (sideEffects, startedFlows, onPersists) <- atomically do
           modifyTVar' st.vMoment \m ->
-              MOMENT (insertMap cogid newState m.val) (m.work + runtimeUs)
+              MOMENT (insertMap cogNum newState m.val) (m.work + runtimeUs)
 
           sideEffects <- case resultReceipt of
-              RESULT_OK -> do
+              RECEIPT_OK{..} -> do
                 -- Delete the consumed `LiveRequest`s without formally
                 -- canceling it because it completed.
                 modifyTVar' st.vRequests \tab ->
                     adjustMap (\kals -> foldl' delReq kals (fst<$>rets))
-                              cogid tab
+                              cogNum tab
                 mapM performSpinEffects responses
               _ -> do
                 -- If we crashed, do nothing. We'll formally cancel all
@@ -1068,7 +1069,7 @@ runResponse st cogid rets = do
                 -- valid responses to process side effects from.
                 pure mempty
 
-          (startedFlows, onPersists) <- parseRequests st cogid
+          (startedFlows, onPersists) <- parseRequests st cogNum
 
           pure (sideEffects, startedFlows, onPersists)
 
@@ -1076,7 +1077,7 @@ runResponse st cogid rets = do
 
       let (sideEffectFlows, sideEffectPersists) = concatUnzip sideEffects
           (afterFlows, afterReceipts) = concatUnzip afterResults
-          receiptPairs = [ ( responseToReceipt cogid resultReceipt rets
+          receiptPairs = [ ( resultReceipt
                            , onPersists ++ sideEffectPersists
                            )
                          ]
@@ -1102,7 +1103,7 @@ runResponse st cogid rets = do
     performSpinEffects _ = pure mempty
 
     -- Performed outside the Big Atomically Block
-    performAfterEffect :: ResultReceipt
+    performAfterEffect :: Receipt
                        -> Response
                        -> IO ([Flow], [(Receipt, [STM OnCommitFlow])])
     performAfterEffect _ (RespSpin newCogId _) = do
@@ -1130,8 +1131,8 @@ runResponse st cogid rets = do
         -- We are sure that the `reqIdx` still corresponds to
         -- an active COG_SEND syscall because of reasons.
         let outcome = case result of
-              RESULT_OK -> SendOK
-              _         -> SendCrash
+              RECEIPT_OK{} -> SendOK
+              _            -> SendCrash
 
         -- TODO: Enable profiling flows; how do we connect
         -- the recv completing to this?

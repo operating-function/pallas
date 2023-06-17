@@ -16,8 +16,6 @@ import Fan.Convert
 import Server.Time
 import Server.Types.Logging
 
-import qualified Data.Vector as V
-
 --------------------------------------------------------------------------------
 
 instance ToNoun NanoTime where
@@ -73,31 +71,28 @@ instance FromNoun ReceiptItem where
             _                     -> Nothing
         _                         -> Nothing
 
-instance ToNoun ResultReceipt where
-    toNoun RESULT_OK           = NAT 0
-    toNoun RESULT_CRASHED{..}  = ROW $ V.fromList [NAT 1, NAT op, arg]
-    toNoun RESULT_TIME_OUT{..} = ROW $ V.fromList [NAT 2, toNoun timeoutAmount]
-
-instance FromNoun ResultReceipt where
-    fromNoun = \case
-        NAT 0 -> pure $ RESULT_OK
-        ROW v -> case toList v of
-            [NAT 1, opFan, arg] -> do
-                op <- fromNoun opFan
-                Just RESULT_CRASHED{..}
-            [NAT 2, timeoutFan] -> do
-                timeoutAmount <- fromNoun timeoutFan
-                Just RESULT_TIME_OUT{..}
-            _     -> Nothing
-        _ -> Nothing
-
 instance ToNoun Receipt where
-    toNoun RECEIPT{..} = toNoun (cogNum, result, inputs)
+    toNoun RECEIPT_OK{..}       = toNoun (NAT 0, cogNum, inputs)
+    toNoun RECEIPT_CRASHED{..}  = toNoun (NAT 1, cogNum, op, arg)
+    toNoun RECEIPT_TIME_OUT{..} = toNoun (NAT 2, cogNum, timeoutAmount)
 
 instance FromNoun Receipt where
-    fromNoun n = do
-        (cogNum,result,inputs) <- fromNoun n
-        pure RECEIPT{..}
+    fromNoun = \case
+        ROW v -> case toList v of
+            [NAT 0, cogNumNoun, inputNoun] -> do
+                cogNum <- fromNoun cogNumNoun
+                inputs <- fromNoun inputNoun
+                Just RECEIPT_OK{..}
+            [NAT 1, cogNumNoun, NAT op, argFan] -> do
+                cogNum <- fromNoun cogNumNoun
+                arg <- fromNoun argFan
+                Just RECEIPT_CRASHED{..}
+            [NAT 2, cogNumNoun, timeoutFan] -> do
+                cogNum <- fromNoun cogNumNoun
+                timeoutAmount <- fromNoun timeoutFan
+                Just RECEIPT_TIME_OUT{..}
+            _     -> Nothing
+        _ -> Nothing
 
 instance ToNoun LogBatch where
     toNoun LogBatch{..} =

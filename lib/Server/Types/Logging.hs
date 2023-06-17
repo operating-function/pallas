@@ -57,18 +57,11 @@ data ReceiptItem
   | ReceiptStop { cogNum :: CogId }
   deriving (Eq, Ord, Show)
 
-data ResultReceipt
-  = RESULT_OK
-  | RESULT_CRASHED { op :: Nat, arg :: Fan }
-  | RESULT_TIME_OUT { timeoutAmount :: NanoTime }
-  deriving (Eq, Ord, Show)
-
-data Receipt = RECEIPT
-    { cogNum :: CogId
-    , result :: ResultReceipt
-    , inputs :: IntMap ReceiptItem
-    }
-  deriving (Eq, Ord, Show)
+data Receipt
+    = RECEIPT_OK { cogNum :: CogId, inputs :: IntMap ReceiptItem }
+    | RECEIPT_CRASHED { cogNum :: CogId, op :: Nat, arg :: Fan }
+    | RECEIPT_TIME_OUT { cogNum :: CogId, timeoutAmount :: NanoTime }
+  deriving (Show)
 
 data CogFailure
     = COG_DOUBLE_CRASH
