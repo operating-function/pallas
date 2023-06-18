@@ -4,7 +4,6 @@
 
 ### quickcheck <- pq
 
-/+  pq         [pqSort]
 /+  splitmix   [mkSMGen nextWord64 splitSMGen]
 /+  prelude
 
@@ -65,21 +64,14 @@
 > PropResult
 discardRes=NONE
 
+> a > a > PropResult
+= qcEql | prop2 eql
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; helpers
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+> a > a > PropResult
+= qcNeq | prop2 neq
 
-> Ord a > List a > Bool
-= (isSorted cmp xs)
-# datacase xs
-* NIL | TRUE
-* (CONS x xs)
-    # datacase xs
-    * NIL | TRUE
-    * (CONS _ _)
-        | listAnd
-        | listZipWith (a b)&(cmp a b /= GT) (x::xs) xs
+> Bit > PropResult
+qcIs=SOME
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -226,6 +218,10 @@ getSize=(sized pureGen)
 : k <- bindGen (chooseW64 0 n)
 | genListLen k gen
 
+= (fmapGen f gen)
+& (r n)
+| f (gen r n)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; shrinkers
@@ -352,7 +348,6 @@ getSize=(sized pureGen)
 = (isListOf ck x) | (isList x && listAll ck x)
 = (subNeg x y)    | eql (iSub64 x y)    | iNeg64 (iSub64 y x)
 = (revRev ls)     | eql ls              | listRev (listRev ls)
-= (pqSortRev ls)  | eql (pqSort cmp ls) | listRev (pqSort flip-cmp ls)
 = (palindrome ls) | eql ls              | listRev ls
 
 !! qc1_pass 42 'w64 is a w64' (prop1 isW64)          arbU64
@@ -364,14 +359,13 @@ getSize=(sized pureGen)
 !! qc2_fail 42 'eq pair'      (prop2 eql)            arbU64 arbU64
 !! qc1_pass 42 'sub neg'      (prop2 subNeg)         arbU64
 !! qc1_pass 42 'rev rev'      (prop1 revRev)         arbU64List
-!! qc1_pass 42 'pqSort rev'   (prop1 pqSortRev)      arbU64List
 
 ^-^
 ^-^ ARGS
-^-^ prop1 prop2 discardRes
+^-^ prop1 prop2 discardRes qcEql qcNeq qcIs
 ^-^ quickCheck
 ^-^ bindGen pureGen sized getSize
-^-^ genU64 chooseW64 gen2 genListLen genListLenMax genList
+^-^ genU64 chooseW64 gen2 genListLen genListLenMax genList fmapGen
 ^-^ shrink2 shrinkU64 shrinkBool shrinkList
 ^-^ qc1_pass qc1_fail qc2_pass
 ^-^
