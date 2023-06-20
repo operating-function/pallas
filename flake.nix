@@ -81,6 +81,7 @@
           plock = flake.packages."plunder:exe:plock";
           rex = flake.packages."plunder:exe:rex";
           default = plunder;
+          hnix-roots = pkgs.plunder.roots;
         };
 
       });

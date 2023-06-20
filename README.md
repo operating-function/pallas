@@ -22,3 +22,9 @@ This is a prototype implementation of Plunder.
 -   To build the `plunder` executable via nix, run `nix build .#plunder`
     (flakes-compatible nix required). Targets for `rex` and `plock` are
     also available.
+    - This requires building 1 or more GHCs, which can be rather
+      intensive. There is also risk that, once built, the GHCs may be
+      nix-GC-ed, thus requiring rebuilds. For this reason, we expose a
+      build target for haskell.nix build environment. This can be
+      combined with nix profiles to ensure persistence:
+      `nix build .#hnix-roots --profile ./hnix-roots`
