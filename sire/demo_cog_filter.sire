@@ -1,0 +1,108 @@
+;;; Copyright 2023 The Plunder Authors
+;;; Use of this source code is governed by a BSD-style license that can be
+;;; found in the LICENSE file.
+
+### demo_cog_filter <- demo_cog_stop
+
+/+  boot
+/+  kern
+/+  stew
+/+  mutrec
+/+  demo_timer
+
+"""
+""" This is a generic wrapper around a cog function, which validates that the
+""" cog is only attempting to send reap/stop cog requests on cogs that it
+""" started.
+"""
+
+= (isCogSpin r)
+| ifNot | isRow r
+    FALSE
+| ifNot | eql %cog | idx 0 r
+    FALSE
+| eql %spin | idx 1 r
+
+= (isCogReapOrStop r)
+| ifNot | isRow r
+    FALSE
+| ifNot | eql %cog | idx 0 r
+    FALSE
+| or (eql %reap (idx 1 r)) (eql %stop (idx 1 r))
+
+= (findNewCogids reqs resp)
+| cabFromRow
+| listToRow
+| listCatMaybes
+| listMap k&(tabLookup k resp)
+| findIdxMany isCogSpin reqs
+
+= (findDeadCogids reqs resp)
+| cabFromRow
+| listToRow
+| listCatMaybes
+| listMap
+    & k
+    # datacase | tabLookup k resp
+    * NONE NONE
+    * (SOME _)
+        ; x is data in the response
+        | SOME | idx 2 | idx k reqs
+| findIdxMany isCogReapOrStop reqs
+
+= (updateOwnedCogs cogids reqs resp)
+@ add | findNewCogids reqs resp
+@ rm  | findDeadCogids reqs resp
+@ sum | cabUnion add cogids
+| cabDifference sum rm
+
+; `withCogFilter`: Generic wrapper around a cog function, filtering out unsafe
+; usage of %cog requests. This makes sure a cog only can %stop or %reap cogs
+; which it started. It also wraps every new cog created in the wrapper to make
+; sure it can't break out that way.
+;
+# mutual cog_filter_impl
+; Toplevel entry point for users.
+= (withCogFilter fun)
+    @ filteredReqs | filterCogReqs %[] | idx 0 fun
+    | cogLoop %[] fun filteredReqs
+;
+= (cogLoop cogids fun filteredReqs resp)
+    @ cogids | updateOwnedCogs cogids filteredReqs resp
+    @ fun | fun resp
+    @ filteredReqs | filterCogReqs cogids | idx 0 fun
+    | cogLoop cogids fun filteredReqs
+;
+; Return reqs with every instance of a %stop or %reap call to a cogid not in
+; cogids with a 0.
+= (filterCogReqs cogids reqs)
+    ^ map _ reqs
+    & r
+    | if | isCogSpin r
+        [%cog %spin (withCogFilter | idx 2 r)]
+    | ifNot | isCogReapOrStop r
+        r
+    @ i | idx 2 r
+    | if | cabHas i cogids
+        r
+    0
+
+; Same as stopDemo from demo_cog_stop.sire, minus testing erroneous %stop calls.
+= (miniStopDemo return)
+: ??(spin_got_id id) <- syscall (COG_SPIN (runCog-(timeDemo 5)))
+| trk [%cogId id]
+;
+; wait a second for the other cog to do something
+: ??(td_got_time now) <- syscall TIME_WHEN
+| trk [current_time=now]
+: ??(td_waited _) <- syscall (**TIME_WAIT (inc now))
+;
+; stop and steal that cog's value.
+: ??(stop_get_val val) <- syscall (COG_STOP id)
+| if | isNone val
+  | 'COG_STOP did not return the val for cog: ' val
+| trk [%stopVal (fromSome 0 val)]
+| return ()
+
+
+| runCog | withCogFilter miniStopDemo
