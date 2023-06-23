@@ -414,13 +414,13 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 @ nKid | len kids
 | if (rexIsEmbd rex)
     | err rex {quasi-quotation contains unexpected PLAN embed}
-| if (eql {$} rune)
-    | if (neq 1 nKid)
-        | err rex {Too many/few sons for $ in ` macro}
-    | readVal (fst kids) err (compose ok EMBD)
 | if (eql {$$} rune)
     | if (neq 1 nKid)
-        | err rex 'Too many/few sons for $$ in ` macro'
+        | err rex {Too many/few sons for $$ in ` macro}
+    | readVal (fst kids) err (compose ok EMBD)
+| if (eql {$} rune)
+    | if (neq 1 nKid)
+        | err rex 'Too many/few sons for $ in ` macro'
     | readExp (fst kids) err (compose ok EMBD)
 : heir
     < & ret
@@ -483,8 +483,8 @@ four=(WORD {4} 0)
    ++ rowE (map splicedE sons)
    ++ if (isZero heir) (cnsE 0) (splicedE heir)
 
-; $ splices in a constant value
-; $$ splices in an expression
+; $$ splices in a constant value
+; $ splices in an expression
 ;
 ; TODO: Reverse these runes?
 
@@ -497,10 +497,10 @@ four=(WORD {4} 0)
 four=(WORD {4} 0)
 
 !!= ``(3 4 5) | `(3 4 5)
-!!= ``(3 4 5) | `($$(WORD {3} 0) 4 5)
+!!= ``(3 4 5) | `($(WORD {3} 0) 4 5)
 
-!!= `(3 $$(cnsE four) 5)
-     `(3 $four 5)
+!!= `(3 $(cnsE four) 5)
+    `(3 $$four 5)
 
 (**NODE x y)=[x y]
 (**LEAF x)=[x]
@@ -545,8 +545,8 @@ four=(WORD {4} 0)
     : rest <- go nKid (drop 1 kids)
     | ok (NODE (LEAF fstItem) rest)
 
-= (andE x y) | `($and $$x $$y)
-= (orE x y)  | `($or $$x $$y)
+= (andE x y) | `($$and $x $y)
+= (orE x y)  | `($$or $x $y)
 
 = ({&&} s p e a r err ok)
 : tree < readInfixRight readRex "&&" r err

@@ -167,18 +167,18 @@ oldRecord=(.{#record})
 oldDataType=(.{#datatype})
 
 = ({#record} s p e a r err ok)
-: p a tCmd <- .{#abstype} s p e a `(abstype#($$(idx 1 | rexKids r))) err
+: p a tCmd <- .{#abstype} s p e a `(abstype#($(idx 1 | rexKids r))) err
 : p a rCmd <- oldRecord s p e a r err
 | ok p a
-` * $$tCmd
-  * $$rCmd
+` * $tCmd
+  * $rCmd
 
 = ({#datatype} s p e a r err ok)
-: p a tCmd <- .{#abstype} s p e a `(abstype#($$(idx 1 | rexKids r))) err
+: p a tCmd <- .{#abstype} s p e a `(abstype#($(idx 1 | rexKids r))) err
 : p a dCmd <- oldDataType s p e a r err
 | ok p a
-` * $$tCmd
-  * $$dCmd
+` * $tCmd
+  * $dCmd
 
 """ Declare Basic Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -250,15 +250,15 @@ abstype#TyExp
     | if (">" == rexRune y)
         @ ySons (rexSons y)
         | rexSetSons (rowCons x ySons) y
-    | `($$x > $$y)
+    | `($x > $y)
 | if (eql con pairKey)
-    @ [p q] kids | `($$p , $$q)
+    @ [p q] kids | `($p , $q)
 | if (eql con tripKey)
-    @ [p q r] kids | `($$p , $$q , $$r)
+    @ [p q r] kids | `($p , $q , $r)
 | if (eql con quadKey)
-    @ [p q r s] kids | `($$p , $$q , $$r , $$s)
+    @ [p q r s] kids | `($p , $q , $r , $s)
 | if (eql con pentKey)
-    @ [p q r s t] kids | `($$p , $$q , $$r , $$s , $$t)
+    @ [p q r s t] kids | `($p , $q , $r , $s , $t)
 | else
     ^ NEST "|" _ 0
     | rowCons (varE nam) kids

@@ -217,8 +217,8 @@
 * (PROW xs)    | NEST {,} (map showPat xs) 0
 * (PTAB xs)    | showTab showPat xs
 * (POPN n)     | rexSetHeir ``(..) (varE n)
-* (PPIN p)     | ` @(PIN $$(showPat p))
-* (PLAW n a b) | ` @(LAW $$(showPat n) $$(showPat a) $$(showPat b))
+* (PPIN p)     | ` @(PIN $(showPat p))
+* (PLAW n a b) | ` @(LAW $(showPat n) $(showPat a) $(showPat b))
 * _            | {invalid pattern} p
 
 !!= (`` #[])
@@ -274,9 +274,9 @@
     < listCase xs
     # datacase f
     * NONE      | 0
-    * (SOME fb) | `(* _ $$(showExp fb))
+    * (SOME fb) | `(* _ $(showExp fb))
 @ rest (go xs)
-| `((* $$(showCon cn pts) $$(showExp b))($$rest))
+| `((* $(showCon cn pts) $(showExp b))($rest))
 
 = (niceApp showExp e)
 ^ _ e ~[]
@@ -335,8 +335,8 @@
 ^ rexSplice _ rex
 & val
 # datacase val
-* (LEFT l)  | PREF "$"  [showExp-l] 0
-* (RIGHT r) | PREF "$$" [showExp-r] 0
+* (LEFT l)  | PREF "$$" [showExp-l] 0
+* (RIGHT r) | PREF "$"  [showExp-r] 0
 
 > Chr > Bit
 (okIdnChar c)=(eql '_' c || isAlphaNum c)
@@ -1248,23 +1248,23 @@ prp=(#getAllProps)
 | compile (#getAllSources) (#getAllProps) st exp
 
 !!= (comp 5 (ENAT 0))
-  | [5 `($0)]
+  | [5 `($$0)]
 
 !!= (comp 5 (EAPP ENAT-0 ENAT-1))
-  | [5 `(#| $0 $1)]
+  | [5 `(#| $$0 $$1)]
 
 !!= (comp 5 (EEQL (ENAT 0, ENAT 1)))
-  | [5 `(#| $eql $0 $1)]
+  | [5 `(#| $$eql $$0 $$1)]
 
 !!=   | comp 5 (EEQL (ENAT 0, ENAT 1, ENAT 2))
  ++ 6
- ++ `((#@ _g5 $0)(#| $and (#| $eql _g5 $1) (#| $eql _g5 $2)))
+ ++ `((#@ _g5 $$0)(#| $$and (#| $$eql _g5 $$1) (#| $$eql _g5 $$2)))
 
 !!=   | comp 5 (ELIN (EAPP ELIN-(EREF 'id') (ENAT 1)))
  ++ 5
- ++ ` (#** (#| (#** id) $1))
+ ++ ` (#** (#| (#** id) $$1))
 
-!!= [5 `(#| $(%[a b c]) (#| $(cow 3) (#| $0 $3) $2 $1))]
+!!= [5 `(#| $$(%[a b c]) (#| $$(cow 3) (#| $$0 $$3) $$2 $$1))]
   | comp 5
   | ETAB
  ## =a (ENAT 1)
@@ -1272,12 +1272,12 @@ prp=(#getAllProps)
  ## =c (EAPP ENAT-0 ENAT-3)
 
 !!=  ++ 5
-     ++ ` (#| $tabSwitch foo z (#| $(%[a b]) (#| $(cow 2) y x)))
+     ++ ` (#| $$tabSwitch foo z (#| $$(%[a b]) (#| $$(cow 2) y x)))
   ^ readExp _ (curry die) (comp 5)
  `` (# switch foo)(* {a} x)(* {b} y)z
 
 !!=  ++ 5
-     ++ ` (#| $tabSwitch foo $0 (#| $(%[a]) (#| $(cow 1) x)))
+     ++ ` (#| $$tabSwitch foo $$0 (#| $$(%[a]) (#| $$(cow 1) x)))
   ^ readExp _ (curry die) (comp 5)
  `` (# switch foo)(* {a} x)
 
@@ -1299,26 +1299,26 @@ prp=(#getAllProps)
   | ('f', 'f', (PVAR %x, PVAR %z), EREF 'z')
 
 !!=  ++ 7
-     ++ ` (#& _g5)(#@ _g6 _g5)(#@ x (#| $(idx 0) _g6))(#@ z (#| $(idx 1) _g6))z
+     ++ ` (#& _g5)(#@ _g6 _g5)(#@ x (#| $$(idx 0) _g6))(#@ z (#| $$(idx 1) _g6))z
   | comp 5
   | ELAM FALSE
   | (0, 0, [(PROW (PVAR %x, PVAR %z))], EREF 'z')
 
 !!=  ++ 6
-     ++ ` (#@ _g5 (#| $(cow 2) $2 $1))(#@ x (#| $(idx 0) _g5))x
+     ++ ` (#@ _g5 (#| $$(cow 2) $$2 $$1))(#@ x (#| $$(idx 0) _g5))x
   | comp 5
   | ELET (PROW [(PVAR %x)])
       | EROW (ENAT 1, ENAT 2)
   | EREF 'x'
 
 !!=  ++ 5
-     ++ ` (#@ _ (#| $0 $1))(#| _ _)
+     ++ ` (#@ _ (#| $$0 $$1))(#| _ _)
   | comp 5
   | EKET (EAPP EREF-'_' EREF-'_')
   | EAPP ENAT-0 ENAT-1
 
 !!=  ++ 5
-     ++ ` (#@@ x (#| $(cow 2) x $1))(#| car x)
+     ++ ` (#@@ x (#| $$(cow 2) x $$1))(#| car x)
   | comp 5
   | EREC (PVAR 'x')
       | EROW (ENAT 1, EREF 'x')
@@ -1332,12 +1332,12 @@ prp=(#getAllProps)
                 #? (_core5@'lol' _tag9 _arg7)
                 #@ even
                     #? (**even x)
-                    #| _core5 $0 x
-                #| $switch _tag9 $0
-                #| $(cow 1) (#@ x _arg7)x
+                    #| _core5 $$0 x
+                #| $$switch _tag9 $$0
+                #| $$(cow 1) (#@ x _arg7)x
             #@ even
                 #? (**even x)
-                #| _core5 $0 x
+                #| _core5 $$0 x
              even
   | comp 5
   | EMUT 'lol' (EREF 'even')
@@ -1347,13 +1347,13 @@ prp=(#getAllProps)
 !!=  ++ 8
      ++ rexClose
         ` #@ _g5 x
-          #| $switch (#| $len _g5) $1
-              #| $(cow 2)
+          #| $$switch (#| $$len _g5) $$1
+              #| $$(cow 2)
                     #@ _g6 x
-                    #@ x (#| $(idx 0) _g6)
+                    #@ x (#| $$(idx 0) _g6)
                      x
                 #@ _g7 x
-                 ($0)
+                 ($$0)
   | comp 5
   | ECAS EREF-'x' (SOME | ENAT 1)
  ++ CON_CASE 'SOME' [(PVAR 'x')] EREF-'x'
@@ -1362,11 +1362,11 @@ prp=(#getAllProps)
 !!=  ++ 7
      ++ rexClose
         ` #@ _g5 sx
-          #| $tabSwitch (#| $len _g5) $0
-              #| $(%[1])
-                 #| $(cow 1)
+          #| $$tabSwitch (#| $$len _g5) $$0
+              #| $$(%[1])
+                 #| $$(cow 1)
                     #@ _g6 sx
-                    #@ x (#| $(idx 0) _g6)
+                    #@ x (#| $$(idx 0) _g6)
                      x
   | comp 5
   | ECAS (EREF 'sx') NONE
