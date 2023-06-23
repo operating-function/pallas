@@ -65,7 +65,7 @@
 /+  04_cmp  [eql neq lth isZero]
 /+  07_rex  [rexRune rexSons rexHeir rexKids]
 /+  07_rex  [rexIsNode rexIsEmbd rexIsLeaf]
-/+  07_rex  [rexGetNode rexEmbd {`}]
+/+  07_rex  [rexGetNode rexEmbd {``}]
 /+  07_rex  [REX PREF NEST EMBD OPEN WORD CORD]
 /+  07_rex  [rexGetNodeWithRune]
 /+  07_rex  [rexStyle rexText]
@@ -106,11 +106,11 @@
         | readSymbol son err ret
 | readSymbol rex err (compose ok v1)
 
-!!= [%a %b %c]          | readSignature `(a b c) v2 id
-!!= [%a]                | readSignature `(a)     v2 id
-!!= [%a]                | readSignature `a       v2 id
-!!= [`[a b] sigExpect]  | readSignature `[a b]   v2 id
-!!= [`([][]) sigNoHeir] | readSignature `([][])  v2 id
+!!= [%a %b %c]          | readSignature ``(a b c) v2 id
+!!= [%a]                | readSignature ``(a)     v2 id
+!!= [%a]                | readSignature ``a       v2 id
+!!= [``[a b] sigExpect]  | readSignature ``[a b]   v2 id
+!!= [``([][]) sigNoHeir] | readSignature ``([][])  v2 id
 
 
 """ The Col Macro """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -130,11 +130,11 @@
 | and (eql %WORD rexStyle-rex)
       (strIsCapitalized rexText-rex)
 
-!!= 1 | rexIsCapsSymbol `Foo
-!!= 0 | rexIsCapsSymbol `foo
-!!= 0 | rexIsCapsSymbol `"Foo"
-!!= 0 | rexIsCapsSymbol `0
-!!= 0 | rexIsCapsSymbol `(hi there)
+!!= 1 | rexIsCapsSymbol ``Foo
+!!= 0 | rexIsCapsSymbol ``foo
+!!= 0 | rexIsCapsSymbol ``"Foo"
+!!= 0 | rexIsCapsSymbol ``0
+!!= 0 | rexIsCapsSymbol ``(hi there)
 
 = colSigExpect
   """ Expected something like one of these:
@@ -185,11 +185,11 @@
 
 (tryColSig x)=(readColSig readSymbol x id v2)
 
-!!= ( NONE                , [%Foo %x]    ) | tryColSig `(&(Foo x))
-!!= ( NONE                , [%Foo %x %y] ) | tryColSig `(&(Foo x y))
-!!= ( SOME ("Foo", FALSE) , [%x]         ) | tryColSig `(?(Foo x))
-!!= ( SOME ("Foo", FALSE) , [%x %y]      ) | tryColSig `(?(Foo x y))
-!!= ( SOME ("Foo", TRUE)  , [%x]         ) | tryColSig `(??(Foo x))
+!!= ( NONE                , [%Foo %x]    ) | tryColSig ``(&(Foo x))
+!!= ( NONE                , [%Foo %x %y] ) | tryColSig ``(&(Foo x y))
+!!= ( SOME ("Foo", FALSE) , [%x]         ) | tryColSig ``(?(Foo x))
+!!= ( SOME ("Foo", FALSE) , [%x %y]      ) | tryColSig ``(?(Foo x y))
+!!= ( SOME ("Foo", TRUE)  , [%x]         ) | tryColSig ``(??(Foo x))
 
 = (readColSigSeq readPat sigRexes err ok)
 | if (eql 1 | len sigRexes)
@@ -199,12 +199,12 @@
 
 (tryColSigSeq xs)=(readColSigSeq readSymbol xs id v2)
 
-!!= ( NONE                , [%Foo %x]    ) | tryColSigSeq [`Foo `x]
-!!= ( NONE                , [%Foo %x]    ) | tryColSigSeq [`(&(Foo x))]
-!!= ( NONE                , [%Foo %x %y] ) | tryColSigSeq [`(&(Foo x y))]
-!!= ( SOME ("Foo", FALSE) , [%x]         ) | tryColSigSeq [`(?(Foo x))]
-!!= ( SOME ("Foo", FALSE) , [%x %y]      ) | tryColSigSeq [`(?(Foo x y))]
-!!= ( SOME ("Foo", TRUE)  , [%x]         ) | tryColSigSeq [`(??(Foo x))]
+!!= ( NONE                , [%Foo %x]    ) | tryColSigSeq [``Foo ``x]
+!!= ( NONE                , [%Foo %x]    ) | tryColSigSeq [``(&(Foo x))]
+!!= ( NONE                , [%Foo %x %y] ) | tryColSigSeq [``(&(Foo x y))]
+!!= ( SOME ("Foo", FALSE) , [%x]         ) | tryColSigSeq [``(?(Foo x))]
+!!= ( SOME ("Foo", FALSE) , [%x %y]      ) | tryColSigSeq [``(?(Foo x y))]
+!!= ( SOME ("Foo", TRUE)  , [%x]         ) | tryColSigSeq [``(??(Foo x))]
 
 = colNeedsHeir | "Heir is required"
 = colTwoSons   | "Expected at least two sons"
@@ -254,11 +254,11 @@
 | **ok rune
 
 !!= ["+" "+"]
-        : rune <- **rexGetRune `(3 + 4) 99
+        : rune <- **rexGetRune ``(3 + 4) 99
         , rune rune
 
-!!= [`(<* f) cbExpect]
-        (.{:} 0 0 0 0 `((: x <* f)(, 3)) v2 v3)
+!!= [``(<* f) cbExpect]
+        (.{:} 0 0 0 0 ``((: x <* f)(, 3)) v2 v3)
 
 
 """ Fancy Function Application """""""""""""""""""""""""""""""""""""""""""""""""
@@ -282,13 +282,13 @@
 | loop (CONS item acc) (rexHeir rex)
 
 !!=     ^ unwrapTarSeq _ v2 v1
-        ` * add
+       `` * add
           * 2
           * inc 2
     ,
-   ++ ` add
-   ++ ` 2
-   ++ ` | inc 2
+   ++ `` add
+   ++ `` 2
+   ++ `` | inc 2
 
 = (readFancyApp readExp rex err ok)
 @ sons    | rexSons rex
@@ -416,11 +416,11 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
     | err rex {quasi-quotation contains unexpected PLAN embed}
 | if (eql {$} rune)
     | if (neq 1 nKid)
-        | err rex {Too many/few sons for $ in `` macro}
+        | err rex {Too many/few sons for $ in ` macro}
     | readVal (fst kids) err (compose ok EMBD)
 | if (eql {$$} rune)
     | if (neq 1 nKid)
-        | err rex 'Too many/few sons for $$ in `` macro'
+        | err rex 'Too many/few sons for $$ in ` macro'
     | readExp (fst kids) err (compose ok EMBD)
 : heir
     < & ret
@@ -435,7 +435,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
           | readQuasiTree readVal readExp r err k
     | ok | rexSetHeir heir | rexSetSons sons rex
 
-quasiExpected={Expected something like: ``rex}
+quasiExpected={Expected something like: `rex}
 
 > (Rex > Read Rex) ; val
 > (Rex > Read Rex) ; exp
@@ -445,7 +445,7 @@ quasiExpected={Expected something like: ``rex}
 @ rune | rexRune rex
 @ kids | rexKids rex
 @ tree | fst kids
-| if (or (neq "``" rune) (neq 1 | len kids))
+| if (or (neq {`} rune) (neq 1 | len kids))
     | err rex quasiExpected
 | readQuasiTree readVal readExp tree err ok
 
@@ -488,7 +488,7 @@ four=(WORD {4} 0)
 ;
 ; TODO: Reverse these runes?
 
-= ({``} s p e a r err ok)
+= ({`} s p e a r err ok)
 @ readVal (rex err ok & ok (LEFT rex))
 @ readExp (rex err ok & ok (RIGHT rex))
 : quoted < readQuasiQuotedRex readVal readExp r err
@@ -496,11 +496,11 @@ four=(WORD {4} 0)
 
 four=(WORD {4} 0)
 
-!!= `(3 4 5) | ``(3 4 5)
-!!= `(3 4 5) | ``($$(WORD {3} 0) 4 5)
+!!= ``(3 4 5) | `(3 4 5)
+!!= ``(3 4 5) | `($$(WORD {3} 0) 4 5)
 
-!!= ``(3 $$(cnsE four) 5)
-     ``(3 $four 5)
+!!= `(3 $$(cnsE four) 5)
+     `(3 $four 5)
 
 (**NODE x y)=[x y]
 (**LEAF x)=[x]
@@ -545,8 +545,8 @@ four=(WORD {4} 0)
     : rest <- go nKid (drop 1 kids)
     | ok (NODE (LEAF fstItem) rest)
 
-= (andE x y) | ``($and $$x $$y)
-= (orE x y)  | ``($or $$x $$y)
+= (andE x y) | `($and $$x $$y)
+= (orE x y)  | `($or $$x $$y)
 
 = ({&&} s p e a r err ok)
 : tree < readInfixRight readRex "&&" r err
@@ -590,15 +590,15 @@ four=(WORD {4} 0)
 | ok (appE kids :: more)
 
 = (assertE exps)
-| if (isZero exps) `(#*)
+| if (isZero exps) ``(#*)
 | bloodline
 ^ listMap _ exps
 & exp (OPEN {#!!=} (natE 1, exp) 0)
 
 !!=   | assertE
-     ~~ `(eql 3 (add 1 2))
-     ~~ `(eql 4 (add 3 1))
-  `
+     ~~ ``(eql 3 (add 1 2))
+     ~~ ``(eql 4 (add 3 1))
+ ``
   #!!= 1 (eql 3 (add 1 2))
   #!!= 1 (eql 4 (add 3 1))
 
@@ -711,7 +711,7 @@ four=(WORD {4} 0)
 ^-^ {|}
 ^-^ {:}
 ^-^ {~} {~~} {::}
-^-^ {``}
+^-^ {`}
 ^-^ {&&} {||}
 ^-^ {==} {/=}
 ^-^ {!!}

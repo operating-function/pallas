@@ -51,8 +51,8 @@
         | err rex (strWeld "Unexpected rune: " ryn)
 
 (try x)=(readFanLit x v2 v1)
-!!= [%x]      | try `(%x)
-!!= [[%x %y]] | try `['x' 'y']
+!!= [%x]      | try ``(%x)
+!!= [[%x %y]] | try ``['x' 'y']
 
 = (readSwitchPat pat err cab lit)
 | if (and (eql "_" rexText-pat) (eql %WORD rexStyle-pat))
@@ -61,13 +61,13 @@
 
 = rnNumb | "Invalid number literal"
 
-!!= %_          | readSwitchPat `_        v2 {_} v1
-!!= [%x]        | readSwitchPat `(%x)     v2 {_} v1
-!!= [[%x]]      | readSwitchPat `[%x]     v2 {_} v1
-!!= [[%x %y]]   | readSwitchPat `[%x 'y'] v2 {_} v1
-!!= [%x]        | readSwitchPat `"x"      v2 {_} v1
-!!= [3]         | readSwitchPat `3        v2 {_} v1
-!!= [%a]        | readSwitchPat `a        v2 {_} v1
+!!= %_          | readSwitchPat ``_        v2 {_} v1
+!!= [%x]        | readSwitchPat ``(%x)     v2 {_} v1
+!!= [[%x]]      | readSwitchPat ``[%x]     v2 {_} v1
+!!= [[%x %y]]   | readSwitchPat ``[%x 'y'] v2 {_} v1
+!!= [%x]        | readSwitchPat ``"x"      v2 {_} v1
+!!= [3]         | readSwitchPat ``3        v2 {_} v1
+!!= [%a]        | readSwitchPat ``a        v2 {_} v1
 
 
 """ Parsing Switch Patterns """"""""""""""""""""""""""""""""""""""""""""""""""""
@@ -109,21 +109,21 @@ unrollSlip2Tar=(unrollSlip2Rune '*')
 foo=(x e o & o (varE "_", x))
 (try x)=(unrollSlip2Tis x foo v2 id)
 
-!!= [[`x `y] [`_ `9]]
-        | try ` = x y
-                9
+!!= [[``x ``y] [``_ ``9]]
+        | try `` = x y
+                 9
 
-!!= [[`x `y]]
-        | try ` = x y
+!!= [[``x ``y]]
+        | try `` = x y
 
-!!= [[`x `y]]
-        | try ` = x
-                y
+!!= [[``x ``y]]
+        | try `` = x
+                 y
 
-!!= [[`3 `4] [`5 `6] [`_ `_]]
-        | try ` = 3 4
-                = 5 6
-                = _ _
+!!= [[``3 ``4] [``5 ``6] [``_ ``_]]
+        | try `` = 3 4
+                 = 5 6
+                 = _ _
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -137,7 +137,7 @@ foo=(x e o & o (varE "_", x))
 > Read (exp, Tab Any exp)
 = (readSwitchPats readExp rex err ok)
 : defaultFallback
-    < readExp `0 err
+    < readExp ``0 err
 : clauses
     < ^ unrollSlip2Tar rex _ err
       ? (onNonMatchingTail x err ret)
@@ -162,17 +162,17 @@ foo=(x e o & o (varE "_", x))
     | (readRex, readExpr, readSwitchPats readExpr)
 | ok exp fallback arms
 
-!!= [`0 [3=(`4) 5=(`6)]]
-        | readSwitchPats readRex `((* 3 4)(* 5 6)) v2 id
+!!= [``0 [3=(``4) 5=(``6)]]
+        | readSwitchPats readRex ``((* 3 4)(* 5 6)) v2 id
 
-!!= [`7 [3=(`4) 5=(`6)]]
-        | readSwitchPats readRex `((* 3 4)(* 5 6)7) v2 id
+!!= [``7 [3=(``4) 5=(``6)]]
+        | readSwitchPats readRex ``((* 3 4)(* 5 6)7) v2 id
 
-!!= [`x [3=(`4) 5=(`6)]]
-        | readSwitchPats readRex `((* 3 4)(* 5 6)(x)) v2 id
+!!= [``x [3=(``4) 5=(``6)]]
+        | readSwitchPats readRex ``((* 3 4)(* 5 6)(x)) v2 id
 
-!!= [`x (tabIns [3 3] `6 [3=(`4)])]
-        | readSwitchPats readRex `((* 3 4)(* [3 3] 6)(x)) v2 id
+!!= [``x (tabIns [3 3] ``6 [3=(``4)])]
+        | readSwitchPats readRex ``((* 3 4)(* [3 3] 6)(x)) v2 id
 
 
 """ Atomic Switch """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

@@ -316,19 +316,19 @@ ex=(PAIR %a %b)
     | go acc that
 
 
-!!=  ++ [0 %FOO NONE [(0, 'x', `a)]]
-     ++ [0 %BAR NONE [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
+!!=  ++ [0 %FOO NONE [(0, 'x', ``a)]]
+     ++ [0 %BAR NONE [(0, 'x', ``b) (0, 'y', ``c) (0, 'z', ``d)]]
      ++ [0 %LOL NONE []]
   ^ readDataBranches _ v2 id
-  ` * FOO x:a
+ `` * FOO x:a
     * BAR x:b y:c z:d
     * LOL
 
-!!=  ++ [0 %FOO (SOME %f) [(0, 'x', `a)]]
-     ++ [0 %BAR (SOME %b) [(0, 'x', `b) (0, 'y', `c) (0, 'z', `d)]]
+!!=  ++ [0 %FOO (SOME %f) [(0, 'x', ``a)]]
+     ++ [0 %BAR (SOME %b) [(0, 'x', ``b) (0, 'y', ``c) (0, 'z', ``d)]]
      ++ [0 %LOL (SOME %l) []]
   ^ readDataBranches _ v2 id
-  ` * FOO=f x:a
+ `` * FOO=f x:a
     * BAR=b x:b y:c z:d
     * LOL=l
 
@@ -447,7 +447,7 @@ ex=(PAIR %a %b)
 ;
 : bodyExp <- readExp bodyRex err
 ;
-| if (eql `_ sigRex)
+| if (eql ``_ sigRex)
     | ifNot (isZero oFallback)
         | err cases "Only one fallback-pattern is allowed"
     | go (SOME bodyExp) acc remain
@@ -555,8 +555,8 @@ ex=(PAIR %a %b)
 !!=  ++ TRUE
      ++ dataTag
      ++ cnsE 0
-     ++  ++ [0 0 []                  `[x "]"]         FALSE]
-         ++ [1 2 [[%v '_'] [%v '_']] `[x " " (go xs)] FALSE]
+     ++  ++ [0 0 []                  ``[x "]"]         FALSE]
+         ++ [1 2 [[%v '_'] [%v '_']] ``[x " " (go xs)] FALSE]
   ^ _ v2 v4
   @ xpr `` * LNULL       [x "]"]
            * (LCONS _ _) [x " " (go xs)]
@@ -571,8 +571,8 @@ ex=(PAIR %a %b)
 
 !!=  ++ TRUE
      ++ dataTag
-     ++ `[x " " (go xs)]
-     ++  ++ [0 0 [] `[x "]"] FALSE]
+     ++ ``[x " " (go xs)]
+     ++  ++ [0 0 [] ``[x "]"] FALSE]
   ^ _ v2 v4
   @ xpr `` * LNULL [x "]"]
            * _     [x " " (go xs)]

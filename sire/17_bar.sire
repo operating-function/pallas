@@ -40,7 +40,7 @@
 /+  06_row  [map foldl foldr gen weld v1 v2 v4]
 /+  06_row  [fst snd]
 /+  07_rex  [SHUT CURL WORD]
-/+  07_rex  [rexKids rexText '`']
+/+  07_rex  [rexKids rexText {``}]
 /+  07_rex  [rexGetLeaf]
 /+  08_dat
 /+  09_sci  []
@@ -336,20 +336,20 @@ hexAlphabet=(b#{0123456789abcdef})
    ++ WORD "x" 0
    ++ CURL (barNat | barToHex bar) 0
 
-!!= (natBar-'asdf')       | readBarLit `(b#asdf) v2 id
-!!= [`(#b)    blTwoKids]  | readBarLit `(#b)     v2 id
-!!= [`(b#b#b) blTwoKids]  | readBarLit `(b#b#b)  v2 id
-!!= [`[]      blWantText] | readBarLit `(b#[])   v2 id
+!!= (natBar-'asdf')        | readBarLit ``(b#asdf) v2 id
+!!= [``(#b)    blTwoKids]  | readBarLit ``(#b)     v2 id
+!!= [``(b#b#b) blTwoKids]  | readBarLit ``(b#b#b)  v2 id
+!!= [``[]      blWantText] | readBarLit ``(b#[])   v2 id
 
-!!= (barFromHex 'asdf')   | readBarLit `(x#asdf) v2 id
-!!= [`(#x)    blTwoKids]  | readBarLit `(#x)     v2 id
-!!= [`(x#x#x) blTwoKids]  | readBarLit `(x#x#x)  v2 id
-!!= [`[]      blWantText] | readBarLit `(x#[])   v2 id
+!!= (barFromHex 'asdf')    | readBarLit ``(x#asdf) v2 id
+!!= [``(#x)    blTwoKids]  | readBarLit ``(#x)     v2 id
+!!= [``(x#x#x) blTwoKids]  | readBarLit ``(x#x#x)  v2 id
+!!= [``[]      blWantText] | readBarLit ``(x#[])   v2 id
 
-!!= b#"deadbeef"    | barToHex x#deadbeef
-!!= `(x#{deadbeef}) | showBarLit x#deadbeef
-!!= `(b#{deadbeef}) | showBarLit b#deadbeef
-!!= `(b#{})         | showBarLit x#{}
+!!= b#"deadbeef"     | barToHex x#deadbeef
+!!= ``(x#{deadbeef}) | showBarLit x#deadbeef
+!!= ``(b#{deadbeef}) | showBarLit b#deadbeef
+!!= ``(b#{})         | showBarLit x#{}
 
 = (barFlat x)
 | if (isBar x) | x

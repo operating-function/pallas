@@ -192,13 +192,13 @@
     | barAll isAlpha (natBar k)
 | WORD (if isKey k | showNat k) 0
 
-!!= `a (showKey %a)
-!!= `5 (showKey 5)
-!!= `0 (showKey 0)
+!!= ``a (showKey %a)
+!!= ``5 (showKey 5)
+!!= ``0 (showKey 0)
 
 > (v > Rex) > Tab Any v > Rex
 = (showTab showVal tab)
-| if (tabIsEmpty tab) `(#[])
+| if (tabIsEmpty tab) ``(#[])
 ^ NEST {,} (map _ tabToPairs-tab) 0
 & [key val]
 | SHUT {=} (showKey key, showVal val) 0
@@ -216,24 +216,24 @@
 * (PALI x y)   | SHUT {@} (showPat x, showPat y) 0
 * (PROW xs)    | NEST {,} (map showPat xs) 0
 * (PTAB xs)    | showTab showPat xs
-* (POPN n)     | rexSetHeir `(..) (varE n)
-* (PPIN p)     | `` @(PIN $$(showPat p))
-* (PLAW n a b) | `` @(LAW $$(showPat n) $$(showPat a) $$(showPat b))
+* (POPN n)     | rexSetHeir ``(..) (varE n)
+* (PPIN p)     | ` @(PIN $$(showPat p))
+* (PLAW n a b) | ` @(LAW $$(showPat n) $$(showPat a) $$(showPat b))
 * _            | {invalid pattern} p
 
-!!= (` #[])
+!!= (`` #[])
   | showPat
   | PTAB #[]
 
-!!= `[x=x y=(!y)]
+!!= ``[x=x y=(!y)]
   | showPat
   | PTAB [x=(PVAR %x) y=(PSEQ %y)]
 
-!!= `[x=(UNIT(..)) y=(!y)]
+!!= ``[x=(UNIT(..)) y=(!y)]
   | showPat
   | PTAB [x=(POPN %UNIT) y=(PSEQ %y)]
 
-!!= ` x@[a b@[c !d]]
+!!= `` x@[a b@[c !d]]
   | showPat
   | PALI (PVAR %x)
   | PROW
@@ -274,9 +274,9 @@
     < listCase xs
     # datacase f
     * NONE      | 0
-    * (SOME fb) | ``(* _ $$(showExp fb))
+    * (SOME fb) | `(* _ $$(showExp fb))
 @ rest (go xs)
-| ``((* $$(showCon cn pts) $$(showExp b))($$rest))
+| `((* $$(showCon cn pts) $$(showExp b))($$rest))
 
 = (niceApp showExp e)
 ^ _ e ~[]
@@ -365,11 +365,11 @@
 ; TODO: Fix loot printing for {...\{...}.
 ; TODO: Fix vim highlighting for {...\{...}.
 
-!!= `abc      | showRef {.} 'abc'
-!!= `(.0)     | showRef {.} ''
-!!= `(.1)     | showRef {.} 1
-!!= `(.{a c}) | showRef {.} 'a c'
-!!= `(.{\{})  | showRef {.} '{'
+!!= ``abc      | showRef {.} 'abc'
+!!= ``(.0)     | showRef {.} ''
+!!= ``(.1)     | showRef {.} 1
+!!= ``(.{a c}) | showRef {.} 'a c'
+!!= ``(.{\{})  | showRef {.} '{'
 
 = (mkApp row)
 | if (null row)
@@ -401,20 +401,20 @@
 * (ELIN x)       | PREF {**} ,(showExp x) 0
 * (EROW xs)      | NEST {,} (map go xs) 0
 * (ETAB xs)      | showTab showExp xs
-* EUNT           | `()
+* EUNT           | ``()
 * (ECAS x f cs)  | showCase go x f cs
 * (EMUT t b as)  | showMutRec go t b as
 * (ESWI e f as)  | showSwitch go e f as
-* (EREX r)       | NEST "`" [r] 0
-* (EQRX r)       | showQuasiQuotedRex go r
+* (EREX r)       | NEST {``} [r] 0
+* (EQRX r)       | NEST {`} [(showQuasiQuotedRex go r)] 0
 * (ECON x xs)    | INFX "::" (showExp x, showExp xs) 0
-* ENIL           | `(~[])
+* ENIL           | ``(~[])
 * (EEQL xs)      | INFX "==" (map showExp xs) 0
 * (ENEQ x y)     | INFX "/=" (showExp x, showExp y) 0
 * _              | {showExp: Unknown syntax} exp
 
 
-!!= ` (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#{111} b#{asdf} (2 fanc))
+!!= `` (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#{111} b#{asdf} (2 fanc))
   | showExp
   | ELET (PVAR "n") (ENAT %inc)
   | ELET (PVAR "fanc")
@@ -429,25 +429,25 @@
   | EAPP (ENAT 2)
   | EREF %fanc
 
-!!= ` [%[0 a b] %[0] %[]]
+!!= `` [%[0 a b] %[0] %[]]
   | showExp
   | EROW (map ECAB [%[0 a b] %[0] %[]])
 
-!!= ` [#[] [a=3] [us=[() ()]]]
+!!= `` [#[] [a=3] [us=[() ()]]]
   | showExp
   | EROW (map ETAB [#[] [a=(ENAT 3)] [us=(EROW [EUNT EUNT])]])
 
-!!= ` (& (x y))x
+!!= `` (& (x y))x
   | showExp
   | ELAM FALSE
   | FUN 0 0 (PVAR %x, PVAR %y) (EREF %x)
 
-!!= ` (? (const x y))x
+!!= `` (? (const x y))x
   | showExp
   | ELAM FALSE
   | FUN "const" "const" (PVAR %x, PVAR %y) (EREF %x)
 
-!!= ` (^ (f _ y))x
+!!= `` (^ (f _ y))x
   | showExp
   | EKET (mkApp (EREF %f, EREF %_, EREF %y))
   | EREF %x
@@ -571,14 +571,14 @@
 : tab <- readTallTabLit readExp rex err
 | ok (ETAB tab)
 
-= (parseTik rex err ok)
+= (parseTikTik rex err ok)
 @ kids (rexKids rex)
 | ifNot (eql 1 | len kids)
-    | err rex {Expected something like `(rex)}
+    | err rex {Expected something like ``(rex)}
 | ok
 | EREX (idx 0 kids)
 
-= (parseTikTik readExp rex err ok)
+= (parseTik readExp rex err ok)
 ;
 @ (readValLeft rex err ok)
     : exp < readExp rex err
@@ -703,8 +703,8 @@
 * {::}  | parseColCol readExp rex err ok
 * {==}  | parseTisTis readExp rex err ok
 * {/=}  | parseFasTis readExp rex err ok
-* {`}   | parseTik rex err ok
-* {``}  | parseTikTik readExp rex err ok
+* {``}  | parseTikTik rex err ok
+* {`}   | parseTik readExp rex err ok
 * {%}   | parseCen rex err ok
 * {%%}  | parseCenCen rex err ok
 * {&&}  | parseAndExp readExp rex err ok
@@ -743,56 +743,56 @@
 | OPEN '*' [expected]
 | 0
 
-!! expRound ` x
-!! expRound ` .{||}
-!! expRound ` .0
-!! expRound ` .3
-!! expRound ` 0
-!! expRound ` (f x y)
-!! expRound ` (**f x y)
-!! expRound ` [p#{101} p#{}]
-!! expRound ` (& x)x
-!! expRound ` (& (x y))x
-!! expRound ` (? (id x))x
-!! expRound ` (? (const x y))x
-!! expRound ` (@ x 3)(x x x)
-!! expRound ` (@@ x 3)x
-!! expRound ` (^ (f _ y))x
-!! expRound ` (@ x [1 2])[x x]
-!! expRound ` (@ [x y] [1 2])[y x]
-!! expRound ` (@ z@[!x y] [1 2])(x y z)
-!! expRound ` (# mutrec 3 (three 5))(* (three _) 3)
-!! expRound ` (# mutrec 3 (three 5))(* (three _) 3)(* (four _ _) (inc 3))
-!! expRound ` (# switch 3)(* 3 3)(* 4 4)(* _ 9)
+!! expRound `` x
+!! expRound `` .{||}
+!! expRound `` .0
+!! expRound `` .3
+!! expRound `` 0
+!! expRound `` (f x y)
+!! expRound `` (**f x y)
+!! expRound `` [p#{101} p#{}]
+!! expRound `` (& x)x
+!! expRound `` (& (x y))x
+!! expRound `` (? (id x))x
+!! expRound `` (? (const x y))x
+!! expRound `` (@ x 3)(x x x)
+!! expRound `` (@@ x 3)x
+!! expRound `` (^ (f _ y))x
+!! expRound `` (@ x [1 2])[x x]
+!! expRound `` (@ [x y] [1 2])[y x]
+!! expRound `` (@ z@[!x y] [1 2])(x y z)
+!! expRound `` (# mutrec 3 (three 5))(* (three _) 3)
+!! expRound `` (# mutrec 3 (three 5))(* (three _) 3)(* (four _ _) (inc 3))
+!! expRound `` (# switch 3)(* 3 3)(* 4 4)(* _ 9)
 
-!!= `[x=3 y=4]
+!!= ``[x=3 y=4]
   ^ readExp _ v2 showExp
-  ` #[x=3 y=4]
+ `` #[x=3 y=4]
 
-!!= `[x=3 y=4]
+!!= ``[x=3 y=4]
   ^ readExp _ v2 showExp
-  ` #["x"=3 {y}=4]
+  `` #["x"=3 {y}=4]
 
-!!= ` (@ f (? (f x))[x x])x
+!!= `` (@ f (? (f x))[x x])x
   ^ readExp _ v2 showExp
-  ` @ (f x) [x x]
+ `` @ (f x) [x x]
     | x
 
-!!= ` (@ x 3)(@ y 4)(@ z 5)[x y z]
+!!= `` (@ x 3)(@ y 4)(@ z 5)[x y z]
   ^ readExp _ v2 showExp
-  ` @   = x 3
+ `` @   = x 3
         = y 4
         = z 5
     | [x y z]
 
-!!= ` (# switch 3)(* 3 3)(* 4 4)(* _ 0)
+!!= `` (# switch 3)(* 3 3)(* 4 4)(* _ 0)
   ^ readExp _ v2 showExp
-  ` # switch 3
+ `` # switch 3
     * 3 3
     * 4 4
 
 !!  expRound
- ` ? (span f r)
+`` ? (span f r)
    @ l (len r)
    ^ (_ 0)
    ? (loop i)
@@ -801,86 +801,86 @@
          | loop (inc i)
        | v2 (take i r) (drop i r)
 
-!!= `[x=3 y=4]
+!!= ``[x=3 y=4]
   ^ readExp _ v2 showExp
-  ` ## =x 3
+ `` ## =x 3
     ## =y 4
 
-!!= `[300000 (0 57005)]
+!!= ``[300000 (0 57005)]
   ^ readExp _ v2 showExp
-  ` ++ 300_000
+ `` ++ 300_000
     ++ 0 0xD_E_A_D
 
-!!= `[3 (0 1)]
+!!= ``[3 (0 1)]
   ^ readExp _ v2 showExp
-  ` ++ 3
+ `` ++ 3
      | 0 1
 
-!! expRound `((# datacase a)(* NONE 0)(* (SOME x) x))
+!! expRound ``((# datacase a)(* NONE 0)(* (SOME x) x))
 
-!!= ` %[0 1 2 a b c]
+!!= `` %[0 1 2 a b c]
   ^ readExp _ v2 showExp
-  ` %% a b c
+ `` %% a b c
     %% 0 1 2
 
-!!= ` (3 :: (4 :: (5 :: ~[])))
+!!= `` (3 :: (4 :: (5 :: ~[])))
   ^ readExp _ v2 showExp
-  ` ~[3 4 5]
+ `` ~[3 4 5]
 
-!!= ` (3 :: (4 :: (5 :: ~[])))
+!!= `` (3 :: (4 :: (5 :: ~[])))
   ^ readExp _ v2 showExp
-  ` ~~ 3
+ `` ~~ 3
     ~~ 4
      5
 
-!! expRound `(3 :: (4 :: (5 :: 6)))
+!! expRound ``(3 :: (4 :: (5 :: 6)))
 
-!!= ` (3 :: (4 :: (5 :: 6)))
+!!= `` (3 :: (4 :: (5 :: 6)))
   ^ readExp _ v2 showExp
-  ` :: 3 4
+ `` :: 3 4
     :: 5
     :: 6
 
-!!= ` (3 == 4 == 5)
+!!= `` (3 == 4 == 5)
   ^ readExp _ v2 showExp
-  ` (3 == 4 == 5)
+ `` (3 == 4 == 5)
 
-!!= ` (3 /= 4)
+!!= `` (3 /= 4)
   ^ readExp _ v2 showExp
-  ` (3 /= 4)
+ `` (3 /= 4)
 
-!!= ` (1 && (2 && 3))
+!!= `` (1 && (2 && 3))
   ^ readExp _ v2 showExp
-  ` (1 && 2 && 3)
+ `` (1 && 2 && 3)
 
-!!= ` (1 || (2 || 3))
+!!= `` (1 || (2 || 3))
   ^ readExp _ v2 showExp
-  ` (1 || 2 || 3)
+ `` (1 || 2 || 3)
 
 !! expRound
- ` # datacase a
+`` # datacase a
    * NONE     0
    * _        1
 
-!!= `(add (inc 2) (inc 383))
+!!= ``(add (inc 2) (inc 383))
   ^ readExp _ v2 showExp
-  ` | add
+ `` | add
     * inc 2
     * inc 0x17f
 
-!!= `(add 2 (? (Foo x))(add x x))
+!!= ``(add 2 (? (Foo x))(add x x))
   ^ readExp _ v2 showExp
-  ` : ?(Foo x) <- add 2
+ `` : ?(Foo x) <- add 2
     | add x x
 
-!!= ` (^ (_ 3))(0 0)
+!!= `` (^ (_ 3))(0 0)
   ^ readExp _ v2 showExp
-  ` ^ _ 3
+ `` ^ _ 3
     | 0 0
 
-!!= `asdf
+!!= ``asdf
   ^ readExp _ v2 showExp
-  ` .{asdf}
+ `` .{asdf}
 
 
 """ Traversal """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -1248,23 +1248,23 @@ prp=(#getAllProps)
 | compile (#getAllSources) (#getAllProps) st exp
 
 !!= (comp 5 (ENAT 0))
-  | [5 ``($0)]
+  | [5 `($0)]
 
 !!= (comp 5 (EAPP ENAT-0 ENAT-1))
-  | [5 ``(#| $0 $1)]
+  | [5 `(#| $0 $1)]
 
 !!= (comp 5 (EEQL (ENAT 0, ENAT 1)))
-  | [5 ``(#| $eql $0 $1)]
+  | [5 `(#| $eql $0 $1)]
 
 !!=   | comp 5 (EEQL (ENAT 0, ENAT 1, ENAT 2))
  ++ 6
- ++ ``((#@ _g5 $0)(#| $and (#| $eql _g5 $1) (#| $eql _g5 $2)))
+ ++ `((#@ _g5 $0)(#| $and (#| $eql _g5 $1) (#| $eql _g5 $2)))
 
 !!=   | comp 5 (ELIN (EAPP ELIN-(EREF 'id') (ENAT 1)))
  ++ 5
- ++ `` (#** (#| (#** id) $1))
+ ++ ` (#** (#| (#** id) $1))
 
-!!= [5 ``(#| $(%[a b c]) (#| $(cow 3) (#| $0 $3) $2 $1))]
+!!= [5 `(#| $(%[a b c]) (#| $(cow 3) (#| $0 $3) $2 $1))]
   | comp 5
   | ETAB
  ## =a (ENAT 1)
@@ -1272,14 +1272,14 @@ prp=(#getAllProps)
  ## =c (EAPP ENAT-0 ENAT-3)
 
 !!=  ++ 5
-     ++ `` (#| $tabSwitch foo z (#| $(%[a b]) (#| $(cow 2) y x)))
+     ++ ` (#| $tabSwitch foo z (#| $(%[a b]) (#| $(cow 2) y x)))
   ^ readExp _ (curry die) (comp 5)
-  ` (# switch foo)(* {a} x)(* {b} y)z
+ `` (# switch foo)(* {a} x)(* {b} y)z
 
 !!=  ++ 5
-     ++ `` (#| $tabSwitch foo $0 (#| $(%[a]) (#| $(cow 1) x)))
+     ++ ` (#| $tabSwitch foo $0 (#| $(%[a]) (#| $(cow 1) x)))
   ^ readExp _ (curry die) (comp 5)
-  ` (# switch foo)(* {a} x)
+ `` (# switch foo)(* {a} x)
 
 ; TODO Can these single-item switches be compiled to an if expression?
 
@@ -1299,26 +1299,26 @@ prp=(#getAllProps)
   | ('f', 'f', (PVAR %x, PVAR %z), EREF 'z')
 
 !!=  ++ 7
-     ++ `` (#& _g5)(#@ _g6 _g5)(#@ x (#| $(idx 0) _g6))(#@ z (#| $(idx 1) _g6))z
+     ++ ` (#& _g5)(#@ _g6 _g5)(#@ x (#| $(idx 0) _g6))(#@ z (#| $(idx 1) _g6))z
   | comp 5
   | ELAM FALSE
   | (0, 0, [(PROW (PVAR %x, PVAR %z))], EREF 'z')
 
 !!=  ++ 6
-     ++ `` (#@ _g5 (#| $(cow 2) $2 $1))(#@ x (#| $(idx 0) _g5))x
+     ++ ` (#@ _g5 (#| $(cow 2) $2 $1))(#@ x (#| $(idx 0) _g5))x
   | comp 5
   | ELET (PROW [(PVAR %x)])
       | EROW (ENAT 1, ENAT 2)
   | EREF 'x'
 
 !!=  ++ 5
-     ++ `` (#@ _ (#| $0 $1))(#| _ _)
+     ++ ` (#@ _ (#| $0 $1))(#| _ _)
   | comp 5
   | EKET (EAPP EREF-'_' EREF-'_')
   | EAPP ENAT-0 ENAT-1
 
 !!=  ++ 5
-     ++ `` (#@@ x (#| $(cow 2) x $1))(#| car x)
+     ++ ` (#@@ x (#| $(cow 2) x $1))(#| car x)
   | comp 5
   | EREC (PVAR 'x')
       | EROW (ENAT 1, EREF 'x')
@@ -1328,7 +1328,7 @@ prp=(#getAllProps)
 ; gross
 !!=  ++ 9
      ++ rexClose
-        ``  #@ _core5
+         `  #@ _core5
                 #? (_core5@'lol' _tag9 _arg7)
                 #@ even
                     #? (**even x)
@@ -1346,7 +1346,7 @@ prp=(#getAllProps)
 ; such a beauty
 !!=  ++ 8
      ++ rexClose
-       `` #@ _g5 x
+        ` #@ _g5 x
           #| $switch (#| $len _g5) $1
               #| $(cow 2)
                     #@ _g6 x
@@ -1361,7 +1361,7 @@ prp=(#getAllProps)
 
 !!=  ++ 7
      ++ rexClose
-       `` #@ _g5 sx
+        ` #@ _g5 sx
           #| $tabSwitch (#| $len _g5) $0
               #| $(%[1])
                  #| $(cow 1)
@@ -1401,12 +1401,12 @@ prp=(#getAllProps)
 ( {::}  #= macaroniStew )
 ( {==}  #= macaroniStew )
 ( {/=}  #= macaroniStew )
-( {`}   #= macaroniStew )
+( {``}  #= macaroniStew )
 ( {%}   #= macaroniStew )
 ( {%%}  #= macaroniStew )
 ( {&&}  #= macaroniStew )
 ( {||}  #= macaroniStew )
-( {``}  #= macaroniStew )
+( {`}   #= macaroniStew )
 
 !!= 6 (@ a 3)(add a a)
 !!= 0 (3 == 4)
@@ -1440,6 +1440,6 @@ prp=(#getAllProps)
 ^-^
 ^-^ ; MAKE.  EVERYTHING.  STEW.
 ^-^
-^-^ {^} {|}  {-}  {&}  {?}  {:} {??} {**} {,}  {++} {.} {@} {@@} {##}
-^-^ {~} {~~} {::} {==} {/=} {`} {%}  {%%} {&&} {||} {``}
+^-^ {^} {|}  {-}  {&}  {?}  {:}  {??} {**} {,}  {++} {.} {@} {@@} {##}
+^-^ {~} {~~} {::} {==} {/=} {``} {%}  {%%} {&&} {||} {`}
 ^-^

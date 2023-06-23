@@ -267,23 +267,23 @@ hexAlphabet=(natBar "0123456789abcdef")
 * EMBD
         | showTree (rexEmbd expr)
 
-!!= b#'()'                 | showRex `()
-!!= b#'3'                  | showRex `3
-!!= b#'"3"'                | showRex `"3"
-!!= b#'(3 4 5)'            | showRex `(3 4 5)
-!!= b#'(+ 3 4 5)'          | showRex `(+ 3 4 5)
-!!= b#'(3 + 4 + 5)'        | showRex `(3 + 4 + 5)
-!!= b#'(%((3=3) , (4=4)))' | showRex `(%(3=3, 4=4))
-!!= b#'((+3) (+4) (+5))'   | showRex `(+3 +4 +5)
-!!= b#'(3+4+5)9'           | showRex `((3+4+5)9)
-!!= b#'(| p)(q r)s'        | showRex `((| p)(q r)s)
-!!= b#'(| p)(q r)s'        | showRex ` | p
-                                       | q r
-                                       s
+!!= b#'()'                 | showRex ``()
+!!= b#'3'                  | showRex ``3
+!!= b#'"3"'                | showRex ``"3"
+!!= b#'(3 4 5)'            | showRex ``(3 4 5)
+!!= b#'(+ 3 4 5)'          | showRex ``(+ 3 4 5)
+!!= b#'(3 + 4 + 5)'        | showRex ``(3 + 4 + 5)
+!!= b#'(%((3=3) , (4=4)))' | showRex ``(%(3=3, 4=4))
+!!= b#'((+3) (+4) (+5))'   | showRex ``(+3 +4 +5)
+!!= b#'(3+4+5)9'           | showRex ``((3+4+5)9)
+!!= b#'(| p)(q r)s'        | showRex ``((| p)(q r)s)
+!!= b#'(| p)(q r)s'        | showRex `` | p
+                                        | q r
+                                        s
 
 = showRexExample
 | showRex
-   ``
+    `
     = (showRex expr)
     | **rexCase expr
         & (r x k)
@@ -437,9 +437,9 @@ hexAlphabet=(natBar "0123456789abcdef")
 | loop acc (rexHeir rex)
 
 
-!!= [[%hi `there] [%bye `here]]
+!!= [[%hi ``there] [%bye ``here]]
   ^ readBindPairs _ v2 id
-  ` ((hi=there)(bye=here))
+ `` ((hi=there)(bye=here))
 
 ;;;
 ;;; TODO Broken macro.  Unit test the SHIT out of all of this macro code.

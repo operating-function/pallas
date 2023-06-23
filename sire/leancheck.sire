@@ -185,11 +185,11 @@ tiersPair=tierProd
 = (showResult name n ces)
 # datacase ces
 * NIL
-    `` | $$(TAPE name 0) SUCCESS
-      ## =passed  $$(WORD showNat-n 0)
+    ` | $$(TAPE name 0) SUCCESS
+     ## =passed  $$(WORD showNat-n 0)
 * (CONS ce _)
-    `` | $$(TAPE name 0) FAILURE
-      ## =counterexample $$(EMBD ce)
+    ` | $$(TAPE name 0) FAILURE
+     ## =counterexample $$(EMBD ce)
 
 = (lc_exec name n p tiers shouldPass)
 @ ces       | counterExamples n (getResults p tiers)

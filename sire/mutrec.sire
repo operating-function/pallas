@@ -57,17 +57,17 @@
 : body      <- readExp bodyRex err
 | ret [sym binds body]
 
-!!= [[%f [[%v %x]] `x] [%g [[%v %y]] `0]]
-  | readCoreBody '=' readRex `((f x = x)(g y = 0)) v2 id
+!!= [[%f [[%v %x]] ``x] [%g [[%v %y]] ``0]]
+  | readCoreBody '=' readRex ``((f x = x)(g y = 0)) v2 id
 
-!!= [[%f [[%r [[%v %x] [%v %y]]]] `x]]
-  | readCoreBody '=' readRex `((f [x y] = x)) v2 id
+!!= [[%f [[%r [[%v %x] [%v %y]]]] ``x]]
+  | readCoreBody '=' readRex ``((f [x y] = x)) v2 id
 
-!!= [`(*) 'Not a core arm']
-  | readCoreBody '=' readRex `((f x = x)(g y = 0)(*)) v2 id
+!!= [``(*) 'Not a core arm']
+  | readCoreBody '=' readRex ``((f x = x)(g y = 0)(*)) v2 id
 
-!!= [`(= f) '= node expects two parameters']
-  | readCoreBody '=' readRex `((= f|x x)(= f)) v2 id
+!!= [``(= f) '= node expects two parameters']
+  | readCoreBody '=' readRex ``((= f|x x)(= f)) v2 id
 
 = (readMutRecExp readExp rex err ok)
 : _ coreTag letBody coreBody
@@ -83,20 +83,20 @@
 | ret aft [sym sig bod]
 
 !!=  ++ 5
-     ++ ++ [%f [%x] `x]
-        ++ [%g [%y] `0]
+     ++ ++ [%f [%x] ``x]
+        ++ [%g [%y] ``0]
   ^ genCoreBody _ 5 v2
-  | [[%f [[%v %x]] `x] [%g [[%v %y]] `0]]
+  | [[%f [[%v %x]] ``x] [%g [[%v %y]] ``0]]
 
 !!=  ++ 7
      ++  ++  ++ 'f'
              ++ ['_g5']
-             ++ `` #@ _g6 _g5
-                   #@ x (#| $(idx 0) _g6)
-                   #@ y (#| $(idx 1) _g6)
-                    x
+             ++ ` #@ _g6 _g5
+                  #@ x (#| $(idx 0) _g6)
+                  #@ y (#| $(idx 1) _g6)
+                   x
   ^ genCoreBody _ 5 v2
-  | [[%f [[%r [[%v %x] [%v %y]]]] `x]]
+  | [[%f [[%r [[%v %x] [%v %y]]]] ``x]]
 
 ; TODO Move this to `17-exp.sire`
 ; TODO Avoid the @ where necessary.
@@ -105,8 +105,8 @@
 @ sig (NEST {|} (rowCons idn args) 0)
 | OPEN "#?" [sig] body
 
-!!= (taggedLamE %f 2 [`x `y `z] `x)
-  ` #? (f@2 x y z)
+!!= (taggedLamE %f 2 [``x ``y ``z] ``x)
+ `` #? (f@2 x y z)
      x
 
 = (matchE x wildExp patExps)
@@ -116,8 +116,8 @@
        ++ wildExp
 | bowE patExps
 
-!!= (matchE `[0 1 2] `0 [`1 `2 `3])
- ``
+!!= (matchE ``[0 1 2] ``0 [``1 ``2 ``3])
+  `
  #| $switch (#| $(idx 0) [0 1 2]) 0
  #| $(cow 3) 3 2 1
 
@@ -187,7 +187,7 @@
 
 ; !!= 1
 ;         @ e
-;                 `
+;                ``
 ;                 # mutrec %loop (**loop start)
 ;                 * (loop xx)
 ;                     | ifNot xx 0 (**loop 0)
@@ -196,7 +196,7 @@
 
 ; !!= 1
 ;         @ e
-;                 `(#mutrec %loop (f 3) (f x = x)(g a e = g a e))
+;                `` (#mutrec %loop (f 3) (f x = x)(g a e = g a e))
 ;         (.{#mutrec} 3 3 3 e v2 v4)
 
 = (foo x)

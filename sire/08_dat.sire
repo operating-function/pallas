@@ -35,10 +35,10 @@
 | ok p a heir
 
 = ("\" s p e a r err ok)
-| ok p a `(#*)
+| ok p a ``(#*)
 
 = ("#typedef" s p e a r err ok)
-| ok p a `(#*)
+| ok p a ``(#*)
 
 
 """ Basic Row Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""

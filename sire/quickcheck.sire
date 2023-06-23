@@ -283,12 +283,12 @@ getSize=(sized pureGen)
 = (showResult name seed result)
 # datacase result
 * (OK passed dropped)
-   ``
+    `
     | $$(TAPE name 0) SUCCESS
    ## =passed  $$(WORD showNat-passed 0)
    ## =dropped $$(WORD showNat-dropped 0)
 * (FAIL gen size passed dropped failed)
-  ``
+   `
    | $$(TAPE name 0) FAILURE
    | =parameters
       ## =seed    $$(WORD showNat-seed 0)
@@ -299,7 +299,7 @@ getSize=(sized pureGen)
    | {counter example:}
    | $$(EMBD failed)
 * (GAVE_UP passed dropped)
-  ``
+   `
    | $$(TAPE name 0) GAVE UP
   ## =passed  $$(WORD showNat-passed 0)
   ## =dropped $$(WORD showNat-dropped 0)

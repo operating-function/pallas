@@ -9,7 +9,7 @@
 """ ================
 """
 """ This defines the representation for the Rex datajet.  Some utilities
-""" for working with Rex values.  It also includes the {`} macro,
+""" for working with Rex values.  It also includes the {``} macro,
 """ for lisp-style rex quoting.
 """
 """
@@ -245,7 +245,7 @@
 
 """ Quoting """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= ("`" s p e a r err ok)
+= ({``} s p e a r err ok)
 @ args (rexKids r)
 | if (neq 1 len-args)
     | **err r "Expected 1 Parameter"
@@ -262,9 +262,9 @@
   | rexSetRune "*"
   | OPEN "-" v0 0
 
-!!= ` (f [x y])[z]
+!!= `` (f [x y])[z]
   | rexClose
-  ` | f , x y
+ `` | f , x y
     , z
 
 wx=(WORD "x" 0)
@@ -296,10 +296,10 @@ sx=(OPEN "=" (v2 wx w9) 0)
 = (nestNod rune sons)      | NEST rune sons 0
 
 
-!!= 1 | eql `3        | (w "3")
-!!= 1 | eql `(3 4)    | nestNod "|" (v2 (w "3") (w "4"))
-!!= 1 | eql `([a][b]) | nestAnd "," (v1 (w "a"))
-                      | nestNod "," (v1 (w "b"))
+!!= 1 | eql ``3        | (w "3")
+!!= 1 | eql ``(3 4)    | nestNod "|" (v2 (w "3") (w "4"))
+!!= 1 | eql ``([a][b]) | nestAnd "," (v1 (w "a"))
+                       | nestNod "," (v1 (w "b"))
 !!= 1
   | eql
       | NEST "*" (v2 (WORD "hi" 0) (WORD "yo" 0))
@@ -311,14 +311,14 @@ sx=(OPEN "=" (v2 wx w9) 0)
   | WORD "heh"
   | 0
 
-!!= "NEST" | rexStyle ` []
-!!= "OPEN" | rexStyle ` | x
-!!= "WORD" | rexStyle ` hi
-!!= "TAPE" | rexStyle ` ""
-!!= "CORD" | rexStyle ` ''
-!!= "LINE" | rexStyle ` '''
-!!= "PAGE" | rexStyle ` """
-!!= "CURL" | rexStyle ` {}
+!!= "NEST" | rexStyle `` []
+!!= "OPEN" | rexStyle `` | x
+!!= "WORD" | rexStyle `` hi
+!!= "TAPE" | rexStyle `` ""
+!!= "CORD" | rexStyle `` ''
+!!= "LINE" | rexStyle `` '''
+!!= "PAGE" | rexStyle `` """
+!!= "CURL" | rexStyle `` {}
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -347,5 +347,5 @@ sx=(OPEN "=" (v2 wx w9) 0)
 ^-^
 ^-^ rexEvery rexClose
 ^-^
-^-^ "`"
+^-^ {``}
 ^-^
