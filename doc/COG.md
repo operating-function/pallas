@@ -94,15 +94,18 @@ The `%cog` requests are:
 
 -   `[%cog %spin fan] -> IO Pid`: Starts a cog and returns its cog id.
 
--   `[%cog %send pid fan] -> IO Nat`: Sends the fan value to pid,
-    returning afterwards. `%recv`/`%send` are special in that they always
-    both execute atomically; you'll never have one without the other in
-    the event log.
+-   `[%cog %send pid channel fan] -> IO Nat`: Sends the fan value to pid
+    on a channel, returning afterwards. `%send`/`%recv` operate on word64
+    channels, which allow two different cogs to maintain separate message
+    streams that don't interact with each other. `%recv`/`%send` are
+    special in that they always both execute atomically; you'll never
+    have one without the other in the event log.
 
     The returned nat is 0 if the message was sent successfully, and 1 if
     the cog crashed.
 
--   `[%cog %recv] -> IO (Pid, Fan)`: Waits for a message from another process.
+-   `[%cog %recv channel] -> IO (Pid, Fan)`: Waits for a message to be
+    sent on to this cog on the given numeric channel.
 
 -   `[%cog %stop pid] -> IO (Maybe CogState)`: If the cog does not exist,
     immediately returns None. Otherwise, stops and removes the cog from

@@ -9,15 +9,17 @@
 /+  demo_timer
 /+  stew
 
-
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+demoCogChannel=51
+pongCogChannel=28
 
 = (pongCog parent return)
 | trk [%pongwait]
-: ??(pong_got_msg [sender rawmsg]) <- syscall COG_RECV
+: ??(pong_got_msg [sender rawmsg]) <- syscall (COG_RECV pongCogChannel)
 @ [msg] rawmsg
 | trk [%pongrecv msg]
-: ??(pong_sent success) <- syscall (COG_SEND parent msg)
+: ??(pong_sent success) <- syscall (COG_SEND parent demoCogChannel msg)
 | trk [%pongsuccess success]
 | pongCog parent return
 
@@ -29,8 +31,8 @@
 ^ _ 0 return
 ? (go i return)
 | trk [%pingsending cogId i]
-: ??(sent_msg_success success) <- syscall (COG_SEND cogId i)
-: ??(recv_msg [sender rawmsg]) <- syscall COG_RECV
+: ??(sent_msg_success success) <- syscall (COG_SEND cogId pongCogChannel i)
+: ??(recv_msg [sender rawmsg]) <- syscall (COG_RECV demoCogChannel)
 @ [msg] rawmsg
 | trk [%pingrecv msg]
 ;

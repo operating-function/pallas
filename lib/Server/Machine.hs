@@ -44,6 +44,7 @@ import qualified Fan
 
 import Fan.Convert
 import Fan.Prof
+import Optics                (set)
 import Server.Common
 import Server.Convert        ()
 import Server.Debug
@@ -186,8 +187,9 @@ data SpinRequest = SR
   deriving (Show)
 
 data SendRequest = SNDR
-    { cogDst :: CogId
-    , params :: Vector Fan
+    { cogDst  :: CogId
+    , channel :: Word64
+    , params  :: Vector Fan
     }
   deriving (Show)
 
@@ -199,7 +201,7 @@ data Request
     | ReqCall CallRequest
     | ReqWhat (Set Nat)
     | ReqSend SendRequest
-    | ReqRecv
+    | ReqRecv Word64
     | ReqSpin SpinRequest
     | ReqReap CogId
     | ReqStop CogId
@@ -239,10 +241,11 @@ valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
             "spin" | length row == 3 -> pure (ReqSpin $ SR $ row!2)
             "reap" | length row == 3 -> ReqReap <$> fromNoun @CogId (row!2)
             "stop" | length row == 3 -> ReqStop <$> fromNoun @CogId (row!2)
-            "send" | length row >= 3 -> do
+            "send" | length row >= 4 -> do
                 dst <- fromNoun @CogId (row!2)
-                pure (ReqSend (SNDR dst (V.drop 3 row)))
-            "recv" | length row == 2 -> pure ReqRecv
+                channel <- fromNoun (row!3)
+                pure (ReqSend (SNDR dst channel (V.drop 4 row)))
+            "recv" | length row == 3 -> ReqRecv <$> fromNoun (row!2)
             "who"  | length row == 2 -> pure ReqWho
             _ -> Nothing
     else do
@@ -281,10 +284,59 @@ data PendingSendRequest = PENDING_SEND
     }
   deriving (Show)
 
--- This is a collection of all {PendingSendRequest}s within all the cogs
--- of a a machine.  This is part of the top-level Machine STM state,
+-- This is a collection of all {PendingSendRequest}s within all the cogs of a
+-- machine on all channels.  This is part of the top-level Machine STM state,
 -- because these IPC interactions need happen transactionally.
-type CogSendPool = Map CogId (TVar (Pool PendingSendRequest))
+type CogSendPool = Map CogId (TVar ChannelSendPool)
+
+type ChannelSendPool = Map Word64 (TVar (Pool PendingSendRequest))
+
+channelPoolRegister :: Word64 -> TVar ChannelSendPool -> PendingSendRequest
+                    -> STM Int
+channelPoolRegister channel vChannels psr = do
+    channels <- readTVar vChannels
+    pool <- case M.lookup channel channels of
+        Just pool -> pure pool
+        Nothing -> do
+            pool <- newTVar emptyPool
+            modifyTVar' vChannels $ insertMap channel pool
+            pure pool
+    poolRegister pool psr
+
+-- Given a channel number, takes an item from that pool, cleaning up empty
+-- channel pools.
+--
+-- Unlike `readPool`, this never retries and returns a Maybe instead because
+-- retrying during `receiveResponse` can cause more widespread blockage.
+channelPoolTake :: Word64 -> TVar ChannelSendPool
+                -> STM (Maybe PendingSendRequest)
+channelPoolTake channel vChannels = do
+    channels <- readTVar vChannels
+    case lookup channel channels of
+        Nothing -> pure Nothing
+        Just vPool -> do
+            pool <- readTVar vPool
+            case IM.minView pool.tab of
+                Nothing -> error "Pool didn't get cleaned when empty?"
+                Just (x, xs) -> do
+                    case null xs of
+                        True  -> modifyTVar' vChannels $ M.delete channel
+                        False -> writeTVar vPool (set #tab xs $ pool)
+                    pure $ Just x
+
+channelPoolUnregister :: Word64 -> TVar ChannelSendPool -> Int -> STM ()
+channelPoolUnregister channel vChannels poolId =
+  do
+    channels <- readTVar vChannels
+    case lookup channel channels of
+        Nothing -> pure ()
+        Just vPool -> do
+            empty <- stateTVar vPool $ \pool ->
+                let newPool = over #tab (deleteMap poolId) pool
+                in (null newPool.tab, newPool)
+
+            when empty $ do
+                modifyTVar' vChannels $ deleteMap channel
 
 -- | Data used only by the Runner async. This is all the data needed to
 -- run the main thread of Fan evaluation and start Requests that it made.
@@ -294,7 +346,6 @@ data Runner = RUNNER
     , vRequests :: TVar MachineSysCalls -- ^ Current requests table
     , vSends    :: TVar CogSendPool
     }
-
 
 -- -----------------------------------------------------------------------
 
@@ -335,12 +386,14 @@ data LiveRequest
     lwhRuntime :: Set Nat
     }
   | LiveSend {
-    lsndPool   :: TVar (Pool PendingSendRequest),
-    lsndPoolId :: Int
+    lsndChannel  :: Word64,
+    lsndPoolId   :: Int,
+    lsndChannels :: TVar ChannelSendPool
     }
   | LiveRecv {
-    lrIdx  :: RequestIdx,
-    lrPool :: TVar (Pool PendingSendRequest)
+    lrIdx      :: RequestIdx,
+    lrChannel  :: Word64,
+    lrChannels :: TVar ChannelSendPool
     }
   | LiveSpin {
     lsIdx :: RequestIdx,
@@ -462,7 +515,7 @@ recomputeEvals ctx m cogId tab =
 
     getSendFunAt :: Moment -> CogId -> CogId -> RequestIdx -> Maybe Fan
     getSendFunAt m sender receiver idx = withRequestAt m sender idx $ \case
-        ReqSend (SNDR cogDst params)
+        ReqSend (SNDR cogDst _channel params)
             | cogDst == receiver     -> Just $ ROW params
             | otherwise              -> Nothing
         _                            -> Nothing
@@ -604,10 +657,10 @@ replayAndCrankMachine cache ctx replayFrom = do
           vMoment   <- newTVar moment
           vRequests <- newTVar mempty
 
-          sends <- forM (keys moment.val) $ \k -> do
-              pool <- newTVar emptyPool
-              pure (k, pool)
-          vSends     <- newTVar $ mapFromList sends
+          channels <- forM (keys moment.val) $ \k -> do
+              channelPools <- newTVar mempty
+              pure (k, channelPools)
+          vSends     <- newTVar $ mapFromList channels
           pure RUNNER{vMoment, ctx, vRequests, vSends}
 
       -- TODO: Hack because I don't understand how this is supposed
@@ -716,20 +769,27 @@ buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
         pure ([], LiveWhat{lwhIdx=reqIdx,lwhCog=what,lwhRuntime=runtime},
               Nothing)
 
-    ReqRecv -> do
+    ReqRecv channel -> do
         sends <- readTVar runner.vSends
-        pool <- case M.lookup cogId sends of
+        channels <- case M.lookup cogId sends of
             Nothing   -> error $ "Listening on a nonexistent cog " <> show cogId
             Just pool -> pure pool
-        pure ([], LiveRecv{lrIdx=reqIdx,lrPool=pool}, Nothing)
+        -- pool <- case M.lookup
+        pure ([], LiveRecv{lrIdx=reqIdx,lrChannel=channel,lrChannels=channels},
+              Nothing)
 
-    ReqSend SNDR{cogDst,params} -> do
+    ReqSend SNDR{cogDst,channel,params} -> do
         sends <- readTVar runner.vSends
         case M.lookup cogDst sends of
             Nothing -> error $ "Bad cogDst " <> show cogDst
-            Just pool -> do
-                poolId <- poolRegister pool (PENDING_SEND cogId reqIdx params)
-                pure ([], LiveSend{lsndPool=pool, lsndPoolId=poolId}, Nothing)
+            Just vChannels -> do
+                poolId <-
+                    channelPoolRegister channel
+                                        vChannels
+                                        (PENDING_SEND cogId reqIdx params)
+                pure ([], LiveSend{lsndChannel=channel,
+                                   lsndPoolId=poolId,
+                                   lsndChannels=vChannels}, Nothing)
 
     ReqSpin (SR func) -> do
         pure ([], LiveSpin{lsIdx=reqIdx, lsFun=func}, Nothing)
@@ -751,7 +811,8 @@ cancelRequest LiveEval{..} = leRecord.cancel.action
 cancelRequest LiveCall{..} = lcCancel.action
 cancelRequest LiveWhat{}   = pure ()
 cancelRequest LiveRecv{}   = pure ()
-cancelRequest LiveSend{..} = poolUnregister lsndPool lsndPoolId
+cancelRequest LiveSend{..} =
+    channelPoolUnregister lsndChannel lsndChannels lsndPoolId
 cancelRequest LiveSpin{}   = pure () -- Not asynchronous
 cancelRequest LiveReap{}   = pure ()
 cancelRequest LiveStop{}   = pure ()
@@ -805,12 +866,14 @@ receiveResponse st = \case
         retry
 
     (_, LiveRecv{..}) -> do
-        readPool lrPool $ \send -> do
-            pure (Just RTUP{key=lrIdx,
-                            resp=RespRecv send,
-                            work=0,
-                            -- TODO: Hook up send flows here.
-                            flow=FlowDisabled})
+        channelPoolTake lrChannel lrChannels >>= \case
+            Nothing -> pure Nothing
+            Just send -> do
+                pure (Just RTUP{key=lrIdx,
+                                resp=RespRecv send,
+                                work=0,
+                                -- TODO: Hook up send flows here.
+                                flow=FlowDisabled})
 
     (_, LiveSpin{..}) ->
       do
@@ -1093,9 +1156,9 @@ runResponse st cogNum rets = do
     performSpinEffects :: Response
                        -> STM ([Flow], [STM OnCommitFlow])
     performSpinEffects (RespSpin newCogId fun) = do
-        pool <- newTVar emptyPool
+        channelPools <- newTVar mempty
         modifyTVar' st.vSends \sends ->
-            M.insert newCogId pool sends
+            M.insert newCogId channelPools sends
         modifyTVar' st.vMoment \m ->
             m { val=insertMap newCogId (CG_SPINNING fun) m.val }
         parseRequests st newCogId
