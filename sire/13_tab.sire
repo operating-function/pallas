@@ -517,8 +517,8 @@ tallExpect={Expected something like (## =key val ...)(...)}
 ^-^
 ^-^ tabLen tabIdx tabKeysCab tabKeysRow tabKeysList tabHas tabGet
 ^-^ tabValsRow tabSwitch
-^-^ tabFromPairs tabToPairs tabToPairList tabToList tabPut tabIns
-^-^ tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter
+^-^ tabFromPairs tabFromAscPairs tabToPairs tabToPairList tabToList tabPut
+^-^ tabIns tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter
 ^-^ tabMapWithKey tabMap
 ^-^ tabUnionWith tabUnion tabWeld tabCatRow
 ^-^ tabLookup tabMinKey tabFoldlWithKey tabElemIdx emptyTab tabInsWith

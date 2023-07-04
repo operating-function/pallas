@@ -12,6 +12,7 @@
 
 ; Same as stopDemo from demo_cog_stop.sire, minus testing erroneous %stop calls.
 = (miniStopDemo return)
+;
 : ??(spin_got_id id) <- syscall (COG_SPIN (runCog-(timeDemo 5)))
 | trk [%cogId id]
 ;
@@ -30,14 +31,6 @@
 @ allowCogAndWhen [[%cog] [%time 0 %when] [%time 0 %wait]]
 | runCog | withCogSandbox allowCogAndWhen miniStopDemo
 
-;
-; TODO:
-;
-; - [x] If we're wrapping [%cog %spin], we should also be unwrapping the value
-;       returned in [%cog %reap] and [%cog %spin].
-;
-; - [ ] How do you control the sandbox for new cogs spun? You don't really want
-;       to always inherit the parent's sandbox. It would be better if there were
-;       a way to specify a new sandbox or change it, but that's now IPC and the
-;       kernel and the program would fight over %recv.
-;
+;  @ allowCogAndWhen
+;      | withRequestContainer [[%cog] [%time 0 %when] [%time 0 %wait]]
+;  | runCog (withSandbox allowCogAndWhen runCog-miniStopDemo)
