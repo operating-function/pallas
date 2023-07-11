@@ -81,7 +81,7 @@ NAT(x) = if x:@ then x else 0
 RUN(r,(0 f x)) = (RUN(r,f) RUN(r,x))
 RUN(r,(1 v k)) = RUN(s,k) where s = PUSH(r,RUN(s,v))
 RUN(r,(2 v))   = v
-RUN(r,v:@)     = NTH(v,n,v)
+RUN(r,v:@)     = NTH(r,v,v)
 RUN(r,x)       = x
 
 v:@                          =>  ARITY(v)=NTH([3 4 3], v, 1)
@@ -101,7 +101,7 @@ WHNF(v) w=NAT(v)             =>  (2 z p v)     -> if w=0 then z else (p (w-1))
 WHNF(x)                      =>  (3 x)         -> NAT(x)+1
 NF(x)                        =>  (4 x)         -> <x>
 f:@ f>4 NF(x)                =>  (f x)         -> *crash*
-f:{n a b} n=LEN([..])        =>  (f ..)        -> RUN([f ..],b)
-f:<{n a b}> n=LEN([..])      =>  (f ..)        -> RUN([f ..],b)
+f:{n a b} a=LEN([..])        =>  (f ..)        -> RUN([f ..],b)
+f:<{n a b}> a=LEN([..])      =>  (f ..)        -> RUN([f ..],b)
 f:<i> ARITY(i)=LEN([..])     =>  (f ..)        -> (i ..)
 ```
