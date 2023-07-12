@@ -154,6 +154,9 @@ pree initialRune = do
         Left r : is  -> let deep = nestForm(unravel r [] is)
                         in PREFX roon (reverse(deep:ns))
 
+    nestForm :: Nest -> Form
+    nestForm n = SHIP (NEST n :| [])
+
     -- This is the same as `frag` but does not accept pages.
     frog :: Parser (Either Text Form)
     frog = (rinse <$> rune <*> optional form)
@@ -184,9 +187,6 @@ nest = brak <|> para
 leaf :: Parser Leaf
 leaf = (uncurry C <$> cord)
    <|> (N <$> name)
-
-nestForm :: Nest -> Form
-nestForm n = SHIP (NEST n :| [])
 
 curl :: Parser Text
 curl = char '{' >> loop 0 []
@@ -238,10 +238,11 @@ assertUnambiguous whichForm (r :| rs) = do
         [] ->
             pure ()
 
+-- A string of one-or-more items, not prefixed by a rune
 shin :: Parser Form
 shin = do
     i  <- itmz
-    is <- many (try (ppair rune itmz))
+    is <- many (try $ ppair rune itmz)
     case is of
         []       -> pure (SHIP i)
         (r,j):ps -> do
@@ -256,7 +257,7 @@ form = (BEFO <$> rune <*> shin) <|> shin
 frag :: Parser (Int, Frag)
 frag = (,) <$> getOffset
            <*> (  (uncurry PAGE <$> page)
-              <|> (rinse <$> rune <*> optional form)
+              <|> (rinse <$> rune <*> optional shin)
               <|> (FORM <$> form)
                )
   where
