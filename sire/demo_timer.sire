@@ -22,4 +22,4 @@
 : ??(td_waited _) <- syscall (**TIME_WAIT (inc now))
 | timeDemo (dec count) return
 
-runCog-(timeDemo 5)
+main=(runCog | timeDemo 5)

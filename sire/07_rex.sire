@@ -245,11 +245,11 @@
 
 """ Quoting """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= ({``} s p e a r err ok)
-@ args (rexKids r)
+= ({``} st rex err ok)
+@ args (rexKids rex)
 | if (neq 1 len-args)
-    | **err r "Expected 1 Parameter"
-| **ok p a
+    | err rex "Expected 1 Parameter"
+| ok st
 | EMBD (idx 0 args)
 
 

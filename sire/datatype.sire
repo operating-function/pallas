@@ -76,6 +76,9 @@ dataTag=_DataTag
 = (defKC key sig bodyExp)
 | OPEN "#=" (natE key, sigE sig, bodyExp) 0
 
+= (defKPC key props sig bodyExp)
+| OPEN "#=" (natE key, cnsE props, sigE sig, bodyExp) 0
+
 > (Nat, Str) > Cmd
 = (mkGetterC pair)
 @ ix,field | pair
@@ -93,6 +96,11 @@ dataTag=_DataTag
 = (mkConstrKC key constr fields)
 | defKC key (rowCons constr fields)
 | rowE (map varE fields)
+
+= (mkConstrKPC key props constr fields)
+| defKPC key props (rowCons constr fields)
+| rowE (map varE fields)
+
 
 """
 """ This example:
@@ -244,8 +252,8 @@ fieldExpect="Expected something like (field:type)"
 | rowCons rune sons
 
 ; '#record'/Macro
-= ('#record' s p e a r err ok)
-@ kids    (rexKids r)
+= ('#record' ss rex err ok)
+@ kids    (rexKids rex)
 @ numKids (len kids)
 ;
 ; We ignore the first kid, because it's the type, which we don't yet
@@ -258,15 +266,17 @@ fieldExpect="Expected something like (field:type)"
 | if (oTag /= NONE)
     | err sigRex "Record constructors are never tagged"
 ;
-@ fields    | map snd fields  ;;  (Row (RexId, Symbol, Type)) -> Row Symbol
-@ constrKey | a
-@ a         | inc a
-@ p         | setProperty constrKey 'fieldNames' fields p
-| ok p a
-| if (null fields) (defC [constr] cnsE-0)
+: ss constrKey <- generateUniqueKey ss
+;
+@ fields  | map snd fields  ;;  (Row (RexId, Symbol, Type)) -> Row Symbol
+@ props   | #[fieldNames=fields]
+;
+| ok ss
+| if (null fields)
+    | defKPC constrKey props [constr] (cnsE 0)
 | bloodline
 | listCat
-~~ listSing (mkConstrKC constrKey constr fields)
+~~ listSing (mkConstrKPC constrKey props constr fields)
 ~~ listMap mkGetterC (listIndexed | listFromRow fields)
 ~~ listMap mkSetterC (listIndexed | listFromRow fields)
 
@@ -333,50 +343,44 @@ ex=(PAIR %a %b)
     * LOL=l
 
 
-= (assignKeysToBranches nex branches ok)
-^ rowTraverseState nex _ branches ok
-& (nex [_ cns oTag arg] ok)
-| ok (inc nex) [nex cns oTag arg]
+= (assignKeysToBranches ss branches ok)
+^ rowTraverseState ss _ branches ok
+& (ss [_ cns oTag arg] ok)
+: ss nex <- generateUniqueKey ss
+| ok ss [nex cns oTag arg]
 
 
 ''' defDataTypeC '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-> RexSources
-> RexProps
-> Env
 > Row (Key, Str, Opt Nat, Row Str)
 > (RexProps, Cmd)
-= (defDataTypeC src prp env branches)
+= (defDataTypeC branches)
 ;
 ; ^ trk [defDataTypeC=_] _
 ;
-^ _ 0 prp NIL (listFromRow branches)
-? (loop ix prp acc remain)
+^ _ 0 NIL (listFromRow branches)
+? (loop ix acc remain)
 ;
 | seq ix
-; trk %loop,[=ix =prp =acc =remain]
+; trk %loop,[=ix =acc =remain]
 ;
-: kca remain <- **listCase remain (prp, bloodline acc)
+: kca remain <- **listCase remain (bloodline acc)
 @ [key cns oTag arg] kca
 ;
 @ ari | len arg
 @ tag | fromSome ix oTag
-@ prp | setProperty key 'conTag' tag      prp
-@ prp | setProperty key 'conAri' ari      prp
-@ prp | setProperty key 'conFun' _DataTag prp
-@ prp | setProperty key 'conHas' TRUE     prp ; hasTag
-@ prp | setProperty key 'conRaw' FALSE    prp ; hasTag
+@ prp | #[conTag=tag conAri=ari conFun=_DataTag conHas=TRUE conRaw=FALSE]
 ;
 | if (isZero ari)
     @ bod | natE tag
-    @ cmd | defKC key [cns] bod
-    | loop (inc ix) prp (cmd :: acc) remain
+    @ cmd | defKPC key prp [cns] bod
+    | loop (inc ix) (cmd :: acc) remain
 | else
     @ arg (map idx-1 arg)
     @ bod (| rowE | rowCons natE-tag | map varE arg)
-    @ cmd (defKC key (rowCons cns arg) bod)
+    @ cmd (defKPC key prp (rowCons cns arg) bod)
     @ acc (CONS cmd acc)
-    | loop (inc ix) prp acc remain
+    | loop (inc ix) acc remain
 
 
 ''' #datatype ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -389,13 +393,13 @@ ex=(PAIR %a %b)
   """     * CONSTR field:type ...
 
 > Macro
-= ({#datatype} s p e a r err ok)
-@ kids (rexKids r)
-| if (len kids /= 3) (err r datatypeExpected)
-: branches   < readDataBranches (idx 2 kids) err
-: a branches < assignKeysToBranches a branches
-@ [prp rex]  | defDataTypeC s p e branches
-| ok prp a rex
+= ({#datatype} ss rex err ok)
+@ kids (rexKids rex)
+| if (len kids /= 3)
+    | err rex datatypeExpected
+: branches    < readDataBranches (idx 2 kids) err
+: ss branches < assignKeysToBranches ss branches
+| ok ss (defDataTypeC branches)
 
 # datatype (Either a b)
 * E_LEFT x:a
@@ -489,7 +493,7 @@ ex=(PAIR %a %b)
 * body   : e
 * isRaw  : Bit
 
-= (resolveDatacase src prp oFallback branches err ok)
+= (resolveDatacase rex ss oFallback branches err ok)
 @ fallback (fromSome (cnsE 0) oFallback)
 ;
 ^ _ FALSE 0 NIL (listFromRow branches)
@@ -499,40 +503,36 @@ ex=(PAIR %a %b)
     < **listCase remain
         | ok hasTag fun fallback (listToRowReversed acc)
 ;
-| ifNot (tabHas constr src)
-    ^ err sigRex (strWeld _ constr)
-    | "Undefined Pattern: "
+: bindKey bindRow <- getBind constr ss rex err
+@ props (getProps ss bindRow)
 ;
-@ key (tabGet src constr)
-| if (isZero key)
-    ^ err sigRex (strWeld _ constr)
-    | "Pattern defined without identity: "
+| trk #[=bindKey =bindRow =props =constr]
 ;
-| ifNot (hasProperty key 'conTag' prp)
+| ifNot (tabHas 'conTag' props)
     ^ err sigRex (strWeld _ constr)
     | "Unknown constructor(tag): "
 ;
-| ifNot (hasProperty key 'conAri' prp)
+| ifNot (tabHas 'conAri' props)
     ^ err sigRex (strWeld _ constr)
     | "Unknown constructor(ari): "
 ;
-| ifNot (hasProperty key 'conFun' prp)
+| ifNot (tabHas 'conFun' props)
     ^ err sigRex (strWeld _ constr)
     | "Unknown constructor(fun): "
 ;
-| ifNot (hasProperty key 'conHas' prp)
+| ifNot (tabHas 'conHas' props)
     ^ err sigRex (strWeld _ constr)
     | "Unknown constructor(has): "
 ;
-| ifNot (hasProperty key 'conRaw' prp)
+| ifNot (tabHas 'conRaw' props)
     ^ err sigRex (strWeld _ constr)
     | "Unknown constructor(raw): "
 ;
-@ tag    | getProperty key 'conTag' prp
-@ ari    | getProperty key 'conAri' prp
-@ fun    | getProperty key 'conFun' prp
-@ hasTag | getProperty key 'conHas' prp
-@ isRaw  | getProperty key 'conRaw' prp
+@ tag    | tabGet props 'conTag'
+@ ari    | tabGet props 'conAri'
+@ fun    | tabGet props 'conFun'
+@ hasTag | tabGet props 'conHas'
+@ isRaw  | tabGet props 'conRaw'
 ;
 | if (len fields /= ari)
     ^ err sigRex (strWeld _ | showNat ari)
@@ -542,14 +542,13 @@ ex=(PAIR %a %b)
 | go hasTag fun acc remain
 
 
-> Map Symbol Nat
-> Properties
+> SireState
 > Rex
 > Parser4 Bit (a -> Nat) Rex (Row | DataCase Rex Rex)
 ;
-= (readDatacaseBody src prp casesRex err ok)
+= (readDatacaseBody ss casesRex err ok)
 : oFallback branches  < parseDatacaseBody readRex casesRex err
-: hasTag fun fb cases < resolveDatacase src prp oFallback branches err
+: hasTag fun fb cases < resolveDatacase casesRex ss oFallback branches err
 | ok hasTag fun fb cases
 
 !!=  ++ TRUE
@@ -560,14 +559,20 @@ ex=(PAIR %a %b)
   ^ _ v2 v4
   @ xpr `` * LNULL       [x "]"]
            * (LCONS _ _) [x " " (go xs)]
-  @ src ## =LNULL 3
-        ## =LCONS 4
-  @ prp ## =conTag #[3=0 4=1]
-        ## =conAri #[3=0 4=2]
-        ## =conFun #[3=_DataTag 4=_DataTag]
-        ## =conHas #[3=TRUE 4=TRUE]
-        ## =conRaw #[3=FALSE 4=FALSE]
-  | readDatacaseBody src prp xpr
+  @ scope [LNULL=(PIN [3]) LCONS=(PIN [4])]
+  @ props ## =3
+              ## =conTag 0
+              ## =conAri 0
+              ## =conFun _DataTag
+              ## =conHas TRUE
+              ## =conRaw FALSE
+          ## =4
+              ## =conTag 1
+              ## =conAri 2
+              ## =conFun _DataTag
+              ## =conHas TRUE
+              ## =conRaw FALSE
+  | readDatacaseBody [0 0 scope 0 props] xpr
 
 !!=  ++ TRUE
      ++ dataTag
@@ -576,32 +581,36 @@ ex=(PAIR %a %b)
   ^ _ v2 v4
   @ xpr `` * LNULL [x "]"]
            * _     [x " " (go xs)]
-  @ src ## =LNULL 3
-        ## =LCONS 4
-  @ prp ## =conTag #[3=0 4=1]
-        ## =conAri #[3=0 4=2]
-        ## =conFun #[3=_DataTag 4=_DataTag]
-        ## =conHas #[3=TRUE 4=TRUE]
-        ## =conRaw #[3=FALSE 4=FALSE]
-  | readDatacaseBody src prp xpr
+  @ scope [LNULL=(PIN [3]) LCONS=(PIN [4])]
+  @ props ## =3
+              ## =conTag 0
+              ## =conAri 0
+              ## =conFun _DataTag
+              ## =conHas TRUE
+              ## =conRaw FALSE
+          ## =4
+              ## =conTag 1
+              ## =conAri 2
+              ## =conFun _DataTag
+              ## =conHas TRUE
+              ## =conRaw FALSE
+  | readDatacaseBody [0 0 scope 0 props] xpr
 
 = xpr `` * _ 0
          * _ 0
 
 !!=  ++ xpr
      ++ "Only one fallback-pattern is allowed"
-  | readDatacaseBody %[] %[] xpr v2 v4
+  | readDatacaseBody 0 xpr v2 v4
 
 
 ''' makeDatacaseExpr '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-= (makeDatacaseExpr hasTag fun aft valExp fallback cases return)
-@ !tmpVar (gensym aft)
-@ !tmpExp (varE tmpVar)
-@ !aft (inc aft)
-: aft pairs
-    < ^ rowTraverseState aft _ cases
-      & (aft [tag ari params body isRaw] continue)
+= (makeDatacaseExpr hasTag fun ss valExp fallback cases return)
+: ss tmpExp <- generateVarE "g" ss
+: ss pairs
+    < ^ rowTraverseState ss _ cases
+      & (ss [tag ari params body isRaw] continue)
       @ rowPat
           | if isRaw
               | if (len params /= 1)
@@ -611,34 +620,33 @@ ex=(PAIR %a %b)
           * (%r, rowCons [%v '_'] params)
           * (%r, params)
       @ binds [(rowPat, valExp)]
-      @ [aft bSeq deps] (sequenceBinds aft binds)
-      | continue aft (tag, bindSeqE bSeq body deps)
+      @ [ss bSeq deps] (sequenceBinds ss binds)
+      | continue ss (tag, bindSeqE bSeq body deps)
 @ tagExp (appE (cnsE fun, tmpExp))
 @ result
     | OPEN '#@' [tmpExp valExp]
     | switchE tagExp fallback
     | tabFromPairs
     | pairs
-| return aft result
+| return ss result
 
 
 ''' #datacase ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-= ('#datacase' s p e a r err ok)
+= ('#datacase' ss rex err ok)
 ;;;
-@ nex  | a
-@ sons | rexSons r
-@ heir | rexHeir r
+@ sons | rexSons rex
+@ heir | rexHeir rex
 ;;;
 | if (neq 2 (len sons))
-        | err r '#datacase requires one son plus an heir.'
+    | err rex '#datacase requires one son plus an heir.'
 | if (isZero heir)
-        | err r '#datacase requires one son plus an heir.'
+    | err rex '#datacase requires one son plus an heir.'
 ;;;
 @ [_ valExp] sons
-: hasTag fun fb cases < readDatacaseBody s p heir err
-: nex exp             < makeDatacaseExpr hasTag fun nex valExp fb cases
-| ok p nex exp
+: hasTag fun fb cases < readDatacaseBody ss heir err
+: ss exp              < makeDatacaseExpr hasTag fun ss valExp fb cases
+| ok ss exp
 
 # datatype (List a)
 * LNULL
@@ -794,7 +802,7 @@ setProp#(RIGHT.conRaw)#FALSE
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ defKC defC ;; TODO Move this elsewhere
+^-^ defC defKC defKPC ;; TODO Move this elsewhere
 ^-^
 ^-^ _DataTag
 ^-^ dataTag

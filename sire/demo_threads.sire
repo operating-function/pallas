@@ -62,4 +62,4 @@
 
 ;; Export For Boot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-threadDemoTwice
+main=threadDemoTwice

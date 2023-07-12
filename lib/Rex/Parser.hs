@@ -178,6 +178,12 @@ merge (rp,r) (ip,i) =
     (EQ , I t cs Nothing ) -> pure (ip, I t cs (Just $ toRex r))
     (GT , I t cs Nothing ) -> pure (ip, I t (toRex r:cs) Nothing)
 
+{-
+    TODO: Why can't line-strings have child nodes?  Can't we just have
+    that end the line-string and push another argument onto the last
+    open rune?
+-}
+
 dent :: Text -> Text
 dent = unlines . fmap dentLine . lines
  where dentLine "" = ""
@@ -201,6 +207,23 @@ closeOut p f [i]                  = Left $ unlines
         , dent $ rexFile $ toRex f
         , dent ("(which is at position " <> tshow p <> ")")
         ]
+
+{-
+    Can we eliminate the `closeOut` error case by just producing
+    leftovers?  This, for example:
+
+            | foo bar
+        | zaz
+
+    Would parse in the same way as this:
+
+            | foo bar
+
+        | zaz
+
+    That may fuck up the whole structure, so I guess this can be an
+    invariant that the block-splitter enforces?
+-}
 
 {-
   Pushes a fragment onto the item stack.

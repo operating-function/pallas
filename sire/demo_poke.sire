@@ -24,4 +24,4 @@
 | trk [=val]
 | PokeLoop [[%poke 0 %poke [%listen]]]
 
-(PokeLoop [[%poke 0 %poke [%listen]]])
+main=(PokeLoop [[%poke 0 %poke [%listen]]])

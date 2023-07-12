@@ -53,6 +53,4 @@
 : bob_thread <- fork (talker %bob bob_seed chr_addr bob_white bob_msg)
 | talker %chr chr_seed ali_addr chr_white chr_msg k
 
-exe=(runCog tokenRing)
-
-exe
+main=(runCog tokenRing)

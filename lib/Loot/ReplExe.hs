@@ -17,6 +17,8 @@ module Loot.ReplExe
     , renderValue
     , replFile
     , showClosure
+    , closureRex
+    , showValue
     )
 where
 
@@ -95,9 +97,9 @@ runBlock h okErr vEnv (BLK _ _ eRes) = do
         bitter <- pure (let ?env=env in desugarCmd parsed)
         runCmd h vEnv bitter
 
-showPin :: RexColor => Symb -> Hash256 -> Val Symb -> Text
-showPin self _pinKey =
-    rexFile . joinRex . showIt
+pinRex :: Symb -> Hash256 -> Val Symb -> Rex
+pinRex self _pinKey =
+    joinRex . showIt
   where
     hackup (N SHUT_INFIX "-" cs Nothing) = N NEST_PREFIX "|" cs Nothing
     hackup x                             = x
@@ -117,6 +119,7 @@ showPin self _pinKey =
              (\vl2 -> absurd<$>(N SHUT_INFIX "=" [parens [keyRex self], joinRex vl2] Nothing))
              (\vl2 -> absurd<$>(N OPEN       "=" [parens [keyRex self]] (Just $ joinRex vl2)))
 
+
 plunRex :: Fan -> Rex
 plunRex pln = joinRex $ valRex (resugarVal mempty val)
   where
@@ -125,9 +128,9 @@ plunRex pln = joinRex $ valRex (resugarVal mempty val)
 
 -- TODO Can I just rexFile a Loot command?  I remember I was doing this
 -- before, but I don't remember why I stopped.
-showAlias :: RexColor => Maybe Symb -> Val Symb -> Text
-showAlias mSymb vl =
-    rexFile (joinRex rx)
+aliasRex :: Maybe Symb -> Val Symb -> GRex Void
+aliasRex mSymb vl =
+    joinRex rx
   where
     vr = valRex (resugarVal mempty vl)
     rx = case mSymb of
@@ -158,22 +161,31 @@ renderValue shallow mBinder vl =
 
 showClosure :: RexColor => Maybe Symb -> Closure -> Text
 showClosure mBinder clz =
-    niceLns True $ fmap T.stripEnd (pins <> tops)
+    niceLns True $ fmap T.stripEnd $ fmap rexFile $ closureRex mBinder clz
+
+closureRex :: Maybe Symb -> Closure -> [Rex]
+closureRex mBinder clz =
+    pins <> tops
   where
     NAMED_CLOSURE nam env val = nameClosure clz
 
     pins = (flip mapMaybe $ toList nam) \n -> do
              lookup n env & \case
                  Nothing      -> Nothing
-                 Just (vl, h) -> Just (showPin n h vl)
+                 Just (vl, h) -> Just (pinRex n h vl)
 
     tops = case (pins, mBinder, val) of
              (_, Just n, REF m) | m==n -> []
-             (_, Just n, _)            -> [showAlias (Just n) val]
+             (_, Just n, _)            -> [aliasRex (Just n) val]
              (_, Nothing, REF _)       -> []
-             ([],Nothing, _)           -> [showAlias Nothing val]
-             (_, Nothing, _)           -> [showAlias (Just cab) val]
+             ([],Nothing, _)           -> [aliasRex Nothing val]
+             (_, Nothing, _)           -> [aliasRex (Just cab) val]
 
+
+showValue :: Closure -> Rex
+showValue clz = aliasRex Nothing val
+  where
+    NAMED_CLOSURE _ _ val = nameClosure clz
 
 cab :: Symb
 cab = utf8Nat "_"
@@ -248,7 +260,8 @@ showFan =
     in showClosure Nothing . loadShallow
 
 trkFan :: RexColor => Fan -> IO ()
-trkFan = putStrLn . showClosure Nothing . loadShallow
+trkFan (F.REX r) = putStrLn $ rexFile $ joinRex $ showValue . loadShallow <$> r
+trkFan val       = putStrLn $ showClosure Nothing $ loadShallow val
 
 dieFan :: RexColor => Nat -> Fan -> IO ()
 dieFan op fan = trkFan $ F.ROW $ fromList ["crash", F.NAT op, fan]

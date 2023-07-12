@@ -28,4 +28,4 @@
 | trk [%reapVal (fromSome 0 val)]
 | return ()
 
-(runCog reapDemo)
+main=(runCog reapDemo)

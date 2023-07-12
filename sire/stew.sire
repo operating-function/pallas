@@ -887,11 +887,11 @@
 
 ; TODO: Move these into the bootstrapping process?  Maybe into 13_tab.sire?
 
-= (tabTraverseState st f tab ok)
+= (tabTraverseState ss f tab ok)
 @ keys (tabKeysRow tab)
 @ vals (tabValsRow tab)
-: st rexes < rowTraverseState st f vals
-| ok st (_MkTab keys rexes)
+: ss rexes < rowTraverseState ss f vals
+| ok ss (_MkTab keys rexes)
 
 = (traverseTab f tab ok)
 @ keys (tabKeysRow tab)
@@ -899,20 +899,20 @@
 : rexes < rowTraverse f vals
 | ok (_MkTab keys rexes)
 
-= (rexTraverseState st f rex ok)
+= (rexTraverseState ss f rex ok)
 | if (isZero rex)
-    | ok st rex
+    | ok ss rex
 | if (rexIsEmbd rex)
-    : st newVal < f st (rexEmbd rex)
-    | ok st (EMBD newVal)
-: st heir < rexTraverseState st f (rexHeir rex)
+    : ss newVal < f ss (rexEmbd rex)
+    | ok ss (EMBD newVal)
+: ss heir < rexTraverseState ss f (rexHeir rex)
 | if (rexIsLeaf rex)
-    | ok st (rexSetHeir heir rex)
-: st sons
-  < ^ rowTraverseState st _ (rexSons rex)
-    & (st son ret)
-    | rexTraverseState st f son ret
-| ok st
+    | ok ss (rexSetHeir heir rex)
+: ss sons
+  < ^ rowTraverseState ss _ (rexSons rex)
+    & (ss son ret)
+    | rexTraverseState ss f son ret
+| ok ss
 | rexSetHeir heir
 | rexSetSons sons
 | rex
@@ -921,7 +921,7 @@
 = (traverseRex f rex ok)
 : _ res
     < ^ rexTraverseState 0 _ rex
-      & (st rex ok)
+      & (ss rex ok)
       : rex < f rex
       | ok 0 rex
 | ok res
@@ -1021,7 +1021,7 @@
 
 """ Resolution """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (resolvePat src prp err pat ok)
+= (resolvePat ss err pat ok)
 ^ traversePat _ pat ok
 & (pat ok)
 ; trk 'hi',[=pat]
@@ -1029,16 +1029,16 @@
 * _
     | ok pat
 * (POPN constr)
-    @ key    | tabGet src constr
-    | if (or (isZero key) not-(hasProperty key 'fieldNames' prp))
-        ^ die (showPat pat),(strWeld _ constr)
-        | "Unknown record constructor: "
-    @ fields (getProperty key 'fieldNames' prp)
-    | ok (PROW | map PVAR fields)
+    @ rex (showPat pat)
+    : _ bind <- getBind constr ss rex err
+    @ fieldNames (getProp ss bind 'fieldNames')
+    | if (isZero fieldNames)
+        | err rex (strWeld "Unknown record constructor: " constr)
+    | ok (PROW | map PVAR fieldNames)
 
-= (resolve src prp exp err ok)
+= (resolve ss exp err ok)
 ; trk 'resolve',[=exp]
-@ goPat (resolvePat src prp err)
+@ goPat (resolvePat ss err)
 ^ traverseExp _ exp ok
 & (exp ok)
 # datacase exp
@@ -1164,7 +1164,8 @@
 | rexClose  ; todo: all macros expand to closed forms
 | resultRex
 
-= (cCas src prp go st valExp oWildExp arms ok)
+= (cCas go ss valExp oWildExp arms ok)
+@ rex (showExp | ECAS valExp oWildExp arms)
 ;
 ; This on is extra tricky because we need to lookup information from
 ; the environment, but we don't have that information here.
@@ -1177,174 +1178,188 @@
 ; Should the information be included in the datatype and filled in by
 ; another pass?
 ;
-: st valRex <- go st valExp
-: st oWildRex
+: ss valRex <- go ss valExp
+: ss oWildRex
   < & ret
     # datacase oWildExp
-    * NONE           | ret st NONE
-    * (SOME wildExp) : st wildRex < go st wildExp
-                     | ret st (SOME wildRex)
+    * NONE           | ret ss NONE
+    * (SOME wildExp) : ss wildRex < go ss wildExp
+                     | ret ss (SOME wildRex)
 ;
-: st branches
+: ss branches
   < & ret
-    ^ rowTraverseState st _ arms ret
-    & (st (CON_CASE constr pats armExp) ret)
-    : st armRex <- go st armExp
+    ^ rowTraverseState ss _ arms ret
+    & (ss (CON_CASE constr pats armExp) ret)
+    : ss armRex <- go ss armExp
     ;
-    | ret st [armRex constr pats armRex]
+    | ret ss [armRex constr pats armRex]
 ;
 : hasTag fun fbRex caseSpecs
-    < resolveDatacase src prp oWildRex branches (curry die)
+    < resolveDatacase rex ss oWildRex branches (curry die)
+: ss exp
+    < makeDatacaseExpr hasTag fun ss valRex fbRex caseSpecs
 ;
-: st exp < makeDatacaseExpr hasTag fun st valRex fbRex caseSpecs
-;
-| ok st (rexClose exp) ; TODO: no open rune output
+| ok ss (rexClose exp) ; TODO: no open rune output
 
 ; | CON_CASE con:Sym params:(Row Pat) body:Exp
 ; * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
 
 > Tab Sym Nat > Tab Nat Any > Nat > Exp > (Nat, Exp)
-= (compile src prp st exp)
-^   : st rex <- _ st exp
-    | (st, rexClose rex)
-? (go st exp ok)
+= (compile ss exp)
+^   : ss rex <- _ ss exp
+    | (ss, rexClose rex)
+? (go ss exp ok)
 # datacase exp
-* ENIL             | ok st (cnsE 0)
-* EUNT             | ok st (cnsE 0)
-* (EBED b)         | ok st (cnsE b)
-* (EREF r)         | ok st (showRef {#.} r)
-* (ENAT n)         | ok st (cnsE n)
-* (EPAD n)         | ok st (cnsE n)
-* (EBAR n)         | ok st (cnsE n)
-* (ECAB n)         | ok st (cnsE n)
-* (EREX r)         | ok st (cnsE r)
-* (EQRX r)         | cQrx go st r ok
-* (EOR x y)        | cApp go st (EBED or, x, y)    ok
-* (EAND x y)       | cApp go st (EBED and, x, y)   ok
-* (EAPP x y)       | cApp go st (x, y)             ok
-* (ECON x xs)      | cApp go st (EBED CONS, x, xs) ok
-* (ENEQ x y)       | cApp go st (EBED neq, x, y)   ok
-* (EEQL xs)        | cEql go st xs                 ok
-* (EROW xs)        | cRow go st xs ok
-* (ETAB xs)        | cTab go st xs ok
-* (EKET b x)       | cKet go st b x ok
-* (ESWI x fb arms) | cSwi go st x fb arms ok
-* (ELAM p f)       | cLam go st p f ok
-* (ELET p v b)     | cLet go st p v b ok
-* (EREC p v b)     | cRec go st p v b ok
-* (EMUT t b as)    | cMut go st t b as ok
-* (ECAS v w as)    | cCas src prp go st v w as ok
+* ENIL             | ok ss (cnsE 0)
+* EUNT             | ok ss (cnsE 0)
+* (EBED b)         | ok ss (cnsE b)
+* (EREF r)         | ok ss (showRef {#.} r)
+* (ENAT n)         | ok ss (cnsE n)
+* (EPAD n)         | ok ss (cnsE n)
+* (EBAR n)         | ok ss (cnsE n)
+* (ECAB n)         | ok ss (cnsE n)
+* (EREX r)         | ok ss (cnsE r)
+* (EQRX r)         | cQrx go ss r ok
+* (EOR x y)        | cApp go ss (EBED or, x, y)    ok
+* (EAND x y)       | cApp go ss (EBED and, x, y)   ok
+* (EAPP x y)       | cApp go ss (x, y)             ok
+* (ECON x xs)      | cApp go ss (EBED CONS, x, xs) ok
+* (ENEQ x y)       | cApp go ss (EBED neq, x, y)   ok
+* (EEQL xs)        | cEql go ss xs                 ok
+* (EROW xs)        | cRow go ss xs ok
+* (ETAB xs)        | cTab go ss xs ok
+* (EKET b x)       | cKet go ss b x ok
+* (ESWI x fb arms) | cSwi go ss x fb arms ok
+* (ELAM p f)       | cLam go ss p f ok
+* (ELET p v b)     | cLet go ss p v b ok
+* (EREC p v b)     | cRec go ss p v b ok
+* (EMUT t b as)    | cMut go ss t b as ok
+* (ECAS v w as)    | cCas go ss v w as ok
 * (ELIN x)
-    : st rex < go st x
-    | ok st (NEST "#**" [rex] 0)
+    : ss rex < go ss x
+    | ok ss (NEST "#**" [rex] 0)
 
 
 """ Compiler Testing """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-src=(#getAllSources)
-prp=(#getAllProps)
+= (comp ss exp)
+| compile ss exp
 
-= (comp st exp)
-| compile (#getAllSources) (#getAllProps) st exp
+!!= (comp [5] (ENAT 0))
+  | [[5] `($$0)]
 
-!!= (comp 5 (ENAT 0))
-  | [5 `($$0)]
+!!= (comp [5] (EAPP ENAT-0 ENAT-1))
+  | [[5] `(#| $$0 $$1)]
 
-!!= (comp 5 (EAPP ENAT-0 ENAT-1))
-  | [5 `(#| $$0 $$1)]
+!!= (comp [5] (EEQL (ENAT 0, ENAT 1)))
+  | [[5] `(#| $$eql $$0 $$1)]
 
-!!= (comp 5 (EEQL (ENAT 0, ENAT 1)))
-  | [5 `(#| $$eql $$0 $$1)]
-
-!!=   | comp 5 (EEQL (ENAT 0, ENAT 1, ENAT 2))
- ++ 6
+!!=   | comp [5] (EEQL (ENAT 0, ENAT 1, ENAT 2))
+ ++ [6]
  ++ `((#@ _g5 $$0)(#| $$and (#| $$eql _g5 $$1) (#| $$eql _g5 $$2)))
 
-!!=   | comp 5 (ELIN (EAPP ELIN-(EREF 'id') (ENAT 1)))
- ++ 5
+!!=   | comp [5] (ELIN (EAPP ELIN-(EREF 'id') (ENAT 1)))
+ ++ [5]
  ++ ` (#** (#| (#** id) $$1))
 
-!!= [5 `(#| $$(%[a b c]) (#| $$(cow 3) (#| $$0 $$3) $$2 $$1))]
-  | comp 5
+!!= [[5] `(#| $$(%[a b c]) (#| $$(cow 3) (#| $$0 $$3) $$2 $$1))]
+  | comp [5]
   | ETAB
  ## =a (ENAT 1)
  ## =b (ENAT 2)
  ## =c (EAPP ENAT-0 ENAT-3)
 
-!!=  ++ 5
+!!=  ++ [5]
      ++ ` (#| $$tabSwitch foo z (#| $$(%[a b]) (#| $$(cow 2) y x)))
-  ^ readExp _ (curry die) (comp 5)
+  ^ readExp _ (curry die) (comp [5])
  `` (# switch foo)(* {a} x)(* {b} y)z
 
-!!=  ++ 5
+!!=  ++ [5]
      ++ ` (#| $$tabSwitch foo $$0 (#| $$(%[a]) (#| $$(cow 1) x)))
-  ^ readExp _ (curry die) (comp 5)
+  ^ readExp _ (curry die) (comp [5])
  `` (# switch foo)(* {a} x)
 
 ; TODO Can these single-item switches be compiled to an if expression?
 
-!!= [5 ``((#?? (id x))x)]
-  | comp 5
+!!= [[5] ``((#?? (id x))x)]
+  | comp [5]
   | ELAM TRUE
   | (%id, %id, [(PVAR %x)], EREF 'x')
 
-!!= [5 ``((#& x)x)]
-  | comp 5
+!!= [[5] ``((#& x)x)]
+  | comp [5]
   | ELAM FALSE
   | (0, 0, [(PVAR %x)], EREF 'x')
 
-!!= [5 ``((#? (f x z))z)]
-  | comp 5
+!!= [[5] ``((#? (f x z))z)]
+  | comp [5]
   | ELAM FALSE
   | ('f', 'f', (PVAR %x, PVAR %z), EREF 'z')
 
-!!=  ++ 7
+!!=  ++ [7]
      ++ ` (#& _g5)(#@ _g6 _g5)(#@ x (#| $$(idx 0) _g6))(#@ z (#| $$(idx 1) _g6))z
-  | comp 5
+  | comp [5]
   | ELAM FALSE
   | (0, 0, [(PROW (PVAR %x, PVAR %z))], EREF 'z')
 
-!!=  ++ 6
+!!=  ++ [6]
      ++ ` (#@ _g5 (#| $$(cow 2) $$2 $$1))(#@ x (#| $$(idx 0) _g5))x
-  | comp 5
+  | comp [5]
   | ELET (PROW [(PVAR %x)])
       | EROW (ENAT 1, ENAT 2)
   | EREF 'x'
 
-!!=  ++ 5
+!!=  ++ [5]
      ++ ` (#@ _ (#| $$0 $$1))(#| _ _)
-  | comp 5
+  | comp [5]
   | EKET (EAPP EREF-'_' EREF-'_')
   | EAPP ENAT-0 ENAT-1
 
-!!=  ++ 5
+!!=  ++ [5]
      ++ ` (#@@ x (#| $$(cow 2) x $$1))(#| car x)
-  | comp 5
+  | comp [5]
   | EREC (PVAR 'x')
       | EROW (ENAT 1, EREF 'x')
   | EAPP (EREF 'car')
   | EREF 'x'
 
 ; gross
-!!=  ++ 9
+!!=  ++ [8] ;; TODO: This is wrong!!!  _tag9 is used, so state should be at 10.
      ++ rexClose
          `  #@ _core5
-                #? (_core5@'lol' _tag9 _arg7)
+                #? 'lol' (_core5 _tag7 _arg6)
                 #@ even
                     #? (**even x)
                     #| _core5 $$0 x
-                #| $$switch _tag9 $$0
-                #| $$(cow 1) (#@ x _arg7)x
+                #| $$switch _tag7 $$0
+                #| $$(cow 1) (#@ x _arg6)x
             #@ even
                 #? (**even x)
                 #| _core5 $$0 x
              even
-  | comp 5
+  | comp [5]
   | EMUT 'lol' (EREF 'even')
  ++ (%even, [(PVAR %x)], EREF 'x')
 
+= scope
+    [SOME=(PIN [3 0 0 'REPL' 'SOME']) NONE=(PIN [4 0 0 'REPL' 'NONE'])]
+
+= props
+    ## =3 ## =conTag 1
+          ## =conAri 1
+          ## =conFun len
+          ## =conHas FALSE
+          ## =conRaw FALSE
+    ## =4 ## =conTag 0
+          ## =conAri 0
+          ## =conFun len
+          ## =conHas FALSE
+          ## =conRaw FALSE
+
+= ssEx [5 'REPL' scope #[] props]
+
 ; such a beauty
-!!=  ++ 8
+!!=  ++ put ssEx 0 8
      ++ rexClose
         ` #@ _g5 x
           #| $$switch (#| $$len _g5) $$1
@@ -1354,12 +1369,12 @@ prp=(#getAllProps)
                      x
                 #@ _g7 x
                  ($$0)
-  | comp 5
+  | comp ssEx
   | ECAS EREF-'x' (SOME | ENAT 1)
  ++ CON_CASE 'SOME' [(PVAR 'x')] EREF-'x'
  ++ CON_CASE 'NONE' []             ENAT-0
 
-!!=  ++ 7
+!!=  ++ put ssEx 0 7
      ++ rexClose
         ` #@ _g5 sx
           #| $$tabSwitch (#| $$len _g5) $$0
@@ -1368,18 +1383,18 @@ prp=(#getAllProps)
                     #@ _g6 sx
                     #@ x (#| $$(idx 0) _g6)
                      x
-  | comp 5
+  | comp ssEx
   | ECAS (EREF 'sx') NONE
  ++ CON_CASE 'SOME' ,(PVAR 'x') EREF-'x'
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (macaroniStew s p e a r err ok)
-: stewExp < readExp r err
-: stewExp < resolve s p stewExp err
-@ (a, rex) | compile s p a stewExp
-| ok p a rex
+= (macaroniStew ss rex err ok)
+: stewExp  < readExp rex err
+: stewExp  < resolve ss stewExp err
+@ [ss rex] | compile ss stewExp
+| ok ss rex
 
 ( {^}   #= macaroniStew )
 ( {|}   #= macaroniStew )

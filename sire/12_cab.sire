@@ -191,10 +191,10 @@
 | if (cabHas key acc) (err rex "duplicate key")
 | cabIns key acc
 
-= ({%%} s p e a r err ok)
-| readTallCab r err
+= ({%%} st rex err ok)
+| readTallCab rex err
 & cab
-| ok p a (EMBD cab)
+| ok st (EMBD cab)
 
 cenExpect="% expects something like %foo or %[...]"
 
@@ -254,12 +254,12 @@ cenExpect="% expects something like %foo or %[...]"
 !!= (RIGHT cabSing-"a")          | readCenLit ``(%[a])   v2 id
 !!= (RIGHT cabFromRow-["a" "b"]) | readCenLit ``(%[a b]) v2 id
 
-= ({%} s p e a r err ok)
-| readCenLit r err
+= ({%} st rex err ok)
+| readCenLit rex err
 & eRes
 @ val (**eitherCase eRes id id)
-| trk [r val]
-| ok p a (EMBD val)
+| trk [rex val]
+| ok st (EMBD val)
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

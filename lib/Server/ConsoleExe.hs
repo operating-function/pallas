@@ -36,7 +36,6 @@ import Control.Concurrent  (threadDelay)
 import Control.Exception   (handle)
 import Control.Monad.Fail  (fail)
 import Control.Monad.State (State, execState, modify')
---import Data.Text                (splitOn)
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Fan.Convert
 import Fan.Save                 (loadPack, savePack)
@@ -50,7 +49,7 @@ import System.Posix.Types       (CPid(CPid))
 import qualified Jelly
 import qualified Loot.ReplExe
 import qualified Rex
-import qualified Sire.ReplExe
+import qualified Sire
 
 import qualified Data.Aeson               as A
 import qualified Data.ByteString          as BS
@@ -409,7 +408,7 @@ runType defaultDir = subparser
               <*> machineNameArg
               <*> cogIdArg)
 
-   <> plunderCmd "sire" "Runs an standalone loot repl."
+   <> plunderCmd "sire" "Runs an standalone Sire repl."
       (RTSire <$> storeOpt
               <*> profOpt
               <*> profLaw
@@ -606,9 +605,9 @@ main = Rex.colorsOnlyInTerminal do
       withDebugOutput $
       case args of
         RTLoot d _ _ fz      -> withDaemon d $ liftIO $ Loot.ReplExe.replMain fz
-        RTSire d _ _ j c fz  -> do writeIORef F.vWarnOnJetFallback j
+        RTSire _ _ _ j c fz  -> do writeIORef F.vWarnOnJetFallback j
                                    writeIORef F.vCrashOnJetFallback c
-                                   withDaemon d $ liftIO $ Sire.ReplExe.replMain fz
+                                   liftIO $ Sire.main fz
         RTOpen d machine cog -> void (openBrowser d machine cog)
         RTTerm d machine cog -> void (openTerminal d machine cog)
         RTMachines d         -> listMachines d False
@@ -658,11 +657,7 @@ bootMachine d c pash = do
         let fil = unpack pash
         e <- liftIO (doesFileExist fil)
         unless e (error $ unpack ("File does not exist: " <> pash))
-        mVl <- liftIO (Sire.ReplExe.loadFile fil)
-        val <- case mVl of
-                  Nothing -> (error . unpack) $
-                                 ("No value at end of file : " <> pash)
-                  Just vl -> pure vl
+        val <- liftIO (Sire.loadFile fil)
         reqBoot c (JELLY_PACK val)
 
 -- pokeCog :: (Debug, Rex.RexColor) => FilePath -> MachineName -> Text -> FilePath
@@ -777,7 +772,7 @@ runServer enableSnaps numWorkers storeDir = do
         now <- getCurrentTime
         debug (["trk"::Text, pack (iso8601Show now)], x)
 
-    writeIORef F.vShowFan  $! Sire.ReplExe.showFan
+    writeIORef F.vShowFan  $! Loot.ReplExe.showFan
     writeIORef F.vJetMatch $! F.jetMatch
 
     termSignal <- newEmptyMVar

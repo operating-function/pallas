@@ -578,4 +578,4 @@ abstype#Image ;; TODO: fix.  What is the real type?
 | return ()
 
 > PausedCog
-_=(runCog launchFullTagDemo)
+main=(runCog launchFullTagDemo)

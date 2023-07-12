@@ -21,7 +21,7 @@
 /+  01_fan
 /+  02_bit  [if else or ifNot FALSE and not]
 /+  03_nat  [even add mod sub mul]
-/+  06_row  [len idx]
+/+  06_row  [len idx get put]
 /+  04_cmp  [eql neq isZero]
 /+  06_row  [v1 v2 v3 foldr map rowApply]
 /+  07_rex  [rexHeir rexEmbd rexSons rexText rexRune]
@@ -130,20 +130,37 @@
 
 """ Expresssions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (natE n)        | WORD (showNat n) 0
-= (varE v)        | WORD v 0
-= (cnsE v)        | EMBD v
-= (barE xs)       | NEST "#|" xs 0
-= (letE i x b)    | OPEN "#@"  [varE-i    x] b
-= (recE i x b)    | OPEN "#@@" [varE-i    x] b
-= (txtE t)        | CORD t 0
-= (gensym n)      | strWeld "_g" showNat-n
-= (gensymNm s n)  | strCat ["_" s showNat-n]
-= (gensymE n)     | varE (gensym n)
-= (sigE r)        | if (eql 1 len-r) varE-(idx 0 r) (NEST "|" (map varE r) 0)
-= (lamE rs b)     | OPEN "#&"  [(sigE rs)] b
-= (wutE rs b)     | OPEN "#?"  [(sigE rs)] b
-= (wutWutE rs b)  | OPEN "#??" [(sigE rs)] b
+= (natE n)         | WORD (showNat n) 0
+= (varE v)         | WORD v 0
+= (cnsE v)         | EMBD v
+= (barE xs)        | NEST "#|" xs 0
+= (letE i x b)     | OPEN "#@"  [varE-i    x] b
+= (recE i x b)     | OPEN "#@@" [varE-i    x] b
+= (txtE t)         | CORD t 0
+= (tmpName s n)    | strCat ["_" s showNat-n]
+= (tmpVarE s n)    | varE (tmpName s n)
+= (sigE r)         | if (eql 1 len-r) varE-(idx 0 r) (NEST "|" (map varE r) 0)
+= (lamE rs b)      | OPEN "#&"  [(sigE rs)] b
+= (wutE rs b)      | OPEN "#?"  [(sigE rs)] b
+= (wutWutE rs b)   | OPEN "#??" [(sigE rs)] b
+
+= (**generateUniqueKey st ok)
+@ nex | get st 0
+@ st  | put st 0 (inc nex)
+| **ok st nex
+
+= (**generateTempName name st ok)
+| generateUniqueKey st
+& (st nex)
+| **ok st (tmpName name nex)
+
+= (**generateVarE name st ok)
+| generateUniqueKey st
+& (st nex)
+| **ok st (tmpVarE name nex)
+
+(**generateTempAnon st ok)=(generateTempName "g" st ok)
+(**generateAnonVarE st ok)=(generateVarE "g" st ok)
 
 = (inlinedLamE f rs b)
 ^ OPEN "#?" [_] b
@@ -342,5 +359,9 @@ symTodo='todo: support .foo and .234'
 ^-^ rexParseSons rexParseSonsRow
 ^-^
 ^-^ rowE tabE
-^-^ gensym gensymE gensymNm
+^-^
+^-^ tmpName tmpVarE
+^-^ generateUniqueKey
+^-^ generateTempName generateVarE
+^-^ generateTempAnon generateAnonVarE
 ^-^

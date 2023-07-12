@@ -369,10 +369,8 @@
 ^-^
 ^-^ cow isCow cowSize
 ^-^ isRow
-^-^ null
 ^-^ weld
 ^-^ gen foldr foldl
-^-^ mut put
 ^-^ fst snd
 ^-^ map rev
 ^-^ curry uncurry

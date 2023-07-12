@@ -383,5 +383,4 @@ NL=10
 ;
 | cogExit ()
 
-| runCog
-| mandelbrotDemo 32 32
+main=(runCog | mandelbrotDemo 32 32)

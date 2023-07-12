@@ -42,4 +42,4 @@ pongCogChannel=28
 : ??(td_waited _) <- syscall (**TIME_WAIT (inc now))
 | go (inc i) return
 
-(runCog sendDemo)
+main=(runCog sendDemo)

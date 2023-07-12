@@ -47,7 +47,7 @@
 
 """ Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-/+  01_fan  [die trk pinItem]
+/+  01_fan  [die trk pinItem isZero const]
 /+  02_bit  [if ifNot not]
 /+  03_nat  []
 /+  06_row  [len idx]
@@ -79,42 +79,54 @@
 
 oldHax=(.{#})
 
-= ({#} s p e a r err ok)
-@ kids     | rexKids r
+= (**getBind ss name err ok)
+@ scope (idx 2 ss)
+@ bind  (tabGet scope name)
+| if (isZero bind)
+    | err | strWeld "undefined symbol: " name
+| **ok (pinItem bind)
+
+= ({#} st rex err ok)
+@ kids     | rexKids rex
 @ firstKid | idx 0 kids
 @ numKids  | len kids
 ;
 ; trk [=kids]
-| if (null kids)        | (err r haxNeedKid)
+| if (null kids)
+    | err rex haxNeedKid
 | if (eql (1,",") (numKids, rexRune firstKid))
-    | oldHax s p e a r err ok
-| **rexGetWord firstKid | (err r haxFstWord)
+    | oldHax st rex err ok
+| **rexGetWord firstKid
+    | err rex haxFstWord
 & (name heir)
-; trk [=name =heir]
-@ key (strWeld "#" name)
-; trk [=key]
-| ifNot (tabHas key e)    | (err r haxBadSymb-key)
-@ fun (tabGet e key)
-; trk [fun=(pinItem fun)]
-| fun s p e a r err ok
+@ key     | strWeld "#" name
+@ scope   | idx 2 st
+| getBind st key
+    (const | err rex haxBadSymb-key)
+& funBind
+@ funVal | idx 1 funBind
+| funVal st rex err ok
 
-= ("#foo" s p e a r err ok) ; envr next kids heir)
-| ok p a (cnsE r)
+= ("#foo" st rex err ok) ; envr next kids heir)
+| ok st (cnsE rex)
 
-= ("#quote" s p e a r err ok)
-@ kids rexKids-r
+= ("#quote" st rex err ok)
+@ kids rexKids-rex
 | if (neq 1 len-kids)
-    | err r "#foo expects exactly one kid (or heir)"
-| ok p a (cnsE idx-0-kids)
+    | err rex "#foo expects exactly one kid (or heir)"
+| ok st (cnsE idx-0-kids)
 
-= ("#getenv" s p e a r err ok)
-| ok p a (cnsE e)
+= ("#getenv" st rex err ok)
+@ e (idx 2 st)
+| ok st (cnsE e)
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-!!= 1 | isTab #getenv
+
 !!= 1 | isTab #[1=2]
+
+!!= 1 | isTab #getenv
 
 !!= 1 | not (tabIsEmpty #getenv)
 

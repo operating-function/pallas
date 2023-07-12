@@ -213,13 +213,13 @@ hexAlphabet=(natBar "0123456789abcdef")
        | listMap go node
 | (b#"(" , kids , b#")" )
 
-= (">=" s p e a r err ok)
-@ heir  | rexHeir r
-@ sons  | rexSons r
+= (">=" ss rex err ok)
+@ heir  | rexHeir rex
+@ sons  | rexSons rex
 @ [x y] | sons
-| if (neq 0 heir)     | err r "unexpected heir"
-| if (neq 2 len-sons) | err r "Expected two sons"
-| ok p a
+| if (neq 0 heir)     | err rex "unexpected heir"
+| if (neq 2 len-sons) | err rex "Expected two sons"
+| ok ss
 | appE (cnsE gte, x, y)
 
 !!= 0 (3 >= 4)

@@ -35,91 +35,114 @@
 /+  19_pat
 
 
-""" Operations on Property Tables """"""""""""""""""""""""""""""""""""""""""""""
+""" Functions for getting bindings and adding properties """""""""""""""""""""""
 
-= (hasProperty key pro tab)
-| and (tabHas pro tab)
-| tabHas key (tabIdx pro tab)
+;; TODO support inline annotations in = macro
+= (getBind name ss rex err ok)
+@ scope | idx 2 ss
+@ binds | idx 4 ss
+@ bind  | tabGet scope name
+@ bRow  | pinItem bind
+@ key   | idx 0 bRow
+| if (isZero bind)
+    | err rex | strWeld "undefined symbol: " name
+| if (not key)
+    | trk #[=bind]
+    | err rex "bindKey is zero!!"
+| **ok key bRow
 
-= (getProperty key pro tab)
-| tabIdx key
-| tabIdx pro
-| tab
+;; TODO support inline annotations in = macro
+= (getProps ss@[_ curMod _ modules _curProps] bind)
+| if (isNat bind)
+    | 'not a binder' bind
+@ [bindKey _ _ bindMod bindName] bind
+| trk [getProps bindKey bindName bindMod]
+| if (eql curMod bindMod)
+    @ curProps (idx 4 ss)
+    @ bindProps (tabGet curProps bindKey)
+    @ bindProps (if (isZero bindProps) #[] bindProps)
+    | bindProps
+| else
+    @ entry      (tabGet modules bindMod)
+    @ theirProps (idx 1 | pinItem entry)
+    @ bindProps  (tabGet theirProps bindKey)
+    @ bindProps  (if (isZero bindProps) #[] bindProps)
+    | bindProps
 
-= (setProperty key pro val tab)
-@ kid | tabIdx pro tab
-@ kid | if isNat-kid #[] kid
-@ kid | tabIns key val kid
-| tabIns pro kid tab
+= (addProps ss bind extraProps)
+@ [_ curMod _ modules curProps]  | ss
+@ [bindKey _ _ bindMod bindName] | bind
+| if (eql curMod bindMod)
+    @ oldProps (tabGet curProps bindKey)
+    @ newProps (tabUnion extraProps oldProps)  ;  left-biased
+    @ curProps (tabPut curProps bindKey newProps)
+    @ ss       (put ss 4 curProps)
+    | ss
+| else
+    @ [modScope modProps] | pinItem | tabGet modules bindMod
+    @ oldProps  (tabGet modProps bindKey)
+    @ oldProps  (if (isZero oldProps) #[] oldProps)
+    @ newProps  (tabUnion extraProps oldProps)  ;  left-biased
+    @ modProps  (tabPut modProps bindKey newProps)
+    @ newModule [modScope modProps]
+    @ modules   (tabPut modules bindMod | PIN [modScope modProps])
+    @ ss        (put ss 3 modules)
+    | ss
 
-!!= %val               | getProperty 37 %foo [foo=[37='val']]
-!!= [foo=([37='val'])] | setProperty 37 %foo %val 0
-!!= [foo=([37='val'])] | setProperty 37 %foo %val [foo=(#[])]
-
-!!= #[foo=[130='v' 129='w'] bar=[130='v']]
-  | setProperty 130 %foo %v
-  | setProperty 130 %bar %v
-  | setProperty 129 %foo %w
-  | 0
+= (getProp ss bind propName)
+@ props (getProps ss bind)
+| tabGet props propName
 
 
 """ Convenience Macros to Query properties of bindings. """"""""""""""""""""""""
 
-= ('#getKey' s p e a r err ok)
-: _ symbol <- rexParseKids r [readRex readSymbol] err
-| if not-(tabHas symbol s)
-    | 'Undefined symbol' symbol
-@ key (tabGet s symbol)
-| if (isZero key)
-    | 'Symbols defined without key' symbol
-| ok p a (cnsE key)
+= ('#getKey' ss rex err ok)
+: _ symbol      <- rexParseKids rex [readRex readSymbol] err
+: bindKey _bind <- getBind symbol ss rex err
+| ok ss (cnsE bindKey)
 
-= (readSymbProp rex err ret)
+= (readSymbDotProp rex err ret)
 | if (neq '.' rexRune-rex)
   | err rex 'Expected a . rune'
 : symbol property <- rexParseKids rex [readSymbol readSymbol] err
 | ret [symbol property]
 
-= ('#hasProp' s p e a r err expand)
-: _ [symbol property] <- rexParseKids r [readRex readSymbProp] err
-@ key (tabGet s symbol)
-| if (isZero key)
-  | die [symbol s]
-  | err (varE symbol) 'Undefined symbol'
-@ has (hasProperty key property p)
-;
-| expand p a (cnsE has)
+= ('#hasProp' ss rex err expand)
+: _ [symbol property]
+    < rexParseKids rex [readRex readSymbDotProp] err
+: bindKey bind
+    < getBind symbol ss rex err
+@ props (getProps ss bind)
+| trk #[=props =bindKey =bind]
+^ expand ss (cnsE _)
+| tabHas property props
 
-= ({#getAllProps} s p e a r err ok)
-| ok p a (cnsE p)
+= ('#getProp' ss rex err expand)
+: _ [symbol property] <- rexParseKids rex [readRex readSymbDotProp] err
+: bindKey bind        <- getBind symbol ss rex err
+^ expand ss (cnsE _)
+| tabGet (getProps ss bind) property
 
-= ({#getAllSources} s p e a r err ok)
-| ok p a (cnsE s)
-
-
-= ('#getProp' s p e a r err expand)
-: _ [symbol property] <- rexParseKids r [readRex readSymbProp] err
-@ key (tabGet s symbol)
-| if (isZero key)
-  | die [symbol s]
-  | err (varE symbol) 'Undefined symbol'
-@ val (getProperty key property p)
-;
-| expand p a (cnsE val)
-
-
-= ('#setProp' s p e a r err expand)
+= ('#setProp' ss rex err expand)
 : _ [symbol property] valSym
-        < rexParseKids r [readRex readSymbProp readSymbol] err
-| if not-(tabHas symbol s)
-        | err (varE symbol) 'Undefined symbol'
-| if not-(tabHas valSym e)
-        | err (varE valSym) 'Property value must be the name of a bound value.'
+    < rexParseKids rex [readRex readSymbDotProp readSymbol] err
 ;
-@ key (tabGet s symbol)
-@ val (tabGet e valSym)
-@ p (setProperty key property val p)
-| expand p a ``(#*)
+: _ symBind < getBind symbol ss rex err
+: _ valBind < getBind valSym ss rex err
+;
+^ expand _ ``(#*)
+| addProps ss symBind
+| tabSing property (idx 1 valBind)
+
+= (getPropsByKey ss key)
+@ curProps (idx 4 ss)
+| if (tabHas key curProps)
+    | tabGet curProps key
+| 'todo' 'walk remaining modules and do the lookup in each'
+
+= (getPropByKey ss key property)
+@ props (getPropsByKey ss key)
+| tabGet props property
 
 why=3
 whySrc=(``(why=3))
@@ -134,9 +157,8 @@ why=4
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ hasProperty getProperty setProperty
-^-^
 ^-^ {#getKey} {#hasProp} {#getProp} {#setProp}
 ^-^
-^-^ {#getAllProps} {#getAllSources}
+^-^ getBind getProps getProp addProps
+^-^ getPropsByKey getPropByKey
 ^-^

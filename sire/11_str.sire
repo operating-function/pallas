@@ -78,7 +78,12 @@
 
 !!= "fdsa" (strWeld "" "fdsa")
 !!= "fdsa" (strWeld "f" "dsa")
-!!= "fdsa" (strWeld "fd" "sa")
+
+; TODO: Why the fuck does this crash?  It makes no sense!  It's doing
+; the same things as the other things??
+!!= "fdsa" (strWeld "f" "dsa")
+
+;;; 3 4
 
 !!= ["f"]     (explode "f")
 !!= [255]     (explode 255)

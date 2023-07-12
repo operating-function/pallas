@@ -28,17 +28,17 @@
 
 """ Fake Typing Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (">" s p e a r err ok)
-@ heir (rexHeir r)
+= (">" st rex err ok)
+@ heir (rexHeir rex)
 | if (isZero heir)
-    | err r "> annotations require an heir to annotate"
-| ok p a heir
+    | err rex "> annotations require an heir to annotate"
+| ok st heir
 
-= ("\" s p e a r err ok)
-| ok p a ``(#*)
+= ("\" st _ err ok)
+| ok st ``(#*)
 
-= ("#typedef" s p e a r err ok)
-| ok p a ``(#*)
+= ("#typedef" st _ err ok)
+| ok st ``(#*)
 
 
 """ Basic Row Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -132,8 +132,8 @@
 
 """ Row Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= ("," s p e a rex err ok)
-| ok p a (rowE | rexKids rex)
+= ("," st rex err ok)
+| ok st (rowE | rexKids rex)
 
 !!= []    v0
 !!= [3]   (v1 3)
@@ -719,10 +719,10 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
 
 (readRex rex err ok)=(ok rex)
 
-= ({++} s p e a r err ok)
-| readOpenRow readRex r err
+= ({++} st rex err ok)
+| readOpenRow readRex rex err
 & res
-| ok p a (rowE res)
+| ok st (rowE res)
 
 !!= [3 4 5] (++ 3)(++ 4)(++ 5)
 !!= [3 4 5] (++ 3)(++ 4)5

@@ -47,4 +47,4 @@
 : _ <- effect
 | httpHello st done
 
-(runCog (httpHello #[]))
+main=(runCog (httpHello #[]))

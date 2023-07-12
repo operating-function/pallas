@@ -154,10 +154,10 @@ emptyPad=1
 | ifNot (rexIsLeaf strRex) | err strRex hpBadType
 | readPadStr rex (rexText strRex) err ok
 
-= ({#p} s p e a r err ok)
-| readPadLit r err
+= ({#p} st rex err ok)
+| readPadLit rex err
 & pad
-| ok p a (cnsE pad)
+| ok st (cnsE pad)
 
 !!= {}   (showPadStr 0)
 !!= {}   (showPadStr 1)

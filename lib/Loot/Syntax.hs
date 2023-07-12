@@ -55,6 +55,8 @@ module Loot.Syntax
     , barBox
     , readOpenCab
     , readPage
+    , boxRex
+    , keyBox
     )
 where
 

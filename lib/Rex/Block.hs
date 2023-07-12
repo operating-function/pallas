@@ -76,7 +76,7 @@ replText fil tex act =
     Just rb -> consumed (act rb : acc)
 
 --- Note that `parseBlock` will only return `Nothing` when it is given
---- a sequence of black lines at the end of a file.
+--- a sequence of blank lines at the end of a file.
 blockRex :: Monad m => FilePath -> C.ConduitT [Text] Block m ()
 blockRex pax = loop 0
   where

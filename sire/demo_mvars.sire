@@ -62,4 +62,4 @@ yieldDemo %zod ;;; Boot Machine
 
 ;; Export For Boot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-yieldDemo
+main=yieldDemo

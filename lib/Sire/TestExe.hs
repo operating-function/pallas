@@ -2,7 +2,7 @@
 -- Use of this source code is governed by a BSD-style license that can be
 -- found in the LICENSE file.
 
-{-# OPTIONS_GHC -Wall   #-}
+--- OPTIONS_GHC -Wall   #-}
 {-# OPTIONS_GHC -Werror #-}
 {-# LANGUAGE NoFieldSelectors    #-}
 {-# LANGUAGE OverloadedRecordDot #-}
@@ -11,19 +11,19 @@ module Sire.TestExe (main) where
 
 import Fan
 import Fan.Save
-import Jelly.Types    (hashToByteString)
 import PlunderPrelude
 import Rex
 import Rex.TestUtils
 import Sire.Types
 import Test.Tasty
 
+import GHC.IO.Handle (hFlushAll)
+import Jelly.Types   (hashToByteString)
+
 import qualified Fan          as F
 import qualified Loot.ReplExe as Loot
 import qualified Loot.TestExe as Loot
-import qualified Sire.ReplExe as Sire
-
-import GHC.IO.Handle (hFlushAll)
+import qualified Sire         as Sire
 
 
 -- Globals ---------------------------------------------------------------------
@@ -41,26 +41,23 @@ main :: IO ()
 main = colorsOnlyInTerminal do
   putStrLn "TODO: update Sire tests."
   when False do
-    writeIORef F.vShowFan Sire.showFan
-    writeIORef F.vTrkFan  Sire.trkFan
+    writeIORef F.vShowFan Loot.showFan
+    writeIORef F.vTrkFan  Loot.trkFan
     writeIORef F.vJetMatch (F.jetMatch)
 
-    -- TODO Need to reset this after each test.
-    vSrc <- liftIO $ newIORef mempty
-    vPrp <- liftIO $ newIORef (F.TAb mempty)
-    vEnv <- liftIO $ newIORef mempty
-    vGen <- liftIO $ newIORef 1
-    langTest ".sire" (let ?rexColors = NoColors in goldenSire vSrc vPrp vGen vEnv)
+    pure ()
+    -- langTest ".sire" (let ?rexColors = NoColors in goldenSire vSrc vPrp vGen vEnv)
 
-cab :: Symb
+cab :: Nat
 cab = utf8Nat "_"
 
+{-
 goldenSire
     :: RexColor
     => IORef (Map Nat Nat)
     -> IORef Fan
     -> IORef Nat
-    -> IORef (Map Symb Sire.Global)
+    -> IORef (Map Nat Sire.Global)
     -> GoldPaths
     -> TestTree
 goldenSire vSrc vPrp vGen vEnv pax = do
@@ -83,3 +80,4 @@ goldenSire vSrc vPrp vGen vEnv pax = do
                            (BAR $ hashToByteString has)
            hFlushAll h >> hClose h
            Loot.validateLoot gpOutput (gpSource <> ".tmp")
+-}

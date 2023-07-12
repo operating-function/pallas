@@ -4,6 +4,7 @@
 
 {-# OPTIONS_GHC -Wall   #-}
 {-# OPTIONS_GHC -Werror #-}
+{-# LANGUAGE NoFieldSelectors #-}
 
 {-|
     Types for Sire syntax trees (`Cmd`, `Exp`, etc).  "Sire.Syntax"
@@ -11,107 +12,274 @@
     does... everything else (TODO: modularize)
 -}
 module Sire.Types
-    ( Symb
-    , Cmd(..)
-    , TestEql(..)
-    , Fun(..)
-    , Exp(..)
-    , XCmd
-    , XExp
-    , XFun
-    , Fan
-    , Bind(..)
+    ( SireState(..)
+    , Binding(..)
+    , BindingData(..)
+    , mkNewBinding
+    , ToBind(..)
+    , Lam(..)
+    , Sire(..)
+    , rexText
+    , planRex
+    , planText
+    , sireRex
+    , lamRex
+    , trk
+    , trkM
+    , apple
+    , apple_
+    , traceSire
+    , traceSire'
+    , traceSireId
     )
 where
 
 import PlunderPrelude
 
-import Fan        (Fan, LawName)
-import Loot.Types (Symb)
-import Rex        (Rex)
+import Fan          (Fan(..), mkPin)
+import Fan.Convert  (ToNoun(toNoun))
+import Fan.JetImpl  (doTrk)
+import Loot.Backend (loadShallow)
+import Loot.ReplExe (showValue)
+import Loot.Syntax  (joinRex)
+import Rex          (GRex(..), RexColorScheme(NoColors), RuneShape(..),
+                     TextShape(..), rexFile)
 
----------------
--- Functions --
----------------
+import qualified Data.Vector as V
 
-type XFun = Fun Symb Symb
-type XExp = Exp Symb Symb
-type XCmd = Cmd Symb Symb
 
-{-|
-    A Sire function has an identifier for self-reference, a `LawName`,
-    a non-empty list of arguments, and an body expression.
+-- Aliases ---------------------------------------------------------------------
 
-    Note that when a function is bound (say with
-    @(`ELET` v (`ELAM` (`FUN` w _ _ _)) _)@), there are two binders
-    for the same function (@v@ and @w@).  @v@ is the binder used in the
-    outside scope, and @w@ is use for self-references.  The difference
-    doesn't matter during parsing, but it matters in code transformations.
--}
-data Fun v a = FUN
-    { inlinePls :: Bool
-    , self      :: v
-    , lawTag    :: LawName
-    , args      :: [v]
-    , body      :: Exp v a
+type Rex  = GRex Any
+
+
+-- Types -----------------------------------------------------------------------
+
+data ToBind = TO_BIND (Maybe Nat) (Maybe Sire) Nat Sire
+
+
+-- Formal Sire State -----------------------------------------------------------
+
+type Str = Nat
+type Tab = Map
+type Any = Fan
+
+type Props = Map Any (Map Any Any)
+
+type Scope = Map Any Binding
+
+data SireState = SIRE_STATE
+    { nextKey :: Nat                     --  Next unique key.
+    , context :: Str                     --  The name of the current module
+    , scope   :: Scope                   --  Current global namespace.
+    , modules :: Tab Any (Scope, Props)  --  Loaded modules.
+    , allProps:: Props                   --  All bindings by key.
     }
- deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
-{-|
-    Sire Expressions.  @v@ is the type of local variables, and @a@
-    is the type of free variables.
+{-
+    When bindings are decoded from PLAN, we *remember* the original
+    PLAN value.  This way, if we convert back to a noun, we can just
+    use the old value.  This avoids the needs to reconstruct the noun,
+    and preserves sharing (only one version of the binding need exist
+    in memory).
 
-    The parser just treats all references as free variables.  Later on,
-    name resolution splits them apart.
+    This is especially important, because binding noun are *huge*.
+    A binding inclides source code, and that source code inclues other
+    bindings, etc.
+
+    Sire-in-sire wont need to deal with this, since there is no separation
+    between the binding and the underlying noun.
 -}
-data Exp v a
-    = EVAL Fan                    -- ^ An embedded plunder value
-    | EREF a                      -- ^ A free variable.
-    | EVAR v                      -- ^ A bound variable.
-    | EAPP (Exp v a) (Exp v a)    -- ^ Function application
-    | ELET v (Exp v a) (Exp v a)  -- ^ Let-binding
-    | EREC v (Exp v a) (Exp v a)  -- ^ Self-recursive let binding.
-    | ELAM Bool (Fun v a)         -- ^ Nested Function (Closure)
-    | ELIN (Exp v a)              -- ^ Explicit Inline Application
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
+data Binding = BINDING
+    { d    :: BindingData
+    , noun :: Any
+    }
+  deriving (Eq, Ord, Show)
 
--------------------
--- REPL Commands --
--------------------
+data BindingData = BINDING_DATA
+    { key      :: Nat          --  The binding-key of the binder.
+    , value    :: Any          --  The value of the binder
+    , code     :: Sire         --  Source for inlining (unoptimized, unlifted)
+    , location :: Any          --  What module was this defined in?
+    , name     :: Any          --  What name was this defined under?
+    }
+  deriving (Eq, Ord, Show)
 
-data TestEql  v a =
-    TEST_EQL [Rex] (Exp v a) (Exp v a)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
+mkNewBinding :: BindingData -> Binding
+mkNewBinding d =
+    BINDING d noun
+  where
+    list = [NAT d.key, d.value, sireNoun d.code, d.location, d.name]
+    noun = mkPin $ ROW $ V.fromListN 5 list
 
--- |Sire input commands.
-data Cmd v a
-    = CMDSEQ [Cmd v a]
-        -- ^ @(* = x 3)(* = y 4)@ Multiple commands in block.
 
-    | MODULE Text (Maybe Text)
+-- Sire Types ------------------------------------------------------------------
 
-    | IMPORT [(Text, Maybe (Set Symb))]
-        -- ^ @(/+ foo [x y])@ Import @x@ and @y@ from `sire/foo.sire`
+-- This lazily loads a state object and crashes if something isn't
+-- as expected.  This is intended only for doing queries on specific
+-- components of the state, doing a full load in this way is very
+-- expensive.
 
-    | FILTER [Symb]
-       -- ^ @(^-^ x y)@ Restrict the namespace to just x and y.
+data Lam = LAM
+    { pin    :: Bool
+    , inline :: Bool
+    , tag    :: Nat
+    , args   :: Nat
+    , body   :: Sire
+    }
+  deriving (Eq, Ord, Show)
 
-    | OUTPUT (Exp v a)
-       -- ^ @(e)@ Eval+print @e@
+-- This is the internal representation that is used for inlining.
+-- All names have been resolved, globals point directly to their bindings.
+data Sire
+    = S_VAR Nat
+    | S_VAL Any
+    | S_GLO Binding
+    | S_APP Sire Sire
+    | S_LET Sire Sire
+    | S_LIN Sire
+    | S_LAM Lam
+  deriving (Eq, Ord, Show)
 
-    | DUMPIT (Exp v a)
-       -- ^ @(<e)@ Eval+print @e@ and it's environment.
+sireNoun :: Sire -> Any
+sireNoun = go
+  where
+    goLam :: Lam -> [Any]
+    goLam l = [ toNoun l.pin
+              , toNoun l.inline
+              , toNoun l.tag
+              , toNoun l.args
+              , go l.body
+              ]
 
-    | ASSERT [TestEql v a]
-       -- ^ @!!= e f@ Assert that e==f
+    go :: Sire -> Any
+    go = \case
+        S_VAR n   -> NAT n
+        S_VAL n   -> ROW $ V.fromListN 2 ["val", n]
+        S_GLO b   -> ROW $ V.fromListN 2 ["ref", b.noun]
+        S_APP f x -> ROW $ V.fromListN 3 ["app", go f, go x]
+        S_LET v b -> ROW $ V.fromListN 3 ["let", go v, go b]
+        S_LIN x   -> ROW $ V.fromListN 2 ["lin", go x]
+        S_LAM l   -> ROW $ V.fromListN 6 ("lam" : goLam l)
 
-    | DEFINE [Bind v a]
-       -- ^ @(x=y)@, @((f x)=x)@ Bind a value or function in the global
-       --   namespace.
+lamRex :: Lam -> Rex
+lamRex l =
+    N OPEN rune [hed] (Just $ openApp $ sireRex l.body)
+  where
+    hed = N NEST_PREFIX "|" hedSons Nothing
 
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
+    hedSons =
+        [ inlineMark (word $ showName $ NAT l.tag)
+        , N SHUT_PREFIX ".." [word (tshow l.args)] Nothing
+        ]
 
--- |A binder.  It's either a function (takes arguments) or a value
--- (does not).
-data Bind v a = BIND !Nat a (Exp v a)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
+    rune = if l.pin then "??" else "?"
+
+    inlineMark rex | l.inline  = N SHUT_PREFIX "**" [rex] Nothing
+    inlineMark rex | otherwise = rex
+
+word :: Text -> GRex a
+word n = T BARE_WORD n Nothing
+
+showName :: Any -> Text
+showName = \case
+    NAT n ->
+        case natUtf8 n of
+            Left{}   -> tshow n
+            Right nm -> nm -- TODO What if it is valid text but not
+                           -- valid BARE_WORD?  Handle that too.
+    wut ->
+        error $
+           (<>) "bad state: binding.name is not a NAT"
+                (unpack $ rexText $ C wut)
+
+
+sireRex :: Sire -> Rex
+sireRex = \case
+    S_VAR v   -> N SHUT_PREFIX "$" [word (tshow v)] Nothing
+    S_VAL v   -> C v
+    S_GLO b   -> gloRex b
+    S_APP f x -> appRex f [x]
+    S_LET v x -> N OPEN "@" [sireRex v] (Just $ openApp $ sireRex x)
+    S_LIN sir -> N SHUT_PREFIX "**" [sireRex sir] Nothing
+    S_LAM lam -> lamRex lam
+  where
+    gloRex b =
+        T BARE_WORD (showName b.d.name)
+            $ Just
+            $ N NEST_PREFIX "," [word (tshow b.d.key)]
+            $ Nothing
+
+    appRex (S_APP f x) xs = appRex f (x:xs)
+    appRex f xs = niceApp (sireRex <$> (f:xs))
+
+    niceApp xs = case (all isSimpleClosed xs, reverse xs) of
+        ( _,     []   ) -> error "niceApp: impossible"
+        ( True,  _    ) -> N NEST_PREFIX "|" xs           Nothing
+        ( False, l:ls ) -> N OPEN        "|" (reverse ls) (Just $ openApp l)
+
+planRex :: Any -> GRex Void
+planRex = showValue . loadShallow
+
+planText :: Any -> Text
+planText =
+    let ?rexColors = NoColors
+    in rexFile . planRex
+
+rexText :: Rex -> Text
+rexText =
+    let ?rexColors = NoColors
+    in rexFile . joinRex . fmap handleEmbed
+  where
+    handleEmbed :: Any -> GRex Void
+    handleEmbed x = N style "↓" [rex] Nothing
+      where rex   = planRex x
+            style = if isClosed rex then SHUT_PREFIX else OPEN
+
+isClosed :: GRex a -> Bool
+isClosed (N OPEN _ _ _) = False
+isClosed _              = True
+
+isSimpleClosed :: GRex a -> Bool
+isSimpleClosed (N OPEN _ _ _)          = False
+isSimpleClosed (N NEST_PREFIX "|" _ _) = False
+isSimpleClosed _                       = True
+
+openApp :: GRex a -> GRex a
+openApp (N NEST_PREFIX "|" ss h) = N OPEN "|" ss h
+openApp rex                      = rex
+
+
+--------------------------------------------------------------------------------
+
+trkM :: Monad m => Any -> m ()
+trkM msg = do
+    let !() = doTrk msg ()
+    pure ()
+
+trk :: Any -> a -> a
+trk = doTrk
+
+--------------------------------------------------------------------------------
+
+apple :: Sire -> [Sire] -> Sire
+apple = foldl' S_APP
+
+apple_ :: [Sire] -> Sire
+apple_ []     = error "apple_ given nothing to work with"
+apple_ (f:xs) = apple f xs
+
+traceSire' :: Text -> Sire -> a -> a
+traceSire' context sire result =
+    trk (REX it) result
+  where
+    it = N OPEN "#" [T BARE_WORD context Nothing]
+       $ Just
+       $ sireRex sire
+
+traceSire :: Text -> Sire -> a -> a
+traceSire _context _sire result = result
+-- traceSire = traceSire'
+
+traceSireId :: Text -> Sire -> Sire
+traceSireId context sire = traceSire context sire sire

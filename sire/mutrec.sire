@@ -75,38 +75,36 @@
       | (readRex, readAtomLit, readExp, readCoreBody {*} readExp)
 | ok coreTag letBody coreBody
 
-= (genCoreBody arms aft ok)
-^ rowTraverseState aft _ arms ok
-& (aft [sym binds body] ret)
+= (genCoreBody arms st ok)
+^ rowTraverseState st _ arms ok
+& (st [sym binds body] ret)
 | trk #[=sym =binds =body]
-: aft sig bod <- makeDestroyer aft binds body
-| ret aft [sym sig bod]
+: st sig bod <- makeDestroyer st binds body
+| ret st [sym sig bod]
 
-!!=  ++ 5
+!!=  ++ [5]
      ++ ++ [%f [%x] ``x]
         ++ [%g [%y] ``0]
-  ^ genCoreBody _ 5 v2
+  ^ genCoreBody _ [5] v2
   | [[%f [[%v %x]] ``x] [%g [[%v %y]] ``0]]
 
-!!=  ++ 7
+!!=  ++ [7]
      ++  ++  ++ 'f'
              ++ ['_g5']
              ++ ` #@ _g6 _g5
                   #@ x (#| $$(idx 0) _g6)
                   #@ y (#| $$(idx 1) _g6)
                    x
-  ^ genCoreBody _ 5 v2
+  ^ genCoreBody _ [5] v2
   | [[%f [[%r [[%v %x] [%v %y]]]] ``x]]
 
 ; TODO Move this to `17-exp.sire`
-; TODO Avoid the @ where necessary.
 = (taggedLamE nam tag args body)
-@ idn (SHUT {@} (varE nam, litE tag) 0)
-@ sig (NEST {|} (rowCons idn args) 0)
-| OPEN "#?" [sig] body
+@ sig (NEST {|} (rowCons (varE nam) args) 0)
+| OPEN "#?" [(litE tag) sig] body
 
 !!= (taggedLamE %f 2 [``x ``y ``z] ``x)
- `` #? (f@2 x y z)
+ `` #? 2 (f x y z)
      x
 
 = (matchE x wildExp patExps)
@@ -128,15 +126,12 @@
 !!= 5 | maxRow [5 3 4]
 !!= 0 | maxRow []
 
-= (genMutRecE a coreTag letBody coreBody ok)
+= (genMutRecE st coreTag letBody coreBody ok)
 ;
-@ coreNam (gensymNm "core" a)
-;
-: aft sigExpPairs
-    < genCoreBody coreBody a
+: st coreNam     <- generateTempName "core" st
+: st sigExpPairs <- genCoreBody coreBody st
 ;
 @ arms | listZip listEnumFrom-0 listFromRow-sigExpPairs
-@ aft  | add aft 2
 @ maxArgs
     | maxRow
     ^ map _ (listToRow arms)
@@ -155,14 +150,14 @@
         | weld (map varE args)
         | rep (cnsE 0) extras
     | bindArms body rest
-: aft coreArgs
-    < ^ rowTraverseState aft _ (rep 0 maxArgs)
-      & (aft item pure)
-      | pure (inc aft) (varE | gensymNm "arg" aft)
-@ tagArg | varE (gensymNm "tag" | inc aft)
-@ aft    | inc aft
+: st coreArgs
+    < ^ rowTraverseState st _ (rep 0 maxArgs)
+      & (st item pure)
+      : st varExp <- generateVarE "arg" st
+      | pure st varExp
+: st tagArgExp <- generateVarE "tag" st
 @ coreArgs
-    | rowCons tagArg coreArgs
+    | rowCons tagArgExp coreArgs
 @ branches
     ^ map _ (listToRow arms)
     & foo
@@ -172,18 +167,18 @@
     & ([ix var] rest)
     | letE var (idx ix coreArgs) rest
 @ coreBody
-    | OPEN "#|" (cnsE switch, tagArg, cnsE 0)
+    | OPEN "#|" (cnsE switch, tagArgExp, cnsE 0)
     | bowE branches
-| ok aft
+| ok st
 | letE coreNam
     | taggedLamE coreNam coreTag coreArgs
     | bindArms coreBody arms
 | bindArms letBody arms
 
-= ("#mutrec" s p e a r err ok)
-: coreTag letBody coreBody < readMutRecExp readRex r err
-: a rex                    < genMutRecE a coreTag letBody coreBody
-| ok p a rex
+= ("#mutrec" st rex err ok)
+: coreTag letBody coreBody < readMutRecExp readRex rex err
+: st rex                   < genMutRecE st coreTag letBody coreBody
+| ok st rex
 
 ; !!= 1
 ;         @ e
@@ -241,17 +236,14 @@
 
 """ #mutual """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= ("#mutual" s p e aft r err ok)
-: _ coreSymbol sigRex < rexParseKids r [readRex readRex readRex] err
+= ("#mutual" st rex err ok)
+: _ coreSymbol sigRex < rexParseKids rex [readRex readRex readRex] err
 : arms                < readCoreBody '=' readRex sigRex err
-: aft sigExpPairs     < genCoreBody arms aft
+: st sigExpPairs      < genCoreBody arms st
 : coreName            < readSymbol coreSymbol err
+: st tagIdn           < generateVarE "tag" st
 @
     = coreIdn | varE coreName
-    = tagKey  | aft
-    = tagNam  | gensymNm "tag" tagKey
-    = tagIdn  | varE tagNam
-    = !aft    | inc aft
     = arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
     = maxArgs | maxRow
               ^ map _ (listToRow arms)
@@ -271,23 +263,22 @@
                 | weld (map varE args)
                 | gen extras (const | cnsE 0)
         | bindArms body rest
-: aft coreArgIdns
-        < ^ rowTraverseState aft _ (gen maxArgs | const 0)
-          & (aft item pure)
-          @ idn  (varE | gensymNm "arg" aft)
-          @ !aft (inc aft)
-          | pure aft idn
-: aft armDefuns
-        < ^ listTraverseState aft _ arms
-          & (aft [key [armName argNames exp]] pure)
+: st coreArgIdns
+        < ^ rowTraverseState st _ (gen maxArgs | const 0)
+          & (st _item pure)
+          : st idn <- (generateVarE "arg" st)
+          | pure st idn
+: st armDefuns
+        ; TODO: This does not actually need to traverse with state,
+        ; we never change anything.
+        < ^ listTraverseState st _ arms
+          & (st [key [armName argNames exp]] pure)
           @
-              = armKey     | aft
               = armIdn     | varE armName
-              = !aft       | inc aft
               = armArgIdns | map varE argNames
               = numArgs    | len armArgIdns
               = extraArgs  | sub maxArgs numArgs
-          | pure aft
+          | pure st
           | OPEN "#="
              ++ NEST "|" (rowCons armIdn armArgIdns) 0
              ++ | appE
@@ -312,7 +303,7 @@
     = coreBody
         | OPEN "#|" (cnsE switch, tagIdn, cnsE 0)
         | bowE branches
-| ok p aft
+| ok st
 | OPEN "#="
        ++ NEST "|" (rowCons coreIdn coreSig) 0
        ++ bindArms coreBody arms

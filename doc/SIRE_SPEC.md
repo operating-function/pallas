@@ -19,41 +19,60 @@ State State
 Sire is a state machine, with a transition function that takes in
 Rex trees:
 
-    EXEC     : SireState -> Rex -> SireState
-    EVALUATE : SireState -> Rex -> PlanValue
-    EXPAND   : SireState -> PlanValue -> Rex -> (SireState, Rex)
-    READ     : SireState -> Rex -> (SireState, AST)
-    COMPILE  : AST -> PlanValue
+    EXEC     : St -> Rex -> St
+    EVALUATE : St -> Rex -> Any
+    EXPAND   : St -> Any -> Rex -> (St, Rex)
+    READ     : St -> Rex -> (St, AST)
+    COMPILE  : AST -> Any
 
-    record SireState {
+    record St {
         nextKey : Nat                     --  The name of the current module.
         current : Str                     --  The name of the current module.
         scope   : Tab Str Bind            --  Current global namespace.
-        keyed   : Tab Nat Bind            --  All bindings by key.
         modules : Tab Str (Tab Str Bind)  --  Loaded modules.
+        binds   : Tab Nat Bind            --  All bindings by key.
+    }
+
+    record Lam {
+        pinned  : Bit  --  Pin the law?
+        inlined : Bit  --  Always inline?
+        tag     : Nat  --  Which name to use for the law tag?
+        args    : Nat  --  How many arguments?
+        body    : Exp  --  What body expression?
+    }
+
+    data Exp {
+        (VAR) r:Nat                  --  reference to local binding (by depth)
+        (REF) [ {ref} b:Bind      ]  --  resolved global reference
+        (VAL) [ {val} x:Fan       ]  --  constant value
+        (APP) [ {app} f:Exp x:Exp ]  --  function application
+        (LET) [ {let} v:Exp b:Exp ]  --  let binding
+        (LAM) [ {lam} pin inline tag args bod]
+        (LIN) [ {lin} x:Exp       ]  --  inline annotation
     }
 
     record Bind {
-        value  : PlanValue          --  The value of the binder
-        module : Str                --  Where was this defined?
-        name   : Str                --  What name was this defined under?
-        key    : Nat                --  The binding-key of the binder.
-        Props  : Tab Nat PlanValue  --  Arbitrary properties, set by macros.
+        key      : Nat          --  The binding-key of the binder.
+        value    : Any          --  The value of the binder
+        code     : Exp          --  The Sire AST (for inlining)
+        location : Str          --  Where was this defined?
+        name     : Str          --  What name was this defined under?
+        props    : Tab Nat Any  --  Arbitrary properties, set by macros.
     }
 
-    initialState : SireState = {
+    initialState : St = {
         nextKey = 0
         current = ""
         scope   = {}
-        keyed   = {}
         modules = {}
+        binds   = {}
     }
 
 
 Pseudo Code
 -----------
 
-A `SireState` values is threaded throughout.  But this uses imperative
+A `St` values is threaded throughout.  But this uses imperative
 notation for brevity, omitting the details of the state threading.
 
 All of the logic below is duplicated with the # prefix.  For example,
@@ -64,7 +83,7 @@ version inaccessible.
 
 ### Macro Expansion
 
-    EXPAND : SireState -> PlanValue -> Rex -> (SireState, Rex)
+    EXPAND : St -> PlanValue -> Rex -> (St, Rex)
 
     EXPAND(st, macro, rex) := 
 
@@ -77,7 +96,7 @@ version inaccessible.
 
 ### Executing Commands
 
-    EXEC : SireState -> Rex -> SireState
+    EXEC : St -> Rex -> St
 
     EXEC(st, expr) := 
 
@@ -87,29 +106,33 @@ version inaccessible.
         if exists st.scope[expr.rune] then
 
             macro = st.scope[expr.rune];
-            expr   = EXPAND(macro, expr);
+            expr  = EXPAND(macro, expr);
             EXEC(expr);
 
         else case expr of
 
             --  Expressions at the top level are short-hand for (_ = expr);
 
-            (| ...)..   ==>  EXEC(= _ $expr);
-            (- ...)..   ==>  EXEC(= _ $expr);
+            (|  ...)..  ==>  EXEC(= _ $expr);
+            (-  ...)..  ==>  EXEC(= _ $expr);
             (** ...)..  ==>  EXEC(= _ $expr);
-            (@ ...)..   ==>  EXEC(= _ $expr);
+            (@  ...)..  ==>  EXEC(= _ $expr);
             (@@ ...)..  ==>  EXEC(= _ $expr);
             (^  ...)..  ==>  EXEC(= _ $expr);
             (&  ...)..  ==>  EXEC(= _ $expr);
             (?  ...)..  ==>  EXEC(= _ $expr);
             (?? ...)..  ==>  EXEC(= _ $expr);
+            (.  ...)..  ==>  EXEC(= _ $expr);
 
 
             --  * executes multiple commands within one block.
 
-            (*)           ==> ;
-            (* ...)(* ..) ==> EXEC(* ... ..);
-            (* cmd ..)    ==> EXEC(cmd); EXEC(* ..);
+            (* x y..)z ==>
+
+                EXEC(cmd)
+                EXEC(y)
+                ..
+                EXEC(z)
 
 
             --  ^-^ enters a new module (archiving the last one)
@@ -198,7 +221,7 @@ version inaccessible.
 ### Evaluation
 
 
-    EVALUATE : SireState -> Rex -> Any
+    EVALUATE : St -> Rex -> Any
 
     EVALUATE(st, expr) := 
 
@@ -208,7 +231,7 @@ version inaccessible.
 
 ### Reading
 
-    Read : SireState -> Rex -> Ast
+    Read : St -> Rex -> Ast
 
     READ(st, expr)
 
@@ -221,7 +244,30 @@ version inaccessible.
             exp   = EXPAND(macro, exp);
             READ(exp);
 
+        else if IS_LEAF(exp) then
+
+            try each of these in order
+
+                READ_DECIMAL(exp)
+                READ_HEXI(exp)
+                READ_IDENTIFIER(exp)
+                READ_QUOTED_STRING(exp)
+                READ_MULTI_LINE_STRING(exp)
+
+            otherwise fail
+
         else case expr of
+
+            --  . is quoted variable reference
+
+            (. x) ==>
+                idn <- READ_KEY(x)
+                REF(idn)
+
+            (. x y) ==>
+                mod <- READ_KEY(x)
+                idn <- READ_KEY(y)
+                QUA(mod, idn)
 
             --  | is function application
 

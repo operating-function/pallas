@@ -17,4 +17,4 @@
 | trk [%cogId id]
 | return ()
 
-(runCog spinDemo)
+main=(runCog spinDemo)

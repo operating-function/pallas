@@ -983,7 +983,6 @@ evalN env =
 
 deriving instance Eq PrimopCrash
 deriving instance Ord PrimopCrash
-deriving instance Show PrimopCrash
 instance Exception PrimopCrash where
     displayException (PRIMOP_CRASH n x) =
         unsafePerformIO do
@@ -993,6 +992,9 @@ instance Exception PrimopCrash where
                           , " with this argument:\n\n"
                           , unpack (s x)
                           ]
+
+instance Show PrimopCrash where
+    show = displayException
 
 execNat :: Nat -> SmallArray Fan -> Fan
 execNat 0 e = mkLaw (LN $ toNat $ e^1) (toNat $ e^2) (e^3)

@@ -411,15 +411,15 @@ tallExpect={Expected something like (## =key val ...)(...)}
 
 """ Rune Macros """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= ({#} s p e a r err ok)
-| readWideTabLit readRex r err
+= ({#} ss rex err ok)
+| readWideTabLit readRex rex err
 & res
-| ok p a (tabE res)
+| ok ss (tabE res)
 
-= ({##} s p e a r err ok)
-| readTallTabLit readRex r err
+= ({##} ss rex err ok)
+| readTallTabLit readRex rex err
 & res
-| ok p a (tabE res)
+| ok ss (tabE res)
 
 = (isTabSugar rex)
 @ kids (rexKids rex)
@@ -428,12 +428,12 @@ tallExpect={Expected something like (## =key val ...)(...)}
 
 ; This extends the basic row syntax to support tab literals (if theh
 ; elements are = nodes).
-= ({,} s p e a r err ok)
-| if (isTabSugar r)
-   | readWideTabLit readRex r err
+= ({,} ss rex err ok)
+| if (isTabSugar rex)
+   | readWideTabLit readRex rex err
    & res
-   | ok p a (tabE res)
-| ok p a (rowE | rexKids r)
+   | ok ss (tabE res)
+| ok ss (rowE | rexKids rex)
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

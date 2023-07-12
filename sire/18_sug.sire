@@ -60,7 +60,7 @@
 /+  02_bit  [if ifNot and or not else]
 /+  02_bit  [TRUE FALSE]
 /+  03_nat  [add div inc dec]
-/+  06_row  [idx len null switch fst snd]
+/+  06_row  [idx put len null switch fst snd]
 /+  06_row  [weld map foldr v1 v2 v3 v4]
 /+  04_cmp  [eql neq lth isZero]
 /+  07_rex  [rexRune rexSons rexHeir rexKids]
@@ -82,7 +82,7 @@
 /+  12_cab  [{%}]
 /+  13_tab  [{#}]
 /+  14_exp  [readSymbol rexParseKids]
-/+  14_exp  [rowE natE letE cnsE txtE appE varE gensym]
+/+  14_exp  [rowE natE letE cnsE txtE appE varE tmpName]
 /+  14_exp  [lamE wutE wutWutE]
 /+  14_exp  [bloodline]
 /+  15_hax  []
@@ -106,9 +106,9 @@
         | readSymbol son err ret
 | readSymbol rex err (compose ok v1)
 
-!!= [%a %b %c]          | readSignature ``(a b c) v2 id
-!!= [%a]                | readSignature ``(a)     v2 id
-!!= [%a]                | readSignature ``a       v2 id
+!!= [%a %b %c]           | readSignature ``(a b c) v2 id
+!!= [%a]                 | readSignature ``(a)     v2 id
+!!= [%a]                 | readSignature ``a       v2 id
 !!= [``[a b] sigExpect]  | readSignature ``[a b]   v2 id
 !!= [``([][]) sigNoHeir] | readSignature ``([][])  v2 id
 
@@ -244,10 +244,10 @@
     ^ appE (valRex, _)
     | wutE (rowCons funName argNames) bodyRex
 
-= ({:} s p e a r err ok)
-| readColExp readSymbol readRex r err
+= ({:} st rex err ok)
+| readColExp readSymbol readRex rex err
 & (valExp oFunName pats bodyExp)
-| ok p a (colExpE valExp oFunName pats bodyExp)
+| ok st (colExpE valExp oFunName pats bodyExp)
 
 = (rexGetRune rex fall ok)
 : rune kids heir <- rexGetNode rex fall
@@ -258,7 +258,7 @@
         , rune rune
 
 !!= [``(<* f) cbExpect]
-        (.{:} 0 0 0 0 ``((: x <* f)(, 3)) v2 v3)
+        (.{:} 0 ``((: x <* f)(, 3)) v2 v2)
 
 
 """ Fancy Function Application """""""""""""""""""""""""""""""""""""""""""""""""
@@ -304,9 +304,9 @@
 : params < rowTraverse (flip readExp err) params
 | ok params
 
-= ({|} s p e a r err ok)
-: params <- readFancyApp readRex r err
-| ok p a
+= ({|} st rex err ok)
+: params <- readFancyApp readRex rex err
+| ok st
 | if null-params (cnsE 0) (appE params)
 
 {-}=(.{|})
@@ -345,10 +345,10 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 & items
 | ok (listFromRow items)
 
-= ({~} s p e a r err ok)
-| readWideListLit readRex r err
+= ({~} st rex err ok)
+| readWideListLit readRex rex err
 & items
-| ok p a (listE items)
+| ok st (listE items)
 
 !!= ~[3 4 5] | [3 [4 [5 0]]]
 !!= ~[3]     | [3 0]
@@ -380,10 +380,10 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 = (readTallListLit readItem rex err ok)
 | readItemized {~~} readItem readItem rex err ok
 
-= ({~~} s p e a r err ok)
-: items <- readTallListLit readRex r err
+= ({~~} st rex err ok)
+: items <- readTallListLit readRex rex err
 ; trk 'items',items,'->',(listE items)
-| ok p a (listE items)
+| ok st (listE items)
 
 !!= ~[3 4 5] | [3 [4 [5 0]]]
 !!= ~[3]     | ~~ 3
@@ -488,11 +488,11 @@ four=(WORD {4} 0)
 ;
 ; TODO: Reverse these runes?
 
-= ({`} s p e a r err ok)
+= ({`} st rex err ok)
 @ readVal (rex err ok & ok (LEFT rex))
 @ readExp (rex err ok & ok (RIGHT rex))
-: quoted < readQuasiQuotedRex readVal readExp r err
-| ok p a (splicedE quoted)
+: quoted < readQuasiQuotedRex readVal readExp rex err
+| ok st (splicedE quoted)
 
 four=(WORD {4} 0)
 
@@ -548,17 +548,17 @@ four=(WORD {4} 0)
 = (andE x y) | `($$and $x $y)
 = (orE x y)  | `($$or $x $y)
 
-= ({&&} s p e a r err ok)
-: tree < readInfixRight readRex "&&" r err
-| ok p a (binTreeFold andE tree)
+= ({&&} st rex err ok)
+: tree < readInfixRight readRex "&&" rex err
+| ok st (binTreeFold andE tree)
 
-= ({||} s p e a r err ok)
-: tree < readInfixRight readRex "||" r err
-| ok p a (binTreeFold orE tree)
+= ({||} st rex err ok)
+: tree < readInfixRight readRex "||" rex err
+| ok st (binTreeFold orE tree)
 
-= ({::} s p e a r err ok)
-: tree < readInfixRight readRex "::" r err
-| ok p a (binTreeFold consE tree)
+= ({::} st rex err ok)
+: tree < readInfixRight readRex "::" rex err
+| ok st (binTreeFold consE tree)
 
 !!= ~[3 4]   (3 :: 4 :: ~[])
 !!= ~[3 4 5] (3 :: 4 :: ~[5])
@@ -602,17 +602,17 @@ four=(WORD {4} 0)
   #!!= 1 (eql 3 (add 1 2))
   #!!= 1 (eql 4 (add 3 1))
 
-= ({!!} s p e a r err ok)
-^ : exps <- _ r
-  | ok p a (assertE exps)
-? (loop r ret)
-@ heir     | rexHeir r
+= ({!!} st rex err ok)
+^ : exps <- _ rex
+  | ok st (assertE exps)
+? (loop rex ret)
+@ heir     | rexHeir rex
 @ heirRune | rexRune heir
 | if (isZero heir || neq {!!} heirRune)
-    : exps <- readAssert NIL r err
+    : exps <- readAssert NIL rex err
     | ret exps
 : more <- loop heir
-: exps <- readAssert more (rexSetHeir 0 r) err
+: exps <- readAssert more (rexSetHeir 0 rex) err
 | ret exps
 
 !! add 0 1
@@ -655,17 +655,19 @@ four=(WORD {4} 0)
 (notEqlE x y)=(appE (cnsE neq, x, y))
 
 > Nat > Row Rex > (Nat, Rex)
-= (multiEqlE n exps)
+= (multiEqlE st exps)
 @ numExps (len exps)
 | if (lth numExps 2)
     | 'multiEqlE needs 2+ expressions' exps
 | if (eql numExps 2)
-    | (n, appE (cnsE eql, fst exps, snd exps))
-@ tmpVar   | gensym n
+    | (st, appE (cnsE eql, fst exps, snd exps))
+@ nextKey  | idx 0 st
+@ tmpVar   | tmpName "g" nextKey
+@ st       | put st 0 (inc nextKey)
 @ tmpRef   | varE tmpVar
 @ fstExp   | fst exps
 @ restExps | drop 1 exps
-^ (inc n, _)
+^ (st, _)
 ^ | letE tmpVar fstExp
   | _ (listFromRow restExps)
 ? (loop more)
@@ -674,14 +676,14 @@ four=(WORD {4} 0)
 ^ appE (cnsE and, _, loop xs)
 | appE (cnsE eql, tmpRef, x)
 
-= ({==} s p e a r err ok)
-: items < readEqlExp readRex r err
-@ ar | multiEqlE a items
-| ok p (fst ar) (snd ar)
+= ({==} st rex err ok)
+: items < readEqlExp readRex rex err
+@ stRex (multiEqlE st items)
+| ok (fst stRex) (snd stRex)
 
-= ({/=} s p e a r err ok)
-: x y <- readNotEqlExp readRex r err
-| ok p a (notEqlE x y)
+= ({/=} st rex err ok)
+: x y <- readNotEqlExp readRex rex err
+| ok st (notEqlE x y)
 
 !!= 1 (3 /= 4)
 !!= 0 (3 /= 3)

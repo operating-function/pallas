@@ -7,7 +7,7 @@
 {-# OPTIONS_GHC -Wall    #-}
 {-# OPTIONS_GHC -Werror  #-}
 
-module Fan.JetImpl (installJetImpls, jetImpls) where
+module Fan.JetImpl (installJetImpls, jetImpls, doTrk) where
 
 import Control.Parallel
 import Data.Bits
@@ -200,23 +200,26 @@ isZeroJet _ env = case env^1 of
   NAT 0 -> NAT 1
   _     -> NAT 0
 
+doTrk :: Fan -> a -> a
+doTrk msg val = unsafePerformIO do
+    trk <- readIORef vTrkFan
+    tag <- evaluate (force msg)
+    trk msg
+
+    case trkName tag of
+        Nothing -> evaluate val
+        Just (encodeUtf8 -> nm) ->
+            Prof.withAlwaysTrace nm "trk" do
+                evaluate val
+
 -- TODO: (!greenOut (!(readIORef vShowFan) (env^1))) probably needs to
 -- be replaced with something like (!(readIORef vLogFan) LOG_TRK (env^1)).
 --
 -- This way the cog-machine can propery re-route this output to the
 -- log-files.
 trkJet :: Jet
-trkJet _ env = unsafePerformIO $ do
-    trk <- readIORef vTrkFan
+trkJet _ env = doTrk (env^1) (env^2)
 
-    tag <- evaluate (force (env^1))
-    trk (env^1)
-
-    case trkName tag of
-        Nothing -> evaluate (env^2)
-        Just (encodeUtf8 -> nm) ->
-            Prof.withAlwaysTrace nm "trk" do
-                evaluate (env^2)
 
 {-# INLINE ordFan #-}
 ordFan :: Ordering -> Nat
@@ -719,10 +722,10 @@ blake3Jet f e =
   where
     blake3 bar =
         unsafePerformIO $
-        allocaBytes 32 \buf ->
+        allocaBytes 32 \outbuf ->
         BS.unsafeUseAsCStringLen bar \(byt, wid) -> do
-            c_jet_blake3 (castPtr buf) (fromIntegral wid) (castPtr byt)
-            res <- BS.packCStringLen (buf, 32)
+            c_jet_blake3 (castPtr outbuf) (fromIntegral wid) (castPtr byt)
+            res <- BS.packCStringLen (outbuf, 32)
             pure (BAR res)
 
 cabSingletonJet :: Jet

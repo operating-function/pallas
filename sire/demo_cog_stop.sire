@@ -32,4 +32,4 @@
 | trk [%stopVal (fromSome 0 val)]
 | return ()
 
-(runCog stopDemo)
+main=(runCog stopDemo)

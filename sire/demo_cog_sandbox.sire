@@ -28,6 +28,7 @@
 | trk [%stopVal (fromSome 0 val)]
 | return ()
 
+= main
 @ allowCogAndWhen [[%cog] [%time 0 %when] [%time 0 %wait]]
 | runCog | withCogSandbox allowCogAndWhen miniStopDemo
 

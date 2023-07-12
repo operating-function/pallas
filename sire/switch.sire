@@ -187,9 +187,9 @@ foo=(x e o & o (varE "_", x))
 | else
         | bopE (cnsE tabSwitch, expr, wild, tabE pats)
 
-= ({#switch} s p e a r err ok)
-: exp fallback arms <- readSwitchExp readRex r err
-| ok p a
+= ({#switch} st rex err ok)
+: exp fallback arms <- readSwitchExp readRex rex err
+| ok st
 | switchE exp fallback arms
 
 

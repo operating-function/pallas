@@ -35,7 +35,7 @@ import qualified Data.Vector.Storable as SV
 
 -- Types -----------------------------------------------------------------------
 
-data PrimopCrash = PRIMOP_CRASH !Nat !Fan
+data PrimopCrash = PRIMOP_CRASH { errCode :: !Nat, errVal :: !Fan }
 
 {-
     Note that `code` is lazy.  We don't "compile" it until it is

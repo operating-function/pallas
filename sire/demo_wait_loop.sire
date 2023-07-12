@@ -19,6 +19,5 @@
 | trk %waited
 | waitLoop k
 
-exe=(runCog waitLoop)
 
-exe
+main=(runCog waitLoop)

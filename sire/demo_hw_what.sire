@@ -13,4 +13,4 @@
 | trk [%hardware hw]
 | whatDemo hw return
 
-| runCog | whatDemo %[]
+main=(runCog | whatDemo %[])

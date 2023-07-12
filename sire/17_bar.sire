@@ -40,12 +40,12 @@
 /+  06_row  [map foldl foldr gen weld v1 v2 v4]
 /+  06_row  [fst snd]
 /+  07_rex  [SHUT CURL WORD]
-/+  07_rex  [rexKids rexText {``}]
+/+  07_rex  [rexKids rexHeir rexText {``}]
 /+  07_rex  [rexGetLeaf]
 /+  08_dat
 /+  09_sci  []
 /+  10_chr  [isPrint toLower]
-/+  11_str  [explode strCat strWeld]
+/+  11_str  [explode strCat strWeld strFromList]
 /+  12_cab  ["%"]
 /+  13_tab  []
 /+  14_exp  [cnsE]
@@ -267,8 +267,23 @@ rowToBar=barFromRow
 
 = blWantText | "Bar literals require a text parameter, for example: b#asdf"
 = blTwoKids  | "Bar literals need too kids, for example: b#adsf"
-= blBadHeir  | "Bar literals strings may not have heirs."
+= blBadHeir  | "Bar literals may not have heirs."
 = blBadMacro | "Bar literals must look like b#... or x#..."
+
+= (foldMultiLine rex err ok)
+@ topStyle (idx 0 | lawBody rex)
+| if (and (neq {LINE} topStyle) (neq {PAGE} topStyle))
+    | err rex 'non-line-string contains heir.  What?'
+^ (_ NIL rex)
+? (go acc rex)
+| if (isZero rex)
+    | ok | strFromList | listIntersperse 10 | listRev acc
+@ style (idx 0 | lawBody rex)
+| if (neq style topStyle)
+    | err rex 'Each line of a multiline-string must be a leaf of the same style'
+@ acc (CONS (rexText rex) acc)
+| go acc (rexHeir rex)
+
 
 > Rex > Read Bar
 = (readBarLit rex err ok)
@@ -277,17 +292,21 @@ rowToBar=barFromRow
 | if (neq 2 len-kids) | err rex blTwoKids
 | if (and (neq "b" text) (neq "x" text))
     | err rex blBadMacro
-@ mk  | if (eql "b" text) natBar barFromHex
-@ val | idx 1 kids
-| rexGetLeaf val      | err val blWantText
+@ mk     | if (eql "b" text) natBar barFromHex
+@ valRex | idx 1 kids
+| rexGetLeaf valRex
+    | err valRex blWantText
 & (text heir)
-| if (neq 0 heir)     | err val blBadHeir
+| if (neq 0 heir)
+    | foldMultiLine valRex err
+    & txt
+    | ok (mk txt)
 | ok (mk text)
 
-= ({#x} s p e a r err ok)
-| readBarLit r err
+= ({#x} st rex err ok)
+| readBarLit rex err
 & bar
-| ok p a (cnsE bar)
+| ok st (cnsE bar)
 
 {#b}=(.{#x})
 

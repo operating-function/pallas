@@ -37,4 +37,4 @@ randTest=(RandLoop 5 [call-5])
         [0=(x#11)]
         [0=(x#{})]
 
-randTest
+main=randTest

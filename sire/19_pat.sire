@@ -38,7 +38,7 @@
 /+  01_fan
 /+  02_bit  [if else ifNot not and or FALSE]
 /+  03_nat  [add div inc]
-/+  06_row  [len null idx fst]
+/+  06_row  [len null idx get put fst]
 /+  04_cmp  [eql neq gte lth isZero]
 /+  06_row  [weld map foldl foldr v1 v2 v4]
 /+  07_rex  [rexKids rexRune rexHeir rexSons rexText {``}]
@@ -184,7 +184,7 @@
 
 ; =(PIN x)
 = (parsePinBinder parseBinder rex err ok)
-: kids <- readNodeWithoutHeirButWithRune "|" rex err
+: kids <- readNodeWithoutHeirButWithRune {|} rex err
 | if (neq 2 len-kids)
     | err rex "Pin-Pattern expects two kids: (PIN x)"
 | ifNot (eql `PIN | idx 0 kids)
@@ -195,7 +195,7 @@
 
 ; @(LAW n a b)
 = (parseLawBinder parseBinder rex err ok)
-: kids <- readNodeWithoutHeirButWithRune "|" rex err
+: kids <- readNodeWithoutHeirButWithRune {|} rex err
 | if (neq 4 len-kids)
     | err rex "Law-Pattern expects four kids: (LAW n a b)"
 | ifNot (eql `LAW | idx 0 kids)
@@ -230,7 +230,7 @@
     | parseTabBinder parseBinder rex err ok
 | if (eql rune {@})
     | parseAliasedBinder parseBinder rex err ok
-| if (eql rune "|")
+| if (eql rune {|})
     ;
     ; TODO: Gnarly hack, don't keep
     ;
@@ -323,12 +323,12 @@
 ; ~~ [ "f"    ``(tabIdx-"e" _g2) ]
 ;
 
-= (sequenceBindPair nex bindSpec exp)
-^ _ exp bindSpec nex NIL
-        & (nex acc)
+= (sequenceBindPair ss bindSpec exp)
+^ _ exp bindSpec ss NIL
+        & (ss acc)
         @ row (listToRowReversed acc)
-        | [nex (map (take 3) row) (cat | map idx-3 row)]
-? (go exp bindSpec nex acc ok)
+        | [ss (map (take 3) row) (cat | map idx-3 row)]
+? (go exp bindSpec ss acc ok)
 @ typ (idx 0 bindSpec)
 | if (eql 'o' typ)
         | todo
@@ -338,74 +338,78 @@
       """ compile them away before calling this codegen routine.
 | if (eql 'v' typ)
         @ var (idx 1 bindSpec)
-        | ok nex [0 var exp []]::acc
+        | ok ss [0 var exp []]::acc
 | if (eql 's' typ)
         @ var (idx 1 bindSpec)
-        | ok nex [0 var exp [var]]::acc
-@ tmp (gensym nex)
-@ nex (inc nex)
+        | ok ss [0 var exp [var]]::acc
+: ss tmp <- generateTempName "g" ss
 | if (eql 'a' typ)
         @ acc [0 tmp exp []]::acc
-        : nex acc <- go (varE tmp) (idx 1 bindSpec) nex acc
-        : nex acc <- go (varE tmp) (idx 2 bindSpec) nex acc
-        | ok nex acc
+        : ss acc <- go (varE tmp) (idx 1 bindSpec) ss acc
+        : ss acc <- go (varE tmp) (idx 2 bindSpec) ss acc
+        | ok ss acc
 | if (eql 'pin' typ)
         @ acc [0 tmp exp []]::acc
         @ exp (appE (cnsE pinItem, varE tmp))
-        : nex acc <- go exp (idx 1 bindSpec) nex acc
-        | ok nex acc
+        : ss acc <- go exp (idx 1 bindSpec) ss acc
+        | ok ss acc
 | if (eql 'law' typ)
         @ acc [0 tmp exp []]::acc
-        : nex acc <- go appE|(cnsE lawName, varE tmp) (idx 1 bindSpec) nex acc
-        : nex acc <- go appE|(cnsE lawArgs, varE tmp) (idx 2 bindSpec) nex acc
-        : nex acc <- go appE|(cnsE lawBody, varE tmp) (idx 3 bindSpec) nex acc
-        | ok nex acc
+        : ss acc <- go appE-(cnsE lawName, varE tmp) (idx 1 bindSpec) ss acc
+        : ss acc <- go appE-(cnsE lawArgs, varE tmp) (idx 2 bindSpec) ss acc
+        : ss acc <- go appE-(cnsE lawBody, varE tmp) (idx 3 bindSpec) ss acc
+        | ok ss acc
 @ dat (idx 1 bindSpec)
 @ acc [0 tmp exp []]::acc
 @ res
         | if (eql 't' typ)
-                ^ foldl _ [nex acc] (tabToPairs dat)
+                ^ foldl _ [ss acc] (tabToPairs dat)
                 & (st elem)
-                @ nex (idx 0 st)
+                @ ss  (idx 0 st)
                 @ acc (idx 1 st)
                 @ key (idx 0 elem)
                 @ pat (idx 1 elem)
                 @ exp (appE (cnsE tabIdx-key, varE tmp))
-                : nex acc <- go exp pat nex acc
-                | [nex acc]
+                : ss acc <- go exp pat ss acc
+                | [ss acc]
         | if (eql 'r' typ)
-                ^ listFoldl _ [nex acc] (listIndexed | listFromRow dat)
+                ^ listFoldl _ [ss acc] (listIndexed | listFromRow dat)
                 & (st elem)
-                @ nex (idx 0 st)
+                @ ss  (idx 0 st)
                 @ acc (idx 1 st)
                 @ i   (idx 0 elem)
                 @ pat (idx 1 elem)
                 @ exp (appE (cnsE idx-i, varE tmp))
-                : nex acc <- go exp pat nex acc
-                | [nex acc]
+                : ss acc <- go exp pat ss acc
+                | [ss acc]
         | else
             | die ['bad bind spec' bindSpec]
-@ nex (idx 0 res)
+@ ss  (idx 0 res)
 @ acc (idx 1 res)
-| ok nex acc
+| ok ss acc
 
-= (sequenceBinds initialAft bindSpecs)
-^ foldl _ initialAft,[],[] bindSpecs
+= (sequenceBinds ss bindSpecs)
+; trk #[=bindSpecs]
+^ foldl _ [ss [] []] bindSpecs
 & (acc item)
 ;
-@ aft   (idx 0 acc)
+@ ss    (idx 0 acc)
 @ soFar (idx 1 acc)
 @ deps  (idx 2 acc)
+;
+; trk #[=soFar =deps]
 ;
 @ bind  (idx 0 item)
 @ exp   (idx 1 item)
 ;
-@ res    (sequenceBindPair aft bind exp)
-@ aft    (idx 0 res)
+@ res    (sequenceBindPair ss bind exp)
+@ ss     (idx 0 res)
 @ extra  (idx 1 res)
 @ depend (idx 2 res)
 ;
-| [aft (weld soFar extra) (weld deps depend)]
+; trk #[=extra =depend]
+;
+| [ss (weld soFar extra) (weld deps depend)]
 
 !!=    ++ 5
        ++ [[0 %y (``x)]]
@@ -417,14 +421,14 @@
        ++ ['y']
     | sequenceBinds 5 [[[%s %y] ``x]]
 
-!!=    ++ 8
+!!=    ++ [8]
        ++  ++ [0 '_g5'  `(foo foo)]
            ++ [0 '_g6'  `(#| $$(idx 0) _g5)]
            ++ [0 %x     `(#| $$(idx 0) _g6)]
            ++ [0 '_g7'  `(#| $$(idx 1) _g5)]
            ++ [0 %y     `(#| $$(idx 0) _g7)]
        ++  [%x %y]
-    | sequenceBinds 5
+    | sequenceBinds [5]
     | v1
    ++   | v2 %r
        ++ [%r [[%s %x]]]
@@ -432,14 +436,14 @@
    ++ ``(foo foo)
 
 !!=
-       ++ 8
+       ++ [8]
        ++  ++ [0 '_g5'  `(foo foo)]
            ++ [0 '_g6'  `(#| $$(idx 0) _g5)]
            ++ [0 %x     `(#| $$(tabIdx 'x') _g6)]
            ++ [0 '_g7'  `(#| $$(idx 1) _g5)]
            ++ [0 %y     `(#| $$(idx 0) _g7)]
        ++ []
-    | sequenceBinds 5
+    | sequenceBinds [5]
     | v1
    ++   | v2 %r
        ++ [%t #[x=[%v %x]]]
@@ -509,7 +513,7 @@
 
 = (isLambdaBinder rex)
 | and (rexIsNode rex)
-| and (eql "|" (rexRune rex))
+| and (eql {|} (rexRune rex))
 | and (isZero (rexHeir rex))
 @ sons (rexSons rex)
 | and (gte (len sons) 2)
@@ -527,7 +531,7 @@
 
 ; TODO: Rebuild this as a call to (sequenceBinds >=> bindSeqE).
 = (destructureTabE nex bindings tabExp bodyExp ok)
-@ tmp (gensym nex)
+@ tmp (tmpName "g" nex)
 @ go
         ? (go bind)
         | **listCase bind
@@ -564,7 +568,7 @@
 
 = (readBindSig rex err ok)
 @ rune (rexRune rex)
-| if (eql rune "|")
+| if (eql rune {|})
     | if (neq 0 (rexHeir rex))
         | err rex sigNoHeir
     @ sons (rexSons rex)
@@ -601,7 +605,7 @@
     | ok sym []
 ;
 : sons heir
-        < rexGetNodeWithRune "|" rex
+        < rexGetNodeWithRune {|} rex
         | err rex symSigExpect
 | ifNot (isZero heir)
         | err rex symSigNoHeir
@@ -630,19 +634,21 @@
 
 """ Generic Pattern Matching """""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (makeDestroyer aft binds bodyExpr pure)
-: aft sig
-        < ^ rowTraverseState aft _ binds
-          & (aft bind ret)
+= (makeDestroyer ss binds bodyExpr pure)
+: ss sig
+        < ^ rowTraverseState ss _ binds
+          & (ss bind ret)
           | if (eql %v (idx 0 bind))
-                  | ret aft (idx 1 bind)
-          | ret (inc aft) (gensym aft)
-@ binder (zip binds (map varE sig))
-@ res  (sequenceBinds aft binder)
-@ aft  (idx 0 res)
-@ bSeq (idx 1 res)
-@ deps (idx 2 res)
-| pure aft sig
+                  | ret ss (idx 1 bind)
+          : ss nam <- generateTempName "g" ss
+          | ret ss nam
+; trk #[=sig]
+@ binder | zip binds (map varE sig)
+@ res    | sequenceBinds ss binder
+@ ss     | idx 0 res
+@ bSeq   | idx 1 res
+@ deps   | idx 2 res
+| pure ss sig
 | bindSeqE bSeq bodyExpr deps
 
 # typedef (SugaredBinder e)
@@ -672,45 +678,48 @@
     | ok [bind] letBodyExp
 
 > Nat > SugaredBinder Rex > Cont2 Nat (Pat, Rex)
-= (desugarBinder st sweetBind ok)
-^ eitherCase sweetBind _ (ok st)
+= (desugarBinder ss sweetBind ok)
+^ eitherCase sweetBind _ (ok ss)
 & nameArgsBody
 @ lawName (idx 0 nameArgsBody)
 @ argPats (idx 1 nameArgsBody)
 @ lawBody (idx 2 nameArgsBody)
-: st argList lawBody <- makeDestroyer st argPats lawBody
-| ok st
+: ss argList lawBody <- makeDestroyer ss argPats lawBody
+| ok ss
 | ([%v lawName], wutE (rowCons lawName argList) lawBody)
 
 > Nat > SugaredBinder Rex > Cont2 Nat (Pat, Rex)
-= (desugarMultiBinder st sweetBinds ok)
-| rowTraverseState st desugarBinder sweetBinds ok
-& (st sweetBind ret)
-^ eitherCase sweetBind _ (ret st)
+= (desugarMultiBinder ss sweetBinds ok)
+| rowTraverseState ss desugarBinder sweetBinds ok
+& (ss sweetBind ret)
+^ eitherCase sweetBind _ (ret ss)
 & nameArgsBody
 @ lawName (idx 0 nameArgsBody)
 @ argPats (idx 1 nameArgsBody)
 @ lawBody (idx 2 nameArgsBody)
-: st argList lawBody <- makeDestroyer st argPats lawBody
-| ret st
+: ss argList lawBody <- makeDestroyer ss argPats lawBody
+| ret ss
 | (lawName, wutE (rowCons lawName argList) lawBody)
 
 > Nat > Row (SugaredBinder Rex) > Rex > Cont2 Nat Rex
-= (multiLetE st sugaredBinds bodyExpr ok)
-: st binds
-    < rowTraverseState st desugarBinder sugaredBinds
-@ stBindSeqDeps
-    | sequenceBinds st binds
-@ st      (idx 0 stBindSeqDeps)
-@ bindSeq (idx 1 stBindSeqDeps)
-@ deps    (idx 2 stBindSeqDeps)
-| ok st
+= (multiLetE ss sugaredBinds bodyExpr ok)
+: ss binds < rowTraverseState ss desugarBinder sugaredBinds
+@ tuple    | sequenceBinds ss binds
+@ ss       | idx 0 tuple
+@ bindSeq  | idx 1 tuple
+@ deps     | idx 2 tuple
+| ok ss
 | bindSeqE bindSeq bodyExpr deps
 
-= ({@} s p e a r err ok)
-: binds body  < readLet readRex r err
-: a resultRex < multiLetE a binds body
-| ok p a resultRex
+= (showState ss)
+^ put _ 2 'scope'
+^ put _ 4 'allbinds'
+| ss
+
+= ({@} ss rex err ok)
+: binds body   < readLet readRex rex err
+: ss resultRex < multiLetE ss binds body
+| ok ss resultRex
 
 !!= 7
        @ [x y z] [3 4]
@@ -783,11 +792,11 @@
 | ok sym []
 
 ;
-= ("?" s p e a r err ok)
-: sigRex bodyExpr <- rexParseKids r [readRex readRex] err
+= ("?" ss rex err ok)
+: sigRex bodyExpr <- rexParseKids rex [readRex readRex] err
 : sym    binds    <- readNamedLambdaSig sigRex err
-: a sig  bodyExpr <- makeDestroyer a binds bodyExpr
-| ok p a
+: ss sig bodyExpr <- makeDestroyer ss binds bodyExpr
+| ok ss
 | wutE (rowCons sym sig)
 | bodyExpr
 
@@ -798,11 +807,11 @@
 
 """ Anon Lambdas with Destroy """"""""""""""""""""""""""""""""""""""""""""""""""
 
-= ("&" s p e a r err ok)
-: sigRex bodyExpr <- rexParseKids r [readRex readRex] err
+= ("&" ss rex err ok)
+: sigRex bodyExpr <- rexParseKids rex [readRex readRex] err
 : binds           <- readBindSig sigRex err
-: a sig  bodyExpr <- makeDestroyer a binds bodyExpr
-| ok p a
+: ss sig bodyExpr <- makeDestroyer ss binds bodyExpr
+| ok ss
 | lamE sig
 | bodyExpr
 
@@ -816,12 +825,12 @@
 
 """ Col Sugar with Destroy """""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= ({:} s p e a r err ok)
+= ({:} ss rex err ok)
 : valExp oFunName binds bodyExp
-    < readColExp parseBinder readRex r err
-: a sig bodyExp
-    < makeDestroyer a binds bodyExp
-| ok p a
+    < readColExp parseBinder readRex rex err
+: ss sig bodyExp
+    < makeDestroyer ss binds bodyExp
+| ok ss
 | colExpE valExp oFunName sig bodyExp
 
 
@@ -831,7 +840,7 @@
 | if (strIsSymbol k) (varE k) (txtE k)
 
 = (sogE f rs)
-| (NEST "|" (rowCons (keyE f) (map varE rs)) 0)
+| (NEST {|} (rowCons (keyE f) (map varE rs)) 0)
 
 = (parseDefine rex err ok)
 @ kids            | rexKids rex
@@ -840,7 +849,7 @@
     @ [keyRex sigRex bodRex] | kids
     @ sigRune                | rexRune sigRex
     : key <- readKey keyRex err
-    | if (eql "|" sigRune)
+    | if (eql {|} sigRune)
         : sym binds < readDestroyer sigRex err
         | ok (key, sym, binds, bodRex)
     | else
@@ -849,7 +858,7 @@
 | if (eql 2 nKids)
     @ [sigRex bodRex] | kids
     @ sigRune         | rexRune sigRex
-    | if (eql "|" sigRune)
+    | if (eql {|} sigRune)
         : sym binds < readDestroyer sigRex err
         | ok (0, sym, binds, bodRex)
     | else
@@ -906,29 +915,36 @@
     , 1 2
 
 ; Input must be non-empty
-= (mkDefsC a defBinds)
-^ listFoldr _ (a, 0) defBinds
-& (def [a acc])
+= (mkDefsC ss defBinds)
+^ listFoldr _ (ss, 0) defBinds
+& (def [ss acc])
 | if (len def == 4)
     @ [key sym binds bodRex] def
-    : a sig bod <- makeDestroyer a binds bodRex
-    , a
-    | OPEN "#=" (natE key, sogE sym sig, bod) acc
+    : ss sig bod <- makeDestroyer ss binds bodRex
+    ^ [ss (OPEN "#=" _ acc)]
+    | if key
+        | (natE key, sogE sym sig, bod)
+    | else
+        | (sogE sym sig, bod)
 | else
     @ [key bind bodRex] def
-    @ [a bSeq] (sequenceBinds a [[bind bodRex]])
-    ^ foldr _ [a acc] bSeq
-    & ([_ var exp] [a acc])
-    , a
-    | OPEN "#=" (natE key, keyE var, exp) acc
+    @ [ss bSeq] (sequenceBinds ss [[bind bodRex]])
+    ^ foldr _ [ss acc] bSeq
+    & ([_ var exp] [ss acc])
+    ^ (ss, OPEN "#=" _ acc)
+    | if key
+        | (natE key, keyE var, exp)
+    | else
+        | (keyE var, exp)
 
-= ("=" s p e a r err ok)
-@ defRexes | unrollTis r
-: defBinds < ^ traverseList _ defRexes
-             ? (step defRex ret)
-             | parseDefine defRex err ret
-@ a,r (mkDefsC a defBinds)
-| ok p a r
+= ("=" ss rex err ok)
+: defBinds
+  < ^ traverseList _ (unrollTis rex)
+    ? (step defRex ret)
+    | parseDefine defRex err ret
+@ [ss rex]
+    | mkDefsC ss defBinds
+| ok ss rex
 
 = (weird [[[x]] #[=y a=z]]) [x y z]
 
