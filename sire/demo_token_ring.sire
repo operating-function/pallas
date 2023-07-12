@@ -26,7 +26,7 @@
 
 = (tokenRing k)
 ;
-; trk %tokenRing,k
+; trk 'tokenRing',k
 ;
 : ali_seed_addr <- syscall PORT_SIRE
 : bob_seed_addr <- syscall PORT_SIRE

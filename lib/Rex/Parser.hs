@@ -69,28 +69,9 @@ formToRex :: Form -> R.Rex
 formToRex = form
  where
   form :: Form -> R.Rex
-  form (BEFO ru bod) = befo ru bod
+  form (BEFO ru bod) = rn R.SHUT_PREFIX ru [form bod]
   form (SHIP i)      = itmz i
   form (SHIN ru ps)  = rn R.SHUT_INFIX ru (itmz<$>ps)
-
-  -- Prefix run binds as tightly as possible:
-  --
-  -- %x,y           == (%x),y)
-  -- +(p)(q)+(r)(s) == (+p)(q)+(r)(s)
-  --
-  befo :: Text -> Form -> R.Rex
-  befo ru f = case f of
-      BEFO{}                -> stick (form f)
-      SHIP (_:|[])          -> stick (form f)
-      SHIP (x:|(i:is))      -> rexAddCont (stick $ item x) (itmz (i:|is))
-      SHIN __ []            -> rn R.NEST_PREFIX ru []     -- invalid edge-case
-      SHIN ir [i]           -> befo ru (BEFO ir (SHIP i)) -- invalid edge-case
-      SHIN ir ((i:|is):j:k) ->
-          form $ SHIN ir ((wrap i :| is):j:k)
-        where
-          wrap = NEST . WRAPD . BEFO ru . SHIP . singleton
-    where
-      stick = rn R.SHUT_PREFIX ru . singleton
 
   nest :: Nest -> R.Rex
   nest (WRAPD f)    = form f

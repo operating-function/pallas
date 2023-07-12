@@ -362,7 +362,7 @@ ex=(PAIR %a %b)
 ? (loop ix acc remain)
 ;
 | seq ix
-; trk %loop,[=ix =acc =remain]
+; trk 'loop',[=ix =acc =remain]
 ;
 : kca remain <- **listCase remain (bloodline acc)
 @ [key cns oTag arg] kca

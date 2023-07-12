@@ -530,11 +530,11 @@ abstype#Image ;; TODO: fix.  What is the real type?
   # switch path
   * b#"/usecdn"
     : _ <- fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
-    : _ <- modifyRef vSt @(PIN st)&(PIN (setLocal FALSE st))
+    : _ <- modifyRef vSt (@(PIN st))&(PIN (setLocal FALSE st))
     | return ()
   * b#"/uselocal"
     : _ <- fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
-    : _ <- modifyRef vSt @(PIN st)&(| PIN | setLocal TRUE st)
+    : _ <- modifyRef vSt (@(PIN st))&(| PIN | setLocal TRUE st)
     | return ()
   * b#"/learn"
     : _ <- fork (addToState vSt rid pBody)

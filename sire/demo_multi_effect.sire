@@ -105,7 +105,7 @@
 
 = (runLocalFileServer next)
 : tid <- myThreadId
-| trk %serv,[=tid]
+| trk 'serv',[=tid]
 : res <- syscall HTTP_SERV files
 | die "Impossible: File Server does not respond"
 | next res
@@ -126,21 +126,21 @@
 
 = (runSocketLoop broadcast class vOpen next)
 @ recur (PIN runSocketLoop)
-| trk %WAITING_FOR_SOCKET,(**sockOpen class)
+| trk 'WAITING_FOR_SOCKET',(**sockOpen class)
 : sock <- syscall (**sockOpen class)
-| trk %NEW_SOCKET,sock
+| trk 'NEW_SOCKET',sock
 : _ <- registerSocket vOpen sock
-| trk %registered,sock
+| trk 'registered',sock
 : _ <- fork (handleSocketInput broadcast class vOpen sock)
-| trk %readThread,_
+| trk 'readThread',_
 : _ <- fork
         & done
-        | trk %loopThread,_
+        | trk 'loopThread',_
         : _ <- syscall (**sockWait class sock)
         : _ <- syscall (**sockKill class sock)
         : _ <- unregisterSocket vOpen sock
         : s <- getKernelState
-        | trk %socked_end,sock
+        | trk 'socked_end',sock
         | done 0
 | recur broadcast class vOpen next
 
@@ -205,7 +205,7 @@
 
 = (repeatRequestDemo done)
 : now <- syscall TIME_WHEN
-; trk %now,now
+; trk 'now',now
 | repeatRequestDemo done
 
 main=(runCog effectDemo)
