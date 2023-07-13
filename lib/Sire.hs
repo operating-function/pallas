@@ -590,12 +590,22 @@ lexLns fil = go 1
                         -- TODO: throw lexer error
                       Right fs -> (n,t,fs) : go (n+1) ts
 
+inContext :: Text -> Int -> Rex -> (InCtx => IO a) -> IO a
+inContext file line rex act =
+    let ?ctx = CONTEXT{rex, line, file}
+    in try act >>= \case
+           Right x -> pure x
+           Left (F.PRIMOP_CRASH op arg) ->
+               parseFail_ rex ss (planText $ toNoun (op, arg))
+                 where ss = initialSireStateAny
+
 runSire :: Text -> Bool -> Any -> [(Int, Rex)] -> IO Any
 runSire file inRepl s1 = \case
     []        -> pure s1
     (ln,r):rs -> do
-        !es2 <- try let ?ctx = CONTEXT{rex=r, line=ln, file}
-                    in evaluate $ runRepl (execute  r) (toNoun s1)
+        !es2 <- try $ inContext file ln r
+                    $ evaluate
+                    $ runRepl (execute  r) (toNoun s1)
         case es2 of
             Right s2 -> runSire file inRepl s2 rs
             Left pc  -> do
@@ -621,7 +631,7 @@ doFile dir c1 modu s1 =
         [] -> do
             let msg  = "Module declarations are required, but this file is empty"
             let rex  = (T THIC_CORD "" Nothing)
-            id let ?ctx = CONTEXT{file, line=0, rex} in parseFail_ rex s1 msg
+            inContext file 0 rex $ parseFail_ rex s1 msg
 
         -- No <- part means this is the starting point.
         rexes@((_ln, N _ "###" [_] Nothing) : _) -> do
@@ -694,12 +704,12 @@ doFile dir c1 modu s1 =
                             pure ((s3, hax), c3)
 
         (ln, rex@(N _ "###" _ _)) : _ ->
-            let ?ctx = CONTEXT{file, line=ln, rex}
-            in parseFail_ rex s1 "Bad module declaration statement"
+            inContext file ln rex
+                $ parseFail_ rex s1 "Bad module declaration statement"
 
         (ln, rex) : _ ->
-            let ?ctx = CONTEXT{file, line=ln, rex}
-            in parseFail_ rex s1 "All files must start with module declaration"
+            inContext file ln rex
+                $ parseFail_ rex s1 "All files must start with module declaration"
 
 
 repl :: Any -> IO ()
