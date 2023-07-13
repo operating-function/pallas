@@ -1,0 +1,40 @@
+Every PLAN is a pin x:<i>, a law x:{n a b}, an app x:(f g), a nat x:@,
+or a black hole x:HOLE.
+
+(f x y z) is short-hand for (((f x) y) z)
+
+Run F(x) to normalize a value.
+
+E=eval F=force H=head N=nat X=exec I=index A=arity P=pattern C=case R=run L=let
+
+E(a) =                                  | H((f x)) = H(f)
+    case a                              | H(x)     = x
+        {n 0 b}                         |
+            a <- HOLE                   | F(a) =
+            a <- R(a,b)                 |     E(a)
+            E(a)                        |     if a:(f x)
+        (f x)                           |         F(f); F(x)
+            E(f)                        |     a
+            if A(f)=1                   |
+                a <- X(H(f), a)         | N(a) =
+                E(a)                    |     E(a)
+    a                                   |     if a:@ then a else 0
+                                        |
+X(<p>, e)           = X(p,e)            | I((e x), 0, f) = x
+X({n a b}, e)       = R(e,b)            | I(e,     0, f) = e
+X(0, (_ n a b))     = {N(n) N(a) F(b)}  | I((e x), n, f) = I(e, n-1, f)
+X(1, (_ p l a n x)) = P(p,l,a,n,E(x))   | I(e,     n, f) = f
+X(2, (_ z p x))     = C(z,p,N(x))       |
+X(3, (_ x))         = N(x)+1            | A((f x))   = A(f)-1
+X(4, (_ x))         = <F(x)>            | A(<p>)     = A(p)
+                                        | A({n a b}) = a
+P(p,l,a,n,(f x))   = a f x              | A(n:@)     = I((3 5 3), n, 1)
+P(p,l,a,n,<x>)     = p x                |
+P(p,l,a,n,{n a b}) = l n a b            | C(z,p,0) = z
+P(p,l,a,n,x:@}     = n x                | C(a,p,n) = p (n-1)
+                                        |
+R(e,b:@)     = I(e,b,b)                 | L(e,v,b) =
+R(e,(0 f x)) = (R(e,f) R(e,x))          |     x  := HOLE
+R(e,(1 v b)) = L(e,v,b)                 |     e2 := (e x)
+R(e,(2 x))   = x                        |     x  <- R(e2, v)
+R(e,x)       = x                        |     R(e2, b)
