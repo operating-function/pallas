@@ -84,7 +84,7 @@ RUN(r,(2 v))   = v
 RUN(r,v:@)     = NTH(r,v,v)
 RUN(r,x)       = x
 
-v:@                          =>  ARITY(v)=NTH([3 4 3], v, 1)
+v:@                          =>  ARITY(v)=NTH([3 5 3], v, 1)
 v:(f _)                      =>  ARITY(v)=(ARITY(f)-1)
 v:{n _ _}                    =>  ARITY(v)=n
 v:<i>                        =>  ARITY(v)=ARITY(i)
