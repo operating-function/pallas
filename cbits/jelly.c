@@ -636,7 +636,7 @@ static inline frag_t alloc_frag(Jelly ctx, FragVal frag) {
 
 struct shatter {
         uint32_t ix;     // treenode id
-        uint32_t refs;   // number of referennces to cell
+        uint32_t refs;   // number of references to cell
         uint32_t leaves; // number of leaves in fragment
 };
 
@@ -1158,7 +1158,7 @@ serialize_frag(Jelly ctx, struct frag_state *st, FragVal frag) {
 
                 treenode_value val = ctx->treenodes[t.ix];
 
-                if (val.word >> 63) {
+                if (val.word >> 63) { // is a leaf
                         debugs("\n");
                         for (int x=0; x<sp; x++) { debugs(" "); }
                         if (DEBUG) print_tree_outline(ctx, t);
@@ -1210,7 +1210,7 @@ serialize_frag(Jelly ctx, struct frag_state *st, FragVal frag) {
 
                         debugs("\n");
                         sp--;
-                } else {
+                } else { // is a node
                         debugs("\n");
                         for (int x=0; x<sp; x++) debugs(" ");
                         debugs("#");

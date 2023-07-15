@@ -38,8 +38,8 @@ import qualified Jelly.Fast.FFI           as FFI
 {-# INLINE save #-}
 save :: ∀a . FFI.Ctx -> Node a -> IO (Vector a, ByteString, ByteString)
 save !ctx !top = do
-    vPins <- newIORef @IO @[a] []
-    vTemp <- newIORef @IO @[ByteString]   []
+    vPins <- newIORef @IO @[a]          []
+    vTemp <- newIORef @IO @[ByteString] []
 
     loop vPins vTemp top
 

@@ -1,23 +1,31 @@
+# `shatter()`
+
 This document attempts to explain the "shatter()" algorithm.
 
-shatter() produces a deduplicated serialization of the tree.
 
-shatter() isn't concerned with deduplicating leaves, since jelly
-just has a table of each unique leaf, and that table comes before the
-tree-encoding.
+## What does `shatter()` do?
 
-In order to deduplicate tree fragments, we want to detect fragments that
-are re-used and output a series of fragments, each one may reference
-any of the onces that come before it.
+shatter() produces a minimal sequence of DAG fragments, each fragment
+can reference any previous fragment.
 
-For example, for the  ((0 0) (0 0)), we want to output something like:
+We take as input an input DAG that has already been fully de-duplicated.
 
-    frag[0] = a = (0 0)
-    frag[1] = b = (a a)
+For example, for the example, if the tree ((0 0) (0 0)) has already been
+deduplicated into this DAG:
 
-During the initial tree-ingestion, jelly() already "interned" every tree
-node, and also kept track of the number of times each node is referenced.
-So shatter() is working with something like this:
+    a = 0
+    b = (0 0)
+    c = (b b)
+
+We transform that into a series of fragments such as:
+
+    frag[0] = (0 0)
+    frag[1] = (frag[0] frag[0])
+
+shatter() also needs a reference-count for each node of the DAG.
+
+So, the example input `((0 0) (0 0)) actually contains the following
+information:
 
     Tree: ((0 0) (0 0))
 
@@ -25,20 +33,33 @@ So shatter() is working with something like this:
     a = (p p) [refs=2]
     b = (a a) [refs=1]
 
+
+## How does `shatter()` work?
+
 The solution is to create a new fragment at each point where a cell
 references another cell, but the child cell has a higher reference count.
 
-So, `a` should be a fragment because b reference a, but a has a higher
-ref-count than b.
+So, `a` should be a fragment because `b` references `a`, but `a` has a
+higher ref-count than `b`.
 
-See the code for the actual algorithm, but here are some execution traces
-to help you understand:
+shatter() contains an optimized implementation of this algorithm, using
+an explicit stack(), which we pre-allocate (and never need to resize).
 
-# TODO: This isn't quite correct, we now FRAG after a merge by looking
-# up two slots to find the parent (or exiting if there is no parent).
+For now, see the code for the actual algorithm, but here are some
+(manually constructed) execution traces to help you understand:
 
-# TODO: Update the examples to reflect the above ^
+    TODO: Document the actual algorithm.
 
+    TODO: This is slightly stale, we now FRAG after a merge by looking
+    up two slots (in the stack) to find the parent (or exiting if there
+    is no parent).
+
+    TODO: Update the examples to reflect the above ^
+
+
+## Execution Traces
+
+```
 ======================
 shatter: ((0 1) (2 3))
 ======================
@@ -178,3 +199,4 @@ RESULT:
 
   frags[0] = b{leaves=3} = ((p q) r)
   frags[1] = c{leaves=2} = (b b)
+```
