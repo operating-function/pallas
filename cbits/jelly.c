@@ -16,7 +16,7 @@
 
 #ifdef __clang__
 #define MUL_NO_OVERFLOW ((size_t)1 << (sizeof(size_t) * 4))
-void *reallocarray(void *optr, size_t nmemb, size_t size) {
+static void *reallocarray(void *optr, size_t nmemb, size_t size) {
     if ((nmemb >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) &&
          nmemb > 0 && SIZE_MAX / nmemb < size) {
         errno = ENOMEM;
@@ -29,8 +29,8 @@ void *reallocarray(void *optr, size_t nmemb, size_t size) {
 
 // Forward Declarations ////////////////////////////////////////////////////////
 
-void print_tree_outline(Jelly, treenode_t);
-void print_tree(Jelly, treenode_t);
+static void print_tree_outline(Jelly, treenode_t);
+static void print_tree(Jelly, treenode_t);
 
 
 // Types ///////////////////////////////////////////////////////////////////////
@@ -44,11 +44,6 @@ typedef struct {
 typedef struct treenode_value {
         uint64_t word;
 } treenode_value;
-
-typedef struct word_entry {
-        uint64_t value;
-        nat_t    index;
-} word_entry_t;
 
 /*
     10xx.. indicates a pin
@@ -157,43 +152,43 @@ static INLINE treenode_value TAG_NAT(nat_t nat) {
 // Pack two 32-bit indicies into one 64-bit words.  Since these indicies
 // should both fit in 31 bits, we rely on the top-bit being set to zero
 // and use that as a type-tag.
-INLINE treenode_value TAG_PAIR(treenode_t hed, treenode_t tel) {
+static INLINE treenode_value TAG_PAIR(treenode_t hed, treenode_t tel) {
         uint64_t hed_word  = (uint64_t) hed.ix;
         uint64_t tel_word  = (uint64_t) tel.ix;
         uint64_t result = ((hed_word << 32) | tel_word);
         return (treenode_value){ .word = result };
 }
 
-INLINE uint64_t NODEVAL_TAG(treenode_value v) {
+static INLINE uint64_t NODEVAL_TAG(treenode_value v) {
         return (v.word >> 61);
 }
 
-INLINE treenode_t NODEVAL_HEAD(treenode_value v) {
+static INLINE treenode_t NODEVAL_HEAD(treenode_value v) {
         return (treenode_t){ .ix = (uint32_t) (v.word >> 32) };
 }
 
 // We rely on the cast to drop the high-bits.
-INLINE treenode_t NODEVAL_TAIL(treenode_value v) {
+static INLINE treenode_t NODEVAL_TAIL(treenode_value v) {
         return (treenode_t){ .ix = (uint32_t) v.word };
 }
 
 // We rely on the cast to drop the high-bits.
-INLINE nat_t NODEVAL_NAT(treenode_value v) {
+static INLINE nat_t NODEVAL_NAT(treenode_value v) {
         return (nat_t){ .ix = (uint32_t) v.word };
 }
 
 // We rely on the cast to drop the high-bits.
-INLINE frag_t NODEVAL_FRAG(treenode_value v) {
+static INLINE frag_t NODEVAL_FRAG(treenode_value v) {
         return (frag_t){ .ix = (uint32_t) v.word };
 }
 
 // We rely on the cast to drop the high-bits.
-INLINE bar_t NODEVAL_BAR(treenode_value v) {
+static INLINE bar_t NODEVAL_BAR(treenode_value v) {
         return (bar_t){ .ix = (uint32_t) v.word };
 }
 
 // We rely on the cast to drop the high-bits.
-INLINE pin_t NODEVAL_PIN(treenode_value v) {
+static INLINE pin_t NODEVAL_PIN(treenode_value v) {
         return (pin_t){ .ix = (uint32_t) v.word };
 }
 
@@ -280,7 +275,7 @@ void jelly_free (Jelly ctx) {
 }
 
 
-INLINE treenode_t alloc_treenode(Jelly c, treenode_value v) {
+static INLINE treenode_t alloc_treenode(Jelly c, treenode_value v) {
         uint32_t res = c->treenodes_count++;
         uint32_t wid = c->treenodes_width;
 
@@ -305,18 +300,18 @@ INLINE treenode_t alloc_treenode(Jelly c, treenode_value v) {
         10xx.. indicates a pin
         11xx.. indicates a bar
 */
-INLINE tagged_width_t NAT_TAGGED_WIDTH(uint32_t bytes) {
+static INLINE tagged_width_t NAT_TAGGED_WIDTH(uint32_t bytes) {
         uint64_t word = bytes;
         return (tagged_width_t){ .word = word };
 }
 
-INLINE tagged_width_t PIN_TAGGED_WIDTH(uint32_t bytes) {
+static INLINE tagged_width_t PIN_TAGGED_WIDTH(uint32_t bytes) {
         uint64_t word = bytes;
         word |= 2ULL << 62;
         return (tagged_width_t){ .word = word };
 }
 
-INLINE tagged_width_t BAR_TAGGED_WIDTH(uint32_t bytes) {
+static INLINE tagged_width_t BAR_TAGGED_WIDTH(uint32_t bytes) {
         uint64_t word = bytes;
         word |= 3ULL << 62;
         return (tagged_width_t){ .word = word };
@@ -341,10 +336,10 @@ typedef struct {
         bool *is_unique;
 } IndirectInsertRequest;
 
-void jelly_debug_leaves(Jelly, bool);
-void jelly_debug_interior_nodes(Jelly);
+static void jelly_debug_leaves(Jelly, bool);
+static void jelly_debug_interior_nodes(Jelly);
 
-void rehash_nodes_if_full(Jelly ctx) {
+static void rehash_nodes_if_full(Jelly ctx) {
         uint32_t oldwid = ctx->nodes_table_width;
         uint32_t num    = ctx->nodes_table_count;
 
@@ -402,7 +397,7 @@ void rehash_nodes_if_full(Jelly ctx) {
         // debugs("\n");
 }
 
-void rehash_leaves_if_full(Jelly ctx) {
+static void rehash_leaves_if_full(Jelly ctx) {
         uint32_t oldwid = ctx->leaves_table_width;
         uint32_t num    = ctx->leaves_table_count;
 
@@ -461,7 +456,7 @@ void rehash_leaves_if_full(Jelly ctx) {
 }
 
 
-treenode_t insert_packed_leaf(Jelly ctx, PackedInsertRequest req) {
+static treenode_t insert_packed_leaf(Jelly ctx, PackedInsertRequest req) {
         uint64_t tag   = (req.width.word >> 62);
         uint64_t bytes = (req.width.word << 2) >> 2;
 
@@ -547,9 +542,7 @@ treenode_t insert_packed_leaf(Jelly ctx, PackedInsertRequest req) {
         return pointer;
 }
 
-void print_nat_leaf(Jelly, leaf_t);
-
-treenode_t insert_indirect_leaf(Jelly ctx, IndirectInsertRequest req) {
+static treenode_t insert_indirect_leaf(Jelly ctx, IndirectInsertRequest req) {
         debugf("\tinsert_indirect_leaf(wid=%u)\n", req.leaf.width_bytes);
 
         int wid = req.leaf.width_bytes;
@@ -641,7 +634,7 @@ struct shatter {
 };
 
 // See [shatter.txt]
-void shatter(Jelly ctx, treenode_t top) {
+static void shatter(Jelly ctx, treenode_t top) {
         debugs("<shatter>\n");
 
         // Whole jelly context is just a leaf
@@ -768,7 +761,7 @@ void jelly_done(Jelly ctx) {
 
 // Inserting Nats //////////////////////////////////////////////////////////////
 
-INLINE nat_t alloc_nat(Jelly c) {
+static INLINE nat_t alloc_nat(Jelly c) {
         uint32_t res = c->nats_count++;
         uint32_t wid = c->nats_width;
 
@@ -1005,7 +998,7 @@ treenode_t jelly_cons(Jelly ctx, treenode_t hed, treenode_t tel) {
 // 255        -> 0b10000001_11111111
 // 256        -> 0b10000001_00000000_00000001
 // UINT64_MAX -> 0b10001000_11111111_(x8)
-uint64_t word_dumpsize(uint64_t word, int wid) {
+static uint64_t word_dumpsize(uint64_t word, int wid) {
         if (wid == 0 && word == 0) {
                 return 1;
 	}
@@ -1016,7 +1009,7 @@ uint64_t word_dumpsize(uint64_t word, int wid) {
         return 1 + wid;
 }
 
-void word_dump(uint8_t **ptr, int wid, uint64_t word) {
+static void word_dump(uint8_t **ptr, int wid, uint64_t word) {
         uint8_t *buf = *ptr;
         if (wid == 0 && word == 0) {
                 debugs("\tword_dump: empty (==0)\n");
@@ -1048,7 +1041,7 @@ void word_dump(uint8_t **ptr, int wid, uint64_t word) {
 // width=64  -> 0b11000001_01000000_xxxxxxxx*64
 // width=255 -> 0b11000001_11111111_xxxxxxxx*255
 // width=256 -> 0b11000010_00000000_000000001_xxxxxxxx(*256)
-uint64_t leaf_dumpsize(leaf_t leaf) {
+static uint64_t leaf_dumpsize(leaf_t leaf) {
         if (leaf.width_bytes < 9) {
                 // debugf("\tDIRECT (word=%lu)\n", (uint64_t) leaf.bytes);
                 return word_dumpsize((uint64_t) leaf.bytes, leaf.width_bytes);
@@ -1065,7 +1058,7 @@ uint64_t leaf_dumpsize(leaf_t leaf) {
         return 1 + word64_bytes(leaf.width_bytes) + leaf.width_bytes;
 }
 
-uint8_t *dump_leaf(uint8_t *buf, leaf_t leaf) {
+static uint8_t *dump_leaf(uint8_t *buf, leaf_t leaf) {
         uint64_t wid = leaf.width_bytes;
 
         if (wid < 9) {
@@ -1103,11 +1096,11 @@ uint8_t *dump_leaf(uint8_t *buf, leaf_t leaf) {
         }
 }
 
-void print_bar(Jelly, bar_t);
-void print_nat(Jelly, nat_t);
-void print_fragment_outline(Jelly, frag_t);
+static void print_bar(Jelly, bar_t);
+static void print_nat(Jelly, nat_t);
+static void print_fragment_outline(Jelly, frag_t);
 
-void showbits(char *key, int wid, int num, uint64_t bits) {
+static void showbits(char *key, int wid, int num, uint64_t bits) {
         if (!DEBUG) return;
         putchar('\t');
         putchar('\t');
@@ -1454,7 +1447,7 @@ static INLINE uint8_t load_byte(struct ser *st) {
 }
 
 
-uint64_t load_word(struct ser *st) {
+static uint64_t load_word(struct ser *st) {
     uint8_t byt = load_byte(st);
 
     // If the high-bit is zero, this is a direct byte.
@@ -1611,9 +1604,10 @@ struct load_fragtree_result {
         uint32_t leaves;
 };
 
-struct load_fragtree_result load_fragtree(struct frag_loader_state *s);
+static struct load_fragtree_result
+load_fragtree(struct frag_loader_state *s);
 
-FragVal load_fragment(struct frag_loader_state *s) {
+static FragVal load_fragment(struct frag_loader_state *s) {
         struct load_fragtree_result hed = load_fragtree(s);
         struct load_fragtree_result tel = load_fragtree(s);
 
@@ -1624,7 +1618,7 @@ FragVal load_fragment(struct frag_loader_state *s) {
 }
 
 // TODO: Can this be faster?  A for loop over an `offs` table?
-treenode_value decode_leaf(struct frag_loader_state *s, uint32_t leaf) {
+static treenode_value decode_leaf(struct frag_loader_state *s, uint32_t leaf) {
         if (leaf < s->num_pins) {
                 return TAG_PIN((pin_t){leaf});
         }
@@ -1643,7 +1637,7 @@ treenode_value decode_leaf(struct frag_loader_state *s, uint32_t leaf) {
         return TAG_FRAG((frag_t){leaf});
 }
 
-struct load_fragtree_result
+static struct load_fragtree_result
 load_fragtree(struct frag_loader_state *s) {
         int refbits = s->ref_bits;
 
@@ -1884,20 +1878,7 @@ void jelly_load_body(Jelly ctx, size_t wid, uint8_t *top) {
 
 // Testing /////////////////////////////////////////////////////////////////////
 
-void print_nat_leaf(Jelly ctx, leaf_t l) {
-        if (l.width_bytes > 8) {
-                printf("0x");
-                for (int i = l.width_bytes - 1; i>=0; i--) {
-                        uint8_t byte = l.bytes[i];
-                        printf("%02x", (unsigned) byte);
-                }
-        } else {
-                uint64_t value = (uint64_t) l.bytes;
-                printf("%lu", value);
-        }
-}
-
-void print_nat(Jelly ctx, nat_t nat) {
+static void print_nat(Jelly ctx, nat_t nat) {
         leaf_t l = ctx->nats[nat.ix];
         if (l.width_bytes > 8) {
                 printf("0x");
@@ -1911,7 +1892,7 @@ void print_nat(Jelly ctx, nat_t nat) {
         }
 }
 
-void print_bar(Jelly ctx, bar_t bar) {
+static void print_bar(Jelly ctx, bar_t bar) {
         leaf_t l = ctx->bars[bar.ix];
         uint8_t *buf = NULL;
 
@@ -1930,7 +1911,7 @@ void print_bar(Jelly ctx, bar_t bar) {
 }
 
 
-size_t print_pin(Jelly ctx, pin_t pin) {
+static size_t print_pin(Jelly ctx, pin_t pin) {
         char b58[96];
         size_t b58sz = 96;
 
@@ -1944,12 +1925,12 @@ size_t print_pin(Jelly ctx, pin_t pin) {
         return b58sz;
 }
 
-void print_tree_outline(Jelly, treenode_t);
-void print_fragment_outline(Jelly, frag_t);
-void print_fragment(Jelly, frag_t);
-void print_tree(Jelly, treenode_t);
+static void print_tree_outline(Jelly, treenode_t);
+static void print_fragment_outline(Jelly, frag_t);
+static void print_fragment(Jelly, frag_t);
+static void print_tree(Jelly, treenode_t);
 
-void print_tree_outline_list(Jelly ctx, treenode_t tree) {
+static void print_tree_outline_list(Jelly ctx, treenode_t tree) {
         treenode_value val = ctx->treenodes[tree.ix];
 
         uint32_t offset = (uint32_t) val.word;
@@ -1969,7 +1950,7 @@ void print_tree_outline_list(Jelly ctx, treenode_t tree) {
         }
 }
 
-void print_tree_outline(Jelly ctx, treenode_t tree) {
+static void print_tree_outline(Jelly ctx, treenode_t tree) {
         treenode_value val = ctx->treenodes[tree.ix];
 
         uint32_t offset = (uint32_t) val.word;
@@ -1991,7 +1972,7 @@ void print_tree_outline(Jelly ctx, treenode_t tree) {
         }
 }
 
-void print_tree_list(Jelly ctx, treenode_t tree) {
+static void print_tree_list(Jelly ctx, treenode_t tree) {
         treenode_value val = ctx->treenodes[tree.ix];
 
         switch (NODEVAL_TAG(val)) {
@@ -2015,7 +1996,7 @@ void print_tree_list(Jelly ctx, treenode_t tree) {
         }
 }
 
-void print_tree(Jelly ctx, treenode_t tree) {
+static void print_tree(Jelly ctx, treenode_t tree) {
         treenode_value val = ctx->treenodes[tree.ix];
 
         switch (NODEVAL_TAG(val)) {
@@ -2035,7 +2016,7 @@ void print_tree(Jelly ctx, treenode_t tree) {
         }
 }
 
-void print_fragment_outline(Jelly ctx, frag_t ref) {
+static void print_fragment_outline(Jelly ctx, frag_t ref) {
         FragVal frag = ctx->frags[ref.ix];
         putchar('(');
         print_tree_outline_list(ctx, frag.head);
@@ -2044,7 +2025,7 @@ void print_fragment_outline(Jelly ctx, frag_t ref) {
         putchar(')');
 }
 
-void print_fragment(Jelly ctx, frag_t ref) {
+static void print_fragment(Jelly ctx, frag_t ref) {
         FragVal frag = ctx->frags[ref.ix];
         putchar('(');
         print_tree_list(ctx, frag.head);
@@ -2054,7 +2035,7 @@ void print_fragment(Jelly ctx, frag_t ref) {
 }
 
 
-void jelly_debug_leaves(Jelly ctx, bool details) {
+static void jelly_debug_leaves(Jelly ctx, bool details) {
         printf("\n\tleaves: (width=%u, count=%u)\n\n",
                ctx->leaves_table_width,
                ctx->leaves_table_count);
@@ -2087,7 +2068,7 @@ void jelly_debug_leaves(Jelly ctx, bool details) {
 }
 
 
-void jelly_debug_interior_nodes(Jelly ctx) {
+static void jelly_debug_interior_nodes(Jelly ctx) {
         printf("\n\tinterior_nodes_table: (width=%u, count=%u)\n\n",
                ctx->nodes_table_width,
                ctx->nodes_table_count);
@@ -2244,15 +2225,5 @@ void jelly_hash
         blake3_hasher_init(&hasher);
         blake3_hasher_update(&hasher, hed_ptr, hed_wid);
         blake3_hasher_update(&hasher, bod_ptr, bod_wid);
-        blake3_hasher_finalize(&hasher, out, 32);
-}
-
-// TODO: Move this to another file.
-void jet_blake3 (uint8_t* out , size_t wid , uint8_t *byt)
-{
-        // TODO This is 1912 bytes, moving into context or keep on stack?
-        blake3_hasher hasher;
-        blake3_hasher_init(&hasher);
-        blake3_hasher_update(&hasher, byt, wid);
         blake3_hasher_finalize(&hasher, out, 32);
 }

@@ -21,8 +21,8 @@ library:
     - cbits/blake3.c
     - cbits/blake3_dispatch.c
     - cbits/blake3_portable.c
-    - cbits/harness.c
     - cbits/jelly.c
+    - cbits/jets.c
     - cbits/xxhash.c
   when:
     - condition: arch(aarch64)
