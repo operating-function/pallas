@@ -21,7 +21,7 @@ E(o:{n a b}) =                          | I((e x), 0) = x
                                         | A(<p>)       = A(p)
 X((f x), e)         = X(f,e)            | A({n a b})   = a
 X(<p>, e)           = X(p,e)            | A(n:@) | i<3 = I((3 5 3), n)
-X({n a b}, e)       = R(n,e,b)          | A(n:@)       = 0
+X({n a b}, e)       = R(a,e,b)          | A(n:@)       = 0
 X(0, (_ n a b))     = {N(n) N(a) F(b)}  |
 X(1, (_ p l a n x)) = P(p,l,a,n,E(x))   | R(n,e,b:@) | b <= n = I(e,n-b)
 X(2, (_ z p x))     = C(z,p,N(x))       | R(n,e,(0 f x))      = (R(n,e,f) R(n,e,x))
