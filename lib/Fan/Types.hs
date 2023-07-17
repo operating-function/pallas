@@ -68,9 +68,12 @@ data DagInfo = DAG_INFO
         save.
 
      TODO Use on-heap data for hash and blob (ShortByteString, or similar).
+
+     TODO Evaluate the performance impact of making `.hash` strict.
 -}
 data Pin = P
     { node :: IORef (Maybe DagInfo) -- Cryptographic Hash and edge-list
+    , hash :: Hash256              -- New Cryptographic Hash
     , quik :: Int                   -- Quick Hash
     , args :: !Nat
     , item :: !Fan
@@ -81,7 +84,7 @@ data Pin = P
 instance NFData Pin where rnf = \P{} -> ()
 
 setExec :: (SmallArray Fan -> Fan) -> Pin -> Pin
-setExec x (P n q a i _) = P n q a i x
+setExec x (P n h q a i _) = P n h q a i x
 
 data Fan
     = NAT !Nat

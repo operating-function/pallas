@@ -12,46 +12,46 @@ import Jelly.Types
 --------------------------------------------------------------------------------
 
 ifHash :: Hash256
-ifHash = "DiwZ6jrm6gs9AcVsNDvPfUoYXN1upQbDBMWcEDE66rYu"
+ifHash = "CGWi51frV26N7KUBbso2WzBad8W2mbix6HaejVem5YaZ"
 
 switchHash :: Hash256
-switchHash = "7CQTVw7xCfqkznhkeWoYo8PdhBqbLyLcXv8bDYpfVp13"
+switchHash = "EL7kkFVeJ1KYbMmkJ38yTXn2KLnBBZti1vWwQdZ4mFmV"
 
 tabSwitchHash :: Hash256
-tabSwitchHash = "DNxLBLVwRPGtzbPbjMJXRVMBC9dsXrQ9wd7mh9EvxQR8"
+tabSwitchHash = "EWbmCFyYXwcmxPs6YrB4G4zdRUC8BGgAT1d71Zp3QxMF"
 
 seqHash :: Hash256
-seqHash = "4bEt86gt6UWqH5zbjzCwD1ZsTUrQCma8Ur3e8KJAyNAq"
+seqHash = "7fPzp1b5QXpDDkvpt2oBGUm3w6eCPVKjDnUQ8i8w8mj5"
 
 trkHash :: Hash256
-trkHash = "AXuX8gnKrPy5MNN4C3G4ZrqyjeAzCm5K5PVhibnFXFwM"
+trkHash = "eWQEfSHjEKocmrBmVkDecBHtkTKPwo88jZ94BS2mPQt"
 
 idxHash :: Hash256
-idxHash = "2HHYTgGduTBgZMmP9AtKk2vRZ2N7p3WpFuqA7wSGJ83Z"
+idxHash = "H4Zc8hKR4nzf2w1FC8mXQmsmMrNvJ86yRh2hLK9GL3ds"
 
 getHash :: Hash256
-getHash = "EJ5VWbFAtZmB8zqj2bhmGvEvdn12uGAHsYA4NGr6Avr3"
+getHash = "386VJFmFLRAcsu3gXtsNK4s5muQusWJ4SMzgjjS6YUPf"
 
 addHash :: Hash256
-addHash = "8r4PSHT5eB44W7NmQgYc9aZ8thEAfaReAS5nP1w9mQhf"
+addHash = "3Hzr1k86NC8chd5Nfar1RuGtoaJSXKvCFKFYUxt8ZkjU"
 
 subHash :: Hash256
-subHash = "GZqurSgma16NoHgM1aAhXWzYigxvgHFKhvzLLgEAmGHZ"
+subHash = "3xEhUsRSmD5ircNXST1QYogahZP2nc9ifWPKimQaJbiX"
 
 mulHash :: Hash256
-mulHash = "5rQ4eHtxRtwud5754UPLnQDrGLbhquvAe1M2QDGpuNya"
+mulHash = "8YwEx9nXr46SsZokBzNtaaUVqYCszr5ir7FEmy6hEcv4"
 
 eqlHash :: Hash256
-eqlHash = "Em9hprMJLmPK7AjA84aWtEsVMoK5ZMzVjL3ZoSUdTiYd"
+eqlHash = "xmNLNZULWYMJStQivFQuHJ9JPEgNXP8cSoB7GqQVPSZ"
 
 lteHash :: Hash256
-lteHash = "d3u2pdDEfHopurUEqE5jSWmwoEKTxYZNiQSZNUeTjbn"
+lteHash = "8CWPnrxcGTi9VtXqAk4orjLEu4x73qZEfrcC83PLBsXS"
 
 lthHash :: Hash256
-lthHash = "2jRjhVE66Jp9BmHCnwBvvkcRYNVgtun3TWBu64STCLav"
+lthHash = "Gc5MVhptiGKTgjScbHg8LTDsmNCp31gQpEXKsWmJjtXa"
 
 gteHash :: Hash256
-gteHash = "BwBFEaPt4QFP57yrw9f9diecEKSf9BjpW3Z7fiDUx9Rf"
+gteHash = "53WWoHD4agmCTt843Q39yAion1tPqs7gkHfXGFaSA16m"
 
 gthHash :: Hash256
-gthHash = "AHrpkoxayTG974cLqrroe5gmu1x1ptopvdXVgjpRo42L"
+gthHash = "2LkfSrB2etA6EZL8MpPhBae955HVm4UsCtasGSBXjn1o"

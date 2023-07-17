@@ -505,6 +505,8 @@ withCache dir act = do
                   Right _       -> mempty
     -- trkM $ ROW $ V.fromList ["CACHE", REX $ planRexFull $ TAb c1]
     (x, c2) <- act (c1 :: Tab Any Any)
+    p <- F.mkPin' (TAb c2)
+    print ("cache hash":: Text, p.hash)
     byt <- Prof.withSimpleTracingEvent "save"  "cache" $ savePack (TAb c2)
     ()  <- Prof.withSimpleTracingEvent "write" "cache" $ writeFile fil byt
     pure x
@@ -615,8 +617,7 @@ runSire file inRepl s1 = \case
 
 
 doFile :: FilePath -> Tab Any Any -> Text -> Any -> IO ((Any, ByteString), Tab Any Any)
-doFile dir c1 modu s1 =
-  Prof.withSimpleTracingEvent (encodeUtf8 modu) "Sire" do
+doFile dir c1 modu s1 = do
     let file = modu <> ".sire"
     let pax  = dir </> unpack file
 
@@ -635,7 +636,7 @@ doFile dir c1 modu s1 =
 
         -- No <- part means this is the starting point.
         rexes@((_ln, N _ "###" [_] Nothing) : _) -> do
-
+          Prof.withSimpleTracingEvent (encodeUtf8 modu) "Sire" do
             -- Massive slow hack, stream two inputs separately.
             -- (C interface does not currently support this)
             let predHash    = BS.replicate (32::Int) (0::Word8) :: ByteString
@@ -672,7 +673,8 @@ doFile dir c1 modu s1 =
             case tryReadModuleName prior of
                 Nothing -> terror ("Bad module name: " <> rexText prior)
                 Just nm -> do
-                    ((s2, predHash), c2) <- doFile dir c1 nm s1
+                  ((s2, predHash), c2) <- doFile dir c1 nm s1
+                  Prof.withSimpleTracingEvent (encodeUtf8 modu) "Sire" do
 
                     -- Massive slow hack, stream two inputs separately.
                     -- (C interface does not currently support this)

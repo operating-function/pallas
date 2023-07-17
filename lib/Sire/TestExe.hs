@@ -73,7 +73,7 @@ goldenSire vSrc vPrp vGen vEnv pax = do
     end h = do
            env <- readIORef vEnv
            pln <- pure $ fromMaybe (NAT 0) ((.val) <$> lookup cab env)
-           has <- mkPin' pln >>= getPinHash
+           has <- mkPin' pln <&> (.hash)
 
            Loot.printValue h False (Just $ utf8Nat "_") pln
            Loot.printValue h True (Just $ utf8Nat "_hash")

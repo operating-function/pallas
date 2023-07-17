@@ -29,8 +29,6 @@ import qualified Data.Vector as V
 import Control.Exception (throw)
 import Data.Text.IO      (hPutStrLn, hPutStr)
 
-import {-# SOURCE #-} Fan.Save (getPinHash)
-
 
 -- Types -----------------------------------------------------------------------
 
@@ -114,7 +112,7 @@ jetMatch cpin = do
         Nothing ->
             pure cpin
         Just (jetHash, exe) -> do
-            pHash <- getPinHash cpin
+            let pHash = cpin.hash
             let hashText = hashToBTC pHash
             if jetHash == pHash then do
                 hPutStrLn stderr (pad20 pinName "MATCHED")

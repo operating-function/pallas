@@ -21,10 +21,10 @@ import Server.Types.Logging
 import System.Environment
 import System.Posix.Signals hiding (Handler)
 import System.Process
-import System.Random        (randomIO)
 
 import Server.Hardware.Http  (createHardwareHttp)
 import Server.Hardware.Types (DeviceTable(..))
+import System.Random         (randomIO)
 -- ort Server.Hardware.Port (createHardwarePort)
 import Server.Hardware.Rand (createHardwareRand)
 -- ort Server.Hardware.Sock (createHardwareSock)

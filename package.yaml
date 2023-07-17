@@ -17,6 +17,7 @@ when:
 library:
   source-dirs: lib
   c-sources:
+    - cbits/jets.c
     - cbits/base58.c
     - cbits/blake3.c
     - cbits/blake3_dispatch.c

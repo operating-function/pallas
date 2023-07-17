@@ -52,6 +52,9 @@ module Fan.Eval
     , loadPinFromBlob
     , tabValsRow
     , cabToRow
+    , lawName
+    , lawArgs
+    , lawBody
     )
 where
 
@@ -72,6 +75,7 @@ import Jelly.Types      (shortHex)
 import Rex              (GRex)
 import Unsafe.Coerce    (unsafeCoerce)
 
+import {-# SOURCE #-} Fan.Hash (fanHash)
 import {-# SOURCE #-} Fan.Save (getPinHash, saveFan)
 
 import qualified Data.ByteString      as BS
@@ -348,7 +352,7 @@ lawName = \case
     TAb{} -> 0
     CAB{} -> 1
     COw{} -> 0
-    REX{} -> 82
+    REX{} -> "_Rex"
 
 {-# INLINE lawArgs #-}
 lawArgs :: Fan -> Nat
@@ -359,7 +363,7 @@ lawArgs = \case
     COw c -> c+1
     ROW r -> if null r then 1 else 0 -- Only a law if empty
     CAB{} -> 2
-    REX{} -> 3
+    REX{} -> 1
     TAb{} -> 0 -- Not a function
     KLO{} -> 0 -- Not a function
     NAT{} -> 0 -- Not a function
@@ -777,8 +781,9 @@ mkPin' inp = do
     res <- mdo let exe = pinExec (PIN res) item
                let qik = quickHash item
                let ari = trueArity item
+               let hax = fanHash item
                dag <- newIORef Nothing
-               res <- addProfilingToPin =<< match (P dag qik ari item exe)
+               res <- addProfilingToPin =<< match (P dag hax qik ari item exe)
                pure res
 
     -- hack that causes functions to be serialized/hashed immediately.
@@ -811,8 +816,12 @@ loadPinFromBlob dagInfo item = do
                                            -- include ourselves?
                let qik = quickHash item
                let !ari = trueArity item
+               let hax = fanHash item
+                             -- TODO Fully switch to this,
+                             -- and then just use the pre-computed
+                             -- version
                dag <- newIORef (Just dagInfo)
-               res <- addProfilingToPin =<< match (P dag qik ari item exe)
+               res <- addProfilingToPin =<< match (P dag hax qik ari item exe)
                pure res
 
     evaluate res.exec
