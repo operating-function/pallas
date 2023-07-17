@@ -1,7 +1,7 @@
-Every PLAN is a pin x:<i>, a law x:{n a b}, an app x:(f g), a nat x:@,
-or a black hole x:BLACKHOLE.
+Every PLAN is a pin x:<i>, a law x:{n a b}, an app x:(f g), a nat x:@, or a
+black hole x:BLACKHOLE.
 
-(f x y) means ((f x) y).
+(f x y) is a short-hand for ((f x) y).
 
 Run F(x) to normalize a value.
 
@@ -23,11 +23,11 @@ X((f x), e)         = X(f,e)            | A({n a b})   = a
 X(<p>, e)           = X(p,e)            | A(n:@) | i<3 = I((3 5 3), n)
 X({n a b}, e)       = R(a,e,b)          | A(n:@)       = 0
 X(0, (_ n a b))     = {N(n) N(a) F(b)}  |
-X(1, (_ p l a n x)) = P(p,l,a,n,E(x))   | R(n,e,b:@) | b <= n = I(e,n-b)
-X(2, (_ z p x))     = C(z,p,N(x))       | R(n,e,(0 f x))      = (R(n,e,f) R(n,e,x))
-X(3, (_ x))         = N(x)+1            | R(n,e,(1 v b))      = L(n,e,v,b)
-X(4, (_ x))         = <F(x)>            | R(n,e,(2 x))        = x
-                                        | R(n,e,x)            = x
+X(1, (_ p l a n x)) = P(p,l,a,n,E(x))   | R(n,e,b:@) | b≤n = I(e,n-b)
+X(2, (_ z p x))     = C(z,p,N(x))       | R(n,e,(0 f x))   = (R(n,e,f) R(n,e,x))
+X(3, (_ x))         = N(x)+1            | R(n,e,(1 v b))   = L(n,e,v,b)
+X(4, (_ x))         = <F(x)>            | R(n,e,(2 x))     = x
+                                        | R(n,e,x)         = x
 C(z,p,n) = if n=0 then z else (p (n-1)) |
                                         | L(n,e,v,b) =
 P(p,l,a,n,(f x))   = (a f x)            |     x := BLACKHOLE
