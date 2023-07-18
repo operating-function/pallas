@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+#
+# To use this script, run `rm -Rf .demo/ && plunder server .demo`
+# and then run this script in a different terminal from the root of the
+# repository with `sh/mandelbrot-ui-demo`.
+#
+
+# Only operate on the `.demo` directory.
+export PLUNDER_DIR=$(realpath .demo)
+
+plunder=$(stack path --local-install-root)/bin/plunder
+
+waited=0
+until [ -d ./.demo ]
+do
+    if [ $waited -eq 0 ]; then
+        echo "Waiting for .demo directory to be created"
+        waited=1
+    fi
+
+    sleep 0.1
+done
+
+# TODO: error out if this broke.
+$plunder boot mb sire/demo_mandelbrot_ui.sire
+$plunder start mb
+
+until find .demo -maxdepth 1 -name "mb.*.http.port" -quit
+do
+     sleep 0.1
+done
+
+PORT=$(cat .demo/mb.*.http.port)
+
+echo "Setting interface files..."
+curl --data-binary @./demo/mandelbrot-ui/main.js -H "Content-Type: text/javascript" -X PUT http://localhost:$PORT/main.js
+curl --data-binary @./demo/mandelbrot-ui/index.html -H "Content-Type: text/html" -X PUT http://localhost:$PORT/index.html
+
+echo "Interface files are set. Running on http://localhost:$PORT/index.html"
