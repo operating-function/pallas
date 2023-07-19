@@ -50,7 +50,7 @@ import Jelly.Types               (hashToByteString)
 import System.Directory          (createDirectoryIfMissing)
 import System.FilePath           (takeDirectory)
 
-import {-# SOURCE #-} Fan.Save (saveFan', subPins)
+import {-# SOURCE #-} Fan.Save (saveFan')
 
 import qualified Data.ByteString      as BS
 import qualified Data.Vector.Storable as VS
@@ -406,39 +406,33 @@ gatherWriteBatch store topPins = do
 type GatherSt = HashMap Hash256 (PinMetadata_ (Vector Hash256), ByteString)
 
 gatherWriteBatchWorker
-    :: Jelly.Ctx -> HashMap Hash256 PinState -> F.Pin -> StateT GatherSt IO ()
+    :: Jelly.Ctx
+    -> HashMap Hash256 PinState
+    -> F.Pin
+    -> StateT GatherSt IO ()
 gatherWriteBatchWorker ctx dbState pin = do
-    readIORef pin.node >>= \case
-        Nothing -> weSerialize Nothing
-        Just ds -> do
-            st <- get
-            case (lookup pin.hash st, lookup pin.hash dbState) of
-                (Just{},  _                     ) -> pure ()
-                (Nothing, Nothing               ) -> weSerialize (Just ds)
-                (Nothing, Just (PIN_PENDING b _)) -> weWait ds b
-                (Nothing, Just PIN_COMMITTED{}  ) -> pure ()
+    st <- get
+    case (lookup pin.hash st, lookup pin.hash dbState) of
+        (Just{},  _                     ) -> pure ()
+        (Nothing, Nothing               ) -> weSerialize
+        (Nothing, Just (PIN_PENDING b _)) -> weWait b
+        (Nothing, Just PIN_COMMITTED{}  ) -> pure ()
   where
     loop = gatherWriteBatchWorker ctx dbState
 
-    -- Either the de-duplicated edge-list or just a raw-traversal of
-    -- all sub-pins (pins may appear multiple times in the latter case)
-    listOfSubPins (Just dagInfo) = toList dagInfo.refs
-    listOfSubPins Nothing        = subPins pin.item
-
     -- Someone else is writing.  When we go to write this we will actually
     -- just wait.
-    weWait :: DagInfo -> ByteString -> StateT GatherSt IO ()
-    weWait ds v =
+    weWait :: ByteString -> StateT GatherSt IO ()
+    weWait v =
         modify' (insertMap pin.hash (mkPinMeta pin.hash v edges, v))
       where
-        edges = ds.refs <&> (.hash)
+        edges = pin.refs <&> (.hash)
 
-    weSerialize :: Maybe DagInfo -> StateT GatherSt IO ()
-    weSerialize mDagInfo = do
-        traverse_ loop (listOfSubPins mDagInfo)
+    weSerialize :: StateT GatherSt IO ()
+    weSerialize = do
         (refs, hed, bod) <- liftIO $ withSimpleTracingEvent "Save" "log" do
                                 saveFan' ctx pin.item
-        writeIORef pin.node (Just $ DAG_INFO refs)
+        traverse_ loop refs
         let haz = pin.hash
         let bar = hashToByteString haz <> hed <> bod
         let hashes = refs <&> (.hash)
@@ -647,8 +641,7 @@ loadPinByHash lmdbStore cache topStack =
                 let stk  = (pinHash : stack)
                 let deco = DECODE_PIN pinHash
                 (pinz, item) <- decodeBlob (loop stk) deco (drop 32 blob)
-                let dag = DAG_INFO pinz
-                F.loadPinFromBlob dag item
+                F.loadPinFromBlob pinz pinHash item
 
 decodeBlob
     :: (Hash256 -> IO F.Pin)

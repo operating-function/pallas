@@ -10,10 +10,10 @@
 
 module Fan.Types
     ( Fan(..)
+    , Any
     , PrimopCrash(..)
     , Nat
     , Pin(..)
-    , DagInfo(..)
     , Law(..)
     , LawName(..)
     , Rex
@@ -54,8 +54,6 @@ instance NFData Law where rnf = \L{} -> ()
 newtype LawName = LN { nat :: Nat }
   deriving newtype (Eq, Ord, NFData)
 
-newtype DagInfo = DAG_INFO { refs :: Vector Pin }
-
 {-
     -   `hash` is the BLAKE3 hash of the concatenation of the jelly head
         and jelly body.
@@ -69,9 +67,9 @@ newtype DagInfo = DAG_INFO { refs :: Vector Pin }
      TODO Evaluate the performance impact of making `.hash` strict.
 -}
 data Pin = P
-    { node :: IORef (Maybe DagInfo) -- Cryptographic Hash and edge-list
-    , hash :: Hash256              -- New Cryptographic Hash
-    , quik :: Int                   -- Quick Hash
+    { refs :: Vector Pin -- Edge-list
+    , hash :: Hash256    -- Cryptographic Hash
+    , quik :: Int        -- Quick Hash
     , args :: !Nat
     , item :: !Fan
     , exec :: SmallArray Fan -> Fan
@@ -95,6 +93,8 @@ data Fan
     | COw !Nat
     | REX !Rex
   deriving (Generic, NFData)
+
+type Any = Fan
 
 instance Num Fan where
     fromInteger n = NAT (fromIntegral n)

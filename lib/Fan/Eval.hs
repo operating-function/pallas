@@ -69,6 +69,7 @@ import Control.Monad.ST (ST)
 import Data.Bits        (xor)
 import Data.Char        (isAlphaNum)
 import Data.Vector      ((!))
+import Fan.PinRefs      (pinRefs)
 import GHC.Prim         (reallyUnsafePtrEquality#)
 import GHC.Word         (Word(..))
 import Jelly.Types      (shortHex)
@@ -776,8 +777,8 @@ mkPin' inp = do
                let qik = quickHash item
                let ari = trueArity item
                let hax = fanHash item
-               dag <- newIORef Nothing
-               res <- addProfilingToPin =<< match (P dag hax qik ari item exe)
+               let ref = pinRefs item
+               res <- addProfilingToPin =<< match (P ref hax qik ari item exe)
                pure res
 
     -- hack that causes functions to be serialized/hashed immediately.
@@ -797,8 +798,8 @@ mkPin' inp = do
     -}
     evaluate res
 
-loadPinFromBlob :: DagInfo -> Fan -> IO Pin
-loadPinFromBlob dagInfo item = do
+loadPinFromBlob :: Vector Pin -> Hash256 -> Fan -> IO Pin
+loadPinFromBlob refs hax item = do
     match <- readIORef vJetMatch
 
     res <- mdo let slf = (PIN res)
@@ -810,12 +811,7 @@ loadPinFromBlob dagInfo item = do
                                            -- include ourselves?
                let qik = quickHash item
                let !ari = trueArity item
-               let hax = fanHash item
-                             -- TODO Fully switch to this,
-                             -- and then just use the pre-computed
-                             -- version
-               dag <- newIORef (Just dagInfo)
-               res <- addProfilingToPin =<< match (P dag hax qik ari item exe)
+               res <- addProfilingToPin =<< match (P refs hax qik ari item exe)
                pure res
 
     evaluate res.exec

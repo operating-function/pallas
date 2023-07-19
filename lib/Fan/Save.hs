@@ -10,7 +10,6 @@ module Fan.Save
     , saveFan'
     , savePack
     , loadPack
-    , subPins
     )
 where
 
@@ -592,66 +591,17 @@ collect topPin =
 
 collectWorker :: Jelly.Ctx -> Pin -> StateT PinStorage IO Hash256
 collectWorker ctx pin = do
-    readIORef pin.node >>= \case
-        Nothing -> weSerialize Nothing
-        Just dagInfo -> do
-            tab <- get
-            case lookup pin.hash tab of
-                Just{}  -> pure pin.hash
-                Nothing -> weSerialize (Just dagInfo)
-
-  where
-    loop = collectWorker ctx
-
-    weSerialize maybeDagInfo = do
-        traverse_ loop (listOfSubPins maybeDagInfo)
+    tab <- get
+    haz <- evaluate pin.hash
+    unless (member haz tab) do
+        traverse_ loop pin.refs
         (refs, hed, bod) <- liftIO (saveFan' ctx pin.item)
-        writeIORef pin.node (Just (DAG_INFO refs))
-        hashRefs <- traverse (liftIO . forciblyGetHashRef) refs
+        let hashRefs = refs <&> (.hash)
         haz <- evaluate pin.hash
         modify' (insertMap haz (hashRefs, bod))
-        pure haz
-
-    -- We alread added it so it best be there.  We can't use the
-    -- result of the `traverse_ loop` since the list it runs against
-    -- maybe not be not deduplicated.
-    forciblyGetHashRef :: Pin -> IO Hash256
-    forciblyGetHashRef pin =
-        readIORef pin.node >>= \case
-            Nothing -> error "collectWorker: impossible"
-            Just{}  -> pure pin.hash
-
-{-
-                hashRefs <- for dag.refs loop
-                modify' (insertMap dag.hash (hashRefs, error "pin.blob"))
-                pure dag.hash
--}
-
-    listOfSubPins (Just dagInfo) = toList dagInfo.refs
-    listOfSubPins Nothing        = subPins pin.item
-
--- This produces a lazy stream of all of the direct-pin-references inside
--- a Fan.
---
--- The resulting list may contain multiple references to the same pin,
--- and is not the same values as the edge-list used in `DagInfo` and
--- `Jelly`.
---
--- This exists we want to work with pins that are not yet serialized
--- and we can't compute the proper edge-list until we serialize.
-subPins :: Fan -> [Pin]
-subPins BAR{}      = []
-subPins COw{}      = []
-subPins NAT{}      = []
-subPins (PIN p)    = pure p
-subPins (FUN f)    = subPins f.body
-subPins (KLO _ xs) = do x <- toList xs; subPins x
-subPins (ROW xs)   = do x <- toList xs; subPins x
-subPins (TAb xs)   = do (k,v) <- mapToList xs; subPins k <> subPins v
-subPins (CAB fs)   = do x <- toList fs; subPins x
-subPins (REX r)    = do x <- toList r; subPins x
-
-
+    pure haz
+  where
+    loop = collectWorker ctx
 
 reconstruct :: Hash256 -> PinStorage -> IO Pin
 reconstruct topHash hashTab =
@@ -699,40 +649,3 @@ loadPack bs = do
         p <- reconstruct top pinStorage
         pure $ Right $ p.item
       Right f -> pure $ Left $ "Invalid value in pack: " <> tshow f
-
-{-
-    This is only used when evaluation needs the hash before persistance.
-    For example, do to jet matching or equality checking.
-
-    This is somewhat time-wasteful, but reduces memory usage.
-
-    This only happens if a function is run before being written to disk.
-    Or if two pins (that are not pointer equals and have different
-    quick-hash values) are checked for equality (before they have been
-    written to disk).
-
-    Persistence should calculate the hash itself (and fill this slot
-    itself if it is still unfilled).
--}
-computeDagInfo :: Pin -> IO DagInfo
-computeDagInfo pin = do
-    res <- atomicModifyIORef' pin.node \case
-        Just di -> (Just di, di)
-        Nothing ->
-            let di = unsafePerformIO calcDagInfo
-            in (Just di, di)
-    evaluate res
-  where
-    calcDagInfo = do
-        Jelly.withContext \ctx ->  do
-            (refs, hed, bod) <- saveFan' ctx pin.item
-            pure (DAG_INFO refs)
-
-getPinDagInfo :: Pin -> IO DagInfo
-getPinDagInfo pin = do
-    readIORef pin.node >>= \case
-        Nothing -> computeDagInfo pin
-        Just di -> pure di
-
-unsafeGetPinDagInfo :: Pin -> DagInfo
-unsafeGetPinDagInfo = unsafePerformIO . getPinDagInfo
