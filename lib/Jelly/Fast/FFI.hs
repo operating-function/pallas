@@ -77,13 +77,6 @@ foreign import ccall unsafe "jelly_load_head"
 foreign import ccall unsafe "jelly_load_body"
     c_load_body :: Ctx -> CSize -> Ptr Word8 -> IO ()
 
-foreign import ccall unsafe "jelly_hash"
-    c_hash :: Ctx
-           -> Ptr Word8          -- 32-byte buffer
-           -> CSize -> Ptr Word8 -- head
-           -> CSize -> Ptr Word8 -- body
-           -> IO ()
-
 foreign import ccall unsafe "jet_blake3"
     c_jet_blake3
         :: Ptr Word8 -- 32-byte buffer

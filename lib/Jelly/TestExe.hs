@@ -12,7 +12,7 @@ import GHC.Word
 import PlunderPrelude  hiding (hash)
 import Test.QuickCheck
 
-import Fan.Save         (getPinHash, loadBody, loadPack, saveFan, savePack)
+import Fan.Save         (loadBody, loadPack, saveFan, savePack)
 import Fan.Types        (Fan)
 import Jelly            (loadBodySlow, loadDepsSlow, saveFast, splitBlob,
                          withContext)
@@ -211,12 +211,13 @@ fan_pack_same fan =
 
 checkHead :: Vector F.Pin -> ByteString -> IO ()
 checkHead deps bled = do
-    case loadDepsSlow bled of
-        Left msg -> error (unpack msg)
-        Right refs -> do
-            hashes <- traverse getPinHash deps
-            unless (refs == hashes) do
-                error "fanSlow: Pinrefs did not roundtrip"
+    refs <- case loadDepsSlow bled of
+                Left msg -> error (unpack msg)
+                Right refs -> pure refs
+    unless (refs == hashes) do
+        error "fanSlow: Pinrefs did not roundtrip"
+  where
+    hashes = deps <&> (.hash)
 
 fanSlow :: Fan -> IO Fan
 fanSlow fan = do

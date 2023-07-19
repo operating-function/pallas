@@ -81,7 +81,6 @@ import PlunderPrelude
 import Control.Monad.State (State, evalState, get, put, runState)
 import Data.Vector         ((!))
 import Fan                 (Fan, Pin(..), (%%))
-import Fan.Save            (unsafeGetPinHash)
 import Loot                (keyRex)
 import Rex.Print           (RexColorScheme(NoColors), rexLine)
 
@@ -214,7 +213,7 @@ nameClosure (CLOSURE env val) =
           -> Maybe (Symb, (Val Symb, Hash256))
     toMap (i, (p, mV)) = do
         v <- mV
-        pure (names!i, ((names!) <$> v, unsafeGetPinHash p))
+        pure (names!i, ((names!) <$> v, p.hash))
 
     value = (names!) <$> val
     names = assignNames (F.valTag . (.item) . fst <$> env)
@@ -315,7 +314,7 @@ loadShallow inVal =
     goTopPin pin = do
         kor <- (pin,) . Just <$> goTop pin.item
         (nex, tab, stk) <- get
-        let haz  = unsafeGetPinHash pin
+        let haz  = pin.hash
         let tab' = insertMap haz nex tab
         put (nex+1, tab', kor:stk)
         pure nex
@@ -341,7 +340,7 @@ loadShallow inVal =
     goPin :: F.Pin -> Load Int
     goPin pin = do
         (_, tabl, _) <- get
-        let pHash = unsafeGetPinHash pin
+        let pHash = pin.hash
         case lookup pHash tabl of
             Just i -> pure i
             Nothing -> do
@@ -379,7 +378,7 @@ loadClosure inVal =
     goPin :: F.Pin -> Load Int
     goPin pin = do
         (_, tabl, _) <- get
-        let pHash = unsafeGetPinHash pin
+        let pHash = pin.hash
         case lookup pHash tabl of
             Just i -> pure i
             Nothing -> do

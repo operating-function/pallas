@@ -5,6 +5,7 @@
 module Fan.Convert where
 
 import Fan
+import Jelly.Types (Hash256, hashToByteString, toHash256)
 import Numeric.Natural
 import PlunderPrelude
 
@@ -127,6 +128,14 @@ instance ToNoun LByteString where
 instance FromNoun LByteString where
     fromNoun (BAR n) = Just (fromStrict n)
     fromNoun  _      = Nothing
+
+instance ToNoun Hash256 where
+    toNoun = BAR . hashToByteString
+
+instance FromNoun Hash256 where
+    fromNoun = \case
+        BAR x | length x == 32 -> Just (toHash256 x)
+        _                      -> Nothing
 
 instance ToNoun Text where
     toNoun = NAT . utf8Nat

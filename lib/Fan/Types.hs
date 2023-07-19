@@ -54,10 +54,7 @@ instance NFData Law where rnf = \L{} -> ()
 newtype LawName = LN { nat :: Nat }
   deriving newtype (Eq, Ord, NFData)
 
-data DagInfo = DAG_INFO
-    { hash :: !Hash256
-    , refs :: !(Vector Pin)
-    }
+newtype DagInfo = DAG_INFO { refs :: Vector Pin }
 
 {-
     -   `hash` is the BLAKE3 hash of the concatenation of the jelly head

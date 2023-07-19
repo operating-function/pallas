@@ -18,20 +18,18 @@ module Jelly
     , withContext
     , Ctx
     , Node(..)
-    , hash
-    , hash'
     , encodeBtc
     , decodeBtc
     )
 where
 
 import Jelly.Fast.Save
-import PlunderPrelude  hiding (hash, (%))
+import PlunderPrelude  hiding ((%))
 
 import Jelly.Fast.FFI  (Ctx)
 import Jelly.Reference (IsJelly(..), Node(..), loadBody, loadDeps, mkBlob,
                         splitBlob)
-import Jelly.Types     (decodeBtc, encodeBtc)
+import Jelly.Types     (decodeBtc, encodeBtc, Hash256)
 
 import qualified Fan.Prof        as Prof
 import qualified Jelly.Fast.FFI  as FFI

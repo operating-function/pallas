@@ -50,7 +50,7 @@ import Jelly.Types               (hashToByteString)
 import System.Directory          (createDirectoryIfMissing)
 import System.FilePath           (takeDirectory)
 
-import {-# SOURCE #-} Fan.Save (getPinHash, saveFan', subPins)
+import {-# SOURCE #-} Fan.Save (saveFan', subPins)
 
 import qualified Data.ByteString      as BS
 import qualified Data.Vector.Storable as VS
@@ -327,16 +327,17 @@ writeLogBatch lmdbStore who lb = do
       case lookup who logTables of
           Nothing -> throwIO (BadMachineName who)
           Just logs -> do
-              (pinz, lbHead, lbBody, lbHash) <-
+              (pinz, lbPin, lbHead, lbBody) <-
                 withSimpleTracingEvent "jar+hash" "log" $ do
                   Jelly.withContext \ctx -> do
+                    pin <- F.mkPin' (toNoun lb)
                     (!pinz, lbHead, lbBody) <- saveFan' ctx (toNoun lb)
-                    lbHash <- Jelly.hash' ctx lbHead lbBody
-                    pure (pinz, lbHead, lbBody, lbHash)
+                    void (evaluate pin.hash)
+                    pure (pinz, pin, lbHead, lbBody)
               numBatches <- atomically (readTVar logs.numBatches)
               let curBatch = numBatches + 1
               withSimpleTracingEvent "writeIt" "log" $
-                writeIt curBatch logs.logTable lbHash lbHead lbBody pinz
+                writeIt curBatch logs.logTable lbPin.hash lbHead lbBody pinz
               atomically $ modifyTVar' logs.numBatches (+1)
       let args = mapFromList [
             ("who", Right $ txt who),
@@ -388,8 +389,7 @@ writeMachineSnapshot lmdbStore who (BatchNum bn) f = do
             -- machine, and then shut down the machine before enough work is
             -- done to naturally write a logbatch.
             let key = fromIntegral bn :: Word64
-            pHash <- getPinHash p
-            writeKVNoOverwrite logFlags txn logs.snapshotTable key pHash
+            writeKVNoOverwrite logFlags txn logs.snapshotTable key p.hash
                                (BadWriteSnapshot who (BatchNum bn))
 
 gatherWriteBatch
@@ -412,7 +412,7 @@ gatherWriteBatchWorker ctx dbState pin = do
         Nothing -> weSerialize Nothing
         Just ds -> do
             st <- get
-            case (lookup ds.hash st, lookup ds.hash dbState) of
+            case (lookup pin.hash st, lookup pin.hash dbState) of
                 (Just{},  _                     ) -> pure ()
                 (Nothing, Nothing               ) -> weSerialize (Just ds)
                 (Nothing, Just (PIN_PENDING b _)) -> weWait ds b
@@ -429,19 +429,19 @@ gatherWriteBatchWorker ctx dbState pin = do
     -- just wait.
     weWait :: DagInfo -> ByteString -> StateT GatherSt IO ()
     weWait ds v =
-        modify' (insertMap ds.hash (mkPinMeta ds.hash v edges, v))
+        modify' (insertMap pin.hash (mkPinMeta pin.hash v edges, v))
       where
-        edges = Save.unsafeGetPinHash <$> ds.refs
+        edges = ds.refs <&> (.hash)
 
     weSerialize :: Maybe DagInfo -> StateT GatherSt IO ()
     weSerialize mDagInfo = do
         traverse_ loop (listOfSubPins mDagInfo)
         (refs, hed, bod) <- liftIO $ withSimpleTracingEvent "Save" "log" do
                                 saveFan' ctx pin.item
-        haz <- liftIO (Jelly.hash' ctx hed bod)
-        writeIORef pin.node (Just $ DAG_INFO haz refs)
+        writeIORef pin.node (Just $ DAG_INFO refs)
+        let haz = pin.hash
         let bar = hashToByteString haz <> hed <> bod
-        let hashes = Save.unsafeGetPinHash <$> refs
+        let hashes = refs <&> (.hash)
         modify' (insertMap haz (mkPinMeta haz bar hashes, bar))
 
     mkPinMeta
@@ -551,8 +551,7 @@ internPin lmdbStore pin cushion = do
     -- TODO: Avoid waiting for sync by just doing the mmap immediatly
     -- when we write.  Store it in the pin state.
 
-    hax <- getPinHash pin
-    loadPinByHash lmdbStore cushion [] hax
+    loadPinByHash lmdbStore cushion [] pin.hash
 
 data PinWriteResponsibility
   = WritePin
@@ -648,7 +647,7 @@ loadPinByHash lmdbStore cache topStack =
                 let stk  = (pinHash : stack)
                 let deco = DECODE_PIN pinHash
                 (pinz, item) <- decodeBlob (loop stk) deco (drop 32 blob)
-                let dag = DAG_INFO pinHash pinz
+                let dag = DAG_INFO pinz
                 F.loadPinFromBlob dag item
 
 decodeBlob

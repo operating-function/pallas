@@ -2208,22 +2208,3 @@ void jelly_show(Jelly ctx) {
 
         putchar('\n');
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-void jelly_hash
-    ( Jelly ctx
-    , uint8_t* out
-    , size_t hed_wid
-    , uint8_t *hed_ptr
-    , size_t bod_wid
-    , uint8_t *bod_ptr
-    )
-{
-        // TODO This is 1912 bytes, moving into context or keep on stack?
-        blake3_hasher hasher;
-        blake3_hasher_init(&hasher);
-        blake3_hasher_update(&hasher, hed_ptr, hed_wid);
-        blake3_hasher_update(&hasher, bod_ptr, bod_wid);
-        blake3_hasher_finalize(&hasher, out, 32);
-}

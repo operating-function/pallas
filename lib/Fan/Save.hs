@@ -10,8 +10,6 @@ module Fan.Save
     , saveFan'
     , savePack
     , loadPack
-    , getPinHash
-    , unsafeGetPinHash
     , subPins
     )
 where
@@ -465,7 +463,7 @@ saveFanWorker !ctx !vPins !vTemp !top = do
             doNat n
 
         PIN pin -> do
-            bs@(BS.BS fpt _) <- hashToByteString <$> getPinHash pin
+            bs@(BS.BS fpt _) <- pure (hashToByteString pin.hash)
             alloca \vIsUnique -> do
                 poke vIsUnique (CBool 0)
                 res <- withForeignPtr fpt \buf -> do
@@ -582,15 +580,6 @@ instance FromNoun Pack where
     PACK <$> fromNoun (r!0)
          <*> fromNoun (r!1)
 
-instance ToNoun Hash256 where
-  toNoun = toNoun . hashToByteString
-
-instance FromNoun Hash256 where
-  fromNoun n = do
-    b <- getRawBar n
-    guard (length b == 32)
-    pure $ toHash256 b
-
 {-
         We should have a version of this that is given a callback which
         loads the blob, either from disk or from local cache.
@@ -607,8 +596,8 @@ collectWorker ctx pin = do
         Nothing -> weSerialize Nothing
         Just dagInfo -> do
             tab <- get
-            case lookup dagInfo.hash tab of
-                Just{}  -> pure dagInfo.hash
+            case lookup pin.hash tab of
+                Just{}  -> pure pin.hash
                 Nothing -> weSerialize (Just dagInfo)
 
   where
@@ -617,9 +606,9 @@ collectWorker ctx pin = do
     weSerialize maybeDagInfo = do
         traverse_ loop (listOfSubPins maybeDagInfo)
         (refs, hed, bod) <- liftIO (saveFan' ctx pin.item)
-        haz <- liftIO (Jelly.hash' ctx hed bod)
-        writeIORef pin.node (Just (DAG_INFO haz refs))
+        writeIORef pin.node (Just (DAG_INFO refs))
         hashRefs <- traverse (liftIO . forciblyGetHashRef) refs
+        haz <- evaluate pin.hash
         modify' (insertMap haz (hashRefs, bod))
         pure haz
 
@@ -630,7 +619,7 @@ collectWorker ctx pin = do
     forciblyGetHashRef pin =
         readIORef pin.node >>= \case
             Nothing -> error "collectWorker: impossible"
-            Just vl -> pure vl.hash
+            Just{}  -> pure pin.hash
 
 {-
                 hashRefs <- for dag.refs loop
@@ -737,8 +726,7 @@ computeDagInfo pin = do
     calcDagInfo = do
         Jelly.withContext \ctx ->  do
             (refs, hed, bod) <- saveFan' ctx pin.item
-            hash <- Jelly.hash' ctx hed bod
-            pure (DAG_INFO hash refs)
+            pure (DAG_INFO refs)
 
 getPinDagInfo :: Pin -> IO DagInfo
 getPinDagInfo pin = do
@@ -746,11 +734,5 @@ getPinDagInfo pin = do
         Nothing -> computeDagInfo pin
         Just di -> pure di
 
-getPinHash :: Pin -> IO Hash256
-getPinHash = fmap (.hash) . getPinDagInfo
-
 unsafeGetPinDagInfo :: Pin -> DagInfo
 unsafeGetPinDagInfo = unsafePerformIO . getPinDagInfo
-
-unsafeGetPinHash :: Pin -> Hash256
-unsafeGetPinHash = unsafePerformIO . getPinHash

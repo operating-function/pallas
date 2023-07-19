@@ -14,7 +14,6 @@ import Rex.TestUtils
 import Test.Tasty
 
 import Fan.Convert
-import Fan.Save         (getPinHash)
 import GHC.IO.Handle    (hFlushAll)
 import Loot.Types       (Symb)
 import System.Directory (removeFile)
@@ -51,7 +50,7 @@ goldenLoot vEnv pax = do
     end h = do
         env <- readIORef vEnv
         pln <- pure $ fromMaybe (NAT 0) $ lookup cab env
-        has <- mkPin' pln >>= getPinHash
+        has <- mkPin' pln <&> (.hash)
         Repl.printValue h False (Just cab) pln
         Repl.printValue h True (Just cabHash) (toNoun has)
         hFlushAll h >> hClose h
@@ -64,7 +63,7 @@ validateLoot lootFile tempFile = do
     h <- openFile tempFile WriteMode
     env <- readIORef vEnv
     pln <- pure $ fromMaybe (NAT 0) $ lookup cab env
-    has <- mkPin' pln >>= getPinHash
+    has <- mkPin' pln <&> (.hash)
     Repl.printValue h False (Just cab) pln
     Repl.printValue h True (Just cabHash) (toNoun has)
     hFlushAll h >> hClose h

@@ -10,9 +10,6 @@
 
 module Jelly.Fast.Save
     ( save
-    , hash
-    , hash'
-    , Hash256
     , withContext
     )
 where
@@ -27,7 +24,7 @@ import Natty
 import PlunderPrelude          hiding (hash, (%))
 
 import Jelly.Reference (Node(..))
-import Jelly.Types     (Hash256, hashToByteString)
+import Jelly.Types     ( hashToByteString)
 
 import qualified Data.ByteString.Internal as BS
 import qualified Jelly.Fast.FFI           as FFI
@@ -104,26 +101,8 @@ save !ctx !top = do
             FFI.c_cons ctx xv yv
 
 
--- BLAKE3 Hashing --------------------------------------------------------------
+-- With Context g --------------------------------------------------------------
 
 {-# INLINE withContext #-}
 withContext :: (FFI.Ctx -> IO a) -> IO a
 withContext = bracket FFI.c_make FFI.c_free
-
-{-# INLINE hash #-}
-hash :: ByteString -> ByteString -> IO Hash256
-hash hed bod =
-    withContext \ctx -> hash' ctx hed bod
-
-hash' :: FFI.Ctx -> ByteString -> ByteString -> IO Hash256
-hash' ctx (BS.BS hedPtr hedWid) (BS.BS bodPtr bodWid) =
-    let
-        !hedSize = fromIntegral hedWid
-        !bodSize = fromIntegral bodWid
-    in
-        allocaBytes 32 \outBuf ->
-        withForeignPtr hedPtr \hedBuf ->
-        withForeignPtr bodPtr \bodBuf ->
-    do
-        FFI.c_hash ctx outBuf hedSize hedBuf bodSize bodBuf
-        peek $ castPtr outBuf

@@ -3,7 +3,6 @@ module Fan.Save
     , loadBody
     , saveFan
     , saveFan'
-    , getPinHash
     , subPins
     )
 where
@@ -22,7 +21,5 @@ loadBody :: Vector Pin -> ByteString -> Either Text Fan
 saveFan :: Fan -> IO (Vector Pin, ByteString, ByteString)
 
 saveFan' :: Ctx -> Fan -> IO (Vector Pin, ByteString, ByteString)
-
-getPinHash :: Pin -> IO Hash256
 
 subPins :: Fan -> [Pin]

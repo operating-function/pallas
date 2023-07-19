@@ -32,12 +32,13 @@ import Server.Hardware.Time (createHardwareTime)
 -- ort Server.Hardware.Wock (createHardwareWock)
 import Server.Hardware.Poke (SubmitPoke, createHardwarePoke)
 
-import Control.Concurrent  (threadDelay)
-import Control.Exception   (handle)
-import Control.Monad.Fail  (fail)
-import Control.Monad.State (State, execState, modify')
+import Control.Concurrent       (threadDelay)
+import Control.Exception        (handle)
+import Control.Monad.Fail       (fail)
+import Control.Monad.State      (State, execState, modify')
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Fan.Convert
+import Fan.Hash                 (fanHash)
 import Fan.Save                 (loadPack, savePack)
 import Jelly.Types              (hashToBTC)
 import System.Directory         (createDirectoryIfMissing, doesFileExist,
@@ -46,7 +47,6 @@ import System.Exit              (ExitCode(..), exitWith)
 import System.IO.Error          (catchIOError)
 import System.Posix.Types       (CPid(CPid))
 
-import qualified Jelly
 import qualified Loot.ReplExe
 import qualified Rex
 import qualified Sire
@@ -989,9 +989,7 @@ machineDu st machineName = do
     binName = \case
         F.FUN law -> ugul law.name.nat
         F.PIN pin -> binName pin.item
-        f         -> hashToBTC $ toHash $ F.saveFanPure f
-                       where
-                         toHash (_, h, t) = unsafePerformIO (Jelly.hash h t)
+        f         -> hashToBTC (fanHash f)
 
     ok '_' = True
     ok c   = C.isAlphaNum c

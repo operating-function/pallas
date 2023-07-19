@@ -76,7 +76,7 @@ import Rex              (GRex)
 import Unsafe.Coerce    (unsafeCoerce)
 
 import {-# SOURCE #-} Fan.Hash (fanHash)
-import {-# SOURCE #-} Fan.Save (getPinHash, saveFan)
+import {-# SOURCE #-} Fan.Save (saveFan)
 
 import qualified Data.ByteString      as BS
 import qualified Data.Char            as C
@@ -235,10 +235,7 @@ instance Eq Pin where
             1# -> True
             _  -> case x.quik == y.quik of
                       False -> False
-                      True  -> unsafePerformIO do
-                                   xHash <- getPinHash x
-                                   yHash <- getPinHash y
-                                   pure (xHash == yHash)
+                      True  -> x.hash == y.hash
 
 {-
     Comparision of two values that are likely to be pointer-equals.
@@ -282,9 +279,7 @@ instance Ord Pin where
         case GHC.reallyUnsafePtrEquality x y of
             1# -> EQ
             _  -> unsafePerformIO do
-                      xHash <- getPinHash x
-                      yHash <- getPinHash y
-                      pure $ if xHash == yHash
+                      pure $ if x.hash == y.hash
                              then EQ
                              else compare x.item y.item
 
@@ -760,9 +755,8 @@ addProfilingToPin pin = do
     if not (enab && shouldProfile) then do
         pure pin
     else do
-        hash <- getPinHash pin
         let nam = encodeUtf8 (valName pin.item)
-        let key = nam <> "-(" <> shortHex hash <> ")"
+        let key = nam <> "-(" <> shortHex pin.hash <> ")"
         pure (setExec (profWrap key pin.exec) pin)
   where
     profWrap tag fun args =
@@ -1224,8 +1218,7 @@ optimizeSpine = go
     -- to replace calls to functions like `if` with control flow like `IF_`
     go = \case
         exe@(EXE _ _ (PIN p) r) ->
-            unsafePerformIO $
-            getPinHash p <&> \haz ->
+            let haz = p.hash in
             if | haz == ifHash        -> IF_ (go(r^0)) (go(r^1)) (go(r^2))
                | haz == switchHash    -> tryMatchSwitch exe r
                | haz == tabSwitchHash -> tryMatchTabSwitch exe r
@@ -1268,8 +1261,7 @@ optimizeSpine = go
             -- broken-out sub-spine, we can optimize that and then run
             -- it with `LAZ`.
             EXE x s (PIN p) r ->
-                unsafePerformIO $
-                getPinHash p <&> \haz ->
+                let haz = p.hash in
                 if | haz == ifHash        -> shatterIt x s p r
                    | haz == switchHash    -> shatterIt x s p r
                    | haz == tabSwitchHash -> shatterIt x s p r
@@ -1456,7 +1448,7 @@ matchConstructors = go
 matchPin :: Pin
          -> Map Hash256 (String, (Fan -> Fan -> Fan))
          -> Maybe (String, (Fan -> Fan -> Fan))
-matchPin p tbl = unsafePerformIO $ getPinHash p <&> (flip M.lookup tbl)
+matchPin p tbl =  M.lookup p.hash tbl
 
 valCode :: Fan -> (SmallArray Fan -> Fan)
 valCode = \case
@@ -1873,17 +1865,14 @@ saveFanReference !top = do
     -- TODO Make this lazy again
     fanToJellyNode :: Fan -> IO (Jelly.Node Pin)
     fanToJellyNode = \case
-        BAR bar ->
-            pure (Jelly.BAR bar)
+        BAR bar -> pure (Jelly.BAR bar)
+        PIN pin -> pure (Jelly.PIN pin pin.hash)
 
         NAT n ->
             case n of
                 GHC.NatS# w -> pure $ Jelly.WORD (fromIntegral (W# w))
                 _           -> pure $ Jelly.NAT n
 
-        PIN pin -> do
-            pHash <- getPinHash pin
-            pure (Jelly.PIN pin pHash)
 
         fan -> do
             let (x,y) = boom fan
