@@ -18,6 +18,8 @@ import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import PlunderPrelude        hiding ((^))
 
+import qualified Jelly.FragLoader as JFL
+
 import Control.Monad.Primitive (touch)
 --import Control.Monad.State              (State, evalState, execState, modify')
 import Control.Monad.Trans.Except       (runExcept, throwE)
@@ -62,7 +64,7 @@ data LoadException
 loadLeavesTable
     :: Vector Fan
     -> ByteString
-    -> IO (Vector Fan, Int, [Bool])
+    -> IO (Vector Fan, Int, Int)
 loadLeavesTable pinz bodyBytes = do
     when ((length bodyBytes `mod` 8) /= 0) do
         throwIO INPUT_NOT_WORD64_PADDED
@@ -77,14 +79,8 @@ loadLeavesTable pinz bodyBytes = do
         fragBytes <- get
         pure ( pinz <> bars <> nats
              , numFrags
-             , bsBits fragBytes
+             , length bodyBytes - length fragBytes
              )
-  where
-    bsBits :: ByteString -> [Bool]
-    bsBits = bytesBits . unpack
-
-    bytesBits []     = []
-    bytesBits (w:ws) = fmap (testBit w) [0..7] <> bytesBits ws
 
 loadBar :: StateT ByteString IO Fan
 loadBar =
@@ -214,7 +210,7 @@ loadBody pinz bodByt = do
     if (length bodByt `mod` 8) /= 0 then
         Left "Input length must be a multiple of 8 bytes"
     else do
-        (leaves, numFrags, fragBits) <-
+        (leaves, numFrags, usedBytes) <-
             unsafePerformIO do
                 try (loadLeavesTable (PIN <$> pinz) bodByt) >>= \case
                     Left (err :: LoadException) ->
@@ -222,115 +218,12 @@ loadBody pinz bodByt = do
                     Right vl ->
                         pure (Right vl)
 
-        finalSt <- runExcept $ flip execStateT (Jelly.FRAG_ST leaves fragBits) do
-                      frags <- replicateM_ numFrags getFrag
-                      Jelly.checkZeroPadding
-                      pure frags
-
-        let tab = finalSt.table
-        let wid = length tab
-
-        when (wid == 0) do
-            Left "getJelly: No data"
-
-        pure (tab ! (wid-1))
-  where
-
-    -- So, each fragment is a pair, but so we omit the leading 1 bit.
-    -- Therefore, we jump into the closure parser in the same state we
-    -- would be in when we see a 1 bit in normal tree parsing.
-    getFrag :: Jelly.LoadTrees Fan ()
-    getFrag = do
-        res <- getTree 1
-        st <- get
-        put (st { Jelly.table = snoc st.table res })
-        pure ()
-
-    -- 1110f0x0y0z
-    -- ((( f x y z
-    -- (((f x) y) z)
-
-    getTree :: Int -> Jelly.LoadTrees Fan Fan
-    getTree !oneBits = do
-        -- get >>= traceM . (\x -> "(STEP " <> x <> ")") . show
-        Jelly.getBit >>= \case
-            True  -> getTree (oneBits + 1)
-            False -> do
-                -- get >>= traceM . (\x -> "(DONE " <> x <> ")") . show
-                hed <- Jelly.getLeaf
-                -- traceM $ show ("oneBits"::Text, oneBits, "hed"::Text, hed)
-                if oneBits == 0 then do
-                    pure hed
-                else do
-                    args <- replicateM oneBits (getTree 0)
-                    construct hed args
-
-    construct :: Fan -> Vector Fan -> Jelly.LoadTrees a Fan
-    construct hed arg = do
-        let width    = length arg
-        let hedArity = evalArity hed
-        let resArity = hedArity - width
-
-        case hed of
-           -- The head can be a closure if the head "leaf" is a
-           -- back-reference to a fragment that occured more than once.
-           KLO _ xs -> do
-               let realHed = (xs ^ 0)
-               let hedArgs = fromList $ drop 1 $ toList xs
-               construct realHed (hedArgs <> arg)
-
-           _ | width == 0 -> do
-               pure hed
-
-           -- If the result is in WHNF, then no evaluation can happen.
-           -- It's safe to just directly construct a KLO node.
-           _ | resArity > 0 ->
-               pure $ KLO resArity $ smallArrayFromList $ (hed : toList arg)
-
-           NAT 0 ->
-               case (arg!0, arg!1, arg!2) of
-                   (NAT n, NAT a, b) -> constructLaw n a b (drop 3 arg)
-                   _                 -> lift $ throwE "Invalid law literal"
-
-           COw{} -> hydrateLaw hed arg
-           CAB{} -> hydrateLaw hed arg
-           _     -> lift $ throwE ("Result is not in normal form: " <> tshow (hed, toList arg))
-
-{-
-    doLaw
-            (NAT n, NAT a, b) -> constructLaw n a b (drop 3 arg)
-            _                 -> lift $ throwE "Invalid law literal"
-
--}
-    constructLaw :: Nat -> Nat -> Fan -> Vector Fan -> Jelly.LoadTrees a Fan
-    constructLaw n a b args = hydrateLaw (mkLawPreNormalized (LN n) a b) args
-
-    hydrateLaw :: Fan -> Vector Fan -> Jelly.LoadTrees a Fan
-    hydrateLaw hed args = do
-        let
-            numArgs = length args
-            ari = evalArity hed - numArgs
-            klo = KLO ari $ smallArrayFromList (hed : toList args)
-
-        case hed of
-            _ | numArgs == 0 -> pure hed
-            _ | ari > 0      -> pure klo
-            _ | ari < 0      -> lift $ throwE "Oversaturated law"
-
-            -- Here we know that the evalArity of the result is 0.
-            -- Either this is an actually-saturated form (no good),
-            -- or it's a row/tab literal.
-
-            COw{}  -> pure $ ROW $ reverse args
-            CAB ks ->
-                case toList args of
-                    [ROW vs] | length ks == length vs ->
-                        pure $ TAb $ mapFromList $ zip (S.toList ks) (toList vs)
-                    [arg] ->
-                        pure (hed %% arg) -- malformed cab, just use eval path
-                    _ -> error "what?"
-
-            _     -> lift (throwE "Oversatured law")
+        unsafePerformIO do
+            -- putStrLn "WE LOAD THE FRAGS"
+            let exe = JFL.loadFrags leaves numFrags bodByt usedBytes
+            try exe >>= \case
+                Left (e :: JFL.FragErr) -> pure $ Left $ tshow e
+                Right r                 -> pure (Right r)
 
 
 --------------------------------------------------------------------------------
