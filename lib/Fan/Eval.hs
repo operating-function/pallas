@@ -671,7 +671,7 @@ matchRex = \case
         NAT "PAGE" -> Just Rex.THIC_LINE
         NAT "CURL" -> Just Rex.CURL_CORD
         _          -> Nothing
-            
+
     matchNodeShape = \case
         NAT "OPEN" -> Just Rex.OPEN
         NAT "NEST" -> Just Rex.NEST_PREFIX

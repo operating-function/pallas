@@ -1731,7 +1731,7 @@ void jelly_load_head(Jelly ctx, size_t wid, uint8_t *buf) {
                 buf += 32;
         }
 }
- 
+
 
 /*
         Note that for pins, indirect atoms, and indirect bars we do not

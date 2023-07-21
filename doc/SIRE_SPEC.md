@@ -85,7 +85,7 @@ version inaccessible.
 
     EXPAND : St -> PlanValue -> Rex -> (St, Rex)
 
-    EXPAND(st, macro, rex) := 
+    EXPAND(st, macro, rex) :=
 
         let crash(badSyntax, errorMessage) := * Print pretty error and die. *
 
@@ -98,7 +98,7 @@ version inaccessible.
 
     EXEC : St -> Rex -> St
 
-    EXEC(st, expr) := 
+    EXEC(st, expr) :=
 
         -- Macros expansion happens *before* parsing at every step.
         -- Macros can shaddow built-in syntax.
@@ -223,7 +223,7 @@ version inaccessible.
 
     EVALUATE : St -> Rex -> Any
 
-    EVALUATE(st, expr) := 
+    EVALUATE(st, expr) :=
 
         ast = READ(expr);
         COMPILE(ast);
