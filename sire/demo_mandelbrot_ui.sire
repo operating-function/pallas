@@ -18,22 +18,33 @@
 
 """ mandelbrot """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+> Row Nat > Cog Bar
+= (parallelBarEnc ns cogExit)
+@ maxThreads 32
+@ chunkLen | add 1 | div (len ns) maxThreads
+@ chunkedNs | chunks chunkLen ns
+: ??(pmapDone chunkBars)
+    < pmap 5000 bytesBar chunkedNs
+: eRes < syscall (EVAL1 600000 barCat chunkBars)
+@ !fractBar | forceUnpackEvalResult "parallelBarEnc" eRes
+| cogExit fractBar
+
 > Row Nat > Json
 = (fractToJson ns)
 | JVEC (map JNUM ns)
 
-= (mandelbrotLineWeldedAlpha w h y)
+= (mbLineWelded w h y)
 | cat
-| map (triple & weld triple [255])
 | mandelbrotLine w h y
 
 > Nat > Nat > Cog (Row Nat)
 = (mandelbrotDemo width height cogExit)
 @ rowIds | gen height id
 : ??(pmapDone rowLns)
-    < pmap 5000 (mandelbrotLineWeldedAlpha width height) rowIds
-;
-| cogExit (cat rowLns)
+    < pmap 5000 (mbLineWelded width height) rowIds
+: eRes < syscall (EVAL1 600000 cat rowLns)
+@ !res | forceUnpackEvalResult "mandelbrotDemo" eRes
+| cogExit res
 
 = (trkTimer name cogFn cogExit)
 : ??(td_got_time startTime) <- syscall TIME_WHEN
@@ -51,8 +62,9 @@
 ; Has one big HTTP server which just receives posts and gets. All GETs perform
 ; lookups in a cache of file for PUT.
 ;
-; - POST /fract -> application/json back. generates mandelbrot set for given
-;                  JSON-encoded dimensions.
+; - POST /fract -> arraybuffer back. generates mandelbrot set for given
+;                  JSON-encoded dimensions. each 3 bytes in the buffer
+;                  are the [r,g,b] values for a pixel.
 ;
 ; - GET / -> frontpage
 
@@ -170,10 +182,11 @@
       | return ()
     * (SOME dims)
       @ [w h] dims
-      : ns <- trkTimer 'mandelbrotDemo' (mandelbrotDemo w h)
-      @ json | fractToJson ns
-      @ bs   | printJson json
-      : _ <- fork (syscall (**HTTP_ECHO rid 200 b#ok [] bs))
+      : !ns <- trkTimer 'mandelbrotDemo' (mandelbrotDemo w h)
+      ;
+      : !fractBar <- trkTimer 'parallelBarEnc' (parallelBarEnc ns)
+      ;
+      : _ <- fork (syscall (**HTTP_ECHO rid 200 b#ok [] fractBar))
       | return ()
 * PUT
   @ barType | **fromSome b#{text/plain}

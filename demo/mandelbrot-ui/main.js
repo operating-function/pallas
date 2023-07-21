@@ -9,10 +9,10 @@
     var xhr = new XMLHttpRequest();
     xhr.open("POST", "/fract", true);
     xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.responseType = "arraybuffer";
     xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) {
-            var json = JSON.parse(xhr.responseText);
-            renderFractal(json)
+            renderFractal(xhr.response)
         }
     };
     var data = JSON.stringify([canvas.width, canvas.height]);
@@ -28,7 +28,16 @@
     const ctx = canvas.getContext("2d");
 
     var id = ctx.createImageData(canvas.width, canvas.height);
-    id.data.set(fractal);
+
+    var fractalBytes = new Uint8Array(fractal);
+    var fractalWithAlpha = [];
+    fractalBytes.forEach(function (v, i) {
+      if (i != 0 && i % 3 == 0) { fractalWithAlpha.push(255); } // add alpha
+      fractalWithAlpha.push(v);
+    });
+    fractalWithAlpha.push(255);
+
+    id.data.set(fractalWithAlpha);
 
     ctx.putImageData( id, 0, 0 );
     console.timeEnd('fract js img render')
@@ -45,7 +54,7 @@
     canvas.height = height;
   }
 
-  document.getElementById('resize_btn').onclick = resize_canvas();
+  document.getElementById('resize_btn').onclick = function(){resize_canvas()};
 
   resize_canvas();
 })();
