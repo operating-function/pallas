@@ -426,6 +426,10 @@ instance Show LiveRequest where
         LiveWho{}   -> "WHO"
         LiveUnknown -> "UNKNOWN"
 
+validLiveRequest :: LiveRequest -> Bool
+validLiveRequest LiveUnknown = False
+validLiveRequest _           = True
+
 data ParseRequestsState = PRS
     { syscalls  :: CogSysCalls
     , flows     :: [Flow]
@@ -692,10 +696,14 @@ replayAndCrankMachine cache ctx replayFrom = do
 
 -- | Synchronously shuts down a machine and wait for it to exit.
 shutdownMachine :: Machine -> IO ()
-shutdownMachine MACHINE{..} = do
+shutdownMachine machine@MACHINE{runnerAsync} = do
   -- Kill the runner to immediately cancel any computation being done.
   cancel runnerAsync
 
+  waitForLogAsyncShutdown machine
+
+waitForLogAsyncShutdown :: Machine -> IO ()
+waitForLogAsyncShutdown MACHINE{..} = do
   -- Wait for the logging system to finish any logging task it's already
   -- started on.
   atomically $ writeTVar shutdownLogger True
@@ -965,9 +973,11 @@ runnerFun initialFlows machine processName st =
         -- The code that calls us wants these.
         putMVar initialFlows flows
 
-        -- Run the event loop
-        forever machineTick
+        -- Run the event loop until we're forced to stop.
+        machineTick
 
+        -- Force a sync to shutdown.
+        waitForLogAsyncShutdown machine
   where
     registerCogsWithHardware :: IO ()
     registerCogsWithHardware = do
@@ -1014,15 +1024,21 @@ runnerFun initialFlows machine processName st =
            pure (k, returns)
 
     -- Collects all responses that are ready for one cog.
-    takeReturns :: IO (CogId, [(Int, ResponseTuple)])
+    takeReturns :: IO (Maybe (CogId, [(Int, ResponseTuple)]))
     takeReturns = do
         withAlwaysTrace "WaitForResponse" "cog" do
             -- This is in a separate atomically block because it doesn't
             -- change and we want to minimize contention.
             machineSysCalls <- mapToList <$> atomically (readTVar st.vRequests)
-            reordered <- shuffleM machineSysCalls
-            -- debugText $ "takeReturns: " <> tshow reordered
-            atomically $ asum $ mkCogResponses reordered
+
+            -- We now have a mapping from cog ids to the CogSysCalls map. We
+            -- need to verify if waiting on this will ever complete.
+            case machineHasLiveRequests machineSysCalls of
+                False -> pure Nothing
+                True -> do
+                  reordered <- shuffleM machineSysCalls
+                  -- debugText $ "takeReturns: " <> tshow reordered
+                  Just <$> (atomically $ asum $ mkCogResponses reordered)
 
     -- Every machineTick, we try to pick off as much work as possible for cogs
     -- to do.
@@ -1032,12 +1048,29 @@ runnerFun initialFlows machine processName st =
     -- async for each Cog, but that adds some sync subtlety while this means
     -- the machine is as fast as only the slowest cog, but is obviously correct.
     machineTick :: IO ()
-    machineTick = do
-        (cogId, valTuples) <- takeReturns
-        results <- cogTick (cogId, valTuples)
-        atomically $ do
-            mapM_ exportState results
-            readTVar st.vMoment >>= writeTVar machine.liveVar
+    machineTick = takeReturns >>= \case
+        Nothing -> do
+            putStrLn "Shutting down..."
+            -- TODO: Check the state of the machine and print it here. Print if
+            -- there are timed out cogs. Print if there are cogs which we can't
+            -- run because of UNKNOWN requests. Print if all cogs exited
+            -- cleanly with no requests (or 0 requests).
+            pure ()
+        Just (cogId, valTuples) -> do
+            results <- cogTick (cogId, valTuples)
+            atomically $ do
+                mapM_ exportState results
+                readTVar st.vMoment >>= writeTVar machine.liveVar
+            machineTick
+
+    -- Returns true if there are any valid, open LiveRequests that aren't
+    -- UNKNOWN. This is used to end the machine when we will never be able to
+    -- provide it with work.
+    machineHasLiveRequests :: [(CogId, CogSysCalls)] -> Bool
+    machineHasLiveRequests = any \(_, csc) -> cogHasLiveRequests csc
+
+    cogHasLiveRequests :: CogSysCalls -> Bool
+    cogHasLiveRequests = any \(_, req) -> validLiveRequest req
 
     --
     cogTick
