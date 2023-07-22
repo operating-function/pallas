@@ -10,6 +10,7 @@
 /+  boot
 /+  w48
 /+  stew
+/+  datatype ;; TODO: This should not be necessary
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -33,7 +34,10 @@
 = bottomEdge | iNeg48 15_000
 = maxIter    | 254
 
+;; TODO: Jet bytesBar.
+
 = plasmaColors
+ | map bytesBar
 ++ [12 7 134]
 ++ [16 7 135]
 ++ [19 6 137]
@@ -291,18 +295,19 @@
 ++ [240 246 35]
 ++ [239 248 33]
 
-black=[0 0 0]
+black=(bytesBar [0 0 0])
 
 = (calcColor o)
 | if (eql o 255) black
 | get plasmaColors o
 
+> Nat > Nat > Bar
 = (mandelbrot w h)
 @ fpW (natFp w)
 @ fpH (natFp h)
-| gen h
+^ barCat (gen h _)
 ? (m_line y)
-| gen w
+^ barCat (gen w _)
 ? (m_pixel x)
 @ scrX | natFp x
 @ scrY | natFp y
@@ -319,10 +324,23 @@ black=[0 0 0]
 @ y1 (addFp (iMul48 2 (mulFp x0 y0)) ci)
 | m_loop inc-i x1 y1
 
-spc=' '
-nl=10
+barNewline=(barSing 10)
 
-; Probably better to just do this to all of `plasmaColors` up front?
+; TODO use bars instead of byte-vectors.
+= (mandelbrot_pam w h)
+| barFlat
+++ barCat [ b#{P7}                           barNewline ]
+++ barCat [ b#{WIDTH }  (natBar | showNat w) barNewline ]
+++ barCat [ b#{HEIGHT } (natBar | showNat h) barNewline ]
+++ barCat [ b#{DEPTH 3}                      barNewline ]
+++ barCat [ b#{MAXVAL 255}                   barNewline ]
+++ barCat [ b#{TUPLTYPE RGB}                 barNewline ]
+++ barCat [ b#{ENDHDR}                       barNewline ]
+++ mandelbrot w h
+
+= nl  10
+= spc 32
+
 = (renderColor trip)
 @ [a b c] trip
 | cat
@@ -333,8 +351,7 @@ nl=10
 ++ digits-c
 ++ [spc]
 
-; TODO use bars instead of byte-vectors.
-= (mandelbrotPpm w h)
+= (render_ppm w h pixels)
 @ header
     | cat
    ++ [%P %3 nl nl]
@@ -345,11 +362,36 @@ nl=10
 @ body
     | cat
     | map ln&(weld catMap-renderColor-ln [nl])
-    | mandelbrot w h
+    | pixels
 | implode
 | weld header body
 
-| mandelbrotPpm 8 8
-; mandelbrotPpm 16 16
-; mandelbrotPpm 8 8
-; mandelbrotPpm 4 4
+= (pamLinePixels width buffer lineOffset)
+: i <- gen width
+@ pixelOffset | add lineOffset (mul 3 i)
+@ pixelBytes  | barSlice pixelOffset 3 buffer
+: p <- gen 3
+| barIdx p pixelBytes
+
+= (pamBodyPixels width height [buffer headerWidth])
+@ bytesPerLine (mul width 3)
+| map (pamLinePixels width buffer)
+: i <- gen height
+| add headerWidth
+| mul bytesPerLine i
+
+= (pamToPpm width height bar)
+@ needle  (barWeld b#ENDHDR barNewline)
+@ matches (barSubstringSearch needle bar)
+# datacase matches
+* NIL
+    | die 'no ENDHDR found!'
+* (CONS off xs)
+    @ bodyOffset (add 7 off)
+    | pamBodyPixels width height [bar bodyOffset]
+
+example=(mandelbrot_pam 8 8)
+
+| render_ppm 8 8
+| pamToPpm 8 8
+| example
