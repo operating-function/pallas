@@ -30,12 +30,12 @@ data RuneShape
 -- TODO Rename to LeafShape
 -- TODO: Rename branches to mirror Fan repr
 data TextShape
-    = BARE_WORD  --  foo
-    | THIC_CORD  --  "foo"
-    | THIN_CORD  --  'foo'
-    | CURL_CORD  --  {foo}
-    | THIC_LINE  --  """foo
-    | THIN_LINE  --  '''foo
+    = WORD  --  foo
+    | CORD  --  'foo'
+    | TAPE  --  "foo"
+    | CURL  --  {foo}
+    | LINE  --  '''foo
+    | PAGE  --  """foo
   deriving (Eq, Ord, Show, Generic, NFData, Enum)
 
 type Leaf = (TextShape, Text)

@@ -44,13 +44,13 @@ data Elem
 
 iRex :: Elem -> R.Rex
 iRex (I t x k) = R.N R.OPEN t (reverse x) k
-iRex (T f t k) = R.T (if f then R.THIC_LINE else R.THIN_LINE) t k
+iRex (T f t k) = R.T (if f then R.PAGE else R.LINE) t k
 
 fRex :: Frag -> R.Rex
 fRex (RUNE rune)    = R.N R.OPEN rune [] Nothing
 fRex (FORM wide)    = formToRex wide
-fRex (LINE True t)  = R.T R.THIC_LINE t Nothing
-fRex (LINE False t) = R.T R.THIN_LINE t Nothing
+fRex (LINE True t)  = R.T R.PAGE t Nothing
+fRex (LINE False t) = R.T R.LINE t Nothing
 
 
 -- Converting Forms into Runic Trees -------------------------------------------
@@ -78,10 +78,10 @@ formToRex = form
   itmz (i :| k:ks) = rexAddCont (item i) (itmz (k:|ks))
 
   item :: Item -> R.Rex
-  item (LEAF (N t))       = R.T R.BARE_WORD t Nothing
-  item (LEAF (C THICK t)) = R.T R.THIC_CORD t Nothing
-  item (LEAF (C THIN t))  = R.T R.THIN_CORD t Nothing
-  item (LEAF (C CURL t))  = R.T R.CURL_CORD t Nothing
+  item (LEAF (N t))       = R.T R.WORD t Nothing
+  item (LEAF (C THICK t)) = R.T R.TAPE t Nothing
+  item (LEAF (C THIN t))  = R.T R.CORD t Nothing
+  item (LEAF (C CURL t))  = R.T R.CURL t Nothing
   item (NEST n)           = nest n
 
   rn m r cs = R.N m r cs Nothing -- "Rune node"

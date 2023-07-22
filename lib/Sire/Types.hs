@@ -179,7 +179,7 @@ lamRex l =
     inlineMark rex | otherwise = rex
 
 word :: Text -> GRex a
-word n = T BARE_WORD n Nothing
+word n = T WORD n Nothing
 
 showName :: Any -> Text
 showName = \case
@@ -187,7 +187,7 @@ showName = \case
         case natUtf8 n of
             Left{}   -> tshow n
             Right nm -> nm -- TODO What if it is valid text but not
-                           -- valid BARE_WORD?  Handle that too.
+                           -- valid WORD?  Handle that too.
     wut ->
         error $
            (<>) "bad state: binding.name is not a NAT"
@@ -205,7 +205,7 @@ sireRex = \case
     S_LAM lam -> lamRex lam
   where
     gloRex b =
-        T BARE_WORD (showName b.d.name)
+        T WORD (showName b.d.name)
             $ Just
             $ N NEST_PREFIX "," [word (tshow b.d.key)]
             $ Nothing
@@ -273,7 +273,7 @@ traceSire' :: Text -> Sire -> a -> a
 traceSire' context sire result =
     trk (REX it) result
   where
-    it = N OPEN "#" [T BARE_WORD context Nothing]
+    it = N OPEN "#" [T WORD context Nothing]
        $ Just
        $ sireRex sire
 

@@ -169,12 +169,12 @@ errorComment = rbRun . cErr . rbText
 -}
 wideLeaf :: RexColor => TextShape -> Text -> RexBuilder
 wideLeaf = curry \case
-    (BARE_WORD, t) -> cBare (rbText t)
-    (THIN_CORD, t) -> cText (cord '\'' '\'' t)
-    (THIC_CORD, t) -> cText (cord '"'  '"'  t)
-    (CURL_CORD, t) -> cText (cord '{'  '}'  t)
-    (THIN_LINE, _) -> error "Impossible"
-    (THIC_LINE, _) -> error "Impossible"
+    (WORD, t) -> cBare (rbText t)
+    (CORD, t) -> cText (cord '\'' '\'' t)
+    (TAPE, t) -> cText (cord '"'  '"'  t)
+    (CURL, t) -> cText (cord '{'  '}'  t)
+    (LINE, _) -> error "Impossible"
+    (PAGE, _) -> error "Impossible"
   where
     cord top end txt = rbChar top <> rbText txt <> rbChar end
 
@@ -182,34 +182,32 @@ wideLeaf = curry \case
    TOOD Test this.
 -}
 fixWide :: TextShape -> Text -> Maybe Rex
-fixWide THIN_LINE t = Just (T THIN_CORD t Nothing)
-fixWide THIC_LINE t = Just (T THIC_CORD t Nothing)
-fixWide CURL_CORD _ = Nothing
-fixWide BARE_WORD t =
-    if isName t
-    then Nothing
-    else Just (T THIN_CORD t Nothing)
+fixWide LINE t            = Just (T CORD t Nothing)
+fixWide PAGE t            = Just (T TAPE t Nothing)
+fixWide CURL _            = Nothing
+fixWide WORD t | isName t = Nothing
+fixWide WORD t            = Just (T CORD t Nothing)
 
 
-fixWide THIC_CORD t =
+fixWide TAPE t =
     case (elem '"' t, elem '\'' t) of
         (False, _) -> Nothing
-        (_, False) -> Just (T THIN_CORD t Nothing)
+        (_, False) -> Just (T CORD t Nothing)
         (_, _)     -> let (x,qy) = T.breakOn "\"" t
                           y = drop 1 qy
-                      in Just ( T THIC_CORD x
+                      in Just ( T TAPE x
                               $ Just
-                              $ T THIC_CORD y
+                              $ T TAPE y
                               $ Nothing
                               )
 
-fixWide THIN_CORD t =
+fixWide CORD t =
     case (elem '"' t, elem '\'' t) of
         (_, False) -> Nothing
-        (False, _) -> Just (T THIC_CORD t Nothing)
+        (False, _) -> Just (T TAPE t Nothing)
         (_, _)     -> let (x,qy) = T.breakOn "'" t
                           y = drop 1 qy
-                      in Just (T THIN_CORD x $ Just $ T THIN_CORD y $ Nothing)
+                      in Just (T CORD x $ Just $ T CORD y $ Nothing)
 
 isShut :: Rex -> Bool
 isShut (N SHUT_PREFIX  _ _ _) = True

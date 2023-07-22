@@ -92,10 +92,10 @@ wideTextBox :: TextShape -> Text -> Box
 wideTextBox s t =
     leafBox wid (T s t Nothing)
   where
-    wid = length t + (if s==BARE_WORD then 0 else 2)
+    wid = length t + (if s==WORD then 0 else 2)
 
 nameBox :: Text -> Box
-nameBox = wideTextBox BARE_WORD
+nameBox = wideTextBox WORD
 
 symbBox :: Symb -> Box
 symbBox symb =
@@ -116,9 +116,9 @@ symbBox symb =
 textBox :: TextShape -> Text -> Box
 textBox style t =
     case (style, wideTextBox style t) of
-      (THIN_LINE, bax) -> bax { boxTall = T THIN_LINE t Nothing }
-      (THIC_LINE, bax) -> bax { boxTall = T THIC_LINE t Nothing }
-      (_,         bax) -> bax
+      (LINE, bax) -> bax { boxTall = T LINE t Nothing }
+      (PAGE, bax) -> bax { boxTall = T PAGE t Nothing }
+      (_,    bax) -> bax
 
 pageBox :: TextShape -> [Text] -> Box
 pageBox shape linez =
@@ -131,12 +131,12 @@ pageBox shape linez =
 cordBox :: Text -> Box
 cordBox txt =
     case lines txt of
-        []           -> textBox THIC_CORD ""
+        []           -> textBox TAPE ""
         [l] | hasBot -> error "TODO: Escaping" l
-        [l] | hasTic -> textBox THIC_CORD l
-        [l] | hasQuo -> textBox THIN_CORD l
-        [l]          -> textBox THIN_CORD l
-        ls           -> pageBox THIC_LINE ls
+        [l] | hasTic -> textBox TAPE l
+        [l] | hasQuo -> textBox CORD l
+        [l]          -> textBox CORD l
+        ls           -> pageBox PAGE ls
   where
     hasBot = hasTic && hasQuo
     hasTic = elem '\'' txt
@@ -150,11 +150,11 @@ natBox n =
             | nonAscii s      -> nameBox (tshow n)
             | all C.isAlpha s -> cenBox s
             | n<256           -> nameBox (tshow n)
-            | okCord s        -> textBox THIN_CORD s
-            | okTape s        -> textBox THIC_CORD s
-            | okCurl s        -> textBox CURL_CORD s
-            | isLineStr s     -> pageBox THIC_LINE [s]
-            | isBlocStr s     -> pageBox THIC_LINE (T.splitOn "\n" s)
+            | okCord s        -> textBox CORD s
+            | okTape s        -> textBox TAPE s
+            | okCurl s        -> textBox CURL s
+            | isLineStr s     -> pageBox PAGE [s]
+            | isBlocStr s     -> pageBox PAGE (T.splitOn "\n" s)
             | otherwise       -> nameBox (tshow n)
   where
     nonAscii s = any (not . C.isAscii) s
@@ -330,7 +330,7 @@ barBox bs =
 
     bsTxt = decodeUtf8' bs
 
-    word c = T BARE_WORD c NONE
+    word c = T WORD c NONE
 
     wideResult =
         case bsTxt of
@@ -343,19 +343,19 @@ barBox bs =
             Right t | okCord t -> Just $
                 BOX (Just (siz, rex)) (absurd <$> rex)
               where
-                rex = N SHUT_INFIX "#" [word "b", T THIN_CORD t NONE] NONE
+                rex = N SHUT_INFIX "#" [word "b", T CORD t NONE] NONE
                 siz = 4 + length t
 
             Right t | okTape t -> Just $
                 BOX (Just (siz, rex)) (absurd <$> rex)
               where
-                rex = N SHUT_INFIX "#" [word "b", T THIC_CORD t NONE] NONE
+                rex = N SHUT_INFIX "#" [word "b", T TAPE t NONE] NONE
                 siz = 4 + length t
 
             Right t | okCurl t -> Just $
                 BOX (Just (siz, rex)) (absurd <$> rex)
               where
-                rex = N SHUT_INFIX "#" [word "b", T CURL_CORD t NONE] NONE
+                rex = N SHUT_INFIX "#" [word "b", T CURL t NONE] NONE
                 siz = 4 + length t
 
             _ -> Nothing
@@ -371,8 +371,8 @@ barBox bs =
     linesResult = do
         txt   <- either (const Nothing) Just bsTxt
         l:|ls <- pageLines txt
-        let bx = pageBox THIC_LINE (l:ls)
-        let tal = N OPEN "#" [T BARE_WORD "b" NONE] (Just bx.boxTall)
+        let bx  = pageBox PAGE (l:ls)
+        let tal = N OPEN "#" [T WORD "b" NONE] (Just bx.boxTall)
         pure (BOX Nothing tal)
 
 pageLines :: Text -> Maybe (NonEmpty Text)
@@ -415,12 +415,12 @@ textRex :: TextShape -> Text -> GRex v
 textRex s t = T s t Nothing
 
 nameRex :: Text -> GRex v
-nameRex = textRex BARE_WORD
+nameRex = textRex WORD
 
 cenBox :: Text -> Box
 cenBox text = leafBox (length text + 1) rex
   where
-    rex = N SHUT_PREFIX "%" [T BARE_WORD text Nothing] Nothing
+    rex = N SHUT_PREFIX "%" [T WORD text Nothing] Nothing
 
 simpleBody :: XBod -> Bool
 simpleBody XVAR{}         = True
@@ -694,13 +694,13 @@ boxApply boxes =
             _ ->
                  pure (barSz, N NEST_PREFIX "|" rexz Nothing)
 
-    isPrim (T BARE_WORD "0" Nothing) = True
-    isPrim (T BARE_WORD "1" Nothing) = True
-    isPrim (T BARE_WORD "2" Nothing) = True
-    isPrim _                         = False
+    isPrim (T WORD "0" Nothing) = True
+    isPrim (T WORD "1" Nothing) = True
+    isPrim (T WORD "2" Nothing) = True
+    isPrim _                    = False
 
-    simple (T BARE_WORD _ Nothing) = True
-    simple _                       = False
+    simple (T WORD _ Nothing) = True
+    simple _                  = False
 
     tal = case reverse boxes of
         []     -> N OPEN "|" [] Nothing
@@ -1009,9 +1009,9 @@ rForm1Nc r x y k = rune r >> form1Nc x y >>= \(a,bs) -> pure (k a bs)
 
 readCow :: Red v Nat
 readCow = matchLeaf "C[0-9]+" \case
-    (BARE_WORD, "C0") -> Just 0
+    (WORD, "C0") -> Just 0
 
-    (BARE_WORD, (unpack -> ('C' : n : ns))) -> do
+    (WORD, (unpack -> ('C' : n : ns))) -> do
         guard (all C.isDigit (n:ns))
         guard (n /= '0')
         readMay (n:ns)
@@ -1098,8 +1098,8 @@ readIdnt = utf8Nat <$> readIdnTxt
 
 readIdnTxt :: Red v Text
 readIdnTxt = matchLeaf "symbol" \case
-    (BARE_WORD,n) | okIdn n -> Just n
-    _                       -> Nothing
+    (WORD,n) | okIdn n -> Just n
+    _                  -> Nothing
 
 readSymb :: Red v Symb
 readSymb = readIdnt <|> ((rune "." <|> rune "#.") >> form1 readKey)
@@ -1109,21 +1109,21 @@ readBymb = readKey <|> ((rune "." <|> rune "#.") >> form1 readKey)
 
 readName :: Red v Text
 readName = matchLeaf "name" \case
-    (BARE_WORD,n) -> Just n
-    _             -> Nothing
+    (WORD,n) -> Just n
+    _        -> Nothing
 
 readCord :: Red v Text
 readCord = matchLeaf "cord" \case
-    (THIN_CORD,t) -> Just t
-    (THIC_CORD,t) -> Just t
-    (CURL_CORD,t) -> Just t
-    _             -> Nothing
+    (CORD,t) -> Just t
+    (TAPE,t) -> Just t
+    (CURL,t) -> Just t
+    _        -> Nothing
 
 readPage :: Red v Text
 readPage = matchLeaf "page" \case
-    (THIC_LINE,l) -> Just l
-    (THIN_LINE,l) -> Just l
-    _             -> Nothing
+    (PAGE,l) -> Just l
+    (LINE,l) -> Just l
+    _        -> Nothing
 
 isNameChar :: Char -> Bool
 isNameChar '_' = True

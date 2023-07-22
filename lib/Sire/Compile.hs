@@ -876,7 +876,7 @@ compileFun lam =
     else
         res
   where
-    rex = N OPEN "#" [T CURL_CORD "compileFun" Nothing]
+    rex = N OPEN "#" [T CURL "compileFun" Nothing]
         $ Just (lamRex lam)
 
     res = if lam.pin then F.mkPin fanVal else fanVal

@@ -41,7 +41,7 @@ import qualified Data.Text              as T
 import qualified Data.Vector            as V
 import qualified Fan                    as F
 import qualified Fan.Prof               as Prof
-import qualified Rex.Lexer              as Rex
+import qualified Rex.Lexer              as Lex
 import qualified Rex.Parser             as Rex
 
 
@@ -531,7 +531,7 @@ loadFile pax = do
         _ ->
             error "must be given a path to a .sire file"
 
-type Lexed = (Int, Text, [(Int, Rex.Frag)])
+type Lexed = (Int, Text, [(Int, Lex.Frag)])
 
 readRexStream :: FilePath -> Handle -> IO [(Int, Rex)]
 readRexStream pax = fmap (blox . lexLns pax . fmap pack . lines) . hGetContents
@@ -543,18 +543,18 @@ blox = \case
     (_,_,t:ts) : more | isClosed t -> oneLine (fst t) (t:ts) : blox more
     (n,_,t:ts) : more | otherwise  -> multiLine n (t :| ts) more
   where
-    oneLine :: Int -> [(Int, Rex.Frag)] -> (Int, Rex)
+    oneLine :: Int -> [(Int, Lex.Frag)] -> (Int, Rex)
     oneLine n ts = case Rex.parseBlock [ts] of
                        Left msg       -> error (unpack msg)
                          -- ^ TODO throw parser error in above case
                        Right Nothing  -> error "blox: impossible"
                        Right (Just r) -> (n, absurd <$> r)
 
-multiLine :: Int -> NonEmpty (Int, Rex.Frag) -> [Lexed] -> [(Int, Rex)]
+multiLine :: Int -> NonEmpty (Int, Lex.Frag) -> [Lexed] -> [(Int, Rex)]
 multiLine topLineNum firstLine@(topT :| _) topMore =
     go [toList firstLine] topMore
   where
-    done :: [[(Int, Rex.Frag)]] -> [Lexed] -> [(Int, Rex)]
+    done :: [[(Int, Lex.Frag)]] -> [Lexed] -> [(Int, Rex)]
     done acc more =
         case Rex.parseBlock (reverse acc) of
             Left msg       -> error (unpack msg)
@@ -563,7 +563,7 @@ multiLine topLineNum firstLine@(topT :| _) topMore =
 
     -- blocks are broken by end-of-file, blank lines,  lines that are
     -- less-indented than the first line.
-    go :: [[(Int, Rex.Frag)]] -> [Lexed] -> [(Int, Rex)]
+    go :: [[(Int, Lex.Frag)]] -> [Lexed] -> [(Int, Rex)]
     go acc []                                            = done acc []
     go acc ((_,t,[]) : more)      | blankLine t          = done acc more
     go acc more@(((_,_,f:_)) : _) | fst f < initialDepth = done acc more
@@ -574,17 +574,17 @@ multiLine topLineNum firstLine@(topT :| _) topMore =
 blankLine :: Text -> Bool
 blankLine = T.null . T.strip
 
-isClosed :: (Int, Rex.Frag) -> Bool
-isClosed (_, Rex.FORM{}) = True
-isClosed (_, Rex.LINE{}) = False
-isClosed (_, Rex.RUNE{}) = False
+isClosed :: (Int, Lex.Frag) -> Bool
+isClosed (_, Lex.FORM{}) = True
+isClosed (_, Lex.LINE{}) = False
+isClosed (_, Lex.RUNE{}) = False
 
 lexLns :: FilePath -> [Text] -> [Lexed]
 lexLns fil = go 1
   where
     go :: Int -> [Text] -> [Lexed]
     go _ []     = []
-    go n (t:ts) = case Rex.lexLine (fil, n) t of
+    go n (t:ts) = case Lex.lexLine (fil, n) t of
                       Left msg -> error (unpack msg)
                         -- TODO: throw lexer error
                       Right fs -> (n,t,fs) : go (n+1) ts
@@ -628,7 +628,7 @@ doFile dir c1 modu s1 = do
 
         [] -> do
             let msg  = "Module declarations are required, but this file is empty"
-            let rex  = (T THIC_CORD "" Nothing)
+            let rex  = (T TAPE "" Nothing)
             inContext file 0 rex $ parseFail_ rex s1 msg
 
         -- No <- part means this is the starting point.
@@ -728,7 +728,7 @@ repl s1 mImport = do
     s3 <- case mImport of
               Nothing -> pure s2
               Just ng -> do
-                  let importRex = N OPEN "/+" [T BARE_WORD ng Nothing] Nothing
+                  let importRex = N OPEN "/+" [T WORD ng Nothing] Nothing
                   inContext "REPL" 0 importRex do
                       evaluate $ importModule importRex (utf8Nat ng) Nothing s2
 
@@ -868,12 +868,12 @@ readMultiLine ts acc = \case
 
 readPrimExpr :: InCtx => [Maybe Nat] -> Rex -> Repl Sire
 readPrimExpr e rex = case rex of
-    C v                    -> pure (S_VAL v)
-    T THIN_LINE t k        -> readMultiLine THIN_LINE [t] k
-    T THIC_LINE t k        -> readMultiLine THIC_LINE [t] k
-    T _         _   Just{} -> parseFail rex "leaves cannot have heirs"
-    T _ _ Nothing          -> readPrimLeaf rex e rex
-    N _ r s h              -> readNode r s h
+    C v              -> pure (S_VAL v)
+    T LINE t k       -> readMultiLine LINE [t] k
+    T PAGE t k       -> readMultiLine PAGE [t] k
+    T _    _ Just{}  -> parseFail rex "leaves cannot have heirs"
+    T _    _ Nothing -> readPrimLeaf rex e rex
+    N _ r s h        -> readNode r s h
 
   where
     readNode :: Text -> [Rex] -> Maybe Rex -> Repl Sire
@@ -1154,7 +1154,7 @@ readBindCmd rex = \case
 
 
 word :: Text -> Rex
-word t = T BARE_WORD t Nothing
+word t = T WORD t Nothing
 
 open :: Text -> [Rex] -> Rex -> Rex
 open r s h = N OPEN r s (Just h)
@@ -1267,8 +1267,8 @@ tryReadKey rex = asum
 
 tryReadNumb :: Rex -> Maybe Nat
 tryReadNumb = \case
-    T BARE_WORD t Nothing -> parseNumb t
-    _                     -> Nothing
+    T WORD t Nothing -> parseNumb t
+    _                -> Nothing
   where
     parseNumb :: Text -> Maybe Nat
     parseNumb txt = do
@@ -1278,15 +1278,15 @@ tryReadNumb = \case
 
 tryReadCord :: Rex -> Maybe Text
 tryReadCord = \case
-    T THIN_CORD t Nothing -> Just t
-    T THIC_CORD t Nothing -> Just t
-    T CURL_CORD t Nothing -> Just t
-    _                     -> Nothing
+    T CORD t Nothing -> Just t
+    T TAPE t Nothing -> Just t
+    T CURL t Nothing -> Just t
+    _                -> Nothing
 
 tryReadIdnt :: Rex -> Maybe Text
 tryReadIdnt = \case
-    T BARE_WORD t Nothing | okIdn t -> Just t
-    _                               -> Nothing
+    T WORD t Nothing | okIdn t -> Just t
+    _                          -> Nothing
   where
     okIdn :: Text -> Bool
     okIdn txt =

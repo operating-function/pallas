@@ -14,10 +14,10 @@
 --      don't contain characters that can't be printed.
 --
 --      For example, `(THIN_CORD "'")` cannot be printed,
---      but we can coerce it to `(THIC_CORD Nothing).  The very
+--      but we can coerce it to `(TAPE Nothing).  The very
 --      worst case is something like:  `(THIN_CORD "'\"{")`,
 --      which can't be printed as a closed form and will need to be
---      coerced to: `(T 0 THIN_LINE "'\"{")`.
+--      coerced to: `(T 0 LINE "'\"{")`.
 --
 --  -   :TODO: Write a transformation that opens all nodes enclosing an
 --      open node:
@@ -70,9 +70,9 @@ data Blocky
   deriving (Show)
 
 thic :: TextShape -> Bool
-thic THIC_LINE = True
-thic THIC_CORD = True
-thic _         = False
+thic PAGE = True
+thic TAPE = True
+thic _    = False
 
 rexBlock :: RexColor => Rex -> Block
 rexBlock rex = case rex of
@@ -129,15 +129,15 @@ toPhrases = \case
                     go (buf <> " " <> r) acc rs
 
 isLineStr :: TextShape -> Bool
-isLineStr THIC_LINE = True
-isLineStr THIN_LINE = True
-isLineStr _         = False
+isLineStr PAGE = True
+isLineStr LINE = True
+isLineStr _    = False
 
 isPhrasic :: Rex -> Bool
-isPhrasic (N OPEN _ _ _)    = False
-isPhrasic (T THIC_LINE _ _) = False
-isPhrasic (T THIN_LINE _ _) = False
-isPhrasic _                 = True
+isPhrasic (N OPEN _ _ _) = False
+isPhrasic (T PAGE _ _)   = False
+isPhrasic (T LINE _ _)   = False
+isPhrasic _              = True
 
 indent :: Int -> RexBuilder
 indent depth = rbText (T.replicate depth " ")

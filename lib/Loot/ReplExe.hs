@@ -141,11 +141,11 @@ aliasRex mSymb vl =
 
 -- TODO Jank AF.  Much hack.
 chooseMode :: GRex a -> (GRex a -> GRex a) -> (GRex a -> GRex a) -> GRex a
-chooseMode vr@(N OPEN _ _ _)          _    open = open vr
-chooseMode vr@(T THIC_LINE _ _)       _    open = open vr
-chooseMode vr@(T THIN_LINE _ _)       _    open = open vr
-chooseMode    (N SHUT_INFIX "-" k h)  wide _    = wide (N NEST_PREFIX "|" k h)
-chooseMode vr@_                         wide _    = wide vr
+chooseMode vr@(N OPEN _ _ _)         _    open = open vr
+chooseMode vr@(T PAGE _ _)           _    open = open vr
+chooseMode vr@(T LINE _ _)           _    open = open vr
+chooseMode    (N SHUT_INFIX "-" k h) wide _    = wide (N NEST_PREFIX "|" k h)
+chooseMode vr@_                      wide _    = wide vr
 
 printValue
     :: RexColor
@@ -246,7 +246,7 @@ runCmd h vEnv =
             let NAMED_CLOSURE _ _ top = nameClosure (loadShallow pln)
             unless (top == 1) do
                 let heir = joinRex $ valRex raw
-                let oneV = T BARE_WORD "1" Nothing
+                let oneV = T WORD "1" Nothing
                 let expr = joinRex $ valRex $ resugarVal mempty top
                 let errE = N OPEN "!=" [oneV, expr] (Just heir)
                 throw $ REPL_ERR $ rexFile errE

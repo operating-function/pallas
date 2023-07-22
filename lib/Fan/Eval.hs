@@ -471,12 +471,12 @@ rexNoun = \case
         Rex.SHUT_INFIX  -> NAT "SHUT"
 
     textStyleConstr = \case
-        Rex.BARE_WORD -> NAT "WORD"
-        Rex.THIN_CORD -> NAT "CORD"
-        Rex.THIC_CORD -> NAT "TAPE"
-        Rex.THIN_LINE -> NAT "LINE"
-        Rex.THIC_LINE -> NAT "PAGE"
-        Rex.CURL_CORD -> NAT "CURL"
+        Rex.WORD -> NAT "WORD"
+        Rex.CORD -> NAT "CORD"
+        Rex.TAPE -> NAT "TAPE"
+        Rex.LINE -> NAT "LINE"
+        Rex.PAGE -> NAT "PAGE"
+        Rex.CURL -> NAT "CURL"
 
 a2 :: a -> a -> SmallArray a
 a2 p q = createSmallArray 2 p \a -> do
@@ -664,12 +664,12 @@ matchRex = \case
     readHeir _       = Nothing
 
     matchTextShape = \case
-        NAT "WORD" -> Just Rex.BARE_WORD
-        NAT "CORD" -> Just Rex.THIN_CORD
-        NAT "TAPE" -> Just Rex.THIC_CORD
-        NAT "LINE" -> Just Rex.THIN_LINE
-        NAT "PAGE" -> Just Rex.THIC_LINE
-        NAT "CURL" -> Just Rex.CURL_CORD
+        NAT "WORD" -> Just Rex.WORD
+        NAT "CORD" -> Just Rex.CORD
+        NAT "TAPE" -> Just Rex.TAPE
+        NAT "LINE" -> Just Rex.LINE
+        NAT "PAGE" -> Just Rex.PAGE
+        NAT "CURL" -> Just Rex.CURL
         _          -> Nothing
 
     matchNodeShape = \case

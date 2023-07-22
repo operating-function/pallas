@@ -207,53 +207,61 @@ leaf = matchLeaf "leaf" Just
 
 matchName :: Monad m => Text -> (Text -> Maybe a) -> ReadT z m a
 matchName expect f = matchLeaf expect \case
-  (BARE_WORD, n) -> f n
+  (WORD, n) -> f n
   _              -> Nothing
 
 matchNameCord :: Monad m => Text -> (Text -> Text -> Maybe a) -> ReadT z m a
 matchNameCord expect f =
     matchLeafCont expect go
   where
-    go (BARE_WORD, n) (T THIN_CORD t Nothing) = f n t
-    go (BARE_WORD, n) (T THIC_CORD t Nothing) = f n t
-    go _              _                       = Nothing
+    go (WORD, n) (T CORD t Nothing) = f n t
+    go (WORD, n) (T TAPE t Nothing) = f n t
+    go _         _                  = Nothing
 
 matchNameText :: Monad m => Text -> (Text -> Text -> Maybe a) -> ReadT z m a
 matchNameText expect f =
     matchLeafCont expect go
   where
-    go (BARE_WORD, n) (T THIN_CORD t Nothing) = f n t
-    go (BARE_WORD, n) (T THIC_CORD t Nothing) = f n t
-    go (BARE_WORD, n) (T THIN_LINE t Nothing) = f n t
-    go (BARE_WORD, n) (T THIC_LINE t Nothing) = f n t
-    go _              _                       = Nothing
+    go (WORD, n) (T CORD t Nothing) = f n t
+    go (WORD, n) (T TAPE t Nothing) = f n t
+    go (WORD, n) (T LINE t Nothing) = f n t
+    go (WORD, n) (T PAGE t Nothing) = f n t
+    go _         _                  = Nothing
 
 matchCord :: Monad m => Text -> (Text -> Maybe a) -> ReadT z m a
 matchCord expect f = matchLeaf expect \case
-  (THIN_CORD, t) -> f t
-  (THIC_CORD, t) -> f t
-  _              -> Nothing
+  (CORD, t) -> f t
+  (TAPE, t) -> f t
+  _         -> Nothing
 
 matchPage :: Monad m => Text -> (Text -> Maybe a) -> ReadT z m a
 matchPage expect f = matchLeaf expect \case
-  (THIN_LINE, l) -> f l
-  (THIC_LINE, l) -> f l
-  _              -> Nothing
+  (LINE, l) -> f l
+  (PAGE, l) -> f l
+  _         -> Nothing
 
-formMatch :: Monad m => (GRex z -> ([GRex z], Maybe (GRex z)) -> ResultT z m c) -> ReadT z m c
+formMatch
+    :: Monad m
+    => (GRex z -> ([GRex z], Maybe (GRex z)) -> ResultT z m c)
+    -> ReadT z m c
 formMatch f = READT \case
   x@(N _ _ ps mK) -> f x (ps, mK)
   x               -> resty $ Expected [(x, "expression")]
 
-formMatchNoCont :: Monad m => (GRex z -> [GRex z] -> ResultT z m c) -> ReadT z m c
+formMatchNoCont
+    :: Monad m
+    => (GRex z -> [GRex z] -> ResultT z m c)
+    -> ReadT z m c
 formMatchNoCont f = READT \case
   x@(N _ _ ps Nothing) -> f x ps
   x@(N _ _ _  _)       -> resty $ Expected [(x, "no heir")]
-  x                      -> resty $ Expected [(x, "runic")]
+  x                    -> resty $ Expected [(x, "runic")]
 
 formMatchCont
     :: Monad m
-    => Text -> (GRex z -> ([GRex z], GRex z) -> ResultT z m c) -> ReadT z m c
+    => Text
+    -> (GRex z -> ([GRex z], GRex z) -> ResultT z m c)
+    -> ReadT z m c
 formMatchCont t f =
   formMatch \x (ps, mK) ->
     case mK of
