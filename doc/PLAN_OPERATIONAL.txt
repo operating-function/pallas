@@ -1,5 +1,5 @@
 Every PLAN is a pin x:<i>, a law x:{n a b}, an app x:(f g), a nat x:@, or a
-black hole x:BLACKHOLE.
+black hole x:<>.
 
 (f x y) is a short-hand for ((f x) y).
 
@@ -15,7 +15,7 @@ E(o:(f x)) =                            |     when o:(f x)
     o                                   |
 E(o:{n a b}) =                          | I(f, (e x), 0) = x
     if a!=0 then o else                 | I(f, e,     0) = e
-        o <- BLACKHOLE                  | I(f, (e x), n) = I(f, e, n-1)
+        o <- <>                         | I(f, (e x), n) = I(f, e, n-1)
         o <- R(0,o,b)                   | I(f, e,     n) = f
         E(o)                            |
                                         | A((f x))     = A(f)-1
@@ -30,7 +30,7 @@ X(4, (_ x))         = <F(x)>            | R(n,e,(2 x))     = x
                                         | R(n,e,x)         = x
 C(z,p,n) = if n=0 then z else (p (n-1)) |
                                         | L(n,e,v,b) =
-P(p,l,a,n,(f x))   = (a f x)            |     x := BLACKHOLE
+P(p,l,a,n,(f x))   = (a f x)            |     x := <>
 P(p,l,a,n,<x>)     = (p x)              |     f := (e x)
 P(p,l,a,n,{n a b}) = (l n a b)          |     x <- R(n+1,f,v)
 P(p,l,a,n,x:@}     = (n x)              |     R(n+1,f,b)
