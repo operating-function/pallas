@@ -99,17 +99,6 @@ formToRex = form
 impossible :: String -> a
 impossible str = error ("Impossible: " <> str)
 
-type Tok = (Int, Frag)
-
--- TODO: Have the lexer directly produce things with these "offsets",
--- no need to fudge them here.
-tokenize :: [(Int, Frag)] -> [Tok]
-tokenize = fmap \case
-    (off, RUNE r)    -> (off+(length r - 1), RUNE r)
-    (off, FORM f)    -> (off, FORM f)
-    (off, LINE th p) -> (off+2, LINE th p)
-
-
 -- | Add a rex value into an Elem, either as a parameter or as a
 -- continuation, depending on depth.
 --
@@ -233,13 +222,10 @@ rush = \case
     internal invariants, not external assumptions.
 -}
 parseBlock :: [[(Int, Frag)]] -> Either Text (Maybe R.Rex)
-parseBlock =
-    go . fmap tokenize
+parseBlock = \case
+    [] : fs -> parseBlock fs
+    [ln]    -> lineHack ln
+    fs      -> rush (concat fs)
   where
-    go = \case
-        [] : fs -> go fs
-        [ln]    -> lineHack ln
-        fs      -> rush (concat fs)
-
     lineHack (a@(_, FORM{}) : b : cs) = rush ((-1, RUNE "|") : a : b : cs)
     lineHack cs                       = rush cs

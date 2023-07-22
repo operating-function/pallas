@@ -564,16 +564,12 @@ multiLine topLineNum firstLine@(topT :| _) topMore =
     -- blocks are broken by end-of-file, blank lines,  lines that are
     -- less-indented than the first line.
     go :: [[(Int, Rex.Frag)]] -> [Lexed] -> [(Int, Rex)]
-    go acc []                                              = done acc []
-    go acc ((_,t,[]) : more)      | blankLine t            = done acc more
-    go acc more@(((_,_,f:_)) : _) | depth f < initialDepth = done acc more
-    go acc ((_,_,ts) : more)                               = go (ts:acc) more
+    go acc []                                            = done acc []
+    go acc ((_,t,[]) : more)      | blankLine t          = done acc more
+    go acc more@(((_,_,f:_)) : _) | fst f < initialDepth = done acc more
+    go acc ((_,_,ts) : more)                             = go (ts:acc) more
 
-    initialDepth = depth topT
-
-    depth (n, Rex.FORM{}) = n
-    depth (n, Rex.RUNE r) = n + (length r - 1)
-    depth (n, Rex.LINE{}) = n + 2
+    initialDepth = fst topT
 
 blankLine :: Text -> Bool
 blankLine = T.null . T.strip

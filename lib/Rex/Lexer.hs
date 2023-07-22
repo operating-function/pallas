@@ -255,11 +255,16 @@ form :: Parser Form
 form = (BEFO <$> rune <*> shin) <|> shin
 
 frag :: Parser (Int, Frag)
-frag = (,) <$> getOffset
-           <*> (  (uncurry LINE <$> page)
-              <|> (rinse <$> rune <*> optional shin)
-              <|> (FORM <$> form)
-               )
+frag = do
+    d <- getOffset
+    x <- (uncurry LINE <$> page)            <|>
+         (rinse <$> rune <*> optional shin) <|>
+         (FORM <$> form)
+
+    -- Indentation depth is the right-most character of a rune or block-quote.
+    let o = case x of { FORM{} -> 0; LINE{} -> 2; RUNE r -> length r - 1 }
+
+    pure (o+d, x)
   where
     rinse :: Text -> Maybe Form -> Frag
     rinse r = maybe (RUNE r) (FORM . BEFO r)
