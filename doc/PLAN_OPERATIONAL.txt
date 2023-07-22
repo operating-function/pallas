@@ -3,6 +3,10 @@ black hole x:<>.
 
 (f x y) is a short-hand for ((f x) y).
 
+The := operator creates a new local binding.
+
+The <- operator overwrites an existing object in-place.
+
 Run F(x) to normalize a value.
 
 E(o:@)     = o                          | F(o) =
