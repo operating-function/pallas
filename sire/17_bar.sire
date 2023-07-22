@@ -399,7 +399,6 @@ newline=(natBar 10)
 !!= 4 (barElemIndexOff 'c' 4 b#{acac})
 !!= 4 (barElemIndexOff 'c' 5 b#{acac})
 
-
 = (barUnlines lines)
 | barCatList
 | listFoldr
@@ -407,6 +406,33 @@ newline=(natBar 10)
         | [x [newline xs]]
   NIL
   (listFromRow lines)
+
+> Bar > Bar > Nat > Bit
+= (barIsPrefixOf needle haystack off)
+| eql needle
+| barSlice off (barLen needle) haystack
+
+> Bar > Bar > List Int
+= (barSubstringSearch needle haystack)
+@ needleWidth   (barLen needle)
+@ haystackWidth (barLen haystack)
+| if (not needleWidth)
+    | listTake haystackWidth (listEnumFrom 0)
+@ firstByte     (barIdx 0 needle)
+^ (_ 0)
+? (go off)
+@ found (barElemIndexOff firstByte off haystack)
+| if (gte found haystackWidth) NIL
+@ isMatch (barIsPrefixOf needle haystack found)
+@ more    (go | inc found)
+| if isMatch (CONS found more)
+| else more
+
+!!= [0 [1 [2 0]]] | barSubstringSearch b#{} b#bba
+!!= [2 [6 0]]     | barSubstringSearch b#aa b#bbaabbaa
+!!= [2 [6 0]]     | barSubstringSearch b#aa b#bbaabbaa
+!!= [0 [1 0]]     | barSubstringSearch b#aa b#aaa
+!!= [0 [1 [2 0]]] | barSubstringSearch b#a b#aaa
 
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -504,3 +530,4 @@ newline=(natBar 10)
 ^-^ "#b" "#x" "#"
 ^-^
 ^-^ newline barUnlines
+^-^ barSubstringSearch

@@ -515,6 +515,31 @@
 
 (listIndexed l)=(listZip (listEnumFrom 0) l)
 
+= (listIsPrefixOf xs ys)
+| **listCase xs TRUE
+& (x xs)
+| **listCase ys FALSE
+& (y ys)
+| and (eql x y)
+| listIsPrefixOf xs ys
+
+; > (List a > Bool)
+; > List a
+; > List (Int, List a)
+= (listSearch f xs)
+^ (_ 0 xs)
+? (go off xs)
+| seq off
+@ rest | **listCase xs NIL
+       & (_ xs)
+       | go (inc off) xs
+| if (f xs) | CONS [off xs] rest
+| else      | rest
+
+; > List a > List a > List (Int, List a)
+= (listSubstringSearch needle haystack)
+| listSearch (listIsPrefixOf needle) haystack
+
 = (listFindIndex pred xs notFound found)
 ^ listFoldr _ notFound (listIndexed xs)
 & (idxVal rest)
@@ -563,6 +588,20 @@
 
 !!= [0 2]
   | listToRow | elemIdxMany 5 [5 0 5]
+
+!!= [2 0]
+  | listMap fst
+  | listSubstringSearch (, 2 , 3 0) (listTake 10 | listEnumFrom 0)
+
+!!= 0
+  | listSubstringSearch (, 3 , 2 0) (listTake 10 | listEnumFrom 0)
+
+!!= (listTake 11 | listEnumFrom 0)
+  | listMap fst
+  | listSearch (const TRUE) (listTake 10 | listEnumFrom 0)
+
+!!= 0
+  | listSearch (const FALSE) (listTake 10 | listEnumFrom 0)
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -899,6 +938,7 @@ F=found
 ^-^ digits listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn
 ^-^ listNub listIterate
 ^-^ listGen listFindIndex listElemIndex
+^-^ listIsPrefixOf listSearch listSubstringSearch
 ^-^ listIndexed
 ^-^ listIntersperse
 ^-^ listRev listSnoc listProd
