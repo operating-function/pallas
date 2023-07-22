@@ -34,7 +34,7 @@ type Parser = Parsec Void Text
 data Frag
     = RUNE Text
     | FORM Form
-    | PAGE Bool Text
+    | LINE Bool Text
   deriving (Eq, Ord, Show)
 
 data Form
@@ -256,7 +256,7 @@ form = (BEFO <$> rune <*> shin) <|> shin
 
 frag :: Parser (Int, Frag)
 frag = (,) <$> getOffset
-           <*> (  (uncurry PAGE <$> page)
+           <*> (  (uncurry LINE <$> page)
               <|> (rinse <$> rune <*> optional shin)
               <|> (FORM <$> form)
                )

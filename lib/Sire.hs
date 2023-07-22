@@ -573,14 +573,14 @@ multiLine topLineNum firstLine@(topT :| _) topMore =
 
     depth (n, Rex.FORM{}) = n
     depth (n, Rex.RUNE r) = n + (length r - 1)
-    depth (n, Rex.PAGE{}) = n + 2
+    depth (n, Rex.LINE{}) = n + 2
 
 blankLine :: Text -> Bool
 blankLine = T.null . T.strip
 
 isClosed :: (Int, Rex.Frag) -> Bool
 isClosed (_, Rex.FORM{}) = True
-isClosed (_, Rex.PAGE{}) = False
+isClosed (_, Rex.LINE{}) = False
 isClosed (_, Rex.RUNE{}) = False
 
 lexLns :: FilePath -> [Text] -> [Lexed]
