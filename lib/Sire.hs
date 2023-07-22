@@ -471,13 +471,14 @@ main pax = do
             let (dir, fil) = splitFileName f
             case splitExtension fil of
                 (modu, ".sire") -> do
+                    let modTxt = pack modu
                     ss <- withCache dir \cache -> do
-                              doFile dir cache (pack modu) initialSireStateAny
-                    repl (fst ss)
+                              doFile dir cache modTxt initialSireStateAny
+                    repl (fst ss) (Just modTxt)
                 _ -> error "must be given a path to a .sire file"
 
     case pax of
-        []  -> repl initialSireStateAny
+        []  -> repl initialSireStateAny Nothing
         [f] -> go f
         _   -> usage
   where
@@ -714,8 +715,8 @@ doFile dir c1 modu s1 = do
                 $ parseFail_ rex s1 "All files must start with module declaration"
 
 
-repl :: Any -> IO ()
-repl s1 = do
+repl :: Any -> Maybe Text -> IO ()
+repl s1 mImport = do
 
     trkM $ toNoun @Text $ unlines
         [ ""
@@ -726,8 +727,17 @@ repl s1 = do
         ]
 
     let s2 = switchToContext "REPL" s1
+
+    -- Pre-load the module listed at the command line.
+    s3 <- case mImport of
+              Nothing -> pure s2
+              Just ng -> do
+                  let importRex = N OPEN "/+" [T BARE_WORD ng Nothing] Nothing
+                  inContext "REPL" 0 importRex do
+                      evaluate $ importModule importRex (utf8Nat ng) Nothing s2
+
     rexes <- readRexStream "REPL" stdin
-    _     <- runSire "REPL" True s2 rexes
+    _     <- runSire "REPL" True s3 rexes
     pure ()
 
 fullPrint :: InCtx => Rex -> Repl ()
