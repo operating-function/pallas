@@ -20,10 +20,10 @@ import PlunderPrelude
 -- TODO: Rename branches to mirror Fan repr
 data RuneShape
     = OPEN
-    | NEST_PREFIX
-    | NEST_INFIX
-    | SHUT_PREFIX
-    | SHUT_INFIX
+    | NEST
+    | INFX
+    | PREF
+    | SHUT
   deriving (Eq, Ord, Show, Generic, NFData)
   deriving anyclass (Hashable)
 

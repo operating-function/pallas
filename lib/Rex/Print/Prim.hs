@@ -210,10 +210,10 @@ fixWide CORD t =
                       in Just (T CORD x $ Just $ T CORD y $ Nothing)
 
 isShut :: Rex -> Bool
-isShut (N SHUT_PREFIX  _ _ _) = True
-isShut (N SHUT_INFIX   _ _ _) = True
-isShut (C v)                  = absurd v
-isShut _                      = False
+isShut (N PREF  _ _ _)  = True
+isShut (N SHUT   _ _ _) = True
+isShut (C v)            = absurd v
+isShut _                = False
 
 rexLine :: RexColor => Rex -> Text
 rexLine = rbRun . rexLineBuilder
@@ -226,8 +226,8 @@ wrapRex x | isShut x = cNest "(" <> rexLineBuilder x <> cNest ")"
 wrapRex x            = rexLineBuilder x
 
 wrapHeir :: RexColor => Rex -> RexBuilder
-wrapHeir x@(N SHUT_PREFIX _ _ _) = wrapRex x
-wrapHeir x                       = rexLineBuilder x
+wrapHeir x@(N PREF _ _ _) = wrapRex x
+wrapHeir x                = rexLineBuilder x
 
 barNest :: RexColor => [RexBuilder] -> RexBuilder
 barNest [x] = parens [rbText "|", x]
@@ -246,15 +246,15 @@ rexLineBuilder = go
                                  Nothing -> wideLeaf s t
                                  Just rx -> go rx
     T s t (Just k)        -> go (T s t Nothing) <> wrapHeir k
-    N OPEN  r ps k        -> go (N NEST_PREFIX r ps k)
+    N OPEN  r ps k        -> go (N NEST r ps k)
     N s     r ps (Just k) -> wrapRex (N s r ps Nothing) <> wrapHeir k
     C c                   -> absurd c
     N s     r ps Nothing  ->
       case s of
-        SHUT_PREFIX -> cRune r <> wrapRex (unsafeHead ps)
-        SHUT_INFIX  -> intercalate (cRune r) (wrapRex <$> ps)
-        NEST_INFIX  -> parens $ intersperse (cRune r) (infixApp <$> ps)
-        NEST_PREFIX -> case r of
+        PREF -> cRune r <> wrapRex (unsafeHead ps)
+        SHUT -> intercalate (cRune r) (wrapRex <$> ps)
+        INFX -> parens $ intersperse (cRune r) (infixApp <$> ps)
+        NEST -> case r of
           "|" -> barNest (go <$> ps)
           "," -> brackets (go <$> ps)
           _   -> parens (cRune r : fmap go ps)
@@ -272,6 +272,6 @@ rexLineBuilder = go
    where
     params = (ps <> toList k)
     isApp = case (params, r, t) of
-              ([],     _,   _          ) -> False
-              (_:_:_,  "|", NEST_PREFIX) -> True
-              _                          -> False
+              ([],     _,   _   ) -> False
+              (_:_:_,  "|", NEST) -> True
+              _                   -> False

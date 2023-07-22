@@ -110,7 +110,7 @@ symbBox symb =
       where
         wid = do
             (width, rex) <- b.boxWide
-            pure $ ((1+width), N SHUT_PREFIX "." [rex] NONE)
+            pure $ ((1+width), N PREF "." [rex] NONE)
 
 
 textBox :: TextShape -> Text -> Box
@@ -206,7 +206,7 @@ rowBox row =
     BOX wid tal
   where
     tal = if null row then
-              (N NEST_PREFIX "," [] Nothing)
+              (N NEST "," [] Nothing)
           else
               (openSeq "++" (fmap C . valBoxes <$> toList row))
 
@@ -214,7 +214,7 @@ rowBox row =
     wid = do
         kids <- traverse ((.boxWide) . valBox) (toList row)
         pure ( 1 + length row + sum (fst <$> kids)
-             , N NEST_PREFIX "," (snd <$> kids) Nothing
+             , N NEST "," (snd <$> kids) Nothing
              )
 
 rexBox :: GRex XVal -> Box
@@ -222,7 +222,7 @@ rexBox rex =
     BOX (Just (siz, wid)) tal
   where
     tal = N OPEN "`" [valBox <$> rex] Nothing
-    wid = N SHUT_PREFIX "`" [raw] Nothing
+    wid = N PREF "`" [raw] Nothing
     raw = joinRex $ joinRex $ fmap valRex rex
     siz = length (let ?rexColors = NoColors in rexLine wid)
 
@@ -243,15 +243,15 @@ tabBox tab =
 
         pure ( siz
              , if null wideKeys then
-                   N SHUT_PREFIX "#" [N NEST_PREFIX "," [] NONE] NONE
+                   N PREF "#" [N NEST "," [] NONE] NONE
                else
-                   N NEST_PREFIX "," wideKeys NONE
+                   N NEST "," wideKeys NONE
              )
 
     tal :: GRex Box
     tal = openSeq "##"
         $ turn tab \(k,v) ->
-            let kr = N SHUT_PREFIX "=" [C(keyBox2 k)] Nothing
+            let kr = N PREF "=" [C(keyBox2 k)] Nothing
             in if keyIsValue k v
                then [kr]
                else kr : (C <$> valBoxes v)
@@ -269,13 +269,13 @@ tabBox tab =
             XVNAT kv | XVREF kv == v -> do
                     (kbWidth, kbWide) <- kb.boxWide
                     pure ( kbWidth + 1
-                         , N SHUT_PREFIX "=" [kbWide] NONE
+                         , N PREF "=" [kbWide] NONE
                          )
             _ -> do
                     (kWidth, kRex) <- kb.boxWide
                     (vWidth, vRex) <- vb.boxWide
                     let wd = 1 + kWidth + vWidth
-                    pure (wd, N SHUT_INFIX "=" [kRex, vRex] NONE)
+                    pure (wd, N SHUT "=" [kRex, vRex] NONE)
 
 
 cabBox :: [XVal] -> Box
@@ -289,8 +289,8 @@ cabBox k =
     wid = do
         keyz <- traverse (.boxWide) keysBox
         let siz = 2 + sum (fst <$> keyz)
-        let bod = N NEST_PREFIX "," (snd <$> keyz) NONE
-        let rex = N SHUT_PREFIX "%" [bod] NONE
+        let bod = N NEST "," (snd <$> keyz) NONE
+        let rex = N PREF "%" [bod] NONE
         pure (siz, rex)
 
 okCordChr, okTapeChr, okCurlChr :: Char -> Bool
@@ -337,25 +337,25 @@ barBox bs =
             Right t | okName t -> Just $
                 BOX (Just (siz, rex)) (absurd <$> rex)
               where
-                rex = N SHUT_INFIX "#" [word "b", word t] NONE
+                rex = N SHUT "#" [word "b", word t] NONE
                 siz = 2 + length t
 
             Right t | okCord t -> Just $
                 BOX (Just (siz, rex)) (absurd <$> rex)
               where
-                rex = N SHUT_INFIX "#" [word "b", T CORD t NONE] NONE
+                rex = N SHUT "#" [word "b", T CORD t NONE] NONE
                 siz = 4 + length t
 
             Right t | okTape t -> Just $
                 BOX (Just (siz, rex)) (absurd <$> rex)
               where
-                rex = N SHUT_INFIX "#" [word "b", T TAPE t NONE] NONE
+                rex = N SHUT "#" [word "b", T TAPE t NONE] NONE
                 siz = 4 + length t
 
             Right t | okCurl t -> Just $
                 BOX (Just (siz, rex)) (absurd <$> rex)
               where
-                rex = N SHUT_INFIX "#" [word "b", T CURL t NONE] NONE
+                rex = N SHUT "#" [word "b", T CURL t NONE] NONE
                 siz = 4 + length t
 
             _ -> Nothing
@@ -365,7 +365,7 @@ barBox bs =
         BOX (Just (siz, rex)) (absurd <$> rex)
       where
         siz = 2 + length hexTxt
-        rex = N SHUT_INFIX "#" [word "x", word hexTxt] NONE
+        rex = N SHUT "#" [word "x", word hexTxt] NONE
 
     linesResult :: Maybe Box
     linesResult = do
@@ -420,7 +420,7 @@ nameRex = textRex WORD
 cenBox :: Text -> Box
 cenBox text = leafBox (length text + 1) rex
   where
-    rex = N SHUT_PREFIX "%" [T WORD text Nothing] Nothing
+    rex = N PREF "%" [T WORD text Nothing] Nothing
 
 simpleBody :: XBod -> Bool
 simpleBody XVAR{}         = True
@@ -441,11 +441,11 @@ lawBox = \case
       where
         bb = bodBox b
         mode = if simpleBody b && length r < 2
-               then SHUT_INFIX
-               else NEST_INFIX
+               then SHUT
+               else INFX
     XLAW t r b ->
         let sb = sigBox t r
-        in boxNode "?" (NEST_INFIX, [sb,bb], NONE)
+        in boxNode "?" (INFX, [sb,bb], NONE)
                        ([sb], Just bb)
       where bb = bodBox b
 
@@ -469,41 +469,41 @@ boxNode roon (wStyle, wSons, wHeir) (tSons, tHeir) =
     mkWide style sons heir =
         case style of
             OPEN  ->
-                mkWide NEST_PREFIX sons heir
+                mkWide NEST sons heir
 
-            NEST_PREFIX ->
+            NEST ->
                 ( ( 1
                   + length roon
                   + length sons
                   + sum (fst <$> sons)
                   + fromMaybe 0 (fst <$> heir)
                   )
-                , N NEST_PREFIX roon (snd <$> sons) (snd <$> heir)
+                , N NEST roon (snd <$> sons) (snd <$> heir)
                 )
 
-            SHUT_PREFIX ->
+            PREF ->
                 case (sons, heir) of
                     ([(s,w)], Nothing) ->
                         ( 1 + s
-                        , N SHUT_PREFIX roon [w] NONE
+                        , N PREF roon [w] NONE
                         )
                     _ ->
-                        mkWide NEST_PREFIX sons heir
+                        mkWide NEST sons heir
 
 
-            SHUT_INFIX ->
+            SHUT ->
                 case snd <$> (sons <> toList heir) of
-                    []  -> mkWide NEST_PREFIX sons heir
-                    [_] -> mkWide NEST_PREFIX sons heir
+                    []  -> mkWide NEST sons heir
+                    [_] -> mkWide NEST sons heir
                     xs  -> ( length roon * (length xs - 1) + sum (fst <$> sons)
-                           , N SHUT_INFIX roon (snd <$> sons) (snd <$> heir)
+                           , N SHUT roon (snd <$> sons) (snd <$> heir)
                            )
 
-            NEST_INFIX ->
+            INFX ->
                 -- TODO WAAAY overly simplistic
                 let nk = length sons in
                 if nk<2 then
-                    mkWide NEST_PREFIX sons heir
+                    mkWide NEST sons heir
                 else
                     let siz =
                             ( 2
@@ -513,7 +513,7 @@ boxNode roon (wStyle, wSons, wHeir) (tSons, tHeir) =
                             )
                     in
                         ( siz
-                        , N NEST_INFIX roon (snd <$> sons) (snd <$> heir)
+                        , N INFX roon (snd <$> sons) (snd <$> heir)
                         )
 
 keyBox :: Nat -> Box
@@ -541,7 +541,7 @@ unCell acc = \case
     x         -> (x:acc)
 
 parens :: [GRex v] -> GRex v
-parens rexz = N NEST_PREFIX "|" rexz Nothing
+parens rexz = N NEST "|" rexz Nothing
 
 pattern NONE :: Maybe a
 pattern NONE = Nothing
@@ -567,7 +567,7 @@ simpleAppBox kids =
     wid = do
         wKids <- traverse (.boxWide) kids
         pure ( 1 + length kids + sum (fst <$> wKids)
-             , N NEST_PREFIX "|" (snd <$> wKids) Nothing
+             , N NEST "|" (snd <$> wKids) Nothing
              )
 
 sigBox :: XTag -> (NonEmpty Symb) -> Box
@@ -595,7 +595,7 @@ xtagBox = \case
             (nw, nr) <- (keyBox n).boxWide
             (tw, tr) <- (keyBox t).boxWide
             Just ( nw + 1 + tw
-                 , N SHUT_INFIX "@" [nr,tr] NONE
+                 , N SHUT "@" [nr,tr] NONE
                  )
 
 joinRex :: GRex (GRex v) -> GRex v
@@ -634,7 +634,7 @@ letBox n v h =
         hb   <- (bodBox h).boxWide
         let kids = snd <$> [nb, bb]
         let wd   = 5 + sum (fst <$> [nb,bb,hb])
-        pure (wd, N NEST_INFIX "@" kids (Just $ snd hb))
+        pure (wd, N INFX "@" kids (Just $ snd hb))
         -- TODO Size is correct except if the value-expression is an
         -- application, which will be then be unpacked (subtract 2) Also,
         -- need to check if continuation will be wrapped, and add 2 if so.
@@ -672,8 +672,8 @@ ketBox args body =
 
 boxApply :: [Box] -> Box
 boxApply [] =
-    BOX (Just (3, (N NEST_PREFIX "|" [] Nothing)))
-      (N NEST_PREFIX "|" [] Nothing)
+    BOX (Just (3, (N NEST "|" [] Nothing)))
+      (N NEST "|" [] Nothing)
 boxApply [bix] =
     bix
 boxApply boxes =
@@ -686,13 +686,13 @@ boxApply boxes =
         let barSz = 1 + length boxes + sum (fst <$> wbox)
         case rexz of
             [f,_] | isPrim f ->
-                 pure (hepSz, N SHUT_INFIX  "-" rexz Nothing)
+                 pure (hepSz, N SHUT  "-" rexz Nothing)
 
             _ | all simple rexz ->
-                 pure (hepSz, N SHUT_INFIX  "-" rexz Nothing)
+                 pure (hepSz, N SHUT  "-" rexz Nothing)
 
             _ ->
-                 pure (barSz, N NEST_PREFIX "|" rexz Nothing)
+                 pure (barSz, N NEST "|" rexz Nothing)
 
     isPrim (T WORD "0" Nothing) = True
     isPrim (T WORD "1" Nothing) = True
@@ -720,7 +720,7 @@ boxPrefix roon expr =
     wid = do
         (xWid, xRex) <- expr.boxWide
         pure ( length roon + xWid
-             , N SHUT_PREFIX roon [xRex] NONE
+             , N PREF roon [xRex] NONE
              )
 
 boxShutInfix :: Text -> [Box] -> Box
@@ -736,17 +736,17 @@ boxShutInfix roon exprs =
         pure $ case sons of
           [] ->
               ( 2 + length roon
-              , N NEST_PREFIX roon [] NONE
+              , N NEST roon [] NONE
               )
 
           [(w,r)] ->
               ( 3 + length roon + w
-              , N NEST_PREFIX roon [r] NONE
+              , N NEST roon [r] NONE
               )
 
           _ ->
               ( (length roon * (length sons - 1)) + sum (fst <$> sons)
-              , N SHUT_INFIX roon (snd <$> sons) NONE
+              , N SHUT roon (snd <$> sons) NONE
               )
 
 
@@ -758,7 +758,7 @@ xtagApp t as = parens (xtagRex t : fmap symbRex (toList as))
 xtagRex :: XTag -> Rex
 xtagRex = \case
     XTAG n Nothing  -> keyRex n
-    XTAG n (Just t) -> N SHUT_INFIX "@" [keyRex n, keyRex t] NONE
+    XTAG n (Just t) -> N SHUT "@" [keyRex n, keyRex t] NONE
 
 boxCoerceWideRex :: Box -> Rex
 boxCoerceWideRex (BOX (Just(_, wid)) _) = wid
@@ -775,7 +775,7 @@ symbRex symb =
         (_, Right nm) | okTxt nm -> haxHax (cordRex nm)
         _                        -> haxHax (nameRex (tshow symb))
   where
-    haxHax n = N SHUT_PREFIX "." [n] Nothing
+    haxHax n = N PREF "." [n] Nothing
     cordRex = boxCoerceWideRex . cordBox
 
 -- Parsing ---------------------------------------------------------------------

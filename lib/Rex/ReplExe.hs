@@ -33,7 +33,7 @@ forceOpen = go
 forceNest :: Rex -> Rex
 forceNest = go
   where
-    go (N _ r cs k) = N NEST_PREFIX r (go <$> cs) (go <$> k)
+    go (N _ r cs k) = N NEST r (go <$> cs) (go <$> k)
     go (T th t k)   = T th t (go <$> k)
     go (C c)        = absurd c
 

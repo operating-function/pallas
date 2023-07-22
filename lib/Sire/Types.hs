@@ -166,16 +166,16 @@ lamRex :: Lam -> Rex
 lamRex l =
     N OPEN rune [hed] (Just $ openApp $ sireRex l.body)
   where
-    hed = N NEST_PREFIX "|" hedSons Nothing
+    hed = N NEST "|" hedSons Nothing
 
     hedSons =
         [ inlineMark (word $ showName $ NAT l.tag)
-        , N SHUT_PREFIX ".." [word (tshow l.args)] Nothing
+        , N PREF ".." [word (tshow l.args)] Nothing
         ]
 
     rune = if l.pin then "??" else "?"
 
-    inlineMark rex | l.inline  = N SHUT_PREFIX "**" [rex] Nothing
+    inlineMark rex | l.inline  = N PREF "**" [rex] Nothing
     inlineMark rex | otherwise = rex
 
 word :: Text -> GRex a
@@ -196,18 +196,18 @@ showName = \case
 
 sireRex :: Sire -> Rex
 sireRex = \case
-    S_VAR v   -> N SHUT_PREFIX "$" [word (tshow v)] Nothing
+    S_VAR v   -> N PREF "$" [word (tshow v)] Nothing
     S_VAL v   -> C v
     S_GLO b   -> gloRex b
     S_APP f x -> appRex f [x]
     S_LET v x -> N OPEN "@" [sireRex v] (Just $ openApp $ sireRex x)
-    S_LIN sir -> N SHUT_PREFIX "**" [sireRex sir] Nothing
+    S_LIN sir -> N PREF "**" [sireRex sir] Nothing
     S_LAM lam -> lamRex lam
   where
     gloRex b =
         T WORD (showName b.d.name)
             $ Just
-            $ N NEST_PREFIX "," [word (tshow b.d.key)]
+            $ N NEST "," [word (tshow b.d.key)]
             $ Nothing
 
     appRex (S_APP f x) xs = appRex f (x:xs)
@@ -215,8 +215,8 @@ sireRex = \case
 
     niceApp xs = case (all isSimpleClosed xs, reverse xs) of
         ( _,     []   ) -> error "niceApp: impossible"
-        ( True,  _    ) -> N NEST_PREFIX "|" xs           Nothing
-        ( False, l:ls ) -> N OPEN        "|" (reverse ls) (Just $ openApp l)
+        ( True,  _    ) -> N NEST "|" xs           Nothing
+        ( False, l:ls ) -> N OPEN "|" (reverse ls) (Just $ openApp l)
 
 planRex :: Any -> GRex Void
 planRex = showValue . loadShallow
@@ -234,20 +234,20 @@ rexText =
     handleEmbed :: Any -> GRex Void
     handleEmbed x = N style "↓" [rex] Nothing
       where rex   = planRex x
-            style = if isClosed rex then SHUT_PREFIX else OPEN
+            style = if isClosed rex then PREF else OPEN
 
 isClosed :: GRex a -> Bool
 isClosed (N OPEN _ _ _) = False
 isClosed _              = True
 
 isSimpleClosed :: GRex a -> Bool
-isSimpleClosed (N OPEN _ _ _)          = False
-isSimpleClosed (N NEST_PREFIX "|" _ _) = False
-isSimpleClosed _                       = True
+isSimpleClosed (N OPEN _ _ _)   = False
+isSimpleClosed (N NEST "|" _ _) = False
+isSimpleClosed _                = True
 
 openApp :: GRex a -> GRex a
-openApp (N NEST_PREFIX "|" ss h) = N OPEN "|" ss h
-openApp rex                      = rex
+openApp (N NEST "|" ss h) = N OPEN "|" ss h
+openApp rex               = rex
 
 
 --------------------------------------------------------------------------------

@@ -1178,7 +1178,7 @@ parseFailRex pf =
        $ open_ "#" [word "reason",  word pf.reason]
   where
     b = pf.block
-    col ds = N SHUT_INFIX ":" ds Nothing
+    col ds = N SHUT ":" ds Nothing
 
 data MacroError = MACRO_ERROR
     { block  :: Context
@@ -1195,7 +1195,7 @@ macroErrorRex me =
        $ open  "#" [word "trouble", me.input]
        $ open_ "#" [word "reason",  word me.reason]
   where
-    col ds = N SHUT_INFIX ":" ds Nothing
+    col ds = N SHUT ":" ds Nothing
     b = me.block
 
 macroError :: InCtx => Rex -> Nat -> Repl a

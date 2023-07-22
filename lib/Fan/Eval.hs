@@ -464,11 +464,11 @@ rexNoun = \case
         ]
   where
     nodeStyleConstr = \case
-        Rex.OPEN        -> NAT "OPEN"
-        Rex.NEST_PREFIX -> NAT "NEST"
-        Rex.NEST_INFIX  -> NAT "INFX"
-        Rex.SHUT_PREFIX -> NAT "PREF"
-        Rex.SHUT_INFIX  -> NAT "SHUT"
+        Rex.OPEN -> NAT "OPEN"
+        Rex.NEST -> NAT "NEST"
+        Rex.INFX -> NAT "INFX"
+        Rex.PREF -> NAT "PREF"
+        Rex.SHUT -> NAT "SHUT"
 
     textStyleConstr = \case
         Rex.WORD -> NAT "WORD"
@@ -674,10 +674,10 @@ matchRex = \case
 
     matchNodeShape = \case
         NAT "OPEN" -> Just Rex.OPEN
-        NAT "NEST" -> Just Rex.NEST_PREFIX
-        NAT "INFX" -> Just Rex.NEST_INFIX
-        NAT "PREF" -> Just Rex.SHUT_PREFIX
-        NAT "SHUT" -> Just Rex.SHUT_INFIX
+        NAT "NEST" -> Just Rex.NEST
+        NAT "INFX" -> Just Rex.INFX
+        NAT "PREF" -> Just Rex.PREF
+        NAT "SHUT" -> Just Rex.SHUT
         _          -> Nothing
 
     -- TODO Make sure it's valid text (no decodeLenient nonsense)
