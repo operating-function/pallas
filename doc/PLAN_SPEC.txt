@@ -1,11 +1,5 @@
-Every PLAN is a pin x:<i>, a law x:{n a b}, an app x:(f g), a nat x:@, or a
-black hole x:<>.
-
-(f x y) is a short-hand for ((f x) y).
-
-The := operator creates a new local binding.
-
-The <- operator overwrites an existing object in-place.
+Every PLAN vaue is either a pin x:<i>, a law x:{n a b}, an app x:(f g),
+a nat x:@, or a black hole x:<>.
 
 Run F(x) to normalize a value.
 

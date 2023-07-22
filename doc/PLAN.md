@@ -1,47 +1,130 @@
 # PLAN
 
-PLAN is a purely function programming system without escape hatches (no,
-unsafePerformIO, FFI, etc), as a consequence PLAN is fully referentially
-transparent.
+PLAN is a hyper-minimalistic purely functional programming system with
+a frozen specification.
 
-This is important for Plunder, because we want it to be possible to move
-a running program from one runtime system to another without any change
-of behavior.
+It is somewhat analogous to the JVM, except that the model is purely
+functional with no escape hatches (no unsafePerformIO, no FFI, etc).  PLAN
+evaluation is always fully deterministic and referentially transparent.
 
-Plunder also has a unique feature of having all values (including
-functions) be introspectable.  This is necessary in order to implement
-Plunder's persistence model.
+Every PLAN value is represented using a simple data model, and PLAN code
+can pick apart and reconstruct any PLAN value, including functions.
+
+The goal of PLAN is to be a system for implement "persistent state
+machines", where the state of the machine is kept synced to disk, and
+runtimes system can evolve without breaking old state machines.
+
+These state machines:
+
+-   can include their own toolchain and upgrade themselves, by dynamically
+    compiling new PLAN functions.
+
+-   can serialize themselves and send copies of themselves across the
+    network.
+
+
+## Specification
+
+This section includes a complete specification for the PLAN system.
+The spec written by writing a naive implementation in pseudo code.
+
+Some notes on notation:
+
+-   `(f x y)` is a short-hand for `((f x) y)`.
+
+-   `x:@` `y:(f x)` is pattern-matching syntax: "x is a natural number",
+    "y is a pair of f and x".
+
+-   The `:=` operator creates a new local binding.
+
+-   The `<-` operator overwrites an existing object in-place.
+
+-   Black holes are only used during evaluation.  A black hole is
+    a placeholder value for something that has not yet been evaluated.
+
+-   If a series of pattern matches does not handle a pattern, the result
+    is a crash.  For example `E(x)` crashes if x is a black hole.
+
+
+```
+Every PLAN vaue is either a pin x:<i>, a law x:{n a b}, an app x:(f g),
+a nat x:@, or a black hole x:<>.
+
+Run F(x) to normalize a value.
+
+E(o:@)     = o                          | F(o) =
+E(o:<x>)   = o                          |     E(o)
+E(o:(f x)) =                            |     when o:(f x)
+    E(f)                                |          F(f); F(x)
+    when A(f)=1                         |     o
+        o <- X(o,o)                     |
+        E(o)                            | N(o) = E(o); if o:@ then o else 0
+    o                                   |
+E(o:{n a b}) =                          | I(f, (e x), 0) = x
+    if a!=0 then o else                 | I(f, e,     0) = e
+        o <- <>                         | I(f, (e x), n) = I(f, e, n-1)
+        o <- R(0,o,b)                   | I(f, e,     n) = f
+        E(o)                            |
+                                        | A((f x))     = A(f)-1
+X((f x), e)         = X(f,e)            | A(<p>)       = A(p)
+X(<p>, e)           = X(p,e)            | A({n a b})   = a
+X({n a b}, e)       = R(a,e,b)          | A(n:@)       = I(1, (3 5 3), n)
+X(0, (_ n a b))     = {N(n) N(a) F(b)}  |
+X(1, (_ p l a n x)) = P(p,l,a,n,E(x))   | R(n,e,b:@) | b≤n = I(x,e,(n-b))
+X(2, (_ z p x))     = C(z,p,N(x))       | R(n,e,(0 f x))   = (R(n,e,f) R(n,e,x))
+X(3, (_ x))         = N(x)+1            | R(n,e,(1 v b))   = L(n,e,v,b)
+X(4, (_ x))         = <F(x)>            | R(n,e,(2 x))     = x
+                                        | R(n,e,x)         = x
+C(z,p,n) = if n=0 then z else (p (n-1)) |
+                                        | L(n,e,v,b) =
+P(p,l,a,n,(f x))   = (a f x)            |     x := <>
+P(p,l,a,n,<x>)     = (p x)              |     f := (e x)
+P(p,l,a,n,{n a b}) = (l n a b)          |     x <- R(n+1,f,v)
+P(p,l,a,n,x:@}     = (n x)              |     R(n+1,f,b)
+```
 
 
 ## Universal Pattern Matching
 
-Every PLAN value can be pattern matched on, including functions.
+Using the 1 and 2 primop, every PLAN value can be picked apart with
+pattern matching.  And using the `0` and `4` primops, any value can
+be reconstructed.
 
-It is possible to write the following functions:
+For example, using the above rules, we can write code to implement
+the functions:
 
-    serialize : Any -> ByteString
-    deserialize : ByteString -> Maybe Any
+    save : Any -> ByteString
+    load : ByteString -> Maybe Any
 
 Such that:
 
-    for all x, (Just x)==(deserialize (serialize x))
-
-These functions can be implemented using the `0` and `1` primops.
+    for all x, (JUST x == load (save x))
 
 
 ## Pins
 
-PLAN has a concept of a "pin", which is formally just a box containing
-a single value.
+The "pins" concept formally is just a box that contains a value that is
+guaranteed to be in normal form.
 
-These magic boxes are used to break up large values into pieces that
-can be stored separately on disk.
+There are some additional guarantees that pins are supposed to adhere to
+in practice:
 
-Pins are also globally deduplicated in memory.
+-   Comparing two pins for equality should be a constant-time operation.
+
+-   Long-lived pins should be globally de-duplicated.
+
+-   Long-lived pins should be stored in contiguous memory, the only
+    out-pointers should be to other pins.
+
+-   If a large PLAN value is written to disk, pins should be de-duplicated
+    first.
 
 This is similar to the concept of "interning" strings.  You get constant
-time equality checks and data need only be stored once.  Pins are the
-building blocks of Plunder's persistence model.
+time equality checks and data need only be stored once.
+
+Pins are very similar to the GHC concept of "Compact Regions", except
+that each region is immutable, and regions can reference other regions,
+forming a DAG.
 
 
 ## Jets
@@ -51,57 +134,25 @@ The PLAN runtime implements a number of extra primops, like `toNat`,
 
 These primops are formally implemented with a value such as:
 
-    toNat=(4 (0 'toNat' 1 (0 (2 0 3) 1)))
+    toNat=(4 (0 499848736628 1 (0 (2 0 3) 1)))
 
-When the runtime constructs this pin, it recognizes it as one of these
-"extra primops" and specializes it's execution path.
+    (Note that 499848736628 is an ASCII representation of the string
+    "toNat" encoded to a number using the least-significant-first
+    byte order)
+
+In other words, the "formal value" of a primop is a specific piece of
+PLAN code that implements a primop.  Adding a new primop can change the
+performance characteristic of code, but the formal behavior must always
+match the spec.
+
+When the runtime constructs this pin, it recognizes it as a primop
+(using the same machinery that is used for deduplication).  Then,
+instead of generating code for the pin using the pin, we use special
+routines hard-coded into the runtime system.
 
 This architecture makes it possible to add new primitives without
 modifying the formal semantics or modifying the shape of existing code.
-As a consequence, old programs do not need to be modified to run on
-new implementations, and new programs will continue to run on old
-implementations.
+In other words, adding new primops does not break existing persistant
+state machines.
 
-
-## Specification
-
-```
-Every PLAN is a pin x:<i>, a law x:{n a b}, an app x:(f g), or a nat x:@.
-
-Evaluate by reducing repeatedly with (->).  Reduce outer trees first.
-
-(f g x) := ((f g) x)
-
-NTH(v,n,fb) is the nth element of the array v (or fb if out of bounds)
-LEN(v)      is the length of the array v.
-PUSH(v,x)   is the array v with x appended.
-
-NAT(x) = if x:@ then x else 0
-
-RUN(r,(0 f x)) = (RUN(r,f) RUN(r,x))
-RUN(r,(1 v k)) = RUN(s,k) where s = PUSH(r,RUN(s,v))
-RUN(r,(2 v))   = v
-RUN(r,v:@)     = NTH(r,v,v)
-RUN(r,x)       = x
-
-v:@                          =>  ARITY(v)=NTH([3 5 3], v, 1)
-v:(f _)                      =>  ARITY(v)=(ARITY(f)-1)
-v:{n _ _}                    =>  ARITY(v)=n
-v:<i>                        =>  ARITY(v)=ARITY(i)
-ARITY(v)>0                   =>  WHNF(v)
-v:@                          =>  NF(v)
-v:(f g) WHNF(v) NF(f) NF(g)  =>  NF(v)
-v:{n a b}                    =>  NF(v)
-WHNF(n) WHNF(a) NF(b)        =>  (0 n a b)     -> {NAT(n) NAT(a) b}
-v:<i>                        =>  (1 p _ _ _ v) -> (p i)
-v:{n a b}                    =>  (1 _ l _ _ v) -> (l n a b)
-v:(f x) WHNF(v)              =>  (1 _ _ a _ v) -> (a f x)
-v:@                          =>  (1 _ _ _ n v) -> (n v)
-WHNF(v) w=NAT(v)             =>  (2 z p v)     -> if w=0 then z else (p (w-1))
-WHNF(x)                      =>  (3 x)         -> NAT(x)+1
-NF(x)                        =>  (4 x)         -> <x>
-f:@ f>4 NF(x)                =>  (f x)         -> *crash*
-f:{n a b} a=LEN([..])        =>  (f ..)        -> RUN([f ..],b)
-f:<{n a b}> a=LEN([..])      =>  (f ..)        -> RUN([f ..],b)
-f:<i> ARITY(i)=LEN([..])     =>  (f ..)        -> (i ..)
-```
+The set of jets is standardized using Sire, which is discussed elsewhere.
