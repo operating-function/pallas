@@ -1,0 +1,160 @@
+### parse <- prelude
+
+/+ prelude
+/+ datatype
+/+ types
+/+ stew
+
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (showChar c)
+| if (gte c 33 && lte c 126) (barSing c)
+# switch c
+* 0  | 'null'
+* 9  | 'tab'
+* 10 | 'newline'
+* 13 | 'carriage return'
+* 32 | 'space'
+* _  | barWeld {byte=} | natBar | showNat c
+
+
+;;; Parsers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: else should auto-inline but it does not!  What gives?
+
+= (satisfies expected f buf off err fail ok)
+| if (gte off | barLen buf)
+    | **fail b#more
+@ chr (barIdx off buf)
+| if (f chr)
+    @ !off (inc off)
+    | **ok off chr
+| **else
+    | **fail expected
+
+= (char c buf off err fail ok)
+| **satisfies (showChar c) (eql c) buf off err fail ok
+
+= (try x buf off err fail ok)
+| x buf off fail fail ok ; backtrack to here even the parser calls `err`.
+
+= (andThen x y buf off err fail ok)
+: off _ < **x buf off err fail
+| **y buf off err err ok
+    ;; if the first succeds, we are commited,
+    ;; no backtracking!
+
+= (bind x y buf off err fail ok)
+: off xRes < **x buf off err fail
+| **y xRes buf off err err ok
+    ;; if the first succeds, we are commited,
+    ;; no backtracking!
+
+;; TODO: stew: support inline annotations on nested lambdas.
+
+= (choice x y buf off err fail ok)
+@ (xFails xMsg)
+    @ (yFails yMsg) (fail [xMsg yMsg])
+    | **y buf off err yFails ok
+| **x buf off err xFails ok
+
+= (eof buf off err fail ok)
+@ atEof (gte off | barLen buf)
+| if atEof | **ok off ()
+| **else   | **fail b#EOF
+
+= (pcons x y buf off err fail ok)
+: off xr <- **x buf off err fail
+: off yr <- **y buf off err fail
+| ok off (CONS xr yr)
+
+= (xys buf off err fail ok)
+^ (_ buf off err fail ok)
+| choice eof
+| pcons (choice (char %x) (char %y))
+| xys
+
+= (runParser parser buffer)
+: off res <- **parser buffer 0 LEFT LEFT
+| RIGHT res
+
+; Commits after the first character, this exists just to test backtracing.
+= (_string bar buf off err fail ok)
+^ (_ (barToList bar) buf off err fail ok)
+? (go cs buf off err fail ok)
+# datacase cs
+* NIL         | ok off bar
+* (CONS c cs) | andThen (char c) (go cs) buf off err fail ok
+
+; Commits after the first character, just to test backtracing.
+= (string bar buf off err fail ok)
+@ wid (barLen bar)
+| if (bar /= barSlice off wid buf)
+    | fail bar
+@ !off (add off wid)
+| ok off bar
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: Add support for #infixl and #infixr to `stew`.  We don't need
+;; full macro support in order to be able to define new operators!
+
+;; TODO: inlining should trigger here, but it does not!
+
+= (parse_eof bar) | **runParser eof bar
+= (parse_x bar)   | **runParser (**char 'x') bar
+= (parse_y bar)   | **runParser (**char 'y') bar
+= (parse_xy bar)  | **runParser (**andThen (char 'x') (char 'y')) bar
+= (parse_xx bar)  | **runParser (**bind (char 'x') char) bar
+= (parse_x_y bar) | **runParser (**choice (char 'x') (char 'y')) bar
+= (parse_xys bar) | **runParser xys bar
+
+= (parse_xy_yx bar)
+^ **runParser _ bar
+| choice (_string b#xy) (_string b#yx)
+
+= (parse_xy_xx bar)
+^ **runParser _ bar
+| choice (_string b#xy) (_string b#xx)
+
+= (parse_xy_xx_bt bar)
+^ **runParser _ bar
+| choice (try | _string b#xy) (_string b#xx)
+
+= (parse_xy_xx_str bar)
+^ **runParser _ bar
+| choice (string b#xy) (string b#xx)
+
+
+EXPECTED=LEFT
+SUCCESS=RIGHT
+
+!!= SUCCESS-()        | parse_eof b#{}
+!!= EXPECTED-(b#EOF)  | parse_eof b#{x}
+!!= EXPECTED-(b#EOF)  | parse_eof b#{xy}
+!!= EXPECTED-(b#more) | parse_x b#{}
+!!= SUCCESS-{x}       | parse_x b#{x}
+!!= SUCCESS-{x}       | parse_x b#{xy}
+!!= EXPECTED-(b#y)    | parse_y b#{xy}
+!!= SUCCESS-{y}       | parse_xy b#{xy}
+!!= EXPECTED-(b#more) | parse_xy b#{x}
+!!= EXPECTED-(b#x)    | parse_xy b#{y}
+!!= EXPECTED-(b#x)    | parse_xx b#{xy}
+!!= SUCCESS-{x}       | parse_xx b#{xx}
+
+!!= SUCCESS-(CONS %x 0)          | parse_xys b#x
+!!= SUCCESS-NIL                  | parse_xys b#{}
+!!= SUCCESS-(~[%x %y])           | parse_xys b#xy
+!!= SUCCESS-(~[%y %x %y])        | parse_xys b#yxy
+!!= SUCCESS-(~[%y %y])           | parse_xys b#yy
+!!= EXPECTED-[(b#EOF) [b#x b#y]] | parse_xys b#z
+
+!!= SUCCESS-(b#xy) | parse_xy_xx b#{xy_}
+!!= EXPECTED-(b#y) | parse_xy_xx b#{xx_}      ;;  LL(1), no back tracking
+!!= SUCCESS-(b#xy) | parse_xy_yx b#{xy_}
+!!= SUCCESS-(b#yx) | parse_xy_yx b#{yx_}      ;;  LL(1) is okay
+!!= SUCCESS-(b#xy) | parse_xy_xx_bt b#{xy_}
+!!= SUCCESS-(b#xx) | parse_xy_xx_bt b#{xx_}   ;;  explicit back-tracking (try)
+!!= SUCCESS-(b#xy) | parse_xy_xx_str b#{xy_}
+!!= SUCCESS-(b#xx) | parse_xy_xx_str b#{xx_}  ;;  LL(k), bar-slice matching
