@@ -1,0 +1,40 @@
+### rex_parse <- parse
+
+/+ prelude
+/+ datatype
+/+ types
+/+ stew
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# datatype Frag
+* RUNE _:Str
+* FORM _:Form
+* LINE _:Bool _:Str
+
+# datatype Form
+* BEFO _:Str _:Form        ;;  +()()
+* SHIN _:Str _:(Row Itmz)  ;;  ()()+()()
+* SHIP _:Itmz              ;;  ()()
+
+# datatype Item
+* LEAF _:Leaf
+* NEST _:Nest
+
+# typedef Itmz (Row Item) ; never empty
+
+# datatype Nest
+* INFIX _:Str _:(Row | Row Form)
+* PREFX _:Str _:(Row Form)
+* WRAPD _:Form
+* PAREN _:(Row Form)
+
+# datatype CordType
+* THICK
+* THIN
+* CURL
+
+# datatype Leaf
+* N _:Str
+* C _:CordType _:Str
