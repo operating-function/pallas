@@ -20,6 +20,14 @@
 
 ;;; Parsers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+# typedef (Parser r a)
+> Bar
+> Nat
+> (Bar > r)
+> (Bar > r)
+> (a > r)
+> r
+
 ;; TODO: else should auto-inline but it does not!  What gives?
 
 = (satisfies expected f buf off err fail ok)
@@ -41,6 +49,13 @@
 = (andThen x y buf off err fail ok)
 : off _ < **x buf off err fail
 | **y buf off err err ok
+    ;; if the first succeds, we are commited,
+    ;; no backtracking!
+
+= (andThenLeft x y buf off err fail ok)
+: off r < **x buf off err fail
+: off o < **y buf off err err
+| ok off r
     ;; if the first succeds, we are commited,
     ;; no backtracking!
 
@@ -93,6 +108,29 @@
     | fail bar
 @ !off (add off wid)
 | ok off bar
+
+; Commits after the first character, just to test backtracing.
+= (stringOf chk buf startOff err fail ok)
+^ _ startOff
+? (go off)
+@ byt      (barIdx off buf)
+@ inBuffer (lth off | barLen buf)
+| if (inBuffer && chk byt)
+    | go (inc off)
+@ wid (sub off startOff)
+| ok off (barSlice startOff wid buf)
+
+; Commits after the first character, just to test backtracing.
+= (stringOf1 chk buf startOff err fail ok)
+: off res <- stringOf chk buf startOff err fail
+| trk [=startOff =off]
+| if (off == startOff)
+    | fail 'stringOf1'
+| ok off res
+
+= (pmap f parser buf off err fail ok)
+: off res < parser buf off err fail
+| ok off (f res)
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
