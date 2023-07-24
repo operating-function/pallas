@@ -18,7 +18,7 @@ import Server.LmdbStore
 import Control.Concurrent.STM.TVar (stateTVar)
 import Data.Acquire                (Acquire, mkAcquire)
 import Data.Heap                   (MinHeap)
-import Server.Types.Logging        (CogId(..), MachineName(..))
+import Server.Types.Logging        (CogId(..))
 
 import qualified Data.Heap as Heap
 import qualified Data.Map  as M
@@ -27,9 +27,9 @@ import qualified Fan       as F
 -- Callback function which pokes a cog and blocks until the cog has processed
 -- the poke. This should block if the cog does not currently have an open poke
 -- request.
-type SubmitPoke = MachineName -> CogId -> Vector Text -> F.Fan -> IO ()
+type SubmitPoke = CogId -> Vector Text -> F.Fan -> IO ()
 
-type RequestStorage = Map (MachineName, CogId, Vector Text) (MinHeap Int)
+type RequestStorage = Map (CogId, Vector Text) (MinHeap Int)
 
 data HWState = HW_STATE
     { requestPool :: TVar (Pool SysCall)
@@ -48,17 +48,17 @@ describeCall args = "%poke " <> case toList args of
   ["poke", txt] -> "%poke " <> tshow (fromNoun @(Vector Text) txt)
   _             -> "UNKNOWN"
 
-addRequest :: MachineName -> CogId -> Vector Text -> Int -> RequestStorage
+addRequest :: CogId -> Vector Text -> Int -> RequestStorage
            -> RequestStorage
-addRequest machine cog path key rsm = M.alter update (machine, cog, path) rsm
+addRequest cog path key rsm = M.alter update (cog, path) rsm
   where
     update :: Maybe (MinHeap Int) -> Maybe (MinHeap Int)
     update Nothing     = Just $ Heap.insert key Heap.empty
     update (Just heap) = Just $ Heap.insert key heap
 
-rmRequest :: MachineName -> CogId -> Vector Text -> Int -> RequestStorage
+rmRequest :: CogId -> Vector Text -> Int -> RequestStorage
           -> RequestStorage
-rmRequest machine cog path key rsm = M.alter update (machine, cog, path) rsm
+rmRequest cog path key rsm = M.alter update (cog, path) rsm
   where
     update :: Maybe (MinHeap Int) -> Maybe (MinHeap Int)
     update Nothing     = Nothing
@@ -71,12 +71,12 @@ runSysCall st syscall =
     ["poke", ROW nats] -> do
       let path = map (decodeUtf8 . natBytes . toNat) nats
       key <- poolRegister st.requestPool syscall
-      modifyTVar' st.requests (addRequest syscall.machine syscall.cog path key)
+      modifyTVar' st.requests (addRequest syscall.cog path key)
 
       let docancel = do
             poolUnregister st.requestPool key
             modifyTVar' st.requests
-                        (rmRequest syscall.machine syscall.cog path key)
+                        (rmRequest syscall.cog path key)
 
       pure (CANCEL docancel, [])
     _ -> do
@@ -85,14 +85,14 @@ runSysCall st syscall =
 
 -- Function given to ConsoleExe to submit pokes.
 submitPoke :: HWState -> SubmitPoke
-submitPoke st machineName cogId path val = do
+submitPoke st cogId path val = do
   -- We don't want to have the tracing system associate servant asyncs with us,
   -- so build our own new process/thread async every time we want to do
   -- something and just wait on the result.
   w <- newProcessAsync "Poke" "Poke" $
     withTracingResultsFlow "submitPoke" "poke" $ atomically do
       tv <- readTVar st.requests
-      let myb = lookup (machineName, cogId, path) tv
+      let myb = lookup (cogId, path) tv
       h <- maybe retry pure myb
       (key,rest) <- maybe (error "empty heap not deleted in Poke") pure
                           (Heap.view h)
@@ -100,7 +100,7 @@ submitPoke st machineName cogId path val = do
       mybFlows <- case lookup key pool.tab of
         Nothing -> retry
         Just kl -> do
-          modifyTVar' st.requests (rmRequest kl.machine kl.cog path key)
+          modifyTVar' st.requests (rmRequest kl.cog path key)
           poolUnregister st.requestPool key
           response <- writeResponse kl val
           pure $ Just (kl.cause, response)
@@ -119,8 +119,8 @@ createHardwarePoke = do
   st <- mkAcquire startup shutdown
 
   let dev = DEVICE
-        { spin = \_ _ -> pass -- Don't care which cog makes the calls.
-        , stop = \_ _ -> pass
+        { spin = \_ -> pass -- Don't care which cog makes the calls.
+        , stop = \_ -> pass
         , call = runSysCall st
         , category = categoryCall
         , describe = describeCall

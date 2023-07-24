@@ -23,15 +23,15 @@ do
 done
 
 # TODO: error out if this broke.
-$plunder boot mb sire/demo_mandelbrot_ui.sire
-$plunder start mb
+$plunder boot sire/demo_mandelbrot_ui.sire
+$plunder start
 
-until find .demo -maxdepth 1 -name "mb.*.http.port" -quit
+until find .demo -maxdepth 1 -name "*.http.port" -quit
 do
      sleep 0.1
 done
 
-PORT=$(cat .demo/mb.*.http.port)
+PORT=$(cat .demo/*.http.port)
 
 echo "Setting interface files..."
 curl --data-binary @./demo/mandelbrot-ui/main.js -H "Content-Type: text/javascript" -X PUT http://localhost:$PORT/main.js

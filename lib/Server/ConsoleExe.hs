@@ -244,14 +244,10 @@ data CtlApi a = CTL_API
     , halt     :: a :- "halt"                               :> POST ()
     , pins     :: a :- "pins"
                     :> GET (Map Text [Text])
-    , machines :: a :- "machines"
-                    :> GET (Map MachineName MachineStatus)
     , doDu     :: a :- "du"       :> MachineCap             :> GET [Text]
-    , start    :: a :- "machines" :> MachineCap :> "start"  :> ReplayFromCap
-                    :> POST ()
-    , replay   :: a :- "machines" :> MachineCap :> "replay" :> ReplayFromCap
-                    :> POST ()
-    , boot     :: a :- "boot    " :> MachineCap :> PackCap  :> POST ()
+    , start    :: a :- "start"    :> ReplayFromCap          :> POST ()
+    , replay   :: a :- "replay"   :> ReplayFromCap          :> POST ()
+    , boot     :: a :- "boot    " :> PackCap  :> POST ()
     -- , poke  :: a :- "poke"     :> MachineCap :> PokePath :> PackCap
     --              :> POST ()
     }
@@ -267,8 +263,8 @@ ctlServer st =
     pins :: Handler (Map Text [Text])
     pins = pure (error "TODO: Re-implement")
 
-    boot :: MachineName -> JellyPack -> Handler ()
-    boot n pkg = liftIO (doBoot st n pkg)
+    boot :: JellyPack -> Handler ()
+    boot pkg = liftIO (doBoot st pkg)
 
     -- poke :: MachineName -> [Text] -> JellyPack -> Handler ()
     -- poke n path package = liftIO (doPoke st n path package)
@@ -283,49 +279,29 @@ ctlServer st =
     halt :: Handler ()
     halt = forever (putMVar st.termSignal ())
 
-    machines :: Handler (Map MachineName MachineStatus)
-    machines = do
-        cgz <- liftIO (DB.getMachineNames st.lmdb)
-        let tab = mapFromList (cgz <&> \c -> (c, c))
-        liftIO $ for tab (getMachineStatus >=> maybe (error "ctlServer: impossible") pure)
+    start :: ReplayFrom -> Handler ()
+    start rf = do
+        void $ liftIO $ startMachine st rf
 
-    start :: MachineName -> ReplayFrom -> Handler ()
-    start machine rf = do
-        void $ liftIO $ startMachine st rf machine
-
-    replay :: MachineName -> ReplayFrom -> Handler ()
-    replay machine rf = do
-        void $ liftIO $ startMachine st rf machine
-
-    getMachineStatus :: MachineName -> IO (Maybe MachineStatus)
-    getMachineStatus machine = do
-        cgz <- liftIO (setFromList <$> DB.getMachineNames st.lmdb)
-        if not (member machine (cgz :: Set MachineName)) then
-            pure Nothing
-        else atomically do
-            (lookup machine <$> readTVar st.machineHandles) >>= \case
-                Nothing -> pure (Just IDLE)
-                Just vc -> readTVar vc >>= \case
-                   Nothing -> pure (Just STARTING)
-                   Just{}  -> pure (Just RUNNING)
+    replay :: ReplayFrom -> Handler ()
+    replay rf = do
+        void $ liftIO $ startMachine st rf
 
     doDu :: MachineName -> Handler [Text]
     doDu = liftIO . machineDu st
 
 
 reqIsUp    :: ClientM ()
-reqBoot    :: MachineName -> JellyPack -> ClientM ()
+reqBoot    :: JellyPack -> ClientM ()
 _reqHalt   :: ClientM ()
-reqMachines    :: ClientM (Map MachineName MachineStatus)
-reqStart    :: MachineName -> ReplayFrom -> ClientM ()
-_reqReplay :: MachineName -> ReplayFrom -> ClientM ()
+reqStart    :: ReplayFrom -> ClientM ()
+_reqReplay :: ReplayFrom -> ClientM ()
 reqDu      :: MachineName -> ClientM [Text]
 -- reqPoke    :: MachineName -> [Text] -> JellyPack -> ClientM ()
 
 CTL_API { isUp   = reqIsUp
         , boot   = reqBoot
         , halt   = _reqHalt
-        , machines   = reqMachines
         , start   = reqStart
         , replay = _reqReplay
         , doDu   = reqDu
@@ -342,7 +318,7 @@ data RunType
                            Bool       -- Crash on jet deopt
                            [FilePath] -- SireFile
     | RTLoot FilePath Prof Bool [FilePath]
-    | RTBoot FilePath Prof Bool MachineName Text
+    | RTBoot FilePath Prof Bool Text
     | RTUses FilePath MachineName
     | RTServ FilePath Prof Bool -- profiling file
                            Bool -- profile laws
@@ -352,9 +328,7 @@ data RunType
     | RTDamn FilePath Prof Bool DaemonAction
     | RTOpen FilePath MachineName CogId
     | RTTerm FilePath MachineName CogId
-    | RTMachines FilePath
-    | RTStat FilePath
-    | RTStart FilePath ReplayFrom (Maybe MachineName)
+    | RTStart FilePath ReplayFrom
     -- | RTPoke FilePath MachineName Text FilePath
 
 machineNameArg :: Parser MachineName
@@ -416,21 +390,9 @@ runType defaultDir = subparser
               <*> doptCrash
               <*> many sireFile)
 
-   <> plunderCmd "machines" "List available machines."
-      (RTMachines <$> (storeArg <|> storeOpt))
-
-   <> plunderCmd "status" "List machines with their status."
-      (RTStat <$> (storeArg <|> storeOpt))
-
    <> plunderCmd "start" "Resume an idle machine."
       (RTStart <$> storeOpt
-               <*> replayFromOption
-               <*> fmap Just machineNameArg)
-
-   <> plunderCmd "start-all" "Resume all idle machines."
-      (RTStart <$> storeOpt
-               <*> replayFromOption
-               <*> pure Nothing)
+               <*> replayFromOption)
 
    <> plunderCmd "loot" "Runs an standalone sire repl."
       (RTLoot <$> storeOpt <*> profOpt <*> profLaw <*> many lootFile)
@@ -439,7 +401,6 @@ runType defaultDir = subparser
       (RTBoot <$> storeOpt
               <*> profOpt
               <*> profLaw
-              <*> machineNameArg
               <*> bootHashArg)
 
    <> plunderCmd "du" "du -ab compatible output for pin state."
@@ -610,10 +571,8 @@ main = Rex.colorsOnlyInTerminal do
                                    liftIO $ Sire.main fz
         RTOpen d machine cog -> void (openBrowser d machine cog)
         RTTerm d machine cog -> void (openTerminal d machine cog)
-        RTMachines d         -> listMachines d False
-        RTStat d             -> listMachines d True
-        RTStart d r m        -> maybe (startAll d r) (startOne d r) m
-        RTBoot d _ _ x y     -> bootMachine d x y
+        RTStart d r          -> startOne d r
+        RTBoot d _ _ y     -> bootMachine d y
         RTUses d machine         -> duMachine d machine
         RTServ d _ _ s j c w -> do writeIORef F.vWarnOnJetFallback j
                                    writeIORef F.vCrashOnJetFallback c
@@ -636,11 +595,9 @@ withProfileOutput args act = do
         RTLoot _ p l _       -> (,l) <$> p
         RTOpen _ _ _         -> Nothing
         RTTerm _ _ _         -> Nothing
-        RTMachines _         -> Nothing
-        RTStat _             -> Nothing
-        RTStart _ _ _        -> Nothing
+        RTStart _ _          -> Nothing
         RTUses _ _           -> Nothing
-        RTBoot _ p l _ _     -> (,l) <$> p
+        RTBoot _ p l  _      -> (,l) <$> p
         RTServ _ p l _ _ _ _ -> (,l) <$> p
         RTDamn _ p l _       -> (,l) <$> p
         -- RTPoke _ _ _ _       -> Nothing
@@ -651,14 +608,14 @@ startDaemon d =
          (True,  _) -> debugText "Daemon started."
          (False, _) -> debugText "Daemon already running."
 
-bootMachine :: (Debug, Rex.RexColor) => FilePath -> MachineName -> Text -> IO ()
-bootMachine d c pash = do
+bootMachine :: (Debug, Rex.RexColor) => FilePath -> Text -> IO ()
+bootMachine d pash = do
     withDaemon d $ do
         let fil = unpack pash
         e <- liftIO (doesFileExist fil)
         unless e (error $ unpack ("File does not exist: " <> pash))
         val <- liftIO (Sire.loadFile fil)
-        reqBoot c (JELLY_PACK val)
+        reqBoot (JELLY_PACK val)
 
 -- pokeCog :: (Debug, Rex.RexColor) => FilePath -> MachineName -> Text -> FilePath
 --         -> IO ()
@@ -692,16 +649,9 @@ killDaemon d = do
            -- TODO Handle situation where process does not actually exist.
            signalProcess sigTERM (alien :: CPid)
 
-startOne :: Debug => FilePath -> ReplayFrom -> MachineName -> IO ()
-startOne d r machine =
-    withDaemon d (reqStart machine r)
-
-startAll :: Debug => FilePath -> ReplayFrom -> IO ()
-startAll d r = do
-    withDaemon d do
-        status <-  reqMachines
-        for_ (keys status) \machine -> do
-            reqStart machine r
+startOne :: Debug => FilePath -> ReplayFrom -> IO ()
+startOne d r =
+    withDaemon d (reqStart r)
 
 shellFg :: String -> [String] -> IO ExitCode
 shellFg c a = do
@@ -785,7 +735,7 @@ runServer enableSnaps numWorkers storeDir = do
     let devTable db hw_poke = do
             hw1_rand          <- createHardwareRand
           --(hw4_wock, wsApp) <- createHardwareWock
-            let wsApp _machineName _cogId _ws = pure ()
+            let wsApp _cogId _ws = pure ()
             hw2_http          <- createHardwareHttp storeDir db wsApp
           --hw3_sock          <- createHardwareSock storeDir
             hw5_time          <- createHardwareTime
@@ -826,18 +776,19 @@ runServer enableSnaps numWorkers storeDir = do
     To boot a machine, we just write the initial value as a single Init
     to the log, and then exit.
 -}
-doBoot :: Debug => ServerState -> MachineName -> JellyPack -> IO ()
-doBoot st machineName pak = do
-    debug ["booting_machine", machineName.txt]
+doBoot :: Debug => ServerState -> JellyPack -> IO ()
+doBoot st pak = do
+    debugText "booting_machine"
 
-    createdMachine <- DB.newMachine st.lmdb machineName
-    firstCogId <- COG_ID <$> randomIO
-
-    if not createdMachine then
-        error ("Trying to overwrite existing machine " <> show machineName)
-    else
-        DB.writeMachineSnapshot st.lmdb machineName (BatchNum 0)
-                                (singletonMap firstCogId (CG_SPINNING pak.fan))
+    curBatchNum <- DB.getNumBatches st.lmdb
+    case curBatchNum of
+        BatchNum 0 -> do
+            firstCogId <- COG_ID <$> randomIO
+            DB.writeMachineSnapshot st.lmdb (BatchNum 0)
+                                    (singletonMap firstCogId
+                                     (CG_SPINNING pak.fan))
+        _ -> do
+            error "Trying to overwrite existing machine"
 
 -- {-
 --     Deliver a noun from the outside to a given cog.
@@ -881,49 +832,37 @@ shutdownOnSigkill (st, rpcServer) = do
 
     debugText "finished_shutdownOnSigKill"
 
-listMachines :: Debug => FilePath -> Bool -> IO ()
-listMachines d showStatus = do
-    withDaemon d $ do
-        debugText "list_machines"
-        status <- reqMachines
-        liftIO $ showStatus & \case
-            False ->  debug ((.txt) <$> keys status)
-            True  ->  for_ (mapToList status) \(k,v) -> do
-                          debugTextVal k.txt (toLower $ tshow v)
-
-startMachine :: Debug => ServerState -> ReplayFrom -> MachineName -> IO ()
-startMachine st replayFrom machineName = do
-    debug ["starting_machine", machineName.txt]
+startMachine :: Debug => ServerState -> ReplayFrom -> IO ()
+startMachine st replayFrom = do
+    debugText "starting_machine"
 
     cache <- DB.CUSHION <$> newIORef mempty
 
-    DB.loadMachine st.lmdb machineName >>= \case
-        Nothing -> do
-            throwIO (NO_SUCH_MACHINE machineName)
-        Just _bn -> do
-            vHandle <- join $ atomically do
-                halty <- readTVar st.isShuttingDown
-                table <- readTVar st.machineHandles
-                case (halty, lookup machineName table) of
-                    (True, _) ->
-                        pure $ throwIO (START_DURING_SHUTDOWN machineName)
-                    (_, Just{}) ->
-                        pure $ throwIO (MACHINE_ALREADY_RUNNING machineName)
-                    (False, Nothing) -> do
-                        h <- newTVar Nothing
-                        modifyTVar' st.machineHandles (insertMap machineName h)
-                        pure (pure h)
+    let machineName = MACHINE_NAME "TODO:REMOVE"
 
-            debug ["found_machine", "starting_replay"::Text]
-            let hw   = st.hardware
-            let eval = st.evaluator
-            let enableSnaps = st.enableSnaps
-            let ctx  = MACHINE_CONTEXT{eval, hw, machineName, lmdb=st.lmdb,
-                                       enableSnaps}
-            h <- withCogDebugging machineName.txt
-                   (replayAndCrankMachine cache ctx replayFrom)
-            atomically (writeTVar vHandle $! Just h)
-            debugText "machine_started"
+    vHandle <- join $ atomically do
+        halty <- readTVar st.isShuttingDown
+        table <- readTVar st.machineHandles
+        case (halty, lookup machineName table) of
+            (True, _) ->
+                pure $ throwIO (START_DURING_SHUTDOWN machineName)
+            (_, Just{}) ->
+                pure $ throwIO (MACHINE_ALREADY_RUNNING machineName)
+            (False, Nothing) -> do
+                h <- newTVar Nothing
+                modifyTVar' st.machineHandles (insertMap machineName h)
+                pure (pure h)
+
+    debug ["found_machine", "starting_replay"::Text]
+    let hw   = st.hardware
+    let eval = st.evaluator
+    let enableSnaps = st.enableSnaps
+    let ctx  = MACHINE_CONTEXT{eval, hw, lmdb=st.lmdb,
+                               enableSnaps}
+    h <- withCogDebugging machineName.txt
+           (replayAndCrankMachine cache ctx replayFrom)
+    atomically (writeTVar vHandle $! Just h)
+    debugText "machine_started"
 
 machineDu :: Debug => ServerState -> MachineName -> IO [Text]
 machineDu st machineName = do
@@ -949,8 +888,7 @@ machineDu st machineName = do
       let enableSnaps = st.enableSnaps
       let hw   = st.hardware  -- not used
       let eval = st.evaluator -- not used
-      let ctx  = MACHINE_CONTEXT{eval, hw, machineName, lmdb=st.lmdb,
-                                 enableSnaps}
+      let ctx  = MACHINE_CONTEXT{eval, hw, lmdb=st.lmdb, enableSnaps}
       (_, MOMENT noun _) <- performReplay cache ctx LatestSnapshot
       pure noun
 

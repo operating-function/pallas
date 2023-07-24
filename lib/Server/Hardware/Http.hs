@@ -109,14 +109,14 @@ import Server.Debug
 import Server.Hardware.Types
 import Server.LmdbStore
 
-import Data.Acquire           (Acquire, mkAcquire)
-import Data.IntMap.Strict     (minView)
-import Fan.Convert            (FromNoun(..), ToNoun(..), fromNoun, toNoun)
-import Optics                 (set)
-import Server.Convert         ()
-import Server.Types.Logging   (CogId(..), MachineName(..))
-import System.Directory       (removeFile)
-import System.IO.Error        (catchIOError)
+import Data.Acquire         (Acquire, mkAcquire)
+import Data.IntMap.Strict   (minView)
+import Fan.Convert          (FromNoun(..), ToNoun(..), fromNoun, toNoun)
+import Optics               (set)
+import Server.Convert       ()
+import Server.Types.Logging (CogId(..))
+import System.Directory     (removeFile)
+import System.IO.Error      (catchIOError)
 
 import qualified Data.CaseInsensitive           as CI
 import qualified Data.Vector                    as V
@@ -130,10 +130,9 @@ import qualified Network.WebSockets             as WS
 --------------------------------------------------------------------------------
 
 data RawRequest = RR
-    { machineName :: MachineName
-    , cogId       :: CogId
-    , vals        :: Vector Fan
-    , callback    :: TVar (Maybe (Fan -> STM ()))
+    { cogId    :: CogId
+    , vals     :: Vector Fan
+    , callback :: TVar (Maybe (Fan -> STM ()))
     }
 
 data PathLeaf = PL
@@ -244,8 +243,8 @@ data CogState = COG_STATE
 
 data HWState = HW_STATE
     { mach  :: FilePath
-    , wsApp :: MachineName -> CogId -> WS.ServerApp
-    , cogs  :: TVar (Map (MachineName, CogId) CogState)
+    , wsApp :: CogId -> WS.ServerApp
+    , cogs  :: TVar (Map CogId CogState)
     , store :: LmdbStore
     }
 
@@ -269,19 +268,19 @@ startCog lmdbStore st cogName = do
                  (fromIntegral listenPort :: Nat)
 -}
 
-stopCogById :: HWState -> MachineName -> CogId -> IO ()
-stopCogById st machineName cogId = do
+stopCogById :: HWState -> CogId -> IO ()
+stopCogById st cogId = do
     maybeCogState <-
         atomically do
             oldTab <- readTVar st.cogs
-            writeTVar st.cogs (deleteMap (machineName, cogId) oldTab)
-            pure (lookup (machineName, cogId) oldTab)
+            writeTVar st.cogs (deleteMap cogId oldTab)
+            pure (lookup cogId oldTab)
 
     maybe pass cancelCog maybeCogState
 
-spinCog :: Debug => HWState -> MachineName -> CogId -> IO ()
-spinCog st machineName cogId = do
-    traceM (unpack ("HTTP_SPINNING:" <> machineName.txt))
+spinCog :: Debug => HWState -> CogId -> IO ()
+spinCog st cogId = do
+    traceM "HTTP_SPINNING"
     let localhost = N.tupleToHostAddress (0x7f, 0, 0, 1)
     let flags = [N.AI_NUMERICHOST, N.AI_NUMERICSERV]
     let tcp   = 6
@@ -290,12 +289,12 @@ spinCog st machineName cogId = do
     listenSocket <- N.openSocket ainfo
     N.listen listenSocket 5 -- TODO Should this be 5?
     listenPort <- fromIntegral <$> N.socketPort listenSocket
-    debugVal (machineName.txt <> "_http_port")
+    debugVal ("_http_port")
              (fromIntegral listenPort :: Nat)
 
-    let baseName  = machineName.txt <> "." <> (tshow cogId.int) <> ".http.port"
+    let baseName  = (tshow cogId.int) <> ".http.port"
     let portFile = st.mach </> unpack baseName
-    debugTextVal (machineName.txt <> "_http_port_file") (pack portFile)
+    debugTextVal ("_http_port_file") (pack portFile)
     writeFileUtf8 portFile (tshow listenPort)
 
     cogState <- do
@@ -307,7 +306,7 @@ spinCog st machineName cogId = do
         port <- pure listenPort
         live <- newTVarIO emptyPool
         mdo
-            stik <- async (servThread st.store (st.wsApp machineName cogId) cs)
+            stik <- async (servThread st.store (st.wsApp cogId) cs)
             let ~cs = COG_STATE{sock,port,file=portFile,stik,serv,hear,lock,
                                 hold,live}
             pure cs
@@ -317,7 +316,7 @@ spinCog st machineName cogId = do
     --
     -- This is safe, but is an implicit invariant that would be nice
     -- to factor-out eventually.
-    atomically $ modifyTVar st.cogs $ insertMap (machineName, cogId) cogState
+    atomically $ modifyTVar st.cogs $ insertMap cogId cogState
 {-
             sock <- pure listenSocket
             port <- pure listenPort
@@ -443,7 +442,7 @@ servThread lmdbStore wsApp cog = do
 
 runSysCall :: HWState -> SysCall -> STM (Cancel, [Flow])
 runSysCall st syscall = do
-    mCog <- lookup (syscall.machine, syscall.cog) <$> readTVar st.cogs
+    mCog <- lookup syscall.cog <$> readTVar st.cogs
     case mCog of
         Nothing -> do
             -- traceM "NO COG"
@@ -619,7 +618,7 @@ createHardwareHttp
     :: Debug
     => FilePath
     -> LmdbStore
-    -> (MachineName -> CogId -> WS.ServerApp)
+    -> (CogId -> WS.ServerApp)
     -> Acquire Device
 createHardwareHttp mach store wsApp = do
     st <- mkAcquire startup shutdown

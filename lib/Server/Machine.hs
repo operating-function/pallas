@@ -68,8 +68,7 @@ data Moment = MOMENT {
   }
 
 data MachineContext = MACHINE_CONTEXT
-    { machineName :: MachineName
-    , lmdb        :: LmdbStore
+    { lmdb        :: LmdbStore
     , hw          :: DeviceTable
     , eval        :: Evaluator
     , enableSnaps :: Bool
@@ -216,8 +215,8 @@ data Request
   [%cog %recv]
   [$call synced/? param/Fan ...]
 -}
-valToRequest :: MachineName -> CogId -> Fan -> Request
-valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
+valToRequest :: CogId -> Fan -> Request
+valToRequest cogId top = fromMaybe (UNKNOWN top) do
     row <- getRow top
     tag <- fromNoun @DeviceName (row!0)
 
@@ -229,7 +228,7 @@ valToRequest machine cogId top = fromMaybe (UNKNOWN top) do
         let func = row!2
         let args = V.drop 3 row
         let flow = FlowDisabled -- TODO: What?
-        let er = EVAL_REQUEST{func,args,machine,cogId,flow,timeoutMs}
+        let er = EVAL_REQUEST{func,args,cogId,flow,timeoutMs}
         pure (ReqEval er)
         -- e (ReqEval $ error "_" timeoutSecs (row!2) (V.drop 3 row))
     else if tag == "what" then do
@@ -454,12 +453,11 @@ third (_, _, c) = c
 type ReconstructedEvals = [(Fan, Fan, Maybe CogReplayEffect)]
 
 recomputeEvals
-    :: MachineContext
-    -> Moment
+    :: Moment
     -> CogId
     -> IntMap ReceiptItem
     -> StateT NanoTime IO ReconstructedEvals
-recomputeEvals ctx m cogId tab =
+recomputeEvals m cogId tab =
     for (mapToList tab) \(idx, rVal) -> do
         let k = toNoun (fromIntegral idx :: Word)
         case rVal of
@@ -535,7 +533,7 @@ recomputeEvals ctx m cogId tab =
                 let row = getCurrentReqNoun cog
                 case row V.!? idx of
                     Nothing  -> Nothing
-                    Just val -> fun $ valToRequest ctx.machineName cogId val
+                    Just val -> fun $ valToRequest cogId val
 
 -- | Loads and the last snapshot from disk, and loops over the event loop
 -- (starting from that event) and processes each Receipt from each LogBatch.
@@ -550,7 +548,7 @@ performReplay
     -> IO (BatchNum, Moment)
 performReplay cache ctx replayFrom = do
     let mkInitial (a, b) = (b, MOMENT a 0)
-    loadLogBatches ctx.machineName replayFrom mkInitial doBatch ctx.lmdb cache
+    loadLogBatches replayFrom mkInitial doBatch ctx.lmdb cache
   where
     doBatch :: (BatchNum, Moment) -> LogBatch -> IO (BatchNum, Moment)
     doBatch (_, moment) LogBatch{batchNum,executed} =
@@ -586,7 +584,7 @@ performReplay cache ctx replayFrom = do
             RECEIPT_OK{..} -> do
                 -- The original run succeeded, rebuild the value from the
                 -- receipt items.
-                (eRes, eWork) <- runStateT (recomputeEvals ctx m cogNum inputs) 0
+                (eRes, eWork) <- runStateT (recomputeEvals m cogNum inputs) 0
 
                 let arg = TAb $ mapFromList $ map tripleToPair eRes
 
@@ -630,7 +628,7 @@ replayAndCrankMachine cache ctx replayFrom = do
 
   withProcessName processName (wrapReplay threadName)
   where
-    processName = "Machine: " <> encodeUtf8 (txt ctx.machineName)
+    processName = "Machine"
 
     wrapReplay :: ByteString -> IO Machine
     wrapReplay threadName = do
@@ -723,16 +721,14 @@ buildLiveRequest
     -> STM ([Flow], LiveRequest, Maybe (STM OnCommitFlow))
 buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
     ReqEval EVAL_REQUEST{..} -> do -- timeoutMs func args -> do
-        let req = EVAL_REQUEST{flow=causeFlow, timeoutMs, func, args,
-                               machine=ctx.machineName, cogId}
+        let req = EVAL_REQUEST{flow=causeFlow, timeoutMs, func, args, cogId}
         leRecord <- pleaseEvaluate ctx.eval req
         pure ([], LiveEval{leIdx=reqIdx, leRecord}, Nothing)
 
     ReqCall cr -> do
         callSt <- STVAR <$> newTVar LIVE
 
-        let lcSysCall = SYSCALL ctx.machineName cogId cr.device cr.params
-                                callSt causeFlow
+        let lcSysCall = SYSCALL cogId cr.device cr.params callSt causeFlow
         -- If the call requires durability, pass the STM action to start
         -- it back to the caller. Otherwise, just run the action and
         -- pass back nothing.
@@ -984,13 +980,13 @@ runnerFun initialFlows machine processName st =
       m <- readTVarIO st.vMoment
       let k :: [CogId] = keys m.val
       for_ k $ \cogid ->
-        for_ machine.ctx.hw.table $ \d -> d.spin machine.ctx.machineName cogid
+        for_ machine.ctx.hw.table $ \d -> d.spin cogid
 
     stopCogsWithHardware :: IO ()
     stopCogsWithHardware = do
       m <- readTVarIO st.vMoment
       for_ (keys m.val) $ \cogid ->
-        for_ machine.ctx.hw.table $ \d -> d.stop machine.ctx.machineName cogid
+        for_ machine.ctx.hw.table $ \d -> d.stop cogid
 
     -- We've completed a unit of work. Time to tell the logger about
     -- the new state of the world.
@@ -1205,15 +1201,13 @@ runResponse st cogNum rets = do
     performAfterEffect _ (RespSpin newCogId _) = do
         -- If we just spun up another cog, tell all the hardware
         -- devices that it exists now.
-        for_ st.ctx.hw.table $ \d ->
-            d.spin st.ctx.machineName newCogId
+        for_ st.ctx.hw.table $ \d -> d.spin newCogId
         pure ([], [])
 
     performAfterEffect _ (RespStop dedCogId _) = do
         -- If we just stopped another cog, we need to to tell
         -- all the hardware devices that it no longer exists.
-        for_ st.ctx.hw.table $ \d ->
-            d.stop st.ctx.machineName dedCogId
+        for_ st.ctx.hw.table $ \d -> d.stop dedCogId
         pure ([], [])
 
     performAfterEffect result (RespRecv PENDING_SEND{..}) = do
@@ -1349,7 +1343,7 @@ parseRequests runner cogId = do
 
     createReq :: Int -> Fan -> StateT ParseRequestsState STM ()
     createReq i v = do
-        let request = valToRequest runner.ctx.machineName cogId v
+        let request = valToRequest cogId v
             reqData = reqDebugSummary request
             reqName = "Cog " <> (encodeUtf8 $ tshow cogId.int)
                    <> " idx "
@@ -1480,7 +1474,7 @@ logFun machine =
 
         now <- getNanoTime
 
-        writeLogBatch machine.ctx.lmdb machine.ctx.machineName $
+        writeLogBatch machine.ctx.lmdb $
             LogBatch
                 { batchNum  = next.batchNum
                 , writeTime = now
@@ -1537,8 +1531,7 @@ snapshotFun machine =
                 pure (shutdown, logBN, logMoment)
 
         withAlwaysTrace "Snapshot" "log" do
-            writeMachineSnapshot machine.ctx.lmdb machine.ctx.machineName bn
-                                 moment.val
+            writeMachineSnapshot machine.ctx.lmdb bn moment.val
 
         unless shutdown do
             loop moment.work

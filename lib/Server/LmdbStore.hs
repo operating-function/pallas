@@ -13,14 +13,12 @@ module Server.LmdbStore
     , Cushion(..)
     --
     , openDatastore
-    , newMachine
-    , loadMachine
+    , getNumBatches
     , loadLogBatches
     --
     , writeLogBatch
     , writeMachineSnapshot
     --
-    , getMachineNames
     , loadPinByHash
     , internPin
     )
@@ -64,21 +62,20 @@ import qualified Jelly
 -- -----------------------------------------------------------------------
 
 data LmdbStore = LmdbStore
-    { dir                   :: FilePath
-    , env                   :: MDB_env
+    { dir           :: FilePath
+    , env           :: MDB_env
 
-    -- | A map of tables where each table is the numeric kv
-    , machineEventlogTables :: TVar (Map MachineName MachineLogTable)
-
-    -- | List of all processes this store contains.
-    , machineTable          :: MDB_dbi
+    -- TODO: Was MachineLogTable / machineEventlogTables
+    , logTable      :: MDB_dbi
+    , snapshotTable :: MDB_dbi
+    , numBatches    :: TVar Word64
 
     -- | A mapping of noun hash to serialized noun representation.
-    , pinCushion            :: MDB_dbi
+    , pinCushion    :: MDB_dbi
 
     -- | All known pins. This is loaded from `pinCushion` at startup and is
     -- meant to be kept in sync.
-    , knownPins             :: IORef (HashMap Hash256 PinState)
+    , knownPins     :: IORef (HashMap Hash256 PinState)
     }
 
 
@@ -99,38 +96,25 @@ data Pend = PEND {
     fsynced :: MVar ()           -- ^ Set once written data is durable on disk.
     }
 
--- | A table mapping which also stores (the number of logbatches written) in
--- memory.
-data MachineLogTable = MachineLogTable
-    { logTable      :: MDB_dbi
-    , snapshotTable :: MDB_dbi
-    , numBatches    :: TVar Word64
-    }
-
-instance Show MachineLogTable where
-    show logs = unsafePerformIO do
-        n <- readTVarIO logs.numBatches
-        pure ("MachineLogTable{" <> show n <> "}")
-
 data DecodeCtx
     = DECODE_PIN Hash256
-    | DECODE_BATCH MachineName Word64
+    | DECODE_BATCH Word64
   deriving Show
 
 data StoreExn
     = BadMachineName MachineName
     | BadWriteMachineTable MachineName
     | BadIndexInEventlog MachineName
-    | BadWriteLogBatch MachineName BatchNum
-    | BadWriteSnapshot MachineName BatchNum
+    | BadWriteLogBatch BatchNum
+    | BadWriteSnapshot BatchNum
     | BadPinWrite Word64 Hash256
     | BadPinMissing Hash256 [Hash256]
     | BadBlob DecodeCtx Text
     | BadDependency ByteString
     | BadLogEntry MachineName
     | BadSnapshot MachineName
-    | EmptyLogTable MachineName
-    | EmptySnapshotTable MachineName
+    | EmptyLogTable
+    | EmptySnapshotTable
   deriving Show
 
 instance Exception StoreExn where
@@ -157,33 +141,23 @@ openEnv dir = liftIO $ do
     mdb_env_open env dir []
     pure env
 
-openTables :: MDB_txn -> IO (MDB_dbi, MDB_dbi)
+openTables :: MDB_txn -> IO (MDB_dbi, MDB_dbi, MDB_dbi)
 openTables txn =
-    (,) <$> mdb_dbi_open txn (Just "MACHINES") [MDB_CREATE]
-        <*> mdb_dbi_open txn (Just "NOUNS") [MDB_CREATE, MDB_INTEGERKEY]
-
-logName :: MachineName -> Maybe Text
-logName nm = Just ("LOG-" ++ nm.txt)
-
-snapshotName :: MachineName -> Maybe Text
-snapshotName nm = Just ("SNAPSHOT-" ++ nm.txt)
+    (,,) <$> mdb_dbi_open txn (Just "LOG") [MDB_CREATE, MDB_INTEGERKEY]
+         <*> mdb_dbi_open txn (Just "SNAPSHOT") [MDB_CREATE, MDB_INTEGERKEY]
+         <*> mdb_dbi_open txn (Just "NOUNS") [MDB_CREATE, MDB_INTEGERKEY]
 
 open :: FilePath -> IO LmdbStore
 open dir = do
     createDirectoryIfMissing True dir
     env <- openEnv dir
     with (writeTxn env) $ \txn -> do
-        (t, n) <- openTables txn
-        machineTableData <- mapFromList <$> readMachines txn t
-        machineTables <- newTVarIO machineTableData
-
-        knownPinData <- mapFromList <$> readPins txn n
+        (logTable, snapshotTable, pinCushion) <- openTables txn
+        numBatches <- readNumBatches txn logTable >>= newTVarIO
+        knownPinData <- mapFromList <$> readPins txn pinCushion
         knownPins <- newIORef knownPinData
-        pure $ LmdbStore dir env machineTables t n knownPins
+        pure $ LmdbStore{..}
   where
-    readMachines txn s =
-      getAllMachines txn s >>= traverse (openMachineTable txn)
-
     readPins :: MDB_txn -> MDB_dbi -> IO [(Hash256, PinState)]
     readPins txn pinCushion =
       with (cursor txn pinCushion) \cur ->
@@ -193,99 +167,38 @@ open dir = do
         -- print ("ReadPin"::Text, meta)
         pure (meta.hash, PIN_COMMITTED pinId)
 
-    openMachineTable txn tn = do
-      logTbl <- mdb_dbi_open txn (unpack <$> logName tn) [MDB_INTEGERKEY]
-      ssTbl  <- mdb_dbi_open txn (unpack <$> snapshotName tn) [MDB_INTEGERKEY]
-      num  <- getNumBatches txn logTbl
-      vNum <- newTVarIO num
-      pure $ (tn, MachineLogTable logTbl ssTbl vNum)
-
 close :: LmdbStore -> IO ()
 close db = do
-    tableMap <- readTVarIO db.machineEventlogTables
-    for_ (mapToList tableMap) \(_,s) ->
-        mdb_dbi_close db.env s.logTable
+    mdb_dbi_close db.env db.logTable
+    mdb_dbi_close db.env db.snapshotTable
     mdb_dbi_close db.env db.pinCushion
     mdb_env_sync_flush db.env
     mdb_env_close db.env
 
 -- -----------------------------------------------------------------------
 
-getAllMachines :: MDB_txn -> MDB_dbi -> IO [MachineName]
-getAllMachines txn machineTable =
-    with (cursor txn machineTable) \cur ->
-        forAllKV cur \pKey _ -> do
-            key <- peekMdbVal @ByteString pKey
-            pure $ MACHINE_NAME $ decodeUtf8 key
-
-getNumBatches :: MDB_txn -> MDB_dbi -> IO Word64
-getNumBatches txn logTable =
+readNumBatches :: MDB_txn -> MDB_dbi -> IO Word64
+readNumBatches txn logTable =
     with (cursor txn logTable) $ \cur ->
         withNullKVPtrs \k v -> do
             mdb_cursor_get MDB_LAST cur k v >>= \case
                 False -> pure 0
                 True  -> peekMdbVal @Word64 k
 
-getMachineNames :: LmdbStore -> IO [MachineName]
-getMachineNames lmdbStore =
-  keys <$> readTVarIO lmdbStore.machineEventlogTables
-
--- | Allocates structures for a new machine, returning True if it created a new
--- Machine and False if there's already an existing one.
-newMachine :: Debug => LmdbStore -> MachineName -> IO Bool
-newMachine  lmdbStore machineName@(MACHINE_NAME tnStr) = do
-    logTables <- readTVarIO lmdbStore.machineEventlogTables
-    case lookup machineName logTables of
-        Just _ -> pure False
-        Nothing   -> do
-            log <- withWriteAsync lmdbStore.env $ \txn -> do
-              let flags = compileWriteFlags [MDB_NOOVERWRITE]
-                  tnBS = encodeUtf8 tnStr
-
-              -- TODO: Attach a value to the key. Empty for now for iteration.
-              writeKV flags txn lmdbStore.machineTable tnBS BS.empty
-                      (BadWriteMachineTable machineName)
-
-              -- Build an empty table with that machine name.
-              logDb <- mdb_dbi_open txn (unpack <$> logName machineName)
-                                    [MDB_CREATE, MDB_INTEGERKEY]
-              ssDb <- mdb_dbi_open txn (unpack <$> snapshotName machineName)
-                                   [MDB_CREATE, MDB_INTEGERKEY]
-              numBatches <- newTVarIO 0
-              pure $ MachineLogTable logDb ssDb numBatches
-
-            atomically $
-              modifyTVar' lmdbStore.machineEventlogTables
-                          (insertMap machineName log)
-            pure True
-
--- | Tries loading a machine. If the machine doesn't exist on disk, return
--- Nothing, otherwise returns the latest BatchNum.
-loadMachine :: Debug => LmdbStore -> MachineName -> IO (Maybe BatchNum)
-loadMachine lmdbStore machineName = do
-    logTables <- readTVarIO lmdbStore.machineEventlogTables
-    case lookup machineName logTables of
-        Nothing   -> pure Nothing
-        Just logs -> do
-          nb <- atomically $ readTVar logs.numBatches
-          pure $ Just $ BatchNum $ fromIntegral nb
-
+getNumBatches :: LmdbStore -> IO BatchNum
+getNumBatches store = (BatchNum . fromIntegral) <$> readTVarIO store.numBatches
 
 loadLogBatches
     :: forall a
-     . MachineName
-    -> ReplayFrom
+     . ReplayFrom
     -> ((Map CogId CogState, BatchNum) -> a)
     -> (a -> LogBatch -> IO a)
     -> LmdbStore
     -> Cushion
     -> IO a
-loadLogBatches who replayFrom mkInitial fun lmdbStore cache = do
-    logTables <- readTVarIO lmdbStore.machineEventlogTables
-    case lookup who logTables of
-        Nothing   -> throwIO (BadMachineName who)
-        Just logs -> with (readTxn lmdbStore.env) $
-            loadBatches logs.logTable logs.snapshotTable
+loadLogBatches replayFrom mkInitial fun lmdbStore cache = do
+    with (readTxn lmdbStore.env) $
+      (loadBatches lmdbStore.logTable lmdbStore.snapshotTable)
   where
     loadBatches logTable snapshotTable txn = do
       (ssBatch, initial) <- findSnapshot snapshotTable txn
@@ -297,7 +210,7 @@ loadLogBatches who replayFrom mkInitial fun lmdbStore cache = do
         foldlRange cur firstLogBatch initial \prev k v -> do
           key <- peekMdbVal @Word64 k
           vBS <- peekMdbVal @ByteString v
-          val <- loadNoun lmdbStore cache (DECODE_BATCH who key) vBS
+          val <- loadNoun lmdbStore cache (DECODE_BATCH key) vBS
           case fromNoun val of
             Nothing -> error "Couldn't read noun"
             Just lb -> fun prev lb
@@ -310,7 +223,7 @@ loadLogBatches who replayFrom mkInitial fun lmdbStore cache = do
                 EarliestSnapshot -> MDB_FIRST
                 LatestSnapshot   -> MDB_LAST
           found <- mdb_cursor_get op cur k v
-          unless found $ throwIO (EmptySnapshotTable who)
+          unless found $ throwIO EmptySnapshotTable
           key <- peekMdbVal @Word64 k
           vBS <- peekMdbVal @Hash256 v
 
@@ -320,27 +233,22 @@ loadLogBatches who replayFrom mkInitial fun lmdbStore cache = do
             Just ss ->
               pure (key, mkInitial (ss, BatchNum $ fromIntegral key))
 
-writeLogBatch :: Debug => LmdbStore -> MachineName -> LogBatch -> IO ()
-writeLogBatch lmdbStore who lb = do
+writeLogBatch :: Debug => LmdbStore -> LogBatch -> IO ()
+writeLogBatch lmdbStore lb = do
     withTraceResultArgs "writeLogBatch" "log" do
-      logTables <- readTVarIO lmdbStore.machineEventlogTables
-      case lookup who logTables of
-          Nothing -> throwIO (BadMachineName who)
-          Just logs -> do
-              (pinz, lbPin, lbHead, lbBody) <-
-                withSimpleTracingEvent "jar+hash" "log" $ do
-                  Jelly.withContext \ctx -> do
-                    pin <- F.mkPin' (toNoun lb)
-                    (!pinz, lbHead, lbBody) <- saveFan' ctx (toNoun lb)
-                    void (evaluate pin.hash)
-                    pure (pinz, pin, lbHead, lbBody)
-              numBatches <- atomically (readTVar logs.numBatches)
-              let curBatch = numBatches + 1
-              withSimpleTracingEvent "writeIt" "log" $
-                writeIt curBatch logs.logTable lbPin.hash lbHead lbBody pinz
-              atomically $ modifyTVar' logs.numBatches (+1)
+      (pinz, lbPin, lbHead, lbBody) <-
+        withSimpleTracingEvent "jar+hash" "log" $ do
+          Jelly.withContext \ctx -> do
+            pin <- F.mkPin' (toNoun lb)
+            (!pinz, lbHead, lbBody) <- saveFan' ctx (toNoun lb)
+            void (evaluate pin.hash)
+            pure (pinz, pin, lbHead, lbBody)
+      numBatches <- atomically (readTVar lmdbStore.numBatches)
+      let curBatch = numBatches + 1
+      withSimpleTracingEvent "writeIt" "log" $
+        writeIt curBatch lmdbStore.logTable lbPin.hash lbHead lbBody pinz
+      atomically $ modifyTVar' lmdbStore.numBatches (+1)
       let args = mapFromList [
-            ("who", Right $ txt who),
             ("batchNum", Left $ fromIntegral $ unBatchNum $ batchNum lb),
             ("receiptCount", Left $ fromIntegral $ length $ executed lb)
             ]
@@ -367,30 +275,26 @@ writeLogBatch lmdbStore who lb = do
           writeKV logFlags txn logTable
               (curBatch::Word64)
               topRep
-              (BadWriteLogBatch who lb.batchNum)
+              (BadWriteLogBatch lb.batchNum)
 
-writeMachineSnapshot :: Debug => LmdbStore -> MachineName -> BatchNum
+writeMachineSnapshot :: Debug => LmdbStore -> BatchNum
                      -> Map CogId CogState
                      -> IO ()
-writeMachineSnapshot lmdbStore who (BatchNum bn) f = do
-  logTables <- readTVarIO lmdbStore.machineEventlogTables
-  case lookup who logTables of
-      Nothing -> throwIO (BadMachineName who)
-      Just logs -> do
-          let p = coerceIntoPin $ toNoun f
-              logFlags = compileWriteFlags [MDB_NOOVERWRITE, MDB_APPEND]
+writeMachineSnapshot lmdbStore (BatchNum bn) f = do
+    let p = coerceIntoPin $ toNoun f
+        logFlags = compileWriteFlags [MDB_NOOVERWRITE, MDB_APPEND]
 
-          pinBatch <- gatherWriteBatch lmdbStore [p]
+    pinBatch <- gatherWriteBatch lmdbStore [p]
 
-          writePinsToDisk lmdbStore pinBatch
+    writePinsToDisk lmdbStore pinBatch
 
-          withWriteAsyncCommitPins lmdbStore (fst <$> toList pinBatch) $ \txn -> do
-            -- Don't write duplicate snapshots. This can happen when you spin a
-            -- machine, and then shut down the machine before enough work is
-            -- done to naturally write a logbatch.
-            let key = fromIntegral bn :: Word64
-            writeKVNoOverwrite logFlags txn logs.snapshotTable key p.hash
-                               (BadWriteSnapshot who (BatchNum bn))
+    withWriteAsyncCommitPins lmdbStore (fst <$> toList pinBatch) $ \txn -> do
+        -- Don't write duplicate snapshots. This can happen when you spin a
+        -- machine, and then shut down the machine before enough work is
+        -- done to naturally write a logbatch.
+        let key = fromIntegral bn :: Word64
+        writeKVNoOverwrite logFlags txn lmdbStore.snapshotTable key p.hash
+                           (BadWriteSnapshot (BatchNum bn))
 
 gatherWriteBatch
     :: LmdbStore
@@ -819,16 +723,3 @@ withNullPtr fn = do
 
 openDatastore :: FilePath -> Acquire LmdbStore
 openDatastore path = mkAcquire (open path) close
-
--- | Write can occur from multiple asyncs, but every async which writes must be
--- bound. Wrap this write in a call specific async bound where we block for the
--- result, and annotate this in the trace as if it's part of the current thread.
-withWriteAsync :: MDB_env -> (MDB_txn -> IO a) -> IO a
-withWriteAsync env fun = do
-  mybTid <- getCurrentTid
-  w <- asyncBoundOnCurProcess $
-    withCopiedTid mybTid $
-      with (writeTxn env) $ \txn -> do
-        withSimpleTracingEvent "WRITE" "log" $
-          fun txn
-  wait w

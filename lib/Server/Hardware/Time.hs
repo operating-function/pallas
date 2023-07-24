@@ -139,8 +139,8 @@ createHardwareTime :: Debug => Acquire Device
 createHardwareTime = do
     st <- mkAcquire mk release
     pure DEVICE
-        { spin = \_ _ -> pass -- Don't care which cog makes the calls.
-        , stop = \_ _ -> pass
+        { spin = \_ -> pass -- Don't care which cog makes the calls.
+        , stop = \_ -> pass
         , call = runSysCall st
         , category = categoryCall
         , describe = describeCall

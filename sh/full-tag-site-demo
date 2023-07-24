@@ -103,15 +103,15 @@ do
 done
 
 # TODO: error out if this broke.
-plunder boot fulltag sire/demo_full_tag_site.sire
-plunder start fulltag
+plunder boot sire/demo_full_tag_site.sire
+plunder start
 
-until find .demo -maxdepth 1 -name "fulltag.*.http.port" -quit
+until find .demo -maxdepth 1 -name "*.http.port" -quit
 do
      sleep 0.1
 done
 
-PORT=$(cat .demo/fulltag.*.http.port)
+PORT=$(cat .demo/*.http.port)
 
 echo "Setting interface files..."
 curl --data-binary @./elm/tag-site-demo/elm.js -H "Content-Type: text/javascript" -X PUT http://localhost:$PORT/elm.js

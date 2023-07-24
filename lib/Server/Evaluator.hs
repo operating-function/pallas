@@ -56,8 +56,7 @@ data Evaluator = EVALUATOR
     }
 
 data EvalRequest = EVAL_REQUEST
-    { machine   :: MachineName
-    , cogId     :: CogId
+    { cogId     :: CogId
     , flow      :: Flow
     , timeoutMs :: Nat
     , func      :: Fan
@@ -120,7 +119,7 @@ runWorker st _workerId tid = do
         vRespFlow <- newEmptyTMVarIO
         vTimeout      <- newTVarIO False
 
-        let workName = ("Work: (" <> encodeUtf8 req.machine.txt <> "," <>
+        let workName = ("Work: (" <>
                         (encodeUtf8 $ tshow req.cogId.int) <> ")")
 
         execTid <- async $ withCopiedTid tid $ do
