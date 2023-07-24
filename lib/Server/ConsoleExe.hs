@@ -34,7 +34,6 @@ import Server.Hardware.Poke (SubmitPoke, createHardwarePoke)
 
 import Control.Concurrent       (threadDelay)
 import Control.Exception        (handle)
-import Control.Monad.Fail       (fail)
 import Control.Monad.State      (State, execState, modify')
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Fan.Convert
@@ -51,7 +50,6 @@ import qualified Loot.ReplExe
 import qualified Rex
 import qualified Sire
 
-import qualified Data.Aeson               as A
 import qualified Data.ByteString          as BS
 import qualified Data.Char                as C
 import qualified Fan                      as F
@@ -211,28 +209,7 @@ instance MimeUnrender OctetStream JellyPack where
                    . loadPack
                    . toStrict
 
-
--- MachineStatus ---------------------------------------------------------------
-
-data MachineStatus
-    = IDLE
-    | RUNNING
-    | STARTING
-  deriving (Show, Read)
-
-instance A.ToJSON MachineStatus where
-  toJSON = A.toJSON . toLower . show
-
-instance A.FromJSON MachineStatus where
-    parseJSON x = do
-       txt <- A.parseJSON x
-       let die = fail ("invalid machine status: " <> txt)
-       maybe die pure $ readMay (toUpper txt)
-
-
 --------------------------------------------------------------------------------
-
-type MachineCap = Capture "machine" MachineName
 
 type ReplayFromCap = Capture "replay-from" ReplayFrom
 
@@ -242,13 +219,9 @@ type GET  = Get '[JSON]
 type POST = Post '[JSON]
 
 data CtlApi a = CTL_API
-    { isUp     :: a :- "up"                                 :> GET ()
-    , halt     :: a :- "halt"                               :> POST ()
-    , pins     :: a :- "pins"
-                    :> GET (Map Text [Text])
-    , doDu     :: a :- "du"       :> MachineCap             :> GET [Text]
-    , start    :: a :- "start"    :> ReplayFromCap          :> POST ()
-    , replay   :: a :- "replay"   :> ReplayFromCap          :> POST ()
+    { isUp   :: a :- "up"                                 :> GET ()
+    , start  :: a :- "start"    :> ReplayFromCap          :> POST ()
+    , replay :: a :- "replay"   :> ReplayFromCap          :> POST ()
     -- , poke  :: a :- "poke"     :> MachineCap :> PokePath :> PackCap
     --              :> POST ()
     }
@@ -261,21 +234,8 @@ ctlServer st =
     isUp :: Handler ()
     isUp = pure ()
 
-    pins :: Handler (Map Text [Text])
-    pins = pure (error "TODO: Re-implement")
-
     -- poke :: MachineName -> [Text] -> JellyPack -> Handler ()
     -- poke n path package = liftIO (doPoke st n path package)
-
-    {-|
-        If we were to respond, there would be a race condition between the
-        HTTP response completing and process shutting down (and thereby
-        killing this thread) The `forever` just causes the request to
-        never respond.  Instead the server will always simply terminate
-        the connection with no response.
-    -}
-    halt :: Handler ()
-    halt = forever (putMVar st.termSignal ())
 
     start :: ReplayFrom -> Handler ()
     start rf = do
@@ -285,22 +245,15 @@ ctlServer st =
     replay rf = do
         void $ liftIO $ startMachine st rf
 
-    doDu :: MachineName -> Handler [Text]
-    doDu = liftIO . machineDu st
-
 
 reqIsUp    :: ClientM ()
-_reqHalt   :: ClientM ()
 reqStart    :: ReplayFrom -> ClientM ()
 _reqReplay :: ReplayFrom -> ClientM ()
-reqDu      :: MachineName -> ClientM [Text]
 -- reqPoke    :: MachineName -> [Text] -> JellyPack -> ClientM ()
 
 CTL_API { isUp   = reqIsUp
-        , halt   = _reqHalt
         , start   = reqStart
         , replay = _reqReplay
-        , doDu   = reqDu
         -- , poke   = reqPoke
         } = client (Proxy @(NamedRoutes CtlApi))
 
@@ -315,13 +268,12 @@ data RunType
                            [FilePath] -- SireFile
     | RTLoot FilePath Prof Bool [FilePath]
     | RTBoot Prof Bool FilePath Text
-    | RTUses FilePath MachineName
+    | RTUses FilePath Int
     | RTServ FilePath Prof Bool -- profiling file
                            Bool -- profile laws
                            Bool -- Warn on jet deopt
                            Bool -- Crash on jet deopt
                            Int  -- Number of EVAL workers
-    | RTDamn FilePath Prof Bool DaemonAction
     | RTOpen FilePath MachineName CogId
     | RTTerm FilePath MachineName CogId
     | RTStart FilePath ReplayFrom
@@ -400,8 +352,7 @@ runType defaultDir = subparser
               <*> bootHashArg)
 
    <> plunderCmd "du" "du -ab compatible output for pin state."
-        (RTUses <$> storeOpt
-                <*> machineNameArg)
+        (RTUses <$> storeArg <*> numWorkers)
 
    <> plunderCmd "server" "Replays the events in a machine."
         (RTServ <$> (storeArg <|> storeOpt)
@@ -411,10 +362,6 @@ runType defaultDir = subparser
                 <*> doptWarn
                 <*> doptCrash
                 <*> numWorkers)
-
-   <> plunderCmd "daemon" "Run a daemon (if not already running)."
-        (RTDamn <$> (storeArg <|> storeOpt) <*> profOpt <*> profLaw
-                <*> daemonAction)
 
    -- <> plunderCmd "poke" "Pokes a started cog with a value."
    --      -- TODO: should pokePath parse the '/' instead?
@@ -483,14 +430,6 @@ runType defaultDir = subparser
                    <> metavar "NUM_WORKERS"
                    <> help "Number of EVAL workers to use"
                     )
-
-data DaemonAction = START | STOP | RESTART
-
-daemonAction :: Parser DaemonAction
-daemonAction
-    = flag' START   (long "start")
-  <|> flag' STOP    (long "stop")
-  <|> flag' RESTART (long "restart")
 
 runInfo :: FilePath -> ParserInfo RunType
 runInfo defaultDir =
@@ -569,13 +508,10 @@ main = Rex.colorsOnlyInTerminal do
         RTTerm d machine cog -> void (openTerminal d machine cog)
         RTStart d r          -> startOne d r
         RTBoot _ _ d y       -> bootMachine d y
-        RTUses d machine         -> duMachine d machine
+        RTUses d w    -> duMachine d w
         RTServ d _ _ s j c w -> do writeIORef F.vWarnOnJetFallback j
                                    writeIORef F.vCrashOnJetFallback c
                                    runServer s w d
-        RTDamn d _ _ START   -> startDaemon d
-        RTDamn d _ _ STOP    -> killDaemon d
-        RTDamn d _ _ RESTART -> killDaemon d >> startDaemon d
         -- RTPoke d cog p y     -> pokeCog d cog p y
 
 withProfileOutput :: RunType -> IO () -> IO ()
@@ -595,14 +531,7 @@ withProfileOutput args act = do
         RTUses _ _           -> Nothing
         RTBoot p l _ _       -> (,l) <$> p
         RTServ _ p l _ _ _ _ -> (,l) <$> p
-        RTDamn _ p l _       -> (,l) <$> p
         -- RTPoke _ _ _ _       -> Nothing
-
-startDaemon :: Debug => FilePath -> IO ()
-startDaemon d =
-     ensureServer d >>= \case
-         (True,  _) -> debugText "Daemon started."
-         (False, _) -> debugText "Daemon already running."
 
 bootMachine :: (Debug, Rex.RexColor) => FilePath -> Text -> IO ()
 bootMachine storeDir pash = do
@@ -635,24 +564,6 @@ bootMachine storeDir pash = do
 --                                ("No value at end of file : " <> pash)
 --                 Just vl -> pure vl
 --       reqPoke c (splitOn "/" p) (JELLY_PACK val)
-
-duMachine :: Debug => FilePath -> MachineName -> IO ()
-duMachine d c = do
-  withDaemon d $ do
-      retLines <- reqDu c
-      liftIO $ forM_ retLines $ putStrLn
-
-killDaemon :: Debug => FilePath -> IO ()
-killDaemon d = do
-    let pax = (d </> "pid")
-    exists <- doesFileExist pax
-    when exists $ do
-       pidTxt <- readFileUtf8 pax
-       mPid   <- pure (readMay pidTxt)
-       whenJust mPid \alien -> do
-           debugText "killing_daemon"
-           -- TODO Handle situation where process does not actually exist.
-           signalProcess sigTERM (alien :: CPid)
 
 startOne :: Debug => FilePath -> ReplayFrom -> IO ()
 startOne d r =
@@ -851,45 +762,93 @@ startMachine st replayFrom = do
     atomically (writeTVar vHandle $! Just h)
     debugText "machine_started"
 
-machineDu :: Debug => ServerState -> MachineName -> IO [Text]
-machineDu st machineName = do
-  cache <- DB.CUSHION <$> newIORef mempty
+--- ---------------
 
-  -- Read the current noun if the machine is started and alive.
-  mybNoun <- atomically $ do
-    machines <- readTVar st.machineHandles
-    case lookup machineName machines of
-      Nothing -> pure Nothing
-      Just machineVar -> do
-        mybM <- readTVar machineVar
-        case mybM of
-          Nothing -> pure Nothing
-          Just c -> do
-            (MOMENT n _) <- readTVar c.liveVar
-            pure $ Just n
+-- State associated with a single machine.
+data MachineState = MACHINE_STATE
+    { storeDir    :: FilePath
+    , enableSnaps :: Bool
+    -- termSignal?
+    , lmdb        :: DB.LmdbStore
+    , hardware    :: DeviceTable
+    -- poke?
+    , evaluator   :: Evaluator
+    }
 
-  -- If there's no noun (machine isn't started), replay the machine.
-  noun <- case mybNoun of
-    Just noun -> pure noun
-    Nothing -> do
+withMachineIn :: Debug => FilePath -> Int -> (MachineState -> IO a) -> IO a
+withMachineIn storeDir numWorkers machineAction = do
+  withDirectoryWriteLock storeDir do
+    -- Setup plunder interpreter state.
+    writeIORef F.vTrkFan $! \x -> do
+        now <- getCurrentTime
+        debug (["trk"::Text, pack (iso8601Show now)], x)
+
+    writeIORef F.vShowFan  $! Loot.ReplExe.showFan
+    writeIORef F.vJetMatch $! F.jetMatch
+
+    -- TODO: Thing about all the shutdown signal behaviour. Right now, we're
+    -- ignoring it, but there's a bunch of things the old system did to catch
+    -- Ctrl-C.
+
+    let devTable db hw_poke = do
+            hw1_rand          <- createHardwareRand
+          --(hw4_wock, wsApp) <- createHardwareWock
+            let wsApp _cogId _ws = pure ()
+            hw2_http          <- createHardwareHttp storeDir db wsApp
+          --hw3_sock          <- createHardwareSock storeDir
+            hw5_time          <- createHardwareTime
+          --hw6_port          <- createHardwarePort
+            (pure . DEVICE_TABLE . mapFromList) $
+                [ ( "rand", hw1_rand )
+                , ( "http", hw2_http )
+                --( "sock", hw3_sock )
+                --( "wock", hw4_wock )
+                , ( "time", hw5_time )
+                --( "port", hw6_port )
+                , ( "poke", hw_poke  )
+                ]
+
+    let machineState = do
+            db <- DB.openDatastore storeDir
+            (pokeHW, _submitPoke) <- createHardwarePoke
+            hw <- devTable db pokeHW
+            ev <- evaluator numWorkers
+            pure MACHINE_STATE
+                { storeDir
+                , lmdb      = db
+                , hardware  = hw
+                --, poke      = submitPoke
+                , evaluator = ev
+                --, termSignal
+                , enableSnaps = False
+                }
+    with machineState machineAction
+
+duMachine :: Debug => FilePath -> Int -> IO ()
+duMachine storeDir numWorkers = do
+    withMachineIn storeDir numWorkers $ \machineState -> do
+        retLines <- walkNoun machineState
+        forM_ retLines $ putStrLn
+  where
+    walkNoun :: MachineState -> IO [Text]
+    walkNoun st = do
+      cache <- DB.CUSHION <$> newIORef mempty
+
+      -- Replay the machine to get the current noun.
       let enableSnaps = st.enableSnaps
       let hw   = st.hardware  -- not used
       let eval = st.evaluator -- not used
       let ctx  = MACHINE_CONTEXT{eval, hw, lmdb=st.lmdb, enableSnaps}
       (_, MOMENT noun _) <- performReplay cache ctx LatestSnapshot
-      pure noun
 
-  -- TODO: Unexpectedly, this still works with multicog, it just doesn't
-  -- associate nouns with their cogs, meaning all toplevel cog state gets put
-  -- into one pin. A nicer implementation would separate out by ship id.
-  (pins, _hed, blob) <- F.saveFan $ toNoun noun
+      (pins, _hed, blob) <- F.saveFan $ toNoun noun
 
-  pure $ execState (fanDu (txt machineName) pins blob) []
-  where
-    fanDu :: Text -> Vector F.Pin -> ByteString -> State [Text] ()
-    fanDu name refs blob = do
-      refSize <- sum <$> mapM (pinDu [name]) refs
-      _ <- calcEntry [name] refSize blob
+      pure $ execState (fanDu pins blob) []
+
+    fanDu :: Vector F.Pin -> ByteString -> State [Text] ()
+    fanDu refs blob = do
+      refSize <- sum <$> mapM (pinDu []) refs
+      _ <- calcEntry [] refSize blob
       pure ()
 
     pinDu :: [Text] -> F.Pin -> State [Text] Int
