@@ -13,7 +13,7 @@ module Server.LmdbStore
     , Cushion(..)
     --
     , openDatastore
-    , getNumBatches
+    , hasSnapshot
     , loadLogBatches
     --
     , writeLogBatch
@@ -185,8 +185,14 @@ readNumBatches txn logTable =
                 False -> pure 0
                 True  -> peekMdbVal @Word64 k
 
-getNumBatches :: LmdbStore -> IO BatchNum
-getNumBatches store = (BatchNum . fromIntegral) <$> readTVarIO store.numBatches
+-- True if a snapshot has been written. Used during boot to detect whether a
+-- directory has been booted previously so you don't overwrite.
+hasSnapshot :: LmdbStore -> IO Bool
+hasSnapshot store = do
+    with (readTxn store.env) $ \txn -> do
+        with (cursor txn store.snapshotTable) $ \cur -> do
+            withNullKVPtrs \k v -> do
+                mdb_cursor_get MDB_FIRST cur k v
 
 loadLogBatches
     :: forall a

@@ -111,6 +111,10 @@ getPidFile storeDir =
         writeFileUtf8 pax (tshow (coerce pid :: Int32))
         pure pax
 
+withDirectoryWriteLock :: Debug => FilePath -> IO a -> IO a
+withDirectoryWriteLock storeDir a =
+    with (getPidFile storeDir) $ \_ -> a
+
 runControlServer :: Debug => ServerState -> Acquire (Async ())
 runControlServer st = do
     (_, port, sock) <- mkAcquire openPort (safeDeleteFile . view _1)
@@ -232,8 +236,6 @@ type MachineCap = Capture "machine" MachineName
 
 type ReplayFromCap = Capture "replay-from" ReplayFrom
 
-type PackCap = ReqBody '[OctetStream] JellyPack
-
 --type PokePath = CaptureAll "path" Text
 
 type GET  = Get '[JSON]
@@ -247,7 +249,6 @@ data CtlApi a = CTL_API
     , doDu     :: a :- "du"       :> MachineCap             :> GET [Text]
     , start    :: a :- "start"    :> ReplayFromCap          :> POST ()
     , replay   :: a :- "replay"   :> ReplayFromCap          :> POST ()
-    , boot     :: a :- "boot    " :> PackCap  :> POST ()
     -- , poke  :: a :- "poke"     :> MachineCap :> PokePath :> PackCap
     --              :> POST ()
     }
@@ -262,9 +263,6 @@ ctlServer st =
 
     pins :: Handler (Map Text [Text])
     pins = pure (error "TODO: Re-implement")
-
-    boot :: JellyPack -> Handler ()
-    boot pkg = liftIO (doBoot st pkg)
 
     -- poke :: MachineName -> [Text] -> JellyPack -> Handler ()
     -- poke n path package = liftIO (doPoke st n path package)
@@ -292,7 +290,6 @@ ctlServer st =
 
 
 reqIsUp    :: ClientM ()
-reqBoot    :: JellyPack -> ClientM ()
 _reqHalt   :: ClientM ()
 reqStart    :: ReplayFrom -> ClientM ()
 _reqReplay :: ReplayFrom -> ClientM ()
@@ -300,7 +297,6 @@ reqDu      :: MachineName -> ClientM [Text]
 -- reqPoke    :: MachineName -> [Text] -> JellyPack -> ClientM ()
 
 CTL_API { isUp   = reqIsUp
-        , boot   = reqBoot
         , halt   = _reqHalt
         , start   = reqStart
         , replay = _reqReplay
@@ -318,7 +314,7 @@ data RunType
                            Bool       -- Crash on jet deopt
                            [FilePath] -- SireFile
     | RTLoot FilePath Prof Bool [FilePath]
-    | RTBoot FilePath Prof Bool Text
+    | RTBoot Prof Bool FilePath Text
     | RTUses FilePath MachineName
     | RTServ FilePath Prof Bool -- profiling file
                            Bool -- profile laws
@@ -398,9 +394,9 @@ runType defaultDir = subparser
       (RTLoot <$> storeOpt <*> profOpt <*> profLaw <*> many lootFile)
 
    <> plunderCmd "boot" "Boots a machine."
-      (RTBoot <$> storeOpt
-              <*> profOpt
+      (RTBoot <$> profOpt
               <*> profLaw
+              <*> storeArg
               <*> bootHashArg)
 
    <> plunderCmd "du" "du -ab compatible output for pin state."
@@ -572,7 +568,7 @@ main = Rex.colorsOnlyInTerminal do
         RTOpen d machine cog -> void (openBrowser d machine cog)
         RTTerm d machine cog -> void (openTerminal d machine cog)
         RTStart d r          -> startOne d r
-        RTBoot d _ _ y     -> bootMachine d y
+        RTBoot _ _ d y       -> bootMachine d y
         RTUses d machine         -> duMachine d machine
         RTServ d _ _ s j c w -> do writeIORef F.vWarnOnJetFallback j
                                    writeIORef F.vCrashOnJetFallback c
@@ -597,7 +593,7 @@ withProfileOutput args act = do
         RTTerm _ _ _         -> Nothing
         RTStart _ _          -> Nothing
         RTUses _ _           -> Nothing
-        RTBoot _ p l  _      -> (,l) <$> p
+        RTBoot p l _ _       -> (,l) <$> p
         RTServ _ p l _ _ _ _ -> (,l) <$> p
         RTDamn _ p l _       -> (,l) <$> p
         -- RTPoke _ _ _ _       -> Nothing
@@ -609,13 +605,22 @@ startDaemon d =
          (False, _) -> debugText "Daemon already running."
 
 bootMachine :: (Debug, Rex.RexColor) => FilePath -> Text -> IO ()
-bootMachine d pash = do
-    withDaemon d $ do
+bootMachine storeDir pash = do
+    withDirectoryWriteLock storeDir $ do
         let fil = unpack pash
         e <- liftIO (doesFileExist fil)
         unless e (error $ unpack ("File does not exist: " <> pash))
         val <- liftIO (Sire.loadFile fil)
-        reqBoot (JELLY_PACK val)
+
+        with (DB.openDatastore storeDir) $ \lmdb -> do
+            DB.hasSnapshot lmdb >>= \case
+                False -> do
+                    firstCogId <- COG_ID <$> randomIO
+                    DB.writeMachineSnapshot lmdb (BatchNum 0)
+                                            (singletonMap firstCogId
+                                             (CG_SPINNING val))
+                True -> do
+                    error "Trying to overwrite existing machine"
 
 -- pokeCog :: (Debug, Rex.RexColor) => FilePath -> MachineName -> Text -> FilePath
 --         -> IO ()
@@ -771,24 +776,6 @@ runServer enableSnaps numWorkers storeDir = do
             pure (st, cs)
 
     with serverState shutdownOnSigkill
-
-{-
-    To boot a machine, we just write the initial value as a single Init
-    to the log, and then exit.
--}
-doBoot :: Debug => ServerState -> JellyPack -> IO ()
-doBoot st pak = do
-    debugText "booting_machine"
-
-    curBatchNum <- DB.getNumBatches st.lmdb
-    case curBatchNum of
-        BatchNum 0 -> do
-            firstCogId <- COG_ID <$> randomIO
-            DB.writeMachineSnapshot st.lmdb (BatchNum 0)
-                                    (singletonMap firstCogId
-                                     (CG_SPINNING pak.fan))
-        _ -> do
-            error "Trying to overwrite existing machine"
 
 -- {-
 --     Deliver a noun from the outside to a given cog.
