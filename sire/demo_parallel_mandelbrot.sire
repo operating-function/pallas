@@ -8,7 +8,7 @@
 ;;; a fixed point, so that 10.000 is floating 1.0.
 
 /+  boot
-/+  w48
+/+  w64
 /+  kern
 /+  stew
 
@@ -18,23 +18,23 @@
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (natFp x) | iMul48 x 10000
-= addFp     | iAdd48
-= subFp     | iSub48
+= (natFp x) | iMul64 x 10000
+= addFp     | iAdd64
+= subFp     | iSub64
 
 = (mulFp a b)
-| iDiv48 | iMul48 iDiv48-a-10 b
+| iDiv64 | iMul64 iDiv64-a-10 b
 | 1000
 
 = (fracFp over under)
 ; Returns a fraction where when "over=0, fpFraction=0"
 ; and when "over=under, fpFraction=--10.000".
-| iDiv48 (iMul48 over 10000) under
+| iDiv64 (iMul64 over 10000) under
 
-= leftEdge   | iNeg48 21_000
+= leftEdge   | iNeg64 21_000
 = rightEdge  | 15_000
 = topEdge    | 15_000
-= bottomEdge | iNeg48 15_000
+= bottomEdge | iNeg64 15_000
 = maxIter    | 254
 
 = plasmaColors
@@ -315,10 +315,10 @@ black=[0 0 0]
 @ xx | mulFp x0 x0
 @ yy | mulFp y0 y0
 | if (gte i maxIter) black
-| if not-(iLth48 addFp-xx-yy 40000)
+| if not-(iLth64 addFp-xx-yy 40000)
     | calcColor i
 @ x1 (addFp subFp-xx-yy cr)
-@ y1 (addFp (iMul48 2 (mulFp x0 y0)) ci)
+@ y1 (addFp (iMul64 2 (mulFp x0 y0)) ci)
 | m_loop inc-i x1 y1
 
 
