@@ -5,7 +5,7 @@
 ### demo_parallel_mandelbrot <- demo_no_claim_fork_and_send
 
 ;;; We emulate floating point math with by using signed integers with
-;;; a fixed point, so that 10.000 is floating 1.0.
+;;; a fixed point, so that 10.000.000 is floating 1.0.
 
 /+  boot
 /+  w64
@@ -18,23 +18,23 @@
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (natFp x) | iMul64 x 10000
+= (natFp x) | iMul64 x 10_000_000
 = addFp     | iAdd64
 = subFp     | iSub64
 
 = (mulFp a b)
-| iDiv64 | iMul64 iDiv64-a-10 b
-| 1000
+| iDiv64 | iMul64 iDiv64-a-100 b
+| 100_000
 
 = (fracFp over under)
 ; Returns a fraction where when "over=0, fpFraction=0"
-; and when "over=under, fpFraction=--10.000".
-| iDiv64 (iMul64 over 10000) under
+; and when "over=under, fpFraction=--10.000.000".
+| iDiv64 (iMul64 over 10_000_000) under
 
-= leftEdge   | iNeg64 21_000
-= rightEdge  | 15_000
-= topEdge    | 15_000
-= bottomEdge | iNeg64 15_000
+= leftEdge   | iNeg64 21_000_000
+= rightEdge  | 15_000_000
+= topEdge    | 15_000_000
+= bottomEdge | iNeg64 15_000_000
 = maxIter    | 254
 
 = plasmaColors
@@ -309,14 +309,14 @@ black=(bytesBar [0 0 0])
 ? (m_pixel x)
 @ scrX | natFp x
 @ scrY | natFp y
-@ cr | subFp (mulFp (fracFp scrX fpW) 25000) 20000
-@ ci | subFp (mulFp (fracFp scrY fpH) 25000) 12500
+@ cr | subFp (mulFp (fracFp scrX fpW) 25_000_000) 20_000_000
+@ ci | subFp (mulFp (fracFp scrY fpH) 25_000_000) 12_500_000
 ^ _ 0 0 0
 ? (m_loop i x0 y0)
 @ xx | mulFp x0 x0
 @ yy | mulFp y0 y0
 | if (gte i maxIter) black
-| if not-(iLth64 addFp-xx-yy 40000)
+| if not-(iLth64 addFp-xx-yy 40_000_000)
     | calcColor i
 @ x1 (addFp subFp-xx-yy cr)
 @ y1 (addFp (iMul64 2 (mulFp x0 y0)) ci)
