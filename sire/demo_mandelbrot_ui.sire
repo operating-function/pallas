@@ -18,33 +18,14 @@
 
 """ mandelbrot """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-> Row Nat > Cog Bar
-= (parallelBarEnc ns cogExit)
-@ maxThreads 32
-@ chunkLen | add 1 | div (len ns) maxThreads
-@ chunkedNs | chunks chunkLen ns
-: ??(pmapDone chunkBars)
-    < pmap 5000 bytesBar chunkedNs
-: eRes < syscall (EVAL1 600000 barCat chunkBars)
-@ !fractBar | forceUnpackEvalResult "parallelBarEnc" eRes
-| cogExit fractBar
-
-> Row Nat > Json
-= (fractToJson ns)
-| JVEC (map JNUM ns)
-
-= (mbLineWelded w h y)
-| cat
-| mandelbrotLine w h y
-
-> Nat > Nat > Cog (Row Nat)
+> Nat > Nat > Cog Bar
 = (mandelbrotDemo width height cogExit)
 @ rowIds | gen height id
-: ??(pmapDone rowLns)
-    < pmap 5000 (mbLineWelded width height) rowIds
-: eRes < syscall (EVAL1 600000 cat rowLns)
-@ !res | forceUnpackEvalResult "mandelbrotDemo" eRes
-| cogExit res
+: ??(pmapDone rowBars)
+    < pmap 5000 (mandelbrotLine width height) rowIds
+: eRes < syscall (EVAL1 600000 barCat rowBars)
+@ !fractBar | forceUnpackEvalResult "barCat rowBars" eRes
+| cogExit fractBar
 
 = (trkTimer name cogFn cogExit)
 : ??(td_got_time startTime) <- syscall TIME_WHEN
@@ -182,10 +163,7 @@
       | return ()
     * (SOME dims)
       @ [w h] dims
-      : !ns <- trkTimer 'mandelbrotDemo' (mandelbrotDemo w h)
-      ;
-      : !fractBar <- trkTimer 'parallelBarEnc' (parallelBarEnc ns)
-      ;
+      : !fractBar <- trkTimer 'mandelbrotDemo' (mandelbrotDemo w h)
       : _ <- fork (syscall (**HTTP_ECHO rid 200 b#ok [] fractBar))
       | return ()
 * PUT

@@ -38,6 +38,7 @@
 = maxIter    | 254
 
 = plasmaColors
+ | map bytesBar
 ++ [12 7 134]
 ++ [16 7 135]
 ++ [19 6 137]
@@ -295,7 +296,7 @@
 ++ [240 246 35]
 ++ [239 248 33]
 
-black=[0 0 0]
+black=(bytesBar [0 0 0])
 
 = (calcColor o)
 | if (eql o 255) black
@@ -304,7 +305,7 @@ black=[0 0 0]
 = (mandelbrotLine w h y)
 @ fpW natFp-w
 @ fpH natFp-h
-| gen w
+^ barCat (gen w _)
 ? (m_pixel x)
 @ scrX | natFp x
 @ scrY | natFp y
