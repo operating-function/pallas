@@ -121,6 +121,19 @@ jetImpls = mapFromList
   , ( "sub32"       , sub32Jet   )
   , ( "ror32"       , ror32Jet   )
   , ( "rol32"       , rol32Jet   )
+  , ( "w64"         , w64Jet     )
+  , ( "add64"       , add64Jet   )
+  , ( "mul64"       , mul64Jet   )
+  , ( "div64"       , div64Jet   )
+  , ( "and64"       , and64Jet   )
+  , ( "or64"        , or64Jet    )
+  , ( "xor64"       , xor64Jet   )
+  , ( "lsh64"       , lsh64Jet   )
+  , ( "rsh64"       , rsh64Jet   )
+  , ( "sub64"       , sub64Jet   )
+  , ( "ror64"       , ror64Jet   )
+  , ( "rol64"       , rol64Jet   )
+  , ( "iDiv64"      , iDiv64Jet  )
   , ( "implode"     , implodeJet )
   , ( "barDrop"     , barDropJet )
   , ( "barTake"     , barTakeJet )
@@ -1084,6 +1097,10 @@ dataTagJet _ e =
         REX{} -> 0 -- law (TODO: update this when repr changes)
         NAT{} -> v
 
+---------
+-- w32 --
+---------
+
 w32Jet :: Jet
 w32Jet _ env =
     NAT (fromIntegral . w32 $ toNat(env^1))
@@ -1111,6 +1128,48 @@ rol32Jet = w32opInt rotateL
 lsh32Jet = w32opInt shiftL
 rsh32Jet = w32opInt shiftR
 ror32Jet = w32opInt rotateR
+
+---------
+-- w64 --
+---------
+
+w64Jet :: Jet
+w64Jet _ env =
+    NAT (fromIntegral . w64 $ toNat(env^1))
+
+w64op :: (Word64 -> Word64 -> Word64) -> Jet
+w64op fun _ env = NAT $ fromIntegral $ fun (w64 $ toNat(env^1)) (w64 $ toNat(env^2))
+
+add64Jet,mul64Jet,div64Jet,sub64Jet,and64Jet,xor64Jet,or64Jet :: Jet
+add64Jet = w64op (+)
+mul64Jet = w64op (*)
+div64Jet = w64op (div)
+sub64Jet = w64op (-)
+and64Jet = w64op (.&.)
+xor64Jet = w64op xor
+or64Jet  = w64op (.|.)
+
+{-# INLINE w64opInt #-}
+w64opInt :: (Word64 -> Int -> Word64) -> Jet
+w64opInt fun _ env =
+    NAT $ fromIntegral $ fun (w64 $ toNat (env^1))
+                             (fromIntegral $ w64 $ toNat (env^2))
+
+lsh64Jet, rsh64Jet, ror64Jet, rol64Jet :: Jet
+rol64Jet = w64opInt rotateL
+lsh64Jet = w64opInt shiftL
+rsh64Jet = w64opInt shiftR
+ror64Jet = w64opInt rotateR
+
+---------
+-- i64 --
+---------
+
+i64op :: (Int64 -> Int64 -> Int64) -> Jet
+i64op fun _ env = NAT $ i64toNat $ fun (i64 $ toNat(env^1)) (i64 $ toNat(env^2))
+
+iDiv64Jet :: Jet
+iDiv64Jet = i64op (div)
 
 parJet :: Jet
 parJet = unsafePerformIO do
@@ -1149,6 +1208,21 @@ maxInt = fromIntegral (maxBound::Int)
 
 w32 :: Nat -> Word32
 w32 x = fromIntegral (x `mod` bex32)
+
+-- w64 helpers
+bex64 :: Nat
+bex64 = 2 PlunderPrelude.^ (64::Nat)
+
+w64 :: Nat -> Word64
+w64 x = fromIntegral (x `mod` bex64)
+
+-- i64 helpers
+-- Int<->Word conversions preserve representation, not sign
+i64 :: Nat -> Int64
+i64 = fromIntegral . w64
+
+i64toNat :: Int64 -> Nat
+i64toNat i = fromIntegral (fromIntegral i :: Word64)
 
 bex :: Nat -> Nat
 bex n = 2 PlunderPrelude.^ n
