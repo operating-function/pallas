@@ -7,12 +7,15 @@
 #
 
 # Only operate on the `.demo` directory.
-export PLUNDER_DIR=$(realpath .demo)
+export MACHINE_DIR=$(realpath .demo)
 
 plunder=$(stack path --local-install-root)/bin/plunder
 
+rm -Rf "$MACHINE_DIR"
+mkdir -p "$MACHINE_DIR"
+
 waited=0
-until [ -d ./.demo ]
+until [ -d "$MACHINE_DIR" ]
 do
     if [ $waited -eq 0 ]; then
         echo "Waiting for .demo directory to be created"
@@ -23,18 +26,27 @@ do
 done
 
 # TODO: error out if this broke.
-$plunder boot sire/demo_mandelbrot_ui.sire
-$plunder start
+$plunder boot "$MACHINE_DIR" sire/demo_mandelbrot_ui.sire
 
-until find .demo -maxdepth 1 -name "*.http.port" -quit
+$plunder start "$MACHINE_DIR" &
+RUN_MACHINE=$!
+
+until find "$MACHINE_DIR" -maxdepth 1 -name "*.http.port" -quit
 do
+     echo "Waiting..."
      sleep 0.1
 done
 
-PORT=$(cat .demo/*.http.port)
+# Why an additional sleep here? Some weird filesystem sync issue where the
+# port file was created, but hasn't been written to yet.
+sleep 0.1
+
+PORT=$(cat "$MACHINE_DIR"/*.http.port)
 
 echo "Setting interface files..."
 curl --data-binary @./demo/mandelbrot-ui/main.js -H "Content-Type: text/javascript" -X PUT http://localhost:$PORT/main.js
 curl --data-binary @./demo/mandelbrot-ui/index.html -H "Content-Type: text/html" -X PUT http://localhost:$PORT/index.html
 
 echo "Interface files are set. Running on http://localhost:$PORT/index.html"
+
+wait $RUN_MACHINE

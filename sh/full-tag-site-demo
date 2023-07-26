@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 
 #
-# To use this script, run `rm -Rf .demo/ && plunder server .demo`
-# and then run this script in a different terminal from the root of the
-# repository with `sh/full-tag-site-demo`.
+# To run the demo, just run `sh/full-tag-site-demo` from the root of the
+# repository.
 #
 
 THREADS=16
@@ -14,18 +13,20 @@ LAST_PAGE=20
 
 USE_LOCAL=0
 USE_CDN=0
+MACHINE_DIR=$(realpath .fulltag-demo)
 
 usage ()
 {
     echo "Usage: ./full-tag-site-demo [ -d | --demosrc SRCDIR ]
                                       [ --use-local | --use-cdn ]
+                                      [ --machine-dir MACHINEDIR ]
 
             full-tag-site-demo will try to download a small 600 json file
             demo if -d is unset."
     exit 2
 }
 
-PARSED_ARGUMENTS=$(getopt -a -n alphabet -o d: --long demosrc:,use-local,use-cdn -- "$@")
+PARSED_ARGUMENTS=$(getopt -a -n alphabet -o d: --long demosrc:,machine-dir:,use-local,use-cdn -- "$@")
 VALID_ARGUMENTS=$?
 if [ "$VALID_ARGUMENTS" != "0" ]; then
   usage
@@ -36,9 +37,10 @@ eval set -- "$PARSED_ARGUMENTS"
 while :
 do
   case "$1" in
-    -d | --demosrc) DEMOSRC="$2" ; shift 2 ;;
-    --use-local)    USE_LOCAL=1  ; shift   ;;
-    --use-cdn)      USE_CDN=1    ; shift   ;;
+    -d | --demosrc) DEMOSRC="$2"     ; shift 2 ;;
+    --use-local)    USE_LOCAL=1      ; shift   ;;
+    --use-cdn)      USE_CDN=1        ; shift   ;;
+    --machine-dir)  MACHINE_DIR="$2" ; shift 2 ;;
 
     # -- means the end of the arguments; drop this, and break out of the while loop
     --) shift; break ;;
@@ -81,8 +83,8 @@ elif [ "${USE_LOCAL}" -eq 1 ]; then
     fi
 fi
 
-# Only operate on the `.demo` directory.
-export PLUNDER_DIR=$(realpath .demo)
+rm -Rf "$MACHINE_DIR"
+mkdir -p "$MACHINE_DIR"
 
 # Ensure the elm files are built.
 if ! [ -f ./elm/tag-site-demo/elm.js ]; then
@@ -92,10 +94,10 @@ elif [ ./elm/tag-site-demo/src/Main.elm -nt ./elm/tag-site-demo/elm.js ]; then
 fi
 
 waited=0
-until [ -d ./.demo ]
+until [ -d "$MACHINE_DIR" ]
 do
     if [ $waited -eq 0 ]; then
-        echo "Waiting for demo directory to be created"
+        echo "Waiting for $MACHINE_DIR directory to be created"
         waited=1
     fi
 
@@ -103,15 +105,24 @@ do
 done
 
 # TODO: error out if this broke.
-plunder boot sire/demo_full_tag_site.sire
-plunder start
+plunder boot "$MACHINE_DIR" sire/demo_full_tag_site.sire
 
-until find .demo -maxdepth 1 -name "*.http.port" -quit
+plunder start "$MACHINE_DIR" &
+RUN_MACHINE=$!
+
+echo "started..."
+
+until find "$MACHINE_DIR" -maxdepth 1 -name "*.http.port" -quit
 do
+     echo "Waiting..."
      sleep 0.1
 done
 
-PORT=$(cat .demo/*.http.port)
+# Why an additional sleep here? Some weird filesystem sync issue where the
+# port file was created, but hasn't been written to yet.
+sleep 0.1
+
+PORT=$(cat "$MACHINE_DIR"/*.http.port)
 
 echo "Setting interface files..."
 curl --data-binary @./elm/tag-site-demo/elm.js -H "Content-Type: text/javascript" -X PUT http://localhost:$PORT/elm.js
@@ -217,3 +228,5 @@ for i in $(seq 0 $last_thread); do
 done
 
 echo "Running on http://localhost:$PORT/index.html"
+
+wait $RUN_MACHINE
