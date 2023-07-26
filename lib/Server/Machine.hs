@@ -103,6 +103,9 @@ data Machine = MACHINE {
   shutdownLogger   :: TVar Bool,
   shutdownSnapshot :: TVar Bool,
 
+  -- Starts empty, but is filled once the machine has shutdown and the
+  shutdownComplete :: TMVar (),
+
   -- Noun state and time of the last commit at each of the three phases.
   liveVar          :: TVar Moment,
   writVar          :: TVar (BatchNum, Moment),
@@ -650,6 +653,7 @@ replayAndCrankMachine cache ctx replayFrom = do
     buildMachine threadName lastBatch moment = do
       shutdownLogger   <- newTVarIO False
       shutdownSnapshot <- newTVarIO False
+      shutdownComplete <- newEmptyTMVarIO
       liveVar          <- newTVarIO moment
       writVar          <- newTVarIO (lastBatch, moment)
       logImmediately   <- newTVarIO False
@@ -707,6 +711,7 @@ waitForLogAsyncShutdown MACHINE{..} = do
   atomically $ writeTVar shutdownLogger True
   wait loggerAsync
   wait snapshotAsync
+  atomically $ putTMVar shutdownComplete ()
 
 -- | Given a Request parsed from the cog, turn it into a LiveRequest that can
 -- produce a value and that we can listen to.

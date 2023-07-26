@@ -220,7 +220,6 @@ type POST = Post '[JSON]
 
 data CtlApi a = CTL_API
     { isUp   :: a :- "up"                                 :> GET ()
-    , start  :: a :- "start"    :> ReplayFromCap          :> POST ()
     , replay :: a :- "replay"   :> ReplayFromCap          :> POST ()
     -- , poke  :: a :- "poke"     :> MachineCap :> PokePath :> PackCap
     --              :> POST ()
@@ -237,22 +236,16 @@ ctlServer st =
     -- poke :: MachineName -> [Text] -> JellyPack -> Handler ()
     -- poke n path package = liftIO (doPoke st n path package)
 
-    start :: ReplayFrom -> Handler ()
-    start rf = do
-        void $ liftIO $ startMachine st rf
-
     replay :: ReplayFrom -> Handler ()
     replay rf = do
         void $ liftIO $ startMachine st rf
 
 
 reqIsUp    :: ClientM ()
-reqStart    :: ReplayFrom -> ClientM ()
 _reqReplay :: ReplayFrom -> ClientM ()
 -- reqPoke    :: MachineName -> [Text] -> JellyPack -> ClientM ()
 
 CTL_API { isUp   = reqIsUp
-        , start   = reqStart
         , replay = _reqReplay
         -- , poke   = reqPoke
         } = client (Proxy @(NamedRoutes CtlApi))
@@ -276,7 +269,15 @@ data RunType
                            Int  -- Number of EVAL workers
     | RTOpen FilePath MachineName CogId
     | RTTerm FilePath MachineName CogId
-    | RTStart FilePath ReplayFrom
+    -- TODO: Rename 'run' or 'spin' or 'crank' or something.
+    | RTStart FilePath
+              Prof
+              Bool -- profiling file
+              Bool -- profile laws
+              Bool -- Warn on jet deopt
+              Bool -- Crash on jet deopt
+              Int  -- Number of EVAL workers
+              ReplayFrom
     -- | RTPoke FilePath MachineName Text FilePath
 
 machineNameArg :: Parser MachineName
@@ -339,7 +340,13 @@ runType defaultDir = subparser
               <*> many sireFile)
 
    <> plunderCmd "start" "Resume an idle machine."
-      (RTStart <$> storeOpt
+      (RTStart <$> storeArg
+               <*> profOpt
+               <*> profLaw
+               <*> doSnap
+               <*> doptWarn
+               <*> doptCrash
+               <*> numWorkers
                <*> replayFromOption)
 
    <> plunderCmd "loot" "Runs an standalone sire repl."
@@ -506,7 +513,10 @@ main = Rex.colorsOnlyInTerminal do
                                    liftIO $ Sire.main fz
         RTOpen d machine cog -> void (openBrowser d machine cog)
         RTTerm d machine cog -> void (openTerminal d machine cog)
-        RTStart d r          -> startOne d r
+        RTStart d _ _ s j c w r -> do
+            writeIORef F.vWarnOnJetFallback j
+            writeIORef F.vCrashOnJetFallback c
+            runMachine d r s w
         RTBoot _ _ d y       -> bootMachine d y
         RTUses d w    -> duMachine d w
         RTServ d _ _ s j c w -> do writeIORef F.vWarnOnJetFallback j
@@ -523,14 +533,14 @@ withProfileOutput args act = do
             Prof.withProfileOutput fil laws act
   where
     argsProf = \case
-        RTSire _ p l _ _ _   -> (,l) <$> p
-        RTLoot _ p l _       -> (,l) <$> p
-        RTOpen _ _ _         -> Nothing
-        RTTerm _ _ _         -> Nothing
-        RTStart _ _          -> Nothing
-        RTUses _ _           -> Nothing
-        RTBoot p l _ _       -> (,l) <$> p
-        RTServ _ p l _ _ _ _ -> (,l) <$> p
+        RTSire _ p l _ _ _      -> (,l) <$> p
+        RTLoot _ p l _          -> (,l) <$> p
+        RTOpen _ _ _            -> Nothing
+        RTTerm _ _ _            -> Nothing
+        RTStart _ p l _ _ _ _ _ -> (,l) <$> p
+        RTUses _ _              -> Nothing
+        RTBoot p l _ _          -> (,l) <$> p
+        RTServ _ p l _ _ _ _    -> (,l) <$> p
         -- RTPoke _ _ _ _       -> Nothing
 
 bootMachine :: (Debug, Rex.RexColor) => FilePath -> Text -> IO ()
@@ -564,10 +574,6 @@ bootMachine storeDir pash = do
 --                                ("No value at end of file : " <> pash)
 --                 Just vl -> pure vl
 --       reqPoke c (splitOn "/" p) (JELLY_PACK val)
-
-startOne :: Debug => FilePath -> ReplayFrom -> IO ()
-startOne d r =
-    withDaemon d (reqStart r)
 
 shellFg :: String -> [String] -> IO ExitCode
 shellFg c a = do
@@ -757,26 +763,19 @@ startMachine st replayFrom = do
     let enableSnaps = st.enableSnaps
     let ctx  = MACHINE_CONTEXT{eval, hw, lmdb=st.lmdb,
                                enableSnaps}
-    h <- withCogDebugging machineName.txt
-           (replayAndCrankMachine cache ctx replayFrom)
+    h <- withCogDebugging (replayAndCrankMachine cache ctx replayFrom)
     atomically (writeTVar vHandle $! Just h)
     debugText "machine_started"
 
 --- ---------------
 
--- State associated with a single machine.
-data MachineState = MACHINE_STATE
-    { storeDir    :: FilePath
-    , enableSnaps :: Bool
-    -- termSignal?
-    , lmdb        :: DB.LmdbStore
-    , hardware    :: DeviceTable
-    -- poke?
-    , evaluator   :: Evaluator
-    }
-
-withMachineIn :: Debug => FilePath -> Int -> (MachineState -> IO a) -> IO a
-withMachineIn storeDir numWorkers machineAction = do
+withMachineIn :: Debug
+              => FilePath
+              -> Int
+              -> Bool
+              -> (MachineContext -> IO a)
+              -> IO a
+withMachineIn storeDir numWorkers enableSnaps machineAction = do
   withDirectoryWriteLock storeDir do
     -- Setup plunder interpreter state.
     writeIORef F.vTrkFan $! \x -> do
@@ -809,36 +808,53 @@ withMachineIn storeDir numWorkers machineAction = do
                 ]
 
     let machineState = do
-            db <- DB.openDatastore storeDir
+            lmdb <- DB.openDatastore storeDir
             (pokeHW, _submitPoke) <- createHardwarePoke
-            hw <- devTable db pokeHW
-            ev <- evaluator numWorkers
-            pure MACHINE_STATE
-                { storeDir
-                , lmdb      = db
-                , hardware  = hw
-                --, poke      = submitPoke
-                , evaluator = ev
-                --, termSignal
-                , enableSnaps = False
-                }
+            hw <- devTable lmdb pokeHW
+            eval <- evaluator numWorkers
+            pure MACHINE_CONTEXT{lmdb,hw,eval,enableSnaps}
     with machineState machineAction
+
+runMachine :: Debug => FilePath -> ReplayFrom -> Bool -> Int -> IO ()
+runMachine storeDir replayFrom enableSnaps numWorkers = do
+    cache <- DB.CUSHION <$> newIORef mempty
+    withMachineIn storeDir numWorkers enableSnaps $ \ctx -> do
+        machine <- withCogDebugging $ replayAndCrankMachine cache ctx replayFrom
+
+        -- Listen for Ctrl-C and external shutdown signals.
+        termSignal <- newEmptyTMVarIO
+        for_ [sigTERM, sigINT] $ \sig -> do
+            installHandler sig
+                           (Catch (atomically $ putTMVar termSignal ()))
+                           Nothing
+
+        c <- atomically $ (Left  <$> readTMVar termSignal <|>
+                           Right <$> readTMVar machine.shutdownComplete)
+        case c of
+            Left () -> do
+                -- We got an external shutdown signal, so shut down the machine
+                -- and wait for things to sync to disk.
+                shutdownMachine machine
+            Right () -> do
+                -- The machine exited on its own and we don't have to wait for
+                -- its
+                --
+                -- TODO: Print a report here about the state of why the machine
+                -- shutdown on its own.
+                pure ()
+
 
 duMachine :: Debug => FilePath -> Int -> IO ()
 duMachine storeDir numWorkers = do
-    withMachineIn storeDir numWorkers $ \machineState -> do
-        retLines <- walkNoun machineState
+    withMachineIn storeDir numWorkers False $ \ctx -> do
+        retLines <- walkNoun ctx
         forM_ retLines $ putStrLn
   where
-    walkNoun :: MachineState -> IO [Text]
-    walkNoun st = do
+    walkNoun :: MachineContext -> IO [Text]
+    walkNoun ctx = do
       cache <- DB.CUSHION <$> newIORef mempty
 
       -- Replay the machine to get the current noun.
-      let enableSnaps = st.enableSnaps
-      let hw   = st.hardware  -- not used
-      let eval = st.evaluator -- not used
-      let ctx  = MACHINE_CONTEXT{eval, hw, lmdb=st.lmdb, enableSnaps}
       (_, MOMENT noun _) <- performReplay cache ctx LatestSnapshot
 
       (pins, _hed, blob) <- F.saveFan $ toNoun noun

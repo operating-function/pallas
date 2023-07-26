@@ -50,15 +50,15 @@ debugFan = debug
 debugFanVal :: (Debug, MonadIO m) => Text -> Fan -> m ()
 debugFanVal = debugVal
 
-withCogDebugging :: Debug => Text -> (Debug => IO a) -> IO a
-withCogDebugging cogNm act = do
+withCogDebugging :: Debug => (Debug => IO a) -> IO a
+withCogDebugging act = do
     let q Nothing = do
             ?debugOut Nothing
         q (Just (var, val)) = do
             now <- getCurrentTime
             ?debugOut $ Just
                       $ (var,)
-                      $ toNoun ([cogNm, pack (iso8601Show now)], val)
+                      $ toNoun (pack (iso8601Show now) :: Text, val)
     (let ?debugOut = q in act)
 
 withDebugOutput :: ∀a. (Debug => IO a) -> IO a
