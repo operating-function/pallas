@@ -12,19 +12,9 @@ import PlunderPrelude
 
 import Fan             (Fan)
 import Numeric.Natural (Natural)
-import Servant         (FromHttpApiData, ToHttpApiData, parseUrlPiece,
-                        toUrlPiece)
 import Server.Time
 
-import qualified Data.Aeson as A
-
 --------------------------------------------------------------------------------
-
--- | A machine, a set of related processes, are given a human readable name.
-newtype MachineName = MACHINE_NAME { txt :: Text }
-  deriving newtype (Show, Eq, Ord, A.ToJSON, A.FromJSON)
-  deriving newtype (A.ToJSONKey, A.FromJSONKey)
-  deriving newtype (FromHttpApiData, ToHttpApiData)
 
 -- | A numeric identifier for a cog within a single machine.
 newtype CogId = COG_ID { int :: Word64 }
@@ -126,12 +116,3 @@ data ReplayFrom
   = EarliestSnapshot
   -- | Replay from the latest snapshot available.
   | LatestSnapshot
-
-instance ToHttpApiData ReplayFrom where
-  toUrlPiece EarliestSnapshot = "earliest"
-  toUrlPiece LatestSnapshot   = "latest"
-
-instance FromHttpApiData ReplayFrom where
-  parseUrlPiece "earliest" = Right EarliestSnapshot
-  parseUrlPiece "latest"   = Right LatestSnapshot
-  parseUrlPiece _          = Left "Not 'earliest' or 'latest'"

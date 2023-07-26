@@ -12,8 +12,6 @@ module Server.ConsoleExe (main) where
 import Data.Acquire
 import Options.Applicative
 import PlunderPrelude       hiding (Handler, handle)
-import Servant
-import Servant.Client
 import Server.Debug
 import Server.Evaluator
 import Server.Machine
@@ -30,15 +28,13 @@ import Server.Hardware.Rand (createHardwareRand)
 -- ort Server.Hardware.Sock (createHardwareSock)
 import Server.Hardware.Time (createHardwareTime)
 -- ort Server.Hardware.Wock (createHardwareWock)
-import Server.Hardware.Poke (SubmitPoke, createHardwarePoke)
+import Server.Hardware.Poke (createHardwarePoke)
 
 import Control.Concurrent       (threadDelay)
-import Control.Exception        (handle)
 import Control.Monad.State      (State, execState, modify')
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Fan.Convert
 import Fan.Hash                 (fanHash)
-import Fan.Save                 (loadPack, savePack)
 import Jelly.Types              (hashToBTC)
 import System.Directory         (createDirectoryIfMissing, doesFileExist,
                                  getHomeDirectory, removeFile)
@@ -50,15 +46,11 @@ import qualified Loot.ReplExe
 import qualified Rex
 import qualified Sire
 
-import qualified Data.ByteString          as BS
-import qualified Data.Char                as C
-import qualified Fan                      as F
-import qualified Fan.Prof                 as Prof
-import qualified Network.HTTP.Client      as HTTP
-import qualified Network.Socket           as N
-import qualified Network.Wai              as W
-import qualified Network.Wai.Handler.Warp as W
-import qualified Server.LmdbStore         as DB
+import qualified Data.ByteString  as BS
+import qualified Data.Char        as C
+import qualified Fan              as F
+import qualified Fan.Prof         as Prof
+import qualified Server.LmdbStore as DB
 
 --------------------------------------------------------------------------------
 
@@ -113,143 +105,6 @@ withDirectoryWriteLock :: Debug => FilePath -> IO a -> IO a
 withDirectoryWriteLock storeDir a =
     with (getPidFile storeDir) $ \_ -> a
 
-runControlServer :: Debug => ServerState -> Acquire (Async ())
-runControlServer st = do
-    (_, port, sock) <- mkAcquire openPort (safeDeleteFile . view _1)
-    mkAcquire (async $ ctrlServer port sock) cancel
-  where
-    openPort = do
-        -- TODO Only accept input from localhost
-        let localhost = N.tupleToHostAddress (0x7f, 0, 0, 1)
-        let flags = [N.AI_NUMERICHOST, N.AI_NUMERICSERV]
-        let tcp   = 6
-        let addr  = (N.SockAddrInet 0 localhost)
-        let ainfo = N.AddrInfo flags N.AF_INET N.Stream tcp addr Nothing
-        listenSocket <- N.openSocket ainfo
-        N.listen listenSocket 5 -- TODO Should this be 5?
-        listenPort <- fromIntegral <$> N.socketPort listenSocket
-
-        debugVal "control_port" (tshow listenPort)
-
-        let portsFile = st.storeDir </> "ctl.port"
-
-        debugVal "rpc_port_file" (pack @Text portsFile)
-
-        writeFileUtf8 portsFile (tshow listenPort)
-
-        pure (portsFile, listenPort, listenSocket)
-
-    ctrlServer port sock = do
-        let set = W.defaultSettings & W.setPort port
-                                    & W.setTimeout 600
-        W.runSettingsSocket set sock (pathLogged (ctlServer st))
-
-pathLogged :: Debug => W.Application -> W.Application
-pathLogged app r k = do
-    debug (r.requestMethod, r.rawPathInfo)
-    app r k
-
-data FailedToStartDaemon = FAILED_TO_START_DAEMON
-    { lastErr :: SomeException
-    , cmd     :: String
-    , args    :: [String]
-    }
-  deriving (Show, Exception)
-
-ensureServer :: Debug => FilePath -> IO (Bool, W.Port)
-ensureServer d = do
-    createDirectoryIfMissing True d
-
-    let portFile = d </> "ctl.port"
-
-    let logFile = d </> "logs"
-
-    -- TODO Handle situation where file exists but daemon is not actually
-    -- running.
-    hadToStart <- do
-        doesFileExist portFile >>= \case
-            True -> do
-                debugText "daemon_running"
-                pure False
-            False -> do
-                p <- getExecutablePath
-                debugVal "logFile" (pack @Text logFile)
-                logH <- openFile logFile WriteMode
-                let cmd = "nohup"
-                let args = [p, "server", d]
-                debugVal "daemonCmd" $ map (pack @Text) ([cmd] <> args)
-                void (shellBg cmd args (logH, logH))
-                loop Nothing cmd args (0::Int)
-                pure True
-
-    txt <- readFileUtf8 portFile
-    readMay txt & \case
-        Nothing -> throwIO (BAD_PORTS_FILE "daemon" portFile txt)
-        Just pt -> pure (hadToStart, pt)
-  where
-    loop mErr cmd args i =
-        case mErr of
-            Just err | i>= 1000 ->
-                throwIO (FAILED_TO_START_DAEMON err cmd args)
-            _ ->
-                flip handle (clientRequest d reqIsUp) \e -> do
-                    threadDelay 10_000
-                    loop (Just e) cmd args (i+1)
-
--- JellyPack -------------------------------------------------------------------
-
-newtype JellyPack = JELLY_PACK { fan :: F.Fan }
-
-instance MimeRender OctetStream JellyPack where
-    mimeRender _ = fromStrict . unsafePerformIO . savePack . (.fan)
-
-instance MimeUnrender OctetStream JellyPack where
-    mimeUnrender _ = either (Left . unpack) (Right . JELLY_PACK)
-                   . unsafePerformIO
-                   . loadPack
-                   . toStrict
-
---------------------------------------------------------------------------------
-
-type ReplayFromCap = Capture "replay-from" ReplayFrom
-
---type PokePath = CaptureAll "path" Text
-
-type GET  = Get '[JSON]
-type POST = Post '[JSON]
-
-data CtlApi a = CTL_API
-    { isUp   :: a :- "up"                                 :> GET ()
-    , replay :: a :- "replay"   :> ReplayFromCap          :> POST ()
-    -- , poke  :: a :- "poke"     :> MachineCap :> PokePath :> PackCap
-    --              :> POST ()
-    }
-  deriving (Generic)
-
-ctlServer :: Debug => ServerState -> W.Application
-ctlServer st =
-    serve (Proxy :: Proxy (NamedRoutes CtlApi)) CTL_API{..}
-  where
-    isUp :: Handler ()
-    isUp = pure ()
-
-    -- poke :: MachineName -> [Text] -> JellyPack -> Handler ()
-    -- poke n path package = liftIO (doPoke st n path package)
-
-    replay :: ReplayFrom -> Handler ()
-    replay rf = do
-        void $ liftIO $ startMachine st rf
-
-
-reqIsUp    :: ClientM ()
-_reqReplay :: ReplayFrom -> ClientM ()
--- reqPoke    :: MachineName -> [Text] -> JellyPack -> ClientM ()
-
-CTL_API { isUp   = reqIsUp
-        , replay = _reqReplay
-        -- , poke   = reqPoke
-        } = client (Proxy @(NamedRoutes CtlApi))
-
 --------------------------------------------------------------------------------
 
 type Prof = Maybe FilePath
@@ -262,13 +117,8 @@ data RunType
     | RTLoot FilePath Prof Bool [FilePath]
     | RTBoot Prof Bool FilePath Text
     | RTUses FilePath Int
-    | RTServ FilePath Prof Bool -- profiling file
-                           Bool -- profile laws
-                           Bool -- Warn on jet deopt
-                           Bool -- Crash on jet deopt
-                           Int  -- Number of EVAL workers
-    | RTOpen FilePath MachineName CogId
-    | RTTerm FilePath MachineName CogId
+    | RTOpen FilePath CogId
+    | RTTerm FilePath CogId
     -- TODO: Rename 'run' or 'spin' or 'crank' or something.
     | RTStart FilePath
               Prof
@@ -278,12 +128,7 @@ data RunType
               Bool -- Crash on jet deopt
               Int  -- Number of EVAL workers
               ReplayFrom
-    -- | RTPoke FilePath MachineName Text FilePath
-
-machineNameArg :: Parser MachineName
-machineNameArg = MACHINE_NAME <$> strArgument (metavar "NAME" <> help helpTxt)
-  where
-    helpTxt = "A name for the machine"
+    -- | RTPoke FilePath Text FilePath
 
 cogIdArg :: Parser CogId
 cogIdArg = COG_ID <$> argument auto (metavar "COG" <> help helpTxt)
@@ -323,12 +168,10 @@ runType :: FilePath -> Parser RunType
 runType defaultDir = subparser
     ( plunderCmd "term" "Connect to the terminal of a cog."
       (RTTerm <$> storeOpt
-              <*> machineNameArg
               <*> cogIdArg)
 
    <> plunderCmd "open" "Open a terminal's GUI interface."
       (RTOpen <$> storeOpt
-              <*> machineNameArg
               <*> cogIdArg)
 
    <> plunderCmd "sire" "Runs an standalone Sire repl."
@@ -361,18 +204,9 @@ runType defaultDir = subparser
    <> plunderCmd "du" "du -ab compatible output for pin state."
         (RTUses <$> storeArg <*> numWorkers)
 
-   <> plunderCmd "server" "Replays the events in a machine."
-        (RTServ <$> (storeArg <|> storeOpt)
-                <*> profOpt
-                <*> profLaw
-                <*> doSnap
-                <*> doptWarn
-                <*> doptCrash
-                <*> numWorkers)
-
    -- <> plunderCmd "poke" "Pokes a started cog with a value."
    --      -- TODO: should pokePath parse the '/' instead?
-   --      (RTPoke <$> storeOpt <*> machineNameArg <*> pokePath
+   --      (RTPoke <$> storeOpt <*> pokePath
    --              <*> pokeSire)
    )
   where
@@ -450,47 +284,6 @@ data BadPortsFile = BAD_PORTS_FILE Text FilePath Text
   deriving (Eq, Ord, Show)
   deriving anyclass Exception
 
-data StartDuringShutdown = START_DURING_SHUTDOWN MachineName
-  deriving (Eq, Ord, Show)
-  deriving anyclass Exception
-
-data MachineAlreadyStarted = MACHINE_ALREADY_RUNNING MachineName
-  deriving (Eq, Ord, Show)
-  deriving anyclass Exception
-
-data NoSuchMachine = NO_SUCH_MACHINE MachineName
-  deriving (Eq, Ord, Show)
-  deriving anyclass Exception
-
-withDaemon :: Debug => FilePath -> ClientM a -> IO a
-withDaemon storeDir act = do
-    (_, port) <- ensureServer storeDir
-
-    manager <- HTTP.newManager HTTP.defaultManagerSettings
-                                { HTTP.managerResponseTimeout =
-                                    HTTP.responseTimeoutNone }
-
-    let baseUrlScheme = Http
-    let baseUrlHost   = "localhost"
-    let baseUrlPort   = port
-    let baseUrlPath   = ""
-    either throwIO pure =<< runClientM act (mkClientEnv manager BaseUrl{..})
-
-clientRequest :: FilePath -> ClientM a -> IO a
-clientRequest storeDir act = do
-    portTxt <- readFileUtf8 (storeDir </> "ctl.port")
-    Just (port::Int) <- pure (readMay portTxt)
-
-    manager <- HTTP.newManager HTTP.defaultManagerSettings
-                                { HTTP.managerResponseTimeout =
-                                    HTTP.responseTimeoutNone }
-
-    let baseUrlScheme = Http
-    let baseUrlHost   = "localhost"
-    let baseUrlPort   = port
-    let baseUrlPath   = ""
-    either throwIO pure =<< runClientM act (mkClientEnv manager BaseUrl{..})
-
 -- | Initial test here. We create a store, create one machine in it, and then
 -- write one artificial logbatch, and then read it back.
 main :: IO ()
@@ -507,21 +300,18 @@ main = Rex.colorsOnlyInTerminal do
     withProfileOutput args $
       withDebugOutput $
       case args of
-        RTLoot d _ _ fz      -> withDaemon d $ liftIO $ Loot.ReplExe.replMain fz
+        RTLoot _ _ _ fz      -> liftIO $ Loot.ReplExe.replMain fz
         RTSire _ _ _ j c fz  -> do writeIORef F.vWarnOnJetFallback j
                                    writeIORef F.vCrashOnJetFallback c
                                    liftIO $ Sire.main fz
-        RTOpen d machine cog -> void (openBrowser d machine cog)
-        RTTerm d machine cog -> void (openTerminal d machine cog)
+        RTOpen d cog -> void (openBrowser d cog)
+        RTTerm d cog -> void (openTerminal d cog)
         RTStart d _ _ s j c w r -> do
             writeIORef F.vWarnOnJetFallback j
             writeIORef F.vCrashOnJetFallback c
             runMachine d r s w
         RTBoot _ _ d y       -> bootMachine d y
         RTUses d w    -> duMachine d w
-        RTServ d _ _ s j c w -> do writeIORef F.vWarnOnJetFallback j
-                                   writeIORef F.vCrashOnJetFallback c
-                                   runServer s w d
         -- RTPoke d cog p y     -> pokeCog d cog p y
 
 withProfileOutput :: RunType -> IO () -> IO ()
@@ -535,12 +325,11 @@ withProfileOutput args act = do
     argsProf = \case
         RTSire _ p l _ _ _      -> (,l) <$> p
         RTLoot _ p l _          -> (,l) <$> p
-        RTOpen _ _ _            -> Nothing
-        RTTerm _ _ _            -> Nothing
+        RTOpen _ _              -> Nothing
+        RTTerm _ _              -> Nothing
         RTStart _ p l _ _ _ _ _ -> (,l) <$> p
         RTUses _ _              -> Nothing
         RTBoot p l _ _          -> (,l) <$> p
-        RTServ _ p l _ _ _ _    -> (,l) <$> p
         -- RTPoke _ _ _ _       -> Nothing
 
 bootMachine :: (Debug, Rex.RexColor) => FilePath -> Text -> IO ()
@@ -561,7 +350,7 @@ bootMachine storeDir pash = do
                 True -> do
                     error "Trying to overwrite existing machine"
 
--- pokeCog :: (Debug, Rex.RexColor) => FilePath -> MachineName -> Text -> FilePath
+-- pokeCog :: (Debug, Rex.RexColor) => FilePath -> Text -> FilePath
 --         -> IO ()
 -- pokeCog d c p pash = do
 --   withDaemon d $ do
@@ -586,21 +375,10 @@ shellFg c a = do
     (_, _, _, ph) <- createProcess p
     waitForProcess ph
 
-shellBg :: String -> [String] -> (Handle, Handle) -> IO ()
-shellBg c a (out, err) = do
-    let p = (proc c a) { std_in        = NoStream
-                       , std_out       = UseHandle out
-                       , std_err       = UseHandle err
-                       , close_fds     = True
-                       , delegate_ctlc = False
-                       }
-    (_, _, _, _) <- createProcess p
-    pure ()
-
-openBrowser :: FilePath -> MachineName -> CogId -> IO ExitCode
-openBrowser dir machineName cogId = do
+openBrowser :: FilePath -> CogId -> IO ExitCode
+openBrowser dir cogId = do
     let cogNm = tshow cogId.int
-    let pax = (dir </> unpack (machineName.txt <> "." <> cogNm <> ".http.port"))
+    let pax = (dir </> unpack (cogNm <> ".http.port"))
     exists <- doesFileExist pax
     unless exists (error "Cog does not serve HTTP")
     port <- do cont <- readFileUtf8 pax
@@ -610,11 +388,10 @@ openBrowser dir machineName cogId = do
     let url = "http://localhost:" <> show port
     shellFg "xdg-open" [url]
 
-openTerminal :: FilePath -> MachineName -> CogId -> IO ExitCode
-openTerminal dir machineName cogId = do
+openTerminal :: FilePath -> CogId -> IO ExitCode
+openTerminal dir cogId = do
     let cogNm = tshow cogId.int
-    let pax = (dir </> unpack (machineName.txt <> "." <> cogNm <>
-                               ".telnet.port"))
+    let pax = (dir </> unpack (cogNm <> ".telnet.port"))
     exists <- doesFileExist pax
     unless exists (error "Cog does not serve Telnet")
     port <- do cont <- readFileUtf8 pax
@@ -623,151 +400,13 @@ openTerminal dir machineName cogId = do
                    Just pt -> pure pt
     shellFg "nc" ["localhost", show port]
 
-data ServerState = SERVER_STATE
-    { storeDir       :: FilePath
-    , enableSnaps    :: Bool
-    , isShuttingDown :: TVar Bool
-    , machineHandles :: TVar (Map MachineName (TVar (Maybe Machine)))
-    , termSignal     :: MVar ()
-    , lmdb           :: DB.LmdbStore
-    , hardware       :: DeviceTable
-    , poke           :: SubmitPoke
-    , evaluator      :: Evaluator
-    }
-
-runServer :: Debug => Bool -> Int -> FilePath -> IO ()
-runServer enableSnaps numWorkers storeDir = do
-    debugFan "run_server"
-
-    -- Setup plunder interpreter state.
-    writeIORef F.vTrkFan $! \x -> do
-        now <- getCurrentTime
-        debug (["trk"::Text, pack (iso8601Show now)], x)
-
-    writeIORef F.vShowFan  $! Loot.ReplExe.showFan
-    writeIORef F.vJetMatch $! F.jetMatch
-
-    termSignal <- newEmptyMVar
-    for_ [sigTERM, sigINT] $ \sig -> do
-        installHandler sig (Catch (putMVar termSignal ())) Nothing
-
-    isShuttingDown <- newTVarIO False
-    machineHandles <- newTVarIO mempty
-
-    let devTable db hw_poke = do
-            hw1_rand          <- createHardwareRand
-          --(hw4_wock, wsApp) <- createHardwareWock
-            let wsApp _cogId _ws = pure ()
-            hw2_http          <- createHardwareHttp storeDir db wsApp
-          --hw3_sock          <- createHardwareSock storeDir
-            hw5_time          <- createHardwareTime
-          --hw6_port          <- createHardwarePort
-            (pure . DEVICE_TABLE . mapFromList) $
-                [ ( "rand", hw1_rand )
-                , ( "http", hw2_http )
-                --( "sock", hw3_sock )
-                --( "wock", hw4_wock )
-                , ( "time", hw5_time )
-                --( "port", hw6_port )
-                , ( "poke", hw_poke  )
-                ]
-
-    let serverState = do
-            _  <- getPidFile storeDir
-            db <- DB.openDatastore storeDir
-            (pokeHW, submitPoke) <- createHardwarePoke
-            hw <- devTable db pokeHW
-            ev <- evaluator numWorkers
-            st <- pure SERVER_STATE
-                { storeDir
-                , isShuttingDown
-                , machineHandles
-                , lmdb      = db
-                , hardware  = hw
-                , poke      = submitPoke
-                , evaluator = ev
-                , termSignal
-                , enableSnaps
-                }
-            cs <- runControlServer st
-            pure (st, cs)
-
-    with serverState shutdownOnSigkill
-
 -- {-
 --     Deliver a noun from the outside to a given cog.
 -- -}
--- doPoke :: Debug => ServerState -> MachineName -> [Text] -> JellyPack -> IO ()
--- doPoke st machineName path pak = do
---     debug ["poke_cog", machineName.txt]
---     st.poke machineName (fromList path) pak.fan
-
-{-
-    `vShutdownFlag` serves as a guard which prevents new machines from
-    started up (and therefore being added to `vHandles` while we are
-    trying to shut everything down.
-
-    `vHandles` is a `MachineHandle` for each running machine.  These handles
-    are in the `Nothing` state while starting up.
-
-    This assumes that a machine will never fail to start up.  Make sure that
-    is true!
--}
-shutdownOnSigkill :: Debug => (ServerState, Async ()) -> IO ()
-shutdownOnSigkill (st, rpcServer) = do
-    readMVar st.termSignal
-
-    handles <-
-        atomically do
-            writeTVar st.isShuttingDown $! True
-            readTVar st.machineHandles
-
-    debugText "beginning_shutdown"
-
-    cancel rpcServer
-
-    -- Ask each machine to halt, and wait for their thread to exit.
-    forConcurrently_ (mapToList handles)
-        \(machineNm, vHandle) -> do
-            debug ["asking_for_machine_to_stop", machineNm.txt]
-            machine <- atomically $ readTVar vHandle >>= maybe retry pure
-            shutdownMachine machine
-            debug ["machine_halted", machineNm.txt]
-
-    debugText "finished_shutdownOnSigKill"
-
-startMachine :: Debug => ServerState -> ReplayFrom -> IO ()
-startMachine st replayFrom = do
-    debugText "starting_machine"
-
-    cache <- DB.CUSHION <$> newIORef mempty
-
-    let machineName = MACHINE_NAME "TODO:REMOVE"
-
-    vHandle <- join $ atomically do
-        halty <- readTVar st.isShuttingDown
-        table <- readTVar st.machineHandles
-        case (halty, lookup machineName table) of
-            (True, _) ->
-                pure $ throwIO (START_DURING_SHUTDOWN machineName)
-            (_, Just{}) ->
-                pure $ throwIO (MACHINE_ALREADY_RUNNING machineName)
-            (False, Nothing) -> do
-                h <- newTVar Nothing
-                modifyTVar' st.machineHandles (insertMap machineName h)
-                pure (pure h)
-
-    debug ["found_machine", "starting_replay"::Text]
-    let hw   = st.hardware
-    let eval = st.evaluator
-    let enableSnaps = st.enableSnaps
-    let ctx  = MACHINE_CONTEXT{eval, hw, lmdb=st.lmdb,
-                               enableSnaps}
-    h <- withCogDebugging (replayAndCrankMachine cache ctx replayFrom)
-    atomically (writeTVar vHandle $! Just h)
-    debugText "machine_started"
-
---- ---------------
+-- doPoke :: Debug => ServerState -> [Text] -> JellyPack -> IO ()
+-- doPoke st path pak = do
+--     debug ["poke_cog"]
+--     st.poke (fromList path) pak.fan
 
 withMachineIn :: Debug
               => FilePath

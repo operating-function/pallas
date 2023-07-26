@@ -102,17 +102,12 @@ data DecodeCtx
   deriving Show
 
 data StoreExn
-    = BadMachineName MachineName
-    | BadWriteMachineTable MachineName
-    | BadIndexInEventlog MachineName
-    | BadWriteLogBatch BatchNum
+    = BadWriteLogBatch BatchNum
     | BadWriteSnapshot BatchNum
     | BadPinWrite Word64 Hash256
     | BadPinMissing Hash256 [Hash256]
     | BadBlob DecodeCtx Text
     | BadDependency ByteString
-    | BadLogEntry MachineName
-    | BadSnapshot MachineName
     | EmptyLogTable
     | EmptySnapshotTable
   deriving Show

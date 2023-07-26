@@ -24,9 +24,6 @@ instance FromNoun NanoTime where
     fromNoun (NAT n) = Just $ NanoTime n
     fromNoun _       = Nothing
 
-instance ToNoun   MachineName where toNoun   = toNoun . (.txt)
-instance FromNoun MachineName where fromNoun = fmap MACHINE_NAME . fromNoun
-
 instance ToNoun CogId where toNoun (COG_ID i) = NAT $ fromIntegral i
 instance FromNoun CogId where
     fromNoun n = (COG_ID . fromIntegral) <$> fromNoun @Nat n
