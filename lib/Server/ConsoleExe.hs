@@ -287,7 +287,8 @@ data BadPortsFile = BAD_PORTS_FILE Text FilePath Text
 -- | Initial test here. We create a store, create one machine in it, and then
 -- write one artificial logbatch, and then read it back.
 main :: IO ()
-main = Rex.colorsOnlyInTerminal do
+main = do
+  Rex.colorsOnlyInTerminal do
     hSetBuffering stdout LineBuffering
     hSetBuffering stderr LineBuffering
 

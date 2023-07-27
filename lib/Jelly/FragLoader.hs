@@ -11,7 +11,7 @@ module Jelly.FragLoader
     )
 where
 
-import PlunderPrelude hiding ((^), countTrailingZeros)
+import PlunderPrelude hiding ((^))
 
 import Control.Monad.Trans.State.Strict
 import Data.Bits

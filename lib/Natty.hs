@@ -16,27 +16,23 @@
 
 module Natty
     ( Nat
-    , bigNatWords
     , bytesNat
-    , dropTrailingZeros
-    , countTrailingZeros
     , exportBytes
     , natBitWidth
-    , natBitWidth#
     , natBytes
     , natUtf8
-    , natUtf8Exn
-    , natUtf8Lenient
+--  , natUtf8Exn
+--  , natUtf8Lenient
     , natWords
     , slowBytesNat
     , slowNatBytes
     , slowNatWords
     , slowWordsNat
-    , takeBitsWord
+--  , takeBitsWord
     , utf8Nat
     , wordBitWidth
-    , wordBitWidth#
-    , wordsBigNat#
+--  , wordBitWidth#
+--  , wordsBigNat#
     , wordsNat
     )
 where
@@ -134,9 +130,9 @@ natBitWidth# (NatJ# bn) = bigNatBitWidth# (G.unBigNat bn)
 natBitWidth :: Num a => Nat -> a
 natBitWidth a = fromIntegral (W# (natBitWidth# a))
 
-{-# INLINE takeBitsWord #-}
-takeBitsWord :: Int -> Word -> Word
-takeBitsWord wid wor = wor .&. (shiftL 1 wid - 1)
+{-# INLINE _takeBitsWord #-}
+_takeBitsWord :: Int -> Word -> Word
+_takeBitsWord wid wor = wor .&. (shiftL 1 wid - 1)
 
 
 -- Fast Versions ---------------------------------------------------------------
@@ -147,8 +143,8 @@ bigNatWords# bn | BN.bigNatIsZero bn = mempty
 bigNatWords# bArr =
     Vector 0 (I# (sizeofByteArray# bArr) `div` 8) (Prim.ByteArray bArr)
 
-bigNatWords :: BigNat -> Vector Word
-bigNatWords (BN# bn#) = bigNatWords# bn#
+_bigNatWords :: BigNat -> Vector Word
+_bigNatWords (BN# bn#) = bigNatWords# bn#
 
 -- | Cast a vector to a BigNat. This will not copy.
 wordsBigNat# :: Vector Word -> BigNat#
@@ -264,9 +260,9 @@ natUtf8 :: Nat -> Either T.UnicodeException T.Text
 natUtf8 = T.decodeUtf8' . natBytes
 
 -- | Interpret an nat as utf8 text, throwing an exception on bad unicode.
-natUtf8Exn :: Nat -> T.Text
-natUtf8Exn = T.decodeUtf8 . natBytes
+_natUtf8Exn :: Nat -> T.Text
+_natUtf8Exn = T.decodeUtf8 . natBytes
 
 -- | Interpret an nat as utf8 text, replacing bad unicode characters.
-natUtf8Lenient :: Nat -> T.Text
-natUtf8Lenient = T.decodeUtf8With T.lenientDecode . natBytes
+_natUtf8Lenient :: Nat -> T.Text
+_natUtf8Lenient = T.decodeUtf8With T.lenientDecode . natBytes

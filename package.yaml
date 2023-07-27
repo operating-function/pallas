@@ -38,6 +38,9 @@ library:
           - cbits/blake3_sse2_x86-64_unix.S
           - cbits/blake3_sse41_x86-64_unix.S
 
+pkgconfig-depends:
+  - gmp
+
 extra-source-files:
   - cbits/*.h
   - cbits/*.c
@@ -143,6 +146,7 @@ dependencies:
 - exceptions
 - filepath
 - focus
+- ghc-bignum
 - ghc-prim
 - hashable
 - hashtables
@@ -183,10 +187,10 @@ dependencies:
 - time
 - transformers
 - unboxed-ref
-- unordered-containers
 - unix
 - unix-time
 - unliftio
+- unordered-containers
 - utf8-string
 - vector
 - wai

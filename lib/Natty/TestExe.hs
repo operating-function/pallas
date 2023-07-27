@@ -173,7 +173,9 @@ main = do
         withMaxSuccess numTries prop_fast_nat_export_correct
 
     res <- readIORef failed
+
     when (res /= 0) $ do
         putStrLn $ "FAILURE: " <> show res <> " tests failed."
         exitWith (ExitFailure 1)
+
     putStrLn $ "SUCCESS: All tests passed"

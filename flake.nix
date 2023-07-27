@@ -61,6 +61,8 @@
 
           stack-wrapped
 
+          pkgs.gmp
+          pkgs.pkg-config
           pkgs.lmdb
           pkgs.zlib
         ];
