@@ -69,7 +69,6 @@ newtype LawName = LN { nat :: Nat }
 data Pin = P
     { refs :: Vector Pin -- Edge-list
     , hash :: Hash256    -- Cryptographic Hash
-    , quik :: Int        -- Quick Hash
     , args :: !Nat
     , item :: !Fan
     , exec :: SmallArray Fan -> Fan
@@ -79,7 +78,7 @@ data Pin = P
 instance NFData Pin where rnf = \P{} -> ()
 
 setExec :: (SmallArray Fan -> Fan) -> Pin -> Pin
-setExec x (P n h q a i _) = P n h q a i x
+setExec x (P n h a i _) = P n h a i x
 
 data Fan
     = NAT !Nat

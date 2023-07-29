@@ -66,7 +66,6 @@ import PlunderPrelude            hiding (hash, (^))
 import Control.Monad.Trans.State (State, execState, modify', runState)
 
 import Control.Monad.ST (ST)
-import Data.Bits        (xor)
 import Data.Char        (isAlphaNum)
 import Data.Vector      ((!))
 import Fan.PinRefs      (pinRefs)
@@ -74,7 +73,6 @@ import GHC.Prim         (reallyUnsafePtrEquality#)
 import GHC.Word         (Word(..))
 import Jelly.Types      (shortHex)
 import Rex              (GRex)
-import Unsafe.Coerce    (unsafeCoerce)
 
 import {-# SOURCE #-} Fan.Hash (fanHash)
 import {-# SOURCE #-} Fan.Save (saveFan)
@@ -88,7 +86,6 @@ import qualified Data.Vector          as V
 import qualified Data.Vector.Storable as SV
 import qualified GHC.Exts             as GHC
 import qualified GHC.Natural          as GHC
-import qualified GHC.Num.BigNat       as GHC
 import qualified Jelly                as Jelly
 import qualified Jelly.Reference      as Jelly
 import qualified Rex
@@ -152,44 +149,6 @@ instance Eq Law where
             1# -> True
             _  -> a==aa && n==nn && b==bb
 
-{-# INLINE hashMix #-}
-hashMix :: Int -> Int -> Int
-hashMix h1 h2 = (h1 * 16777619) `xor` h2
-
-{-# INLINE natQHash #-}
-natQHash :: Nat -> Int
-natQHash (GHC.NatS# w) = unsafeCoerce (W# w)
-natQHash (GHC.NatJ# w) = unsafeCoerce (W# (GHC.bigNatToWord# (GHC.unBigNat w)))
-
-{-# INLINE lawQHash #-}
-lawQHash :: Law -> Int
-lawQHash law =
-    natQHash law.name.nat `hashMix`
-    natQHash law.args `hashMix`
-    quickHash law.body
-
-hashSum :: [Fan] -> Int
-hashSum = \case
-    []     -> 0
-    (x:xs) -> hashSum' (quickHash x) xs
-
-hashSum' :: Int -> [Fan] -> Int
-hashSum' !acc []     = acc
-hashSum' !acc (a:as) = hashSum' (acc `hashMix` quickHash a) as
-
-quickHash :: Fan -> Int
-quickHash = \case
-    NAT n    -> natQHash n
-    PIN p    -> p.quik
-    FUN l    -> lawQHash l
-    KLO _ xs -> hashSum (toList xs)
-    BAR b    -> length b
-    ROW r    -> hashSum' (length r) (toList r)
-    TAb r    -> hashSum' (length r) (keys r)
-    CAB r    -> hashSum' (length r) (toList r)
-    COw c    -> natQHash c
-    REX{}    -> 5
-
 -- TODO What if the small array has extra shit, and that shit can't
 -- safely be forced?  Don't do `mapSmallArray`, do it by hand.
 normalize :: Fan -> Fan
@@ -234,9 +193,7 @@ instance Eq Pin where
     (==) x y =
         case reallyUnsafePtrEquality# x y of
             1# -> True
-            _  -> case x.quik == y.quik of
-                      False -> False
-                      True  -> x.hash == y.hash
+            _  -> x.hash == y.hash
 
 {-
     Comparision of two values that are likely to be pointer-equals.
@@ -774,11 +731,10 @@ mkPin' inp = do
     match <- readIORef vJetMatch
 
     res <- mdo let exe = pinExec (PIN res) item
-               let qik = quickHash item
                let ari = trueArity item
                let hax = fanHash item
                let ref = pinRefs item
-               res <- addProfilingToPin =<< match (P ref hax qik ari item exe)
+               res <- addProfilingToPin =<< match (P ref hax ari item exe)
                pure res
 
     -- hack that causes functions to be serialized/hashed immediately.
@@ -809,9 +765,8 @@ loadPinFromBlob refs hax item = do
                                            -- TODO is this correct?
                                            -- Doesn't the passed environment
                                            -- include ourselves?
-               let qik = quickHash item
                let !ari = trueArity item
-               res <- addProfilingToPin =<< match (P refs hax qik ari item exe)
+               res <- addProfilingToPin =<< match (P refs hax ari item exe)
                pure res
 
     evaluate res.exec
