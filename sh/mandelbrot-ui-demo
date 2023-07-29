@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 
 #
-# To use this script, run `rm -Rf .demo/ && plunder server .demo`
-# and then run this script in a different terminal from the root of the
-# repository with `sh/mandelbrot-ui-demo`.
+# To run the demo, just run `sh/mandelbrot-ui-demo` from the root of the
+# repository.
 #
 
 # Only operate on the `.demo` directory.

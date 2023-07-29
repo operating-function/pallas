@@ -153,11 +153,11 @@ NL=10
    ++ [NL %2 %5 %5 NL]
 ;
 @ rowIds | gen height id
-: ??(pmapDone rowLns)
+: ??(pmapDone barLns)
     < pmap 5000 (mandelbrotLine width height) rowIds
 ;
-@ bodStr ^ cat (map _ rowLns)
-         | ln&(weld (catMap renderColor ln) [NL])
+@ bodStr ^ cat (map _ barLns)
+         | ln&(weld (catMap renderColor (chunks 3 (barBytes ln))) [NL])
 ;
 | trk [ppm=(implode | weld header bodStr)]
 ;

@@ -1,25 +1,45 @@
 #!/usr/bin/env bash
 
 #
-# To use this script, run `rm -Rf .demo/ && plunder server .demo`
-# and then run this script in a different terminal from the root of the
-# repository with `sh/parallel-mandelbrot-demo`.
+# To run the demo, just run `sh/parallel-mandelbrot-demo` from the root of the
+# repository.
 #
 
 # Only operate on the `.demo` directory.
-export PLUNDER_DIR=$(realpath .demo)
+export MACHINE_DIR=$(realpath .demo)
 
 plunder=$(stack path --local-install-root)/bin/plunder
 
-# TODO: error out if this broke.
-$plunder boot pfract sire/demo_parallel_mandelbrot.sire
-$plunder start pfract
+rm -Rf "$MACHINE_DIR"
+mkdir -p "$MACHINE_DIR"
 
-until [ -f ./.demo/pfract.http.port ]
+waited=0
+until [ -d "$MACHINE_DIR" ]
 do
-     sleep 1
+    if [ $waited -eq 0 ]; then
+        echo "Waiting for .demo directory to be created"
+        waited=1
+    fi
+
+    sleep 0.1
 done
 
-PORT=$(cat .demo/pfract.http.port)
+# TODO: error out if this broke.
+$plunder boot "$MACHINE_DIR" sire/demo_parallel_mandelbrot.sire
+
+$plunder start "$MACHINE_DIR" &
+RUN_MACHINE=$!
+
+until find "$MACHINE_DIR" -maxdepth 1 -name "*.http.port" -quit
+do
+     echo "Waiting..."
+     sleep 0.1
+done
+
+# Why an additional sleep here? Some weird filesystem sync issue where the
+# port file was created, but hasn't been written to yet.
+sleep .1
+
+PORT=$(cat "$MACHINE_DIR"/*.http.port)
 
 echo "Running on http://localhost:$PORT/index.html"
