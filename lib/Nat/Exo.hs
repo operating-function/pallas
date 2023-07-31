@@ -26,6 +26,9 @@ import GHC.Natural
 import GHC.Num.BigNat
 import GHC.Num.Integer
 import GHC.Word
+import GHC.Read
+
+import Optics (over, _1)
 
 import Data.ByteString.Internal (ByteString(BS), nullForeignPtr)
 import Foreign.Marshal.Utils    (copyBytes)
@@ -52,8 +55,8 @@ type SrcPtr a = Ptr a
 type CSize = Word
 
 data Exo = EXO
-    { sz :: !CSize
-    , ptr :: !(ForeignPtr Word)
+    { sz  :: {-# UNPACK #-} !CSize
+    , ptr :: {-# UNPACK #-} !(ForeignPtr Word)
     }
 
 
@@ -67,6 +70,9 @@ foreign import ccall unsafe "__gmpn_add" mpn_add
 
 foreign import ccall unsafe "__gmpn_mul" mpn_mul
     :: Ptr Word -> SrcPtr Word -> CSize -> SrcPtr Word -> CSize -> IO Word
+
+foreign import ccall unsafe "__gmpn_mul_1" mpn_mul_1
+    :: Ptr Word -> SrcPtr Word -> CSize -> Word -> IO Word
 
 foreign import ccall unsafe "__gmpn_sub" mpn_sub
     :: Ptr Word -> SrcPtr Word -> CSize -> SrcPtr Word -> CSize -> IO Word
@@ -191,6 +197,16 @@ wordExo w = unsafePerformIO do
     withForeignPtr newPtr (\p -> poke p w)
     pure (EXO 1 newPtr)
 
+wordWordExo :: Word -> Word -> Exo
+wordWordExo 0 0 = zeroExo
+wordWordExo 0 x = wordExo x
+wordWordExo n x = unsafePerformIO do
+    newPtr <- mallocForeignPtrBytes 16
+    withForeignPtr newPtr \p -> do
+        poke p x
+        pokeElemOff p 1 n
+        pure (EXO 2 newPtr)
+
 plus :: Exo -> Exo -> Exo
 plus (EXO 0 _)      y              = y
 plus x              (EXO 0 _)      = x
@@ -207,8 +223,8 @@ plus x@(EXO xSz xP) y@(EXO ySz yP) =
                  let newSize = if carry==0 then xSz else xSz+1
                  pure (EXO newSize newPtr)
 
-bigNat :: BigNat# -> Exo
-bigNat bn =
+bigNatExo :: BigNat# -> Exo
+bigNatExo bn =
     case I# (bigNatSize# bn) of
         0 -> zeroExo
         n -> unsafePerformIO do
@@ -220,19 +236,19 @@ bigNat bn =
             pure (EXO (fromIntegral n) (castForeignPtr newPtr))
 
 -- Returns 0 when given a negative number
-int :: Int -> Exo
-int i | i <= 0 = zeroExo
-int i          = wordExo (fromIntegral i)
+intExo :: Int -> Exo
+intExo i | i <= 0 = zeroExo
+intExo i          = wordExo (fromIntegral i)
 
-natural :: Natural -> Exo
-natural (NatS# w)  = wordExo (W# w)
-natural (NatJ# bn) = bigNat (unBigNat bn)
+naturalExo :: Natural -> Exo
+naturalExo (NatS# w)  = wordExo (W# w)
+naturalExo (NatJ# bn) = bigNatExo (unBigNat bn)
 
 -- Returns 0 if given a negative number.
 integerExo :: Integer -> Exo
-integerExo (IP i) = bigNat i
+integerExo (IP i) = bigNatExo i
 integerExo (IN _) = zeroExo
-integerExo (IS i) = int (I# i)
+integerExo (IS i) = intExo (I# i)
 
 -- Construct an exo, ignoring pointer if zero (using a null pointer instead).
 exo :: CSize -> ForeignPtr Word -> Exo
@@ -250,10 +266,10 @@ trim = go . fromIntegral
            0 -> go (n-1) b
            _ -> pure (fromIntegral n)
 
-minus :: Exo -> Exo -> Exo
-minus x (EXO 0 _) = x
-minus (EXO 0 _) _ = zeroExo
-minus x y         =
+minusExo :: Exo -> Exo -> Exo
+minusExo x (EXO 0 _) = x
+minusExo (EXO 0 _) _ = zeroExo
+minusExo x y         =
     unsafePerformIO do
         newPtr <- mallocForeignPtrBytes (fromIntegral (x.sz * 8))
         withForeignPtr newPtr \ptr ->
@@ -264,18 +280,34 @@ minus x y         =
                 newSize <- trim newSz ptr
                 pure (exo newSize newPtr)
 
-times :: Exo -> Exo -> Exo
-times _ (EXO 0 _) = zeroExo
-times (EXO 0 _) _ = zeroExo
-times x y         = unsafePerformIO do
-    let sz = x.sz + y.sz
-    newPtr <- mallocForeignPtrBytes $ fromIntegral (sz * 8)
-    withForeignPtr newPtr \ptr ->
+times_exo_exo :: Exo -> Exo -> Exo
+times_exo_exo _ (EXO 0 _) = zeroExo
+times_exo_exo (EXO 0 _) _ = zeroExo
+times_exo_exo x y         = unsafePerformIO do
+    let maxSize = x.sz + y.sz
+    newPtr <- mallocForeignPtrBytes $ fromIntegral (maxSize * 8)
+    withForeignPtr newPtr \buf ->
         withForeignPtr x.ptr \xBuf ->
         withForeignPtr y.ptr \yBuf -> do
-            _        <- mpn_mul ptr xBuf x.sz yBuf y.sz
-            newSize' <- trim sz ptr
+            _        <- mpn_mul buf xBuf x.sz yBuf y.sz
+            newSize' <- trim maxSize buf
             pure (exo newSize' newPtr)
+
+times_exo_word :: Exo -> Word -> Exo
+times_exo_word _ 0         = zeroExo
+times_exo_word x 1         = x
+times_exo_word (EXO 0 _) _ = zeroExo
+times_exo_word x y =
+    unsafePerformIO $
+    let maxWid = (x.sz + 1) in
+    withForeignPtr x.ptr \xBuf ->
+    makeExo maxWid \buf -> do
+        extra <- mpn_mul_1 buf xBuf x.sz y
+        if extra == 0 then do
+            pure x.sz
+        else do
+            pokeElemOff buf (fromIntegral (maxWid - 1) :: Int) extra
+            pure maxWid
 
 -- You'll need to read the docs of `mpn_tdiv_qr` alongside this code in
 -- order to understand it.
@@ -388,8 +420,8 @@ exoAnd (EXO xS xFP) (EXO yS yFP) =
     input will always be set on the output.
 -}
 exoIor :: Exo -> Exo -> Exo
-exoIor (EXO 0 _)    _            = zeroExo
-exoIor _            (EXO 0 _)    = zeroExo
+exoIor (EXO 0 _)    x            = x
+exoIor x            (EXO 0 _)    = x
 exoIor (EXO xS xFP) (EXO yS yFP) =
     unsafePerformIO $
     makeExo rS \rp ->
@@ -415,8 +447,8 @@ exoIor (EXO xS xFP) (EXO yS yFP) =
     because the high-bits can get canceled out.
 -}
 exoXor :: Exo -> Exo -> Exo
-exoXor (EXO 0 _)    _            = zeroExo
-exoXor _            (EXO 0 _)    = zeroExo
+exoXor (EXO 0 _)    x            = x
+exoXor x            (EXO 0 _)    = x
 exoXor (EXO xS xFP) (EXO yS yFP) =
     unsafePerformIO $
     makeExo rS \rp ->
@@ -466,6 +498,18 @@ exoSetBit (EXO xS xFP) i = unsafePerformIO do
             z <- peekElemOff rp w
             pokeElemOff rp w (setBit z b)
             pure rS
+
+exoClearBit :: Exo -> Int -> Exo
+exoClearBit (EXO xS xFP) i = unsafePerformIO do
+    let (w,b) = quotRem i 64
+    let rS    = max xS (fromIntegral w + 1)
+    withForeignPtr xFP \xp ->
+        makeExo rS \rp -> do
+            unless (rS == xS) do mpn_zero rp rS
+            mpn_copyi rp xp xS
+            z <- peekElemOff rp w
+            pokeElemOff rp w (clearBit z b)
+            trim rS rp
 
 exoBigNat :: Exo -> BigNat
 exoBigNat (EXO 0 _)   = bigNatZero
@@ -613,8 +657,8 @@ instance Show Exo where
 
 instance Num Exo where
     (+) = plus
-    (-) = minus
-    (*) = times
+    (-) = minusExo
+    (*) = times_exo_exo
 
     abs          = id
     signum x     = if x.sz==0 then 0 else 1
@@ -650,6 +694,7 @@ instance Real Exo where
 
 instance Integral Exo where
     quotRem = exoQuotRem
+    divMod  = exoQuotRem
 
     toInteger x@(EXO w p) =
         case w of
@@ -660,24 +705,34 @@ instance Integral Exo where
 
 instance Enum Exo where
     succ x   = plus_word 1 x
-    pred x   = minus x 1
-    toEnum   = int
+    pred x   = minusExo x 1
+    toEnum   = intExo
     fromEnum = fromIntegral
+
+instance NFData Exo where
+    rnf EXO{} = ()
 
 instance Bits Exo where
     isSigned _     = False
     bitSizeMaybe _ = Nothing
     bitSize _      = error "Data.Bits.bitSize(Exo)"
 
-    (.&.)        = exoAnd
-    (.|.)        = exoIor
-    xor          = exoXor
-    complement   = error "Bits.complement: Natural complement undefined"
-    shiftL x i   = exoShiftL x (fromIntegral i)
-    shiftR x i   = exoShiftR x (fromIntegral i)
-    rotateL      = shiftL
-    rotateR      = shiftR
-    testBit      = exoTestBit
-    setBit       = exoSetBit
-    bit          = exoBex
-    popCount     = exoPopCount
+    (.&.)      = exoAnd
+    (.|.)      = exoIor
+    xor        = exoXor
+    complement = error "Bits.complement: Natural complement undefined"
+    shiftL x i = exoShiftL x (fromIntegral i)
+    shiftR x i = exoShiftR x (fromIntegral i)
+    rotateL    = shiftL
+    rotateR    = shiftR
+    testBit    = exoTestBit
+    setBit     = exoSetBit
+    clearBit   = exoClearBit
+    bit        = exoBex
+    popCount   = exoPopCount
+
+instance IsString Exo where
+    fromString = utf8Exo . pack
+
+instance Read Exo where
+    readsPrec p str = over _1 naturalExo <$> readsPrec p str
