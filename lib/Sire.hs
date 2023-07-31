@@ -757,6 +757,7 @@ doAssert ryn rx = do
             doAssert ryn heir
 
         rex@(N _ _ sons mHeir) -> do
+            trkM (REX rex)
             case sons <> toList mHeir of
                 [xRex, yRex] -> do
                     xExp <- readExpr [] xRex
