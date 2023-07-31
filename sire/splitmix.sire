@@ -69,10 +69,16 @@
 > U64
 = goldenGamma 0x9e3779b97f4a7c15
 
+!!= goldenGamma (w64 goldenGamma)
+
 > U64 > U64
 > (U64, U64)
 = (seedSMGen seed gamma)
 | [seed (or64 gamma 1)]
+
+!!= [98 1] (w64 98, w64 1)
+
+!!= 99 (or64 98 1)
 
 !!= [12 99]
   | seedSMGen 12 98
