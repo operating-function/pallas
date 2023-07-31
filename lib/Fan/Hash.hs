@@ -7,9 +7,9 @@ import Foreign.Marshal.Alloc
 import Foreign.Ptr
 import PlunderPrelude hiding ((^))
 
+import Foreign.ForeignPtr
 import Foreign.Storable (peek)
 import GHC.Int          (Int(..))
-import GHC.Natural      (Natural(..))
 import GHC.Word         (Word(..))
 import Jelly.Types      (toHash256)
 
@@ -137,8 +137,8 @@ fanHash top =
             go h (lawBody v)
 
 
+    doNat :: Hasher -> Nat -> IO ()
     doNat h = \case
-
         NatS# w# -> do
             let w = W# w#
             if w == 0 then do
@@ -147,12 +147,10 @@ fanHash top =
                 c_blake3_hasher_update_word h 1
                 c_blake3_hasher_update_word h (fromIntegral w)
 
-        NatJ# bn -> do
-            let bn#   = G.unBigNat bn
-            let sz    = BN.bigNatSize bn#
-            let szInt = fromIntegral sz :: Int
-            c_blake3_hasher_update_word h (fromIntegral sz)
-            for_ [0 .. szInt-1] \(I# i) ->
-                c_blake3_hasher_update_word h
-                    $ fromIntegral
-                    $ BN.bigNatIndex bn# i
+        -- TODO: Delete this line once confident
+        NatJ# (EXO sz ptr) | sz < 2 -> error "Invalid NAT: Exo is < 2 words"
+
+        NatJ# (EXO sz ptr) ->
+            withForeignPtr ptr \buf -> do
+                c_blake3_hasher_update_word h (fromIntegral sz)
+                c_blake3_hasher_update h (castPtr buf) (8 * fromIntegral sz)

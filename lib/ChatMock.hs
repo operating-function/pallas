@@ -9,6 +9,7 @@
 module ChatMock (main) where
 
 import ClassyPrelude
+import Nat
 import Optics
 
 import ChatMock.Hub.Packet   ()
@@ -20,7 +21,6 @@ import Data.ByteString.Builder (byteStringHex, toLazyByteString)
 import Data.Text.IO            (hPutStrLn)
 import Data.Time.Clock         (secondsToNominalDiffTime)
 import Data.Time.Clock.POSIX   (POSIXTime, getPOSIXTime)
-import Numeric.Natural         (Natural)
 import System.Posix.Directory  (getWorkingDirectory)
 
 import qualified Data.Aeson                     as A

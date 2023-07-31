@@ -44,7 +44,6 @@ import qualified Data.Map                  as M
 import qualified Data.Set                  as S
 import qualified Data.Vector               as V
 import qualified GHC.Exts                  as GHC
-import qualified GHC.Natural               as GHC
 import qualified Jelly                     as Jelly
 import qualified Jelly.Fast.FFI            as Jelly
 import qualified Jelly.Reference           as Jelly
@@ -267,7 +266,7 @@ saveFan' ctx top = do
 saveFanWorker
     :: Jelly.Ctx
     -> IORef [(Pin, ByteString)]
-    -> IORef [ByteString]
+    -> IORef [(Either Exo ByteString)]
     -> Fan
     -> IO (Vector Pin, ByteString, ByteString)
 saveFanWorker !ctx !vPins !vTemp !top = do
@@ -340,14 +339,13 @@ saveFanWorker !ctx !vPins !vTemp !top = do
         row  <- go zzrz keyz
         Jelly.c_cons ctx zot row
 
-    doNat (GHC.NatS# w) = do
+    doNat (NatS# w) = do
         Jelly.c_word ctx (fromIntegral (W# w))
 
-    doNat n@(GHC.NatJ# _) = do
-        let bs@(BS.BS fpt wid) = natBytes n
-        modifyIORef' vTemp (bs:)
-        withForeignPtr fpt \buf -> do
-            Jelly.c_nat ctx (fromIntegral wid) buf
+    doNat n@(NatJ# x) = do
+        modifyIORef' vTemp (Left x:)
+        withForeignPtr x.ptr \buf -> do
+            Jelly.c_nat ctx (fromIntegral (x.sz * 8)) (castPtr buf)
 
     loop :: Fan -> IO Jelly.CNode
     loop = \case

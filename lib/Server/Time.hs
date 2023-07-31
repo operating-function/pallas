@@ -4,7 +4,6 @@
 
 module Server.Time where
 
-import Numeric.Natural
 import PlunderPrelude
 
 import Data.Time.Clock       (NominalDiffTime, nominalDiffTimeToSeconds,

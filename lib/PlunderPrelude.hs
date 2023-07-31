@@ -21,7 +21,7 @@ import Data.List.NonEmpty        as X (NonEmpty(..))
 import Data.Primitive.SmallArray as X
 import Data.Void                 as X (Void, absurd)
 import Debug.Trace               as X (trace, traceM, traceShowId)
-import Natty                     as X
+import Nat                       as X
 import Optics                    as X (_1, _2, assign, assign', at, modifying,
                                        modifying', over, to, use, view, (%),
                                        (^.))

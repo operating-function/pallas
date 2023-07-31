@@ -13,7 +13,7 @@
     Jam is an extremely simple an elegant serialization system.
     Basically it takes a structure like
 
-        data Noun = ATOM Natural | CELL Noun Noun
+        data Noun = ATOM Nat | CELL Noun Noun
 
     And serializes it using a simple bit-encoding scheme.  A 1 bit
     indicates a cell, and a 0 bit indicates an atom.  Atoms are encoded as
@@ -91,7 +91,7 @@
         data Node
             = PIN (Node, Hash256)
             | BAR ByteString
-            | NAT Natural
+            | NAT Nat
             | CEL Node Node
 
     For PIN nodes, we don't recurse into them, but just serializes them
@@ -107,7 +107,7 @@
         data Context = CONTEXT
             { pins  :: Vector Hash256
             , bars  :: Vector ByteString
-            , nats  :: Vector Natural
+            , nats  :: Vector Nat
             , frags :: Vector Fragment
             }
 
@@ -212,7 +212,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Bits
 import Data.Vector                      ((!))
-import GHC.Natural
+import Nat
 import GHC.Word
 import Jelly.Types
 import PlunderPrelude                   hiding (Builder)
@@ -407,7 +407,7 @@ dumpTrees st =
 dumpLen :: Int -> Builder
 dumpLen = dumpNat . fromIntegral
 
-dumpNat :: Natural -> Builder
+dumpNat :: Nat -> Builder
 dumpNat = dumpBar . natBytes
 
 dumpBar :: ByteString -> Builder
@@ -770,8 +770,8 @@ loadBar :: IsJelly a => LoadTables a
 loadBar = _BAR <$> getVarBytes
 
 loadNat :: IsJelly a => LoadTables a
-loadNat = do
-    nat <- bytesNat <$> getVarBytes
-    pure $ case nat of
-             NatS# w -> _WORD (W# w)
-             _       -> _NAT nat
+loadNat = mkNat . bytesNat <$> getVarBytes
+
+mkNat :: IsJelly a => Nat -> a
+mkNat (NatS# s) = _WORD (W# s)
+mkNat x@NatJ#{} = _NAT x

@@ -20,7 +20,7 @@ import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import Foreign.Ptr
 import Foreign.Storable
-import Natty
+import Nat
 import PlunderPrelude          hiding (hash, (%))
 
 import Jelly.Reference (Node(..))

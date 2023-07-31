@@ -10,8 +10,7 @@ module Server.Types.Logging where
 
 import PlunderPrelude
 
-import Fan             (Fan)
-import Numeric.Natural (Natural)
+import Fan (Fan)
 import Server.Time
 
 --------------------------------------------------------------------------------
@@ -66,7 +65,7 @@ data CogFailure
   deriving (Eq, Ord, Show, Generic, Exception)
 
 -- | Log batches count up from 0.
-newtype BatchNum = BatchNum { unBatchNum :: Natural }
+newtype BatchNum = BatchNum { unBatchNum :: Nat }
   deriving newtype (Eq, Show, Num)
 
 -- | The atomic unit written to the event log. A Plunder Cog should be able to

@@ -16,12 +16,16 @@ import Fan.Convert
 import Fan.Eval
 import Fan.Jets
 import PlunderPrelude   hiding ((^))
+import Foreign.ForeignPtr
+import Foreign.Storable
 
 import Data.ByteString.Builder (byteString, toLazyByteString)
 import Data.Vector             ((!), (//))
 import Foreign.Marshal.Alloc   (allocaBytes)
 import Foreign.Ptr             (castPtr)
+import GHC.Exts                (Word(..))
 import Jelly.Fast.FFI          (c_jet_blake3)
+import Unsafe.Coerce           (unsafeCoerce)
 
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Unsafe as BS
@@ -29,9 +33,6 @@ import qualified Data.Map               as M
 import qualified Data.Set               as S
 import qualified Data.Vector            as V
 import qualified Fan.Prof               as Prof
-import qualified GHC.Exts               as GHC
-import qualified GHC.Natural            as GHC
-import qualified Natty                  as Natty
 import qualified PlunderPrelude
 
 --------------------------------------------------------------------------------
@@ -270,7 +271,7 @@ lshJet _ env =
         yv = toNat(env^2)
     in
         if yv > maxInt
-        then error "TODO"
+        then error "TODO:lsh with huge offset"
         else NAT (xv `shiftL` (fromIntegral yv :: Int))
 
 rshJet :: Jet
@@ -279,7 +280,7 @@ rshJet _ env =
         yv = toNat(env^2)
     in
         if yv > maxInt
-        then error "TODO"
+        then error "TODO: rsh with huge offset"
         else NAT (xv `shiftR` (fromIntegral yv :: Int))
 
 metJet :: Jet
@@ -313,9 +314,11 @@ bitJet _ env =
 notJet :: Jet
 notJet _ env =
     case env^1 of
-        NAT 0 -> NAT 1
-        NAT _ -> NAT 0
-        _     -> NAT 1
+        NAT (NatS# 0##)       -> NAT (NatS# 1##)
+--      NAT (NatJ# (EXO 0 _)) -> error "invalid nat"
+--      NAT (NatJ# (EXO 1 _)) -> error "invalid nat"
+        NAT _                 -> NAT (NatS# 0##)
+        _                     -> NAT 1
 
 andJet :: Jet
 andJet _ env = fromBit (toBit(env^1) && toBit(env^2))
@@ -391,14 +394,14 @@ unfoldrJet f env = orExecTrace "unfoldr" (f env)
 -- implementation is weird (silently dropped)
 --
 -- TODO Converting from a vector to a list to a bytestring to an atom
--- is stupid `Natty` should be extended to support `Vector Word8`.
+-- is stupid we should directly implement `Vector U8 -> Nat`.
 implodeJet :: Jet
 implodeJet f env = orExec (f env) $ do
       vs <- getRow (env^1)
       bs <- for vs \case
           (NAT n) | n>0 && n<256 -> Just (fromIntegral n)
           _                      -> Nothing
-      pure $ NAT $ Natty.bytesNat $ pack $ toList bs
+      pure $ NAT $ bytesNat $ pack $ toList bs
 
 barDropJet :: Jet
 barDropJet f env = orExec (f env) $ do
@@ -685,10 +688,12 @@ padFlatSeq =
     (clearBit 3 0b1111) .|. (0b1011 << 3)
 
     - where 3 is (bitWidth(0b1111) - 1)
+
+    -- TODO: This crashes if gen a zero input.  0 is not a valid pad, but
+    -- what should we do in this case?  Abort and fallback to raw PLAN exe?
 -}
 padWeld :: Nat -> Nat -> Nat
-padWeld x y =
-    (x `clearBit` end) .|. (y `shiftL` end)
+padWeld x y = (x `clearBit` end) .|. (y `shiftL` end)
   where
     end :: Int
     end = (natBitWidth x - 1)
@@ -696,11 +701,11 @@ padWeld x y =
 isDigitJet :: Jet
 isDigitJet _ e =
     case (e^1) of
-      NAT (GHC.NatS# xu) ->
-          let x = GHC.W# xu
+      NAT (NatS# xu) ->
+          let x = W# xu
           in if x>=48 && x<=57
-             then NAT 1
-             else NAT 0
+             then NAT (NatS# 1##)
+             else NAT (NatS# 0##)
       _ ->
           NAT 0
 
@@ -1137,6 +1142,7 @@ w64Jet :: Jet
 w64Jet _ env =
     NAT (fromIntegral . w64 $ toNat(env^1))
 
+{-# INLINE w64op #-}
 w64op :: (Word64 -> Word64 -> Word64) -> Jet
 w64op fun _ env = NAT $ fromIntegral $ fun (w64 $ toNat(env^1)) (w64 $ toNat(env^2))
 
@@ -1209,12 +1215,17 @@ maxInt = fromIntegral (maxBound::Int)
 w32 :: Nat -> Word32
 w32 x = fromIntegral (x `mod` bex32)
 
--- w64 helpers
-bex64 :: Nat
-bex64 = 2 PlunderPrelude.^ (64::Nat)
+-- TODO: mod of 2^64 DOES NOT WORK!!  Fix it.
 
 w64 :: Nat -> Word64
-w64 x = fromIntegral (x `mod` bex64)
+w64 (NatS# w) = wordToWord64 (W# w)
+w64 (NatJ# x) = wordToWord64 (unsafePerformIO $ withForeignPtr x.ptr peek)
+
+-- TODO: Use unboxed.
+-- TODO: Explicit cast (they are identical on this arch)
+{-# INLINE wordToWord64 #-}
+wordToWord64 :: Word -> Word64
+wordToWord64 = unsafeCoerce
 
 -- i64 helpers
 -- Int<->Word conversions preserve representation, not sign

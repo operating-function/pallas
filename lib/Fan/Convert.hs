@@ -6,7 +6,6 @@ module Fan.Convert where
 
 import Fan
 import Jelly.Types (Hash256, hashToByteString, toHash256)
-import Numeric.Natural
 import PlunderPrelude
 
 import GHC.Word (Word(W#))
@@ -14,7 +13,6 @@ import GHC.Word (Word(W#))
 import qualified Data.Map    as M
 import qualified Data.Set    as S
 import qualified Data.Vector as V
-import qualified GHC.Natural as GHC
 
 import Data.Vector ((!))
 
@@ -61,10 +59,14 @@ instance FromNoun Natural where
     fromNoun _       = Nothing
 
 instance ToNoun Word where
-    toNoun (W# w) = NAT (GHC.NatS# w)
+    toNoun (W# w) = NAT (NatS# w)
+
+maxWord :: Word
+maxWord = maxBound
+
 instance FromNoun Word where
-    fromNoun (NAT (GHC.NatS# w)) = Just (W# w)
-    fromNoun _                   = Nothing
+    fromNoun (NAT (NatS# w)) = Just (W# w)
+    fromNoun _               = Nothing
 
 instance ToNoun Word64 where
     toNoun w = toNoun (fromIntegral w :: Word)

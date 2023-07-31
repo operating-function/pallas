@@ -145,18 +145,19 @@ cordBox txt =
 natBox :: Nat -> Box
 natBox n =
   case natUtf8 n of
-    Left _                    -> nameBox (tshow n)
-    Right s | n==0            -> nameBox "0"
-            | nonAscii s      -> nameBox (tshow n)
+    Left _                    -> decimal
+    Right s | n==0            -> decimal
+            | nonAscii s      -> decimal
             | all C.isAlpha s -> cenBox s
-            | n<256           -> nameBox (tshow n)
+            | n<256           -> decimal
             | okCord s        -> textBox CORD s
             | okTape s        -> textBox TAPE s
             | okCurl s        -> textBox CURL s
             | isLineStr s     -> pageBox PAGE [s]
             | isBlocStr s     -> pageBox PAGE (T.splitOn "\n" s)
-            | otherwise       -> nameBox (tshow n)
+            | otherwise       -> decimal
   where
+    decimal = nameBox (tshow n)
     nonAscii s = any (not . C.isAscii) s
 
     isOkPrint '\n' = False

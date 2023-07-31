@@ -2,12 +2,12 @@
 -- Use of this source code is governed by a BSD-style license that can be
 -- found in the LICENSE file.
 
-{-# OPTIONS_GHC -Wall -Werror #-}
+{-# OPTIONS_GHC -Wall #-}
+--- OPTIONS_GHC -Werror #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Jelly.TestExe where
 
-import GHC.Natural
 import GHC.Word
 import PlunderPrelude  hiding (hash)
 import Test.QuickCheck

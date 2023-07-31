@@ -85,7 +85,6 @@ import qualified Data.Set             as S
 import qualified Data.Vector          as V
 import qualified Data.Vector.Storable as SV
 import qualified GHC.Exts             as GHC
-import qualified GHC.Natural          as GHC
 import qualified Jelly                as Jelly
 import qualified Jelly.Reference      as Jelly
 import qualified Rex
@@ -542,17 +541,17 @@ trueArity = \case
 
 {-# INLINE natArity #-}
 natArity :: Nat -> Nat
-natArity (GHC.NatS# 0##) = 3 -- FUN
-natArity (GHC.NatS# 1##) = 5 -- CAS
-natArity (GHC.NatS# 2##) = 3 -- DEC
-natArity _               = 1 -- INC, PIN, etc
+natArity (NatS# 0##) = 3 -- FUN
+natArity (NatS# 1##) = 5 -- CAS
+natArity (NatS# 2##) = 3 -- DEC
+natArity _           = 1 -- INC, PIN, etc
 
 evalArity :: Fan -> Int
 evalArity (FUN l) = natToArity l.args
-evalArity (NAT n) = case n of GHC.NatS# 0## -> 3
-                              GHC.NatS# 1## -> 5
-                              GHC.NatS# 2## -> 3
-                              _             -> 1
+evalArity (NAT n) = case n of NatS# 0## -> 3
+                              NatS# 1## -> 5
+                              NatS# 2## -> 3
+                              _         -> 1
 evalArity (KLO r _) = r
 evalArity (PIN p)   = natToArity p.args
 evalArity (CAB _)   = 1
@@ -1137,8 +1136,8 @@ optimizeSpine = go
                     (go <$> (smallArrayFromList $ toList vrun))
             _ -> exe
 
-    isWord (NAT (GHC.NatS# _)) = True
-    isWord _                   = False
+    isWord (NAT (NatS# _)) = True
+    isWord _               = False
 
     mkJumpTable :: Run -> Run -> Map Fan Run -> Run
     mkJumpTable key fal tab =
@@ -1149,9 +1148,9 @@ optimizeSpine = go
         pairs   = wordify (mapToList tab)
 
         wordify :: [(Fan, Run)] -> [(Word, Run)]
-        wordify []                            = []
-        wordify ((NAT (GHC.NatS# k), v) : vs) = (GHC.W# k, v) : wordify vs
-        wordify ((_,                 _) : _ ) = error "no good"
+        wordify []                        = []
+        wordify ((NAT (NatS# k), v) : vs) = (W# k, v) : wordify vs
+        wordify ((_,             _) : _ ) = error "no good"
 
     tryMatchTabSwitch exe r = case r^2 of
         MK_TAB vrun ->
@@ -1665,7 +1664,7 @@ executeLaw self recPro exePro args =
         --      some sort of sentinal value at the end.
         JMP_WORD i f keyVec branches -> do
             go vs i >>= \case
-                NAT (GHC.NatS# w) ->
+                NAT (NatS# w) ->
                     let
                         !key = GHC.W# w
                         !end = length keyVec
@@ -1798,7 +1797,7 @@ fromBit False = NAT 0
 -- Jar for Vals ----------------------------------------------------------------
 
 instance IsString Fan where
-   fromString = NAT . utf8Nat . pack
+   fromString = NAT . fromString
 
 
 --------------------------------------------------------------------------------
@@ -1821,8 +1820,8 @@ saveFanReference !top = do
 
         NAT n ->
             case n of
-                GHC.NatS# w -> pure $ Jelly.WORD (fromIntegral (W# w))
-                _           -> pure $ Jelly.NAT n
+                NatS# w -> pure $ Jelly.WORD (fromIntegral (W# w))
+                _       -> pure $ Jelly.NAT n
 
 
         fan -> do
