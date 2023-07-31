@@ -804,6 +804,11 @@ treenode_t jelly_word(Jelly ctx, uint64_t word) {
 treenode_t jelly_nat(Jelly ctx, size_t wid, uint8_t *byt) {
         debugf("\tjelly_nat(width=%lu)\n", wid);
 
+        for (; wid > 0; ) {
+            if (byt[wid-1] == 0) wid--;
+            else break;
+        }
+
         if (wid == 0) {
                 return jelly_word(ctx, 0);
 	}
