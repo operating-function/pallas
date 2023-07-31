@@ -30,6 +30,7 @@ import GHC.Read
 
 import Optics (over, _1)
 
+import Data.Primitive.ByteArray
 import Data.ByteString.Internal (ByteString(BS), nullForeignPtr)
 import Foreign.Marshal.Utils    (copyBytes)
 import GHC.Exts                 (Ptr(Ptr))
@@ -37,12 +38,10 @@ import GHC.Prim                 (Word#, clz#, minusWord#)
 import GHC.Real                 (divZeroError)
 import GHC.Types                (IO(..))
 import System.IO.Unsafe         (unsafePerformIO)
-import Text.Printf              (printf)
 
 import qualified Data.Text                as T
 import qualified Data.Text.Encoding       as T
 import qualified Data.Text.Encoding.Error as T
-import qualified Data.Vector              as V
 
 
 -- Types -----------------------------------------------------------------------
@@ -165,16 +164,6 @@ foreign import ccall unsafe "__gmpn_rshift" mpn_rshift
 
 --------------------------------------------------------------------------------
 
-exoHex :: Exo -> String
-exoHex (EXO 0 _) = "0x0"
-exoHex (EXO 1 p) = printf "0x%x" $ unsafePerformIO $ withForeignPtr p peek
-exoHex (EXO n p) = unsafePerformIO $ withForeignPtr p \buf -> do
-     let wid = fromIntegral n :: Int
-     vec <- V.generateM wid \i -> do
-        b :: Word <- peekElemOff buf (wid - (i+1))
-        pure (printf "%016x" b)
-     pure ("0x" <> intercalate "." (toList vec))
-
 plus_word :: Word -> Exo -> Exo
 plus_word 0 x              = x
 plus_word w (EXO 0 _)      = wordExo w
@@ -243,6 +232,18 @@ intExo i          = wordExo (fromIntegral i)
 naturalExo :: Natural -> Exo
 naturalExo (NatS# w)  = wordExo (W# w)
 naturalExo (NatJ# bn) = bigNatExo (unBigNat bn)
+
+exoNatural :: Exo -> Natural
+exoNatural (EXO 0  _) = 0
+exoNatural (EXO 1 fp) = fromIntegral $ unsafePerformIO $ withForeignPtr fp peek
+exoNatural (EXO n fp) =
+    unsafePerformIO $
+    withForeignPtr fp \p -> do
+        arr <- newByteArray (fromIntegral n * 8)
+        copyPtrToMutableByteArray arr 0 p (fromIntegral n)
+        ByteArray ba <- unsafeFreezeByteArray arr
+        pure (NatJ# (BN# ba))
+
 
 -- Returns 0 if given a negative number.
 integerExo :: Integer -> Exo
@@ -653,7 +654,7 @@ barExo (BS bFp bSz) =
 -- Instances -------------------------------------------------------------------
 
 instance Show Exo where
-    show = exoHex
+    show = show . exoNatural
 
 instance Num Exo where
     (+) = plus

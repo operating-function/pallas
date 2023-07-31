@@ -22,11 +22,9 @@ import Foreign.ForeignPtr
 import Foreign.Storable
 
 import Optics        (over, _1)
--- ort Debug.Trace   (trace)
 import ClassyPrelude (ByteString, IsString(..), NFData(..), pack)
 import GHC.Exts      (Word(..), Int(..), Word#, addWordC#, timesWord2#)
 
-import Text.Printf
 import qualified Data.Text                as T
 import qualified Data.Text.Encoding       as T
 import qualified Data.Text.Encoding.Error as T
@@ -54,8 +52,8 @@ instance Ord Nat where
     compare (NatJ# x) (NatJ# y) = compare x y
 
 instance Show Nat where
-    show (NatS# w) = "NatS:" <> printf "%0x" (W# w)
-    show (NatJ# w) = "NatJ:" <> show w -- TODO
+    showsPrec p (NatS# w) = showsPrec p (W# w)
+    showsPrec p (NatJ# x) = showsPrec p x
 
 instance NFData Nat where
     rnf NatS#{} = ()
