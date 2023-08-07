@@ -861,7 +861,6 @@ F=found
 
 > st
 > (st > b > r)
-> st
 > List a
 > m st (List b)
 = (listTraverseState st f xs return)
@@ -893,7 +892,7 @@ F=found
 !!= [4 6] | rowTraverse (x ret)&(if even-x ret-x 0) [4 6] id
 
 
-> (a > (st>b>r)) > st > Row a > m st (Row b)
+> st > (a > (st>b>r)) > Row a > m st (Row b)
 = (rowTraverseState st f xs return)
 | listTraverseState st f (listFromRow xs)
 & (st out)

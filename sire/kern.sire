@@ -103,7 +103,7 @@ abstype#PausedCog
 
 """ Basic Control Flow """""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-> Cog a
+> a > Thread
 = (DONE _ end me fr kl sl rq)
 | end [me fr] kl sl rq
 ; This is called when a thread reaches the end of its program.  This does
@@ -220,7 +220,7 @@ abstype#(MVar a) ; TODO: #datatype should create this
 # datatype (MVar a)
 * FULL
   * val     : a
-  * writers : (Row (a, ThreadId))
+  * writers : (Row (ThreadId, a))
 * EMPTY
   * readers : Row ThreadId
 
