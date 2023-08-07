@@ -268,7 +268,7 @@ newEmptyMVar=(newRef (**EMPTY []))
         @ mvSt    | (**FULL vl writers)
         @ sl      | put sl key mvSt
         @ !exe    | get sl them
-        | exe val (k val end me) them fr kl sl rq
+        | exe 0 (k val end me) them fr kl sl rq
 
 
 """ The Kernel """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
