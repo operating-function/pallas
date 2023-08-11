@@ -44,17 +44,16 @@ import Fan.Convert               (fromNoun, toNoun)
 import Foreign.Marshal.Alloc     (allocaBytes)
 import Foreign.Ptr               (Ptr, nullPtr)
 import Foreign.Storable          (Storable(..), poke, sizeOf)
-import Hash256                   (hashToByteString)
+import Hash256                   (hashToByteString, encodeBtc)
 import System.Directory          (createDirectoryIfMissing)
 import System.FilePath           (takeDirectory)
 
-import {-# SOURCE #-} Fan.Save (saveFan')
+import Fan.Seed (savePin')
 
 import qualified Data.ByteString      as BS
 import qualified Data.Vector.Storable as VS
 import qualified Fan                  as F
-import qualified Fan.Save             as Save
-import qualified Jelly
+import qualified Fan.Seed             as Seed
 
 
 -- -----------------------------------------------------------------------
@@ -106,7 +105,7 @@ data StoreExn
     | BadWriteSnapshot BatchNum
     | BadPinWrite Word64 Hash256
     | BadPinMissing Hash256 [Hash256]
-    | BadBlob DecodeCtx Text
+    | BadBlob DecodeCtx Seed.LoadErr
     | BadDependency ByteString
     | EmptyLogTable
     | EmptySnapshotTable
@@ -212,7 +211,7 @@ loadLogBatches replayFrom mkInitial fun lmdbStore cache = do
           key <- peekMdbVal @Word64 k
           vBS <- peekMdbVal @ByteString v
           val <- loadNoun lmdbStore cache (DECODE_BATCH key) vBS
-          case fromNoun val of
+          case fromNoun val.item of
             Nothing -> error "Couldn't read noun"
             Just lb -> fun prev lb
 
@@ -239,9 +238,9 @@ writeLogBatch lmdbStore lb = do
     withTraceResultArgs "writeLogBatch" "log" do
       (pinz, lbPin, lbHead, lbBody) <-
         withSimpleTracingEvent "jar+hash" "log" $ do
-          Jelly.withContext \ctx -> do
+          Seed.withContext \ctx -> do
             pin <- F.mkPin' (toNoun lb)
-            (!pinz, lbHead, lbBody) <- saveFan' ctx (toNoun lb)
+            (!pinz, lbHead, lbBody) <- savePin' ctx pin
             void (evaluate pin.hash)
             pure (pinz, pin, lbHead, lbBody)
       numBatches <- atomically (readTVar lmdbStore.numBatches)
@@ -304,14 +303,14 @@ gatherWriteBatch
 gatherWriteBatch store topPins = do
     withSimpleTracingEvent "gatherWriteBatch" "log" $ do
         st <- readIORef store.knownPins
-        Jelly.withContext \ctx ->
+        Seed.withContext \ctx ->
             flip execStateT mempty do
                 for_ topPins (gatherWriteBatchWorker ctx st)
 
 type GatherSt = HashMap Hash256 (PinMetadata_ (Vector Hash256), ByteString)
 
 gatherWriteBatchWorker
-    :: Jelly.Ctx
+    :: Seed.Ctx
     -> HashMap Hash256 PinState
     -> F.Pin
     -> StateT GatherSt IO ()
@@ -336,7 +335,7 @@ gatherWriteBatchWorker ctx dbState pin = do
     weSerialize :: StateT GatherSt IO ()
     weSerialize = do
         (refs, hed, bod) <- liftIO $ withSimpleTracingEvent "Save" "log" do
-                                saveFan' ctx pin.item
+                                savePin' ctx pin
         traverse_ loop refs
         let haz = pin.hash
         let bar = hashToByteString haz <> hed <> bod
@@ -545,33 +544,33 @@ loadPinByHash lmdbStore cache topStack =
                 blob <- unsafeMMapFile (pinNameToPath lmdbStore.dir pinHash)
                 let stk  = (pinHash : stack)
                 let deco = DECODE_PIN pinHash
-                (pinz, item) <- decodeBlob (loop stk) deco (drop 32 blob)
-                F.loadPinFromBlob pinz pinHash item
+                (pinz, pin) <- decodeBlob (loop stk) deco (drop 32 blob)
+                F.loadPinFromBlob pinz pinHash pin.item -- HACK
 
 decodeBlob
     :: (Hash256 -> IO F.Pin)
     -> DecodeCtx
     -> ByteString
-    -> IO (Vector F.Pin, F.Fan)
+    -> IO (Vector F.Pin, F.Pin)
 decodeBlob loadRefr key blob = do
     withSimpleTracingEvent "decodeBlob" "log" do
-        (hed, bod) <- orExn (Jelly.splitBlob blob)
-        refs       <- orExn (Save.loadHead hed)
+        (hed, bod) <- orExn (Seed.splitBlob blob)
+        refs       <- orExn (Seed.loadHead hed)
         pinz       <- traverse loadRefr refs
         valu       <- withSimpleTracingEvent "loadBody" "log" do
-                          orExn (Save.loadBody pinz bod)
+                          orExn (Seed.loadBody pinz bod)
         pure (pinz, valu)
   where
-    orExn :: ∀a. Either Text a -> IO a
+    orExn :: ∀a. Either Seed.LoadErr a -> IO a
     orExn x = either (throwIO . BadBlob key) pure x
 
 -- | Given a bytestring representing the jar-entry for a noun (which
 -- is a list of hashes of exteriour dependencies and a jam-encoded noun),
 -- load the dependencies from the pin-cushion and reconstruct the value.
-loadNoun :: LmdbStore -> Cushion -> DecodeCtx -> ByteString -> IO F.Fan
+loadNoun :: LmdbStore -> Cushion -> DecodeCtx -> ByteString -> IO F.Pin
 loadNoun lmdbStore cache deco vBS = do
-    (_refs, valu) <- decodeBlob loadRefr deco vBS
-    evaluate (force valu)
+    (_refs, !valu) <- decodeBlob loadRefr deco vBS
+    pure valu
   where
     loadRefr = loadPinByHash lmdbStore cache []
 
@@ -613,7 +612,7 @@ withWriteAsyncCommitPins db pins fun = do
 pinNameToPath :: FilePath -> Hash256 -> FilePath
 pinNameToPath dbRoot pinHash = dbRoot </> "pins" </> prefix </> strhash
   where
-    strhash = unpack $ Jelly.encodeBtc $ hashToByteString pinHash
+    strhash = unpack $ Hash256.encodeBtc $ hashToByteString pinHash
     prefix = take 2 strhash
 
 -- -----------------------------------------------------------------------

@@ -26,17 +26,17 @@ tree-fragments, each of which may refer to any earlier fragment.
 
 Seed files have the following layout:
 
-    u64              magic = "PLANSEED"
-    u8               numBytes
-    u8[numBytes]     bytes
-    u8[]             padding   // padding for word alignment
-    u64              numWords
-    u64[numWords]    words
-    u64              numBigs
-    u64[numBitNats]  bigSizes
-    u64[]            bigData   // length is sum of bignatSizes
-    u64              numFrags
-    u64[]            fragData  // a series of bit-encoded fragments
+    u64               magic = "PLANSEED"
+    u64               numHoles
+    u64               numBigs
+    u64               numWords
+    u8                numBytes
+    u64[numBigs]      bigSizes
+    u64[numWords]     words
+    u64[]             bigData
+    u8[sum(bigSizes)] bytes
+    u64               numFrags
+    u64[]             fragData  // a series of bit-encoded fragments
 
 Decode item-by-item, appending each to an accumulator.
 
@@ -92,8 +92,8 @@ See [shatter.txt].
 ## Sorting Atoms
 
 We have an array of unique atoms, in traversal order.  However, the
-numbers need to be serialized in sort-order, and back-references to
-numbers are also in sort-order.
+numbers need to be serialized in descending order, and back-references
+to numbers are also in sort-order.
 
 We can't just sort our array of numbers, since our cells contain indexes
 into the traversal-order array.
@@ -113,6 +113,3 @@ Just add this header:
     u256[numPins] pins     (traversal order)
 
 And then increase each index in each fragment by `numPins`.
-
-This could potentially be used for distributing individual pages (pins)
-of books in the %port hardware.

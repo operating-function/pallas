@@ -19,6 +19,7 @@ import Server.Types.Logging
 import System.Environment
 import System.Posix.Signals hiding (Handler)
 import System.Process
+import Fan.Convert
 
 import Server.Hardware.Http  (createHardwareHttp)
 import Server.Hardware.Types (DeviceTable(..))
@@ -33,9 +34,10 @@ import Server.Hardware.Poke (createHardwarePoke)
 import Control.Concurrent       (threadDelay)
 import Control.Monad.State      (State, execState, modify')
 import Data.Time.Format.ISO8601 (iso8601Show)
-import Fan.Convert
 import Fan.Hash                 (fanHash)
 import Hash256                  (hashToBTC)
+import Loot.ReplExe             (showFan, trkFan)
+import Sire.Types               (trkM)
 import System.Directory         (createDirectoryIfMissing, doesFileExist,
                                  getHomeDirectory, removeFile)
 import System.Exit              (ExitCode(..), exitWith)
@@ -49,6 +51,7 @@ import qualified Sire
 import qualified Data.ByteString  as BS
 import qualified Data.Char        as C
 import qualified Fan              as F
+import qualified Fan.Seed         as F
 import qualified Fan.Prof         as Prof
 import qualified Server.LmdbStore as DB
 
@@ -114,6 +117,12 @@ data RunType
                            Bool       -- Warn on jet deopt
                            Bool       -- Crash on jet deopt
                            [FilePath] -- SireFile
+    | RTSave Prof Bool
+                  Bool     -- Warn on jet deopt
+                  Bool     -- Crash on jet deopt
+                  FilePath -- Seed file
+                  FilePath -- SireFile
+    | RTShow FilePath
     | RTLoot FilePath Prof Bool [FilePath]
     | RTBoot Prof Bool FilePath Text
     | RTUses FilePath Int
@@ -154,6 +163,12 @@ sireFile =
   where
     helpTxt = "A sire file to load before launching the REPL"
 
+seedFile :: Parser FilePath
+seedFile =
+    strArgument (metavar "SEED" <> help helpTxt)
+  where
+    helpTxt = "The seed file to write the result to"
+
 lootFile :: Parser FilePath
 lootFile =
     strArgument (metavar "LOOT" <> help helpTxt)
@@ -181,6 +196,17 @@ runType defaultDir = subparser
               <*> doptWarn
               <*> doptCrash
               <*> many sireFile)
+
+   <> plunderCmd "save" "Loads a sire file ane save a seed"
+      (RTSave <$> profOpt
+              <*> profLaw
+              <*> doptWarn
+              <*> doptCrash
+              <*> seedFile
+              <*> sireFile)
+
+   <> plunderCmd "show" "Print a seed file"
+      (RTShow <$> seedFile)
 
    <> plunderCmd "start" "Resume an idle machine."
       (RTStart <$> storeArg
@@ -301,19 +327,29 @@ main = do
     withProfileOutput args $
       withDebugOutput $
       case args of
-        RTLoot _ _ _ fz      -> liftIO $ Loot.ReplExe.replMain fz
-        RTSire _ _ _ j c fz  -> do writeIORef F.vWarnOnJetFallback j
-                                   writeIORef F.vCrashOnJetFallback c
-                                   liftIO $ Sire.main fz
-        RTOpen d cog -> void (openBrowser d cog)
-        RTTerm d cog -> void (openTerminal d cog)
+        RTBoot _ _ d y  -> bootMachine d y
+        RTUses d w      -> duMachine d w
+        RTShow fp       -> showSeed fp
+        RTOpen d cog    -> void (openBrowser d cog)
+        RTTerm d cog    -> void (openTerminal d cog)
+
+        RTLoot _ _ _ fz -> do
+            liftIO $ Loot.ReplExe.replMain fz
+
+        RTSire _ _ _ j c fz -> do
+            writeIORef F.vWarnOnJetFallback j
+            writeIORef F.vCrashOnJetFallback c
+            liftIO $ Sire.main fz
+
+        RTSave _ _ j c sd sr -> do
+            writeIORef F.vWarnOnJetFallback j
+            writeIORef F.vCrashOnJetFallback c
+            saveSeed sd sr
+
         RTStart d _ _ s j c w r -> do
             writeIORef F.vWarnOnJetFallback j
             writeIORef F.vCrashOnJetFallback c
             runMachine d r s w
-        RTBoot _ _ d y       -> bootMachine d y
-        RTUses d w    -> duMachine d w
-        -- RTPoke d cog p y     -> pokeCog d cog p y
 
 withProfileOutput :: RunType -> IO () -> IO ()
 withProfileOutput args act = do
@@ -325,7 +361,9 @@ withProfileOutput args act = do
   where
     argsProf = \case
         RTSire _ p l _ _ _      -> (,l) <$> p
+        RTSave p l _ _ _ _      -> (,l) <$> p
         RTLoot _ p l _          -> (,l) <$> p
+        RTShow _                -> Nothing
         RTOpen _ _              -> Nothing
         RTTerm _ _              -> Nothing
         RTStart _ p l _ _ _ _ _ -> (,l) <$> p
@@ -350,6 +388,28 @@ bootMachine storeDir pash = do
                                              (CG_SPINNING val))
                 True -> do
                     error "Trying to overwrite existing machine"
+
+-- TODO: Output the result of an expression?  Not just "main"?
+saveSeed :: (Debug, Rex.RexColor) => FilePath -> FilePath -> IO ()
+saveSeed outFile inputFile = do
+    e <- liftIO (doesFileExist inputFile)
+    unless e (error $ unpack ("File does not exist: " <> inputFile))
+    val <- liftIO (Sire.loadFile inputFile)
+    pin <- F.mkPin' val
+    byt <- F.saveSeed pin
+    writeFile outFile byt
+
+-- TODO: Output the result of an expression?  Not just "main"?
+showSeed :: (Debug, Rex.RexColor) => FilePath -> IO ()
+showSeed seedFileToShow = do
+    writeIORef F.vShowFan showFan
+    writeIORef F.vTrkFan  trkFan
+    byt <- readFile seedFileToShow
+    pin <- F.loadSeed byt >>= either throwIO pure
+    print pin.item
+    fullPrint pin.item
+  where
+    fullPrint x = trkM $ F.REX $ Sire.planRexFull $ toNoun x
 
 -- pokeCog :: (Debug, Rex.RexColor) => FilePath -> Text -> FilePath
 --         -> IO ()
@@ -497,7 +557,8 @@ duMachine storeDir numWorkers = do
       -- Replay the machine to get the current noun.
       (_, MOMENT noun _) <- performReplay cache ctx LatestSnapshot
 
-      (pins, _hed, blob) <- F.saveFan $ toNoun noun
+      pin <- F.mkPin' (toNoun noun)
+      (pins, _hed, blob) <- F.savePin pin
 
       pure $ execState (fanDu pins blob) []
 

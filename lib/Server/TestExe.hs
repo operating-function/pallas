@@ -20,7 +20,10 @@ main = do
     defaultMain tests
 
 instance Arbitrary Hash256 where
-    arbitrary = Hash256 <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+    arbitrary = Hash256 <$> arbitrary
+                        <*> arbitrary
+                        <*> arbitrary
+                        <*> arbitrary
 
 instance Arbitrary PinMetadata where
     arbitrary = PIN_META <$> arbitrary <*> arbitrary <*> arbitrary

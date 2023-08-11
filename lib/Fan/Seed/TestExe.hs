@@ -3,40 +3,26 @@
 -- found in the LICENSE file.
 
 {-# OPTIONS_GHC -Wall #-}
---- OPTIONS_GHC -Werror #-}
+{-# OPTIONS_GHC -Werror #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Jelly.TestExe where
+module Fan.Seed.TestExe where
 
 import GHC.Word
 import PlunderPrelude  hiding (hash)
 import Test.QuickCheck
+import Loot.ReplExe
+import Fan.Seed
 
-import Fan.Save         (loadBody, loadPack, saveFan, savePack)
-import Fan.Types        (Fan)
-import Jelly            (loadBodySlow, loadDepsSlow, saveFast, splitBlob,
-                         withContext)
-import Jelly.Reference  (Node(..))
-import Hash256          (toHash256)
+--port Data.Bits       (bit)
+import Fan.Types       (Fan, Pin)
 
-import qualified Fan.Eval        as F
+import qualified Rex
 import qualified Fan.Types       as F
-import qualified Jelly.Fast.FFI
-import qualified Jelly.Reference
-import qualified Rex.Types       as Rex
+import qualified Fan.Eval        as F
 
 
 -- Generating Exampels ---------------------------------------------------------
-
-instance Arbitrary (Node ()) where
-    arbitrary = oneof
-        [ arbitraryNat
-        , BAR <$> arbitrary
-        , arbitraryPin
-        , arbitrary >>= \case { True  -> CONS <$> arbitrary <*> arbitrary
-                              ; False -> arbitrary <&> \v -> CONS v v
-                              }
-        ]
 
 {-
     Some law are data-jets.  We don't want to worry about that here,
@@ -66,14 +52,16 @@ arbitraryLaw = do
 --     let exec = error "placeholder"
 --     pure (F.PIN (F.P{..}))
 
-arbitraryFakePin :: Gen Fan
-arbitraryFakePin = F.mkPin <$> arbitrary
-
 -- Make sure to hit all four length-encodings for leaf entries.
 genZeros :: Gen ByteString
 genZeros = do
     wid <- (`mod` 96) <$> arbitrary
     pure (replicate (wid::Int) (0::Word8))
+
+instance Arbitrary Pin where
+    arbitrary = do
+        item <- arbitrary
+        pure $ unsafePerformIO (F.mkPin' item)
 
 instance Arbitrary Fan where
     arbitrary = oneof
@@ -84,16 +72,16 @@ instance Arbitrary Fan where
         , genFanClosure
         , F.REX <$> genRex
         , arbitraryLaw
-        , arbitraryFakePin
+        , F.PIN <$> arbitrary
         , genFanContainer
         ]
 
 -- TODO Other types of rex nodes
 genRex :: Gen (Rex.GRex Fan)
 genRex = do
-    sz  <- getSize
-    bit <- arbitrary
-    case (sz, bit) of
+    sz <- getSize
+    bt <- arbitrary
+    case (sz, bt) of
         (0, _)     -> pure (Rex.T Rex.WORD "x" Nothing)
         (_, False) -> pure (Rex.N Rex.OPEN "|" [] Nothing)
         _          -> scale (`div` 2) $ oneof
@@ -135,15 +123,6 @@ instance Arbitrary ByteString where
 instance Arbitrary a => Arbitrary (Vector a) where
     arbitrary = pack <$> arbitrary
 
-arbitraryNat :: Gen (Node ())
-arbitraryNat = do
-    arbitrary >>= \case
-        NatS# w -> pure $ WORD $ fromIntegral (W# w)
-        nat     -> pure $ NAT nat
-
-arbitraryPin :: Gen (Node ())
-arbitraryPin = PIN () . (toHash256 . pack @ByteString) <$>
-  replicateM 32 arbitrary
 
 --------------------------------------------------------------------------------
 
@@ -161,101 +140,50 @@ guardChk :: Text -> Bool -> Check ()
 guardChk _   True  = pure ()
 guardChk msg False = failChk msg
 
-node_roundtrip_fast :: Jelly.Fast.FFI.Ctx -> Node () -> IO Bool
-node_roundtrip_fast ctx node = do
-    Jelly.Fast.FFI.c_wipe ctx
-    (oldDeps, bled, blod) <- saveFast ctx node
-    pure $ runChk do
-        (bled', blod') <- CHECK (Jelly.splitBlob (bled <> blod))
-        unless (bled == bled') do failChk "Head split mismatch"
-        unless (blod == blod') do failChk "Body split mismatch"
-        deps' <- CHECK (loadDepsSlow bled)
-        guardChk "Deps mismatch" (length oldDeps == length deps')
-        vl <- CHECK (loadBodySlow (PIN () <$> deps') blod)
-        guardChk (tshow ("Value mismatch"::Text, vl, node)) (vl == node)
-        pure ()
-
-node_roundtrip_slow :: Node () -> Bool
-node_roundtrip_slow node =
-    let (oldDeps, bled, blod) = Jelly.Reference.save node
-    in
-        runChk
-    do
-        (bled', blod') <- CHECK (Jelly.splitBlob (bled <> blod))
-        guardChk "Head split mismatch" (bled == bled')
-        guardChk "Body split mismatch" (blod == blod')
-
-        deps' <- CHECK (loadDepsSlow bled)
-        guardChk "Deps mismatch" (length oldDeps == length deps')
-
-        vl <- CHECK (loadBodySlow (PIN () <$> deps') blod)
-        guardChk (tshow ("Value mismatch got=" <> tshow vl, "gave=" <> tshow node)) (vl == node)
-
-        pure ()
-
-
-fan_save_same :: Fan -> Bool
-fan_save_same fan =
+save_seed_same :: Pin -> Bool
+save_seed_same fan =
     unsafePerformIO do
-        b@(_, _, _) <- F.saveFanReference fan
-        a@(_, _, _) <- Fan.Save.saveFan fan
-        evaluate (a == b)
+        packed <- saveSeed fan
+        loaded <- loadSeed packed
+        let !ok = (Right fan == (loaded :: Either LoadErr Pin))
+        unless ok do
+            pPrint (Right fan :: Either () Pin, "/="::Text, loaded)
+        pure ok
 
-
-fan_pack_same :: Fan -> Bool
-fan_pack_same fan =
+save_pod_same :: Pin -> Bool
+save_pod_same pin =
     unsafePerformIO do
-      packed <- Fan.Save.savePack fan
-      loaded <- Fan.Save.loadPack packed
-      evaluate (Right fan == loaded)
+        packed <- savePod pin
+        loaded <- loadPod packed
+        let !ok = (Right pin == loaded)
+        unless ok do
+            pPrint (Right pin :: Either () Pin, "/="::Text, loaded)
+        pure ok
 
-checkHead :: Vector F.Pin -> ByteString -> IO ()
+checkHead :: Vector Pin -> ByteString -> IO ()
 checkHead deps bled = do
-    refs <- case loadDepsSlow bled of
-                Left msg -> error (unpack msg)
+    refs <- case loadHead bled of
+                Left msg   -> error (show msg)
                 Right refs -> pure refs
     unless (refs == hashes) do
         error "fanSlow: Pinrefs did not roundtrip"
   where
     hashes = deps <&> (.hash)
 
-fanSlow :: Fan -> IO Fan
-fanSlow fan = do
-    (deps, bled, blod) <- F.saveFanReference fan
-
+fanFast :: Pin -> IO Pin
+fanFast pin = do
+    (deps, bled, blod) <- savePin pin
     checkHead deps bled
+    case loadBody deps blod of
+        Left msg -> error (show msg)
+        Right vl -> pure vl
 
-    -- TODO How to test all combinations of things?
-    -- TODO We have fast save, slow save.
-    -- TODO We have fast load, slow load.
-    -- TODO I suppose it's easiest to just have one test routine that tests them all?
-    case loadBodySlow (fmap F.PIN deps :: Vector Fan) blod of
-        Left msg -> error (unpack msg)
-        Right vl -> pure (F.normalize vl)
-
-fanFast :: Fan -> IO Fan
-fanFast fan = do
-    (deps, bled, blod) <- Fan.Save.saveFan fan
-
-    checkHead deps bled
-
-    case Fan.Save.loadBody deps blod of
-        Left msg -> error (unpack msg)
-        Right vl -> pure (F.normalize vl)
-
-fan_fast_save_round :: Fan -> Bool
-fan_fast_save_round (F.normalize -> inp) =
+fan_fast_save_round :: Pin -> Bool
+fan_fast_save_round inp =
     if inp == out then True else
         error $ ppShow (inp, out)
   where
     out = unsafePerformIO $ fanFast inp
-
-fan_slow_save_round :: Fan -> Bool
-fan_slow_save_round (F.normalize -> inp) =
-    if inp == out then True else
-        error $ ppShow (inp, out)
-  where
-    out = F.normalize $ unsafePerformIO $ fanSlow inp
 
 failed :: IORef Int
 failed = unsafePerformIO (newIORef 0)
@@ -270,32 +198,24 @@ checkProp nm chk = do
         _         -> modifyIORef' failed succ
 
 numTries :: Int
-numTries = 50_000
+numTries = 1_000_000
 
 main :: IO ()
 main = do
-    getCurrentTime >>= print
-    checkProp "Fan RoundTrip via Jelly (Optimized)" do
-        withMaxSuccess numTries fan_fast_save_round
-
-    getCurrentTime >>= print
-    checkProp "Fan RoundTrip via Jelly (Reference)" do
-        withMaxSuccess numTries fan_slow_save_round
-
-    getCurrentTime >>= print
-    checkProp "Jelly RoundTrip (Reference)" do
-        withMaxSuccess numTries node_roundtrip_slow
+  Rex.colorsOnlyInTerminal do
+    writeIORef F.vTrkFan trkFan
 
     -- TODO Gross (need to explicitly think about lifetimes + evaluation order)
     getCurrentTime >>= print
-    withContext \ctx -> do
-        checkProp "Jelly RoundTrip (Optimized)" do
-            withMaxSuccess numTries (unsafePerformIO . node_roundtrip_fast ctx)
+    checkProp "Single Pin+Header Save is always the same" do
+        withMaxSuccess numTries fan_fast_save_round
 
+    -- TODO Gross (need to explicitly think about lifetimes + evaluation order)
     getCurrentTime >>= print
-    checkProp "Both Fan Save methods are equivalent" do
-        withMaxSuccess numTries fan_save_same
+    checkProp "Seedpod Round Trip is always the same" do
+        withMaxSuccess numTries save_pod_same
 
+    -- TODO Gross (need to explicitly think about lifetimes + evaluation order)
     getCurrentTime >>= print
-    checkProp "Fan pack round trip" do
-        withMaxSuccess numTries fan_pack_same
+    checkProp "Raw Seed Round Trip is always the same" do
+        withMaxSuccess numTries save_seed_same

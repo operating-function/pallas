@@ -5,7 +5,7 @@
 {-# OPTIONS_GHC -Wall   #-}
 {-# OPTIONS_GHC -Werror #-}
 
-module Sire (main, loadFile) where
+module Sire (main, loadFile, planRexFull) where
 
 import Control.Monad.Trans.State.Strict hiding (get, put, modify')
 import Control.Monad.State.Class
@@ -17,10 +17,10 @@ import System.FilePath.Posix
 
 import Fan                   (Fan(COw, NAT, NAT, REX, ROW, TAb), (%%))
 import Fan.Convert           (FromNoun(fromNoun), ToNoun(toNoun))
-import Fan.Save              (loadPack, savePack)
+import Fan.FFI               (c_jet_blake3)
+import Fan.Seed              (LoadErr(..), loadPod, savePod)
 import Foreign.Marshal.Alloc (allocaBytes)
 import Foreign.Ptr           (castPtr)
-import Jelly.Fast.FFI        (c_jet_blake3)
 import Loot.Backend          (loadClosure, loadShallow)
 import Loot.ReplExe          (closureRex, dieFan, showFan, trkFan)
 import Loot.Syntax           (boxRex, keyBox)
@@ -497,17 +497,33 @@ withCache dir act = do
               pure mempty
           else do
               byt <- Prof.withSimpleTracingEvent "read" "cache" $ readFile fil
-              pak <- Prof.withSimpleTracingEvent "load" "cache" $ loadPack byt
+              pak <- Prof.withSimpleTracingEvent "load" "cache" $ loadPod byt
               pure case pak of
-                  Left{}        -> mempty
-                  Right (TAb t) -> t
-                  Right _       -> mempty
-    -- trkM $ ROW $ arrayFromList ["CACHE", REX $ planRexFull $ TAb c1]
+                  Left (err :: LoadErr) ->
+                      seq (error ("bad cache: " <> show err)) mempty
+                  Right pin            ->
+                      case pin.item of
+                          TAb t -> trace "loaded and hash matches" t
+                          _     -> error "bad cache pin"
+
     (x, c2) <- act (c1 :: Tab Any Any)
-    p <- F.mkPin' (TAb c2)
-    print ("cache hash":: Text, p.hash)
-    byt <- Prof.withSimpleTracingEvent "save"  "cache" $ savePack (TAb c2)
-    ()  <- Prof.withSimpleTracingEvent "write" "cache" $ writeFile fil byt
+
+    unless (c1 == c2) do
+        p <- F.mkPin' (TAb c2)
+        print ("cache hash":: Text, p.hash)
+        eByt <- Prof.withSimpleTracingEvent "save"  "cache" $ try $ savePod p
+        case eByt of
+           Left (POD_INTEGRITY_CHECK_FAILED hax p2) -> do
+               trkM (REX $ planRexFull $ toNoun p)
+               trkM (REX $ planRexFull $ toNoun hax)
+               trkM (REX $ planRexFull $ toNoun p2)
+           Left (e :: LoadErr) -> do
+               trkM (REX $ planRexFull $ toNoun e)
+               pure ()
+           Right byt -> do
+               ()  <- Prof.withSimpleTracingEvent "write" "cache" $ writeFile fil byt
+               pure ()
+
     pure x
 
 loadFile :: RexColor => FilePath -> IO Any
@@ -725,7 +741,7 @@ doFile dir c1 modu s1 = do
                     case mCached of
                         Just s3 -> do
                             let s4 = revertSwitchToRepl modu s3
-                            print (modu, "LOADED FROM HASH!"::Text)
+                            print (modu, "LOADED FROM CACHE!"::Text)
                             pure ((s4, hax), c2)
 
                         Nothing -> do

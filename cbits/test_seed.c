@@ -1,4 +1,3 @@
-#ifdef ENABLE_HARNESS
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -6,14 +5,20 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "jelly.h"
+#include "seed.h"
 #include "libbase58.h"
 
+#ifdef DEBUG
+#undef DEBUG
+#endif
+#define DEBUG 1
+
+#define NUM_PINS 3
 
 // Forward Declarations ////////////////////////////////////////////////////////
 
-treenode_t read_one(Jelly);
-treenode_t read_many(Jelly);
+treenode_t read_one(Seed);
+treenode_t read_many(Seed);
 
 
 // Testing Harness /////////////////////////////////////////////////////////////
@@ -64,8 +69,9 @@ uint64_t pack_bytes_lsb(size_t width, char *bytes) {
         0x00ff0  (0)   [255]        -> {0} <> {255}
         0x00ff00 (00)  [255,0]      -> {0,255}
 */
-leaf_t read_hex() {
+treenode_t read_hex(Seed ctx) {
         uint8_t *hex_digits = malloc(2048);
+        memset(hex_digits, 0, 2048);
         int use = 0;
         int wid = 2048;
 
@@ -114,14 +120,16 @@ leaf_t read_hex() {
 
         if (use == 0) {
             free(freeme);
-            return (leaf_t){ .width_bytes = 0, .bytes = 0 };
+            return seed_word(ctx, 0);
         }
 
         int byt_wid = (use/2) + (use%2);
 
-        uint8_t *bytes = malloc(byt_wid);
+        uint8_t *bytes = calloc(1024,1);
 
         uint8_t *bptr = &(bytes[byt_wid - 1]);
+
+        // {3, 4, 5}
 
         // If there's an odd number of hex-digits, the high-byte is just
         // the hex-digit-value of the first hex-digit.
@@ -141,7 +149,9 @@ leaf_t read_hex() {
 
         debugf("read_hex(): byt_wid=%d\n", byt_wid);
 
-        return (leaf_t){ .width_bytes = byt_wid, .bytes = bytes };
+        uint64_t words_used = (byt_wid / 8) + ((byt_wid % 8) ? 1 : 0);
+
+        return seed_nat(ctx, words_used, (uint64_t*) bytes);
     }
 }
 
@@ -158,8 +168,8 @@ uint64_t read_word(uint64_t acc) {
         return acc;
 }
 
-leaf_t read_string() {
-        char *buf = malloc(1024);
+treenode_t read_string(Seed ctx) {
+        char *buf = calloc(1, 1024);
         size_t wid = 1024;
         int ix = 0;
     loop: {
@@ -185,17 +195,19 @@ leaf_t read_string() {
 
     end: {
         size_t count = ix;
-        leaf_t leaf;
-        leaf.width_bytes = count;
 
         debugf("\tread_string() -> \"%s\" (%lu)\n", buf, count);
 
-        leaf.bytes = calloc(count+1, 1);
-        memcpy(leaf.bytes, buf, count);
+        uint8_t *bytes = calloc(count+1, 1);
+        memcpy(bytes, buf, count);
 
-        debugf("\t\t(width=%d)\n", leaf.width_bytes);
+        debugf("\t\t(width=%lu)\n", count);
         free(buf);
-        return leaf;
+        treenode_t res = seed_barnat(ctx, count, bytes);
+        printf("result: ");
+        print_tree_pub(ctx, res);
+        printf("\n:");
+        return res;
     }
 }
 
@@ -230,22 +242,27 @@ void eat_space() {
     }
 }
 
-treenode_t read_leaf(Jelly ctx) {
+treenode_t read_leaf(Seed ctx) {
         int c = getchar();
 
         switch (c) {
+            case '[': {
+                c = getchar();
+                if (!isdigit(c)) die("pinref is not a digit\n");
+                int pin = (c - '0');
+                c = getchar();
+                if (c != ']') die("pinref not closed\n");
+                if (pin >= NUM_PINS) die("Invalid pin reference (too big)\n");
+                return (treenode_t){ .ix = pin };
+            }
             case '"': {
                 // TODO Don't pack
-                leaf_t leaf = read_string();
-                return jelly_bar(ctx, leaf.width_bytes, leaf.bytes);
+                return read_string(ctx);
             }
-            case '[':
-                die("TODO: Parse pins\n");
             case '0': {
                 int d = getchar();
                 if (d == 'x') {
-                        leaf_t leaf = read_hex();
-                        return jelly_nat(ctx, leaf.width_bytes, leaf.bytes);
+                        return read_hex(ctx);
                 }
                 ungetc(d, stdin);
             } // fallthrough
@@ -259,14 +276,14 @@ treenode_t read_leaf(Jelly ctx) {
             case '8':
             case '9': {
                 uint64_t word = read_word((uint64_t)(c - '0'));
-                return jelly_word(ctx, word);
+                return seed_word(ctx, word);
             }
             default:
                 die("Not a leaf: '%c'\n", c);
         }
 }
 
-treenode_t read_many(Jelly ctx) {
+treenode_t read_many(Seed ctx) {
        int c;
 
        treenode_t acc = read_one(ctx);
@@ -276,7 +293,7 @@ treenode_t read_many(Jelly ctx) {
         switch (c = getchar()) {
             case '(': {
                 treenode_t list = read_many(ctx);
-                acc = jelly_cons(ctx, acc, list);
+                acc = seed_cons(ctx, acc, list);
                 goto loop;
             }
             case EOF:
@@ -285,12 +302,12 @@ treenode_t read_many(Jelly ctx) {
             default:
                 ungetc(c, stdin);
                 treenode_t elmt = read_leaf(ctx);
-                acc = jelly_cons(ctx, acc, elmt);
+                acc = seed_cons(ctx, acc, elmt);
                 goto loop;
         }
 }
 
-treenode_t read_one(Jelly ctx) {
+treenode_t read_one(Seed ctx) {
         eat_space();
         int c = getchar();
         switch (c) {
@@ -304,60 +321,79 @@ treenode_t read_one(Jelly ctx) {
         }
 }
 
+char* load_file(char const* path, long *lengthOut)
+{
+    char* buffer = 0;
+    long length = 0;
+    FILE * f = fopen (path, "rb"); //was "rb"
 
+    if (f)
+    {
+      fseek (f, 0, SEEK_END);
+      length = ftell (f);
+      fseek (f, 0, SEEK_SET);
+      buffer = (char*)malloc ((length+1)*sizeof(char));
+      if (buffer)
+      {
+        size_t res = fread (buffer, sizeof(char), length, f);
 
-int main () {
-        Jelly ctx = jelly_make();
+        if (res < length) {
+            fprintf(stderr, "FAILED TO READ\n");
+            exit(1);
+        }
 
-        // read_many(ctx);
+      }
+      fclose (f);
+    }
 
-        hash256_t dumb_hash_1 = { fmix64(111111), fmix64(65535), fmix64(9),  65536 };
-        hash256_t dumb_hash_2 = { fmix64(222222), fmix64(33333), (0ULL - 1), (65535ULL << 12) };
+    buffer[length] = '\0';
 
-        bool uniq_1=false, uniq_2=false, uniq_3=false;
+    *lengthOut = length;
 
-        treenode_t top = read_many(ctx);
-        treenode_t tmp = jelly_pin(ctx, &uniq_1, (void*) &dumb_hash_2);
-        top = jelly_cons(ctx, tmp, top);
-        tmp = jelly_pin(ctx, &uniq_2, (void*) &dumb_hash_1);
-        top = jelly_cons(ctx, tmp, top);
-
-        // TODO: This breaks things for some reason.
-        tmp = jelly_pin(ctx, &uniq_3, (void*) &dumb_hash_2);
-        top = jelly_cons(ctx, tmp, top);
-
-        printf("pin 1 is unique? %s\n", (uniq_1 ? "yes" : "no"));
-        printf("pin 2 is unique? %s\n", (uniq_2 ? "yes" : "no"));
-        printf("pin 3 is unique? %s\n", (uniq_3 ? "yes" : "no"));
-
-        debugs("# Shattering Fragments\n");
-
-        jelly_done(ctx);
-        jelly_dbug(ctx);
-
-        debugs("# Dumping to Buffer\n");
-
-        size_t   hed_wid = jelly_head_size(ctx);
-        uint8_t *hed_buf = calloc(hed_wid, 1);
-        jelly_save_head(ctx, hed_wid, hed_buf);
-
-        size_t   bod_wid = jelly_body_size(ctx);
-        uint8_t *bod_buf = calloc(bod_wid, 1);
-        jelly_save_body(ctx, bod_wid, bod_buf);
-
-        debugs("# Wiping the Context\n");
-        jelly_wipe(ctx);
-
-        debugs("# Loading from Buffer\n");
-
-        jelly_load_head(ctx, hed_wid, hed_buf);
-        jelly_load_body(ctx, bod_wid, bod_buf);
-
-        jelly_dbug(ctx);
-        jelly_show(ctx);
-
-        free(hed_buf);
-        free(bod_buf);
-        jelly_free(ctx);
+    return buffer;
 }
-#endif
+
+int main (int argc, char **argv) {
+        if (argc == 2) {
+                long bwid = 0;
+                uint8_t *bbuf = (void*) load_file(argv[1], &bwid);
+                Seed ctx = seed_make();
+                seed_load(ctx, bwid, bbuf);
+                seed_dbug(ctx);
+                seed_show(ctx);
+                seed_free(ctx);
+                free(bbuf);
+                return 0;
+        }
+
+        Seed     ctx;
+        size_t   bwid;
+        uint8_t *bbuf;
+
+        ctx = seed_make();
+        for (int i=0; i<NUM_PINS; i++) seed_hole(ctx);
+        read_many(ctx);
+
+        printf("seed_done()\n");
+        seed_done(ctx);
+
+        printf("seed_debug()\n");
+        seed_dbug(ctx);
+
+        printf("seed_save()\n");
+        bwid = seed_size(ctx);
+        bbuf = calloc(bwid, 1);
+        seed_save(ctx, bwid, bbuf);
+
+        printf("seed_wipe()\n");
+        seed_wipe(ctx);
+
+        printf("\nseed_load()\t\t[LOAD]\n\n");
+        seed_load(ctx, bwid, bbuf);
+
+        seed_dbug(ctx);
+        seed_show(ctx);
+
+        free(bbuf);
+        seed_free(ctx);
+}

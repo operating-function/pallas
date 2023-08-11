@@ -1,3 +1,9 @@
+/*
+        Copyright 2023 The Plunder Authors
+        Use of this source code is governed by a BSD-style license that can be
+        found in the LICENSE file.
+*/
+
 // TODO We should have a `claim` call that basically asserts that the
 // context is either freshly allocated, or freshly wiped.
 
@@ -69,18 +75,54 @@ word64_bytes (uint64_t w) {
 
 typedef struct hash256 { uint64_t a, b, c, d; } hash256_t;
 
-typedef struct { uint32_t ix; } pin_t;
 typedef struct { uint32_t ix; } bar_t;
 typedef struct { uint32_t ix; } nat_t;
 typedef struct { uint32_t ix; } frag_t;
 typedef struct { uint32_t ix; } treenode_t;
 
-typedef struct jelly_ctx *Jelly;
+typedef struct seed_ctx *Seed;
 
-// If width<9, then the bytes are packed directly into the `bytes` slot.
+/*
+    This strange representation (msw direct, then lsw-first array)
+    allows the atoms underlying bars to be worked with in the same way
+    as normal atoms, but without needing a copy.
+
+    logically, the atom underlying a bar is the same bytes as the bar
+    itself, but with a one-byte and 0-or-more 1-bytes appended.  We can
+    implement this "appended" behavior without a copy by having the
+    most-significant word be stored direct.  For example:
+
+    THe bytestring "0123456789" is stored as:
+
+        msw = {'8','9',1,0,0,0,0,0}
+        nex = 1
+        buf = "0123456789" -- Only the first 8-bytes are used.
+
+    And inserting the bytestring "123" results in:
+
+        msw = {'1','2','3',1,0,0,0,0}
+        nex = 0
+        buf = "123" -- all ignored
+
+    The number 5 is stored as:
+
+        msw = 5
+        nex = 0
+        buf = NULL
+
+    The number 2^64 is stored as:
+
+        msw = 1
+        nex = 1
+        buf = {0,1}  --  Last element ignored
+
+    msw: most significant word
+    nex: number of extra words
+    buf: array of extra words (least significant first)
+    hax: hash-table hash
+*/
 typedef struct leaf {
-        int32_t width_bytes;
-        uint8_t *bytes;
+        uint64_t msw, nex, *buf, hax;
 } leaf_t;
 
 struct ser {
@@ -91,27 +133,26 @@ struct ser {
 
 // Functions ///////////////////////////////////////////////////////////////////
 
-Jelly jelly_make();
+Seed seed_make();
 
-void jelly_wipe(Jelly);
-void jelly_free(Jelly);
-void jelly_done(Jelly);
-void jelly_dbug(Jelly);
-void jelly_show(Jelly);
+void seed_wipe(Seed);
+void seed_free(Seed);
+void seed_done(Seed);
+void seed_dbug(Seed);
+void seed_show(Seed);
 
-// TODO: Tell us if it was unique!
-treenode_t jelly_pin(Jelly, bool*, uint8_t*);
-treenode_t jelly_bar(Jelly, size_t, uint8_t*);
-treenode_t jelly_nat(Jelly, size_t, uint8_t*);
-treenode_t jelly_cons(Jelly, treenode_t, treenode_t);
-treenode_t jelly_word(Jelly, uint64_t);
+// All holes must be allocated up-front, before anything else.
+treenode_t seed_hole   (Seed);
+treenode_t seed_word   (Seed, uint64_t word);
+treenode_t seed_nat    (Seed, size_t num_words, uint64_t *words);
+treenode_t seed_barnat (Seed, size_t num_bytes, uint8_t  *bytes);
+treenode_t seed_cons   (Seed, treenode_t h, treenode_t t);
 
-size_t jelly_head_size(Jelly);
-size_t jelly_body_size(Jelly);
+size_t seed_size(Seed);
 
-void jelly_save_head(Jelly, size_t, uint8_t*);
-void jelly_save_body(Jelly, size_t, uint8_t*);
-void jelly_load_head(Jelly, size_t, uint8_t*);
-void jelly_load_body(Jelly, size_t, uint8_t*);
+void seed_save(Seed, size_t, uint8_t*);
+void seed_load(Seed, size_t, uint8_t*);
+void seed_touch(Seed, treenode_t);
 
-void jelly_hash(Jelly, uint8_t*, size_t, uint8_t*, size_t, uint8_t*);
+// delete me
+void print_tree_pub(Seed ctx, treenode_t tree);

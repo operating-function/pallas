@@ -13,6 +13,7 @@ import Hash256  (Hash256, hashToByteString, toHash256)
 
 import qualified Data.Vector as V
 
+
 --------------------------------------------------------------------------------
 
 class ToNoun a where

@@ -3,4 +3,4 @@
 -- found in the LICENSE file.
 
 module Main (main) where
-import Jelly.TestExe (main)
+import Fan.Seed.TestExe (main)

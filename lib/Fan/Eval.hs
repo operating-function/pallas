@@ -44,9 +44,6 @@ module Fan.Eval
     , vCrashOnJetFallback
     , vWarnOnJetFallback
     , normalize
-    , saveFanReference
-    , saveFanPure
-    , saveFan
     , trkName
     , loadPinFromBlob
     , tabValsRow
@@ -66,15 +63,14 @@ import PlunderPrelude  hiding (hash)
 import Control.Monad.ST          (ST)
 import Control.Monad.Trans.State (State, execState, modify', runState)
 import Data.Char                 (isAlphaNum)
+import Fan.FFI                   (c_revmemcmp)
 import Fan.PinRefs               (pinRefs)
 import GHC.Prim                  (reallyUnsafePtrEquality#)
 import GHC.Word                  (Word(..))
 import Hash256                   (shortHex)
-import Jelly.Fast.FFI            (c_revmemcmp)
 import Rex                       (GRex)
 
 import {-# SOURCE #-} Fan.Hash (fanHash)
-import {-# SOURCE #-} Fan.Save (saveFan)
 
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Unsafe as BS
@@ -84,8 +80,6 @@ import qualified Data.Map               as M
 import qualified Data.Vector            as V
 import qualified Data.Vector.Storable   as SV
 import qualified GHC.Exts               as GHC
-import qualified Jelly                  as Jelly
-import qualified Jelly.Reference        as Jelly
 import qualified Rex
 
 
@@ -117,15 +111,6 @@ vWarnOnJetFallback = unsafePerformIO (newIORef True)
 
 
 -- Types -----------------------------------------------------------------------
-
-instance Jelly.IsJelly Fan where
-    type JellyPin Fan = Pin
-
-    _WORD = NAT . fromIntegral
-    _NAT  = NAT
-    _BAR  = BAR
-    _CONS = (%%)
-    _PIN  = PIN
 
 instance Show LawName where
     show = either show show . natUtf8 . (.nat)
@@ -1793,37 +1778,3 @@ op2Gth a b = fromBit (a > b)
 fromBit :: Bool -> Fan
 fromBit True  = NAT 1
 fromBit False = NAT 0
-
--- Jar for Vals ----------------------------------------------------------------
-
-instance IsString Fan where
-   fromString = NAT . fromString
-
-
---------------------------------------------------------------------------------
-
-{-# INLINE saveFanPure #-}
-saveFanPure :: Fan -> (Vector Pin, ByteString, ByteString)
-saveFanPure fan = unsafePerformIO (saveFan fan)
-
-{-# INLINE saveFanReference #-}
-saveFanReference :: Fan -> IO (Vector Pin, ByteString, ByteString)
-saveFanReference !top = do
-    node <- fanToJellyNode top
-    Jelly.saveSlow node
-  where
-    -- TODO Make this lazy again
-    fanToJellyNode :: Fan -> IO (Jelly.Node Pin)
-    fanToJellyNode = \case
-        BAR bar -> pure (Jelly.BAR bar)
-        PIN pin -> pure (Jelly.PIN pin pin.hash)
-
-        NAT n ->
-            case n of
-                NatS# w -> pure $ Jelly.WORD (fromIntegral (W# w))
-                _       -> pure $ Jelly.NAT n
-
-
-        fan -> do
-            let (x,y) = boom fan
-            Jelly.CONS <$> fanToJellyNode x <*> fanToJellyNode y

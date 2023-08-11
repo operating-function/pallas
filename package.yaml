@@ -22,7 +22,7 @@ library:
     - cbits/blake3.c
     - cbits/blake3_dispatch.c
     - cbits/blake3_portable.c
-    - cbits/jelly.c
+    - cbits/seed.c
     - cbits/jets.c
     - cbits/xxhash.c
   when:
@@ -80,8 +80,8 @@ tests:
       - base
       - plunder
 
-  jelly-tests:
-    source-dirs: exe/jelly-tests
+  seed-tests:
+    source-dirs: exe/seed-tests
     main: Main.hs
     ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
     dependencies:

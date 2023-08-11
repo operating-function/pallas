@@ -29,8 +29,8 @@ where
 import PlunderPrelude hiding (hash, (^))
 import Data.Sorted
 
-import Hash256 (Hash256)
-import Rex     (GRex)
+import Hash256     (Hash256)
+import Rex         (GRex)
 
 import qualified Data.Vector.Storable as SV
 
@@ -103,6 +103,9 @@ instance Num Fan where
     abs x         = x
     negate _      = NAT 0
     signum x      = case toNat x of { 0 -> NAT 0; _ -> NAT 1 }
+
+instance IsString Fan where
+   fromString = NAT . fromString
 
 toNat :: Fan -> Nat
 toNat (NAT n) = n

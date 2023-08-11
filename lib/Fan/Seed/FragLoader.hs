@@ -2,10 +2,11 @@
 -- Use of this source code is governed by a BSD-style license that can be
 -- found in the LICENSE file.
 
-{-# OPTIONS_GHC -Wall -Wno-ambiguous-fields #-}
+{-# OPTIONS_GHC -Wall -Werror -Wno-ambiguous-fields #-}
 
-module Jelly.FragLoader
+module Fan.Seed.FragLoader
     ( loadFrags
+    , loadFrags2
     , FragSt(..)
     , FragErr(..)
     )
@@ -30,10 +31,10 @@ import Data.Vector.Mutable (IOVector)
 --------------------------------------------------------------------------------
 
 data FragSt = FRAG_ST
-    { used :: !Int
-    , word :: !Word64
-    , more :: !(Ptr Word64)
-    , noGo :: !(Ptr Word64)
+    { used :: !Int           -- Number of bits of `word` already consumed.
+    , word :: !Word64        -- Current word we are reading bits from
+    , more :: !(Ptr Word64)  -- Pointer to the next word to load
+    , noGo :: !(Ptr Word64)  -- Pointer right after the last word in the buffer
     }
 
 data FragErr
@@ -47,18 +48,44 @@ data FragErr
 
 --------------------------------------------------------------------------------
 
-loadFrags :: Vector Fan -> Int -> ByteString -> Int -> IO Fan
-loadFrags = top
-  where
-    go tab numPrior elemWid moreFrags = do
-        when (moreFrags > 0) do
-            val <- loadFan 1 tab numPrior elemWid
-            VM.unsafeWrite tab numPrior val
-            let numPrior' = numPrior + 1
-            let sizeGrows = popCount numPrior == 1
-            let elemWid' = if sizeGrows then elemWid+1 else elemWid
-            go tab numPrior' elemWid' (moreFrags - 1)
+loadFrags2
+    :: Bool
+    -> IOVector Fan
+    -> (Int, Int)
+    -> Int
+    -> (Ptr Word64, Ptr Word64)
+    -> IO (Ptr Word64)
+loadFrags2 pinOk tab (numLeaves, numFrags) usedBits (fragPtr, endPtr) = do
+    when (VM.length tab /= (numLeaves + numFrags)) do
+        error "tab has wrong size"
 
+    word <- peek fragPtr
+    let more = fragPtr `plusPtr` 8
+    let noGo = endPtr
+    let used = usedBits
+
+    let maxElemIdx = numLeaves - 1
+    let fstElemWid = 64 - countLeadingZeros maxElemIdx
+
+    flip evalStateT (FRAG_ST{used,word,more,noGo}) do
+        loop pinOk tab numLeaves fstElemWid numFrags
+        st <- get
+        pure st.more
+
+loop :: Bool -> IOVector Fan -> Int -> Int -> Int -> StateT FragSt IO ()
+loop pinOk tab numPrior elemWid moreFrags = do
+    when (moreFrags > 0) do
+        val <- loadFan pinOk 1 tab numPrior elemWid
+        VM.unsafeWrite tab numPrior val
+        let numPrior' = numPrior + 1
+        let sizeGrows = popCount numPrior == 1
+        let elemWid' = if sizeGrows then elemWid+1 else elemWid
+        loop pinOk tab numPrior' elemWid' (moreFrags - 1)
+
+
+loadFrags :: Bool -> Vector Fan -> Int -> ByteString -> Int -> IO Fan
+loadFrags pinOk = top
+  where
     top leaves nFrag buffer usedBytes = do
         BS.useAsCString buffer \bsPtr -> do
             let nLeaf      = length leaves
@@ -77,7 +104,7 @@ loadFrags = top
 
             when (sz == 0) do throwIO JELLY_EMPTY_FILE
 
-            evalStateT (go tab fstIdx fstElemWid nFrag)
+            evalStateT (loop pinOk tab fstIdx fstElemWid nFrag)
                        (FRAG_ST{used,word,more,noGo})
 
             VM.unsafeRead tab (sz - 1)
@@ -150,16 +177,16 @@ getOnes !acc = do
 -- Every fragment is always a pair, so we save a bit per fragment by
 -- having an implicit `1` at the beginning.
 
-loadFan :: Int -> IOVector Fan -> Int -> Int -> StateT FragSt IO Fan
-loadFan implicitOnes refs numElems elemWidth = do
+loadFan :: Bool -> Int -> IOVector Fan -> Int -> Int -> StateT FragSt IO Fan
+loadFan pinOk implicitOnes refs numElems elemWidth = do
     n <- getOnes implicitOnes
     i <- fromIntegral <$> getBits elemWidth
     f <- if i >= numElems
          then throwIO (JELLY_BAD_OFFSET i)
          else VM.unsafeRead refs (fromIntegral i)
     res <- if (n == 0) then pure f else do
-               args <- V.replicateM n (loadFan 0 refs numElems elemWidth)
-               construct f args
+               args <- V.replicateM n (loadFan pinOk 0 refs numElems elemWidth)
+               construct pinOk f args
     pure res
 
 
@@ -227,14 +254,13 @@ getBits n = do
 -- This is just a fancy version of (foldl' (%%) hed arg) except that it
 -- checks to makes sure that no evaluation happens.
 
-construct :: Fan -> Vector Fan -> StateT FragSt IO Fan
-construct hed arg = do
+construct :: Bool -> Fan -> Vector Fan -> StateT FragSt IO Fan
+construct _ hed arg | null arg = pure hed
+
+construct pinOk hed arg = do
     let width    = length arg
     let hedArity = evalArity hed
     let resArity = hedArity - width
-
-    when (width == 0) do
-       error "Don't call construct with empty arg list."
 
     case hed of
        -- The head can be a closure if the head "leaf" is a
@@ -242,7 +268,7 @@ construct hed arg = do
        KLO _ xs -> do
            let realHed = (xs .! 0)
            let hedArgs = fromList $ drop 1 $ toList xs
-           construct realHed (hedArgs <> arg)
+           construct pinOk realHed (hedArgs <> arg)
 
        -- If the result is in WHNF, then no evaluation can happen.
        -- It's safe to just directly construct a KLO node.
@@ -253,6 +279,9 @@ construct hed arg = do
            case (arg V.! 0, arg V.! 1, arg V.! 2) of
                (NAT n, NAT a, b) -> constructLaw n a b (drop 3 arg)
                _                 -> lift $ throwIO JELLY_BAD_LAW_LITERAL
+
+       NAT 4 | pinOk -> do
+           construct pinOk (mkPin (arg V.! 0)) (drop 1 arg)
 
        COw{} -> hydrateLaw hed arg
        SET{} -> hydrateLaw hed arg

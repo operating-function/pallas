@@ -24,10 +24,10 @@ import Foreign.Storable
 import PlunderPrelude
 
 import Data.ByteString.Builder (byteString, toLazyByteString)
+import Fan.FFI                 (c_jet_blake3)
 import Foreign.Marshal.Alloc   (allocaBytes)
 import Foreign.Ptr             (castPtr)
 import GHC.Exts                (Word(..), int2Word#, uncheckedIShiftL#, (+#))
-import Jelly.Fast.FFI          (c_jet_blake3)
 import Unsafe.Coerce           (unsafeCoerce)
 
 import qualified Data.ByteString        as BS

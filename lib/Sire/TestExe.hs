@@ -10,7 +10,7 @@
 module Sire.TestExe (main) where
 
 import Fan
-import Fan.Save
+import Fan.Seed
 import PlunderPrelude
 import Rex
 import Rex.TestUtils
