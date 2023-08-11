@@ -18,7 +18,7 @@ import Sire.Types
 import Test.Tasty
 
 import GHC.IO.Handle (hFlushAll)
-import Jelly.Types   (hashToByteString)
+import Hash256       (hashToByteString)
 
 import qualified Fan          as F
 import qualified Loot.ReplExe as Loot

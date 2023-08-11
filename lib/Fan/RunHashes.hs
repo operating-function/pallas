@@ -7,7 +7,7 @@ module Fan.RunHashes where
 import Fan.Print      (decodeBtc)
 import PlunderPrelude (ByteString)
 
-import Jelly.Types
+import Hash256
 
 --------------------------------------------------------------------------------
 

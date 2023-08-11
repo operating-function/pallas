@@ -4,7 +4,7 @@
 
 {-# OPTIONS_GHC -Wall -Werror #-}
 
-module Jelly.Types
+module Hash256
     ( Hash256(..)
     , encodeBtc
     , decodeBtc

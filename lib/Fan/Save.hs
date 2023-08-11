@@ -20,8 +20,7 @@ import PlunderPrelude        hiding ((^))
 
 import qualified Jelly.FragLoader as JFL
 
-import Control.Monad.Primitive (touch)
---import Control.Monad.State              (State, evalState, execState, modify')
+import Control.Monad.Primitive          (touch)
 import Control.Monad.Trans.Except       (runExcept, throwE)
 import Control.Monad.Trans.State.Strict (State(..), StateT(..), evalState,
                                          evalStateT, execState, execStateT, get,
@@ -30,13 +29,13 @@ import Data.Bits                        (clearBit, testBit, (.&.))
 import Data.Vector                      ((!))
 import Fan.Convert
 import Fan.Eval                         (boom, evalArity, mkLawPreNormalized,
-                                         mkPin', mkRow, (^), (%%), tabValsRow)
+                                         mkPin', mkRow, tabValsRow, (%%), (^))
 import Foreign.C.Types                  (CBool(..))
 import Foreign.Ptr                      (Ptr, castPtr)
 import Foreign.Storable                 (peek, poke)
 import GHC.Word                         (Word(..))
+import Hash256                          (Hash256, hashToByteString, toHash256)
 import Jelly.Reference                  (loadDeps, splitBlob)
-import Jelly.Types                      (Hash256, hashToByteString, toHash256)
 
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Internal  as BS

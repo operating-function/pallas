@@ -7,8 +7,8 @@ module Fan.Save
 where
 
 import Fan.Types      (Fan, Pin)
+import Hash256        (Hash256)
 import Jelly.Fast.FFI (Ctx)
-import Jelly.Types    (Hash256)
 import PlunderPrelude (ByteString, Either, IO, Text, Vector)
 
 --------------------------------------------------------------------------------

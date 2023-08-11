@@ -16,7 +16,7 @@ import Database.LMDB.Raw
 import Foreign.Marshal.Alloc
 import Foreign.Ptr
 import Foreign.Storable
-import Jelly.Types
+import Hash256
 import PlunderPrelude
 
 import qualified Data.ByteArray  as BA

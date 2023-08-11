@@ -9,7 +9,7 @@ import Server.LmdbStore.MdbValue
 import PlunderPrelude
 import Test.Tasty
 import Test.Tasty.QuickCheck as QC
-import Jelly.Types
+import Hash256
 
 import qualified Data.Vector.Storable as VS
 
@@ -19,11 +19,8 @@ main :: IO ()
 main = do
     defaultMain tests
 
-instance Arbitrary Jelly.Types.Hash256 where
-    arbitrary = Hash256 <$> arbitrary
-                        <*> arbitrary
-                        <*> arbitrary
-                        <*> arbitrary
+instance Arbitrary Hash256 where
+    arbitrary = Hash256 <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary PinMetadata where
     arbitrary = PIN_META <$> arbitrary <*> arbitrary <*> arbitrary

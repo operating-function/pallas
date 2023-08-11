@@ -44,7 +44,7 @@ import Fan.Convert               (fromNoun, toNoun)
 import Foreign.Marshal.Alloc     (allocaBytes)
 import Foreign.Ptr               (Ptr, nullPtr)
 import Foreign.Storable          (Storable(..), poke, sizeOf)
-import Jelly.Types               (hashToByteString)
+import Hash256                   (hashToByteString)
 import System.Directory          (createDirectoryIfMissing)
 import System.FilePath           (takeDirectory)
 

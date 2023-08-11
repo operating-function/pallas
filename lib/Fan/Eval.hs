@@ -71,7 +71,7 @@ import Data.Vector      ((!))
 import Fan.PinRefs      (pinRefs)
 import GHC.Prim         (reallyUnsafePtrEquality#)
 import GHC.Word         (Word(..))
-import Jelly.Types      (shortHex)
+import Hash256          (shortHex)
 import Rex              (GRex)
 
 import {-# SOURCE #-} Fan.Hash (fanHash)

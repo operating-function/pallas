@@ -29,7 +29,7 @@ import PlunderPrelude  hiding ((%))
 import Jelly.Fast.FFI  (Ctx)
 import Jelly.Reference (IsJelly(..), Node(..), loadBody, loadDeps, mkBlob,
                         splitBlob)
-import Jelly.Types     (decodeBtc, encodeBtc, Hash256)
+import Hash256         (decodeBtc, encodeBtc, Hash256)
 
 import qualified Fan.Prof        as Prof
 import qualified Jelly.Fast.FFI  as FFI

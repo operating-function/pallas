@@ -5,16 +5,15 @@
 module Fan.Convert where
 
 import Fan
-import Jelly.Types (Hash256, hashToByteString, toHash256)
 import PlunderPrelude
 
-import GHC.Word (Word(W#))
+import Data.Vector ((!))
+import GHC.Word    (Word(W#))
+import Hash256     (Hash256, hashToByteString, toHash256)
 
 import qualified Data.Map    as M
 import qualified Data.Set    as S
 import qualified Data.Vector as V
-
-import Data.Vector ((!))
 
 
 --------------------------------------------------------------------------------

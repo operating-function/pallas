@@ -35,7 +35,7 @@ import Control.Monad.State      (State, execState, modify')
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Fan.Convert
 import Fan.Hash                 (fanHash)
-import Jelly.Types              (hashToBTC)
+import Hash256                  (hashToBTC)
 import System.Directory         (createDirectoryIfMissing, doesFileExist,
                                  getHomeDirectory, removeFile)
 import System.Exit              (ExitCode(..), exitWith)

@@ -214,7 +214,7 @@ import Data.Bits
 import Data.Vector                      ((!))
 import Nat
 import GHC.Word
-import Jelly.Types
+import Hash256
 import PlunderPrelude                   hiding (Builder)
 
 -- ort Text.Show.Pretty

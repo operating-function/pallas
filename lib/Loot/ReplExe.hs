@@ -27,7 +27,7 @@ import Loot
 import Loot.Backend
 import PlunderPrelude
 import Rex
-import Jelly.Types
+import Hash256
 
 import qualified Rex.Print.Prim
 

@@ -15,7 +15,7 @@ module Fan.JetHash (jetHashes, installJetHashes) where
 import Fan.Jets
 import Fan.Print
 import Fan.RunHashes
-import Jelly.Types
+import Hash256
 import PlunderPrelude
 
 --------------------------------------------------------------------------------

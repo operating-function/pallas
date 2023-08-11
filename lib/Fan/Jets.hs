@@ -21,7 +21,7 @@ where
 import Data.Maybe
 import Fan.Eval
 import Fan.Types
-import Jelly.Types
+import Hash256
 import PlunderPrelude            hiding (traceM, (^))
 
 import qualified Data.Vector as V

@@ -28,8 +28,8 @@ where
 
 import PlunderPrelude hiding (hash, (^))
 
-import Jelly.Types (Hash256)
-import Rex         (GRex)
+import Hash256 (Hash256)
+import Rex     (GRex)
 
 import qualified Data.Vector.Storable as SV
 

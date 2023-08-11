@@ -8,10 +8,10 @@ import Foreign.Ptr
 import PlunderPrelude hiding ((^))
 
 import Foreign.ForeignPtr
-import Foreign.Storable (peek)
-import GHC.Int          (Int(..))
-import GHC.Word         (Word(..))
-import Jelly.Types      (toHash256)
+import Foreign.Storable   (peek)
+import GHC.Int            (Int(..))
+import GHC.Word           (Word(..))
+import Hash256            (toHash256)
 
 import qualified Data.ByteArray            as BA
 import qualified Data.ByteString           as BS

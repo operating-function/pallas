@@ -17,7 +17,7 @@ import Fan.Types        (Fan)
 import Jelly            (loadBodySlow, loadDepsSlow, saveFast, splitBlob,
                          withContext)
 import Jelly.Reference  (Node(..))
-import Jelly.Types      (toHash256)
+import Hash256          (toHash256)
 
 import qualified Fan.Eval        as F
 import qualified Fan.Types       as F

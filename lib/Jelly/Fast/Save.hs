@@ -23,8 +23,8 @@ import Foreign.Storable
 import Nat
 import PlunderPrelude          hiding (hash, (%))
 
+import Hash256         (hashToByteString)
 import Jelly.Reference (Node(..))
-import Jelly.Types     ( hashToByteString)
 
 import qualified Data.ByteString.Internal as BS
 import qualified Jelly.Fast.FFI           as FFI

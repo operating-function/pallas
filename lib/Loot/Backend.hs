@@ -74,7 +74,7 @@ module Loot.Backend
     )
 where
 
-import Jelly.Types
+import Hash256
 import Loot.Types
 import PlunderPrelude
 
