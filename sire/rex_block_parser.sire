@@ -1,0 +1,370 @@
+### rex_block_parser <- rex_line_parser
+
+/+ prelude
+/+ rex_line_parser
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# datatype Elem
+* I=I rune:Bar sons:(List Rex) heir:(Maybe Rex)
+* T=T thic:Bit text:Bar        heir:(Maybe Rex)
+
+> Elem > Elem
+= (elemClose elem)
+# datacase elem
+* (I r s h) | I r (map rexClose s) (fmapMaybe h rexClose)
+* (T t x h) | T t x                (fmapMaybe h rexClose)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(rn m r cs)=(m r cs NONE)
+
+> Rex > Rex > Rex
+= (rexAddCont r c)
+^ (rexSetHeir _ r)
+@ h (rexHeir r)
+| if h==0 c (rexAddCont h c)
+
+!!= `(+3)(+4)(+5) | rexAddCont `(+3)(+4) `(+5)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Form > Rex
+= (formToRex topForm)
+# mutrec 'form_to_rex' (form topForm)
+* (nest n)
+    | trk ['nest' n]
+    # datacase n
+    * (WRAPD f)    | form f
+    * (PREFX r fs) | rn NEST (barNat r) (map form fs)
+    * (PAREN ns)   | goApp ns
+    * (INFIX r fs) | rn INFX (barNat r) (map goApp fs)
+* (form f)
+    | trk ['form' f]
+    # datacase f
+    * (BEFO ru bod) | rn PREF (barNat ru) [(form bod)]
+    * (SHIP i)      | itmz i
+    * (SHIN ru ps)  | rn SHUT (barNat ru) (map itmz ps)
+* (goApp fs)
+    | trk 'goApp',fs
+    | form
+    | if (len fs == 1) (idx 0 fs)
+    | SHIP ,(INEST (PREFX b#"|" fs))
+* (itmz is)
+    | trk ['itmz' [=is]]
+    @ i (idx 0 is)
+    | if (len is == 1) (item i)
+    | rexAddCont (item i) (itmz | drop 1 is)
+* (item i)
+    | trk 'item',i
+    # datacase i
+    * (INEST n) | nest n
+    * (ILEAF l) # datacase l
+                * (LNAME t)   | WORD barNat-t NONE
+                * (LTEXT s t) # datacase s
+                              * THICK | TAPE barNat-t NONE
+                              * LIGHT | CORD barNat-t NONE
+                              * CURLY | CURL barNat-t NONE
+
+> Elem > Rex
+= (iRex e)
+# datacase e
+* (I t x k) | OPEN (barNat t) (rev x) (fromSome 0 k)
+* (T f t k) | (if f PAGE LINE) t (fromSome 0 k)
+
+> Frag > Rex
+= (fRex f)
+# datacase f
+* (RUNE rune)   | OPEN (barNat rune) [] NONE
+* (FORM wide)   | trk [=wide] | formToRex wide
+* (LSTR thic t) | (if thic PAGE LINE) t NONE
+
+= (showTree x)
+| barFlat
+^ _ x
+? (go x)
+| if isNat-x
+    | if strIsSymbol-x [b#'%' natBar-x]
+    | natBar showNat-x
+@ node | unApply car-x (CONS cdr-x NIL)
+@ kids | listToRow
+       | listIntersperse b#" "
+       | listMap go node
+| (b#"(" , kids , b#")" )
+
+!!= (iRex (I b#"+++" [] NONE)) ` +++
+!!= (iRex (T TRUE "hi" NONE))  ` """hi
+!!= (iRex (T FALSE "hi" NONE)) ` '''hi
+
+= (go bar)
+# datacase (runParser frag bar)
+* (FAIL e)         | die (FAIL e)
+* (OKAY [col frg]) | trk [=col =frg] | fRex frg
+
+!!= (go b#"..")           ` ..
+!!= (go b#"(3 4 5)")      ` (3 4 5)
+!!= (go b#"(3 4)")        ` (3 4)
+!!= (go b#"(3)")          ` 3
+!!= (go b#"()")           ` ()
+!!= (go b#"(+ 3 4)")      ` (+ 3 4)
+!!= (go b#"[3 4]")        ` [3 4]
+!!= (go b#"+3")           ` +3
+!!= (go b#"(3,4)")        ` (3,4)
+!!= (go b#"(3, 4)")       ` (3, 4)
+!!= (go b#{'x'"y"})       ` 'x'"y"
+!!= (go b#{''""{}})       ` ''""{}
+!!= (go b#{('')("")({})}) ` ''""{}
+!!= (go b#{(3)(4)})       ` (3)(4)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(overFst f pair)=(| put pair 0 | f | get pair 0)
+(overSnd f pair)=(| put pair 1 | f | get pair 1)
+
+= (eitherMap f e)
+# datacase e
+* (LEFT _)  | e
+* (RIGHT x) | RIGHT (f x)
+
+> (Nat, Rex) > (Nat, Elem) > Either Str (Nat, Elem)
+= (merge (rp,r) (ip,i))
+@ ord (cmp rp ip)
+| if (ord == LT)
+    | LEFT ("Impossible: invalid merge")
+# datacase i
+* (T th t h)
+    | if ((h /= 0) || (ord == GT))
+        | LEFT "Line strings may not have child nodes."
+    | RIGHT (ip, T th t (SOME r))
+* (I ryn ss h)
+    | RIGHT
+    # datacase h
+    * (SOME k)
+        | (ip, I ryn (rowCons k ss) (SOME r))
+    * NONE
+    | if (ord == EQ)
+        | (ip, I ryn ss (SOME r))
+    | else
+        | (ip, I ryn (rowCons r ss) NONE)
+
+(testMerge x y)=(eitherMap (overSnd (compose rexClose iRex)) (merge x y))
+
+!!= | showTree | RIGHT-(3, `"foo"xxx)
+  | showTree | testMerge (3, `xxx) (3, T TRUE "foo" 0)
+
+!!= LEFT-"Line strings may not have child nodes."
+  | testMerge (4, `xxx) (3, T TRUE "foo" 0)
+
+!!= LEFT-"Impossible: invalid merge"
+  | testMerge (2, `xxx) (3, T TRUE "foo" 0)
+
+!!=   | RIGHT (3, `[x y]xxx)
+  | testMerge (3, `xxx) (3, I b#"," [`x] (SOME `y))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+''' TODO: Why can't line-strings have child nodes?  Can't we just have
+''' that end the line-string and push another argument onto the last
+''' open rune?
+
+badBlock="Invariant Violation: item indented too little for block"
+
+;;
+;; Reduce the stack until the stack has only one item, or until the
+;; topmost item has position <= p.
+;;
+;; This code requires that the first `Elem` (the bottom of stack),
+;; has the smallest poisition of all items in the block.
+;;
+;; For example, if we try to work with the block:
+;;
+;;     + foo
+;;   + bar
+;;
+;; The layout algorithm doesn't work on that.  This needs to be handled
+;; by the code that splits files into blocks before those blocks are
+;; passed to this code.  The above example should be split into two
+;; different blocks:
+;;
+;;     + foo
+;;
+;; And:
+;;
+;;   + bar
+;;
+> Nat > List (Nat, Elem) > Either Str (List (Nat, Elem))
+= (close p elems)
+# datacase elems
+* NIL
+    | RIGHT ~[]
+* (CONS i is)
+| trk [=p fst_i=(fst i) =i]
+| if (gte p | fst i)
+    | RIGHT (i::is)
+# datacase is
+* NIL
+    | LEFT badBlock
+* (CONS j ks)
+    : ij <- eitherBind (merge (overSnd iRex i) j)
+    | close p (ij::ks)
+
+= (testClose n es)
+# datacase (close n es)
+* (LEFT m)   | LEFT m
+* (RIGHT es) | RIGHT (listMap (overSnd elemClose) es)
+
+exItem=(I b#"," [`x] (SOME `y))
+
+!!=   | RIGHT ~[4,exItem 4,exItem]
+  | testClose 4 ~[4,exItem 4,exItem]
+
+!!=   | RIGHT ~[4,exItem 4,exItem]
+  | testClose 4 ~[4,exItem 4,exItem]
+
+!!=   | RIGHT ~[4,exItem 3,exItem]
+  | testClose 4 ~[4,exItem 3,exItem]
+
+!!=   | RIGHT ~[(3, (I b#',' [`y `x] (SOME `[x]y))) (2, exItem)]
+  | testClose 3 ~[4,exItem 3,exItem 2,exItem]
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> List (Nat, Elem) > (Nat, Frag) > Either Str (List (Nat, Elem))
+= (pushOnto stk (fp,f))
+: stk <- eitherBind (close fp stk)
+# datacase f
+* (RUNE r) | RIGHT (fp, I r [] NONE)::stk
+* (FORM _)
+    # datacase stk
+    * NIL         | LEFT "Impossible: SOME-Form case already handled in `rush`"
+    * (CONS i is) | eitherMap x&(x::is) (merge (fp, fRex f) i)
+* (LSTR s l)
+    # datacase stk
+    * NIL         | LEFT "Impossible: SOME-Page case already handled in `rush`"
+    * (CONS _ _)  | RIGHT (fp, T s l NONE)::stk
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+oneForm="Blocks starting with closed forms may only contain one form."
+
+= (listFoldl1 f xs)
+# datacase xs
+* NIL ('listFoldl1' 'empty list')
+* (CONS x xs)
+| listFoldl f x xs
+
+!!= 12 (listFoldl1 add ~[3 4 5])
+
+> (b > a > Either e b) > b > List a > Either e b
+= (eitherListFoldlM f acc xs)
+# datacase xs
+* NIL (RIGHT acc)
+* (CONS x xs)
+: acc <- eitherBind (f acc x)
+| eitherListFoldlM f acc xs
+
+> (Nat, Elem) > (Nat, Elem) > (Nat, Elem)
+= (forceMerge a b)
+# datacase (merge (overSnd iRex a) b)
+* (LEFT e)  | die e
+* (RIGHT x) | x
+
+> (Nat, Elem) > List (Nat, Frag) > Either Str (List (Nat, Elem))
+= (pushAll pf fs)
+| eitherListFoldlM pushOnto ~[pf] fs
+
+; TODO: rework this to use rows
+> List (Nat, Frag) > Either Str Rex
+= (rush stk)
+# datacase stk
+* NIL
+    | LEFT "impossible: rush given an empty list"
+* (CONS pf@[p f] fs)
+# datacase f
+* (RUNE r)
+    : x <- eitherBind (pushAll (p, I r [] NONE) fs)
+    | RIGHT | iRex | snd | listFoldl1 forceMerge x
+* (LSTR th l)
+    : x <- eitherBind (pushAll (p, T th l NONE) fs)
+    | RIGHT | iRex | snd | listFoldl1 forceMerge x
+* (FORM _)
+    # datacase fs
+    * NIL        | RIGHT (fRex f)
+    * (CONS _ _) | LEFT oneForm
+
+= (testRush bar)
+# datacase (runParser line bar)
+* (FAIL e) (LEFT e)
+* (OKAY frags)
+# datacase (rush | listFromRow frags)
+* (LEFT e) (LEFT e)
+* (RIGHT v)
+| rexClose v
+
+!!= `(f (x (y (f x y))))
+  | testRush b#"| f | x | y (f x y)"
+
+!!= `(f (x (y (| (f x y)))))
+  | testRush b#"| f | x | y | (f x y)"
+
+!!= `(f x y (z | z | z))
+  | testRush b#"| f x y (z | z | z)"
+
+
+;; Block Parser ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> (Nat, Frag) > Bit
+= (fragIsForm [_ frag])
+# datacase frag
+* (FORM _) | TRUE
+* _        | FALSE
+
+> Row (Row (Nat, Frag)) > Either Str Rex
+= (lineHack frags)
+^ rush _
+| if (lth len-frags 2 || not (fragIsForm | idx 0 frags))
+    | listFromRow frags
+| CONS (0, RUNE b#"|")
+| listMap (overFst inc)
+| listFromRow frags
+
+> Row (Row (Nat, Frag)) > Either Str Rex
+= (parseBlock lines)
+@ lines (filter (compose not null) lines)
+# switch (len lines)
+* 0 | LEFT "empty block"
+* 1 | lineHack (idx 0 lines)
+* _ | rush (listFromRow | cat lines)
+
+> Row Bar > Either Str Rex
+= (testParseBlock bars)
+: results <- ^ rowTraverse _ bars
+             & (bar ret)
+             : frags <- eitherBind (runParser line bar)
+             | ret frags
+| trk [=results]
+# datacase (parseBlock results)
+* (LEFT e)  | e
+* (RIGHT v) | rexClose v
+
+!!= `(f x y)
+  | testParseBlock [b#"f x y"]
+
+!!= `(f (x y))
+  | testParseBlock [b#"f | x y"]
+
+!!= oneForm
+  | testParseBlock [b#"f | x y" b#"| a"]
+
+!!= `(f (x y))(| a)
+  | testParseBlock [b#"| f | x y" b#"| a"]
+
+!!= `(f (x y))a
+  | testParseBlock [b#"| f | x y" b#"" b#"a"]

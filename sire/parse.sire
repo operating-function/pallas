@@ -52,6 +52,21 @@
     ;; if the first succeds, we are commited,
     ;; no backtracking!
 
+= (parserPure val buf off err fail ok)
+| ok off val
+
+= (parserFail msgBar buf off err fail ok)
+| fail msgBar
+
+= (parserMap f p buf off err fail ok)
+: off res <- p buf off err fail
+| ok off (f res)
+
+= (parserMap2 f p q buf off err fail ok)
+: off pRes <- p buf off err fail
+: off qRes <- q buf off err fail
+| ok off (f pRes qRes)
+
 = (andThenLeft x y buf off err fail ok)
 : off r < **x buf off err fail
 : off o < **y buf off err err
@@ -67,21 +82,45 @@
 
 ;; TODO: stew: support inline annotations on nested lambdas.
 
+= (optional x buf off err fail ok)
+@ (xFail _)       | ok off NONE
+@ (xOkay off res) | ok off (SOME res)
+| **x buf off err xFail xOkay
+
 = (choice x y buf off err fail ok)
 @ (xFails xMsg)
     @ (yFails yMsg) (fail [xMsg yMsg])
     | **y buf off err yFails ok
 | **x buf off err xFails ok
 
+= (choices1 o1 os)
+# datacase os
+* NIL          | o1
+* (CONS o2 os) | choice o1 (choices1 o2 os)
+
+= (choices os buf off err fail ok)
+# datacase os
+* NIL         | fail "empty choices"
+* (CONS o os) | choices1 o os buf off err fail ok
+
+= (many item)
+| choice
+    : first <- bind (try item)
+    | parserMap (CONS first) (many item)
+| parserPure NIL
+
+= (some item)
+: first <- bind item
+| parserMap (CONS first) (many item)
+
 = (eof buf off err fail ok)
 @ atEof (gte off | barLen buf)
 | if atEof | **ok off ()
 | **else   | **fail b#EOF
 
-= (pcons x y buf off err fail ok)
-: off xr <- **x buf off err fail
-: off yr <- **y buf off err fail
-| ok off (CONS xr yr)
+(pcons x y)=(parserMap2 CONS x y)
+
+xy=(choice (char 'x') (char 'y'))
 
 = (xys buf off err fail ok)
 ^ (_ buf off err fail ok)
@@ -89,11 +128,15 @@
 | pcons (choice (char %x) (char %y))
 | xys
 
-= (runParser parser buffer)
-: off res <- **parser buffer 0 LEFT LEFT
-| RIGHT res
+# datatype (ParserResult e a)
+* FAIL=FAIL _:e
+* OKAY=OKAY _:a
 
-; Commits after the first character, this exists just to test backtracing.
+= (runParser parser buffer)
+: off res <- **parser buffer 0 FAIL FAIL
+| OKAY res
+
+; Commits after the first character; this exists just to test backtracing.
 = (_string bar buf off err fail ok)
 ^ (_ (barToList bar) buf off err fail ok)
 ? (go cs buf off err fail ok)
@@ -109,6 +152,17 @@
 @ !off (add off wid)
 | ok off bar
 
+= (parserGetOffset buf off err fail ok)
+| ok off off
+
+> Parser r Nat
+= (parserGetLineOffset buf topOff err fail ok)
+^ _ 0 topOff
+? (loop !count off)
+| if ((off == 0) || (newlineChar == barIdx buf off))
+    | ok topOff count
+| loop (inc count) (dec off)
+
 ; Commits after the first character, just to test backtracing.
 = (stringOf chk buf startOff err fail ok)
 ^ _ startOff
@@ -123,10 +177,12 @@
 ; Commits after the first character, just to test backtracing.
 = (stringOf1 chk buf startOff err fail ok)
 : off res <- stringOf chk buf startOff err fail
-| trk [=startOff =off]
 | if (off == startOff)
     | fail 'stringOf1'
 | ok off res
+
+= (parserTakeRest buf off err fail ok)
+| ok (barLen buf) (barDrop off buf)
 
 = (pmap f parser buf off err fail ok)
 : off res < parser buf off err fail
@@ -140,13 +196,15 @@
 
 ;; TODO: inlining should trigger here, but it does not!
 
-= (parse_eof bar) | **runParser eof bar
-= (parse_x bar)   | **runParser (**char 'x') bar
-= (parse_y bar)   | **runParser (**char 'y') bar
-= (parse_xy bar)  | **runParser (**andThen (char 'x') (char 'y')) bar
-= (parse_xx bar)  | **runParser (**bind (char 'x') char) bar
-= (parse_x_y bar) | **runParser (**choice (char 'x') (char 'y')) bar
-= (parse_xys bar) | **runParser xys bar
+= (parse_eof bar)     | **runParser eof bar
+= (parse_x bar)       | **runParser (**char 'x') bar
+= (parse_y bar)       | **runParser (**char 'y') bar
+= (parse_xy bar)      | **runParser (**andThen (char 'x') (char 'y')) bar
+= (parse_xx bar)      | **runParser (**bind (char 'x') char) bar
+= (parse_x_y bar)     | **runParser (**choice (char 'x') (char 'y')) bar
+= (parse_xys bar)     | **runParser xys bar
+= (parse_many_xy bar) | **runParser (many xy) bar
+= (parse_some_xy bar) | **runParser (some xy) bar
 
 = (parse_xy_yx bar)
 ^ **runParser _ bar
@@ -165,34 +223,43 @@
 | choice (string b#xy) (string b#xx)
 
 
-EXPECTED=LEFT
-SUCCESS=RIGHT
+;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= SUCCESS-()        | parse_eof b#{}
-!!= EXPECTED-(b#EOF)  | parse_eof b#{x}
-!!= EXPECTED-(b#EOF)  | parse_eof b#{xy}
-!!= EXPECTED-(b#more) | parse_x b#{}
-!!= SUCCESS-{x}       | parse_x b#{x}
-!!= SUCCESS-{x}       | parse_x b#{xy}
-!!= EXPECTED-(b#y)    | parse_y b#{xy}
-!!= SUCCESS-{y}       | parse_xy b#{xy}
-!!= EXPECTED-(b#more) | parse_xy b#{x}
-!!= EXPECTED-(b#x)    | parse_xy b#{y}
-!!= EXPECTED-(b#x)    | parse_xx b#{xy}
-!!= SUCCESS-{x}       | parse_xx b#{xx}
+!!= OKAY-()       | parse_eof b#{}
+!!= FAIL-(b#EOF)  | parse_eof b#{x}
+!!= FAIL-(b#EOF)  | parse_eof b#{xy}
+!!= FAIL-(b#more) | parse_x b#{}
+!!= OKAY-{x}      | parse_x b#{x}
+!!= OKAY-{x}      | parse_x b#{xy}
+!!= FAIL-(b#y)    | parse_y b#{xy}
+!!= OKAY-{y}      | parse_xy b#{xy}
+!!= FAIL-(b#more) | parse_xy b#{x}
+!!= FAIL-(b#x)    | parse_xy b#{y}
+!!= FAIL-(b#x)    | parse_xx b#{xy}
+!!= OKAY-{x}      | parse_xx b#{xx}
 
-!!= SUCCESS-(CONS %x 0)          | parse_xys b#x
-!!= SUCCESS-NIL                  | parse_xys b#{}
-!!= SUCCESS-(~[%x %y])           | parse_xys b#xy
-!!= SUCCESS-(~[%y %x %y])        | parse_xys b#yxy
-!!= SUCCESS-(~[%y %y])           | parse_xys b#yy
-!!= EXPECTED-[(b#EOF) [b#x b#y]] | parse_xys b#z
+!!= OKAY-(CONS %x 0)         | parse_xys b#x
+!!= OKAY-NIL                 | parse_xys b#{}
+!!= OKAY-(~[%x %y])          | parse_xys b#xy
+!!= OKAY-(~[%y %x %y])       | parse_xys b#yxy
+!!= OKAY-(~[%y %y])          | parse_xys b#yy
+!!= FAIL-[(b#EOF) [b#x b#y]] | parse_xys b#z
 
-!!= SUCCESS-(b#xy) | parse_xy_xx b#{xy_}
-!!= EXPECTED-(b#y) | parse_xy_xx b#{xx_}      ;;  LL(1), no back tracking
-!!= SUCCESS-(b#xy) | parse_xy_yx b#{xy_}
-!!= SUCCESS-(b#yx) | parse_xy_yx b#{yx_}      ;;  LL(1) is okay
-!!= SUCCESS-(b#xy) | parse_xy_xx_bt b#{xy_}
-!!= SUCCESS-(b#xx) | parse_xy_xx_bt b#{xx_}   ;;  explicit back-tracking (try)
-!!= SUCCESS-(b#xy) | parse_xy_xx_str b#{xy_}
-!!= SUCCESS-(b#xx) | parse_xy_xx_str b#{xx_}  ;;  LL(k), bar-slice matching
+!!= OKAY-(~[%x %y %x]) | parse_many_xy b#xyxz
+!!= OKAY-(~[])         | parse_many_xy b#{}
+!!= OKAY-(~[])         | parse_many_xy b#{a}
+!!= OKAY-(~[%x])       | parse_many_xy b#{xa}
+
+!!= OKAY-(~[%x %y %x])   | parse_some_xy b#xyxz
+!!= FAIL-[b#more b#more] | parse_some_xy b#{}
+!!= FAIL-[b#x b#y]       | parse_some_xy b#{a}
+!!= OKAY-(~[%x])         | parse_some_xy b#{xa}
+
+!!= OKAY-(b#xy) | parse_xy_xx b#{xy_}
+!!= FAIL-(b#y)  | parse_xy_xx b#{xx_}      ;;  LL(1), no back tracking
+!!= OKAY-(b#xy) | parse_xy_yx b#{xy_}
+!!= OKAY-(b#yx) | parse_xy_yx b#{yx_}      ;;  LL(1) is okay
+!!= OKAY-(b#xy) | parse_xy_xx_bt b#{xy_}
+!!= OKAY-(b#xx) | parse_xy_xx_bt b#{xx_}   ;;  explicit back-tracking (try)
+!!= OKAY-(b#xy) | parse_xy_xx_str b#{xy_}
+!!= OKAY-(b#xx) | parse_xy_xx_str b#{xx_}  ;;  LL(k), bar-slice matching

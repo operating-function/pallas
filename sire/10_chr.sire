@@ -39,6 +39,10 @@
 (chr c)=(add c 48)
 (ord c)=(sub c 48)
 
+newlineChar=10
+tabChar=9
+spaceChar=32
+
 
 """ Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -60,8 +64,10 @@
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^  ord chr
-^-^  isDigit isUpper isLower isAlpha isPrint
-^-^  isAlphaNum
-^-^  toLower toUpper
+^-^ ord chr
+^-^ isDigit isUpper isLower isAlpha isPrint
+^-^ isAlphaNum
+^-^ toLower toUpper
+^-^
+^-^ newlineChar tabChar spaceChar
 ^-^

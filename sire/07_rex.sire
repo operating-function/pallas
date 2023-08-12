@@ -219,6 +219,7 @@
 @ embdCase
     | f rex
 @ leafCase
+    | f
     @ heir (idx 2 dat)
     | if (isZero heir) rex
     @ heir (rexEvery f heir)
@@ -238,8 +239,10 @@
 = (rexClose topRex)
 ^ rexEvery _ topRex
 & rex
-; trk (v2 'STYLE' | rexStyle rex)
-| if (neq "OPEN" rexStyle-rex) rex
+@ sty (rexStyle rex)
+| if (eql "LINE" sty) | CORD rexText-rex rexHeir-rex
+| if (eql "PAGE" sty) | TAPE rexText-rex rexHeir-rex
+| if (neq "OPEN" sty) | rex
 | NEST (rexRune rex) (rexSons rex) (rexHeir rex)
 
 
@@ -319,6 +322,8 @@ sx=(OPEN "=" (v2 wx w9) 0)
 !!= "LINE" | rexStyle `` '''
 !!= "PAGE" | rexStyle `` """
 !!= "CURL" | rexStyle `` {}
+
+!!= ``"foobar" | rexClose `` """foobar
 
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

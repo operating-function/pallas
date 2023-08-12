@@ -224,15 +224,18 @@ rowToBar=barFromRow
 (barSplitOne e b)=(barSplitOneWith (eql e) b)
 (barSplit ele bar)=(barSplitWith (eql ele) bar)
 
-;;; TODO use (barCatList (listIntersperse sep (listFromRow vals)))
-= (barIntercalate sep vals)
-^ _ emptyBar listFromRow-vals
+;;; TODO use (barCatList (listIntersperse sep barList))
+= (barIntercalateList sep barList)
+^ _ emptyBar barList
 ? (go acc res)
 | **listCase res acc
 & (x xs)
 | **listCase xs (barWeld acc x)
 & (_ _)
 | go (barCat acc,x,sep) xs
+
+= (barIntercalate sep barRow)
+| barIntercalateList sep (listFromRow barRow)
 
 = (hexCharToNat v)
 | if (lte v %9) (sub v %0)
@@ -503,6 +506,8 @@ newline=(natBar 10)
 !!= b#x  | barSing %x
 !!= b#xy | barDuo  %x %y
 
+barNewline=(barSing 10)
+
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -512,7 +517,8 @@ newline=(natBar 10)
 ^-^ barSing barDuo
 ^-^ zEnd stripZEnd w8 bytesBar barGen barRep barGet barBytes barFoldl barFoldr
 ^-^ barAll
-^-^ barWeld barCat barIntercalate barCatList barCatMap
+^-^ barWeld barCat barCatList barCatMap
+^-^ barIntercalate barIntercalateList
 ^-^ barFromHex barPad
 ^-^ barTake barDrop barSlice
 ^-^ barFlat barHas
@@ -531,3 +537,4 @@ newline=(natBar 10)
 ^-^
 ^-^ newline barUnlines
 ^-^ barSubstringSearch
+^-^ barNewline

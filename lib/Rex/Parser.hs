@@ -148,11 +148,11 @@ merge (rp,r) (ip,i) =
 --
 -- If the first rune in the file is indented less deeply than subsequent
 -- runes, that cannot be closed out, so we reject the input.
-close :: Int -> Frag -> [(Int, Elem)] -> Either Text [(Int, Elem)]
-close _ _ []                   = pure []
-close p _ (i:is)  | p >= fst i = pure (i:is)
-close p f (i:j:k)              = do ij <- merge (iRex <$> i) j; close p f (ij:k)
-close _ _ _                    = error badBlock
+close :: Int -> [(Int, Elem)] -> Either Text [(Int, Elem)]
+close _ []                   = pure []
+close p (i:is)  | p >= fst i = pure (i:is)
+close p (i:j:k)              = do ij <- merge (iRex <$> i) j; close p (ij:k)
+close _ _                    = error badBlock
   where
     badBlock = "Internal Error: item indented too little for block"
 
@@ -166,7 +166,7 @@ close _ _ _                    = error badBlock
 -}
 pushOnto :: [(Int, Elem)] -> (Int, Frag) -> Either Text [(Int, Elem)]
 pushOnto stack (fp,f) = do
-  stc <- close fp f stack
+  stc <- close fp stack
   case (f, stc) of
     (FORM _, [])   -> impossible "Just-Form case already handled in `rush`"
     (LINE{}, [])   -> impossible "Just-Page case already handled in `rush`"

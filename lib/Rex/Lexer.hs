@@ -107,7 +107,7 @@ plix initialForm = do
         [Right i] -> pure (WRAPD i)
         is ->
           case unravel [] is of
-              ([f], [])             -> pure (WRAPD f)
+              ([f], [])             -> pure (WRAPD f) -- redundant?
               (fs,  [])             -> pure (PAREN fs)
               (fs,  (run,gs):more) -> do
                   assertUnambiguous "Nest" (run :| fmap fst more)
