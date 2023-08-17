@@ -286,6 +286,8 @@ Some notes on notation:
 Every PLAN vaue is either a pin x:<i>, a law x:{n a b}, an app x:(f g), a
 nat x:@, or a black hole x:<>.  Black holes only exist during evaluation.
 
+(o <- x) mutates o in place, replacing it's value with x.
+
 Run F(x) to normalize a value.
 
 E(o:@)     = o                          | F(o) =
