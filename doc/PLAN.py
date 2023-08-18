@@ -3,11 +3,11 @@
 
 ### Representation #############################################################
 
-def Hol():      return Val(())
-def Nat(i):     return Val(i)
-def Pin(item):  return Val((item,))
-def App(f,x):   return Val((f,x))
-def Law(n,a,b): return Val((n,a,b))
+def Hol():      return Val( ()      )
+def Nat(i):     return Val( i       )
+def Pin(item):  return Val( (item,) )
+def App(f,x):   return Val( (f,x)   )
+def Law(n,a,b): return Val( (n,a,b) )
 
 class Val:
     __match_args__ = ("val",)
@@ -56,6 +56,7 @@ class Val:
 
 ### Rules ######################################################################
 
+# Index into a list (represented as App nodes)
 def I(f, o, n):
     match (n, o.type):
         case (0, 'app'): return o.tail
@@ -63,6 +64,7 @@ def I(f, o, n):
         case (_, 'app'): return I(f, o.head, n-1)
         case (_, _):     return f
 
+# Arity of a value
 def A(o):
     match o.type:
         case 'app': return A(o.head)-1
@@ -71,16 +73,19 @@ def A(o):
         case 'nat': return I(Nat(1), desugar((3,5,3)), o.nat).nat
         case 'hol': raise Exception("<<loop>>")
 
+# Cast to nat
 def N(o):
     E(o)
     return (o if o.type == 'nat' else Nat(0))
 
+# Let-bind a value during law-body execution
 def L(n,e,v,b):
     x = Hol()
     f = App(e, x)
     x.update(R(n+1,f,v))
     return R(n+1,f,b)
 
+# Run a law body
 def R(n,e,b):
     if b.type == 'nat' and b.nat <= n:
         return I(b, e, n - b.nat)
@@ -91,9 +96,11 @@ def R(n,e,b):
         case [Val(2), x]:    return x
         case _:              return b
 
+# Case matching on nats
 def C(z,p,n):
     return z if n==0 else App(p, Nat(n-1))
 
+# Pattern match on PLAN values
 def P(p,l,a,n,o):
     match o.type:
         case 'app': return App(App(a,o.head), o.tail)
@@ -101,8 +108,18 @@ def P(p,l,a,n,o):
         case 'law': return App(App(App(l, o.name), o.args), o.body)
         case 'nat': return App(n, o)
 
+# Simplify a closure by removing useless pins in the head.
+def S(o):
+    if o.type == 'app':
+        match o.head.type:
+            case 'app': return App(S(o.head), o.tail)
+            case 'pin':
+                if o.head.item.type != 'law':
+                    return S(App(o.head.item, o.tail))
+    return o
+
+# Execute one simplification step for a saturated expression
 def X(k,e):
-    print(f"X({k},  {e})")
     match (k.type, k.nat):
         case ('app', _): return X(k.head, e)
         case ('pin', _): return X(k.item, e)
@@ -126,6 +143,7 @@ def X(k,e):
         case _:
             raise Exception(("crash", e))
 
+# Force a full evaluation to Normal-Form
 def F(o):
     E(o)
     if o.type == 'app':
@@ -133,6 +151,7 @@ def F(o):
         F(o.tail)
     return o
 
+# Evaluate to Weak-Head-Normal-Form
 def E(o):
     match o.type:
         case 'nat': return o
@@ -141,7 +160,10 @@ def E(o):
         case 'app':
             E(o.head)
             if A(o.head)==1:
-                o.update(X(o,o))
+                o.update(S(o))
+                new = X(o,o)
+                print(f"        {o}  ==>  {new}")
+                o.update(new)
                 E(o)
             return o
         case 'law':
@@ -176,3 +198,12 @@ go( (0,1,2,0), 9, 7 )
 go( (0,1,2,1), 9, 7 )
 go( (0,1,2,2), 9, 7 )
 go( (0,1,2,3), 9, 7 )
+
+go( (4,(0,1)), 2, 3)
+go( (4,(0,1)), 2, 3)
+
+# running pins
+go ( (4,0), 1, 2, 0)
+go ( (4,(0,1)), 2, 0)
+go ( (4,(0,1,2,0)), 3, 4)
+go ( (4,(4,(0,1,2,0))), 3, 4)

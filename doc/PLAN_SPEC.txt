@@ -10,14 +10,17 @@ E(o:<x>)   = o                          |     E(o)
 E(o:(f x)) =                            |     when o:(f x)
     E(f)                                |          F(f); F(x)
     when A(f)=1                         |     o
-        o <- X(o,o)                     |
-        E(o)                            | N(o) = E(o); if o:@ then o else 0
-    o                                   |
-E(o:{n a b}) =                          | I(f, (e x), 0) = x
-    if a!=0 then o else                 | I(f, e,     0) = e
-        o <- <>                         | I(f, (e x), n) = I(f, e, n-1)
-        o <- R(0,o,b)                   | I(f, e,     n) = f
-        E(o)                            |
+        o <- S(o)                       |
+        o <- X(o,o)                     | S(o:(f x y))       = (S((f x)) y)
+        E(o)                            | S(o:(<{n a b}> y)) = o
+    o                                   | S(o:(<f> x))       = S((f x))
+E(o:{n a b}) =                          | S(o)               = o
+    if a!=0 then o else                 |
+        o <- <>                         | I(f, (e x), 0) = x
+        o <- R(0,o,b)                   | I(f, e,     0) = e
+        E(o)                            | I(f, (e x), n) = I(f, e, n-1)
+                                        | I(f, e,     n) = f
+N(o) = E(o); if o:@ then o else 0       |
                                         | A((f x))     = A(f)-1
 X((f x), e)         = X(f,e)            | A(<p>)       = A(p)
 X(<p>, e)           = X(p,e)            | A({n a b})   = a

@@ -12,10 +12,8 @@ data Val
     | NAT !Natural
  deriving (Generic, NFData)
 
-nat (NAT n) = n
-nat _       = 0
-
-f % x = if arity f == 1 then exec f [x] else APP f x
+f % x | arity f == 1 = subst f [x]
+f % x | otherwise    = APP f x
 
 arity (APP f _)   = arity f - 1
 arity (PIN i)     = arity i
@@ -33,16 +31,22 @@ run n e (NAT 1 `APP` v `APP` b) = run (n+1) f b where f = (run (n+1) f v : e)
 run _ _ (NAT 2 `APP` x)         = x
 run _ _ x                       = x
 
-exec (PIN i)     xs          = exec i xs
-exec (LAW n a b) xs          = run a (reverse (LAW n a b : xs)) b
-exec (APP f x)   xs          = exec f (x:xs)
-exec (NAT 0)     [n,NAT 0,b] = r where r = (nat n,b) `deepseq` run 0 [r] b
-exec (NAT 0)     [n,a,b]     = LAW (nat n) (nat a) (force b)
-exec (NAT 1)     [p,l,a,n,x] = pat p l a n x
-exec (NAT 2)     [z,p,x]     = case nat x of 0 -> z; n -> p % NAT (n-1)
-exec (NAT 3)     [x]         = NAT (nat x + 1)
-exec (NAT 4)     [x]         = PIN (force x)
-exec f           e           = error $ show ("crash", (f:e))
+subst (APP f x)       xs = subst f (x:xs)
+subst x@(PIN l@LAW{}) xs = exec l (x:xs)
+subst (PIN i)         xs = subst i xs
+subst x               xs = exec x (x:xs)
+
+nat (NAT n) = n
+nat _       = 0
+
+exec (LAW n a b) xs            = run a (reverse xs) b
+exec (NAT 0)     [_,n,NAT 0,b] = r where r = (nat n,b) `deepseq` run 0 [r] b
+exec (NAT 0)     [_,n,a,b]     = LAW (nat n) (nat a) (force b)
+exec (NAT 1)     [_,p,l,a,n,x] = pat p l a n x
+exec (NAT 2)     [_,z,p,x]     = case nat x of 0 -> z; n -> p % NAT (n-1)
+exec (NAT 3)     [_,x]         = NAT (nat x + 1)
+exec (NAT 4)     [_,x]         = PIN (force x)
+exec f           e             = error $ show ("crash", (f:e))
 
 
 -- Some Examples ---------------------------------------------------------------
@@ -59,14 +63,16 @@ instance Show Val where
     show (NAT n)     = show n
 
 cnst=(0 % 0 % 2 % 1)
+identity=(0 % 0 % 1 % 1)
 appHead=(1 % 0 % 0 % cnst % 0)
 toNat=(2 % 0 % 3)
 mkPin=4
 mkLaw=0
 inc=3
+dec=(2 % 0 % identity)
 
 main = do
-    -- increment, make pins and laws
+    -- increment, make a law, make a pin
     print (inc % 4)
     print (mkLaw % 1 % 2 % 3)
     print (mkPin % (3 % 4))
@@ -75,14 +81,20 @@ main = do
     print (toNat % 9)
     print (toNat % (4 % 9))
 
+    -- pattern match on PLAN values
+    print (1 % 1 % 0 % 0 % 0 % (4%2))
+    print (1 % 0 % 1 % 0 % 0 % (0%2%3%4))
+    print (1 % 0 % 0 % 1 % 0 % (2%3))
+    print (1 % 0 % 0 % 0 % 1 % 2)
+
     -- zero-argument law
     print (0 % 0 % 0 % 1)
 
     -- select finite part of infinite value
     print (appHead % (0 % 0 % 0 % (0 % 1 % 0)))
 
-    -- pattern match
-    print (1 % 1 % 0 % 0 % 0 % (4%4))
-    print (1 % 0 % 1 % 0 % 0 % (0%1%2%3))
-    print (1 % 0 % 0 % 1 % 0 % (1%2))
-    print (1 % 0 % 0 % 0 % 1 % 9)
+    -- running pins:
+    print ( (4%0) % 1 % 2 % 0 )
+    print ( (4%(0%1)) % 2 % 0 )
+    print ( (4%(0%1%2%0)) % 3 % 4)
+    print ( (4%(4%(0%1%2%0))) % 3 % 4)
