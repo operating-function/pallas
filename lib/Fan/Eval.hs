@@ -836,17 +836,13 @@ appN xs =
                           appN $ createSmallArray (xtr+1) hed \buf -> do
                                      copySmallArray buf 1 xs need xtr
 
-cow :: Nat -> Fan
-cow 0 = ROW mempty
-cow n = COw n -- never zero
-
 execFrame :: SmallArray Fan -> Fan
 execFrame buf =
     let x = buf^0 in
     case x of
         FUN l -> executeLaw x l.code l.code buf
         PIN p -> p.exec buf
-        ROW v -> cow (fromIntegral $ length v)
+        ROW v -> mkCow (fromIntegral $ length v)
         KLO{} -> error "Invalid stack frame, closure as head"
         NAT n -> execNat n buf
         BAR b -> if null b then buf^1 else NAT (barBody b)
