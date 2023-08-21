@@ -48,8 +48,8 @@ main = colorsOnlyInTerminal do
     pure ()
     -- langTest ".sire" (let ?rexColors = NoColors in goldenSire vSrc vPrp vGen vEnv)
 
-cab :: Nat
-cab = utf8Nat "_"
+set :: Nat
+set = utf8Nat "_"
 
 {-
 goldenSire
@@ -72,7 +72,7 @@ goldenSire vSrc vPrp vGen vEnv pax = do
     end :: Handle -> IO ()
     end h = do
            env <- readIORef vEnv
-           pln <- pure $ fromMaybe (NAT 0) ((.val) <$> lookup cab env)
+           pln <- pure $ fromMaybe (NAT 0) ((.val) <$> lookup set env)
            has <- mkPin' pln <&> (.hash)
 
            Loot.printValue h False (Just $ utf8Nat "_") pln

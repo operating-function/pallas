@@ -24,14 +24,14 @@
 
 """ Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (fromSingletonCab opt bad gud)
-| if (neq 1 | cabLen opt) bad
-| **gud (cabMin opt)
+= (fromSingletonSet opt bad gud)
+| if (neq 1 | setLen opt) bad
+| **gud (setMin opt)
 
 
 """ Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-;; for v0, all trees are Tabs and Cabs, not hitch stuff. doing all the hitch
+;; for v0, all trees are Tabs and Sets, not hitch stuff. doing all the hitch
 ;; stuff will require adding a `Multimap a b c -> Map a (Map b (MapSet c))`
 ;; typw.
 
@@ -51,7 +51,7 @@
 
 ;; The toplevel DB type.
 ;;
-;; for v0, all tables are (Tab Any (Tab Any (Cab Any))).
+;; for v0, all tables are (Tab Any (Tab Any (Set Any))).
 # record Db
 | DB
 * eav    : Any
@@ -67,26 +67,26 @@
 ; only usable for tuples which end in [v] (eav, aev)
 @ (alterEndVal c in)
     | SOME
-    : cab <- **maybeCase in (cabSing c)
-    | if many | cabIns c cab
-    | cabSing c
+    : set <- **maybeCase in (setSing c)
+    | if many | setIns c set
+    | setSing c
 ; only usable for tuples whose middle is not v (eav, aev)
 @ (alterNotVal b c in)
     | SOME
     : tab
         < **maybeCase in
-        | tabSing b (cabSing c)
+        | tabSing b (setSing c)
     | tabAlter (alterEndVal c) b tab
 ; only usable for tuples whose middle IS v (ave)
 @ (alterEndNonV c in)
     | SOME
-    : cab <- **maybeCase in (cabSing c)
-    | cabIns c cab
+    : set <- **maybeCase in (setSing c)
+    | setIns c set
 ; only usable for tuples whose middle IS v (ave)
 @ (alterMiddleEndNonV b c in)
     | SOME
     : tab < **maybeCase in
-          | tabSing b (cabSing c)
+          | tabSing b (setSing c)
     | tabAlter (alterEndNonV c) b tab
 @ eav | tabAlter (alterNotVal a v) e eav
 @ aev | tabAlter (alterNotVal e v) a aev
@@ -103,9 +103,9 @@
 = (rawRm e a v db)
 @ DB(..) db
 @ (alter2 c in)
-    : cab <- **maybeCase in NONE
-    @ rmed | cabDel c cab
-    | if (cabIsEmpty rmed) NONE
+    : set <- **maybeCase in NONE
+    @ rmed | setDel c set
+    | if (setIsEmpty rmed) NONE
     | SOME rmed
 @ (alter b c in)
     : tab <- **maybeCase in NONE
@@ -201,38 +201,38 @@ db
 ++ maxEid
 ++ | DB eav aev ave vae (inc maxEid)
 
-= (singletonCabDefault opt missing next)
+= (singletonSetDefault opt missing next)
 | **next
-| if (neq 1 | cabLen opt) missing
-| cabMin opt
+| if (neq 1 | setLen opt) missing
+| setMin opt
 
 ; Internal functions on
-> Nat > Nat > Db > Cab Any
+> Nat > Nat > Db > Set Any
 = (lookupByEidAid eid aid db)
 @ DB(..) db
-: av <- **maybeCase (tabLookup eid eav) %[] ; result is cab
-: v  <- **maybeCase (tabLookup aid av) %[]  ; result is cab
+: av <- **maybeCase (tabLookup eid eav) %[] ; result is set
+: v  <- **maybeCase (tabLookup aid av) %[]  ; result is set
 | v
 
-> Nat > Nat > Db > Cab Any
+> Nat > Nat > Db > Set Any
 = (lookupByAidEid aid eid db)
 @ DB(..) db
-: ev <- **maybeCase (tabLookup aid aev) %[]  ; result is cab
-: v  <- **maybeCase (tabLookup eid ev) %[]   ; result is cab
+: ev <- **maybeCase (tabLookup aid aev) %[]  ; result is set
+: v  <- **maybeCase (tabLookup eid ev) %[]   ; result is set
 | v
 
-> Nat > Nat > Db > Cab Nat
+> Nat > Nat > Db > Set Nat
 = (lookupByAidV aid val db)
 @ DB(..) db
-: ve <- **maybeCase (tabLookup aid ave) %[] ; result is cab
-: e  <- **maybeCase (tabLookup val ve) %[]  ; result is cab
+: ve <- **maybeCase (tabLookup aid ave) %[] ; result is set
+: e  <- **maybeCase (tabLookup val ve) %[]  ; result is set
 | e
 
-> Any > Nat > Db > Cab Nat
+> Any > Nat > Db > Set Nat
 = (lookupByVAid val aid db)
 @ DB(..) db
-: ae <- **maybeCase (tabLookup val vae) %[] ; result is cab
-: e  <- **maybeCase (tabLookup aid ae) %[]  ; result is cab
+: ae <- **maybeCase (tabLookup val vae) %[] ; result is set
+: e  <- **maybeCase (tabLookup aid ae) %[]  ; result is set
 e
 
 ; Given a user level attribute name, translate that to a numeric attribute
@@ -242,49 +242,49 @@ e
 > Str > Db > Either Error [Nat Bit Bit Bit Bit]
 = (resolveAttrName attrName db)
 ;| trk [%resolve attrName]
-@ attrsCab | lookupByAidV dbIdentId attrName db
+@ attrsSet | lookupByAidV dbIdentId attrName db
 : attrEid
-    < **fromSingletonCab attrsCab
+    < **fromSingletonSet attrsSet
     | LEFT | **LOOKUP_NO_ATTRIBUTE attrName
 @ isIndex
     @ attrIndexed | lookupByAidEid dbIndexedId attrEid db
-    : indexed <- **singletonCabDefault attrIndexed FALSE
+    : indexed <- **singletonSetDefault attrIndexed FALSE
     indexed
 @ isUnique
     @ attrUniq    | lookupByAidEid dbUniqueId attrEid db
-    : uniq    <- **singletonCabDefault attrUniq FALSE
+    : uniq    <- **singletonSetDefault attrUniq FALSE
     uniq
 @ isMany
     @ attrMany | lookupByAidEid dbCardinalityId attrEid db
-    : many <- **singletonCabDefault attrMany "many"
+    : many <- **singletonSetDefault attrMany "many"
     # switch many
     * one  FALSE
     * many TRUE
     * _    | 'unknown many value: ' many
 @ isRef
     @ attrValType | lookupByAidEid dbValueTypeId attrEid db
-    : t <- **singletonCabDefault attrValType "any"
+    : t <- **singletonSetDefault attrValType "any"
     # switch t
     * ref TRUE
     * _   FALSE
 | RIGHT [attrEid isIndex isUnique isMany isRef]
 
 ; User level manual lookup
-> Nat > Any > Db > Cab Any
+> Nat > Any > Db > Set Any
 = (lookupByEA eid attr db)
 : aid
-    < **fromSingletonCab (lookupByAidV dbIdentId attr db)
+    < **fromSingletonSet (lookupByAidV dbIdentId attr db)
     | 'unknown attr' attr
 | lookupByEidAid eid aid db
 
-> Any > Nat > Db > Cab Any
+> Any > Nat > Db > Set Any
 = (lookupByAE attr eid db)
 : aid
-    < **fromSingletonCab (lookupByAidV dbIdentId attr db)
+    < **fromSingletonSet (lookupByAidV dbIdentId attr db)
     | 'unknown attr' attr
 | lookupByAidEid aid eid db
 
-> Any > Any > Db > Cab Nat
+> Any > Any > Db > Set Nat
 = (lookupByAV attr val db)
 # datacase (resolveAttrName attr db)
 * (LEFT errs) | 'could not lookup. errors: ' errs
@@ -293,7 +293,7 @@ e
         | 'cannot lookup unindexed attr/val' attr
     | lookupByAidV aid val db
 
-> Any > Any > Db > Cab Nat
+> Any > Any > Db > Set Nat
 = (lookupByVA val attr db)
 # datacase (resolveAttrName attr db)
 * (LEFT errs)
@@ -303,15 +303,15 @@ e
         | 'cannot lookup non-ref values' attr
     | lookupByVAid val aid db
 
-> Any > Any > Nat > Db > Cab Nat
+> Any > Any > Nat > Db > Set Nat
 = (lookupByIdentA identAttr identVal attr db)
 # datacase | resolveAttrName identAttr db
 * (LEFT err)
     | 'could not lookup. error: ' err
 * (RIGHT [aid _ unique _])
     | ifNot unique | 'cannot lookup unindexed attribute ' identAttr
-    @ eidCab | lookupByAidV aid identVal db
-    : eid <- **fromSingletonCab eidCab | 'invalid eid for aid?! ' aid
+    @ eidSet | lookupByAidV aid identVal db
+    : eid <- **fromSingletonSet eidSet | 'invalid eid for aid?! ' aid
     | lookupByEA eid attr db
 
 """ User Transact Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -326,10 +326,10 @@ e
     | ifNot unique
         | LEFT | **LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
     @ eids | lookupByAidV aid val db
-    @ l | cabLen eids
+    @ l | setLen eids
     | if (isZero l)
         | LEFT | **LOOKUP_NO_MATCH attrName val
-    | RIGHT | cabMin eids
+    | RIGHT | setMin eids
 
 ; Immediately resolves an entity to a numeric entity id.
 ;
@@ -346,12 +346,12 @@ e
     # datacase | performLookup (idx 0 i) (idx 1 i) db
     * (LEFT l)    | LEFT l
     * (RIGHT eid) | RIGHT [eid txnTmpIds db]
-; temporarily, we're going to wrap temporary identifiers in cabs for ease of
+; temporarily, we're going to wrap temporary identifiers in sets for ease of
 ; typing
-| if | rowAnd ++ isCab i
-              ++ eql 1 | cabLen i
-              ++ isNat | cabMin i
-    @ val | cabMin i
+| if | rowAnd ++ isSet i
+              ++ eql 1 | setLen i
+              ++ isNat | setMin i
+    @ val | setMin i
     : eid
         < maybeCase (tabLookup val txnTmpIds)
         @ [eid db] | allocEntity db
@@ -395,7 +395,7 @@ e
     | if isRef
       ; TODO: This is super complex code. It's ugly, it's long, and I don't
       ; know how to effectively factor this in sire.
-      | if (rowAnd [isMany (not | isCab vVal) (isRow vVal)])
+      | if (rowAnd [isMany (not | isSet vVal) (isRow vVal)])
         ; we have a list here, each value needs to be treated as a map form.
         @ [suberrs subactions subeids txnTmpIds db]
           ^ foldl _ [NIL NIL NIL txnTmpIds db] vVal
@@ -423,7 +423,7 @@ e
         ++ (listWeld newActions | listWeld subactions actions)
         ++ txnTmpIds
         ++ db
-      | if ((isTab vVal) && (not | isCab vVal))
+      | if ((isTab vVal) && (not | isSet vVal))
         @ [mybEid suberrs subactions txnTmpIds db]
           | parseMapForm txnTmpIds db vVal
         : subeid <- **maybeCase mybEid
@@ -558,11 +558,11 @@ e
             [errs (rawAdd eid aid val writeAve many isRef db)]
         ;
         ; check for uniqueness violations.
-        @ oldEidCab | lookupByAidV aid val db
-        | if (cabIsEmpty oldEidCab)
+        @ oldEidSet | lookupByAidV aid val db
+        | if (setIsEmpty oldEidSet)
             ; no previous value
             [errs (rawAdd eid aid val writeAve many isRef db)]
-        ++ | CONS (UNIQUE_VIOLATION attrName val (cabMin oldEidCab) eid) errs
+        ++ | CONS (UNIQUE_VIOLATION attrName val (setMin oldEidSet) eid) errs
         ++ db
     * (ACTRM eid attr val)
         [errs (rawRm eid attr val db)]
@@ -656,24 +656,24 @@ e
 
 > Db
 > Nat
-> Either Error [Str (Cab Any) [Bit Bit Bit Bit]]
+> Either Error [Str (Set Any) [Bit Bit Bit Bit]]
 = (lookupAttr db eid expr)
 ;
-@ (handleOptions name options attrType rawCab)
+@ (handleOptions name options attrType rawSet)
   @ outputKey | fromSome name | tabLookup ":as" options
-  ; TODO: handle limits in rawCab.
-  | RIGHT [outputKey rawCab attrType]
+  ; TODO: handle limits in rawSet.
+  | RIGHT [outputKey rawSet attrType]
 # datacase expr
 * (ATTR_EXPR name options)
     : [aid indexed unique isMany isRef] <- doRight | resolveAttrName name db
-    @ rawCab | lookupByEidAid eid aid db
-    | handleOptions name options [indexed unique isMany isRef] rawCab
+    @ rawSet | lookupByEidAid eid aid db
+    | handleOptions name options [indexed unique isMany isRef] rawSet
 * (ATTR_BACKWARDS name options)
     : [aid indexed unique isMany isRef] <- doRight | resolveAttrName name db
-    @ rawCab | lookupByVAid eid aid db
-    | handleOptions name options [indexed unique isMany isRef] rawCab
+    @ rawSet | lookupByVAid eid aid db
+    | handleOptions name options [indexed unique isMany isRef] rawSet
 * (ATTR_EID options)
-    | handleOptions dbIdStr options [TRUE TRUE FALSE TRUE] (cabSing eid)
+    | handleOptions dbIdStr options [TRUE TRUE FALSE TRUE] (setSing eid)
 
 > Nat
 > Db
@@ -686,15 +686,15 @@ e
     ; recursively, which is hard. We need to already have individual
     | 'pull wildcard unimplemented' 0
 * (PULL_ATTR expr)
-    : [outputKey cab [indexed unique isMany isRef]]
+    : [outputKey set [indexed unique isMany isRef]]
         < doRight | lookupAttr db eid expr
-    | if | cabIsEmpty cab
+    | if | setIsEmpty set
         | trk [%empty]
         | RIGHT []
     | if isMany
-        | RIGHT [outputKey (cabToRow cab)]
+        | RIGHT [outputKey (setToRow set)]
     ;
-    | RIGHT [outputKey (cabMin cab)]
+    | RIGHT [outputKey (setMin set)]
 * (PULL_MAP spec)
     ; Need to process the map here. This is a key from a eid ref to all the
     ; values which match it.
@@ -702,11 +702,11 @@ e
         < collectErrors
         ^ map _ spec
         & ([k v])
-        : [outputKey cab [indexed unique isMany isRef]]
+        : [outputKey set [indexed unique isMany isRef]]
             < doRight | lookupAttr db eid k
         : result
             < collectErrors
-            ^ map _ | cabToRow cab
+            ^ map _ | setToRow set
             ? (lookupSubEid subeid)
             : result
                 < collectErrors
@@ -757,7 +757,7 @@ e
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
-^-^ fromSingletonCab
+^-^ fromSingletonSet
 ^-^
 ^-^ UNIQUE_VIOLATION LOOKUP_NO_ATTRIBUTE LOOKUP_ATTRIBUTE_NOT_UNIQUE
 ^-^ LOOKUP_NO_MATCH INVALID_ROW INVALID_ROW_OP BAD_MAP_VAL BAD_PULL_TERM

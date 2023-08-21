@@ -119,7 +119,7 @@ fanHash top =
             c_blake3_hasher_update_word h (fromIntegral $ length v)
             traverse_ (go h) v
 
-        CAB v -> do
+        SET v -> do
             c_blake3_hasher_update_byte h 7
             c_blake3_hasher_update_word h (fromIntegral $ S.size v)
             traverse_ (go h) (S.toAscList v)

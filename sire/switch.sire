@@ -35,7 +35,7 @@
 | if (eql ryn "%")
         @ [kid] kids
         | if (neq 1 len-kids)      | err rex cenOneKid
-        | if (eql "," rexRune-kid) | err rex "TODO: Support cab and tab literals"
+        | if (eql "," rexRune-kid) | err rex "TODO: Support set and tab literals"
         | rexGetWord kid (err rex cenWord)
         & (text heir)
         | if (neq 0 heir) (err rex cenWord)
@@ -54,9 +54,9 @@
 !!= [%x]      | try ``(%x)
 !!= [[%x %y]] | try ``['x' 'y']
 
-= (readSwitchPat pat err cab lit)
+= (readSwitchPat pat err set lit)
 | if (and (eql "_" rexText-pat) (eql %WORD rexStyle-pat))
-        | cab
+        | set
 | readFanLit pat err lit
 
 = rnNumb | "Invalid number literal"

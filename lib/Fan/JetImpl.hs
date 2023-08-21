@@ -142,21 +142,21 @@ jetImpls = mapFromList
   , ( "natBar"      , natBarJet  )
   , ( "barNat"      , barNatJet )
   , ( "barIsEmpty"  , barIsEmptyJet )
-  , ( "cabSing"     , cabSingletonJet )
-  , ( "cabIns"      , cabInsJet  )
-  , ( "cabDel"      , cabDelJet  )
-  , ( "cabMin"      , cabMinJet  )
-  , ( "cabLen"      , cabLenJet  )
-  , ( "cabWeld"     , cabWeldJet )
-  , ( "cabCatRowAsc", cabCatRowAscJet )
-  , ( "cabHas"      , cabHasJet  )
-  , ( "cabTake"     , cabTakeJet )
-  , ( "cabDrop"     , cabDropJet )
-  , ( "cabIsEmpty"  , cabIsEmptyJet )
-  , ( "cabSplitAt"  , cabSplitAtJet )
-  , ( "cabSplitLT"  , cabSplitLTJet )
-  , ( "cabIntersect", cabIntersectionJet )
-  , ( "cabSub"      , cabSubJet )
+  , ( "setSing"     , setSingletonJet )
+  , ( "setIns"      , setInsJet  )
+  , ( "setDel"      , setDelJet  )
+  , ( "setMin"      , setMinJet  )
+  , ( "setLen"      , setLenJet  )
+  , ( "setWeld"     , setWeldJet )
+  , ( "setCatRowAsc", setCatRowAscJet )
+  , ( "setHas"      , setHasJet  )
+  , ( "setTake"     , setTakeJet )
+  , ( "setDrop"     , setDropJet )
+  , ( "setIsEmpty"  , setIsEmptyJet )
+  , ( "setSplitAt"  , setSplitAtJet )
+  , ( "setSplitLT"  , setSplitLTJet )
+  , ( "setIntersect", setIntersectionJet )
+  , ( "setSub"      , setSubJet )
   , ( "tabSwitch"   , tabSwitchJet    )
   , ( "tabSing"     , tabSingletonJet )
   , ( "isTab"       , isTabJet )
@@ -176,7 +176,7 @@ jetImpls = mapFromList
   , ( "tabFoldlWithKey" , tabFoldlWithKeyJet )
   , ( "tabAlter"    , tabAlterJet )
   , ( "_TabHas"      , tabHasKeyJet )
-  , ( "_TabKeys"  , tabKeysCabJet )
+  , ( "_TabKeys"  , tabKeysSetJet )
   , ( "_TabKeysRow"  , tabKeysRowJet )
   , ( "_TabVals"     , tabValsJet )
   , ( "blake3"      , blake3Jet )
@@ -452,7 +452,7 @@ fanLength = \case
     TAb{}   -> 1 -- always (keys args)
     NAT{}   -> 0
     BAR{}   -> 0
-    CAB{}   -> 0
+    SET{}   -> 0
     FUN{}   -> 0
     REX{}   -> 0
     PIN{}   -> 0
@@ -746,125 +746,125 @@ blake3Jet f e =
             res <- BS.packCStringLen (outbuf, 32)
             pure (BAR res)
 
-cabSingletonJet :: Jet
-cabSingletonJet _ e = CAB $ S.singleton (e^1)
+setSingletonJet :: Jet
+setSingletonJet _ e = SET $ S.singleton (e^1)
 
-cabInsJet :: Jet
-cabInsJet f e =
-    orExecTrace "cabIns" (f e) (i (e^1) <$> getCab (e^2))
+setInsJet :: Jet
+setInsJet f e =
+    orExecTrace "setIns" (f e) (i (e^1) <$> getSet (e^2))
   where
     i :: Fan -> Set Fan -> Fan
-    i n s = CAB (S.insert n s)
+    i n s = SET (S.insert n s)
 
-cabDelJet :: Jet
-cabDelJet f e =
-    orExecTrace "cabDel" (f e) (d (e^1) <$> getCab (e^2))
+setDelJet :: Jet
+setDelJet f e =
+    orExecTrace "setDel" (f e) (d (e^1) <$> getSet (e^2))
   where
     d :: Fan -> Set Fan -> Fan
-    d n s = CAB (S.delete n s)
+    d n s = SET (S.delete n s)
 
-cabMinJet :: Jet
-cabMinJet f e =
-    orExecTrace "cabMin" (f e) (smin <$> getCab (e^1))
+setMinJet :: Jet
+setMinJet f e =
+    orExecTrace "setMin" (f e) (smin <$> getSet (e^1))
   where
     smin :: Set Fan -> Fan
     smin s = case S.lookupMin s of
       Nothing -> NAT 0
       Just m  -> m
 
-cabLenJet :: Jet
-cabLenJet f e =
-    orExecTrace "cabLen" (f e) (clen <$> getCab (e^1))
+setLenJet :: Jet
+setLenJet f e =
+    orExecTrace "setLen" (f e) (clen <$> getSet (e^1))
   where
     clen :: Set Fan -> Fan
     clen = NAT . fromIntegral . S.size
 
-cabWeldJet :: Jet
-cabWeldJet f e =
-    orExecTrace "cabWeld" (f e) (u <$> getCab (e^1) <*> getCab (e^2))
+setWeldJet :: Jet
+setWeldJet f e =
+    orExecTrace "setWeld" (f e) (u <$> getSet (e^1) <*> getSet (e^2))
   where
     u :: Set Fan -> Set Fan -> Fan
-    u a b = CAB (S.union a b)
+    u a b = SET (S.union a b)
 
-cabCatRowAscJet :: Jet
-cabCatRowAscJet f e = orExecTrace "cabCatRowAsc" (f e) do
+setCatRowAscJet :: Jet
+setCatRowAscJet f e = orExecTrace "setCatRowAsc" (f e) do
   r <- getRow (e^1)
-  cabs <- filter (not . S.null) <$> traverse getCab r
-  guard (isAsc $ V.toList cabs)
-  pure $ CAB $ S.fromDistinctAscList $ concat $ map toList cabs
+  sets <- filter (not . S.null) <$> traverse getSet r
+  guard (isAsc $ V.toList sets)
+  pure $ SET $ S.fromDistinctAscList $ concat $ map toList sets
   where
     isAsc []       = True
     isAsc [_]      = True
     isAsc (x:y:zs) = (S.findMax x < S.findMin y) && isAsc (y:zs)
 
 
-cabHasJet :: Jet
-cabHasJet f e =
-    orExecTrace "cabHas" (f e) (has (e^1) <$> getCab (e^2))
+setHasJet :: Jet
+setHasJet f e =
+    orExecTrace "setHas" (f e) (has (e^1) <$> getSet (e^2))
   where
     has :: Fan -> Set Fan -> Fan
     has n s = fromBit $ S.member n s
 
-cabTakeJet :: Jet
-cabTakeJet f e =
-    orExecTrace "cabTake" (f e) (doTake (toNat(e^1)) <$> getCab (e^2))
+setTakeJet :: Jet
+setTakeJet f e =
+    orExecTrace "setTake" (f e) (doTake (toNat(e^1)) <$> getSet (e^2))
   where
     doTake :: Nat -> Set Fan -> Fan
-    doTake n s = CAB (S.take (fromIntegral n) s)
+    doTake n s = SET (S.take (fromIntegral n) s)
 
-cabDropJet :: Jet
-cabDropJet f e =
-    orExecTrace "cabDrop" (f e) (doDrop (toNat(e^1)) <$> getCab (e^2))
+setDropJet :: Jet
+setDropJet f e =
+    orExecTrace "setDrop" (f e) (doDrop (toNat(e^1)) <$> getSet (e^2))
   where
     doDrop :: Nat -> Set Fan -> Fan
-    doDrop n s = CAB (S.drop (fromIntegral n) s)
+    doDrop n s = SET (S.drop (fromIntegral n) s)
 
-cabIsEmptyJet :: Jet
-cabIsEmptyJet f e =
-    orExecTrace "cabIsEmpty" (f e) (doIs <$> getCab (e^1))
+setIsEmptyJet :: Jet
+setIsEmptyJet f e =
+    orExecTrace "setIsEmpty" (f e) (doIs <$> getSet (e^1))
   where
     doIs :: Set Fan -> Fan
     doIs s = fromBit $ S.null s
 
-cabSplitAtJet :: Jet
-cabSplitAtJet f e =
-    orExecTrace "cabSplitAt" (f e)
-                (doSplitAt (toNat(e^1)) <$> getCab (e^2))
+setSplitAtJet :: Jet
+setSplitAtJet f e =
+    orExecTrace "setSplitAt" (f e)
+                (doSplitAt (toNat(e^1)) <$> getSet (e^2))
   where
     doSplitAt :: Nat -> Set Fan -> Fan
     doSplitAt n s = let (a, b) = S.splitAt (fromIntegral n) s
-                    in ROW $ V.fromList [CAB a, CAB b]
+                    in ROW $ V.fromList [SET a, SET b]
 
-cabSplitLTJet :: Jet
-cabSplitLTJet f e =
-    orExecTrace "cabSplitLT" (f e)
-                (doSplitLT (e^1) <$> getCab (e^2))
+setSplitLTJet :: Jet
+setSplitLTJet f e =
+    orExecTrace "setSplitLT" (f e)
+                (doSplitLT (e^1) <$> getSet (e^2))
   where
     doSplitLT :: Fan -> Set Fan -> Fan
     doSplitLT n s = let (a, b) = S.spanAntitone (< n) s
-                    in ROW $ V.fromList [CAB a, CAB b]
+                    in ROW $ V.fromList [SET a, SET b]
 
-cabIntersectionJet :: Jet
-cabIntersectionJet f e =
-    orExecTrace "cabIntersection" (f e)
-                (doIntersection <$> getCab (e^1) <*> getCab (e^2))
+setIntersectionJet :: Jet
+setIntersectionJet f e =
+    orExecTrace "setIntersection" (f e)
+                (doIntersection <$> getSet (e^1) <*> getSet (e^2))
   where
     doIntersection :: Set Fan -> Set Fan -> Fan
-    doIntersection a b = CAB (S.intersection a b)
+    doIntersection a b = SET (S.intersection a b)
 
-cabSubJet :: Jet
-cabSubJet f e =
-    orExecTrace "cabSub" (f e)
-                (doDifference <$> getCab (e^1) <*> getCab (e^2))
+setSubJet :: Jet
+setSubJet f e =
+    orExecTrace "setSub" (f e)
+                (doDifference <$> getSet (e^1) <*> getSet (e^2))
   where
     doDifference :: Set Fan -> Set Fan -> Fan
-    doDifference a b = CAB (S.difference a b)
+    doDifference a b = SET (S.difference a b)
 
 tabSingletonJet :: Jet
 tabSingletonJet _ e = TAb $ M.singleton (e^1) (e^2)
 
--- An empty cab is a tab, but the runtime always makes sure to represent
--- empty cabs as tabs.
+-- An empty set is a tab, but the runtime always makes sure to represent
+-- empty sets as tabs.
 isTabJet :: Jet
 isTabJet _ e =
     case (e^1) of
@@ -1055,11 +1055,11 @@ tabKeysRowJet f e = orExecTrace "_TabKeysRow" (f e) (tk <$> getTab(e^1))
     tk :: Map Fan Fan -> Fan
     tk = ROW . V.fromList . M.keys
 
-tabKeysCabJet :: Jet
-tabKeysCabJet f e = orExecTrace "_TabKeys" (f e) (tk <$> getTab(e^1))
+tabKeysSetJet :: Jet
+tabKeysSetJet f e = orExecTrace "_TabKeys" (f e) (tk <$> getTab(e^1))
   where
     tk :: Map Fan Fan -> Fan
-    tk = CAB . M.keysSet
+    tk = SET . M.keysSet
 
 tabValsJet :: Jet
 tabValsJet f e = orExecTrace "tabVals" (f e) (tv <$> getTab(e^1))
@@ -1078,7 +1078,7 @@ typeTagJet _ e =
         ROW{} -> 5
         TAb{} -> 6
         COw{} -> 7
-        CAB{} -> 8
+        SET{} -> 8
         REX{} -> 1 -- law (TODO: update this when repr changes)
 
 {-
@@ -1098,7 +1098,7 @@ dataTagJet _ e =
         FUN{} -> 0 -- law
         BAR{} -> 0 -- law
         COw{} -> 0 -- law
-        CAB{} -> 0 -- law
+        SET{} -> 0 -- law
         REX{} -> 0 -- law (TODO: update this when repr changes)
         NAT{} -> v
 
@@ -1242,9 +1242,9 @@ getBar :: Fan -> Maybe ByteString
 getBar (BAR b) = Just b
 getBar _       = Nothing
 
-getCab :: Fan -> Maybe (Set Fan)
-getCab (CAB c) = Just c
-getCab _       = Nothing
+getSet :: Fan -> Maybe (Set Fan)
+getSet (SET c) = Just c
+getSet _       = Nothing
 
 getTab :: Fan -> Maybe (Map Fan Fan)
 getTab (TAb b) = Just b

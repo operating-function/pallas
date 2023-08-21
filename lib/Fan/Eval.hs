@@ -51,7 +51,7 @@ module Fan.Eval
     , trkName
     , loadPinFromBlob
     , tabValsRow
-    , cabToRow
+    , setToRow
     , lawName
     , lawArgs
     , lawBody
@@ -168,7 +168,7 @@ normalize top =
         PIN !_ -> tp
         FUN !_ -> tp
         COw !_ -> tp
-        CAB !_ -> tp
+        SET !_ -> tp
         REX r  -> REX (go <$> r)
         ROW r  -> ROW (go <$> r)
         TAb t  -> TAb (go <$> t)
@@ -223,7 +223,7 @@ instance Eq Fan where
     BAR b   == BAR d   = (b==d)
     ROW r   == ROW s   = (r==s)
     TAb t   == TAb u   = (t==u)
-    CAB c   == CAB d   = (c==d)
+    SET c   == SET d   = (c==d)
     COw n   == COw m   = (n==m)
     FUN l   == FUN a   = (l==a)
     v@KLO{} == w@KLO{} = (kloWalk v == kloWalk w)
@@ -282,10 +282,10 @@ instance Ord Fan where
             FUN{}   -> [f]
             BAR{}   -> [f]
             PIN{}   -> [f]
-            CAB{}   -> [f]
+            SET{}   -> [f]
             COw{}   -> [f]
             REX{}   -> [f]
-            TAb t   -> [CAB (keysSet t), ROW (fromList $ toList t)]
+            TAb t   -> [SET (keysSet t), ROW (fromList $ toList t)]
             ROW r   -> if null r then [f] else COw (nat(length r)) : reverse (toList r) -- COw here is never empty
             KLO _ k -> toList k
 
@@ -302,7 +302,7 @@ lawName = \case
     BAR{} -> 1
     ROW{} -> 0
     TAb{} -> 0
-    CAB{} -> 1
+    SET{} -> 1
     COw{} -> 0
     REX{} -> "_Rex"
 
@@ -314,21 +314,21 @@ lawArgs = \case
     BAR{} -> 1
     COw c -> c+1
     ROW r -> if null r then 1 else 0 -- Only a law if empty
-    CAB{} -> 2
+    SET{} -> 2
     REX{} -> 1
     TAb{} -> 0 -- Not a function
     KLO{} -> 0 -- Not a function
     NAT{} -> 0 -- Not a function
 
-cabToRow :: Set Fan -> Fan
-cabToRow cab = ROW $ V.fromListN (length cab) $ S.toAscList cab
+setToRow :: Set Fan -> Fan
+setToRow set = ROW $ V.fromListN (length set) $ S.toAscList set
 
 {-# INLINE lawBody #-}
 lawBody :: Fan -> Fan
 lawBody = \case
     FUN l -> l.body
     BAR b -> NAT (barBody b)
-    CAB k -> cabToRow k
+    SET k -> setToRow k
     REX r -> rexNoun r
     COw{} -> NAT 0 -- Actual law body is 0
     ROW{} -> NAT 0 -- Actual law body is 0
@@ -383,11 +383,11 @@ boom = \case
                  )
 
     TAb tab ->
-        ( CAB $ M.keysSet tab
+        ( SET $ M.keysSet tab
         , ROW $ V.fromListN (length tab) $ toList tab
         )
 
-    CAB ks ->
+    SET ks ->
         rul (LN 1) 2 (ROW $ fromList $ S.toAscList ks)
 
     REX rex ->
@@ -487,7 +487,7 @@ instance Show Fan where
     show (COw n)   = "R" <> show n
     show (ROW v)   = "(ROW " <> show v <> ")"
     show (TAb t)   = "(TAB " <> show (showTab t) <> ")"
-    show (CAB k)   = "(CAB " <> show (toList k) <> ")"
+    show (SET k)   = "(SET " <> show (toList k) <> ")"
     show (BAR b)   = "(BAR " <> show b <> ")"
     show (REX _)   = "(REX _)" -- TODO
 
@@ -529,7 +529,7 @@ trueArity :: Fan -> Nat
 trueArity = \case
     COw 0          -> error "Should be jet matched as V0"
     COw n          -> succ $ fromIntegral n
-    CAB{}          -> 2
+    SET{}          -> 2
     KLO _ xs       -> trueArity (xs^0) - fromIntegral (sizeofSmallArray xs - 1)
     FUN l          -> l.args
     NAT n          -> natArity n
@@ -554,7 +554,7 @@ evalArity (NAT n) = case n of NatS# 0## -> 3
                               _         -> 1
 evalArity (KLO r _) = r
 evalArity (PIN p)   = natToArity p.args
-evalArity (CAB _)   = 1
+evalArity (SET _)   = 1
 evalArity (COw 0)   = error "Should be jet matched as V0"
 evalArity (COw n)   = natToArity n
 evalArity (ROW _)   = 1
@@ -574,7 +574,7 @@ barBody bytes =
 matchData :: LawName -> Nat -> Fan -> Maybe Fan
 matchData (LN 0)          1 (NAT 0) = Just $ ROW mempty
 matchData (LN 0)          n (NAT 0) = Just $ COw (n-1) -- n-1 is never zero
-matchData (LN 1)          2 (ROW v) = matchCab v
+matchData (LN 1)          2 (ROW v) = matchSet v
 matchData (LN 1)          1 (NAT n) = matchBar n
 matchData (LN "_Rex")     1 body    = REX <$> matchRex body
 matchData (LN _)          _ _       = Nothing
@@ -640,13 +640,13 @@ matchRex = \case
     readText (NAT t) = pure (decodeUtf8 $ natBytes t)
     readText _       = Nothing
 
-matchCab :: Vector Fan -> Maybe Fan
-matchCab vs = do
+matchSet :: Vector Fan -> Maybe Fan
+matchSet vs = do
     case toList vs of
-        []   -> Just (CAB mempty)
+        []   -> Just (SET mempty)
         a:es -> collect mempty a es
   where
-    collect !acc i []           = pure (CAB $ insertSet i acc)
+    collect !acc i []           = pure (SET $ insertSet i acc)
     collect !acc i (w:ws) | w>i = collect (insertSet i acc) w ws
     collect _    _ _            = Nothing
 
@@ -692,9 +692,9 @@ highFreqLaws = setFromList
         , "w32", "add32", "mul32", "div32", "and32", "or32", "xor32"
         , "lsh32", "rsh32", "sub32", "ror32", "rol32", "isBar", "barIdx"
         , "barWeld", "barCat", "barFlat", "natBar", "barDrop", "barTake"
-        , "barLen", "barNat", "cabSingleton", "cabIns", "cabDel", "cabMin"
-        , "cabLen", "cabUnion", "cabHas", "cabSplitAt", "cabSplitLT"
-        , "cabIntersection", "tabSingleton", "tabIdx", "tabElem"
+        , "barLen", "barNat", "setSingleton", "setIns", "setDel", "setMin"
+        , "setLen", "setUnion", "setHas", "setSplitAt", "setSplitLT"
+        , "setIntersection", "tabSingleton", "tabIdx", "tabElem"
         , "tabLookup", "tabToPairs", "gth", "gte", "bit", "not", "and"
         , "neq", "isNat"
         ] :: [Nat]
@@ -857,8 +857,8 @@ execFrame buf =
             ROW $ V.generate (fromIntegral n) \i ->
                       (buf ^ (las - i))
 
-        CAB ks ->
-            if sizeofSmallArray buf == 3 -- (cab badVals arg)
+        SET ks ->
+            if sizeofSmallArray buf == 3 -- (set badVals arg)
             then
                 -- This only happens if the first arguments was not a
                 -- valid values-row.  Here we run the actual legal
@@ -981,7 +981,7 @@ wut p l a n = \case
     -- Always a pair
     v@TAb{} -> let (hd,tl) = boom v in app3 a hd tl
 
-    CAB k -> wutCab k
+    SET k -> wutSet k
 
     x@(ROW v) ->
         if null v
@@ -993,7 +993,7 @@ wut p l a n = \case
   where
     wutCow m = app4 l (NAT 0) (NAT (m+1)) (NAT 0)
 
-    wutCab k =
+    wutSet k =
         app4 l (NAT 1) (NAT 2)
           (ROW $ V.fromListN (length k) $ S.toAscList k)
 
@@ -1007,7 +1007,7 @@ wut p l a n = \case
     TAB d -> tabWut d
     BAR b -> rul (LN 1) 1 (AT $ barBody b)
     COw n -> rul (LN 0) (n+1) (AT 0)
-    CAB k -> cabWut k
+    SET k -> setWut k
 -}
 
 {-
@@ -1040,7 +1040,7 @@ showCns v@PIN{}  = cnsName v
 showCns (ROW xs) = "(row " <> intercalate " " (fmap showCns xs) <> ")"
 showCns COw{}    = "COW"
 showCns TAb{}    = "TAB"
-showCns CAB{}    = "CAB"
+showCns SET{}    = "SET"
 showCns BAR{}    = "BAR"
 showCns REX{}    = "REX"
 showCns (NAT n)  = show n
@@ -1372,7 +1372,7 @@ matchConstructors = go
             , Just (name, fun) <- matchPin p op2Table
                 -> go $ OP2 name fun (CNS a) b
 
-        EXE x s (CAB ks) r ->
+        EXE x s (SET ks) r ->
             if sizeofSmallArray r /= 1 then
                 error "TODO: Remove this check, since this should never happen"
             else
@@ -1380,7 +1380,7 @@ matchConstructors = go
                 MK_ROW vs | length vs == length ks ->
                     MK_TAB $ mapFromList $ zip (S.toList ks) (toList vs)
                 _ ->
-                    EXE x s (CAB ks) (go <$> r)
+                    EXE x s (SET ks) (go <$> r)
 
         EXE x s (KLO n e) r ->
             case e^0 of
@@ -1410,7 +1410,7 @@ valCode = \case
     BAR{}     -> execFrame
     TAb{}     -> execFrame
     COw{}     -> execFrame
-    CAB{}     -> execFrame
+    SET{}     -> execFrame
     REX{}     -> execFrame
 
 -- Saturated calls become EXE nodes, undersaturated calls become KLO nodes.

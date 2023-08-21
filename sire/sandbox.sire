@@ -30,14 +30,14 @@
 | or (eql %reap (idx 1 r)) (eql %stop (idx 1 r))
 
 = (findNewCogids reqs resp)
-| cabFromRow
+| setFromRow
 | listToRow
 | listCatMaybes
 | listMap k&(tabLookup k resp)
 | findIdxMany isCogSpin reqs
 
 = (findDeadCogids reqs resp)
-| cabFromRow
+| setFromRow
 | listToRow
 | listCatMaybes
 | listMap
@@ -52,8 +52,8 @@
 = (updateOwnedCogs cogids reqs resp)
 @ add | findNewCogids reqs resp
 @ rm  | findDeadCogids reqs resp
-@ sum | cabUnion add cogids
-| cabDifference sum rm
+@ sum | setUnion add cogids
+| setDifference sum rm
 
 ; Given a response row for a %reap or %stop, assume that the value was
 ; wrapped with `withCogSandbox` and return the wrapped value so that the
@@ -163,7 +163,7 @@
     | ifNot | isCogReapOrStop r
         r
     @ i | idx 2 r
-    | if | cabHas i cogids
+    | if | setHas i cogids
         r
     0
 

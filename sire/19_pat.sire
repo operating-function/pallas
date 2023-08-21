@@ -51,7 +51,7 @@
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld strCat]
-/+  12_cab  [readKey "%"]
+/+  12_set  [readKey "%"]
 /+  13_tab  ["##" tabToPairs tabFromPairs tabIdx tabToList tabIns]
 /+  13_tab  [isTabSugar readWideTabLit]
 /+  14_exp

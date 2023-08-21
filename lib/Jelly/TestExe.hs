@@ -123,7 +123,7 @@ genFanContainer = do
     scale (`div` 2) $ do
         oneof [ F.ROW . fromList <$> arbitrary
               , F.TAb . mapFromList <$> arbitrary
-              , F.CAB . setFromList <$> arbitrary
+              , F.SET . setFromList <$> arbitrary
               ]
 
 instance Arbitrary Nat where

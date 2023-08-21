@@ -72,7 +72,7 @@ data Val a
     | REX (GRex (Val a))
     | COW Nat
     | TAB [(Val a, Val a)]
-    | CAB [Val a]
+    | SET [Val a]
     | BAR ByteString
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
@@ -94,7 +94,7 @@ data XVal
     | XVROW (Vector XVal)
     | XVCOW Nat
     | XVTAB [(XVal, XVal)]
-    | XVCAB [XVal]
+    | XVSET [XVal]
     | XVBAR ByteString
     | XVREX (GRex XVal)
   deriving (Eq, Ord, Show, Generic, NFData)

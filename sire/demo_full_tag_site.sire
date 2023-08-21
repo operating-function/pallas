@@ -168,7 +168,7 @@ typedef#Tag#Str
 ; Set of images from derpibooru where there was a proper non-deleted API
 ; response, but the thumbnail file referenced was non-existent. Handle these as
 ; exceptions.
-> Cab ImgId
+> Set ImgId
 = missingImgs
 %% 79135   918505  3031483 3030628 3028888 3031523 1078315 3017754 500313
 %% 2899504 2460697 2944469 911039  1078318 543877  3032025 2999533 2662803
@@ -207,7 +207,7 @@ typedef#Tag#Str
 
 = (jsonImgToRow jsonBS m)
 @ id | unsafeGetJsonNumber | unsafeTabLookup %id m
-| if (cabHas id missingImgs) NONE
+| if (setHas id missingImgs) NONE
 @ !rawTags
   | strictRow
   | map unsafeGetJsonStr
@@ -220,9 +220,9 @@ typedef#Tag#Str
   | unsafeTabLookup %representations m
 | SOME [id rawTags thumbnailURL]
 
-= (imgRowToTagTabCab [id tags _])
+= (imgRowToTagTabSet [id tags _])
 | tabFromPairs
-| map tag&(barNat tag, cabSing id) tags
+| map tag&(barNat tag, setSing id) tags
 
 = (imgRowToPair imgRow@[id _ _])
 [id imgRow]
@@ -246,8 +246,8 @@ typedef#Tag#Str
   | unsafeGetJsonMap json
 @ !addTags
   | trk %addTags
-  | foldl (tabUnionWith cabUnion) #[]
-  | map imgRowToTagTabCab rows
+  | foldl (tabUnionWith setUnion) #[]
+  | map imgRowToTagTabSet rows
 @ !addImgs
   | tabFromPairs
   | map imgRowToPair rows
@@ -399,14 +399,14 @@ abstype#Image ;; TODO: fix.  What is the real type?
  ## =status   | **buildStatus st
 ;
 @ ids
-  | hsToCab
+  | hsToSet
   | foldr hsIntersection (hsEmpty idsetConfig) idsets
 ;
 ;| trk [%ids ids]
 @ targetIds
-    | cabToList
-    | cabTake 25
-    | cabDrop offset ids
+    | setToList
+    | setTake 25
+    | setDrop offset ids
 @ records
     | listToRow
     ^ (listMapMaybe _ targetIds)
@@ -424,7 +424,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
 | JMAP
 ## =tag      | JSTR b#{OK}
 ## =contents | JMAP
-            ## =total  | JNUM | cabLen ids
+            ## =total  | JNUM | setLen ids
             ## =offset | JNUM | offset
             ## =query  | JVEC | map tagToStr searchTags
             ## =slice  | JVEC | records

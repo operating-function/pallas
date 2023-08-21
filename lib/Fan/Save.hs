@@ -323,8 +323,8 @@ saveFanWorker !ctx !vPins !vTemp !top = do
     --     x
     --     (0 0 3 0 y x)
     --     ((0 0 3) (0 0 3 0 y x))
-    doCab :: Int -> [Fan] -> IO Jelly.CNode
-    doCab len keyz = do
+    doSet :: Int -> [Fan] -> IO Jelly.CNode
+    doSet len keyz = do
         let go acc []     = pure acc
             go acc (x:xs) = do key  <- loop x
                                acc' <- Jelly.c_cons ctx acc key
@@ -371,10 +371,10 @@ saveFanWorker !ctx !vPins !vTemp !top = do
         COw n ->
             doCow n
 
-        CAB ks -> do
+        SET ks -> do
             let wid  = length ks
             let keyz = S.toDescList ks
-            doCab wid keyz
+            doSet wid keyz
 
         -- This needs to have the same behaviors as a head-first traversal
         -- using `boom`.  Rows are represented as
@@ -413,7 +413,7 @@ saveFanWorker !ctx !vPins !vTemp !top = do
 
         --  #[3=4 5=6] = (%[3 5] [4 6])
         TAb tab -> do
-            ks <- doCab (length tab) (fst <$> M.toDescList tab)
+            ks <- doSet (length tab) (fst <$> M.toDescList tab)
             vs <- loop (tabValsRow tab)
             kv <- Jelly.c_cons ctx ks vs
             pure kv

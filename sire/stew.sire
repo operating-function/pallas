@@ -158,7 +158,7 @@
 * ENAT=nat n:Nat
 * EPAD=pad n:Pad
 * EBAR=bar n:Bar
-* ECAB=cab n:(Cab Any)
+* ESET=set n:(Set Any)
 * EOR=or   x:Exp y:Exp
 * EAND=and x:Exp y:Exp
 * EAPP=app x:Exp y:Exp
@@ -203,10 +203,10 @@
 & [key val]
 | SHUT {=} (showKey key, showVal val) 0
 
-= (showCab cab)
+= (showSet set)
 ^ PREF "%" [_] 0
 ^ NEST "," _ 0
-| map showKey (cabToRow cab)
+| map showKey (setToRow set)
 
 > Pat > Rex
 = (showPat p)
@@ -390,7 +390,7 @@
 * (ENAT n)       | WORD showNat-n 0
 * (EPAD p)       | showPadLit p
 * (EBAR b)       | showBarLit b
-* (ECAB ks)      | showCab ks
+* (ESET ks)      | showSet ks
 * (EOR x y)      | INFX {||} (showExp x, showExp y) 0
 * (EAND x y)     | INFX {&&} (showExp x, showExp y) 0
 * (EAPP x y)     | niceApp go exp
@@ -431,7 +431,7 @@
 
 !!= `` [%[0 a b] %[0] %[]]
   | showExp
-  | EROW (map ECAB [%[0 a b] %[0] %[]])
+  | EROW (map ESET [%[0 a b] %[0] %[]])
 
 !!= `` [#[] [a=3] [us=[() ()]]]
   | showExp
@@ -480,12 +480,12 @@
 : eRes <- readCenLit rex err
 # datacase eRes
 * (LEFT val)  | ok (ENAT val)
-* (RIGHT cab) | ok (ECAB cab)
+* (RIGHT set) | ok (ESET set)
 
 > (Rex > Read Exp) > Rex > Read Rex
 = (parseCenCen rex err ok)
-: cab <- readTallCab rex err
-| ok (ECAB cab)
+: set <- readTallSet rex err
+| ok (ESET set)
 
 = (parseOrExp readExp rex err ok)
 : tree <- readInfixRight readExp "||" rex err
@@ -937,7 +937,7 @@
 * (ENAT _)           | f exp ok
 * (EPAD _)           | f exp ok
 * (EBAR _)           | f exp ok
-* (ECAB _)           | f exp ok
+* (ESET _)           | f exp ok
 * (EREX r)           | f exp ok
 * (EOR  x y)         | rowTraverse go [x y] & [x y] | f (EOR x y)    ok
 * (EAND x y)         | rowTraverse go [x y] & [x y] | f (EAND x y)   ok
@@ -1217,7 +1217,7 @@
 * (ENAT n)         | ok ss (cnsE n)
 * (EPAD n)         | ok ss (cnsE n)
 * (EBAR n)         | ok ss (cnsE n)
-* (ECAB n)         | ok ss (cnsE n)
+* (ESET n)         | ok ss (cnsE n)
 * (EREX r)         | ok ss (cnsE r)
 * (EQRX r)         | cQrx go ss r ok
 * (EOR x y)        | cApp go ss (EBED or, x, y)    ok
@@ -1445,7 +1445,7 @@
 ^-^ CEXP CMUT
 ^-^
 ^-^ Exp
-^-^ EBED EREF ENAT EPAD EBAR ECAB EOR EAND EAPP EKET ELET EREC ELAM
+^-^ EBED EREF ENAT EPAD EBAR ESET EOR EAND EAPP EKET ELET EREC ELAM
 ^-^ ELIN EROW EUNT ETAB ESWI ECAS EMUT EQRX EREX ECON ENIL EEQL ENEQ
 ^-^
 ^-^ showPat

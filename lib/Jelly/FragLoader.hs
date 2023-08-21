@@ -256,7 +256,7 @@ construct hed arg = do
                _                 -> lift $ throwIO JELLY_BAD_LAW_LITERAL
 
        COw{} -> hydrateLaw hed arg
-       CAB{} -> hydrateLaw hed arg
+       SET{} -> hydrateLaw hed arg
        _     -> lift $ throwIO (JELLY_NOT_NORMAL hed $ toList arg)
 
 constructLaw :: Nat -> Nat -> Fan -> Vector Fan -> StateT FragSt IO Fan
@@ -283,12 +283,12 @@ hydrateLaw law args = do
         COw{} ->
             pure $ ROW $ reverse args
 
-        CAB ks ->
+        SET ks ->
             case toList args of
                 [ROW vs] | length ks == length vs ->
                     pure $ TAb $ mapFromList $ zip (S.toList ks) (toList vs)
                 [arg] ->
-                    pure (law %% arg) -- malformed cab, just use eval path
+                    pure (law %% arg) -- malformed set, just use eval path
                 _ ->
                     throwIO $ JELLY_OVERSATURATED_LAW
 

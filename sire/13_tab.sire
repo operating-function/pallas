@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 13_tab <- 12_cab
+### 13_tab <- 12_set
 
 """
 """ Tabs
@@ -28,10 +28,10 @@
 /+  09_sci  [inspect fullInspection]
 /+  10_chr  []
 /+  11_str  [strWeld]
-/+  12_cab  [isCab emptyCab cabLen cabHas cabMin cabToList]
-/+  12_cab  [cabToRow cabFromRowAsc]
-/+  12_cab  [cabPop]
-/+  12_cab  [{%} readKey]
+/+  12_set  [isSet emptySet setLen setHas setMin setToList]
+/+  12_set  [setToRow setFromRowAsc]
+/+  12_set  [setPop]
+/+  12_set  [{%} readKey]
 
 
 """ Tabs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -39,23 +39,23 @@
 
 ;; This assumes that the keys are assending and unique.
 = (_MkTab keys vals)
-| cabFromRowAsc keys vals
+| setFromRowAsc keys vals
 
 = emptyTab      | _MkTab []  []
 = (tabSing k v) | _MkTab [k] [v]
 
 = (isTab tab)
-@ keysCab (car tab)
+@ keysSet (car tab)
 @ valsRow (cdr tab)
-| and (isCab keysCab)
+| and (isSet keysSet)
 | and (isRow valsRow)
-      (eql cabLen-keysCab len-valsRow)
+      (eql setLen-keysSet len-valsRow)
 
 (_TabKeys tab)=(car tab)
 (_TabVals tab)=(cdr tab)
 
-= (_TabKeysRow tab)  | cabToRow  | _TabKeys tab
-= (_TabKeysList tab) | cabToList | _TabKeys tab
+= (_TabKeysRow tab)  | setToRow  | _TabKeys tab
+= (_TabKeysList tab) | setToList | _TabKeys tab
 
 
 """ Tab Lookup """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -77,7 +77,7 @@ ex=(_MkTab [1 2 3] [4 5 6])
 
 = (_TabLen tab)     | len (_TabVals tab)
 = (_TabIsEmpty tab) | null (_TabVals tab)
-= (_TabHas k t)     | cabHas k (_TabKeys t)
+= (_TabHas k t)     | setHas k (_TabKeys t)
 = (_TabLookup k t)  | if (_TabHas k t) (SOME | tabIdx k t) NONE
 
 
@@ -93,15 +93,15 @@ ex=(_MkTab [1 2 3] [4 5 6])
 !!= 3 (findInsIdx 4 [1 2 3])
 
 = (tabIns key val tab)
-@ keysCab | _TabKeys tab
-@ keysRow | cabToRow keysCab
+@ keysSet | _TabKeys tab
+@ keysRow | setToRow keysSet
 @ valsRow | _TabVals tab
 @ notFound
     @ ix (findInsIdx key keysRow)
     | _MkTab (insert ix key keysRow) (insert ix val valsRow)
 @ found
     & ix
-    | keysCab (put valsRow ix val)
+    | keysSet (put valsRow ix val)
 | elemIdx key keysRow notFound found
 
 (tabPut x k v)=(tabIns k v x)
@@ -207,9 +207,9 @@ tab=(tabFromAscPairs par)
 
 ; TODO Callbacks for empty case.
 = (tabPop tab)
-@ keysCab  | _TabKeys tab
+@ keysSet  | _TabKeys tab
 @ valsRow  | _TabVals tab
-@ fstRest  | cabPop keysCab
+@ fstRest  | setPop keysSet
 @ fstKey   | fst fstRest
 @ fstVal   | fst valsRow
 @ moreVals | drop 1 valsRow
@@ -232,8 +232,8 @@ tab=(tabFromAscPairs par)
 | (tabFromPairs head, tabFromPairs tail)
 
 = (tabAlter fun key tab)
-@ keysCab | _TabKeys tab
-@ keysRow | cabToRow keysCab
+@ keysSet | _TabKeys tab
+@ keysRow | setToRow keysSet
 @ valsRow | _TabVals tab
 ;
 @ notFound
@@ -249,7 +249,7 @@ tab=(tabFromAscPairs par)
     | **maybeCase (fun | SOME prev)
         | tabDel key tab
     & newVal
-    | keysCab (put valsRow ix newVal)
+    | keysSet (put valsRow ix newVal)
 ;
 | elemIdx key keysRow notFound found
 
@@ -446,7 +446,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 !!= 1 | isTab [=isTab]
 
 !!= 0 | isTab []
-!!= 0 | isTab %[] ;; cabs are not tabs
+!!= 0 | isTab %[] ;; sets are not tabs
 !!= 0 | isTab %[x y]
 !!= 0 | isTab (%[x y] 3)
 !!= 1 | isTab (%[x y] [3 4])
@@ -501,7 +501,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 """ Aliases """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 = tabLookup   | _TabLookup
-= tabKeysCab  | _TabKeys
+= tabKeysSet  | _TabKeys
 = tabKeysRow  | _TabKeysRow
 = tabKeysList | _TabKeysList
 = tabValsRow  | _TabVals
@@ -515,7 +515,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 ^-^
 ^-^ tabSing _MkTab isTab
 ^-^
-^-^ tabLen tabIdx tabKeysCab tabKeysRow tabKeysList tabHas tabGet
+^-^ tabLen tabIdx tabKeysSet tabKeysRow tabKeysList tabHas tabGet
 ^-^ tabValsRow tabSwitch
 ^-^ tabFromPairs tabFromAscPairs tabToPairs tabToPairList tabToList tabPut
 ^-^ tabIns tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter

@@ -13,7 +13,7 @@
     type Addr = Word32 -- ed25519 public key
 
     = SIRE []         :: Req (Seed, Addr)
-    = RECV [us ls]    :: Seed -> Cab Addr -> Req (Time, Addr, Bar)
+    = RECV [us ls]    :: Seed -> Set Addr -> Req (Time, Addr, Bar)
     = SEND [us th br] :: Seed -> Addr -> Bar -> Req Time
 
 -}

@@ -352,10 +352,10 @@
 | forList_ xs f return
 
 (for_ row f return)=(forList_ (listFromRow row) f return)
-(forCab_ cab f return)=(**for_ (cabToRow cab) f return)
-(traverseList_ f cab return)=(forList_ cab f return)
-(traverse_ f cab return)=(**for_ cab f return)
-(traverseCab_ f cab return)=(**forCab_ cab f return)
+(forSet_ set f return)=(**for_ (setToRow set) f return)
+(traverseList_ f set return)=(forList_ set f return)
+(traverse_ f set return)=(**for_ set f return)
+(traverseSet_ f set return)=(**forSet_ set f return)
 
 = (forList list f return)
 : x xs <- listCase list (return ())
@@ -363,13 +363,13 @@
 : rs   <- forList xs f
 | return (CONS r rs)
 
-(traverseList f cab return)=(forList cab f return)
+(traverseList f set return)=(forList set f return)
 
 = (for row f return)
 : res <- forList (listFromRow row) f
 | return (listToRow res)
 
-(traverse f cab return)=(**for cab f return)
+(traverse f set return)=(**for set f return)
 
 
 ;; Concurency ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -436,4 +436,4 @@
 ^-^ concurrently mapConcurrently forConcurrently
 ^-^
 ^-^ for  traverse  forList  traverseList
-^-^ for_ traverse_ forList_ traverseList_ forCab_ traverseCab_
+^-^ for_ traverse_ forList_ traverseList_ forSet_ traverseSet_

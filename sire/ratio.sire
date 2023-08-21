@@ -68,7 +68,7 @@
 ;;; TODO: How should things like ordered sets of rationals be represented?
 ;;; ----------------------------------------------------------------------
 ;;;
-;;; Is there some way to re-use the cab operations with a different
+;;; Is there some way to re-use the set operations with a different
 ;;; ordering function?
 ;;;
 
@@ -113,12 +113,12 @@
 ;;; Solution: slicing is an O(n) copy, and O(1) slicing is supported
 ;;; only explicitly, through explicit data structures.
 ;;;
-;;; Conclusion: all operations on rows/cabs/tabs should be
+;;; Conclusion: all operations on rows/sets/tabs should be
 ;;; slice-efficient.  This way, an external slice representation can
 ;;; still use all of the jets.
 ;;;
-;;;     ^ | and (cabHas [off=2 len=4] 5 _ == TRUE)
-;;;       | and (cabHas [off=2 len=4] 6 _ == FALSE)
-;;;             (cabHas [off=2 len=4] 0 _ == FALSE)
+;;;     ^ | and (setHas [off=2 len=4] 5 _ == TRUE)
+;;;       | and (setHas [off=2 len=4] 6 _ == FALSE)
+;;;             (setHas [off=2 len=4] 0 _ == FALSE)
 ;;;     | %[0 1 2 3 4 5 6 7 8]
 ;;;

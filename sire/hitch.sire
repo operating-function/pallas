@@ -515,7 +515,7 @@ newRootNode
 | map tabLen
 | getLeafRow hhMapTF top
 
-; TODO: {hmKeys} returns a cab in the empty case, and a row-of-rows
+; TODO: {hmKeys} returns a set in the empty case, and a row-of-rows
 ; otherwise.  Is that wrong?
 
 = (hmKeys [config r])
@@ -580,7 +580,7 @@ newRootNode
 ;; HitchhikerSet ;;
 ;;;;;;;;;;;;;;;;;;;
 
-(hsDeleteItem k _ c)=(cabDel k c)
+(hsDeleteItem k _ c)=(setDel k c)
 
 = (hsEmpty config)
 [config NONE]
@@ -589,7 +589,7 @@ newRootNode
 | (**isNone r)
 
 = (hsRawSingleton v)
-@ node (PIN [1 (cabSing v)])
+@ node (PIN [1 (setSing v)])
 | SOME node
 
 (hsSingleton config v)=[config (hsRawSingleton v)]
@@ -598,21 +598,21 @@ newRootNode
 ++ packIndexNode                 ; mkNode
 ++ hmLeaf                        ; mkLeaf
 ++ caseImpl                      ; caseNode
-++ cabUnion                      ; leafInsert
-++ cabUnion                      ; leafMerge
-++ cabLen                        ; leafLength
-++ cabSplitAt                    ; leafSplitAt
-++ cabMin                        ; leafFirstKey
+++ setUnion                      ; leafInsert
+++ setUnion                      ; leafMerge
+++ setLen                        ; leafLength
+++ setSplitAt                    ; leafSplitAt
+++ setMin                        ; leafFirstKey
 ++ #[]                           ; leafEmpty
 ++ hsDeleteItem                  ; leafDelete
-++ cabUnion                      ; hhMerge
-++ cabLen                        ; hhLength
-++ cabSplitLT                    ; hhSplit
+++ setUnion                      ; hhMerge
+++ setLen                        ; hhLength
+++ setSplitLT                    ; hhSplit
 ++ #[]                           ; hhEmpty
 ++ hsDeleteItem                  ; hhDelete
 
 = (hsRawInsert i config r)
-@ is | cabSing i
+@ is | setSing i
 | **maybeCase r
     (SOME (PIN [1 is]))
 & gr
@@ -622,29 +622,29 @@ newRootNode
 
 (hsInsert i [config r])=[config (hsRawInsert i config r)]
 
-= (hsRawInsertMany cab config r)
-| if (cabIsEmpty cab) r
+= (hsRawInsertMany set config r)
+| if (setIsEmpty set) r
 @ TREE_CONFIG(..) config
 @ !index
   | **maybeCase r
-      | splitLeafMany hhSetTF maxLeafItems cab
+      | splitLeafMany hhSetTF maxLeafItems set
   & top
-  | insertRec config hhSetTF cab top
+  | insertRec config hhSetTF set top
 @ !fixed | fixup config hhSetTF index
 | SOME fixed
 
-(hsInsertMany cab [config r])=[config (hsRawInsertMany cab config r)]
+(hsInsertMany set [config r])=[config (hsRawInsertMany set config r)]
 
-= (hsRawFromCab config c)
-| if (cabIsEmpty c) NONE
+= (hsRawFromSet config c)
+| if (setIsEmpty c) NONE
 | hsRawInsertMany c config NONE
 
-(hsFromCab config c)=[config (hsRawFromCab config c)]
+(hsFromSet config c)=[config (hsRawFromSet config c)]
 
-= (hsToCab [config r])
+= (hsToSet [config r])
 | **maybeCase r %[]
 & top
-| cabCatRowAsc
+| setCatRowAsc
 | getLeafRow hhSetTF top
 
 = (hsMember key [config r])
@@ -652,10 +652,10 @@ newRootNode
 ? (lookInNode node)
 # datacase (caseImpl node)
 * (INDEXNODE index hitchhikers)
-  | if (cabHas key hitchhikers) TRUE
+  | if (setHas key hitchhikers) TRUE
   | lookInNode | findSubnodeByKey key index
 * (LEAFNODE items)
-  | cabHas key items
+  | setHas key items
 
 = (hsRawDelete key config r)
 | **maybeCase r r
@@ -663,13 +663,13 @@ newRootNode
 @ newRootNode | deleteRec config hhSetTF key NONE gr
 # datacase (caseImpl newRootNode)
 * (LEAFNODE leaves)
-  | if (cabIsEmpty leaves) NONE (SOME newRootNode)
+  | if (setIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
   | **maybeCase (fromSingletonIndex index)
       | SOME newRootNode
   & !childNode
   @ base | SOME childNode
-  | if (cabIsEmpty hitchhikers) base
+  | if (setIsEmpty hitchhikers) base
   | hsRawInsertMany hitchhikers config base
 
 = (hsDelete key [config r])
@@ -680,7 +680,7 @@ newRootNode
 ;
 ; What would a faster union look like? This implementation goes through all
 ; leaf sets and then iteratively unions them all together on each side and then
-; unions that. Then it takes that megacab and splits it back up. That seems
+; unions that. Then it takes that megaset and splits it back up. That seems
 ; hella inefficient.
 ;
 ; some ideas:
@@ -697,10 +697,10 @@ newRootNode
 = (hsRawUnion aconfig ar br)
 : a <- **maybeCase ar br
 : b <- **maybeCase br ar
-@ as | cabCatRowAsc | getLeafRow hhSetTF a
-@ bs | cabCatRowAsc | getLeafRow hhSetTF b
-| hsRawFromCab aconfig
-| cabUnion as bs
+@ as | setCatRowAsc | getLeafRow hhSetTF a
+@ bs | setCatRowAsc | getLeafRow hhSetTF b
+| hsRawFromSet aconfig
+| setUnion as bs
 
 = (hsUnion as bs)
 @ [aconfig ar] as
@@ -716,7 +716,7 @@ newRootNode
 ; takes a list of sets and compacts them down so each is in a range between
 ; `min` and `max`.
 ;
-> Nat > Nat > Row (Cab k) > Row (Cab k)
+> Nat > Nat > Row (Set k) > Row (Set k)
 = (consolidate min max row)
 @ rowLen | len row
 ^ unfoldr _ [0 0 NIL]
@@ -724,12 +724,12 @@ newRootNode
 | if (gth i rowLen) NONE
 | if | eql i rowLen
   | if (listIsEmpty curOut) NONE
-  @ !u | cabCatRowAsc | listToRowReversed curOut
-  | if (cabIsEmpty u) NONE
+  @ !u | setCatRowAsc | listToRowReversed curOut
+  | if (setIsEmpty u) NONE
   | SOME [u [(inc i) 0 NIL]]
 ;
 @ next    | idx i row
-@ nextLen | cabLen next
+@ nextLen | setLen next
 ;
 ; if adding the next set would go over the max, then emit a set.
 | if | gth (add curSize nextLen) max
@@ -737,15 +737,15 @@ newRootNode
     ; we can't add the next set without going over max, but we're currently
     ; under the minimum, so split the set.
     @ off | sub max curSize
-    @ [head tail] | cabSplitAt off next
-    @ !u | cabCatRowAsc | listToRowReversed | CONS head curOut
-    @ nextStep [(inc i) (cabLen tail) (CONS tail NIL)]
-    | if (cabIsEmpty u) | loop nextStep
+    @ [head tail] | setSplitAt off next
+    @ !u | setCatRowAsc | listToRowReversed | CONS head curOut
+    @ nextStep [(inc i) (setLen tail) (CONS tail NIL)]
+    | if (setIsEmpty u) | loop nextStep
     | SOME [u nextStep]
   ; we can just combine and be done.
-  @ !u | cabCatRowAsc | listToRowReversed curOut
+  @ !u | setCatRowAsc | listToRowReversed curOut
   @ nextStep [(inc i) 0 (CONS next NIL)]
-  | if (cabIsEmpty u) | loop nextStep
+  | if (setIsEmpty u) | loop nextStep
   | SOME [u nextStep]
 ;
 | loop [(inc i) (add nextLen curSize) (CONS next curOut)]
@@ -765,7 +765,7 @@ newRootNode
 = (getLeftmostValue a)
 # datacase (caseImpl a)
 * (LEAFNODE s)
-  | cabMin s
+  | setMin s
 * (INDEXNODE [keys vals] _)
   | getLeftmostValue (idx 0 vals)
 
@@ -773,12 +773,12 @@ abstype#(SetNode k) ; TODO: (???)
 
 ; implementation detail of intersection
 ;
-> Cab k > SetNode k > Row (Cab k)
+> Set k > SetNode k > Row (Set k)
 = (checkSetAgainst a b)
 # datacase b
 * (LEAFNODE bLeaves)
-  @ !c | cabIntersect a bLeaves
-  | if (cabIsEmpty c) []
+  @ !c | setIntersect a bLeaves
+  | if (setIsEmpty c) []
   [c]
 * (INDEXNODE index _)
   ; todo: i don't think you can rewrite this without the unfoldr, but could you
@@ -788,7 +788,7 @@ abstype#(SetNode k) ; TODO: (???)
   ^ unfoldr _ [a (SOME index)]
   ? (loop [leaves mybIdx])
   : [keys vals] <- **maybeCase mybIdx NONE
-  | if (cabIsEmpty leaves) NONE
+  | if (setIsEmpty leaves) NONE
   @ [[tryLeaves restLeaves] subNode restIndex]
     @ l | len vals
     | if | (eql 0 l)
@@ -796,10 +796,10 @@ abstype#(SetNode k) ; TODO: (???)
     | if | (eql 1 l)
       | [[leaves #[]] (idx 0 vals) NONE]
     | else
-      ++ cabSplitLT (idx 0 keys) leaves
+      ++ setSplitLT (idx 0 keys) leaves
       ++ idx 0 vals
       ++ SOME [(drop 1 keys) (drop 1 vals)]
-  | if (cabIsEmpty tryLeaves) | loop [restLeaves restIndex]
+  | if (setIsEmpty tryLeaves) | loop [restLeaves restIndex]
   @ !result | checkSetAgainst tryLeaves (caseImpl subNode)
   | if (isZero | len result) | loop [restLeaves restIndex]
   | SOME [result [restLeaves restIndex]]
@@ -867,7 +867,7 @@ abstype#(SetNode k) ; TODO: (???)
   | if | isZero | len r
     | NONE
   @ vals | map hmLeaf r
-  @ keys | map cabMin | drop 1 r
+  @ keys | map setMin | drop 1 r
   | SOME | fixup aconfig hhSetTF [keys vals]
 ;
 * (find left right)
@@ -875,8 +875,8 @@ abstype#(SetNode k) ; TODO: (???)
   * (LEAFNODE leftLeaves)
     # datacase (caseImpl right)
     * (LEAFNODE rightLeaves)
-      @ c | cabIntersect leftLeaves rightLeaves
-      | if (cabIsEmpty c) []
+      @ c | setIntersect leftLeaves rightLeaves
+      | if (setIsEmpty c) []
       [c]
     * (INDEXNODE rightIdx _)
       | checkSetAgainst leftLeaves (caseImpl right)
@@ -915,11 +915,11 @@ abstype#(HSetMap k v)
 ; In SetMap, hitchhikers are a normal map of sets, but leaves are maps of
 ; raw hitchhikersets.
 ;
-> TreeConfig > Tab k (HSet Nat) > Tab k (Cab a) > Tab k (HSet Nat)
+> TreeConfig > Tab k (HSet Nat) > Tab k (Set a) > Tab k (HSet Nat)
 = (hsmLeafInsertImpl setConfig leaf hh)
 @ (alt new m)
   | SOME
-  | **maybeCase m | hsRawFromCab setConfig new
+  | **maybeCase m | hsRawFromSet setConfig new
   & old
   | hsRawInsertMany new setConfig old
 @ (merge items k vset)
@@ -941,7 +941,7 @@ abstype#(HSetMap k v)
 @ (update in)
   | **maybeCase in NONE
   & set
-  | SOME | cabDel v set
+  | SOME | setDel v set
 | tabAlter update k sm
 
 = (hhSetMapTF setConfig)
@@ -955,12 +955,12 @@ abstype#(HSetMap k v)
 ++ tabMinKey                           ; leafFirstKey
 ++ #[]                                 ; leafEmpty
 ++ hsmLeafDeleteImpl setConfig         ; leafDelete
-++ tabUnionWith cabUnion               ; hhMerge
+++ tabUnionWith setUnion               ; hhMerge
 ++ & (a)                               ; hhLength
    ; since the point of hitchhikers is that they'll fit in an index node's
    ; grain, we count the number of items across all sets in the hitchhiker,
    ; not the number of tab entries.
-   | sum | map cabLen | tabKeysCab a
+   | sum | map setLen | tabKeysSet a
 ++ tabSplitLT                          ; hhSplit
 ++ #[]                                 ; hhEmpty
 ++ hsmHHDeleteImpl                     ; hhDelete
@@ -974,24 +974,24 @@ abstype#(HSetMap k v)
    ++ | SOME (PIN [1 leaf])
 & gr
 @ tf | hhSetMapTF setConfig
-@ hh | tabSing k (cabSing v)
+@ hh | tabSing k (setSing v)
 @ !index | insertRec mapConfig tf hh gr
 @ !fixed | fixup mapConfig tf index
 ++ mapConfig
 ++ setConfig
 ++ SOME fixed
 
-= (hsmInsertMany tabcab [mapConfig setConfig r])
-| if | tabIsEmpty tabcab
+= (hsmInsertMany tabset [mapConfig setConfig r])
+| if | tabIsEmpty tabset
   [mapConfig setConfig r]
 @ tf | hhSetMapTF setConfig
 @ !index
   | **maybeCase r
       @ TREE_CONFIG(..) mapConfig
       | splitLeafMany tf maxLeafItems
-      | tabMapWithKey (k v)&(hsRawFromCab setConfig v) tabcab
+      | tabMapWithKey (k v)&(hsRawFromSet setConfig v) tabset
   & top
-  | insertRec mapConfig tf tabcab top
+  | insertRec mapConfig tf tabset top
 @ !fixed | fixup mapConfig tf index
 ++ mapConfig
 ++ setConfig
@@ -1029,10 +1029,10 @@ abstype#(HSetMap k v)
 # datacase (caseImpl node)
 * (INDEXNODE children hitchhikers)
   @ matched | fromSome #[] (tabLookup k hitchhikers)
-  | lookInNode (cabUnion hh matched) | findSubnodeByKey k children
+  | lookInNode (setUnion hh matched) | findSubnodeByKey k children
 * (LEAFNODE items)
   : ret <- **maybeCase (tabLookup k items)
-             [setConfig (hsRawFromCab setConfig hh)]
+             [setConfig (hsRawFromSet setConfig hh)]
   [setConfig (hsRawInsertMany hh setConfig ret)]
 
 
@@ -1048,7 +1048,7 @@ abstype#(HSetMap k v)
 ; hitchhikermap (hm)
 ^-^ hmEmpty hmSingleton hmSize hmKeys hmInsert hmInsertMany hmDelete hmLookup
 ; hitchhikerset (hs)
-^-^ hsEmpty hsNull hsSingleton hsInsert hsInsertMany hsDelete hsToCab hsFromCab
+^-^ hsEmpty hsNull hsSingleton hsInsert hsInsertMany hsDelete hsToSet hsFromSet
 ^-^ hsMember hsIntersection hsUnion
 ; hitchhiersetmap (hsm)
 ^-^ hsmEmpty hsmInsert hsmInsertMany hsmDelete hsmLookup

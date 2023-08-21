@@ -94,7 +94,7 @@
     | err rex schemeExpected
 @ lawName  (idx 0 names)
 @ varNames (drop 1 names)
-| if (len varNames /= cabLen (cabFromRow varNames))
+| if (len varNames /= setLen (setFromRow varNames))
     | err rex "type params must be unique"
 | ok lawName varNames
 
@@ -142,7 +142,7 @@
     @ sym      (idx 0 names)
     @ numVars  (dec | len names)
     @ varNames (drop 1 names)
-    | if (len varNames /= cabLen (cabFromRow varNames))
+    | if (len varNames /= setLen (setFromRow varNames))
         | err rex "type params must be unique"
     : st key <- generateUniqueKey st
     | ok st
@@ -202,7 +202,7 @@ abstype#(Read2 a b)
 abstype#(Read3 a b c)
 abstype#(Read4 a b c d)
 abstype#(Tab k v)
-abstype#(Cab k)
+abstype#(Set k)
 abstype#(Row a)
 abstype#(Opt a)
 abstype#(List a)
@@ -561,13 +561,13 @@ printType#Fun
 """ is {%[a b]}.
 """
 
-> TyExp > Cab Symbol
+> TyExp > Set Symbol
 = (txpFree x)
 # datacase x
-* (T_FUN a b)    | cabUnion (txpFree a) (txpFree b)
-* (T_REF _ _ xs) | cabCatRow (map txpFree xs)
-* (T_VAR sym)    | cabSing sym
-* (T_TUP xs)     | cabCatRow (map txpFree xs)
+* (T_FUN a b)    | setUnion (txpFree a) (txpFree b)
+* (T_REF _ _ xs) | setCatRow (map txpFree xs)
+* (T_VAR sym)    | setSing sym
+* (T_TUP xs)     | setCatRow (map txpFree xs)
 
 """
 """ {>} is the type-annotation rune.  It is prefixed directly onto the
@@ -586,7 +586,7 @@ printType#Fun
 = ('>' ss rex err ok)
 : ss tExp bindKey binding
     < parseTypeAnnotatedBinding ss rex err
-@ vars | cabToRow (txpFree tExp)
+@ vars | setToRow (txpFree tExp)
 : type < compileType vars tExp err
 @ ss (addProps ss bindKey (tabSing 'type' type))
     ;
@@ -617,7 +617,7 @@ printType#Fun
 @ [_ valRex typRex] kids
 : sym valKey _ < readDefinedSymbol ss valRex err
 : typExp       < parseType ss typRex err
-@ tyVars       | cabToRow (txpFree typExp)
+@ tyVars       | setToRow (txpFree typExp)
 : scheme       < compileType tyVars typExp err
 @ ss (addProps ss valKey | tabSing 'type' scheme)
 | ok ss ``(#*)
@@ -651,7 +651,7 @@ printType#Fun
 ^-^ Nat Pin Fun
 ^-^ Bit Str
 ^-^ Rex Read
-^-^ Row List Cab Tab
+^-^ Row List Set Tab
 ^-^ Opt Either
 ^-^ Bar
 ^-^

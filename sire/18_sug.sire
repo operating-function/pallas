@@ -79,7 +79,7 @@
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld strIsCapitalized]
-/+  12_cab  [{%}]
+/+  12_set  [{%}]
 /+  13_tab  [{#}]
 /+  14_exp  [readSymbol rexParseKids]
 /+  14_exp  [rowE natE letE cnsE txtE appE varE tmpName]

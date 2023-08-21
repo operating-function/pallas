@@ -33,9 +33,9 @@ main = do
         in do vEnv <- liftIO $ newIORef mempty
               langTest ".loot" (goldenLoot vEnv)
 
-cab,cabHash :: Nat
-cab = utf8Nat "_"
-cabHash = utf8Nat "_hash"
+set,setHash :: Nat
+set = utf8Nat "_"
+setHash = utf8Nat "_hash"
 
 goldenLoot :: RexColor => IORef (Map Symb Fan) -> GoldPaths -> TestTree
 goldenLoot vEnv pax = do
@@ -49,10 +49,10 @@ goldenLoot vEnv pax = do
     end :: Handle -> IO ()
     end h = do
         env <- readIORef vEnv
-        pln <- pure $ fromMaybe (NAT 0) $ lookup cab env
+        pln <- pure $ fromMaybe (NAT 0) $ lookup set env
         has <- mkPin' pln <&> (.hash)
-        Repl.printValue h False (Just cab) pln
-        Repl.printValue h True (Just cabHash) (toNoun has)
+        Repl.printValue h False (Just set) pln
+        Repl.printValue h True (Just setHash) (toNoun has)
         hFlushAll h >> hClose h
         validateLoot gpOutput (gpSource <> ".tmp")
 
@@ -62,10 +62,10 @@ validateLoot lootFile tempFile = do
     Repl.replFile lootFile (Repl.runBlock devNull False vEnv)
     h <- openFile tempFile WriteMode
     env <- readIORef vEnv
-    pln <- pure $ fromMaybe (NAT 0) $ lookup cab env
+    pln <- pure $ fromMaybe (NAT 0) $ lookup set env
     has <- mkPin' pln <&> (.hash)
-    Repl.printValue h False (Just cab) pln
-    Repl.printValue h True (Just cabHash) (toNoun has)
+    Repl.printValue h False (Just set) pln
+    Repl.printValue h True (Just setHash) (toNoun has)
     hFlushAll h >> hClose h
     srcText <- readFileUtf8 lootFile
     tmpText <- readFileUtf8 tempFile

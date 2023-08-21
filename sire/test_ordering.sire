@@ -111,7 +111,7 @@ raw=(pinItem cmp)
 !! checkOrder GT (0 3 3 3) (0 2 2 2)
 
 
-""" Rows, Tabs, and Cabs """""""""""""""""""""""""""""""""""""""""""""""""""""""
+""" Rows, Tabs, and Sets """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ; non-empty rows and tabs are closures.
 !! checkOrder EQ []  []
@@ -120,7 +120,7 @@ raw=(pinItem cmp)
 !! checkOrder LT []  [0 0]
 !! checkOrder LT [0] [0 0]
 
-; Rows are always bigger than cabs, unless the row is empty.
+; Rows are always bigger than sets, unless the row is empty.
 !! checkOrder LT []    %[]
 !! checkOrder GT [0]   %[]
 !! checkOrder GT [0]   %[0]
@@ -128,7 +128,7 @@ raw=(pinItem cmp)
 !! checkOrder GT [0 1] %[0 1]
 !! checkOrder GT [0 1] %[0 1]
 
-; Tabs are always bigger than cabs (because tabs are apps)
+; Tabs are always bigger than sets (because tabs are apps)
 !! checkOrder LT %[]    #[]
 !! checkOrder LT %[9]   #[]
 !! checkOrder LT %[8 9] #[]

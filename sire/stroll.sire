@@ -156,7 +156,7 @@
     ? (loop gen)
     @ [gen uid] | genUid gen
     @ matches | lookupByAV ":block/uid" uid db
-    | if | cabIsEmpty matches
+    | if | setIsEmpty matches
         [gen uid]
     | loop gen
 [uid (STROLL_DB gen db)]
@@ -218,7 +218,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;
 ; The output of this pull is why the normal query interface is so nice: instead
 ; of returning a list of tuples, this returns a weird large nested structure of
-; tabs and cabs and rows. The data is in there, but it's pretty cumbersome to
+; tabs and sets and rows. The data is in there, but it's pretty cumbersome to
 ; work with.
 ;
 = (findPageBlocksReferencing x strollDb)
@@ -232,7 +232,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 
 = (getEidOf uid strollDb)
 @ STROLL_DB(..) strollDb
-| cabMin
+| setMin
 | lookupByAV ":block/uid" uid db
 
 ; Returns the uid of the parent
@@ -253,14 +253,14 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;
 = (getOrderByEid eid strollDb)
 @ STROLL_DB(..) strollDb
-| cabMin
+| setMin
 | lookupByAE ":block/order" eid db
 
 = (getPageByEid eid strollDb)
 @ STROLL_DB(..) strollDb
 ; if this eid has a :page/title, it is a page.
-| ifNot (cabIsEmpty | lookupByAE ":page/title" eid db) eid
-| cabMin | lookupByAE ":block/page" eid db
+| ifNot (setIsEmpty | lookupByAE ":page/title" eid db) eid
+| setMin | lookupByAE ":block/page" eid db
 
 ; Given a uid, find all the eids of all the blocks this uid forward references
 ;
@@ -373,10 +373,10 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 = (pageToUid pageTitle strollDb)
 @ STROLL_DB(..) strollDb
 @ eids | lookupByAV ":page/title" pageTitle db
-| if | cabIsEmpty eids
+| if | setIsEmpty eids
     | makeNewPage pageTitle strollDb
-@ uids | lookupByAE ":block/uid" (cabMin eids) db
-[(cabMin uids) strollDb]
+@ uids | lookupByAE ":block/uid" (setMin eids) db
+[(setMin uids) strollDb]
 
 ; Parses a string for things which look like references.
 ;
@@ -474,14 +474,14 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;
 @ newRefUids | weld refs | listToRow titleRefs
 @ newRefEids
-    | cabCatRow
+    | setCatRow
     | map uid&(lookupByAV ":block/uid" uid db) newRefUids
 ;
 ; Fetch the current references uids from textUid.
-@ currentRefEids | cabFromRow | findAllRefEids textUid strollDb
+@ currentRefEids | setFromRow | findAllRefEids textUid strollDb
 ;
-@ toAdd | cabToRow | cabSub newRefEids currentRefEids
-@ toDel | cabToRow | cabSub currentRefEids newRefEids
+@ toAdd | setToRow | setSub newRefEids currentRefEids
+@ toDel | setToRow | setSub currentRefEids newRefEids
 ;
 ^ assertTransactStrollDb (cat _) strollDb
 ++ [[%add [":block/uid" textUid] ":block/string" text]]

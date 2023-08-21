@@ -47,7 +47,7 @@
 """
 """ 2)  Laws with different names or arities can be compared quickly.
 """
-""" 3)  Row, Cabs, and Tabs of different lengths can be compared quickly.
+""" 3)  Row, Sets, and Tabs of different lengths can be compared quickly.
 """
 """
 """ Lazy Evaluation Behavior
@@ -67,7 +67,7 @@
 """     comparing values of these types always normalizes.
 """
 """ -   The above also applies to data-jets that are built on laws:
-"""     Bar, Cow, Cab, and Rex.
+"""     Bar, Cow, Set, and Rex.
 """
 """ -   All of the remaining comparisons have to do with closures.
 """

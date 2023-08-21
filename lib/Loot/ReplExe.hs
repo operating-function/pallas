@@ -179,7 +179,7 @@ closureRex mBinder clz =
              (_, Just n, _)            -> [aliasRex (Just n) val]
              (_, Nothing, REF _)       -> []
              ([],Nothing, _)           -> [aliasRex Nothing val]
-             (_, Nothing, _)           -> [aliasRex (Just cab) val]
+             (_, Nothing, _)           -> [aliasRex (Just set) val]
 
 
 showValue :: Closure -> Rex
@@ -187,8 +187,8 @@ showValue clz = aliasRex Nothing val
   where
     NAMED_CLOSURE _ _ val = nameClosure clz
 
-cab :: Symb
-cab = utf8Nat "_"
+set :: Symb
+set = utf8Nat "_"
 
 resolveWith
     :: (Show k, Ord k, Traversable f)
@@ -232,7 +232,7 @@ runCmd h vEnv =
         val <- resolve v
         let pln = valFan val
         printValue h True Nothing pln
-        modifyIORef' vEnv (insertMap cab pln)
+        modifyIORef' vEnv (insertMap set pln)
 
     go (DUMPIT v) = do
         val <- resolve v

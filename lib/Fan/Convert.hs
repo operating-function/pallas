@@ -149,9 +149,9 @@ getRawRow :: Fan -> Maybe (Vector Fan)
 getRawRow (ROW xs) = Just xs
 getRawRow _        = Nothing
 
-getRawCab :: Fan -> Maybe (Set Fan)
-getRawCab (CAB xs) = Just xs
-getRawCab _        = Nothing
+getRawSet :: Fan -> Maybe (Set Fan)
+getRawSet (SET xs) = Just xs
+getRawSet _        = Nothing
 
 getRawTable :: Fan -> Maybe (Map Fan Fan)
 getRawTable (TAb m) = Just m
@@ -178,11 +178,11 @@ instance FromNoun a => FromNoun [a] where
 
 
 instance ToNoun a => ToNoun (Set a) where
-    toNoun = CAB . S.fromList . map toNoun . S.toList
+    toNoun = SET . S.fromList . map toNoun . S.toList
 
 instance (Ord a, FromNoun a) => FromNoun (Set a) where
     fromNoun n = do
-      r <- getRawCab n
+      r <- getRawSet n
       S.fromList <$> forM (S.toList r) fromNoun
 
 instance (ToNoun k, ToNoun v) => ToNoun (Map k v) where

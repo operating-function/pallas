@@ -67,7 +67,7 @@ desugarVal = \case
     XVBAR b   -> BAR b
     XVLAW l   -> desugarLaw l
     XVCOW n   -> COW n
-    XVCAB n   -> CAB (desugarVal <$> n)
+    XVSET n   -> SET (desugarVal <$> n)
     XVREX x   -> REX (desugarVal <$> x)
   where
     goPair (k,v) = (desugarVal k, desugarVal v)
@@ -128,7 +128,7 @@ resugarVal pu = \case
     TAB t     -> XVTAB (goPair <$> t)
     BAR b     -> XVBAR b
     COW n     -> XVCOW n
-    CAB n     -> XVCAB (go <$> n)
+    SET n     -> XVSET (go <$> n)
     REX n     -> XVREX (go <$> n)
   where
     go = resugarVal pu

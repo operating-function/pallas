@@ -693,14 +693,14 @@ barTag=4
 rowTag=5
 tabTag=6
 cowTag=7
-cabTag=8
+setTag=8
 
 = (_TypeTag x)
 | if isBar-x barTag ;BAR
 | if isRow-x rowTag ;ROW
 | if isTab-x tabTag ;TAB
 | if isCow-x cowTag ;COW
-| if isCab-x cabTag ;CAB
+| if isSet-x setTag ;SET
 | planTag x
 
 typeTag=(_TypeTag)
@@ -808,7 +808,7 @@ setProp#(RIGHT.conRaw)#FALSE
 ^-^ dataTag
 ^-^
 ^-^ typeTag
-^-^ pinTag lawTag appTag natTag barTag rowTag tabTag cowTag cabTag
+^-^ pinTag lawTag appTag natTag barTag rowTag tabTag cowTag setTag
 ^-^
 ^-^ parseDatacase resolveDatacase makeDatacaseExpr
 ^-^

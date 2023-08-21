@@ -34,7 +34,7 @@ pinRefs top =
         REX v   -> traverse_ go v
         KLO _ v -> traverse_ go v
         FUN f   -> go f.body
-        CAB c   -> traverse_ go (S.toList c)
+        SET c   -> traverse_ go (S.toList c)
         TAb t   -> traverse_ go (M.keys t) >> traverse_ go (M.elems t)
         PIN p -> do
             (acc, hs) <- get

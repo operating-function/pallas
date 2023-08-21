@@ -55,7 +55,7 @@
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [explode strToList strFromList]
-/+  12_cab  []
+/+  12_set  []
 /+  13_tab  []
 /+  14_exp  [cnsE]
 /+  15_hax  [{#}]

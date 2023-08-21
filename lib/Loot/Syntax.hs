@@ -53,7 +53,7 @@ module Loot.Syntax
     , rForm1Nc
     , bodBox
     , barBox
-    , readOpenCab
+    , readOpenSet
     , readPage
     , boxRex
     , keyBox
@@ -194,7 +194,7 @@ valBox = \case
     XVROW r   -> rowBox r
     XVCOW n   -> nameBox ("C" <> tshow n)
     XVTAB t   -> tabBox t
-    XVCAB k   -> cabBox k
+    XVSET k   -> setBox k
     XVREX k   -> rexBox k
 
 valBoxes :: XVal -> [Box]
@@ -279,8 +279,8 @@ tabBox tab =
                     pure (wd, N SHUT "=" [kRex, vRex] NONE)
 
 
-cabBox :: [XVal] -> Box
-cabBox k =
+setBox :: [XVal] -> Box
+setBox k =
     BOX wid tal
   where
     tal = openSeq "%%" (singleton . C <$> keysBox)
@@ -884,13 +884,13 @@ readVal = asum
     anon rs c    = XVLAW (XLAM rs c)
     xvap = foldl' XVAPP
 
--- TODO Tabs now use `=key` an cabs just use `key`.
+-- TODO Tabs now use `=key` an sets just use `key`.
 readOpenTabish :: Red v XVal
 readOpenTabish = do
     rex <- readRex
     case rex of
         N _ "##" (N _ "=" [_] _ : _) _ -> readOpenTab
-        _                              -> XVCAB <$> readOpenCab
+        _                              -> XVSET <$> readOpenSet
 
 readOpenTab :: Red v XVal
 readOpenTab = do
@@ -909,8 +909,8 @@ readOpenTab = do
 readKey2 :: ReadT v IO XVal
 readKey2 = readVal -- TODO
 
-readOpenCab :: Red v [XVal]
-readOpenCab = do
+readOpenSet :: Red v [XVal]
+readOpenSet = do
     keyList <- slip1 "%%" readKey2
     let keySet = setFromList keyList :: Set XVal
     when (length keyList /= length keySet) do
@@ -919,7 +919,7 @@ readOpenCab = do
     pure keyList
 
 readWideTabish :: Red v XVal
-readWideTabish = either XVCAB XVTAB <$> do
+readWideTabish = either XVSET XVTAB <$> do
     rune ","
 
     let keyEle (XVREF k) = (XVNAT k, XVREF k)

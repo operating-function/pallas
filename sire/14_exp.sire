@@ -34,7 +34,7 @@
 /+  09_sci  []
 /+  10_chr  [isAlpha isDigit]
 /+  11_str  [strCat explode strWeld]
-/+  12_cab  ['%']
+/+  12_set  ['%']
 /+  13_tab  [tabToPairs '#' tabE]
 
 

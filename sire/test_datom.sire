@@ -73,9 +73,9 @@
 
 ; Transaction which tries to duplicate a unique value fail. (Tries to add sol's
 ; email to iceman's entity).
-!!=    @ icemanEid | cabMin
+!!=    @ icemanEid | setMin
                    | lookupByAV ":c/email" "iceman@plunder.tech" contactsDB
-       @ solEid    | cabMin
+       @ solEid    | setMin
                    | lookupByAV ":c/email" "sol@plunder.tech" contactsDB
        | LEFT ++ | UNIQUE_VIOLATION ":c/email" "sol@plunder.tech"
                                      solEid icemanEid
@@ -161,9 +161,9 @@
 
 ; Test that the mutual references in value position were resolved:
 !!=    | lookupByAV ":person/name" "Alice" aliceAndBob
-     @ bobCab | lookupByAV ":person/name" "Bob" aliceAndBob
-     : bobId <- **fromSingletonCab bobCab ('failed to find Bob' 0)
-     : aid   <- **fromSingletonCab
+     @ bobSet | lookupByAV ":person/name" "Bob" aliceAndBob
+     : bobId <- **fromSingletonSet bobSet ('failed to find Bob' 0)
+     : aid   <- **fromSingletonSet
                   (lookupByAidV dbIdentId ":person/spouse" aliceAndBob)
                 | 'unknown attr' 0
      | lookupByVAid bobId aid aliceAndBob
@@ -203,7 +203,7 @@
 
 ; Who ordered the hamburger?
 !!=     | lookupByAV ":order/name" "Bob" orders
-    @ tendiesEid | cabMin | lookupByAV ":item/product" "Hamburger" orders
+    @ tendiesEid | setMin | lookupByAV ":item/product" "Hamburger" orders
     | lookupByVA tendiesEid ":order/lineItems" orders
 
 = multiOrders
@@ -221,7 +221,7 @@
 
 ; Who ordered the tendies?
 !!=     | lookupByAV ":order/name" "James" multiOrders
-    @ tendiesEid | cabMin | lookupByAV ":item/product" "Tendies" multiOrders
+    @ tendiesEid | setMin | lookupByAV ":item/product" "Tendies" multiOrders
     | lookupByVA tendiesEid ":order/lineItems" multiOrders
 
 
@@ -239,7 +239,7 @@
                                          ## =":item/quantity" 1
                                       ++ ## =":item/product" "Guinness"
                                          ## =":item/quantity" 1
-    @ bobId | cabMin | lookupByAV ":order/name" "Bob" multiOrders
+    @ bobId | setMin | lookupByAV ":order/name" "Bob" multiOrders
     ^ pull _ bobId multiOrders
     ++ ":order/name"
     ++ ## =":order/lineItems" ++ ":item/product"
@@ -247,12 +247,12 @@
 
 ; Test backwards lookups, ie whose orders included tendies?
 !!=    | RIGHT ## =":order/lineItems" ++ ## =":order/name" "James"
-    @ tendiesId | cabMin | lookupByAV ":item/product" "Tendies" multiOrders
+    @ tendiesId | setMin | lookupByAV ":item/product" "Tendies" multiOrders
     ^ pull _ tendiesId multiOrders
     ++ ## =":order/_lineItems" ++ ":order/name"
 
 ; Test backwards lookup to database entity
 !!=    | RIGHT ## =":order/lineItems" ++ ## =":db/id" 13
-    @ tendiesId | cabMin | lookupByAV ":item/product" "Tendies" multiOrders
+    @ tendiesId | setMin | lookupByAV ":item/product" "Tendies" multiOrders
     ^ pull _ tendiesId multiOrders
     ++ ## =":order/_lineItems" ++ ":db/id"

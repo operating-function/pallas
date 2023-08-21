@@ -88,7 +88,7 @@ data Fan
     | BAR !ByteString
     | ROW !(Vector Fan)
     | TAb !(Map Fan Fan)
-    | CAB !(Set Fan)
+    | SET !(Set Fan)
     | COw !Nat
     | REX !Rex
   deriving (Generic, NFData)

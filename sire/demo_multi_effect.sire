@@ -71,8 +71,8 @@
 @ [ty hw] req
 | and (eql 0 ty) (eql 1 hw)
 
-(unregisterSocket vConn sock next)=(modifyRef vConn (cabDel sock) next)
-(registerSocket vConn sock next)=(modifyRef vConn (cabIns sock) next)
+(unregisterSocket vConn sock next)=(modifyRef vConn (setDel sock) next)
+(registerSocket vConn sock next)=(modifyRef vConn (setIns sock) next)
 
 (sockOpen class)=(idx 0 class)
 (sockSend class)=(idx 1 class)
@@ -100,7 +100,7 @@
 | if (eql 0 bar) (next 0)
 : tid <- fork (PIN-handleSocketInput broadcast class vOpen sock)
 : con <- readRef vOpen
-@ conns (listFromRow cabToRow-con)
+@ conns (listFromRow setToRow-con)
 | broadcast bar next
 
 = (runLocalFileServer next)
@@ -120,8 +120,8 @@
 : tels <- readRef vTelnetOpen
 : webs <- readRef vWebSocketOpen
 | trk ["ALL_SEND" bar [=tels =webs]]
-: ____ <- sendAllLoop SOCK_SEND (cabToList tels) bar
-: ____ <- sendAllLoop WOCK_SEND (cabToList webs) bar
+: ____ <- sendAllLoop SOCK_SEND (setToList tels) bar
+: ____ <- sendAllLoop WOCK_SEND (setToList webs) bar
 | next 0
 
 = (runSocketLoop broadcast class vOpen next)
@@ -182,7 +182,7 @@
 ; | forever
 ; & loop
 ; : sock <- webSocketOpen
-; : ____ <- modifyRef vOpen (cabIns sock)
+; : ____ <- modifyRef vOpen (setIns sock)
 ; : trak <- fork (trackWebSocketSocket vWebSocketConn sock)
 ; : hand <- fork (forever (handleWebSocketInput vWebSocketConn sock))
 ; | loop 0
@@ -194,8 +194,8 @@
 
 = (effectDemo done)
 : vCount          <- newRef 0
-: vTelnetOpen     <- newRef %[] ;; cab
-: vWebSockOpen    <- newRef %[] ;; cab
+: vTelnetOpen     <- newRef %[] ;; set
+: vWebSockOpen    <- newRef %[] ;; set
 @ bc (sendAll vTelnetOpen vWebSockOpen)
 : telnetThread    <- fork (runSocketLoop bc Telnet vTelnetOpen)
 : webSocketThread <- fork (runSocketLoop bc WebSocket vWebSockOpen)
