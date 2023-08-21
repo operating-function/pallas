@@ -5,7 +5,7 @@ import Data.List
 data Val
     = PIN !Val
     | LAW !Natural !Natural !Val
-    | APP Val Val
+    | APP !Val Val
     | NAT !Natural
 
 instance NFData Val where

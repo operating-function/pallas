@@ -7,7 +7,7 @@ data Jet = NO_JET | JETTED !([Val] -> Val)
 data Val
     = PIN !Val !Natural !Jet
     | LAW !Natural !Natural !Val
-    | APP Val Val
+    | APP !Val Val
     | NAT !Natural
 
 instance NFData Val where
