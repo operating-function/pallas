@@ -2,10 +2,8 @@ import Control.DeepSeq
 import Numeric.Natural
 import Data.List
 
-data Jet = NO_JET | JETTED !([Val] -> Val)
-
 data Val
-    = PIN !Val !Natural !Jet
+    = PIN !Val !Natural !(Maybe ([Val] -> Val))
     | LAW !Natural !Natural !Val
     | APP !Val Val
     | NAT !Natural
@@ -34,7 +32,7 @@ run _ _ (NAT 2 `APP` x)         = x
 run _ _ x                       = x
 
 subst (APP f x)            xs   = subst f (x:xs)
-subst x@(PIN _ _ (JETTED e)) xs = e (x:xs)
+subst x@(PIN _ _ (Just e)) xs = e (x:xs)
 subst x@(PIN l@LAW{} _ _)  xs   = exec l (x:xs)
 subst (PIN i _ _)          xs   = subst i xs
 subst x                    xs   = exec x (x:xs)
@@ -42,9 +40,9 @@ subst x                    xs   = exec x (x:xs)
 nat (NAT n) = n
 nat _       = 0
 
-pinJet :: Natural -> Jet
-pinJet 31638136657666988474562 = JETTED (\[_,x,y] -> NAT (nat x + nat y))
-pinJet haz                     = NO_JET
+pinJet :: Natural -> Maybe ([Val] -> Val)
+pinJet 31638136657666988474562 = Just (\[_,x,y] -> NAT (nat x + nat y))
+pinJet haz                     = Nothing
 
 -- Fake implementation to avoid needing dependencies.  This needs to be
 -- a cryptographic hash.  See Fan.Hash for a real version of this.
