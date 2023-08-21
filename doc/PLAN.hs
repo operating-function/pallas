@@ -1,7 +1,4 @@
-{-# LANGUAGE DeriveAnyClass, LambdaCase #-}
-
 import Control.DeepSeq
-import GHC.Generics
 import Numeric.Natural
 import Data.List
 
@@ -10,7 +7,10 @@ data Val
     | LAW !Natural !Natural !Val
     | APP Val Val
     | NAT !Natural
- deriving (Generic, NFData)
+
+instance NFData Val where
+  rnf (APP f x) = rnf f `seq` rnf x
+  rnf _         = ()
 
 f % x | arity f == 1 = subst f [x]
 f % x | otherwise    = APP f x
@@ -40,7 +40,7 @@ nat (NAT n) = n
 nat _       = 0
 
 exec (LAW n a b) xs            = run a (reverse xs) b
-exec (NAT 0)     [_,n,NAT 0,b] = r where r = (nat n,b) `deepseq` run 0 [r] b
+exec (NAT 0)     [_,n,NAT 0,b] = (nat n,b) `deepseq` r where r = run 0 [r] b
 exec (NAT 0)     [_,n,a,b]     = LAW (nat n) (nat a) (force b)
 exec (NAT 1)     [_,p,l,a,n,x] = pat p l a n x
 exec (NAT 2)     [_,z,p,x]     = case nat x of 0 -> z; n -> p % NAT (n-1)
