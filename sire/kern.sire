@@ -374,8 +374,8 @@ cog
 = (TIME_WHEN)           | [%time 0 %when]
 = (TIME_WAIT x)         | [%time 0 %wait x]
 = (PORT_SIRE)           | [%port 0 %sire]
-= (PORT_SEND m w)       | [%port 0 %send m w]
-= (PORT_RECV m u b)     | [%port 0 %recv m u b]
+= (PORT_RECV u w)       | [%port 0 %recv u w]
+= (PORT_SEND u t b)     | [%port 0 %send u t b]
 
 typedef#TimeStamp#Nat
 typedef#HttpReqId#Nat

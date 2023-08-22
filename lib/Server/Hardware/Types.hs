@@ -19,6 +19,7 @@ module Server.Hardware.Types
     , fillInvalidSyscall
     , syscallCategory
     , describeSyscall
+    , scsIsLive
     )
 where
 
@@ -36,6 +37,10 @@ data SysCallState
     | DONE Fan Flow  -- ^ The device return a value not yet processed.
     | DEAD           -- ^ The response has been processed by the cog.
   deriving Show
+
+scsIsLive :: SysCallState -> Bool
+scsIsLive LIVE = True
+scsIsLive _    = False
 
 newtype CallStateVar = STVAR { var :: TVar SysCallState }
 

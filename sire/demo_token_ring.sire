@@ -5,32 +5,31 @@
 ### demo_token_ring <- demo_token_ring_chr
 
 /+  boot
-/+  io
+/+  kern
 /+  stew
 
 
 """ Talker """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-= (talker ourName us them white theMsg k)
-@ recur PIN-talker
+= (talker ourName us them white theMsg cogExit)
 ; trk [%talker ourName us them theMsg]
 : sendThread <- fork
                   & done
-                  : now <- syscall (**PORT_SEND us them theMsg)
-                  | trk [ourName %sent theMsg] ;;; %at now]
+                  : ??(p_send now) <- syscall (**PORT_SEND us them theMsg)
+                  | trk [ourName %sent theMsg %at now]
                   | done 0
-: response <- syscall (**PORT_RECV us white)
+: ??(p_recv response) <- syscall (**PORT_RECV us white)
 @ respBody (idx 2 response)
 | trk [ourName %got respBody]
-| recur ourName us them white theMsg k
+| talker ourName us them white theMsg cogExit
 
-= (tokenRing k)
+= (tokenRing cogExit)
 ;
-; trk 'tokenRing',k
+; trk 'tokenRing',cogExit
 ;
-: ali_seed_addr <- syscall PORT_SIRE
-: bob_seed_addr <- syscall PORT_SIRE
-: chr_seed_addr <- syscall PORT_SIRE
+: ??(p_sire ali_seed_addr) <- syscall PORT_SIRE
+: ??(p_sire bob_seed_addr) <- syscall PORT_SIRE
+: ??(p_sire chr_seed_addr) <- syscall PORT_SIRE
 @ [ali_seed ali_addr] ali_seed_addr
 @ [bob_seed bob_addr] bob_seed_addr
 @ [chr_seed chr_addr] chr_seed_addr
@@ -41,7 +40,7 @@
 ;
 ; trk [=ali_seed =ali_addr =bob_seed =bob_addr]
 ;
-@ ali_msg b#"Hi, bob.  What's good?"
+@ ali_msg b#"Hi, Bob.  What's good?"
 @ bob_msg b#"Life is good.  Charlie?"
 @ chr_msg b#"Life is good.  Alice?"
 ;
@@ -51,6 +50,6 @@
 ;
 : ali_thread <- fork (talker %ali ali_seed bob_addr ali_white ali_msg)
 : bob_thread <- fork (talker %bob bob_seed chr_addr bob_white bob_msg)
-| talker %chr chr_seed ali_addr chr_white chr_msg k
+| talker %chr chr_seed ali_addr chr_white chr_msg cogExit
 
 main=(runCog tokenRing)

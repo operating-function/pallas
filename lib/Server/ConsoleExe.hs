@@ -23,7 +23,7 @@ import System.Process
 import Server.Hardware.Http  (createHardwareHttp)
 import Server.Hardware.Types (DeviceTable(..))
 import System.Random         (randomIO)
--- ort Server.Hardware.Port (createHardwarePort)
+import Server.Hardware.Port (createHardwarePort)
 import Server.Hardware.Rand (createHardwareRand)
 -- ort Server.Hardware.Sock (createHardwareSock)
 import Server.Hardware.Time (createHardwareTime)
@@ -436,14 +436,14 @@ withMachineIn storeDir numWorkers enableSnaps machineAction = do
             hw2_http          <- createHardwareHttp storeDir db wsApp
           --hw3_sock          <- createHardwareSock storeDir
             hw5_time          <- createHardwareTime
-          --hw6_port          <- createHardwarePort
+            hw6_port          <- createHardwarePort
             (pure . DEVICE_TABLE . mapFromList) $
                 [ ( "rand", hw1_rand )
                 , ( "http", hw2_http )
                 --( "sock", hw3_sock )
                 --( "wock", hw4_wock )
                 , ( "time", hw5_time )
-                --( "port", hw6_port )
+                , ( "port", hw6_port )
                 , ( "poke", hw_poke  )
                 ]
 

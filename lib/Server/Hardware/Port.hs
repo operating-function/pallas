@@ -16,6 +16,8 @@
     = RECV [us ls]    :: Seed -> Set Addr -> Req (Time, Addr, Bar)
     = SEND [us th br] :: Seed -> Addr -> Bar -> Req Time
 
+    This currently performs local-to-machine send/recv only.
+
 -}
 
 {-# OPTIONS_GHC -Wall    #-}
@@ -25,11 +27,11 @@
 
 module Server.Hardware.Port where
 
-{-
 import PlunderPrelude
 
 import Data.Acquire
 import Fan.Eval
+import Fan.Prof                (Flow)
 import Server.Hardware.Types
 
 import Crypto.Sign.Ed25519     (PublicKey(..), SecretKey(..),
@@ -39,8 +41,7 @@ import Data.Fixed              (Fixed(MkFixed))
 import Data.Time.Clock         (nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX   (getPOSIXTime)
 import GHC.Records             (HasField)
-import Server.Convert          (FromNoun(..), ToNoun(..), fromNoun)
-import Server.Types.Logging    (CogName)
+import Fan.Convert             (FromNoun(..), ToNoun(..), fromNoun)
 import System.Entropy          (getEntropy)
 
 import qualified Data.ByteString as BS
@@ -144,11 +145,6 @@ instance FromNoun Addr where
 instance FromNoun Seed where
     fromNoun = getNat >=> fmap SEED . getWord256
 
-instance FromNoun (Set Addr) where
-    fromNoun = \case
-        CAb c -> (fmap setFromList . traverse fromNoun . setToList) c
-        _     -> Nothing
-
 decodePortRequest :: Vector Fan -> Maybe PortRequest
 decodePortRequest =
     decode . toList
@@ -165,12 +161,6 @@ decodePortRequest =
 
 -- State Types -----------------------------------------------------------------
 
-data RawRequest = RR
-    { mach     :: CogName
-    , vals     :: Vector Fan
-    , callback :: (TVar (Maybe (Fan -> STM ())))
-    }
-
 data SendHandle = SEND_HANDLE
     { request    :: SendRequest
     , source     :: Addr
@@ -186,11 +176,11 @@ data RecvHandle = RECV_HANDLE
     , janitor    :: Async ()
     }
 
-data PortState = STATE
-    { inputQueue   :: TBQueue RawRequest
+data HWState = HW_STATE
+    { queue        :: TBQueue SysCall
     , pendingSends :: TVar (Map Addr [SendHandle])
     , pendingRecvs :: TVar (Map Addr [RecvHandle])
-    , inputThread  :: Async Void
+    , portWorker   :: Async Void
     }
 
 
@@ -221,14 +211,12 @@ genHack = do
     writeIORef hack $! (x+1)
     pure x
 
-jannie :: STM () -> RawRequest -> IO (Async ())
-jannie reaper raw = do
-    let cb = raw.callback
-    _key <- genHack
+jannie :: STM () -> SysCall -> IO (Async ())
+jannie reaper syscall = do
     async $ do
-        -- debugText $ tshow ("Jannie"::Text, key, raw.val)
-        atomically (readTVar cb >>= maybe reaper (const retry))
-        -- debugText $ tshow ("Reaper"::Text, key, raw.val)
+        atomically $ do
+          isLive <- scsIsLive <$> readTVar syscall.state.var
+          if isLive then retry else reaper
 
 --------------------------------------------------------------------------------
 
@@ -280,24 +268,24 @@ fillCallback vCall now = do
         cb (toNoun now)
         writeTVar vCall Nothing
 
-mkSendHandle :: PortState -> RawRequest -> SendRequest -> IO SendHandle
-mkSendHandle st raw sr = do
-    janitor <- jannie (reapPending st.pendingSends sr.target) raw
+mkSendHandle :: HWState -> SysCall -> SendRequest -> IO SendHandle
+mkSendHandle st syscall sr = do
+    janitor <- jannie (reapPending st.pendingSends sr.target) syscall
     pure SEND_HANDLE
         { request    = sr
         , source     = seedAddr sr.source
-        , isCanceled = isNothing <$> readTVar raw.callback
-        , ack        = fillCallback raw.callback
+        , isCanceled = not . scsIsLive <$> readTVar syscall.state.var
+        , ack        = void . writeResponse syscall . toNoun
         , janitor    = janitor
         }
 
-mkRecvHandle :: PortState -> RawRequest -> RecvRequest -> Addr -> IO RecvHandle
-mkRecvHandle st raw rr recvAddr = do
-    janitor <- jannie (reapPending st.pendingRecvs recvAddr) raw
+mkRecvHandle :: HWState -> SysCall -> RecvRequest -> Addr -> IO RecvHandle
+mkRecvHandle st syscall rr recvAddr = do
+    janitor <- jannie (reapPending st.pendingRecvs recvAddr) syscall
     pure RECV_HANDLE
         { request    = rr
-        , isCanceled = isNothing <$> readTVar raw.callback
-        , recv       = fillCallback raw.callback
+        , isCanceled = not . scsIsLive <$> readTVar syscall.state.var
+        , recv       = void . writeResponse syscall . toNoun
         , janitor    = janitor
         }
 
@@ -350,10 +338,10 @@ popMatchingSend recvAddr whitelist = go []
                 else
                     go (h:acc) hh
 
-doSend :: PortState -> RawRequest -> SendRequest -> IO ()
-doSend st raw sr = do
+doSend :: HWState -> SysCall -> SendRequest -> IO ()
+doSend st syscall sr = do
     now  <- getNow
-    hand <- mkSendHandle st raw sr
+    hand <- mkSendHandle st syscall sr
     atomically do
         tab <- readTVar st.pendingRecvs
         findMatch [hand] (fromMaybe [] $ lookup sr.target tab) >>= \case
@@ -362,11 +350,11 @@ doSend st raw sr = do
                 let inj = Just . (hand:) . fromMaybe []
                 modifyTVar' st.pendingSends (alterMap inj sr.target)
 
-doRecv :: PortState -> RawRequest -> RecvRequest -> IO ()
-doRecv st raw rr = do
+doRecv :: HWState -> SysCall -> RecvRequest -> IO ()
+doRecv st syscall rr = do
     let recvAddr = (growSeed rr.identity) ^. _1
     now  <- getNow
-    hand <- mkRecvHandle st raw rr recvAddr
+    hand <- mkRecvHandle st syscall rr recvAddr
     atomically do
         tab <- readTVar st.pendingSends
         findMatch (fromMaybe [] $ lookup recvAddr tab) [hand] >>= \case
@@ -375,44 +363,68 @@ doRecv st raw rr = do
                 let inj = Just . (hand:) . fromMaybe []
                 modifyTVar' st.pendingRecvs (alterMap inj recvAddr)
 
-doSire :: RawRequest -> IO ()
-doSire raw = do
+doSire :: SysCall -> IO ()
+doSire syscall = do
     seed <- fmap SEED $ getEntropy 32
     let addr = growSeed seed ^. _1
     let resp = SIRE_RESP seed addr
-    atomically (callback (CB toNoun raw.callback) resp)
+    atomically (void (writeResponse syscall resp))
 
-handleInput :: PortState -> IO ()
-handleInput st = do
-    raw <- atomically (readTBQueue st.inputQueue)
+runPortWorker :: HWState -> IO ()
+runPortWorker st = do
+    syscall <- atomically (readTBQueue st.queue)
 
-    -- debugText $ tshow (fromNoun raw.val :: Maybe PortRequest)
-
-    case decodePortRequest raw.vals of
-        Nothing        -> atomically (callback (CB id raw.callback) 0)
-        Just (SEND sr) -> doSend st raw sr
-        Just (RECV rr) -> doRecv st raw rr
-        Just SIRE      -> doSire raw
+    case decodePortRequest syscall.args of
+        Nothing        -> atomically (void (writeResponse syscall (NAT 0)))
+        Just (SEND sr) -> doSend st syscall sr
+        Just (RECV rr) -> doRecv st syscall rr
+        Just SIRE      -> doSire syscall
 
 
--- Overall State Flow ----------------------------------------------------------
+-- Device / SysCall interface --------------------------------------------------
 
-createHardwarePort :: Acquire HardwareFun
+runSysCall :: HWState -> SysCall -> STM (Cancel, [Flow])
+runSysCall st syscall = do
+  writeTBQueue st.queue syscall
+  pure (CANCEL (pure ()), [])
+
+categoryCall :: Vector Fan -> Text
+categoryCall args = "%port " <> case decodePortRequest args of
+  Nothing       -> "UNKNOWN"
+  Just SIRE     -> "%sire"
+  Just (SEND _) -> "%send"
+  Just (RECV _) -> "%recv"
+
+describeCall :: Vector Fan -> Text
+describeCall args = categoryCall args <> trailer
+  where
+    trailer =
+      case decodePortRequest args of
+        Just (SEND r) -> " " <> tshow r
+        Just (RECV r) -> " " <> tshow r
+        _             -> ""
+
+createHardwarePort :: Acquire Device
 createHardwarePort = do
-    tt <- mkAcquire startAll shutdown
-    pure \m v k -> writeTBQueue tt.inputQueue (RR m v k)
+    st <- mkAcquire startup shutdown
+    pure DEVICE
+        { spin = \_ -> pass -- Don't care which cog makes the calls.
+        , stop = \_ -> pass
+        , call = runSysCall st
+        , category = categoryCall
+        , describe = describeCall
+        }
+  where
+    startup :: IO HWState
+    startup = do
+        pendingSends <- newTVarIO mempty
+        pendingRecvs <- newTVarIO mempty
+        queue        <- newTBQueueIO 100
 
-startAll :: IO PortState
-startAll = do
-    pendingSends <- newTVarIO mempty
-    pendingRecvs <- newTVarIO mempty
-    inputQueue   <- newTBQueueIO 100
+        mdo let st = HW_STATE{..}
+            portWorker <- async $ forever (runPortWorker st)
+            pure st
 
-    mdo let st = STATE{..}
-        inputThread <- async $ forever (handleInput st)
-        pure st
-
-shutdown :: PortState -> IO ()
-shutdown st = do
-    cancel st.inputThread
--}
+    shutdown :: HWState -> IO ()
+    shutdown st = do
+        cancel st.portWorker
