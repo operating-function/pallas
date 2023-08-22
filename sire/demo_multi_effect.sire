@@ -125,7 +125,6 @@
 | next 0
 
 = (runSocketLoop broadcast class vOpen next)
-@ recur (PIN runSocketLoop)
 | trk 'WAITING_FOR_SOCKET',(**sockOpen class)
 : sock <- syscall (**sockOpen class)
 | trk 'NEW_SOCKET',sock
@@ -142,7 +141,7 @@
         : s <- getKernelState
         | trk 'socked_end',sock
         | done 0
-| recur broadcast class vOpen next
+| runSocketLoop broadcast class vOpen next
 
 ;;;   ++ | tableAdd (TELNET_WAIT h) (onTelnetWait h)
 ;;;      | tableAdd (TELNET_RECV h) (onTelnetRecv h)
@@ -188,9 +187,8 @@
 ; | loop 0
 
 = (randomWaitLoop vCount k)
-@ recur PIN-randomWaitLoop
 : _ <- randomWait vCount
-| recur vCount k
+| randomWaitLoop vCount k
 
 = (effectDemo done)
 : vCount          <- newRef 0
