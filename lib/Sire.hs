@@ -536,48 +536,82 @@ type Lexed = (Int, Text, [(Int, Lex.Frag)])
 readRexStream :: FilePath -> Handle -> IO [(Int, Rex)]
 readRexStream pax = fmap (blox . lexLns pax . fmap pack . lines) . hGetContents
 
+data PartialBlock = PB
+    { depth      :: !Int
+    , fstLineNum :: !Int
+    , acc        :: ![Lexed]
+    }
+
+data BlockState = BS
+    { _lineNum   :: !Int
+    , _partialSt :: !(Maybe PartialBlock)
+    }
+
+initialBlockState :: BlockState
+initialBlockState = BS 1 Nothing
+
+blockStep :: BlockState -> Maybe Lexed -> (BlockState, [(Int,[Lexed])])
+blockStep = \cases
+
+    -- EOF
+    (BS ln Nothing) Nothing   -> (BS ln Nothing, [])
+    (BS ln (Just pb)) Nothing -> (BS ln Nothing, wrap pb)
+
+    -- Empty line outside of block
+    (BS ln Nothing) (Just (_, t, _)) | blankLine t ->
+        (BS (ln+1) Nothing, [])
+
+    -- Empty line during block
+    (BS ln (Just pb)) (Just (_, t, _)) | blankLine t ->
+        (BS (ln+1) Nothing, wrap pb)
+
+    -- new line during block
+    (BS ln (Just pb)) (Just l@(_, _, ts)) ->
+        case ts of
+           (d,_) : _ | d < pb.depth ->
+               (wrap pb <>) <$> blockStep (BS ln Nothing) (Just l)
+           _ ->
+               (BS (ln+1) (Just pb{acc = l : pb.acc}), [])
+
+    -- comment line outsidie of block
+    (BS ln Nothing) (Just (_, _, [])) ->
+        (BS (ln+1) Nothing, [])
+
+    -- new line outside of block.  If the first form is closed, it's a
+    -- one-line block, otherwise we consume lines until we see a blank
+    -- line or EOF.
+    (BS ln Nothing) (Just l@(_, _, t:_)) ->
+        case t of
+            (_, Lex.FORM{}) ->
+                (BS (ln+1) Nothing, [(ln, [l])])
+            (depth, _) ->
+                (BS (ln+1) (Just pb), [])
+                  where pb = PB depth ln [l]
+
+  where
+    wrap :: PartialBlock -> [(Int, [Lexed])]
+    wrap pb = pure (pb.fstLineNum, reverse pb.acc)
+
+    -- lines with comments are not blank (even if no actual rex content)
+    blankLine :: Text -> Bool
+    blankLine = T.null . T.strip
+
+-- This just converts the `blockStep` state machine into a streaming
+-- function and crashes on error.
 blox :: [Lexed] -> [(Int, Rex)]
-blox = \case
-    []                             -> []
-    (_,_,[])   : more              -> blox more
-    (_,_,t:ts) : more | isClosed t -> oneLine (fst t) (t:ts) : blox more
-    (n,_,t:ts) : more | otherwise  -> multiLine n (t :| ts) more
+blox = fmap doBlock . go initialBlockState
   where
-    oneLine :: Int -> [(Int, Lex.Frag)] -> (Int, Rex)
-    oneLine n ts = case Rex.parseBlock [ts] of
-                       Left msg       -> error (unpack msg)
-                         -- ^ TODO throw parser error in above case
-                       Right Nothing  -> error "blox: impossible"
-                       Right (Just r) -> (n, absurd <$> r)
+    go :: BlockState -> [Lexed] -> [(Int, [Lexed])]
+    go st []     = snd (blockStep st Nothing)
+    go st (l:ls) = let (st', outs) = blockStep st (Just l)
+                   in outs <> go st' ls
 
-multiLine :: Int -> NonEmpty (Int, Lex.Frag) -> [Lexed] -> [(Int, Rex)]
-multiLine topLineNum firstLine@(topT :| _) topMore =
-    go [toList firstLine] topMore
-  where
-    done :: [[(Int, Lex.Frag)]] -> [Lexed] -> [(Int, Rex)]
-    done acc more =
-        case Rex.parseBlock (reverse acc) of
-            Left msg       -> error (unpack msg)
-            Right Nothing  -> blox more
-            Right (Just r) -> (topLineNum, fmap absurd r) : blox more
-
-    -- blocks are broken by end-of-file, blank lines,  lines that are
-    -- less-indented than the first line.
-    go :: [[(Int, Lex.Frag)]] -> [Lexed] -> [(Int, Rex)]
-    go acc []                                            = done acc []
-    go acc ((_,t,[]) : more)      | blankLine t          = done acc more
-    go acc more@(((_,_,f:_)) : _) | fst f < initialDepth = done acc more
-    go acc ((_,_,ts) : more)                             = go (ts:acc) more
-
-    initialDepth = fst topT
-
-blankLine :: Text -> Bool
-blankLine = T.null . T.strip
-
-isClosed :: (Int, Lex.Frag) -> Bool
-isClosed (_, Lex.FORM{}) = True
-isClosed (_, Lex.LINE{}) = False
-isClosed (_, Lex.RUNE{}) = False
+    doBlock :: (Int, [Lexed]) -> (Int, Rex)
+    doBlock (n, ls) =
+        case Rex.parseBlock (ls <&> \(_,_,ts) -> ts) of
+           Left msg       -> error (unpack msg)
+           Right Nothing  -> error "blox: impossible"
+           Right (Just r) -> (n, absurd <$> r)
 
 lexLns :: FilePath -> [Text] -> [Lexed]
 lexLns fil = go 1
