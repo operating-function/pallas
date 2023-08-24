@@ -74,7 +74,7 @@
 ^ _ 0
 ? (loop_eqs_tab idx)
 | if (eql idx checkLen) TRUE
-@ [key val] | tabElem idx tab
+@ [key val] | tabElemIdx idx tab
 | if (neq (SOME val) | lookup key hm)
     | trk [%couldntlookup key %expected val %got (lookup key hm)]
     | trk [%inpairs inPairs]
@@ -93,7 +93,7 @@
 @ [gen raw]     | genBitsNat 32 gen
 @ delIdx        | mod raw | dec count
 ; step 1: verify that item exists
-@ [key val] | tabElem delIdx tab
+@ [key val] | tabElemIdx delIdx tab
 | if (neq (SOME val) | lookup key hm)
     | trk [%couldntlookup key %expected val %got (lookup key hm)]
     | trk [%inpairs inPairs]
@@ -111,7 +111,7 @@
 ^ _ 0
 ? (loop_eqs_tab idx)
 | if (eql idx checkLen) TRUE
-@ [key val] | tabElem idx tab
+@ [key val] | tabElemIdx idx tab
 | if (neq (SOME val) | lookup key hm)
     | trk [%couldntlookup key %expected val %got (lookup key hm)]
     | trk [%inpairs inPairs]
@@ -243,7 +243,7 @@
 ^ _ 0
 ? (loop_eqs_tabset idx)
 | if (eql idx checkLen) TRUE
-@ [key val] | tabElem idx tab
+@ [key val] | tabElemIdx idx tab
 | if | not | eql val | hsToSet | lookup key hsm
     | trk [%couldntlookup key %expected val %got (lookup key hsm)]
     | trk [%hsm hsm]
