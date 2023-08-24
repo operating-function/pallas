@@ -272,7 +272,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
 # switch (len res)
 * 0 (die ('eval-timeout' ctx))
 * 1 (idx 0 res)
-* 2 (die ('eval-crash' ctx))
+* 2 (die ('eval-crash' [ctx res]))
 
 ; TODO: user #datatype to define the json structure, and use #datacase here.
 = (jsonRow jsonBS)
