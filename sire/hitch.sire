@@ -603,12 +603,12 @@ newRootNode
 ++ setLen                        ; leafLength
 ++ setSplitAt                    ; leafSplitAt
 ++ setMin                        ; leafFirstKey
-++ #[]                           ; leafEmpty
+++ %[]                           ; leafEmpty
 ++ hsDeleteItem                  ; leafDelete
 ++ setUnion                      ; hhMerge
 ++ setLen                        ; hhLength
 ++ setSplitLT                    ; hhSplit
-++ #[]                           ; hhEmpty
+++ %[]                           ; hhEmpty
 ++ hsDeleteItem                  ; hhDelete
 
 = (hsRawInsert i config r)
@@ -794,7 +794,7 @@ abstype#(SetNode k) ; TODO: (???)
     | if | (eql 0 l)
       | die "invalid treeindex in checkSetAgainst"
     | if | (eql 1 l)
-      | [[leaves #[]] (idx 0 vals) NONE]
+      | [[leaves %[]] (idx 0 vals) NONE]
     | else
       ++ setSplitLT (idx 0 keys) leaves
       ++ idx 0 vals
@@ -806,12 +806,12 @@ abstype#(SetNode k) ; TODO: (???)
 
 !!= [%[1] %[5]]
    | checkSetAgainst %[1 5]
-   ^ INDEXNODE _ #[]
+   ^ INDEXNODE _ %[]
    | ([5], (hmLeaf %[1 2], hmLeaf %[5 7]))
 
 !!= []
    | checkSetAgainst %[8 9]
-   ^ INDEXNODE _ #[]
+   ^ INDEXNODE _ %[]
    | ([5], (hmLeaf %[1 2], hmLeaf %[5 7]))
 
 = (findIntersectStep find [arange anode brange bnode])
@@ -960,7 +960,7 @@ abstype#(HSetMap k v)
    ; since the point of hitchhikers is that they'll fit in an index node's
    ; grain, we count the number of items across all sets in the hitchhiker,
    ; not the number of tab entries.
-   | sum | map setLen | tabKeysSet a
+   | sum | map setLen | tabValsRow a
 ++ tabSplitLT                          ; hhSplit
 ++ #[]                                 ; hhEmpty
 ++ hsmHHDeleteImpl                     ; hhDelete
@@ -1024,11 +1024,11 @@ abstype#(HSetMap k v)
 @ TREE_CONFIG(..) mapConfig
 | **maybeCase r (hsEmpty setConfig)
 & node
-^ _ #[] node
+^ _ %[] node
 ? (lookInNode !hh node)
 # datacase (caseImpl node)
 * (INDEXNODE children hitchhikers)
-  @ matched | fromSome #[] (tabLookup k hitchhikers)
+  @ matched | fromSome %[] (tabLookup k hitchhikers)
   | lookInNode (setUnion hh matched) | findSubnodeByKey k children
 * (LEAFNODE items)
   : ret <- **maybeCase (tabLookup k items)
