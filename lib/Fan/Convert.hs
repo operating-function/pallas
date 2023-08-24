@@ -65,12 +65,33 @@ instance FromNoun Word where
     fromNoun (NAT (NatS# w)) = Just (W# w)
     fromNoun _               = Nothing
 
+instance ToNoun Word8 where
+    toNoun w = toNoun (fromIntegral w :: Word)
+instance FromNoun Word8 where
+    fromNoun = wordFromNoun
+
+instance ToNoun Word32 where
+    toNoun w = toNoun (fromIntegral w :: Word)
+instance FromNoun Word32 where
+    fromNoun = wordFromNoun
+
 instance ToNoun Word64 where
     toNoun w = toNoun (fromIntegral w :: Word)
 instance FromNoun Word64 where
-    fromNoun n = do
+    fromNoun n = do -- we assume 64 bit system, so Word==Word64
         w :: Word <- fromNoun n
         pure (fromIntegral w)
+
+instance FromNoun Int where
+    fromNoun n = do -- INFO this could overflow for positive values above 2^63
+        w :: Word <- fromNoun n
+        pure (fromIntegral w)
+
+wordFromNoun :: forall w. (Bounded w, Integral w) => Fan -> Maybe w
+wordFromNoun n = do
+    w :: Word <- fromNoun n
+    guard (w <= fromIntegral (maxBound :: w))
+    pure (fromIntegral w)
 
 instance (ToNoun a,ToNoun b) => ToNoun (a,b)
   where toNoun(x,y) = mkRow[toNoun x, toNoun y]

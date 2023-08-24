@@ -378,8 +378,13 @@ cog
 = (TIME_WHEN)           | [%time 0 %when]
 = (TIME_WAIT x)         | [%time 0 %wait x]
 = (PORT_SIRE)           | [%port 0 %sire]
-= (PORT_RECV u w)       | [%port 0 %recv u w]
-= (PORT_SEND u t b)     | [%port 0 %send u t b]
+= (PORT_SERV s g)       | [%port 0 %serv s g]
+= (PORT_RQST s p)       | [%port 0 %rqst s p]
+= (PORT_DYNO s)         | [%port 0 %dyno s]
+= (PORT_HOLD i)         | [%port 0 %hold i]
+= (PORT_SEND i m)       | [%port 0 %send i m]
+= (PORT_RECV i)         | [%port 0 %recv i]
+= (PORT_RCLL i c)       | [%port 0 %rcll i c]
 
 typedef#TimeStamp#Nat
 typedef#HttpReqId#Nat
@@ -441,6 +446,11 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 ;
 | return results
 
+; PORT static response sum-type constructors
+=  PORT_SR_DROP             | 0
+= (PORT_SR_HOLD tm)         | [0 tm]
+= (PORT_SR_RESP tm payload) | [1 tm payload]
+= (PORT_SR_DYNO x y)        | [2 x y]
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -487,5 +497,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 ^-^ TimeStamp
 ^-^ TIME_WHEN TIME_WAIT
 ^-^
-^-^ PORT_SIRE PORT_SEND PORT_RECV
+^-^ PORT_SIRE PORT_SERV PORT_RQST PORT_DYNO PORT_HOLD
+^-^ PORT_SEND PORT_RECV PORT_RCLL
+^-^ PORT_SR_DROP PORT_SR_HOLD PORT_SR_RESP PORT_SR_DYNO
 ^-^

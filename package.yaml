@@ -66,6 +66,34 @@ executables:
     dependencies:
       - plunder
 
+  localhost-router:
+    main: Main.hs
+    source-dirs: exe/localhost-router
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+      - network
+      - network-run
+
+  localhost-client:
+    main: Main.hs
+    source-dirs: exe/localhost-client
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+      - network
+      - network-run
+
+  pc:
+    main: Main.hs
+    source-dirs: exe/portcat
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+      - conduit-extra
+      - network
+      - network-run
+
 tests:
   server-tests:
     source-dirs: exe/server-tests
@@ -143,6 +171,7 @@ dependencies:
 - base
 - base16-bytestring
 - base58-bytestring
+- binary
 - bytestring
 - bytestring-mmap
 - case-insensitive
@@ -151,6 +180,7 @@ dependencies:
 - containers
 - criterion
 - deepseq
+- deque
 - directory
 - ed25519
 - entropy
@@ -173,6 +203,7 @@ dependencies:
 - mono-traversable
 - mtl
 - network
+- network-run
 - optics
 - optparse-applicative
 - parallel
@@ -183,6 +214,7 @@ dependencies:
 - random
 - random-shuffle
 - resourcet
+- serialise
 - servant
 - servant-client
 - servant-server

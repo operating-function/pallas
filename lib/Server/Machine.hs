@@ -59,7 +59,7 @@ import qualified Data.Vector as V
 --------------------------------------------------------------------------------
 
 receiptQueueMax :: GHC.Natural
-receiptQueueMax = 16384
+receiptQueueMax = 65536
 
 
 --------------------------------------------------------------------------------

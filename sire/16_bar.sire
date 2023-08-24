@@ -42,7 +42,7 @@
 /+  06_rex  [rexGetLeaf]
 /+  07_dat
 /+  08_sci  []
-/+  09_chr  [isPrint toLower]
+/+  09_chr  [chr isPrint ord toLower]
 /+  10_str  [explode strCat strWeld strFromList]
 /+  11_set  ["%"]
 /+  12_tab  []
@@ -345,6 +345,36 @@ hexAlphabet=(b#{0123456789abcdef})
 !!= 0x123 | getHexBar b#{123} 0 id
 !!= 0     | getHexBar b#{1z3} 0 id
 
+; {barLoadDecimal} parses a decimal number without validating, instead
+; assuming that each character is in the appropriate range.
+= (barLoadDecimal bar)
+^ foldl _ 0 (barBytes bar)
+& (acc c)
+| add (mul 10 acc) (ord c)
+
+!!= 2     | barLoadDecimal b#2
+!!= 19    | barLoadDecimal b#19
+!!= 293   | barLoadDecimal b#293
+!!= 4760  | barLoadDecimal b#4760
+!!= 12345 | barLoadDecimal b#12345
+
+; {barShowDecimal} renders a nat to a decimal number.
+= (barShowDecimal n)
+^ bytesBar (_ n)
+? (loop n)
+@ q (div n 10)
+@ r (mod n 10)
+@ rec | if (eql q 0)
+        | []
+      | loop q
+| weld rec [(chr r)]
+
+!!= b#2     | barShowDecimal 2
+!!= b#19    | barShowDecimal 19
+!!= b#293   | barShowDecimal 293
+!!= b#4760  | barShowDecimal 4760
+!!= b#12345 | barShowDecimal 12345
+
 ; TODO: {showBarLit} should use bare-words where possible (instead of
 ; always quoting everyting with CURL)
 
@@ -533,10 +563,10 @@ barSpace=(barSing ' ')
 ^-^
 ^-^ hexAlphabet hexChar byteToHex barToHex
 ^-^ readBarLit showBarLit
-^-^ getHexBar
+^-^ getHexBar barLoadDecimal barShowDecimal
 ^-^
 ^-^ "#b" "#x" "#"
 ^-^
 ^-^ newline barUnlines
-^-^ barSubstringSearch
+^-^ barIsPrefixOf barSubstringSearch
 ^-^ barNewline barSpace
