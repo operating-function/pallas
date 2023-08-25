@@ -18,7 +18,8 @@ import Control.Monad.STM         as X (retry)
 import Data.Coerce               as X (coerce)
 import Data.Function             as X ((&))
 import Data.List.NonEmpty        as X (NonEmpty(..))
-import Data.Primitive.SmallArray as X
+import Data.Primitive.Array      as X hiding (fromList)
+import Data.Primitive.SmallArray as X hiding (fromList)
 import Data.Void                 as X (Void, absurd)
 import Debug.Trace               as X (trace, traceM, traceShowId)
 import Nat                       as X
@@ -45,6 +46,8 @@ whenJust Nothing  _   = pure ()
 whenJust (Just x) act = act x
 
 -- All methods default to Foldable methods, which is what we want.
+instance MonoFoldable (Array a) where
+type instance Element (Array a) = a
 instance MonoFoldable (SmallArray a) where
 type instance Element (SmallArray a) = a
 
