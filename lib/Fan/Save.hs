@@ -402,7 +402,7 @@ saveFanWorker !ctx !vPins !vTemp !top = do
                     if i<0 then do
                         pure acc
                     else do
-                        x <- loop (row V.! i)
+                        x <- loop (row!i)
                         y <- Jelly.c_cons ctx acc x
                         go y (i-1)
 
@@ -465,8 +465,8 @@ instance FromNoun Pack where
   fromNoun n = do
     r <- getRawRow n
     guard (length r == 2)
-    PACK <$> fromNoun (r V.! 0)
-         <*> fromNoun (r V.! 1)
+    PACK <$> fromNoun (r!0)
+         <*> fromNoun (r!1)
 
 {-
         We should have a version of this that is given a callback which

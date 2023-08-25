@@ -91,8 +91,8 @@ instance (FromNoun a,FromNoun b)
     fromNoun n = do
       r <- getRawRow n
       guard (length r == 2)
-      (,) <$> fromNoun (r V.! 0)
-          <*> fromNoun (r V.! 1)
+      (,) <$> fromNoun (r!0)
+          <*> fromNoun (r!1)
 
 instance (FromNoun a,FromNoun b,FromNoun c)
     => FromNoun (a,b,c)
@@ -100,9 +100,9 @@ instance (FromNoun a,FromNoun b,FromNoun c)
     fromNoun n = do
       r <- getRawRow n
       guard (length r == 3)
-      (,,) <$> fromNoun (r V.! 0)
-           <*> fromNoun (r V.! 1)
-           <*> fromNoun (r V.! 2)
+      (,,) <$> fromNoun (r!0)
+           <*> fromNoun (r!1)
+           <*> fromNoun (r!2)
 
 instance (FromNoun a,FromNoun b,FromNoun c,FromNoun d)
     => FromNoun (a,b,c,d)
@@ -110,10 +110,10 @@ instance (FromNoun a,FromNoun b,FromNoun c,FromNoun d)
     fromNoun n = do
       r <- getRawRow n
       guard (length r == 4)
-      (,,,) <$> fromNoun (r V.! 0)
-            <*> fromNoun (r V.! 1)
-            <*> fromNoun (r V.! 2)
-            <*> fromNoun (r V.! 3)
+      (,,,) <$> fromNoun (r!0)
+            <*> fromNoun (r!1)
+            <*> fromNoun (r!2)
+            <*> fromNoun (r!3)
 
 instance ToNoun ByteString where
     toNoun = BAR
@@ -144,9 +144,12 @@ instance FromNoun Text where
     fromNoun (NAT n) = either (const Nothing) Just (natUtf8 n)
     fromNoun _       = Nothing
 
-getRawRow :: Fan -> Maybe (Vector Fan)
+getRawRow :: Fan -> Maybe (Array Fan)
 getRawRow (ROW xs) = Just xs
 getRawRow _        = Nothing
+
+getRowVec :: Fan -> Maybe (Vector Fan)
+getRowVec = fmap V.fromArray . getRawRow
 
 getRawSet :: Fan -> Maybe (Set Fan)
 getRawSet (SET xs) = Just xs
@@ -160,10 +163,15 @@ getRawBar :: Fan -> Maybe ByteString
 getRawBar (BAR b) = Just b
 getRawBar _       = Nothing
 
-instance ToNoun a => ToNoun (Vector a) where
+instance ToNoun a => ToNoun (Array a) where
     toNoun = ROW . (fmap toNoun)
-instance FromNoun a => FromNoun (Vector a) where
+instance FromNoun a => FromNoun (Array a) where
     fromNoun n = getRawRow n >>= mapM fromNoun
+
+instance ToNoun a => ToNoun (Vector a) where
+    toNoun = toNoun . V.toArray
+instance FromNoun a => FromNoun (Vector a) where
+    fromNoun n = V.fromArray <$> fromNoun n
 
 -- | Since we are very unlikely to ever want actual noun linked-lists
 -- at an API boundary, we represent lists as rows.

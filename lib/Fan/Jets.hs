@@ -10,6 +10,7 @@ module Fan.Jets
     , vShowFan
     , jetMatch
     , getRow
+    , getRowVec
     , getByte
     , vJetHash
     , vJetImpl
@@ -95,7 +96,7 @@ jetMatch cpin = do
     let pinName = case cpin.item of { FUN l -> lawNameText l.name; _ -> "" }
 
     let envRow :: SmallArray Fan -> Fan
-        envRow e = ROW $ V.fromListN (sizeofSmallArray e) (toList e)
+        envRow e = ROW $ arrayFromListN (sizeofSmallArray e) (toList e)
 
     fallback <- do
         doCrash <- readIORef vCrashOnJetFallback
@@ -142,9 +143,14 @@ dumpHashLine pinName hashText = do
 
 -- Utils -----------------------------------------------------------------------
 
-getRow :: Fan -> Maybe (Vector Fan)
+getRow :: Fan -> Maybe (Array Fan)
 getRow (ROW xs) = Just xs
 getRow _        = Nothing
+
+{-# INLINE getRowVec #-}
+getRowVec :: Fan -> Maybe (Vector Fan)
+getRowVec = fmap V.fromArray . getRow
+
 
 getByte :: Fan -> Maybe Word8
 getByte (NAT n) | n<256 = Just (fromIntegral n)

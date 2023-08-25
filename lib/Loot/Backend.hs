@@ -271,7 +271,7 @@ valFan (NAT a)          = F.NAT a
 valFan (REF v)          = v
 valFan (APP f x)        = valFan f %% valFan x
 valFan (BAR b)          = F.BAR b
-valFan (ROW r)          = F.ROW (valFan <$> r)
+valFan (ROW r)          = F.ROW $ V.toArray (valFan <$> r)
 valFan (LAW n a b)      = F.mkLaw n a (valFan $ bodVal b)
 valFan (COW 0)          = F.ROW mempty
 valFan (COW n)          = F.COw n -- Never 0
@@ -292,7 +292,7 @@ plunAlias topNod  = Just (go topNod)
         F.NAT a   -> NAT a
         n@F.PIN{} -> REF n
         F.BAR b   -> BAR b
-        F.ROW r   -> ROW (go <$> r)
+        F.ROW r   -> ROW (go <$> V.fromArray r)
         F.REX r   -> REX (go <$> r)
         F.TAb t   -> TAB (pair <$> mapToList t)
         F.COw n   -> COW n
@@ -326,7 +326,7 @@ loadShallow inVal =
         F.NAT a         -> pure (NAT a)
         F.PIN b         -> REF <$> goPin b
         F.BAR b         -> pure (BAR b)
-        F.ROW r         -> ROW <$> traverse go r
+        F.ROW r         -> ROW <$> traverse go (V.fromArray r)
         F.TAb t         -> TAB <$> traverse goPair (mapToList t)
         F.COw n         -> pure (COW n)
         F.SET n         -> SET <$> traverse go (toList n)
@@ -362,7 +362,7 @@ loadClosure inVal =
         F.NAT a   -> pure (NAT a)
         F.PIN b   -> REF <$> goPin b
         F.BAR b   -> pure (BAR b)
-        F.ROW r   -> ROW <$> traverse go r
+        F.ROW r   -> ROW . V.fromArray <$> traverse go r
         F.TAb t   -> TAB <$> traverse goPair (mapToList t)
         F.REX r   -> REX <$> traverse go r
         F.COw n   -> pure (COW n)
@@ -419,6 +419,6 @@ plunVal = go
         F.BAR b   -> BAR b
         F.COw n   -> COW n
         F.SET ks  -> SET (go <$> toList ks)
-        F.ROW xs  -> ROW (go <$> xs)
+        F.ROW xs  -> ROW (go <$> V.fromArray xs)
         F.TAb t   -> TAB (goPair <$> mapToList t)
         F.REX x   -> REX (go <$> x)

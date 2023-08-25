@@ -37,7 +37,6 @@ import qualified Data.List              as L
 import qualified Data.Map               as M
 import qualified Data.Set               as S
 import qualified Data.Text              as T
-import qualified Data.Vector            as V
 import qualified Fan                    as F
 import qualified Fan.Prof               as Prof
 import qualified Rex.Lexer              as Lex
@@ -71,7 +70,7 @@ type InCtx = (?ctx :: Context)
 
 initialSireStateAny :: Any
 initialSireStateAny =
-    ROW $ V.fromListN 5 $ [1, 0, TAb mempty, TAb mempty, TAb mempty]
+    ROW $ arrayFromListN 5 $ [1, 0, TAb mempty, TAb mempty, TAb mempty]
 
 runRepl :: Repl a -> Any -> Any
 runRepl (REPL act) ini = unsafePerformIO (execStateT act ini)
@@ -84,7 +83,7 @@ runRepl (REPL act) ini = unsafePerformIO (execStateT act ini)
 -- components of the state, doing a full load in this way is very
 -- expensive.
 
-getRow :: Any -> Maybe (Vector Any)
+getRow :: Any -> Maybe (Array Any)
 getRow (ROW x) = Just x
 getRow _       = Nothing
 
@@ -130,11 +129,11 @@ getBinding bindVal = fromMaybe badBinding $ do
     guard (length row == 5)
 
     let datum = BINDING_DATA
-             { key      = getNat (row V.! 0) "binding key"
-             , value    = row V.! 1
-             , code     = getSyr (row V.! 2)
-             , location = row V.! 3
-             , name     = row V.! 4
+             { key      = getNat (row!0) "binding key"
+             , value    = row!1
+             , code     = getSyr (row!2)
+             , location = row!3
+             , name     = row!4
              }
 
     pure (BINDING datum bindVal)
@@ -180,7 +179,7 @@ getState stAny = fromMaybe badState $ do
 
 getPair :: Text -> (Any -> a) -> (Any -> b) -> (Any -> (a, b))
 getPair _ x y (ROW r) | length r == 2 =
-    (x (r V.! 0), y (r V.! 1))
+    (x (r!0), y (r!1))
 
 getPair ctx _ _ _ = error ("getPair: not a pair (" <> unpack ctx <> ")")
 
@@ -208,7 +207,7 @@ lookupVal str stAny = do
 -- reconstruct the desired state.
 revertSwitchToRepl :: Text -> Any -> Any
 revertSwitchToRepl modu oldSt =
-    ROW $ V.fromListN 5 [nex, ctxVal, scope, newModules, props]
+    ROW $ arrayFromListN 5 [nex, ctxVal, scope, newModules, props]
   where
     ctxVal = NAT (utf8Nat modu)
 
@@ -239,12 +238,12 @@ revertSwitchToRepl modu oldSt =
 
 switchToContext :: Str -> Any -> Any
 switchToContext newCtx oldSt =
-    force $ ROW $ V.fromListN 5 [ nextKey
-                                , NAT newCtx
-                                , TAb mempty
-                                , newModules
-                                , TAb mempty
-                                ]
+    force $ ROW $ arrayFromListN 5 [ nextKey
+                                   , NAT newCtx
+                                   , TAb mempty
+                                   , newModules
+                                   , TAb mempty
+                                   ]
   where
     (nextKey, oldCtxVal, oldScope, oldModVal, oldProps) = getStateFields oldSt
 
@@ -258,14 +257,14 @@ switchToContext newCtx oldSt =
         if (oldContext == 0) then
             TAb oldModules
         else
-            let ent = F.mkPin $ ROW $ V.fromListN 2 [oldScope, oldProps]
+            let ent = F.mkPin $ ROW $ arrayFromListN 2 [oldScope, oldProps]
             in TAb (insertMap (NAT oldContext) ent oldModules)
 
 
 getStateFields :: Any -> (Any, Any, Any, Any, Any)
 getStateFields = \case
     ROW v | length v == 5 ->
-        (v V.! 0, v V.! 1, v V.! 2, v V.! 3, v V.! 4)
+        (v!0, v!1, v!2, v!3, v!4)
     ROW _ ->
         error "Invalid state object: row does not have five fields"
     _ ->
@@ -277,7 +276,7 @@ filterScope whitelist st =
     if not (null bogus)
     then parseFail_ (word "logic error") st
            ("filter for non-existing keys: " <> intercalate ", " bogus)
-    else ROW $ V.fromListN 5 [nextKey, context, TAb newScope, modules, binds]
+    else ROW $ arrayFromListN 5 [nextKey, context, TAb newScope, modules, binds]
   where
     (nextKey, context, scopeVal, modules, binds) = getStateFields st
 
@@ -297,7 +296,7 @@ filterScope whitelist st =
 
 importModule :: InCtx => Rex -> Str -> Maybe (Set Str) -> Any -> Any
 importModule blockRex modu mWhitelist stVal =
-    ROW $ V.fromListN 5
+    ROW $ arrayFromListN 5
         $ [nextKey, context, TAb newScope, modulesVal, propsVal]
   where
     moduleBinds :: Tab Any Any
@@ -315,7 +314,7 @@ importModule blockRex modu mWhitelist stVal =
 
         case modPairVal of
             ROW r | length r == 2 ->
-                case r V.! 0 of
+                case r!0 of
                     TAb t -> Right t
                     _     -> Left "module pinItem is not a tab"
             _ -> Left "module pin is not a pair"
@@ -378,7 +377,7 @@ insertBinding rx (mKey, extraProps, name, val, code) stVal =
         Nothing ->
             insertBinding rx (Just nextKey, extraProps, name, val, code)
                 $ ROW
-                $ V.fromListN 5
+                $ arrayFromListN 5
                 $ [NAT (nextKey+1), context, oldScope, modules, oldPropsVal]
 
         Just 0 ->
@@ -407,7 +406,8 @@ insertBinding rx (mKey, extraProps, name, val, code) stVal =
                     else
                         mergeProps (M.singleton (NAT key) extraProps) oldProps
             in
-                ROW $ V.fromListN 5 [NAT nextKey, context, scope, modules, toNoun newProps]
+                ROW $ arrayFromListN 5
+                    $ [NAT nextKey, context, scope, modules, toNoun newProps]
 
 
 expand :: InCtx => Any -> Rex -> Repl Rex
@@ -503,7 +503,7 @@ withCache dir act = do
                   Left{}        -> mempty
                   Right (TAb t) -> t
                   Right _       -> mempty
-    -- trkM $ ROW $ V.fromList ["CACHE", REX $ planRexFull $ TAb c1]
+    -- trkM $ ROW $ arrayFromList ["CACHE", REX $ planRexFull $ TAb c1]
     (x, c2) <- act (c1 :: Tab Any Any)
     p <- F.mkPin' (TAb c2)
     print ("cache hash":: Text, p.hash)
@@ -642,7 +642,8 @@ runSire file inRepl s1 = \case
             Right s2 -> runSire file inRepl s2 rs
             Left pc  -> do
                 unless inRepl do throwIO (pc :: F.PrimopCrash)
-                trkM $ F.ROW $ fromList ["crash", F.NAT pc.errCode, pc.errVal]
+                trkM $ F.ROW $ arrayFromListN 3
+                             $ ["crash", F.NAT pc.errCode, pc.errVal]
                 runSire file inRepl s1 rs
 
 
@@ -693,7 +694,7 @@ doFile dir c1 modu s1 = do
                 Nothing -> do
                     s2 <- runSire file False s1 rexes
                     let sEnt = switchToContext "REPL" s2
-                    let ent  = ROW $ V.fromList [toNoun hax, sEnt]
+                    let ent  = ROW $ arrayFromListN 2 [toNoun hax, sEnt]
                     let c2   = insertMap (toNoun modu) ent c1
                     pure ((s2, hax), c2)
 
@@ -731,7 +732,7 @@ doFile dir c1 modu s1 = do
                         Nothing -> do
                             s3 <- runSire file False s2 rexes
                             let sEnt = switchToContext "REPL" s3
-                            let ent = ROW $ V.fromList [toNoun hax, sEnt]
+                            let ent = ROW $ arrayFromListN 2 [toNoun hax, sEnt]
                             let c3  = insertMap (toNoun modu) ent c2
                             pure ((s3, hax), c3)
 

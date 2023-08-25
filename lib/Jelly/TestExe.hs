@@ -121,7 +121,7 @@ genFanClosure = do
 genFanContainer :: Gen Fan
 genFanContainer = do
     scale (`div` 2) $ do
-        oneof [ F.ROW . fromList <$> arbitrary
+        oneof [ F.ROW . arrayFromList <$> arbitrary
               , F.TAb . mapFromList <$> arbitrary
               , F.SET . setFromList <$> arbitrary
               ]

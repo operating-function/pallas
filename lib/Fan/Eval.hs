@@ -59,6 +59,7 @@ where
 
 import Fan.Prof
 import Fan.RunHashes
+import Fan.Row
 import Fan.Types
 import PlunderPrelude            hiding (hash)
 
@@ -283,7 +284,7 @@ instance Ord Fan where
             SET{}   -> [f]
             COw{}   -> [f]
             REX{}   -> [f]
-            TAb t   -> [SET (keysSet t), ROW (fromList $ toList t)]
+            TAb t   -> [SET (keysSet t), ROW (arrayFromList $ toList t)]
             ROW r   -> if null r then [f] else COw (nat(length r)) : reverse (toList r) -- COw here is never empty
             KLO _ k -> toList k
 
@@ -316,7 +317,7 @@ lawArgs = \case
     NAT{} -> 0 -- Not a function
 
 setToRow :: Set Fan -> Fan
-setToRow set = ROW $ V.fromListN (length set) $ S.toAscList set
+setToRow set = ROW $ arrayFromListN (length set) $ S.toAscList set
 
 {-# INLINE lawBody #-}
 lawBody :: Fan -> Fan
@@ -367,23 +368,23 @@ boom = \case
         let !len = length row in
         case len of
             0 -> boom (COw 0)
-            1 -> (COw 1, row V.! 0)
+            1 -> (COw 1, row ! 0)
             n -> ( let
                      flow !i !0   = COw (fromIntegral i) -- i is never 0
-                     flow !i !ram = KLO i $ a2 (flow (i+1) (ram-1)) (row V.! i)
+                     flow !i !ram = KLO i $ a2 (flow (i+1) (ram-1)) (row ! i)
                    in
                      flow 1 (n-1)
                  ,
-                   row V.! 0
+                   row ! 0
                  )
 
     TAb tab ->
         ( SET $ M.keysSet tab
-        , ROW $ V.fromListN (length tab) $ toList tab
+        , ROW $ arrayFromListN (length tab) $ toList tab
         )
 
     SET ks ->
-        rul (LN 1) 2 (ROW $ fromList $ S.toAscList ks)
+        rul (LN 1) 2 (ROW $ arrayFromList $ S.toAscList ks)
 
     REX rex ->
         rul (LN "_Rex") 1 (rexNoun rex)
@@ -397,20 +398,20 @@ boom = \case
 
 rexNoun :: GRex Fan -> Fan
 rexNoun = \case
-    Rex.C val -> ROW (singleton val)
+    Rex.C val -> ROW (rowSingleton val)
 
     Rex.T style text heir ->
-        (ROW . V.fromListN 3)
+        (ROW . arrayFromListN 3)
         [ textStyleConstr style
         , NAT (bytesNat $ encodeUtf8 text)
         , maybe 0 REX heir
         ]
 
     Rex.N style ryne sons heir ->
-        (ROW . V.fromListN 4)
+        (ROW . arrayFromListN 4)
         [ nodeStyleConstr style
         , NAT (bytesNat $ encodeUtf8 ryne)
-        , ROW (fromList (REX <$> sons))
+        , ROW (arrayFromList (REX <$> sons))
         , maybe 0 REX heir
         ]
   where
@@ -635,7 +636,7 @@ matchRex = \case
     readText (NAT t) = pure (decodeUtf8 $ natBytes t)
     readText _       = Nothing
 
-matchSet :: Vector Fan -> Maybe Fan
+matchSet :: Array Fan -> Maybe Fan
 matchSet vs = do
     case toList vs of
         []   -> Just (SET mempty)
@@ -842,10 +843,10 @@ execFrame buf =
         NAT n -> execNat n buf
         BAR b -> if null b then buf.!1 else NAT (barBody b)
         REX b -> rexNoun b
-        TAb t -> ROW $ V.fromListN (length t) (M.keys t) --tabs return keys row
+        TAb t -> ROW $ arrayFromListN (length t) (M.keys t) --tabs return keys row
         COw n ->
             let !las = fromIntegral n in
-            ROW $ V.generate (fromIntegral n) \i ->
+            ROW $ generateRow (fromIntegral n) \i ->
                       (buf .! (las - i))
 
         SET ks ->
@@ -854,7 +855,7 @@ execFrame buf =
                 -- This only happens if the first arguments was not a
                 -- valid values-row.  Here we run the actual legal
                 -- behavior, which is to return the keys row.
-                ROW (V.fromList $ S.toAscList ks)
+                ROW (arrayFromList $ S.toAscList ks)
             else
                 case buf.!1 of
                     ROW vals | (length vals == length ks) ->
@@ -986,7 +987,7 @@ wut p l a n = \case
 
     wutSet k =
         app4 l (NAT 1) (NAT 2)
-          (ROW $ V.fromListN (length k) $ S.toAscList k)
+          (ROW $ arrayFromListN (length k) $ S.toAscList k)
 
 {-
     PIN p -> rul (LN 0) args (pinBody args p.item)
@@ -1580,7 +1581,7 @@ executeLaw self recPro exePro args =
                         evaluate res
 
         MK_ROW es -> do
-            ROW <$> traverse (go vs) es
+            ROW . V.toArray <$> traverse (go vs) es
 
         MK_TAB es -> do
             -- print ("mk_tab"::Text, res)
@@ -1696,7 +1697,7 @@ trkName fan = do
     res <- case fan of
         NAT n  -> either (const Nothing) pure (natUtf8 n)
         BAR n  -> pure (decodeUtf8 n)
-        ROW xs -> guard (not $ null xs) >> trkName (xs V.! 0)
+        ROW xs -> guard (not $ null xs) >> trkName (xs ! 0)
         _      -> Nothing
     guard (all C.isPrint res)
     pure res
@@ -1704,10 +1705,10 @@ trkName fan = do
 -- WHAT EVEN -------------------------------------------------------------------
 
 mkRow :: [Fan] -> Fan
-mkRow = ROW . fromList
+mkRow = ROW . arrayFromList
 
 tabValsRow :: Map Fan Fan -> Fan
-tabValsRow tab = ROW $ V.fromListN (length tab) $ toList tab
+tabValsRow tab = ROW $ arrayFromListN (length tab) $ toList tab
 
 fanIdx :: Nat -> Fan -> Fan
 fanIdx idxNat fan =
@@ -1719,7 +1720,7 @@ fanIdx idxNat fan =
         go (fromIntegral idxNat) fan
   where
     go idx = \case
-        ROW vec | idx < length vec -> vec V.! idx
+        ROW vec | idx < length vec -> vec ! idx
         TAb tab | idx < length tab -> if idxNat==0 then tabValsRow tab else 0
         KLO _ env                  -> idxKlo idx env
         _                          -> 0

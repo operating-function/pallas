@@ -264,4 +264,4 @@ trkFan (F.REX r) = putStrLn $ rexFile $ joinRex $ showValue . loadShallow <$> r
 trkFan val       = putStrLn $ showClosure Nothing $ loadShallow val
 
 dieFan :: RexColor => Nat -> Fan -> IO ()
-dieFan op fan = trkFan $ F.ROW $ fromList ["crash", F.NAT op, fan]
+dieFan op fan = trkFan $ F.ROW $ arrayFromListN 3 ["crash", F.NAT op, fan]

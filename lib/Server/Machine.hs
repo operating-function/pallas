@@ -37,9 +37,10 @@ import GHC.Prim                      (reallyUnsafePtrEquality#)
 import System.Random         (randomIO)
 import System.Random.Shuffle (shuffleM)
 
-import Fan (Fan(..), PrimopCrash(..), getRow, (%%))
+import Fan (Fan(..), PrimopCrash(..), (%%))
 
 
+import Fan.Row
 import Fan.Convert
 import Fan.Prof
 import Optics                (set)
@@ -148,7 +149,7 @@ responseToVal :: Response -> Fan
 responseToVal (RespCall f _) = f
 responseToVal (RespWhat w) = toNoun w
 responseToVal (RespRecv PENDING_SEND{..}) =
-  ROW $ fromList [toNoun sender, ROW msgParams]
+  ROW $ arrayFromListN 2 $ [toNoun sender, ROW (V.toArray msgParams)]
 responseToVal (RespSend SendOK) = NAT 0
 responseToVal (RespSend SendCrash) = NAT 1
 responseToVal (RespSpin (COG_ID id) _) = fromIntegral id
@@ -157,9 +158,9 @@ responseToVal (RespStop _ f) = toNoun f
 responseToVal (RespWho (COG_ID id)) = fromIntegral id
 responseToVal (RespEval e)   =
     ROW case e of
-        TIMEOUT   -> mempty              -- []
-        OKAY _ r  -> singleton r         -- [f]
-        CRASH n e -> fromList [NAT n, e] -- [n e]
+        TIMEOUT   -> mempty                      -- []
+        OKAY _ r  -> rowSingleton r              -- [f]
+        CRASH n e -> arrayFromListN 2 [NAT n, e] -- [n e]
 
 responseToReceiptItem :: (Int, ResponseTuple) -> (Int, ReceiptItem)
 responseToReceiptItem (idx, tup) = case tup.resp of
@@ -218,7 +219,7 @@ data Request
 -}
 valToRequest :: CogId -> Fan -> Request
 valToRequest cogId top = fromMaybe (UNKNOWN top) do
-    row <- getRow top
+    row <- getRowVec top
     tag <- fromNoun @DeviceName (row V.! 0)
 
     if tag == "eval" then do
@@ -262,7 +263,7 @@ getCurrentReqNoun s = do
         KLO _ xs -> do
             let len = sizeofSmallArray xs
             case (xs .! (len-1)) of
-                ROW x -> x
+                ROW x -> V.fromArray x
                 _     -> mempty
         _ -> mempty
 
@@ -473,7 +474,7 @@ recomputeEvals m cogId tab =
                         (runtime, res) <- withCalcRuntime do
                             evaluate $ force (foldl' (%%) fun args)
                         modify' (+ runtime)
-                        pure (k, ROW (singleton res), Nothing)
+                        pure (k, ROW (rowSingleton res), Nothing)
             ReceiptSpun newCogId -> do
                 case getSpinFunAt m cogId (RequestIdx idx) of
                     Nothing ->
@@ -486,7 +487,7 @@ recomputeEvals m cogId tab =
                     Nothing ->
                         throwIO INVALID_RECV_RECEIPT_IN_LOGBATCH
                     Just val ->
-                      let out = ROW $ fromList [toNoun sender, val]
+                      let out = ROW $ arrayFromListN 2 [toNoun sender, val]
                       in pure (k, out, Nothing)
             ReceiptReap{..} -> do
                 case M.lookup cogNum m.val of
@@ -519,7 +520,7 @@ recomputeEvals m cogId tab =
     getSendFunAt :: Moment -> CogId -> CogId -> RequestIdx -> Maybe Fan
     getSendFunAt m sender receiver idx = withRequestAt m sender idx $ \case
         ReqSend (SNDR cogDst _channel params)
-            | cogDst == receiver     -> Just $ ROW params
+            | cogDst == receiver     -> Just $ ROW (V.toArray params)
             | otherwise              -> Nothing
         _                            -> Nothing
 
@@ -1257,7 +1258,7 @@ keep x y =
         _  ->
            case x of
                ROW rs ->
-                   if length rs == 4 && rs V.! 0 == "http" && rs V.! 2 == "serv"
+                   if length rs == 4 && rs!0 == "http" && rs!2 == "serv"
                    then False
                    else x==y
                _ -> x==y

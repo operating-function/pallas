@@ -86,7 +86,7 @@ data Fan
     | FUN !Law
     | KLO !Int {-# UNPACK #-} !(SmallArray Fan)
     | BAR !ByteString
-    | ROW !(Vector Fan)
+    | ROW {-# UNPACK #-} !(Array Fan)
     | TAb !(Map Fan Fan)
     | SET !(Set Fan)
     | COw !Nat

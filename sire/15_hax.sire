@@ -54,7 +54,7 @@
 /+  04_cmp  [eql neq]
 /+  06_row  [v1 v2 v4 null weld]
 /+  07_rex  [rexKids rexGetWord {``} rexRune]
-/+  08_dat  ["," drop]
+/+  08_dat  [","]
 /+  09_sci  []
 /+  10_chr  []
 /+  11_str  [strWeld]

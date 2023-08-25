@@ -24,7 +24,6 @@ import qualified Data.Set            as S
 import qualified Data.Vector         as V
 import qualified Data.Vector.Mutable as VM
 
-import Data.Vector         ((!))
 import Data.Vector.Mutable (IOVector)
 
 
@@ -281,7 +280,7 @@ hydrateLaw law args = do
         -- or it's a row/tab literal.
 
         COw{} ->
-            pure $ ROW $ reverse args
+            pure $ ROW $ V.toArray $ reverse args
 
         SET ks ->
             case toList args of

@@ -13,6 +13,7 @@ import Control.Parallel
 import Data.Bits
 import Data.Maybe
 import Fan.Convert
+import Fan.Row
 import Fan.Eval
 import Fan.Jets
 import PlunderPrelude
@@ -20,7 +21,6 @@ import Foreign.ForeignPtr
 import Foreign.Storable
 
 import Data.ByteString.Builder (byteString, toLazyByteString)
-import Data.Vector             ((//))
 import Foreign.Marshal.Alloc   (allocaBytes)
 import Foreign.Ptr             (castPtr)
 import GHC.Exts                (Word(..))
@@ -359,30 +359,30 @@ vzipJet :: Jet
 vzipJet f env = orExec (f env) do
     as <- getRow (env.!1)
     bs <- getRow (env.!2)
-    pure $ ROW $ V.zipWith v2 as bs
+    pure $ ROW $ rowZipWith v2 as bs
 
 vrevJet :: Jet
 vrevJet f env = orExec (f env) do
-      (ROW . V.reverse) <$> getRow (env.!1)
+      (ROW . rowReverse) <$> getRow (env.!1)
 
-listToRow :: Fan -> Maybe (Vector Fan)
-listToRow input = V.unfoldrM build input
+listToRow :: Fan -> Maybe (Array Fan)
+listToRow input = V.toArray <$> V.unfoldrM build input
   where
     build :: Fan -> Maybe (Maybe (Fan, Fan))
-    build (NAT _) = Just $ Nothing
-    build (ROW r) | V.length r == 2 = Just $ Just (r V.! 0, r V.! 1)
-    build _ = Nothing
+    build (NAT _)                 = Just $ Nothing
+    build (ROW r) | length r == 2 = Just $ Just (r ! 0, r ! 1)
+    build _                       = Nothing
 
 listToRowJet :: Jet
 listToRowJet f env = orExec (f env) (ROW <$> listToRow (env.!1))
 
 listToRowReversedJet :: Jet
 listToRowReversedJet f env = orExec (f env)
-                             ((ROW . V.reverse) <$> listToRow (env.!1))
+                             ((ROW . rowReverse) <$> listToRow (env.!1))
 
 unfoldrJet :: Jet
 unfoldrJet f env = orExecTrace "unfoldr" (f env)
-                   (ROW <$> V.unfoldrM build (env.!2))
+                   (ROW . V.toArray <$> V.unfoldrM build (env.!2))
   where
     fun = env.!1
     build val = fromNoun @(Maybe (Fan, Fan)) (fun %% val)
@@ -466,22 +466,22 @@ vweldJet :: Jet
 vweldJet f env =
     orExec (f env) (vweld <$> getRow (env.!1) <*> getRow (env.!2))
   where
-    vweld :: Vector Fan -> Vector Fan -> Fan
+    vweld :: Array Fan -> Array Fan -> Fan
     vweld x y = ROW (x ++ y)
 
 vmapJet :: Jet
 vmapJet f env =
     orExec (f env) (vmap (env.!1) <$> getRow (env.!2))
   where
-    vmap :: Fan -> Vector Fan -> Fan
+    vmap :: Fan -> Array Fan -> Fan
     vmap fun vec = ROW $ fmap (fun %%) vec
 
 vconsJet :: Jet
 vconsJet f env =
     orExec (f env) (vcons (env.!1) <$> getRow (env.!2))
   where
-    vcons :: Fan -> Vector Fan -> Fan
-    vcons hed vec = ROW (V.cons hed vec)
+    vcons :: Fan -> Array Fan -> Fan
+    vcons hed vec = ROW (rowCons hed vec)
 
 vsnocJet :: Jet
 vsnocJet f env =
@@ -489,23 +489,23 @@ vsnocJet f env =
         row <- getRow (env.!1)
         pure (vmap row (env.!2))
   where
-    vmap :: Vector Fan -> Fan -> Fan
-    vmap vec tel = ROW (V.snoc vec tel)
+    vmap :: Array Fan -> Fan -> Fan
+    vmap vec tel = ROW (rowSnoc vec tel)
 
 vsumJet :: Jet
 vsumJet f env = orExec (f env) (vsum <$> getRow (env.!1))
   where
-    vsum :: Vector Fan -> Fan
+    vsum :: Array Fan -> Fan
     vsum s = NAT $ foldr (\fan n -> n + toNat fan) 0 s
 
   -- TODO: vfind
 
-vput :: Nat -> Fan -> Vector Fan -> Fan
+vput :: Nat -> Fan -> Array Fan -> Fan
 vput ix vl rw =
     let !siz = fromIntegral (length rw)
     in ROW $ if (ix >= siz)
              then rw
-             else rw // [(fromIntegral ix, vl)]
+             else rowPut (fromIntegral ix) vl rw
 
 vputJet :: Jet
 vputJet f env =
@@ -529,33 +529,33 @@ vswitchJet :: Jet
 vswitchJet f env =
     orExec (f env) (vtake (toNat (env.!1)) (env.!2) <$> getRow (env.!3))
   where
-    vtake :: Nat -> Fan -> Vector Fan -> Fan
+    vtake :: Nat -> Fan -> Array Fan -> Fan
     vtake i fb vec =
         if (i >= fromIntegral (length vec))
         then fb
-        else vec V.! fromIntegral i
+        else vec ! fromIntegral i
 
 vtakeJet :: Jet
 vtakeJet f env =
     orExec (f env) (vtake (toNat (env.!1)) <$> getRow (env.!2))
   where
-    vtake :: Nat -> Vector Fan -> Fan
+    vtake :: Nat -> Array Fan -> Fan
     vtake n vec =
         let siz = fromIntegral (length vec)
         in ROW $ if (n >= siz)
                  then vec
-                 else V.take (fromIntegral n) vec
+                 else rowTake (fromIntegral n) vec
 
 vdropJet :: Jet
 vdropJet f env =
     orExec (f env) (vdrop (toNat (env.!1)) <$> getRow (env.!2))
   where
-    vdrop :: Nat -> Vector Fan -> Fan
+    vdrop :: Nat -> Array Fan -> Fan
     vdrop n vec =
       let siz = fromIntegral (length vec)
       in ROW $ if (n >= siz)
-               then V.empty
-               else V.drop (fromIntegral n) vec
+               then mempty
+               else rowDrop (fromIntegral n) vec
 
 bIdxJet :: Jet
 bIdxJet f env =
@@ -722,7 +722,7 @@ padCatJet f e =
     orExecTrace "padCat" (f e)
         (pcat <$> getRow (e.!1))
   where
-    pcat vs = NAT $ V.foldl (\a i -> padWeld a (toPad i)) 1 vs
+    pcat vs = NAT $ foldl' (\a i -> padWeld a (toPad i)) 1 vs
 
 barWeldJet :: Jet
 barWeldJet f e =
@@ -788,8 +788,8 @@ setWeldJet f e =
 setCatRowAscJet :: Jet
 setCatRowAscJet f e = orExecTrace "setCatRowAsc" (f e) do
   r <- getRow (e.!1)
-  sets <- filter (not . S.null) <$> traverse getSet r
-  guard (isAsc $ V.toList sets)
+  sets <- rowFilter (not . S.null) <$> traverse getSet r
+  guard (isAsc $ toList sets)
   pure $ SET $ S.fromDistinctAscList $ concat $ map toList sets
   where
     isAsc []       = True
@@ -832,7 +832,7 @@ setSplitAtJet f e =
   where
     doSplitAt :: Nat -> Set Fan -> Fan
     doSplitAt n s = let (a, b) = S.splitAt (fromIntegral n) s
-                    in ROW $ V.fromList [SET a, SET b]
+                    in ROW $ arrayFromList [SET a, SET b]
 
 setSplitLTJet :: Jet
 setSplitLTJet f e =
@@ -841,7 +841,7 @@ setSplitLTJet f e =
   where
     doSplitLT :: Fan -> Set Fan -> Fan
     doSplitLT n s = let (a, b) = S.spanAntitone (< n) s
-                    in ROW $ V.fromList [SET a, SET b]
+                    in ROW $ arrayFromListN 2 [SET a, SET b]
 
 setIntersectionJet :: Jet
 setIntersectionJet f e =
@@ -904,7 +904,7 @@ tabElemIdxJet f e =
     telem i m = let n = fromIntegral i
                 in if n >= M.size m then NAT 0
                    else let (k, v) = M.elemAt n m
-                        in ROW $ V.fromList [k, v]
+                        in ROW $ arrayFromListN 2 [k, v]
 
 tabLenJet :: Jet
 tabLenJet f e =
@@ -918,7 +918,7 @@ tabToPairsJet f e =
     orExecTrace "tabToPairs" (f e) (toP <$> getTab (e.!1))
   where
     toP :: Map Fan Fan -> Fan
-    toP tab = ROW $ V.fromListN (length tab) $ map v2' $ mapToList tab
+    toP tab = ROW $ arrayFromListN (length tab) $ map v2' $ mapToList tab
 
 tabToPairListJet :: Jet
 tabToPairListJet f e =
@@ -929,11 +929,11 @@ tabToPairListJet f e =
 
 {-# INLINE v2 #-}
 v2 :: Fan -> Fan -> Fan
-v2 x y = ROW $ V.fromListN 2 [x,y]
+v2 x y = ROW $ arrayFromListN 2 [x,y]
 
 {-# INLINE v2' #-}
 v2' :: (Fan, Fan) -> Fan
-v2' (x,y) = ROW $ V.fromListN 2 [x,y]
+v2' (x,y) = ROW $ arrayFromListN 2 [x,y]
 
 tabFromPairsJet :: Jet
 tabFromPairsJet f e =
@@ -952,7 +952,7 @@ tabFromPairsJet f e =
     getPair x = do
         vs <- getRow x
         guard (length vs == 2)
-        Just (vs V.! 0, vs V.! 1)
+        Just (vs!0, vs!1)
 
 tabLookupJet :: Jet
 tabLookupJet f e =
@@ -971,7 +971,7 @@ tabSplitAtJet f e =
   where
     doSplitAt :: Nat -> Map Fan Fan -> Fan
     doSplitAt n s = let (a, b) = M.splitAt (fromIntegral n) s
-                    in ROW $ V.fromList [TAb a, TAb b]
+                    in ROW $ arrayFromListN 2 [TAb a, TAb b]
 
 tabSplitLTJet :: Jet
 tabSplitLTJet f e =
@@ -980,7 +980,7 @@ tabSplitLTJet f e =
   where
     doSplitLT :: Fan -> Map Fan Fan -> Fan
     doSplitLT n s = let (a, b) = M.spanAntitone (< n) s
-                    in ROW $ V.fromList [TAb a, TAb b]
+                    in ROW $ arrayFromListN 2 [TAb a, TAb b]
 
 tabMapWithKeyJet :: Jet
 tabMapWithKeyJet f e =
@@ -1052,7 +1052,7 @@ tabKeysRowJet :: Jet
 tabKeysRowJet f e = orExecTrace "_TabKeysRow" (f e) (tk <$> getTab(e.!1))
   where
     tk :: Map Fan Fan -> Fan
-    tk = ROW . V.fromList . M.keys
+    tk = ROW . arrayFromList . M.keys
 
 tabKeysSetJet :: Jet
 tabKeysSetJet f e = orExecTrace "_TabKeys" (f e) (tk <$> getTab(e.!1))
@@ -1064,7 +1064,7 @@ tabValsJet :: Jet
 tabValsJet f e = orExecTrace "tabVals" (f e) (tv <$> getTab(e.!1))
   where
     tv :: Map Fan Fan -> Fan
-    tv = ROW . V.fromList . M.elems
+    tv = ROW . arrayFromList . M.elems
 
 typeTagJet :: Jet
 typeTagJet _ e =
@@ -1090,9 +1090,9 @@ dataTagJet :: Jet
 dataTagJet _ e =
     let v = e.!1 in
     case v of
-        ROW r -> if null r then 0 else (r V.! 0) -- app
-        KLO{} -> snd $ boom v                    -- app
-        TAb{} -> snd $ boom v                    -- app
+        ROW r -> if null r then 0 else (r!0) -- app
+        KLO{} -> snd $ boom v                -- app
+        TAb{} -> snd $ boom v                -- app
         PIN{} -> 0 -- pin
         FUN{} -> 0 -- law
         BAR{} -> 0 -- law

@@ -45,9 +45,6 @@ import Loot.Syntax  (joinRex)
 import Rex          (GRex(..), RexColorScheme(NoColors), RuneShape(..),
                      TextShape(..), rexFile)
 
-import qualified Data.Vector as V
-
-
 -- Aliases ---------------------------------------------------------------------
 
 type Rex  = GRex Any
@@ -110,7 +107,7 @@ mkNewBinding d =
     BINDING d noun
   where
     list = [NAT d.key, d.value, sireNoun d.code, d.location, d.name]
-    noun = mkPin $ ROW $ V.fromListN 5 list
+    noun = mkPin $ ROW $ arrayFromListN 5 list
 
 
 -- Sire Types ------------------------------------------------------------------
@@ -155,12 +152,12 @@ sireNoun = go
     go :: Sire -> Any
     go = \case
         S_VAR n   -> NAT n
-        S_VAL n   -> ROW $ V.fromListN 2 ["val", n]
-        S_GLO b   -> ROW $ V.fromListN 2 ["ref", b.noun]
-        S_APP f x -> ROW $ V.fromListN 3 ["app", go f, go x]
-        S_LET v b -> ROW $ V.fromListN 3 ["let", go v, go b]
-        S_LIN x   -> ROW $ V.fromListN 2 ["lin", go x]
-        S_LAM l   -> ROW $ V.fromListN 6 ("lam" : goLam l)
+        S_VAL n   -> ROW $ arrayFromListN 2 ["val", n]
+        S_GLO b   -> ROW $ arrayFromListN 2 ["ref", b.noun]
+        S_APP f x -> ROW $ arrayFromListN 3 ["app", go f, go x]
+        S_LET v b -> ROW $ arrayFromListN 3 ["let", go v, go b]
+        S_LIN x   -> ROW $ arrayFromListN 2 ["lin", go x]
+        S_LAM l   -> ROW $ arrayFromListN 6 ("lam" : goLam l)
 
 lamRex :: Lam -> Rex
 lamRex l =

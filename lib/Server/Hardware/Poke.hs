@@ -20,9 +20,10 @@ import Data.Acquire                (Acquire, mkAcquire)
 import Data.Heap                   (MinHeap)
 import Server.Types.Logging        (CogId(..))
 
-import qualified Data.Heap as Heap
-import qualified Data.Map  as M
-import qualified Fan       as F
+import qualified Data.Heap   as Heap
+import qualified Data.Map    as M
+import qualified Data.Vector as V
+import qualified Fan         as F
 
 -- Callback function which pokes a cog and blocks until the cog has processed
 -- the poke. This should block if the cog does not currently have an open poke
@@ -69,7 +70,7 @@ runSysCall :: HWState -> SysCall -> STM (Cancel, [Flow])
 runSysCall st syscall =
   case toList syscall.args of
     ["poke", ROW nats] -> do
-      let path = map (decodeUtf8 . natBytes . toNat) nats
+      let path = map (decodeUtf8 . natBytes . toNat) (V.fromArray nats)
       key <- poolRegister st.requestPool syscall
       modifyTVar' st.requests (addRequest syscall.cog path key)
 
