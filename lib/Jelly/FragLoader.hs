@@ -11,7 +11,7 @@ module Jelly.FragLoader
     )
 where
 
-import PlunderPrelude hiding ((^))
+import PlunderPrelude
 
 import Control.Monad.Trans.State.Strict
 import Data.Bits
@@ -73,7 +73,7 @@ loadFrags = top
             let fstElemWid = 64 - countLeadingZeros maxElemIdx
             let fstIdx     = nLeaf
 
-            tab  <- VM.generate sz \i -> if i >= nLeaf then 0 else leaves!i
+            tab  <- VM.generate sz \i -> if i >= nLeaf then 0 else leaves V.! i
             word <- peek here
 
             when (sz == 0) do throwIO JELLY_EMPTY_FILE
@@ -241,7 +241,7 @@ construct hed arg = do
        -- The head can be a closure if the head "leaf" is a
        -- back-reference to a fragment that occured more than once.
        KLO _ xs -> do
-           let realHed = (xs ^ 0)
+           let realHed = (xs .! 0)
            let hedArgs = fromList $ drop 1 $ toList xs
            construct realHed (hedArgs <> arg)
 
@@ -251,7 +251,7 @@ construct hed arg = do
            pure $ KLO resArity $ smallArrayFromList $ (hed : toList arg)
 
        NAT 0 ->
-           case (arg!0, arg!1, arg!2) of
+           case (arg V.! 0, arg V.! 1, arg V.! 2) of
                (NAT n, NAT a, b) -> constructLaw n a b (drop 3 arg)
                _                 -> lift $ throwIO JELLY_BAD_LAW_LITERAL
 

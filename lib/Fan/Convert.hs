@@ -7,7 +7,6 @@ module Fan.Convert where
 import Fan
 import PlunderPrelude
 
-import Data.Vector ((!))
 import GHC.Word    (Word(W#))
 import Hash256     (Hash256, hashToByteString, toHash256)
 
@@ -92,8 +91,8 @@ instance (FromNoun a,FromNoun b)
     fromNoun n = do
       r <- getRawRow n
       guard (length r == 2)
-      (,) <$> fromNoun (r!0)
-          <*> fromNoun (r!1)
+      (,) <$> fromNoun (r V.! 0)
+          <*> fromNoun (r V.! 1)
 
 instance (FromNoun a,FromNoun b,FromNoun c)
     => FromNoun (a,b,c)
@@ -101,9 +100,9 @@ instance (FromNoun a,FromNoun b,FromNoun c)
     fromNoun n = do
       r <- getRawRow n
       guard (length r == 3)
-      (,,) <$> fromNoun (r!0)
-           <*> fromNoun (r!1)
-           <*> fromNoun (r!2)
+      (,,) <$> fromNoun (r V.! 0)
+           <*> fromNoun (r V.! 1)
+           <*> fromNoun (r V.! 2)
 
 instance (FromNoun a,FromNoun b,FromNoun c,FromNoun d)
     => FromNoun (a,b,c,d)
@@ -111,10 +110,10 @@ instance (FromNoun a,FromNoun b,FromNoun c,FromNoun d)
     fromNoun n = do
       r <- getRawRow n
       guard (length r == 4)
-      (,,,) <$> fromNoun (r!0)
-            <*> fromNoun (r!1)
-            <*> fromNoun (r!2)
-            <*> fromNoun (r!3)
+      (,,,) <$> fromNoun (r V.! 0)
+            <*> fromNoun (r V.! 1)
+            <*> fromNoun (r V.! 2)
+            <*> fromNoun (r V.! 3)
 
 instance ToNoun ByteString where
     toNoun = BAR

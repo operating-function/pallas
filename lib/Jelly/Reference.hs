@@ -211,7 +211,6 @@ where
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Bits
-import Data.Vector                      ((!))
 import Nat
 import GHC.Word
 import Hash256
@@ -649,7 +648,7 @@ getJelly pinz = do
     when (wid == 0) do
         lift (throwE "getJelly: No data")
 
-    pure (tab ! (wid-1))
+    pure (tab V.! (wid-1))
 
 getFrag :: IsJelly a => LoadTrees a ()
 getFrag = do
@@ -710,7 +709,7 @@ getLeaf = do
     leaf <- bitsNum @Int <$> getBits leafWid
 
     if leaf < refs then
-        pure (st.table ! leaf)
+        pure (st.table V.! leaf)
     else
         lift $ throwE "ref is out of bounds"
 

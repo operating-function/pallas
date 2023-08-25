@@ -26,7 +26,6 @@ module Fan.Eval
     , matchData
     , toNat
     , (%%)
-    , (^)
     , executeLaw
     , compileLaw
     , mkPin
@@ -61,13 +60,12 @@ where
 import Fan.Prof
 import Fan.RunHashes
 import Fan.Types
-import PlunderPrelude            hiding (hash, (^))
+import PlunderPrelude            hiding (hash)
 
 import Control.Monad.Trans.State (State, execState, modify', runState)
 
 import Control.Monad.ST (ST)
 import Data.Char        (isAlphaNum)
-import Data.Vector      ((!))
 import Fan.PinRefs      (pinRefs)
 import GHC.Prim         (reallyUnsafePtrEquality#)
 import GHC.Word         (Word(..))
@@ -155,7 +153,7 @@ normalize top =
     if isNormal top then top else go top
   where
     isNormal (KLO _ xs) =
-        case xs^0 of
+        case xs .! 0 of
             KLO{} -> False
             _     -> all isNormal (toList xs)
     isNormal (ROW v) = all isNormal v
@@ -174,7 +172,7 @@ normalize top =
         TAb t  -> TAb (go <$> t)
         KLO r eRaw ->
             let e = mapSmallArray' go eRaw in
-            case (e ^ 0) of
+            case (e .! 0) of
                KLO _ ee ->
                    let !w  = sizeofSmallArray e
                        !ww = sizeofSmallArray ee
@@ -289,9 +287,6 @@ instance Ord Fan where
             ROW r   -> if null r then [f] else COw (nat(length r)) : reverse (toList r) -- COw here is never empty
             KLO _ k -> toList k
 
-(^) :: SmallArray a -> Int -> a
-(^) = indexSmallArray
-
 {-# INLINE lawName #-}
 lawName :: Fan -> Nat
 lawName = \case
@@ -358,13 +353,13 @@ boom = \case
     -- we essentially create a lazy-list of width=2 closure nodes.
     KLO arity xs ->
         case sizeofSmallArray xs of
-          2   -> ( xs^0 , xs^1 )
+          2   -> ( xs.!0 , xs.!1 )
           len -> ( let
-                     flow !_ !0 = xs^0
-                     flow !r !i = KLO (r+1) (a2 (flow (r+1) (i-1)) (xs^i))
+                     flow !_ !0 = xs.!0
+                     flow !r !i = KLO (r+1) (a2 (flow (r+1) (i-1)) (xs.!i))
                    in
                      flow arity (len-2)
-                 , xs^(len-1)
+                 , xs.!(len-1)
                  )
 
     -- Builds lazy list of two-element KLO nodes.
@@ -372,14 +367,14 @@ boom = \case
         let !len = length row in
         case len of
             0 -> boom (COw 0)
-            1 -> (COw 1, row!0)
+            1 -> (COw 1, row V.! 0)
             n -> ( let
                      flow !i !0   = COw (fromIntegral i) -- i is never 0
-                     flow !i !ram = KLO i $ a2 (flow (i+1) (ram-1)) (row!i)
+                     flow !i !ram = KLO i $ a2 (flow (i+1) (ram-1)) (row V.! i)
                    in
                      flow 1 (n-1)
                  ,
-                   row!0
+                   row V.! 0
                  )
 
     TAb tab ->
@@ -475,8 +470,8 @@ kloList = reverse . kloWalk
 kloWalk :: Fan -> [Fan]
 kloWalk (KLO _ xs) = go (sizeofSmallArray xs - 1)
                        where
-                         go !0 = kloWalk (xs^0)
-                         go !i = (xs^i) : go (i-1)
+                         go !0 = kloWalk (xs.!0)
+                         go !i = (xs.!i) : go (i-1)
 kloWalk v          = [v]
 
 instance Show Fan where
@@ -530,7 +525,7 @@ trueArity = \case
     COw 0          -> error "Should be jet matched as V0"
     COw n          -> succ $ fromIntegral n
     SET{}          -> 2
-    KLO _ xs       -> trueArity (xs^0) - fromIntegral (sizeofSmallArray xs - 1)
+    KLO _ xs       -> trueArity (xs.!0) - fromIntegral (sizeofSmallArray xs - 1)
     FUN l          -> l.args
     NAT n          -> natArity n
     PIN p          -> p.args
@@ -675,7 +670,7 @@ mkPin :: Fan -> Fan
 mkPin = PIN . unsafePerformIO . mkPin'
 
 frameSize :: Fan -> Int
-frameSize (KLO _ e) = frameSize (e^0)
+frameSize (KLO _ e) = frameSize (e.!0)
 frameSize v         = 1 + evalArity v
 
 {-
@@ -818,11 +813,11 @@ app4 f x y z =
 appN :: SmallArray Fan -> Fan
 appN xs =
     case sizeofSmallArray xs of
-       2 -> app2 (xs^0) (xs^1)
-       3 -> app3 (xs^0) (xs^1) (xs^2)
-       4 -> app4 (xs^0) (xs^1) (xs^2) (xs^3)
+       2 -> app2 (xs.!0) (xs.!1)
+       3 -> app3 (xs.!0) (xs.!1) (xs.!2)
+       4 -> app4 (xs.!0) (xs.!1) (xs.!2) (xs.!3)
        !wid ->
-            let !arity = evalArity (xs^0)
+            let !arity = evalArity (xs.!0)
                 !need  = arity+1
             in
             -- trace (ppShow $ APPLY (wid,need) (toList xs))
@@ -838,20 +833,20 @@ appN xs =
 
 execFrame :: SmallArray Fan -> Fan
 execFrame buf =
-    let x = buf^0 in
+    let x = buf.!0 in
     case x of
         FUN l -> executeLaw x l.code l.code buf
         PIN p -> p.exec buf
         ROW v -> mkCow (fromIntegral $ length v)
         KLO{} -> error "Invalid stack frame, closure as head"
         NAT n -> execNat n buf
-        BAR b -> if null b then buf^1 else NAT (barBody b)
+        BAR b -> if null b then buf.!1 else NAT (barBody b)
         REX b -> rexNoun b
         TAb t -> ROW $ V.fromListN (length t) (M.keys t) --tabs return keys row
         COw n ->
             let !las = fromIntegral n in
             ROW $ V.generate (fromIntegral n) \i ->
-                      (buf ^ (las - i))
+                      (buf .! (las - i))
 
         SET ks ->
             if sizeofSmallArray buf == 3 -- (set badVals arg)
@@ -861,7 +856,7 @@ execFrame buf =
                 -- behavior, which is to return the keys row.
                 ROW (V.fromList $ S.toAscList ks)
             else
-                case buf^1 of
+                case buf.!1 of
                     ROW vals | (length vals == length ks) ->
                         TAb (M.fromDistinctAscList $ zip keyList valList)
                           where
@@ -874,7 +869,7 @@ eval2 :: Fan -> Fan -> Fan
 eval2 fn x1 =
     case fn of
         k@(KLO _ x) ->
-            case x^0 of
+            case x.!0 of
                KLO{} -> evalN (KLO 0 $ a2 k x1)
                func  -> let !w = sizeofSmallArray x in
                         valCode func $ createSmallArray (w+1) x1 \buf -> do
@@ -886,7 +881,7 @@ eval3 :: Fan -> Fan -> Fan -> Fan
 eval3 fn x1 x2 =
     case fn of
         k@(KLO _ x) ->
-            case x^0 of
+            case x.!0 of
                KLO{} -> evalN (KLO 0 $ a3 k x1 x2)
                func  -> let !w = sizeofSmallArray x in
                         valCode func $ createSmallArray (w+2) x2 \buf -> do
@@ -899,7 +894,7 @@ eval4 :: Fan -> Fan -> Fan -> Fan -> Fan
 eval4 fn x1 x2 x3 =
     case fn of
         k@(KLO _ x) ->
-            case x^0 of
+            case x.!0 of
                KLO{} -> evalN (KLO 0 $ a4 k x1 x2 x3)
                func  -> let !w = sizeofSmallArray x in
                         valCode func $ createSmallArray (w+3) x3 \buf -> do
@@ -922,7 +917,7 @@ evalN env =
     fill :: ∀s. SmallMutableArray s Fan -> Fan -> ST s Int
     fill buf = \case
         KLO _ e -> do
-            !i <- fill buf (e^0)
+            !i <- fill buf (e.!0)
             let !w = sizeofSmallArray e
             let !v = w-1
             copySmallArray buf i e 1 v
@@ -946,14 +941,14 @@ instance Show PrimopCrash where
     show = displayException
 
 execNat :: Nat -> SmallArray Fan -> Fan
-execNat 0 e = mkLaw (LN $ toNat $ e^1) (toNat $ e^2) (e^3)
-execNat 1 e = wut (e^1) (e^2) (e^3) (e^4) (e^5)
-execNat 2 e = case toNat (e^3) of 0 -> e^1
-                                  n -> (e^2) %% NAT(n-1)
-execNat 3 e = NAT (toNat(e^1) + 1)
-execNat 4 e = mkPin (e^1)
+execNat 0 e = mkLaw (LN $ toNat $ e.!1) (toNat $ e.!2) (e.!3)
+execNat 1 e = wut (e.!1) (e.!2) (e.!3) (e.!4) (e.!5)
+execNat 2 e = case toNat (e.!3) of 0 -> e.!1
+                                   n -> (e.!2) %% NAT(n-1)
+execNat 3 e = NAT (toNat(e.!1) + 1)
+execNat 4 e = mkPin (e.!1)
 execNat n e = unsafePerformIO do
-    let arg = (e^1)
+    let arg = (e.!1)
     evaluate (force arg) -- If arg crashes, throw that instead
     Fan.Prof.recordInstantEvent "crash" "fan" $
         M.singleton "op" (Right $ tshow n)
@@ -1125,10 +1120,10 @@ optimizeSpine :: Run -> Run
 optimizeSpine = go
   where
     tryMatchSwitch exe r =
-        case r^2 of
+        case r.!2 of
             MK_ROW vrun ->
-                SWI (go $ r^0)
-                    (go $ r^1)
+                SWI (go $ r.!0)
+                    (go $ r.!1)
                     (go <$> (smallArrayFromList $ toList vrun))
             _ -> exe
 
@@ -1148,15 +1143,15 @@ optimizeSpine = go
         wordify ((NAT (NatS# k), v) : vs) = (W# k, v) : wordify vs
         wordify ((_,             _) : _ ) = error "no good"
 
-    tryMatchTabSwitch exe r = case r^2 of
+    tryMatchTabSwitch exe r = case r.!2 of
         MK_TAB vrun ->
             if all isWord (keys vrun) && (M.size vrun < 100) then
-                mkJumpTable (go (r^0))
-                            (go (r^1))
+                mkJumpTable (go (r.!0))
+                            (go (r.!1))
                             (go <$> vrun)
             else
-                JMP (go (r^0))
-                    (go (r^1))
+                JMP (go (r.!0))
+                    (go (r.!1))
                     (go <$> vrun)
         _ -> exe
 
@@ -1165,11 +1160,11 @@ optimizeSpine = go
     go = \case
         exe@(EXE _ _ (PIN p) r) ->
             let haz = p.hash in
-            if | haz == ifHash        -> IF_ (go(r^0)) (go(r^1)) (go(r^2))
+            if | haz == ifHash        -> IF_ (go(r.!0)) (go(r.!1)) (go(r.!2))
                | haz == switchHash    -> tryMatchSwitch exe r
                | haz == tabSwitchHash -> tryMatchTabSwitch exe r
-               | haz == seqHash       -> SEQ (go(r^0)) (go(r^1))
-               | haz == trkHash       -> TRK (go(r^0)) (go(r^1))
+               | haz == seqHash       -> SEQ (go(r.!0)) (go(r.!1))
+               | haz == trkHash       -> TRK (go(r.!0)) (go(r.!1))
                | otherwise            -> exe
         LET i v b            -> LET i (goLazy v) (go b)
         exe                  -> goLazy exe
@@ -1360,7 +1355,7 @@ matchConstructors = go
         EXE _ _ (PIN p) r
             | sizeofSmallArray r == 2
             , Just (name, fun) <- matchPin p op2Table
-                -> go $ OP2 name fun (r^0) (r^1)
+                -> go $ OP2 name fun (r.!0) (r.!1)
 
         EXE _ _ (KLO 1 n) r
             | [PIN p, a] <- F.toList n
@@ -1372,14 +1367,14 @@ matchConstructors = go
             if sizeofSmallArray r /= 1 then
                 error "TODO: Remove this check, since this should never happen"
             else
-            case go (r^0) of
+            case go (r.!0) of
                 MK_ROW vs | length vs == length ks ->
                     MK_TAB $ mapFromList $ zip (S.toList ks) (toList vs)
                 _ ->
                     EXE x s (SET ks) (go <$> r)
 
         EXE x s (KLO n e) r ->
-            case e^0 of
+            case e.!0 of
                 COw{} ->
                     go $ MK_ROW
                        $ fromList
@@ -1398,7 +1393,7 @@ matchPin p tbl =  M.lookup p.hash tbl
 
 valCode :: Fan -> (SmallArray Fan -> Fan)
 valCode = \case
-    KLO _ x   -> valCode (x^0)
+    KLO _ x   -> valCode (x.!0)
     x@(FUN f) -> executeLaw x f.code f.code
     PIN p     -> p.exec
     NAT n     -> execNat n
@@ -1598,7 +1593,7 @@ executeLaw self recPro exePro args =
             copySmallArray buf 0 e 0 w
             let !nar = sizeofSmallArray xs
             let fill i = unless (i==nar) do
-                             v <- go vs (xs^i)
+                             v <- go vs (xs.!i)
                              writeSmallArray buf (i+w) v
                              fill (i+1)
             fill 0
@@ -1609,7 +1604,7 @@ executeLaw self recPro exePro args =
             !buf <- newSmallArray sz f
             let !nar = sizeofSmallArray xs
             let fill i = unless (i==nar) do
-                             v <- go vs (xs^i)
+                             v <- go vs (xs.!i)
                              writeSmallArray buf (i+1) v
                              fill (i+1)
             fill 0
@@ -1621,7 +1616,7 @@ executeLaw self recPro exePro args =
             let recEnvSize = recArgs + 1
             !buf <- newSmallArray recEnvSize self
             let fill i = unless (i==recArgs) do
-                             v <- go vs (xs^i)
+                             v <- go vs (xs.!i)
                              writeSmallArray buf (i+1) v
                              fill (i+1)
             fill 0
@@ -1647,7 +1642,7 @@ executeLaw self recPro exePro args =
               _     -> pure 0
           if idx >= sizeofSmallArray c
           then go vs f
-          else go vs (c^idx)
+          else go vs (c.!idx)
 
         JMP i f c -> do
             key <- go vs i
@@ -1666,7 +1661,7 @@ executeLaw self recPro exePro args =
                         !end = length keyVec
 
                         search ix | ix>=end                 = go vs f
-                        search ix | (keyVec SV.! ix == key) = go vs (branches^ix)
+                        search ix | (keyVec SV.! ix == key) = go vs (branches.!ix)
                         search ix                           = search (ix+1)
                     in
                         search 0
@@ -1677,7 +1672,7 @@ executeLaw self recPro exePro args =
             let lazArgs = length xs
             !buf <- newSmallArray (lazArgs + 1) self
             let fill i = unless (i==lazArgs) do
-                             v <- go vs (xs^i)
+                             v <- go vs (xs.!i)
                              writeSmallArray buf (i+1) v
                              fill (i+1)
             fill 0
@@ -1701,7 +1696,7 @@ trkName fan = do
     res <- case fan of
         NAT n  -> either (const Nothing) pure (natUtf8 n)
         BAR n  -> pure (decodeUtf8 n)
-        ROW xs -> guard (not $ null xs) >> trkName (xs ! 0)
+        ROW xs -> guard (not $ null xs) >> trkName (xs V.! 0)
         _      -> Nothing
     guard (all C.isPrint res)
     pure res
@@ -1724,7 +1719,7 @@ fanIdx idxNat fan =
         go (fromIntegral idxNat) fan
   where
     go idx = \case
-        ROW vec | idx < length vec -> vec ! idx
+        ROW vec | idx < length vec -> vec V.! idx
         TAb tab | idx < length tab -> if idxNat==0 then tabValsRow tab else 0
         KLO _ env                  -> idxKlo idx env
         _                          -> 0

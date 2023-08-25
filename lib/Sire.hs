@@ -14,7 +14,6 @@ import PlunderPrelude            hiding (hGetContents)
 import Sire.Types
 import System.FilePath.Posix
 
-import Data.Vector           ((!))
 import Fan                   (Fan(COw, NAT, NAT, REX, ROW, TAb), (%%))
 import Fan.Convert           (ToNoun(toNoun), FromNoun(fromNoun))
 import Fan.Save              (loadPack, savePack)
@@ -131,11 +130,11 @@ getBinding bindVal = fromMaybe badBinding $ do
     guard (length row == 5)
 
     let datum = BINDING_DATA
-             { key      = getNat (row!0) "binding key"
-             , value    = row ! 1
-             , code     = getSyr (row!2)
-             , location = row ! 3
-             , name     = row ! 4
+             { key      = getNat (row V.! 0) "binding key"
+             , value    = row V.! 1
+             , code     = getSyr (row V.! 2)
+             , location = row V.! 3
+             , name     = row V.! 4
              }
 
     pure (BINDING datum bindVal)
@@ -181,7 +180,7 @@ getState stAny = fromMaybe badState $ do
 
 getPair :: Text -> (Any -> a) -> (Any -> b) -> (Any -> (a, b))
 getPair _ x y (ROW r) | length r == 2 =
-    (x (r!0), y (r!1))
+    (x (r V.! 0), y (r V.! 1))
 
 getPair ctx _ _ _ = error ("getPair: not a pair (" <> unpack ctx <> ")")
 
@@ -266,7 +265,7 @@ switchToContext newCtx oldSt =
 getStateFields :: Any -> (Any, Any, Any, Any, Any)
 getStateFields = \case
     ROW v | length v == 5 ->
-        (v!0, v!1, v!2, v!3, v!4)
+        (v V.! 0, v V.! 1, v V.! 2, v V.! 3, v V.! 4)
     ROW _ ->
         error "Invalid state object: row does not have five fields"
     _ ->
@@ -316,7 +315,7 @@ importModule blockRex modu mWhitelist stVal =
 
         case modPairVal of
             ROW r | length r == 2 ->
-                case r!0 of
+                case r V.! 0 of
                     TAb t -> Right t
                     _     -> Left "module pinItem is not a tab"
             _ -> Left "module pin is not a pair"

@@ -31,7 +31,6 @@ import PlunderPrelude
 
 import Control.Concurrent.STM.TQueue (flushTQueue)
 import Control.Monad.State           (StateT, execStateT, modify', runStateT)
-import Data.Vector                   ((!))
 import GHC.Conc                      (unsafeIOToSTM)
 import GHC.Prim                      (reallyUnsafePtrEquality#)
 -- ort Text.Show.Pretty              (ppShow)
@@ -40,7 +39,6 @@ import System.Random.Shuffle (shuffleM)
 
 import Fan (Fan(..), PrimopCrash(..), getRow, (%%))
 
-import qualified Fan
 
 import Fan.Convert
 import Fan.Prof
@@ -221,38 +219,38 @@ data Request
 valToRequest :: CogId -> Fan -> Request
 valToRequest cogId top = fromMaybe (UNKNOWN top) do
     row <- getRow top
-    tag <- fromNoun @DeviceName (row!0)
+    tag <- fromNoun @DeviceName (row V.! 0)
 
     if tag == "eval" then do
-        nat <- fromNoun @Nat (row!1)
+        nat <- fromNoun @Nat (row V.! 1)
         let timeoutSecs = nat
         let timeoutMs   = timeoutSecs * 1000
         guard (length row >= 4)
-        let func = row!2
+        let func = row V.! 2
         let args = V.drop 3 row
         let flow = FlowDisabled -- TODO: What?
         let er = EVAL_REQUEST{func,args,cogId,flow,timeoutMs}
         pure (ReqEval er)
-        -- e (ReqEval $ error "_" timeoutSecs (row!2) (V.drop 3 row))
+        -- e (ReqEval $ error "_" timeoutSecs (row V.! 2) (V.drop 3 row))
     else if tag == "what" then do
-        what <- fromNoun @(Set Nat) (row!1)
+        what <- fromNoun @(Set Nat) (row V.! 1)
         pure $ ReqWhat what
     else if tag == "cog" then do
-        nat <- fromNoun @Nat (row!1)
+        nat <- fromNoun @Nat (row V.! 1)
         case nat of
-            "spin" | length row == 3 -> pure (ReqSpin $ SR $ row!2)
-            "reap" | length row == 3 -> ReqReap <$> fromNoun @CogId (row!2)
-            "stop" | length row == 3 -> ReqStop <$> fromNoun @CogId (row!2)
+            "spin" | length row == 3 -> pure (ReqSpin $ SR $ row V.! 2)
+            "reap" | length row == 3 -> ReqReap <$> fromNoun @CogId (row V.! 2)
+            "stop" | length row == 3 -> ReqStop <$> fromNoun @CogId (row V.! 2)
             "send" | length row >= 4 -> do
-                dst <- fromNoun @CogId (row!2)
-                channel <- fromNoun (row!3)
+                dst <- fromNoun @CogId (row V.! 2)
+                channel <- fromNoun (row V.! 3)
                 pure (ReqSend (SNDR dst channel (V.drop 4 row)))
-            "recv" | length row == 3 -> ReqRecv <$> fromNoun (row!2)
+            "recv" | length row == 3 -> ReqRecv <$> fromNoun (row V.! 2)
             "who"  | length row == 2 -> pure ReqWho
             _ -> Nothing
     else do
         _   <- guard (length row >= 3)
-        nat <- fromNoun @Nat (row!1)
+        nat <- fromNoun @Nat (row V.! 1)
         case nat of
             0 -> pure (ReqCall $ CR False tag $ V.drop 2 row)
             1 -> pure (ReqCall $ CR True  tag $ V.drop 2 row)
@@ -263,7 +261,7 @@ getCurrentReqNoun s = do
     case s of
         KLO _ xs -> do
             let len = sizeofSmallArray xs
-            case (xs Fan.^ (len-1)) of
+            case (xs .! (len-1)) of
                 ROW x -> x
                 _     -> mempty
         _ -> mempty
@@ -1259,7 +1257,7 @@ keep x y =
         _  ->
            case x of
                ROW rs ->
-                   if length rs == 4 && rs!0 == "http" && rs!2 == "serv"
+                   if length rs == 4 && rs V.! 0 == "http" && rs V.! 2 == "serv"
                    then False
                    else x==y
                _ -> x==y

@@ -9,6 +9,7 @@ module PlunderPrelude
     , turn
     , whenJust
     , pass
+    , (!), (.!)
     )
 where
 
@@ -53,3 +54,9 @@ type instance Element (SmallArray a) = a
 
 pass :: Monad m => m ()
 pass = pure ()
+
+(!) :: Array a -> Int -> a
+(!) = indexArray
+
+(.!) :: SmallArray a -> Int -> a
+(.!) = indexSmallArray

@@ -79,7 +79,6 @@ import Loot.Types
 import PlunderPrelude
 
 import Control.Monad.State (State, evalState, get, put, runState)
-import Data.Vector         ((!))
 import Fan                 (Fan, Pin(..), (%%))
 import Loot                (keyRex)
 import Rex.Print           (RexColorScheme(NoColors), rexLine)
@@ -213,9 +212,9 @@ nameClosure (CLOSURE env val) =
           -> Maybe (Symb, (Val Symb, Hash256))
     toMap (i, (p, mV)) = do
         v <- mV
-        pure (names!i, ((names!) <$> v, p.hash))
+        pure (names V.! i, ((names V.!) <$> v, p.hash))
 
-    value = (names!) <$> val
+    value = (names V.!) <$> val
     names = assignNames (F.valTag . (.item) . fst <$> env)
     envir = mapFromList $ catMaybes
                         $ fmap toMap

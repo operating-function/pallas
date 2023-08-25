@@ -16,7 +16,7 @@ where
 import Fan.Types
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
-import PlunderPrelude        hiding ((^))
+import PlunderPrelude
 
 import qualified Jelly.FragLoader as JFL
 
@@ -26,10 +26,9 @@ import Control.Monad.Trans.State.Strict (State(..), StateT(..), evalState,
                                          evalStateT, execState, execStateT, get,
                                          modify', put, runState)
 import Data.Bits                        (clearBit, testBit, (.&.))
-import Data.Vector                      ((!))
 import Fan.Convert
 import Fan.Eval                         (boom, evalArity, mkLawPreNormalized,
-                                         mkPin', mkRow, tabValsRow, (%%), (^))
+                                         mkPin', mkRow, tabValsRow, (%%))
 import Foreign.C.Types                  (CBool(..))
 import Foreign.Ptr                      (Ptr, castPtr)
 import Foreign.Storable                 (peek, poke)
@@ -403,7 +402,7 @@ saveFanWorker !ctx !vPins !vTemp !top = do
                     if i<0 then do
                         pure acc
                     else do
-                        x <- loop (row!i)
+                        x <- loop (row V.! i)
                         y <- Jelly.c_cons ctx acc x
                         go y (i-1)
 
@@ -423,11 +422,11 @@ saveFanWorker !ctx !vPins !vTemp !top = do
 
             let go !acc !i | i>=end = pure acc
                 go !acc !i = do
-                    !x <- loop (env ^ i)
+                    !x <- loop (env .! i)
                     !y <- Jelly.c_cons ctx acc x
                     go y (i+1)
 
-            !start <- loop (env ^ 0)
+            !start <- loop (env .! 0)
             go start 1
 
         FUN (L (LN nv) av bv _) -> do
@@ -466,8 +465,8 @@ instance FromNoun Pack where
   fromNoun n = do
     r <- getRawRow n
     guard (length r == 2)
-    PACK <$> fromNoun (r!0)
-         <*> fromNoun (r!1)
+    PACK <$> fromNoun (r V.! 0)
+         <*> fromNoun (r V.! 1)
 
 {-
         We should have a version of this that is given a callback which
