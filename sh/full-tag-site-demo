@@ -18,11 +18,16 @@ MACHINE_DIR=$(realpath .fulltag-demo)
 usage ()
 {
     echo "Usage: ./full-tag-site-demo [ -d | --demosrc SRCDIR ]
-                                      [ --use-local | --use-cdn ]
-                                      [ --machine-dir MACHINEDIR ]
+                            [ --use-local | --use-cdn ]
+                            [ --machine-dir MACHINEDIR ]
 
-            full-tag-site-demo will try to download a small 600 json file
-            demo if -d is unset."
+    full-tag-site-demo will try to download a small 600 json file demo if
+    '-d' is unset.
+
+    You can download a larger 70GB dataset that contains a million images
+    by downloading this torrent:
+
+    magnet:?xt=urn:btih:c2f603468767fc098ddb8f0d560688caa6690304&dn=safe-score-gte-37.tar.gz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce"
     exit 2
 }
 
