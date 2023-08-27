@@ -14,12 +14,15 @@ LAST_PAGE=20
 USE_LOCAL=0
 USE_CDN=0
 MACHINE_DIR=$(realpath .fulltag-demo)
+MACHINE_ARGS=()
 
 usage ()
 {
     echo "Usage: ./full-tag-site-demo [ -d | --demosrc SRCDIR ]
                             [ --use-local | --use-cdn ]
                             [ --machine-dir MACHINEDIR ]
+                            [ -p | --profile-output PROF_FILE ]
+                            [ -P | --profile-laws ]
 
     full-tag-site-demo will try to download a small 600 json file demo if
     '-d' is unset.
@@ -31,7 +34,7 @@ usage ()
     exit 2
 }
 
-PARSED_ARGUMENTS=$(getopt -a -n alphabet -o d: --long demosrc:,machine-dir:,use-local,use-cdn -- "$@")
+PARSED_ARGUMENTS=$(getopt -a -n alphabet -o d:p:P --long demosrc:,machine-dir:,profile-output:,profile-laws,use-local,use-cdn,help -- "$@")
 VALID_ARGUMENTS=$?
 if [ "$VALID_ARGUMENTS" != "0" ]; then
   usage
@@ -70,15 +73,20 @@ if [ "$current_map_count" -lt "$MIN_MAP_COUNT" ]; then
   exit 1
 fi
 
-echo "PARSED_ARGUMENTS is $PARSED_ARGUMENTS"
+#echo "PARSED_ARGUMENTS is $PARSED_ARGUMENTS"
 eval set -- "$PARSED_ARGUMENTS"
 while :
 do
   case "$1" in
-    -d | --demosrc) DEMOSRC="$2"     ; shift 2 ;;
-    --use-local)    USE_LOCAL=1      ; shift   ;;
-    --use-cdn)      USE_CDN=1        ; shift   ;;
-    --machine-dir)  MACHINE_DIR="$2" ; shift 2 ;;
+    -d | --demosrc)        DEMOSRC="$2"             ; shift 2 ;;
+    --use-local)           USE_LOCAL=1              ; shift   ;;
+    --use-cdn)             USE_CDN=1                ; shift   ;;
+    --machine-dir)         MACHINE_DIR="$2"         ; shift 2 ;;
+    -p | --profile-output) MACHINE_ARGS+=("-p" "$2"); shift 2 ;;
+    -P | --profile-laws)   MACHINE_ARGS+=("-P")     ; shift   ;;
+
+    # Don't "error" on help.
+    --help) usage ;;
 
     # -- means the end of the arguments; drop this, and break out of the while loop
     --) shift; break ;;
@@ -145,7 +153,7 @@ done
 # TODO: error out if this broke.
 plunder boot "$MACHINE_DIR" sire/demo_full_tag_site.sire
 
-plunder start "$MACHINE_DIR" &
+plunder start "${MACHINE_ARGS[@]}" "$MACHINE_DIR" &
 RUN_MACHINE=$!
 
 echo "started..."
