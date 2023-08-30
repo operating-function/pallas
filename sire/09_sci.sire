@@ -55,6 +55,18 @@
 | runVec map-reconstruct-spec
 
 
+""" Printing Pinned Structures """""""""""""""""""""""""""""""""""""""""""""""""
+
+= (showPins t)
+| if (isApp t)
+    | showPins (car t) (showPins | cdr t)
+| if (isLaw t)
+    | car t (showPins | lawBody t)
+| if (isPin t)
+    ('PIN', showPins (pinItem t))
+| t
+
+
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ^-^
@@ -62,4 +74,5 @@
 ^-^ fullInspection
 ^-^ reconstruct
 ^-^ unApply
+^-^ showPins
 ^-^
