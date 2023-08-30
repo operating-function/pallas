@@ -18,23 +18,6 @@
 
 """ Util """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; General utilities related to searching.
-
-= (compare x y)
-| if (eql x y) %eq
-| if (lte x y) %lt
-%gt
-
-= (binFindIdxLte cmp r)
-^ _ 0 (len r)
-? (go_binfind l u)
-| if (lte u l) l
-@ k | rsh (add u l) 1
-# switch | cmp | get r k
-* lt | go_binfind l k
-* eq | inc k
-* _  | go_binfind (inc k) u
-
 ;
 ; Given an index and a hitchhiker object, creates a packed representation.
 ;
@@ -207,7 +190,10 @@ abstype#(Index k v) ; TODO: (???)
 ;
 = (findSubnodeByKey key [keys vals])
 | get vals
-| binFindIdxLte (**compare key) keys
+@ b     | bsearch key keys
+@ found | mod b 2
+@ idx   | rsh b 1
+| add found idx
 
 ;;;;;;;;;;
 ;; Leaf ;;
