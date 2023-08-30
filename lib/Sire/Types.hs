@@ -36,6 +36,7 @@ where
 
 import PlunderPrelude
 
+import Data.Sorted  (Tab)
 import Fan          (Fan(..), mkPin)
 import Fan.Convert  (ToNoun(toNoun))
 import Fan.JetImpl  (doTrk)
@@ -58,12 +59,11 @@ data ToBind = TO_BIND (Maybe Nat) (Maybe Sire) Nat Sire
 -- Formal Sire State -----------------------------------------------------------
 
 type Str = Nat
-type Tab = Map
 type Any = Fan
 
-type Props = Map Any (Map Any Any)
+type Props = Tab Any (Tab Any Any)
 
-type Scope = Map Any Binding
+type Scope = Tab Any Binding
 
 data SireState = SIRE_STATE
     { nextKey :: Nat                     --  Next unique key.

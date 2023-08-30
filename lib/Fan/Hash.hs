@@ -1,11 +1,12 @@
 module Fan.Hash (fanHash) where
 
+import Data.Sorted
+import Fan.Eval              (lawArgs, lawBody, lawName)
 import Fan.Types
-import Fan.Eval (lawName, lawArgs, lawBody)
 import Foreign.C.Types
 import Foreign.Marshal.Alloc
 import Foreign.Ptr
-import PlunderPrelude hiding ((^))
+import PlunderPrelude        hiding ((^))
 
 import Foreign.ForeignPtr
 import Foreign.Storable   (peek)
@@ -121,14 +122,14 @@ fanHash top =
 
         SET v -> do
             c_blake3_hasher_update_byte h 7
-            c_blake3_hasher_update_word h (fromIntegral $ S.size v)
-            traverse_ (go h) (S.toAscList v)
+            c_blake3_hasher_update_word h (fromIntegral $ length v)
+            traverse_ (go h) (ssetToArray v)
 
         TAb v -> do
             c_blake3_hasher_update_byte h 8
-            c_blake3_hasher_update_word h (fromIntegral $ M.size v)
-            traverse_ (go h) (M.keys v)
-            traverse_ (go h) (M.elems v)
+            c_blake3_hasher_update_word h (fromIntegral $ length v)
+            traverse_ (go h) (tabKeysArray v)
+            traverse_ (go h) (tabElemsArray v)
 
         v@(REX r) -> do -- It's a law
             c_blake3_hasher_update_byte h 1

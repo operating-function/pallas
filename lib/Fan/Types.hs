@@ -27,6 +27,7 @@ module Fan.Types
 where
 
 import PlunderPrelude hiding (hash, (^))
+import Data.Sorted
 
 import Hash256 (Hash256)
 import Rex     (GRex)
@@ -85,10 +86,10 @@ data Fan
     | PIN !Pin
     | FUN !Law
     | KLO !Int {-# UNPACK #-} !(SmallArray Fan)
-    | BAR !ByteString
+    | BAR {-# UNPACK #-} !ByteString
     | ROW {-# UNPACK #-} !(Array Fan)
-    | TAb !(Map Fan Fan)
-    | SET !(Set Fan)
+    | TAb {-# UNPACK #-} !(ArrayMap Fan Fan)
+    | SET {-# UNPACK #-} !(ArraySet Fan)
     | COw !Nat
     | REX !Rex
   deriving (Generic, NFData)
@@ -141,7 +142,7 @@ data Run
           {-# UNPACK #-} !(SmallArray Run)         --  Arguments
 
     | SWI      !Run !Run !(SmallArray Run)
-    | JMP      !Run !Run !(Map Fan Run)
+    | JMP      !Run !Run !(Tab Fan Run)
     | JMP_WORD !Run !Run !(SV.Vector Word) !(SmallArray Run)
 
     | SEQ !Run !Run
@@ -157,7 +158,7 @@ data Run
 
     | MK_ROW !(Vector Run)
 
-    | MK_TAB !(Map Fan Run)
+    | MK_TAB !(Tab Fan Run)
 
     -- Inlined operations with fallback from the pin.
     | OP2 !String (Fan -> Fan -> Fan) !Run !Run

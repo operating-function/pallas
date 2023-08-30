@@ -57,21 +57,20 @@ module Fan.Eval
     )
 where
 
+import Data.Sorted
 import Fan.Prof
 import Fan.RunHashes
-import Data.Sorted
 import Fan.Types
-import PlunderPrelude            hiding (hash)
+import PlunderPrelude  hiding (hash)
 
+import Control.Monad.ST          (ST)
 import Control.Monad.Trans.State (State, execState, modify', runState)
-
-import Control.Monad.ST (ST)
-import Data.Char        (isAlphaNum)
-import Fan.PinRefs      (pinRefs)
-import GHC.Prim         (reallyUnsafePtrEquality#)
-import GHC.Word         (Word(..))
-import Hash256          (shortHex)
-import Rex              (GRex)
+import Data.Char                 (isAlphaNum)
+import Fan.PinRefs               (pinRefs)
+import GHC.Prim                  (reallyUnsafePtrEquality#)
+import GHC.Word                  (Word(..))
+import Hash256                   (shortHex)
+import Rex                       (GRex)
 
 import {-# SOURCE #-} Fan.Hash (fanHash)
 import {-# SOURCE #-} Fan.Save (saveFan)
@@ -80,7 +79,6 @@ import qualified Data.ByteString      as BS
 import qualified Data.Char            as C
 import qualified Data.Foldable        as F
 import qualified Data.Map             as M
-import qualified Data.Set             as S
 import qualified Data.Vector          as V
 import qualified Data.Vector.Storable as SV
 import qualified GHC.Exts             as GHC
@@ -284,9 +282,9 @@ instance Ord Fan where
             SET{}   -> [f]
             COw{}   -> [f]
             REX{}   -> [f]
-            TAb t   -> [SET (keysSet t), ROW (arrayFromList $ toList t)]
             ROW r   -> if null r then [f] else COw (nat(length r)) : reverse (toList r) -- COw here is never empty
             KLO _ k -> toList k
+            TAb t   -> [SET (tabKeysSet t), ROW (fromList $ toList t)]
 
 {-# INLINE lawName #-}
 lawName :: Fan -> Nat
@@ -316,8 +314,8 @@ lawArgs = \case
     KLO{} -> 0 -- Not a function
     NAT{} -> 0 -- Not a function
 
-setToRow :: Set Fan -> Fan
-setToRow set = ROW $ arrayFromListN (length set) $ S.toAscList set
+setToRow :: ArraySet Fan -> Fan
+setToRow set = ROW (ssetToArray set)
 
 {-# INLINE lawBody #-}
 lawBody :: Fan -> Fan
@@ -379,12 +377,12 @@ boom = \case
                  )
 
     TAb tab ->
-        ( SET $ M.keysSet tab
-        , ROW $ arrayFromListN (length tab) $ toList tab
+        ( SET $ tabKeysSet tab
+        , ROW $ tabElemsArray tab
         )
 
     SET ks ->
-        rul (LN 1) 2 (ROW $ arrayFromList $ S.toAscList ks)
+        rul (LN 1) 2 (ROW $ ssetToArray ks)
 
     REX rex ->
         rul (LN "_Rex") 1 (rexNoun rex)
@@ -487,8 +485,8 @@ instance Show Fan where
     show (BAR b)   = "(BAR " <> show b <> ")"
     show (REX _)   = "(REX _)" -- TODO
 
-showTab :: Map Fan Fan -> [(Fan,Fan)]
-showTab t = mapToList t
+showTab :: Tab Fan Fan -> [(Fan,Fan)]
+showTab t = tabToAscPairsList t
 
 -- Utilities -------------------------------------------------------------------
 
@@ -843,7 +841,7 @@ execFrame buf =
         NAT n -> execNat n buf
         BAR b -> if null b then buf.!1 else NAT (barBody b)
         REX b -> rexNoun b
-        TAb t -> ROW $ arrayFromListN (length t) (M.keys t) --tabs return keys row
+        TAb t -> ROW (tabKeysArray t) -- tabs return keys row
         COw n ->
             let !las = fromIntegral n in
             ROW $ rowGenerate (fromIntegral n) \i ->
@@ -855,14 +853,11 @@ execFrame buf =
                 -- This only happens if the first arguments was not a
                 -- valid values-row.  Here we run the actual legal
                 -- behavior, which is to return the keys row.
-                ROW (arrayFromList $ S.toAscList ks)
+                ROW (ssetToArray ks)
             else
                 case buf.!1 of
                     ROW vals | (length vals == length ks) ->
-                        TAb (M.fromDistinctAscList $ zip keyList valList)
-                          where
-                            keyList = S.toAscList ks
-                            valList = toList vals
+                        TAb (mkTab ks vals)
                     _ ->
                         KLO 1 buf
 
@@ -986,8 +981,7 @@ wut p l a n = \case
     wutCow m = app4 l (NAT 0) (NAT (m+1)) (NAT 0)
 
     wutSet k =
-        app4 l (NAT 1) (NAT 2)
-          (ROW $ arrayFromListN (length k) $ S.toAscList k)
+        app4 l (NAT 1) (NAT 2) (ROW $ ssetToArray k)
 
 {-
     PIN p -> rul (LN 0) args (pinBody args p.item)
@@ -1062,7 +1056,7 @@ instance Show Run where
 
     show (MK_ROW es) = "(MKROW " <> intercalate " " (show <$> es) <> ")"
 
-    show (MK_TAB es) = "(MKTAB " <> intercalate " " (show <$> mapToList es) <> ")"
+    show (MK_TAB vs) = "(MKTAB " <> intercalate " " (show <$> (tabToAscPairsList vs)) <> ")"
 
     show (LET i x v) =
         "(LET " <> show (VAR i) <> " " <> show x <> " " <> show v <> ")"
@@ -1084,8 +1078,8 @@ instance Show Run where
     show (LAZ exe arg) =
         parencalate ("LAZ" : show exe : (show <$> toList arg))
 
-    show (JMP x f v) =
-        parencalate ["TAB_SWITCH", show x, show f, show v]
+    show (JMP x f vs) =
+        parencalate ["TAB_SWITCH", show x, show f, show vs]
 
     show (OP2 name _ a b) =
         parencalate ["OP2", show name, show a, show b]
@@ -1131,13 +1125,13 @@ optimizeSpine = go
     isWord (NAT (NatS# _)) = True
     isWord _               = False
 
-    mkJumpTable :: Run -> Run -> Map Fan Run -> Run
-    mkJumpTable key fal tab =
+    mkJumpTable :: Run -> Run -> Tab Fan Run -> Run
+    mkJumpTable key fal vals =
         JMP_WORD key fal jmpKeys jmpVals
       where
         jmpKeys = fromList (fst <$> pairs)
         jmpVals = smallArrayFromList (snd <$> pairs)
-        pairs   = wordify (mapToList tab)
+        pairs   = wordify (tabToAscPairsList vals)
 
         wordify :: [(Fan, Run)] -> [(Word, Run)]
         wordify []                        = []
@@ -1145,15 +1139,15 @@ optimizeSpine = go
         wordify ((_,             _) : _ ) = error "no good"
 
     tryMatchTabSwitch exe r = case r.!2 of
-        MK_TAB vrun ->
-            if all isWord (keys vrun) && (M.size vrun < 100) then
+        MK_TAB vs ->
+            if all isWord (tabKeysArray vs) && (length vs < 100) then
                 mkJumpTable (go (r.!0))
                             (go (r.!1))
-                            (go <$> vrun)
+                            (go <$> vs)
             else
                 JMP (go (r.!0))
                     (go (r.!1))
-                    (go <$> vrun)
+                    (go <$> vs)
         _ -> exe
 
     -- We are on the law spine, so everything we see is demanded, safe
@@ -1195,7 +1189,7 @@ optimizeSpine = go
             PAR r vs  -> PAR r (goLazy <$> vs)
             LET i v b -> LET i (goLazy v) (goLazy b)
             MK_ROW xs -> MK_ROW (goLazy <$> xs)
-            MK_TAB xs -> MK_TAB (goLazy <$> xs)
+            MK_TAB vs -> MK_TAB (goLazy <$> vs)
 
             -- If we see something that we want to turn into control
             -- flow, we can't do that safely on the main spine, because it
@@ -1236,7 +1230,7 @@ runSize = w
         EXE _ _ _ x      -> 1 + sum (w <$> x)
         OP2 _ _ x y      -> 1 + w x + w y
         SWI c f v        -> 1 + w c + w f + sum (w <$> v)
-        JMP c f v        -> 1 + w c + w f + sum (w <$> v)
+        JMP c f vs       -> 1 + w c + w f + sum (w <$> vs)
         JMP_WORD c f _ v -> 1 + w c + w f + sum (w <$> v)
         SEQ x y          -> 1 + w x + w y
         REC xs           -> 1 + sum (w <$> xs)
@@ -1266,7 +1260,7 @@ runFree =
         MK_TAB xs        -> traverse_ (go z) xs
         LAZ _prg xs      -> traverse_ (go z) xs
         SWI c f v        -> go z c >> go z f >> traverse_ (go z) v
-        JMP c f v        -> go z c >> go z f >> traverse_ (go z) v
+        JMP c f xs       -> go z c >> go z f >> traverse_ (go z) xs
         JMP_WORD c f _ v -> go z c >> go z f >> traverse_ (go z) v
         EXE _ _ _ r      -> traverse_ (go z) r
         OP2 _ _ a b      -> go z a >> go z b
@@ -1296,7 +1290,7 @@ spineFragment freeTable =
         MK_TAB xs        -> MK_TAB <$> traverse (go z) xs
         LAZ prg xs       -> LAZ prg <$> traverse (go z) xs
         SWI c f v        -> SWI <$> go z c <*> go z f <*> traverse (go z) v
-        JMP c f v        -> JMP <$> go z c <*> go z f <*> traverse (go z) v
+        JMP c f vs       -> JMP <$> go z c <*> go z f <*> traverse (go z) vs
         JMP_WORD c f k v -> JMP_WORD <$> go z c <*> go z f <*> pure k <*> traverse (go z) v
         OP2 f o a b      -> OP2 f o <$> go z a <*> go z b
         EXE x s f xs     -> EXE x s f <$> traverse (go z) xs
@@ -1339,14 +1333,14 @@ matchConstructors = go
         PAR r vs            -> PAR r (go <$> vs)
         TRK m x             -> TRK (go m) (go x)
         MK_ROW rs           -> MK_ROW (go <$> rs)
-        MK_TAB rs           -> MK_TAB (go <$> rs)
+        MK_TAB vs           -> MK_TAB (go <$> vs)
         r@CNS{}             -> r
         r@ARG{}             -> r
         r@VAR{}             -> r
         LET i v b           -> LET i (go v) (go b)
         IF_ c t e           -> IF_ (go c) (go t) (go e)
         SWI c f v           -> SWI (go c) (go f) (go <$> v)
-        JMP c f v           -> JMP (go c) (go f) (go <$> v)
+        JMP c f vs          -> JMP (go c) (go f) (go <$> vs)
         JMP_WORD c f ks vs  -> JMP_WORD (go c) (go f) ks (go <$> vs)
         OP2 f op a b        -> OP2 f op (go a) (go b)
 
@@ -1370,7 +1364,7 @@ matchConstructors = go
             else
             case go (r.!0) of
                 MK_ROW vs | length vs == length ks ->
-                    MK_TAB $ mapFromList $ zip (S.toList ks) (toList vs)
+                    MK_TAB (mkTab ks $ V.toArray vs)
                 _ ->
                     EXE x s (SET ks) (go <$> r)
 
@@ -1707,8 +1701,8 @@ trkName fan = do
 mkRow :: [Fan] -> Fan
 mkRow = ROW . arrayFromList
 
-tabValsRow :: Map Fan Fan -> Fan
-tabValsRow tab = ROW $ arrayFromListN (length tab) $ toList tab
+tabValsRow :: Tab Fan Fan -> Fan
+tabValsRow tab = ROW (tabElemsArray tab)
 
 fanIdx :: Nat -> Fan -> Fan
 fanIdx idxNat fan =

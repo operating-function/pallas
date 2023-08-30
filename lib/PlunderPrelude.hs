@@ -46,11 +46,12 @@ whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust Nothing  _   = pure ()
 whenJust (Just x) act = act x
 
+type instance Element (Array a) = a
+type instance Element (SmallArray a) = a
+
 -- All methods default to Foldable methods, which is what we want.
 instance MonoFoldable (Array a) where
-type instance Element (Array a) = a
 instance MonoFoldable (SmallArray a) where
-type instance Element (SmallArray a) = a
 
 pass :: Monad m => m ()
 pass = pure ()

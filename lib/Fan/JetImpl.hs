@@ -12,13 +12,13 @@ module Fan.JetImpl (installJetImpls, jetImpls, doTrk) where
 import Control.Parallel
 import Data.Bits
 import Data.Maybe
-import Fan.Convert
 import Data.Sorted
+import Fan.Convert
 import Fan.Eval
 import Fan.Jets
-import PlunderPrelude
 import Foreign.ForeignPtr
 import Foreign.Storable
+import PlunderPrelude
 
 import Data.ByteString.Builder (byteString, toLazyByteString)
 import Foreign.Marshal.Alloc   (allocaBytes)
@@ -29,8 +29,6 @@ import Unsafe.Coerce           (unsafeCoerce)
 
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Unsafe as BS
-import qualified Data.Map               as M
-import qualified Data.Set               as S
 import qualified Data.Vector            as V
 import qualified Fan.Prof               as Prof
 
@@ -502,10 +500,9 @@ vsumJet f env = orExec (f env) (vsum <$> getRow (env.!1))
 
 vput :: Nat -> Fan -> Array Fan -> Fan
 vput ix vl rw =
-    let !siz = fromIntegral (length rw)
-    in ROW $ if (ix >= siz)
-             then rw
-             else rowPut (fromIntegral ix) vl rw
+    ROW if ix >= fromIntegral (length rw)
+        then rw
+        else rowPut (fromIntegral ix) vl rw
 
 vputJet :: Jet
 vputJet f env =
@@ -746,28 +743,28 @@ blake3Jet f e =
             pure (BAR res)
 
 setSingletonJet :: Jet
-setSingletonJet _ e = SET $ S.singleton (e.!1)
+setSingletonJet _ e = SET $ ssetSingleton (e.!1)
 
 setInsJet :: Jet
 setInsJet f e =
     orExecTrace "setIns" (f e) (i (e.!1) <$> getSet (e.!2))
   where
-    i :: Fan -> Set Fan -> Fan
-    i n s = SET (S.insert n s)
+    i :: Fan -> ArraySet Fan -> Fan
+    i n s = SET (insertSet n s)
 
 setDelJet :: Jet
 setDelJet f e =
     orExecTrace "setDel" (f e) (d (e.!1) <$> getSet (e.!2))
   where
-    d :: Fan -> Set Fan -> Fan
-    d n s = SET (S.delete n s)
+    d :: Fan -> ArraySet Fan -> Fan
+    d n s = SET (deleteSet n s)
 
 setMinJet :: Jet
 setMinJet f e =
     orExecTrace "setMin" (f e) (smin <$> getSet (e.!1))
   where
-    smin :: Set Fan -> Fan
-    smin s = case S.lookupMin s of
+    smin :: ArraySet Fan -> Fan
+    smin s = case ssetLookupMin s of
       Nothing -> NAT 0
       Just m  -> m
 
@@ -775,63 +772,63 @@ setLenJet :: Jet
 setLenJet f e =
     orExecTrace "setLen" (f e) (clen <$> getSet (e.!1))
   where
-    clen :: Set Fan -> Fan
-    clen = NAT . fromIntegral . S.size
+    clen :: ArraySet Fan -> Fan
+    clen = NAT . fromIntegral . length
 
 setWeldJet :: Jet
 setWeldJet f e =
     orExecTrace "setWeld" (f e) (u <$> getSet (e.!1) <*> getSet (e.!2))
   where
-    u :: Set Fan -> Set Fan -> Fan
-    u a b = SET (S.union a b)
+    u :: ArraySet Fan -> ArraySet Fan -> Fan
+    u a b = SET (union a b)
 
 setCatRowAscJet :: Jet
 setCatRowAscJet f e = orExecTrace "setCatRowAsc" (f e) do
   r <- getRow (e.!1)
-  sets <- rowFilter (not . S.null) <$> traverse getSet r
+  sets <- rowFilter (not . ssetIsEmpty) <$> traverse getSet r
   guard (isAsc $ toList sets)
-  pure $ SET $ S.fromDistinctAscList $ concat $ map toList sets
+  pure $ SET $ ssetFromDistinctAscList $ concat $ map toList sets
   where
     isAsc []       = True
     isAsc [_]      = True
-    isAsc (x:y:zs) = (S.findMax x < S.findMin y) && isAsc (y:zs)
+    isAsc (x:y:zs) = (ssetFindMax x < ssetFindMin y) && isAsc (y:zs)
 
 
 setHasJet :: Jet
 setHasJet f e =
     orExecTrace "setHas" (f e) (has (e.!1) <$> getSet (e.!2))
   where
-    has :: Fan -> Set Fan -> Fan
-    has n s = fromBit $ S.member n s
+    has :: Fan -> ArraySet Fan -> Fan
+    has n s = fromBit $ ssetMember n s
 
 setTakeJet :: Jet
 setTakeJet f e =
     orExecTrace "setTake" (f e) (doTake (toNat(e.!1)) <$> getSet (e.!2))
   where
-    doTake :: Nat -> Set Fan -> Fan
-    doTake n s = SET (S.take (fromIntegral n) s)
+    doTake :: Nat -> ArraySet Fan -> Fan
+    doTake n s = SET (ssetTake (fromIntegral n) s)
 
 setDropJet :: Jet
 setDropJet f e =
     orExecTrace "setDrop" (f e) (doDrop (toNat(e.!1)) <$> getSet (e.!2))
   where
-    doDrop :: Nat -> Set Fan -> Fan
-    doDrop n s = SET (S.drop (fromIntegral n) s)
+    doDrop :: Nat -> ArraySet Fan -> Fan
+    doDrop n s = SET (ssetDrop (fromIntegral n) s)
 
 setIsEmptyJet :: Jet
 setIsEmptyJet f e =
     orExecTrace "setIsEmpty" (f e) (doIs <$> getSet (e.!1))
   where
-    doIs :: Set Fan -> Fan
-    doIs s = fromBit $ S.null s
+    doIs :: ArraySet Fan -> Fan
+    doIs s = fromBit $ ssetIsEmpty s
 
 setSplitAtJet :: Jet
 setSplitAtJet f e =
     orExecTrace "setSplitAt" (f e)
                 (doSplitAt (toNat(e.!1)) <$> getSet (e.!2))
   where
-    doSplitAt :: Nat -> Set Fan -> Fan
-    doSplitAt n s = let (a, b) = S.splitAt (fromIntegral n) s
+    doSplitAt :: Nat -> ArraySet Fan -> Fan
+    doSplitAt n s = let (a, b) = ssetSplitAt (fromIntegral n) s
                     in ROW $ arrayFromList [SET a, SET b]
 
 setSplitLTJet :: Jet
@@ -839,8 +836,8 @@ setSplitLTJet f e =
     orExecTrace "setSplitLT" (f e)
                 (doSplitLT (e.!1) <$> getSet (e.!2))
   where
-    doSplitLT :: Fan -> Set Fan -> Fan
-    doSplitLT n s = let (a, b) = S.spanAntitone (< n) s
+    doSplitLT :: Fan -> ArraySet Fan -> Fan
+    doSplitLT n s = let (a, b) = ssetSpanAntitone (< n) s
                     in ROW $ arrayFromListN 2 [SET a, SET b]
 
 setIntersectionJet :: Jet
@@ -848,19 +845,19 @@ setIntersectionJet f e =
     orExecTrace "setIntersection" (f e)
                 (doIntersection <$> getSet (e.!1) <*> getSet (e.!2))
   where
-    doIntersection :: Set Fan -> Set Fan -> Fan
-    doIntersection a b = SET (S.intersection a b)
+    doIntersection :: ArraySet Fan -> ArraySet Fan -> Fan
+    doIntersection a b = SET (ssetIntersection a b)
 
 setSubJet :: Jet
 setSubJet f e =
     orExecTrace "setSub" (f e)
                 (doDifference <$> getSet (e.!1) <*> getSet (e.!2))
   where
-    doDifference :: Set Fan -> Set Fan -> Fan
-    doDifference a b = SET (S.difference a b)
+    doDifference :: ArraySet Fan -> ArraySet Fan -> Fan
+    doDifference a b = SET (ssetDifference a b)
 
 tabSingletonJet :: Jet
-tabSingletonJet _ e = TAb $ M.singleton (e.!1) (e.!2)
+tabSingletonJet _ e = TAb $ tabSingleton (e.!1) (e.!2)
 
 -- An empty set is a tab, but the runtime always makes sure to represent
 -- empty sets as tabs.
@@ -885,7 +882,7 @@ tabIdxJet :: Jet
 tabIdxJet f e =
     orExecTrace "tabIdx" (f e) (tidx (e.!1) <$> getTab (e.!2))
   where
-    tidx k m = case M.lookup k m of
+    tidx k m = case tabLookup k m of
       Nothing -> NAT 0
       Just x  -> x
 
@@ -893,31 +890,31 @@ tabInsJet :: Jet
 tabInsJet f e =
     orExecTrace "tabIns" (f e) (tmut (e.!1) (e.!2) <$> getTab (e.!3))
   where
-    tmut :: Fan -> Fan -> Map Fan Fan -> Fan
-    tmut k v t = TAb $ M.insert k v t
+    tmut :: Fan -> Fan -> Tab Fan Fan -> Fan
+    tmut k v t = TAb $ tabInsert k v t
 
 tabElemIdxJet :: Jet
 tabElemIdxJet f e =
     orExecTrace "tabElemIdx" (f e) (telem (toNat(e.!1)) <$> getTab (e.!2))
   where
-    telem :: Nat -> Map Fan Fan -> Fan
+    telem :: Nat -> Tab Fan Fan -> Fan
     telem i m = let n = fromIntegral i
-                in if n >= M.size m then NAT 0
-                   else let (k, v) = M.elemAt n m
+                in if n >= tabSize m then NAT 0
+                   else let (k, v) = tabElemAt n m
                         in ROW $ arrayFromListN 2 [k, v]
 
 tabLenJet :: Jet
 tabLenJet f e =
     orExecTrace "tabLen" (f e) (tlen <$> getTab (e.!1))
   where
-    tlen :: Map Fan Fan -> Fan
-    tlen = NAT . fromIntegral . M.size
+    tlen :: Tab Fan Fan -> Fan
+    tlen = NAT . fromIntegral . tabSize
 
 tabToPairsJet :: Jet
 tabToPairsJet f e =
     orExecTrace "tabToPairs" (f e) (toP <$> getTab (e.!1))
   where
-    toP :: Map Fan Fan -> Fan
+    toP :: Tab Fan Fan -> Fan
     toP tab = ROW $ arrayFromListN (length tab) $ map v2' $ mapToList tab
 
 tabToPairListJet :: Jet
@@ -959,8 +956,8 @@ tabLookupJet f e =
     orExecTrace "tabLookup" (f e)
                 (doLookup (e.!1) <$> getTab (e.!2))
   where
-    doLookup :: Fan -> Map Fan Fan -> Fan
-    doLookup n t = case M.lookup n t of
+    doLookup :: Fan -> Tab Fan Fan -> Fan
+    doLookup n t = case tabLookup n t of
       Nothing  -> NAT 0
       Just fun -> NAT 0 %% fun
 
@@ -969,8 +966,8 @@ tabSplitAtJet f e =
     orExecTrace "tabSplitAt" (f e)
                 (doSplitAt (toNat(e.!1)) <$> getTab(e.!2))
   where
-    doSplitAt :: Nat -> Map Fan Fan -> Fan
-    doSplitAt n s = let (a, b) = M.splitAt (fromIntegral n) s
+    doSplitAt :: Nat -> Tab Fan Fan -> Fan
+    doSplitAt n s = let (a, b) = tabSplitAt (fromIntegral n) s
                     in ROW $ arrayFromListN 2 [TAb a, TAb b]
 
 tabSplitLTJet :: Jet
@@ -978,8 +975,8 @@ tabSplitLTJet f e =
     orExecTrace "tabSplitLT" (f e)
                 (doSplitLT (e.!1) <$> getTab (e.!2))
   where
-    doSplitLT :: Fan -> Map Fan Fan -> Fan
-    doSplitLT n s = let (a, b) = M.spanAntitone (< n) s
+    doSplitLT :: Fan -> Tab Fan Fan -> Fan
+    doSplitLT n s = let (a, b) = tabSpanAntitone (< n) s
                     in ROW $ arrayFromListN 2 [TAb a, TAb b]
 
 tabMapWithKeyJet :: Jet
@@ -987,8 +984,8 @@ tabMapWithKeyJet f e =
     orExecTrace "tabMapWithKey" (f e)
                 (doMap <$> (Just $ e.!1) <*> getTab (e.!2))
   where
-    doMap :: Fan -> Map Fan Fan -> Fan
-    doMap fun a = TAb $ M.mapWithKey (apply fun) a
+    doMap :: Fan -> Tab Fan Fan -> Fan
+    doMap fun a = TAb $ tabMapWithKey (apply fun) a
 
     apply :: Fan -> Fan -> Fan -> Fan
     apply fun k v = fun %% k %% v
@@ -998,8 +995,8 @@ tabUnionWithJet f e =
     orExecTrace "tabUnionWith" (f e)
                 (doUnionWith <$> (Just $ e.!1) <*> getTab (e.!2) <*> getTab (e.!3))
   where
-    doUnionWith :: Fan -> Map Fan Fan -> Map Fan Fan -> Fan
-    doUnionWith fun a b = TAb $ M.unionWith (apply fun) a b
+    doUnionWith :: Fan -> Tab Fan Fan -> Tab Fan Fan -> Fan
+    doUnionWith fun a b = TAb $ tabUnionWith (apply fun) a b
 
     apply :: Fan -> Fan -> Fan -> Fan
     apply fun a b = fun %% a %% b
@@ -1008,8 +1005,8 @@ tabMinKeyJet :: Jet
 tabMinKeyJet f e =
     orExecTrace "tabMin" (f e) (tmin <$> getTab (e.!1))
   where
-    tmin :: Map Fan Fan -> Fan
-    tmin s = case M.lookupMin s of
+    tmin :: Tab Fan Fan -> Fan
+    tmin s = case tabLookupMin s of
       Nothing     -> NAT 0
       Just (k, _) -> k
 
@@ -1020,14 +1017,14 @@ tabFoldlWithKeyJet f e =
       let fun = e.!1
           initial = e.!2
       let wrapFun a k v = fun %% a %% k %% v
-      pure $ M.foldlWithKey' wrapFun initial tab
+      pure $ tabFoldlWithKey' wrapFun initial tab
 
 tabAlterJet :: Jet
 tabAlterJet f e =
     orExecTrace "tabAlter" (f e) (alt (e.!1) (e.!2) <$> getTab (e.!3))
   where
-    alt :: Fan -> Fan -> Map Fan Fan -> Fan
-    alt fun key m = TAb $ M.alter (someAsMaybe . wrap fun) key m
+    alt :: Fan -> Fan -> Tab Fan Fan -> Fan
+    alt fun key m = TAb $ tabAlter (someAsMaybe . wrap fun) key m
 
     -- Figuring this out is the next big thing
     wrap :: Fan -> Maybe Fan -> Fan
@@ -1043,28 +1040,28 @@ tabHasKeyJet :: Jet
 tabHasKeyJet f e =
     orExecTrace "tabHas" (f e) (hk (e.!1) <$> getTab(e.!2))
   where
-    hk :: Fan -> Map Fan Fan -> Fan
-    hk k m = case M.member k m of
+    hk :: Fan -> Tab Fan Fan -> Fan
+    hk k m = case tabMember k m of
         False -> NAT 0
         True  -> NAT 1
 
 tabKeysRowJet :: Jet
 tabKeysRowJet f e = orExecTrace "_TabKeysRow" (f e) (tk <$> getTab(e.!1))
   where
-    tk :: Map Fan Fan -> Fan
-    tk = ROW . arrayFromList . M.keys
+    tk :: Tab Fan Fan -> Fan
+    tk = ROW . tabKeysArray
 
 tabKeysSetJet :: Jet
 tabKeysSetJet f e = orExecTrace "_TabKeys" (f e) (tk <$> getTab(e.!1))
   where
-    tk :: Map Fan Fan -> Fan
-    tk = SET . M.keysSet
+    tk :: Tab Fan Fan -> Fan
+    tk = SET . tabKeysSet
 
 tabValsJet :: Jet
 tabValsJet f e = orExecTrace "tabVals" (f e) (tv <$> getTab(e.!1))
   where
-    tv :: Map Fan Fan -> Fan
-    tv = ROW . arrayFromList . M.elems
+    tv :: Tab Fan Fan -> Fan
+    tv = ROW . tabElemsArray
 
 typeTagJet :: Jet
 typeTagJet _ e =
@@ -1241,11 +1238,11 @@ getBar :: Fan -> Maybe ByteString
 getBar (BAR b) = Just b
 getBar _       = Nothing
 
-getSet :: Fan -> Maybe (Set Fan)
+getSet :: Fan -> Maybe (ArraySet Fan)
 getSet (SET c) = Just c
 getSet _       = Nothing
 
-getTab :: Fan -> Maybe (Map Fan Fan)
+getTab :: Fan -> Maybe (Tab Fan Fan)
 getTab (TAb b) = Just b
 getTab _       = Nothing
 

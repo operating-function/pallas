@@ -25,10 +25,10 @@ import Fan.Types
 import Hash256
 import PlunderPrelude            hiding (traceM, (^))
 
-import qualified Data.Vector as V
-
 import Control.Exception (throw)
 import Data.Text.IO      (hPutStrLn, hPutStr)
+
+import qualified Data.Vector as V
 
 
 -- Types -----------------------------------------------------------------------
@@ -150,7 +150,6 @@ getRow _        = Nothing
 {-# INLINE getRowVec #-}
 getRowVec :: Fan -> Maybe (Vector Fan)
 getRowVec = fmap V.fromArray . getRow
-
 
 getByte :: Fan -> Maybe Word8
 getByte (NAT n) | n<256 = Just (fromIntegral n)

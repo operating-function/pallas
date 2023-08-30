@@ -4,16 +4,14 @@
 
 module Fan.Convert where
 
+import Data.Sorted
 import Fan
 import PlunderPrelude
 
-import GHC.Word    (Word(W#))
-import Hash256     (Hash256, hashToByteString, toHash256)
+import GHC.Word (Word(W#))
+import Hash256  (Hash256, hashToByteString, toHash256)
 
-import qualified Data.Map    as M
-import qualified Data.Set    as S
 import qualified Data.Vector as V
-
 
 --------------------------------------------------------------------------------
 
@@ -89,31 +87,31 @@ instance (FromNoun a,FromNoun b)
     => FromNoun (a,b)
   where
     fromNoun n = do
-      r <- getRawRow n
-      guard (length r == 2)
-      (,) <$> fromNoun (r!0)
-          <*> fromNoun (r!1)
+        r <- getRawRow n
+        guard (length r == 2)
+        (,) <$> fromNoun (r!0)
+            <*> fromNoun (r!1)
 
 instance (FromNoun a,FromNoun b,FromNoun c)
     => FromNoun (a,b,c)
   where
     fromNoun n = do
-      r <- getRawRow n
-      guard (length r == 3)
-      (,,) <$> fromNoun (r!0)
-           <*> fromNoun (r!1)
-           <*> fromNoun (r!2)
+        r <- getRawRow n
+        guard (length r == 3)
+        (,,) <$> fromNoun (r!0)
+             <*> fromNoun (r!1)
+             <*> fromNoun (r!2)
 
 instance (FromNoun a,FromNoun b,FromNoun c,FromNoun d)
     => FromNoun (a,b,c,d)
   where
     fromNoun n = do
-      r <- getRawRow n
-      guard (length r == 4)
-      (,,,) <$> fromNoun (r!0)
-            <*> fromNoun (r!1)
-            <*> fromNoun (r!2)
-            <*> fromNoun (r!3)
+        r <- getRawRow n
+        guard (length r == 4)
+        (,,,) <$> fromNoun (r!0)
+              <*> fromNoun (r!1)
+              <*> fromNoun (r!2)
+              <*> fromNoun (r!3)
 
 instance ToNoun ByteString where
     toNoun = BAR
@@ -151,11 +149,11 @@ getRawRow _        = Nothing
 getRowVec :: Fan -> Maybe (Vector Fan)
 getRowVec = fmap V.fromArray . getRawRow
 
-getRawSet :: Fan -> Maybe (Set Fan)
+getRawSet :: Fan -> Maybe (ArraySet Fan)
 getRawSet (SET xs) = Just xs
 getRawSet _        = Nothing
 
-getRawTable :: Fan -> Maybe (Map Fan Fan)
+getRawTable :: Fan -> Maybe (Tab Fan Fan)
 getRawTable (TAb m) = Just m
 getRawTable _       = Nothing
 
@@ -164,19 +162,21 @@ getRawBar (BAR b) = Just b
 getRawBar _       = Nothing
 
 instance ToNoun a => ToNoun (Array a) where
-    toNoun = ROW . (fmap toNoun)
+    toNoun = ROW . fmap toNoun
+
 instance FromNoun a => FromNoun (Array a) where
     fromNoun n = getRawRow n >>= mapM fromNoun
 
 instance ToNoun a => ToNoun (Vector a) where
     toNoun = toNoun . V.toArray
+
 instance FromNoun a => FromNoun (Vector a) where
     fromNoun n = V.fromArray <$> fromNoun n
 
 -- | Since we are very unlikely to ever want actual noun linked-lists
 -- at an API boundary, we represent lists as rows.
 instance ToNoun a => ToNoun [a] where
-    toNoun = toNoun . V.fromList
+    toNoun = ROW . arrayFromList . fmap toNoun
 
 -- | Since we are very unlikely to ever want actual noun linked-lists
 -- at an API boundary, we represent lists as rows.
@@ -184,27 +184,49 @@ instance FromNoun a => FromNoun [a] where
     fromNoun n = toList @(Vector a) <$> fromNoun n
 
 
-instance ToNoun a => ToNoun (Set a) where
-    toNoun = SET . S.fromList . map toNoun . S.toList
+instance ToNoun a => ToNoun (ArraySet a) where
+    toNoun = SET . setFromList . map toNoun . toList
+
+instance (Ord a, FromNoun a) => FromNoun (ArraySet a) where
+    fromNoun n = do
+        r <- getRawSet n
+        setFromList <$> forM (toList r) fromNoun
+
+instance (Ord a, ToNoun a) => ToNoun (Set a) where
+    toNoun = SET . setFromList . map toNoun . toList
 
 instance (Ord a, FromNoun a) => FromNoun (Set a) where
     fromNoun n = do
-      r <- getRawSet n
-      S.fromList <$> forM (S.toList r) fromNoun
+        r <- getRawSet n
+        setFromList <$> forM (toList r) fromNoun
 
-instance (ToNoun k, ToNoun v) => ToNoun (Map k v) where
-    toNoun = TAb . M.fromList . map (both toNoun toNoun) . M.toList
+instance (Ord k, ToNoun k, ToNoun v) => ToNoun (Tab k v) where
+    toNoun = TAb . mapFromList . map (both toNoun toNoun) . mapToList
+      where
+        both f g (a, b) = (f a, g b)
+
+instance (Ord k, FromNoun k, FromNoun v) => FromNoun (Tab k v) where
+    fromNoun n = do
+        r <- getRawTable n
+        pairs <- forM (mapToList r) $ \(k, v) -> do
+            kf <- fromNoun k
+            kv <- fromNoun v
+            pure (kf, kv)
+        pure $ mapFromList pairs
+
+instance (Ord k, ToNoun k, ToNoun v) => ToNoun (Map k v) where
+    toNoun = TAb . mapFromList . map (both toNoun toNoun) . mapToList
       where
         both f g (a, b) = (f a, g b)
 
 instance (Ord k, FromNoun k, FromNoun v) => FromNoun (Map k v) where
     fromNoun n = do
-      r <- getRawTable n
-      pairs <- forM (M.toList r) $ \(k, v) -> do
-        kf <- fromNoun k
-        kv <- fromNoun v
-        pure (kf, kv)
-      pure $ M.fromList pairs
+        r <- getRawTable n
+        pairs <- forM (mapToList r) $ \(k, v) -> do
+            kf <- fromNoun k
+            kv <- fromNoun v
+            pure (kf, kv)
+        pure $ mapFromList pairs
 
 instance (ToNoun a) => ToNoun (Maybe a) where
     toNoun Nothing  = NAT 0

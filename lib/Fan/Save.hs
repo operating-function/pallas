@@ -13,6 +13,7 @@ module Fan.Save
     )
 where
 
+import Data.Sorted
 import Fan.Types
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
@@ -372,7 +373,7 @@ saveFanWorker !ctx !vPins !vTemp !top = do
 
         SET ks -> do
             let wid  = length ks
-            let keyz = S.toDescList ks
+            let keyz = ssetToDescList ks
             doSet wid keyz
 
         -- This needs to have the same behaviors as a head-first traversal
@@ -412,7 +413,7 @@ saveFanWorker !ctx !vPins !vTemp !top = do
 
         --  #[3=4 5=6] = (%[3 5] [4 6])
         TAb tab -> do
-            ks <- doSet (length tab) (fst <$> M.toDescList tab)
+            ks <- doSet (length tab) (fst <$> tabToDescPairsList tab)
             vs <- loop (tabValsRow tab)
             kv <- Jelly.c_cons ctx ks vs
             pure kv

@@ -31,21 +31,18 @@ import PlunderPrelude
 
 import Control.Concurrent.STM.TQueue (flushTQueue)
 import Control.Monad.State           (StateT, execStateT, modify', runStateT)
+import Fan                           (Fan(..), PrimopCrash(..), (%%))
 import GHC.Conc                      (unsafeIOToSTM)
 import GHC.Prim                      (reallyUnsafePtrEquality#)
--- ort Text.Show.Pretty              (ppShow)
-import System.Random         (randomIO)
-import System.Random.Shuffle (shuffleM)
-
-import Fan (Fan(..), PrimopCrash(..), (%%))
-
+import Optics                        (set)
+import Server.Convert                ()
+import System.Random                 (randomIO)
+import System.Random.Shuffle         (shuffleM)
 
 import Data.Sorted
 import Fan.Convert
 import Fan.Prof
-import Optics                (set)
 import Server.Common
-import Server.Convert        ()
 import Server.Debug
 import Server.Evaluator
 import Server.Hardware.Types
@@ -57,7 +54,6 @@ import qualified Data.IntMap as IM
 import qualified Data.Map    as M
 import qualified Data.Set    as S
 import qualified Data.Vector as V
--- import qualified Fan.Prof    as Prof
 
 --------------------------------------------------------------------------------
 

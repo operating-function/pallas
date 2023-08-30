@@ -15,12 +15,12 @@ import PlunderPrelude
 
 import Control.Monad.Trans.State.Strict
 import Data.Bits
+import Data.Sorted
 import Fan.Eval
 import Foreign.Ptr
 import Foreign.Storable
 
 import qualified Data.ByteString     as BS
-import qualified Data.Set            as S
 import qualified Data.Vector         as V
 import qualified Data.Vector.Mutable as VM
 
@@ -285,7 +285,7 @@ hydrateLaw law args = do
         SET ks ->
             case toList args of
                 [ROW vs] | length ks == length vs ->
-                    pure $ TAb $ mapFromList $ zip (S.toList ks) (toList vs)
+                    pure $ TAb $ mkTab ks vs
                 [arg] ->
                     pure (law %% arg) -- malformed set, just use eval path
                 _ ->

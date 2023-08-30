@@ -6,13 +6,13 @@
 
 module Fan.PinRefs where
 
+import Control.Monad.State.Strict
+import Data.Sorted
 import Fan.Types
 import PlunderPrelude
-import Control.Monad.State.Strict
 
 import qualified Data.Vector as V
 import qualified Data.Set    as S
-import qualified Data.Map    as M
 
 --------------------------------------------------------------------------------
 
@@ -34,8 +34,9 @@ pinRefs top =
         REX v   -> traverse_ go v
         KLO _ v -> traverse_ go v
         FUN f   -> go f.body
-        SET c   -> traverse_ go (S.toList c)
-        TAb t   -> traverse_ go (M.keys t) >> traverse_ go (M.elems t)
+        SET c   -> traverse_ go (ssetToAscArray c)
+        TAb t   -> do traverse_ go (tabKeysArray t)
+                      traverse_ go (tabElemsArray t)
         PIN p -> do
             (acc, hs) <- get
             unless (member p.hash hs) do

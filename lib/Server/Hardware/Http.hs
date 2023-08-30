@@ -101,6 +101,7 @@ On timeout:
 
 module Server.Hardware.Http where
 
+import Data.Sorted
 import Fan.Eval
 import Fan.Prof
 import PlunderPrelude
@@ -211,7 +212,7 @@ decodeHttpRequest top = (dec . toList) top
 
 --------------------------------------------------------------------------------
 
-getTab :: Fan -> Maybe (Map Fan Fan)
+getTab :: Fan -> Maybe (Tab Fan Fan)
 getTab (TAb x) = pure x
 getTab _       = Nothing
 

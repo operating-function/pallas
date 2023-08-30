@@ -10,12 +10,13 @@ module Sire (main, loadFile) where
 import Control.Monad.Trans.State.Strict hiding (get, put, modify')
 import Control.Monad.State.Class
 
-import PlunderPrelude            hiding (hGetContents)
+import Data.Sorted
+import PlunderPrelude        hiding (hGetContents)
 import Sire.Types
 import System.FilePath.Posix
 
 import Fan                   (Fan(COw, NAT, NAT, REX, ROW, TAb), (%%))
-import Fan.Convert           (ToNoun(toNoun), FromNoun(fromNoun))
+import Fan.Convert           (FromNoun(fromNoun), ToNoun(toNoun))
 import Fan.Save              (loadPack, savePack)
 import Foreign.Marshal.Alloc (allocaBytes)
 import Foreign.Ptr           (castPtr)
@@ -34,7 +35,6 @@ import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Unsafe as BS
 import qualified Data.Char              as C
 import qualified Data.List              as L
-import qualified Data.Map               as M
 import qualified Data.Set               as S
 import qualified Data.Text              as T
 import qualified Fan                    as F
@@ -47,7 +47,6 @@ import qualified Rex.Parser             as Rex
 
 type Any = Fan
 type Str = Nat
-type Tab = Map
 type Rex = GRex Any
 
 newtype Repl a = REPL (StateT Any IO a)
@@ -144,7 +143,7 @@ getNat :: Any -> String -> Nat
 getNat (NAT n) _   = n
 getNat _       msg = error msg
 
-getTable :: String -> String -> (Fan -> v) -> Fan -> Map Any v
+getTable :: String -> String -> (Fan -> v) -> Fan -> Tab Any v
 getTable field ctx getVal = \case
     TAb vals -> map getVal vals
     _        -> error ("invalid `" <> field <> "` field in " <> ctx)
@@ -170,8 +169,8 @@ getState stAny = fromMaybe badState $ do
   where
     badState = error "Malformed sire state"
 
-    getModules :: Any -> Tab Any ( Map Any Binding
-                                 , Map Any (Map Any Any)
+    getModules :: Any -> Tab Any ( Tab Any Binding
+                                 , Tab Any (Tab Any Any)
                                  )
     getModules = getTable "modules" "state"
                $ getPinned "module"
@@ -215,7 +214,7 @@ revertSwitchToRepl modu oldSt =
 
     oldModTab = getTable "recover" "modules" id oldModVal
 
-    newModules = TAb (deleteMap ctxVal oldModTab)
+    newModules = TAb (tabDelete ctxVal oldModTab)
 
     oldScopeVal =
         fromMaybe (error "missing old scope in recovery") $
@@ -287,8 +286,8 @@ filterScope whitelist st =
     filt (NAT k) _ = (k `member` whitelist)
     filt _       _ = error "non-nat key in scope"
 
-    newScope :: Map Any Any
-    !newScope = M.filterWithKey filt oldScope
+    newScope :: Tab Any Any
+    !newScope = tabFilterWithKey filt oldScope
 
     bogus :: [Text]
     bogus = fmap showKey
@@ -319,13 +318,13 @@ importModule blockRex modu mWhitelist stVal =
                     _     -> Left "module pinItem is not a tab"
             _ -> Left "module pin is not a pair"
 
-    newBinds :: Map Any Any
+    newBinds :: Tab Any Any
     newBinds =
         case mWhitelist of
             Nothing -> moduleBinds
             Just ws ->
                 case filter (not . isInModule) (toList ws) of
-                    [] -> M.filterWithKey isInWhitelist moduleBinds
+                    [] -> tabFilterWithKey isInWhitelist moduleBinds
                     ss -> parseFail_ blockRex stVal
                               $ (<>) "imported symbols do not exist: "
                                      (tshow $ fmap showKey ss)
@@ -335,9 +334,9 @@ importModule blockRex modu mWhitelist stVal =
                 isInWhitelist (NAT n) _ = (n `member` ws)
                 isInWhitelist _       _ = False
 
-    newScope :: Map Any Any
+    newScope :: Tab Any Any
     !newScope = case scopeVal of
-                   TAb sco -> M.union newBinds sco -- left biased
+                   TAb sco -> tabUnion newBinds sco -- left biased
                    _       -> error "state.scope is not a tab"
 
     (nextKey, context, scopeVal, modulesVal, propsVal) = getStateFields stVal
@@ -348,15 +347,15 @@ importModule blockRex modu mWhitelist stVal =
     contain the same property, the ones from `x` are chosen.
 -}
 mergeProps
-    :: Map Any (Map Any Any)
-    -> Map Any (Map Any Any)
-    -> Map Any (Map Any Any)
-mergeProps x y = M.unionWith M.union x y
+    :: Tab Any (Tab Any Any)
+    -> Tab Any (Tab Any Any)
+    -> Tab Any (Tab Any Any)
+mergeProps x y = tabUnionWith tabUnion x y
 
 insertBinding
     :: InCtx
     => Rex
-    -> (Maybe Nat, Map Any Any, Str, Any, Sire)
+    -> (Maybe Nat, Tab Any Any, Str, Any, Sire)
     -> Any
     -> Any
 insertBinding rx (mKey, extraProps, name, val, code) stVal =
@@ -404,7 +403,7 @@ insertBinding rx (mKey, extraProps, name, val, code) stVal =
                     if null extraProps then
                         oldProps
                     else
-                        mergeProps (M.singleton (NAT key) extraProps) oldProps
+                        mergeProps (tabSingleton (NAT key) extraProps) oldProps
             in
                 ROW $ arrayFromListN 5
                     $ [NAT nextKey, context, scope, modules, toNoun newProps]
@@ -1127,7 +1126,7 @@ itemizeRexes rs  = go rs
     go [x]    = N OPEN "*" [x] Nothing
     go (x:xs) = N OPEN "*" [x] (Just $ go xs)
 
-getProps :: InCtx => Rex -> Maybe Any -> Repl (Map Any Any)
+getProps :: InCtx => Rex -> Maybe Any -> Repl (Tab Any Any)
 getProps _ Nothing          = pure mempty
 getProps _ (Just (TAb tab)) = pure tab
 getProps r _                = parseFail r "Invalid properties value, must be a tab"

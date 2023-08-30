@@ -271,7 +271,7 @@ valFan (NAT a)          = F.NAT a
 valFan (REF v)          = v
 valFan (APP f x)        = valFan f %% valFan x
 valFan (BAR b)          = F.BAR b
-valFan (ROW r)          = F.ROW $ V.toArray (valFan <$> r)
+valFan (ROW r)          = F.ROW (valFan <$> V.toArray r)
 valFan (LAW n a b)      = F.mkLaw n a (valFan $ bodVal b)
 valFan (COW 0)          = F.ROW mempty
 valFan (COW n)          = F.COw n -- Never 0
@@ -292,7 +292,7 @@ plunAlias topNod  = Just (go topNod)
         F.NAT a   -> NAT a
         n@F.PIN{} -> REF n
         F.BAR b   -> BAR b
-        F.ROW r   -> ROW (go <$> V.fromArray r)
+        F.ROW r   -> ROW (V.fromArray (go <$> r))
         F.REX r   -> REX (go <$> r)
         F.TAb t   -> TAB (pair <$> mapToList t)
         F.COw n   -> COW n
