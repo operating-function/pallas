@@ -13,7 +13,7 @@ import Control.Parallel
 import Data.Bits
 import Data.Maybe
 import Fan.Convert
-import Fan.Row
+import Data.Sorted
 import Fan.Eval
 import Fan.Jets
 import PlunderPrelude

@@ -59,7 +59,7 @@ where
 
 import Fan.Prof
 import Fan.RunHashes
-import Fan.Row
+import Data.Sorted
 import Fan.Types
 import PlunderPrelude            hiding (hash)
 
@@ -846,7 +846,7 @@ execFrame buf =
         TAb t -> ROW $ arrayFromListN (length t) (M.keys t) --tabs return keys row
         COw n ->
             let !las = fromIntegral n in
-            ROW $ generateRow (fromIntegral n) \i ->
+            ROW $ rowGenerate (fromIntegral n) \i ->
                       (buf .! (las - i))
 
         SET ks ->

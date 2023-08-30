@@ -40,7 +40,7 @@ import System.Random.Shuffle (shuffleM)
 import Fan (Fan(..), PrimopCrash(..), (%%))
 
 
-import Fan.Row
+import Data.Sorted
 import Fan.Convert
 import Fan.Prof
 import Optics                (set)

@@ -88,6 +88,14 @@ tests:
       - base
       - plunder
 
+  sorted-tests:
+    source-dirs: exe/sorted-tests
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - base
+      - plunder
+
   nat-tests:
     source-dirs: exe/nat-tests
     main: Main.hs
@@ -160,6 +168,7 @@ dependencies:
 - lmdb
 - megaparsec
 - memory
+- mono-traversable
 - mtl
 - network
 - optics
@@ -194,6 +203,7 @@ dependencies:
 - unordered-containers
 - utf8-string
 - vector
+- vector-algorithms
 - wai
 - wai-app-static
 - wai-websockets
