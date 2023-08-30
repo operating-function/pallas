@@ -140,6 +140,7 @@ jetImpls = mapFromList
   , ( "barNat"      , barNatJet )
   , ( "barIsEmpty"  , barIsEmptyJet )
   , ( "setSing"     , setSingletonJet )
+  , ( "isSet"       , isSetJet )
   , ( "setIns"      , setInsJet  )
   , ( "setDel"      , setDelJet  )
   , ( "setMin"      , setMinJet  )
@@ -311,11 +312,11 @@ bitJet _ env =
 notJet :: Jet
 notJet _ env =
     case env.!1 of
-        NAT (NatS# 0##)       -> NAT (NatS# 1##)
+        NAT (NatS# 0##) -> NAT (NatS# 1##)
 --      NAT (NatJ# (EXO 0 _)) -> error "invalid nat"
 --      NAT (NatJ# (EXO 1 _)) -> error "invalid nat"
-        NAT _                 -> NAT (NatS# 0##)
-        _                     -> NAT 1
+        NAT _           -> NAT (NatS# 0##)
+        _               -> NAT 1
 
 andJet :: Jet
 andJet _ env = fromBit (toBit(env.!1) && toBit(env.!2))
@@ -745,6 +746,12 @@ blake3Jet f e =
 setSingletonJet :: Jet
 setSingletonJet _ e = SET $ ssetSingleton (e.!1)
 
+isSetJet :: Jet
+isSetJet _ e =
+    case (e.!1) of
+        SET{} -> NAT 1
+        _     -> NAT 0
+
 setInsJet :: Jet
 setInsJet f e =
     orExecTrace "setIns" (f e) (i (e.!1) <$> getSet (e.!2))
@@ -859,8 +866,6 @@ setSubJet f e =
 tabSingletonJet :: Jet
 tabSingletonJet _ e = TAb $ tabSingleton (e.!1) (e.!2)
 
--- An empty set is a tab, but the runtime always makes sure to represent
--- empty sets as tabs.
 isTabJet :: Jet
 isTabJet _ e =
     case (e.!1) of

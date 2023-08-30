@@ -125,6 +125,7 @@ jetHashes
     , e "isDigit"             "3oV11ebAnQW8JfhkBWH7A2GyW6HBL5LqrsbZjxf3TosR"
     , e "implode"             "5dpdHhM1cyexVWARXFpJWWAvJsXNprVcC8mcvK7Sr7ga"
     , e "setSing"             "2S8yfCmRiecvoxgLJVJg5L6MxLm5avjoGqGJmnbukt27"
+    , e "isSet"               "2xJ8aAKdVET95NJDpnYYFLqpX5d3cLxTsA8aHbkuRyPV"
     , e "setIsEmpty"          "BDgQFXd9VbEEdoBcaqMys39ucwLS4WFhQLAxypncGj3W"
     , e "setLen"              "4yZ1gLVWzH46af8cUrqhJiAZdSNTpRMPw97JVZH3Z6Ya"
     , e "setHas"              "5zEo6iHwW2fXhn6oyKvpva5Ez9L5VZoPPAtBnJ3JViVA"
