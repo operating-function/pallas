@@ -42,16 +42,7 @@
 ; parts of trees which haven't changed during snapshotting.
 ;
 = (packIndexNode [keys nodes] hh)
-| PIN [0 keys nodes hh]
-
-= (caseImpl pinnedNode)
-; if (not isPin-pinnedNode)
-;   | die ['not a pin' pinnedNode]
-@ !node (pinItem pinnedNode)
-@ !tag  (get node 0)
-| if (neq 0 tag) node
-@ [_ keys nodes hh] node
-[0 [keys nodes] hh]
+| PIN [keys nodes hh]
 
 > Row a > Opt (a, Row a)
 = (rowUncons r)
@@ -391,7 +382,7 @@ newRootNode
 @ TREE_FUN(..) treeFun
 ^ _ hhEmpty node
 ? (go_openTreeFun hh node)
-# datacase (caseImpl node)
+# datacase (caseNode node)
 * (LEAFNODE leaves)
   @ !item (leafInsert leaves hh)
   [item]
@@ -406,7 +397,7 @@ newRootNode
 @ TREE_FUN(..) treeFun
 ^ _ hhEmpty node
 ? (go_openTreeFun hh node)
-# datacase (caseImpl node)
+# datacase (caseNode node)
 * (LEAFNODE leaves)
   | if (isZero | hhLength hh) node
   @ !item (leafInsert leaves hh)
@@ -421,7 +412,7 @@ newRootNode
 = (nodeNeedsMerge config treeFun node)
 @ TREE_CONFIG(..) config
 @ TREE_FUN(..) treeFun
-# datacase (caseImpl node)
+# datacase (caseNode node)
 * (INDEXNODE index hitchhikers)
   | lth (indexKeyLen index) minIdxKeys
 * (LEAFNODE leaves)
@@ -431,9 +422,9 @@ newRootNode
 @ TREE_CONFIG(..) config
 @ TREE_FUN(..) treeFun
 ; wish I could collapse this into a single case like in haskell
-# datacase (caseImpl left)
+# datacase (caseNode left)
 * (INDEXNODE leftIdx leftHH)
-  # datacase (caseImpl right)
+  # datacase (caseNode right)
   * (INDEXNODE rightIdx rightHH)
     @ !left   | distributeDownwards config treeFun leftHH leftIdx
     @ !right  | distributeDownwards config treeFun rightHH rightIdx
@@ -442,7 +433,7 @@ newRootNode
   * (LEAFNODE _)
     | die %nodeMismatch
 * (LEAFNODE leftLeaf)
-  # datacase (caseImpl right)
+  # datacase (caseNode right)
   * (LEAFNODE rightLeaf)
     @ !merged | leafMerge leftLeaf rightLeaf
     | splitLeafMany treeFun maxLeafItems merged
@@ -455,7 +446,7 @@ newRootNode
 = (deleteRec config treeFun key mybV node)
 @ TREE_CONFIG(..) config
 @ TREE_FUN(..) treeFun
-# datacase (caseImpl node)
+# datacase (caseNode node)
 * (LEAFNODE leaves)
   | mkLeaf | leafDelete key mybV leaves
 * (INDEXNODE index hitchhikers)
@@ -485,16 +476,22 @@ newRootNode
 (hhDeleteKey k _ t)=(tabDel k t)
 
 = (hmEmpty config) | [config NONE]
-= (hmLeaf l)       | PIN [1 l]
+
+= (hmCaseNode pinnedNode)
+@ !node (pinItem pinnedNode)
+| if | isTab node
+  | LEAFNODE node
+@ [keys nodes hh] node
+| INDEXNODE [keys nodes] hh
 
 = (hmSingleton config k v)
-@ node | hmLeaf | tabSing k v
+@ node | PIN | tabSing k v
 [config (SOME node)]
 
 = hhMapTF
 ++ packIndexNode                 ; mkNode
-++ hmLeaf                        ; mkLeaf
-++ caseImpl                      ; caseNode
+++ PIN                           ; mkLeaf
+++ hmCaseNode                    ; caseNode
 ++ (tabUnionWith (a b)&b)        ; leafInsert
 ++ (tabUnionWith (a b)&b)        ; leafMerge
 ++ tabLen                        ; leafLength
@@ -527,7 +524,7 @@ newRootNode
 = (hmInsert k v [config r])
 @ p | tabSing k v
 | **maybeCase r
-    [config (SOME (PIN [1 p]))]
+    [config (SOME | PIN p)]
 & gr
 @ !index | insertRec config hhMapTF p gr
 @ !fixed | fixup config hhMapTF index
@@ -552,7 +549,7 @@ newRootNode
 | **maybeCase r [config r]
 & gr
 @ newRootNode | deleteRec config hhMapTF k NONE gr
-# datacase (caseImpl newRootNode)
+# datacase (hmCaseNode newRootNode)
 * (LEAFNODE leaves)
   ++ config
   ++ if (tabIsEmpty leaves) NONE (SOME newRootNode)
@@ -568,7 +565,7 @@ newRootNode
 = (hmLookup key [config r])
 | **maybeCase r NONE
 ? (lookInNode node)
-# datacase (caseImpl node)
+# datacase (hmCaseNode node)
 * (INDEXNODE index hitchhikers)
   : v <- **maybeCase (tabLookup key hitchhikers)
              (lookInNode | findSubnodeByKey key index)
@@ -588,16 +585,23 @@ newRootNode
 = (hsNull [config r])
 | (**isNone r)
 
+= (hsCaseNode pinnedNode)
+@ !node (pinItem pinnedNode)
+| if | isSet node
+  | LEAFNODE node
+@ [keys nodes hh] node
+| INDEXNODE [keys nodes] hh
+
 = (hsRawSingleton v)
-@ node (PIN [1 (setSing v)])
+@ node (PIN (setSing v))
 | SOME node
 
 (hsSingleton config v)=[config (hsRawSingleton v)]
 
 = hhSetTF
 ++ packIndexNode                 ; mkNode
-++ hmLeaf                        ; mkLeaf
-++ caseImpl                      ; caseNode
+++ PIN                           ; mkLeaf
+++ hsCaseNode                    ; caseNode
 ++ setUnion                      ; leafInsert
 ++ setUnion                      ; leafMerge
 ++ setLen                        ; leafLength
@@ -614,7 +618,7 @@ newRootNode
 = (hsRawInsert i config r)
 @ is | setSing i
 | **maybeCase r
-    (SOME (PIN [1 is]))
+    (SOME (PIN is))
 & gr
 @ !index | insertRec config hhSetTF is gr
 @ !fixed | fixup config hhSetTF index
@@ -650,7 +654,7 @@ newRootNode
 = (hsMember key [config r])
 | **maybeCase r FALSE
 ? (lookInNode node)
-# datacase (caseImpl node)
+# datacase (hsCaseNode node)
 * (INDEXNODE index hitchhikers)
   | if (setHas key hitchhikers) TRUE
   | lookInNode | findSubnodeByKey key index
@@ -661,7 +665,7 @@ newRootNode
 | **maybeCase r r
 & gr
 @ newRootNode | deleteRec config hhSetTF key NONE gr
-# datacase (caseImpl newRootNode)
+# datacase (hsCaseNode newRootNode)
 * (LEAFNODE leaves)
   | if (setIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
@@ -763,7 +767,7 @@ newRootNode
 !!= [%[1 2 3] %[4 5]] | consolidate 2 4 [%[1 2 3] %[4 5]]
 
 = (getLeftmostValue a)
-# datacase (caseImpl a)
+# datacase (hsCaseNode a)
 * (LEAFNODE s)
   | setMin s
 * (INDEXNODE [keys vals] _)
@@ -800,19 +804,19 @@ abstype#(SetNode k) ; TODO: (???)
       ++ idx 0 vals
       ++ SOME [(drop 1 keys) (drop 1 vals)]
   | if (setIsEmpty tryLeaves) | loop [restLeaves restIndex]
-  @ !result | checkSetAgainst tryLeaves (caseImpl subNode)
+  @ !result | checkSetAgainst tryLeaves (hsCaseNode subNode)
   | if (isZero | len result) | loop [restLeaves restIndex]
   | SOME [result [restLeaves restIndex]]
 
 !!= [%[1] %[5]]
    | checkSetAgainst %[1 5]
    ^ INDEXNODE _ %[]
-   | ([5], (hmLeaf %[1 2], hmLeaf %[5 7]))
+   | ([5], (PIN %[1 2], PIN %[5 7]))
 
 !!= []
    | checkSetAgainst %[8 9]
    ^ INDEXNODE _ %[]
-   | ([5], (hmLeaf %[1 2], hmLeaf %[5 7]))
+   | ([5], (PIN %[1 2], PIN %[5 7]))
 
 = (findIntersectStep find [arange anode brange bnode])
 : a as <- **listCase anode  NONE
@@ -866,24 +870,24 @@ abstype#(SetNode k) ; TODO: (???)
 * (build r)
   | if | isZero | len r
     | NONE
-  @ vals | map hmLeaf r
+  @ vals | map PIN r
   @ keys | map setMin | drop 1 r
   | SOME | fixup aconfig hhSetTF [keys vals]
 ;
 * (find left right)
-  # datacase (caseImpl left)
+  # datacase (hsCaseNode left)
   * (LEAFNODE leftLeaves)
-    # datacase (caseImpl right)
+    # datacase (hsCaseNode right)
     * (LEAFNODE rightLeaves)
       @ c | setIntersect leftLeaves rightLeaves
       | if (setIsEmpty c) []
       [c]
     * (INDEXNODE rightIdx _)
-      | checkSetAgainst leftLeaves (caseImpl right)
+      | checkSetAgainst leftLeaves (hsCaseNode right)
   * (INDEXNODE leftIdx leftHH)
-    # datacase (caseImpl right)
+    # datacase (hsCaseNode right)
     * (LEAFNODE rightLeaves)
-      | checkSetAgainst rightLeaves (caseImpl left)
+      | checkSetAgainst rightLeaves (hsCaseNode left)
     * (INDEXNODE rightIdx rightHH)
       @ [aIdxKeys aVals] leftIdx
       @ [bIdxKeys bVals] rightIdx
@@ -910,6 +914,13 @@ abstype#(HSetMap k v)
 
 = (hsmEmpty mapConfig setConfig)
 [mapConfig setConfig NONE]
+
+= (hsmCaseNode pinnedNode)
+@ !node (pinItem pinnedNode)
+| if | isTab node
+  | LEAFNODE node
+@ [keys nodes hh] node
+| INDEXNODE [keys nodes] hh
 
 ;
 ; In SetMap, hitchhikers are a normal map of sets, but leaves are maps of
@@ -946,8 +957,8 @@ abstype#(HSetMap k v)
 
 = (hhSetMapTF setConfig)
 ++ packIndexNode                       ; mkNode
-++ hmLeaf                              ; mkLeaf
-++ caseImpl                            ; caseNode
+++ PIN                                 ; mkLeaf
+++ hsmCaseNode                         ; caseNode
 ++ hsmLeafInsertImpl setConfig         ; leafInsert
 ++ tabUnionWith (hsRawUnion setConfig) ; leafMerge
 ++ tabLen                              ; leafLength
@@ -971,7 +982,7 @@ abstype#(HSetMap k v)
    @ leaf | tabSing k raw
    ++ mapConfig
    ++ setConfig
-   ++ | SOME (PIN [1 leaf])
+   ++ | SOME (PIN leaf)
 & gr
 @ tf | hhSetMapTF setConfig
 @ hh | tabSing k (setSing v)
@@ -1001,7 +1012,7 @@ abstype#(HSetMap k v)
 | **maybeCase r [mapConfig setConfig r]
 & gr
 @ newRootNode | deleteRec mapConfig (hhSetMapTF setConfig) k (SOME v) gr
-# datacase (caseImpl newRootNode)
+# datacase (hsmCaseNode newRootNode)
 * (LEAFNODE leaves)
   ++ mapConfig
   ++ setConfig
@@ -1026,7 +1037,7 @@ abstype#(HSetMap k v)
 & node
 ^ _ %[] node
 ? (lookInNode !hh node)
-# datacase (caseImpl node)
+# datacase (hsmCaseNode node)
 * (INDEXNODE children hitchhikers)
   @ matched | fromSome %[] (tabLookup k hitchhikers)
   | lookInNode (setUnion hh matched) | findSubnodeByKey k children
