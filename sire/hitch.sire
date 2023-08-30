@@ -475,18 +475,18 @@ newRootNode
 
 (hhDeleteKey k _ t)=(tabDel k t)
 
-= (hmEmpty config) | [config NONE]
+= (hmEmpty config) | [config 0]
 
 = (hmCaseNode pinnedNode)
 @ !node (pinItem pinnedNode)
 | if | isTab node
-  | LEAFNODE node
+    | LEAFNODE node
 @ [keys nodes hh] node
 | INDEXNODE [keys nodes] hh
 
 = (hmSingleton config k v)
 @ node | PIN | tabSing k v
-[config (SOME node)]
+[config node]
 
 = hhMapTF
 ++ packIndexNode                 ; mkNode
@@ -506,64 +506,59 @@ newRootNode
 ++ hhDeleteKey                   ; hhDelete
 
 = (hmSize [config r])
-| **maybeCase r 0
-& top
+| if (isZero r)  0
 | sum
 | map tabLen
-| getLeafRow hhMapTF top
+| getLeafRow hhMapTF r
 
 ; TODO: {hmKeys} returns a set in the empty case, and a row-of-rows
 ; otherwise.  Is that wrong?
 
-= (hmKeys [config r])
-| **maybeCase r %[]
-& top
+= (hmKeys [config top])
+| if (isZero top) %[]
 | map tabKeysRow
 | getLeafRow hhMapTF top
 
-= (hmInsert k v [config r])
+= (hmInsert k v [config top])
 @ p | tabSing k v
-| **maybeCase r
-    [config (SOME | PIN p)]
-& gr
-@ !index | insertRec config hhMapTF p gr
+| if (isZero top) | hmSingleton config k v
+@ !index | insertRec config hhMapTF p top
 @ !fixed | fixup config hhMapTF index
 ++ config
-++ SOME fixed
+++ fixed
 
-= (hmInsertMany tab [config r])
+= (hmInsertMany tab [config top])
 | if | tabIsEmpty tab
-  [config r]
+  [config top]
 @ TREE_CONFIG(..) config
 @ !index
-  | **maybeCase r
+  | if | isZero top
       | splitLeafMany hhMapTF maxLeafItems tab
-  & top
   | insertRec config hhMapTF tab top
 @ !fixed | fixup config hhMapTF index
 ++ config
-++ SOME fixed
+++ fixed
 
 ; TODO: case guard statements would make this much more readable.
 = (hmDelete k [config r])
-| **maybeCase r [config r]
-& gr
-@ newRootNode | deleteRec config hhMapTF k NONE gr
+| if (isZero r) [config r]
+@ newRootNode | deleteRec config hhMapTF k NONE r
 # datacase (hmCaseNode newRootNode)
 * (LEAFNODE leaves)
   ++ config
   ++ if (tabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
   | **maybeCase | fromSingletonIndex index
-    [config (SOME newRootNode)]
+    [config newRootNode]
   & childNode
-  @ base [config (SOME childNode)]
+  @ base [config childNode]
   | if (tabIsEmpty hitchhikers) base
   | hmInsertMany hitchhikers base
 
 
 = (hmLookup key [config r])
-| **maybeCase r NONE
+| if (isZero r) | NONE
+^ _ r
 ? (lookInNode node)
 # datacase (hmCaseNode node)
 * (INDEXNODE index hitchhikers)
