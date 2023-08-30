@@ -97,10 +97,10 @@ abstype#(Index k v) ; TODO: (???)
 > v > Index k v
 = (singletonIndex val) [[] [val]]
 
-
+; Assumption: v is not a Nat. this holds in the current implementation.
 > Index k v > Opt v
 = (fromSingletonIndex [_ vals])
-| if (eql 1 (len vals)) (SOME (get vals 0)) NONE
+| if (eql 1 (len vals)) (get vals 0) 0
 
 > Index k v > Nat
 = (indexKeyLen [keys _])
@@ -281,11 +281,10 @@ abstype#(Index k v) ; TODO: (???)
 
 = (fixup treeConfig treeFun index)
 @ TREE_CONFIG(..) treeConfig
-@ !mybNode | fromSingletonIndex index
-: newRootNode
-    <- **maybeCase mybNode
-         @ !index | extendIndex treeFun maxLeafItems index
-         | fixup treeConfig treeFun index
+@ !newRootNode | fromSingletonIndex index
+| if | isZero newRootNode
+    @ !index | extendIndex treeFun maxLeafItems index
+    | fixup treeConfig treeFun index
 newRootNode
 
 # mutual insertRect_distributeDownwards
@@ -534,9 +533,9 @@ newRootNode
   ++ config
   ++ if (tabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
-  | **maybeCase | fromSingletonIndex index
-    [config newRootNode]
-  & childNode
+  @ childNode | fromSingletonIndex index
+  | if | isZero childNode
+      [config newRootNode]
   @ base [config childNode]
   | if (tabIsEmpty hitchhikers) base
   | hmInsertMany hitchhikers base
@@ -644,8 +643,8 @@ newRootNode
 * (LEAFNODE leaves)
   | if (setIsEmpty leaves) 0 newRootNode
 * (INDEXNODE index hitchhikers)
-  | **maybeCase (fromSingletonIndex index) newRootNode
-  & !childNode
+  @ childNode | fromSingletonIndex index
+  | if (isZero childNode) newRootNode
   | if (setIsEmpty hitchhikers) childNode
   | hsRawInsertMany hitchhikers config childNode
 
@@ -988,9 +987,9 @@ abstype#(HSetMap k v)
   ++ setConfig
   ++ if (tabIsEmpty leaves) 0 newRootNode
 * (INDEXNODE index hitchhikers)
-  | **maybeCase | fromSingletonIndex index
-    [mapConfig setConfig newRootNode]
-  & childNode
+  @ childNode | fromSingletonIndex index
+  | if | isZero childNode
+      [mapConfig setConfig newRootNode]
   @ base [mapConfig setConfig childNode]
   | if (tabIsEmpty hitchhikers) base
   | hsmInsertMany hitchhikers base
