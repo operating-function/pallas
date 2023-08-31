@@ -163,7 +163,7 @@ tab=(tabFromAscPairs par)
 """ Table Construction from unique pairs """""""""""""""""""""""""""""""""""""""
 
 ; TODO: Implementing {tabFromPairs} with sort+uniq is faster.
-; TODO: Or maybe buidl use some kinda of "multi-insert" routine?
+; TODO: Or maybe use some kinda of "multi-insert" routine?
 
 = (tabFromPairs pairs)
 | foldl (t p & tabIns (fst p) (snd p) t) emptyTab pairs

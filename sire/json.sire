@@ -401,7 +401,7 @@ setProp#(JMAP.conRaw)#TRUE
    * true   | ok JTRUE ts
    * false  | ok JFALSE ts
    * l_brak | arr NIL ts fail ok
-   * l_curl | obj #[] ts fail ok
+   * l_curl | obj 0 NIL ts fail ok
    * str    | ok (JSTR | idx 1 t) ts
    * num    | ok (JNUM | idx 2 t) ts  ; todo: more data.
    * err    @ [_ off why] t
@@ -409,14 +409,16 @@ setProp#(JMAP.conRaw)#TRUE
             | fail msg stream
    * _      | fail "value" stream
 ;
-* (obj acc stream fail ok)
+* (obj count pairs stream fail ok)
    ;
    @ stream (eatSpace stream)
    ;
    : t@[k v] ts <- **listCase stream (fail "'}', or key" stream)
    ;
    | if (t == TRCURL)
-       | ok (JMAP acc) ts
+       @ !row (sizedListToRow count pairs)
+       @ !tab (tabFromPairs row)
+       | ok (JMAP tab) ts
    ;
    | if (isNat t || neq {str} k)
        | trk #[=t =k =v]
@@ -431,13 +433,14 @@ setProp#(JMAP.conRaw)#TRUE
    ;
    @ stream        | eatSpace ts
    : newVal stream < val stream fail
-   @ !acc          | tabIns newKey newVal acc
+   @ !pairs        | CONS (newKey, newVal) pairs
+   @ !count        | inc count
    @ stream        | eatSpace stream
    @ complain      | fail 'Expecting , or }' stream
    : t ts          < **listCase stream complain
    ;
-   | if (t == TRCURL) | obj acc stream fail ok
-   | if (t == TCOMMA) | obj acc ts fail ok
+   | if (t == TRCURL) | obj count pairs stream fail ok
+   | if (t == TCOMMA) | obj count pairs ts fail ok
    ;
    | complain
 ;
@@ -459,7 +462,7 @@ setProp#(JMAP.conRaw)#TRUE
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [final]
    | if (TRBRAK == m)
        @ acc (CONS val acc)
-       @ !res (JVEC | listToRowReversed acc)
+       @ !res (JVEC | listToRowReversed acc) ; TODO: use a sized operation here
        | ok res ms
    | if (TCOMMA == m)
        @ acc (CONS val acc)
