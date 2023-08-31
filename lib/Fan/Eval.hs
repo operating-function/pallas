@@ -70,20 +70,22 @@ import Fan.PinRefs               (pinRefs)
 import GHC.Prim                  (reallyUnsafePtrEquality#)
 import GHC.Word                  (Word(..))
 import Hash256                   (shortHex)
+import Jelly.Fast.FFI            (c_revmemcmp)
 import Rex                       (GRex)
 
 import {-# SOURCE #-} Fan.Hash (fanHash)
 import {-# SOURCE #-} Fan.Save (saveFan)
 
-import qualified Data.ByteString      as BS
-import qualified Data.Char            as C
-import qualified Data.Foldable        as F
-import qualified Data.Map             as M
-import qualified Data.Vector          as V
-import qualified Data.Vector.Storable as SV
-import qualified GHC.Exts             as GHC
-import qualified Jelly                as Jelly
-import qualified Jelly.Reference      as Jelly
+import qualified Data.ByteString        as BS
+import qualified Data.ByteString.Unsafe as BS
+import qualified Data.Char              as C
+import qualified Data.Foldable          as F
+import qualified Data.Map               as M
+import qualified Data.Vector            as V
+import qualified Data.Vector.Storable   as SV
+import qualified GHC.Exts               as GHC
+import qualified Jelly                  as Jelly
+import qualified Jelly.Reference        as Jelly
 import qualified Rex
 
 
@@ -253,6 +255,18 @@ instance Ord Fan where
     compare (PIN x) (PIN y) = compare x y
     compare (PIN _) _       = LT
     compare _       (PIN _) = GT
+
+    compare (BAR x) (BAR y) =
+        let !xw = length x in
+        let !yw = length y in
+        case compare xw yw of
+            LT -> LT
+            GT -> GT
+            EQ -> unsafePerformIO $
+                  BS.unsafeUseAsCString x \xBuf ->
+                  BS.unsafeUseAsCString y \yBuf -> do
+                      i <- c_revmemcmp xBuf yBuf (fromIntegral xw)
+                      pure (compare i 0)
 
     compare x y =
         case (fanLen x, fanLen y) of

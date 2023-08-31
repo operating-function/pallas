@@ -83,3 +83,6 @@ foreign import ccall unsafe "jet_blake3"
         -> CSize     -- input size
         -> Ptr Word8 -- head
         -> IO ()
+
+foreign import ccall unsafe "jet_revmemcmp"
+    c_revmemcmp :: Ptr a -> Ptr b -> CSize -> IO CInt
