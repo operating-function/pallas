@@ -122,6 +122,7 @@ jetHashes
     , e "unfoldr"             "EhMbquBLZ8uXjqypKS2dTdxMpMdaUsMq6NG1LxNh1Kwi"
     , e "listToRow"           "5a4pB8s1SZmwxFa8fydvvvbycBUQ1RPcmKRHQ5FmYJDL"
     , e "listToRowReversed"   "EaRpRmBZVbQV8t3cUj1B77dxMKR13NKUyk5ueGsF2AcG"
+    , e "sizedListToRow"      "9cYJs4NyusCFj8vEoddGEKvNriavxoJ6nLb3rp94gMQn"
     , e "isDigit"             "3oV11ebAnQW8JfhkBWH7A2GyW6HBL5LqrsbZjxf3TosR"
     , e "implode"             "5dpdHhM1cyexVWARXFpJWWAvJsXNprVcC8mcvK7Sr7ga"
     , e "setSing"             "2S8yfCmRiecvoxgLJVJg5L6MxLm5avjoGqGJmnbukt27"

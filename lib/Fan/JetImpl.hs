@@ -9,6 +9,7 @@
 
 module Fan.JetImpl (installJetImpls, jetImpls, doTrk) where
 
+import Control.Monad.ST
 import Control.Parallel
 import Data.Bits
 import Data.Maybe
@@ -92,6 +93,7 @@ jetImpls = mapFromList
   , ( "zip"         , vzipJet    )
   , ( "listToRow"   , listToRowJet )
   , ( "listToRowReversed"   , listToRowReversedJet )
+  , ( "sizedListToRow" , sizedListToRowJet )
   , ( "unfoldr"     , unfoldrJet )
 
   , ( "isDigit"     , isDigitJet )
@@ -372,12 +374,38 @@ listToRow input = V.toArray <$> V.unfoldrM build input
     build (ROW r) | length r == 2 = Just $ Just (r ! 0, r ! 1)
     build _                       = Nothing
 
+--
+-- TODO: What to do if given an unreasonable size here?  PLAN code will
+-- do something insane, but wont crash, this will crash.
+--
+-- Maybe we should just fallback to unsized + check for very large sizes?
+--
+sizedListToRow :: Int -> Fan -> Maybe (Array Fan)
+sizedListToRow sz input = runST do
+    buf <- newArray sz (error "sizedListToRow: ininitialized")
+    let go _ 0 (NAT 0)                 = Just <$> unsafeFreezeArray buf
+        go _ _ (NAT 0)                 = pure Nothing
+        go _ 0 _                       = pure Nothing
+        go i n (ROW r) | length r == 2 = do writeArray buf i (r!0)
+                                            go (i+1) (n-1) (r!1)
+        go _ _ _                       = pure Nothing
+    go 0 sz input
+
 listToRowJet :: Jet
 listToRowJet f env = orExec (f env) (ROW <$> listToRow (env.!1))
 
 listToRowReversedJet :: Jet
 listToRowReversedJet f env = orExec (f env)
                              ((ROW . rowReverse) <$> listToRow (env.!1))
+
+sizedListToRowJet :: Jet
+sizedListToRowJet f env =
+    orExec (f env) do
+        sz <- case (env .! 1) of
+                  NAT sz | sz <= maxInt -> pure (fromIntegral sz)
+                  _                     -> Nothing
+        rw <- sizedListToRow sz (env .! 2)
+        pure (ROW rw)
 
 unfoldrJet :: Jet
 unfoldrJet f env = orExecTrace "unfoldr" (f env)

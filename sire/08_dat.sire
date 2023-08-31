@@ -349,6 +349,7 @@
 = (listToRow l)         | listFoldr supply cow-(listLen l) l
 = (listToRowReversed l) | listFoldl apply cow-(listLen l) l
 = (listFromRow v)       | foldr CONS NIL v
+= (sizedListToRow sz l) | listFoldr supply cow-sz l
 = (listAnd v)           | listFoldr and TRUE v
 = (listOr v)            | listFoldr or 0 v
 = (listSum v)           | listFoldr add 0 v
@@ -933,7 +934,7 @@ F=found
 ^-^ listMap
 ^-^ listHead listSafeHead listUnsafeHead listLast
 ^-^
-^-^ listFoldl listFoldr listMap listLen listSum listToRow
+^-^ listFoldl listFoldr listMap listLen listSum listToRow sizedListToRow
 ^-^ listToRowReversed listFromRow listAnd listOr listSum listAll listAny
 ^-^ listHas listEnumFrom listWeld listCat listTake listDrop listDigits
 ^-^ listTakeWhile listDropWhile
