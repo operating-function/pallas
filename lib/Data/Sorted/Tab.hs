@@ -246,15 +246,29 @@ tabDifference (TAB xKeys xVals) (TAB yKeys yVals) = runST do
 tabIntersection :: Ord k => Tab k v -> Tab k v -> Tab k v
 tabIntersection x y = tabIntersectionWith const x y
 
--- TODO: same as setIntersection, but need to track values too.
--- TODO: Wait, is that true?  And we just prefer the left key if they
--- are both defined but have different values?
 tabIntersectionWith :: Ord k => (v -> v -> v) -> Tab k v -> Tab k v -> Tab k v
-tabIntersectionWith _ (TAB ks _) _ | null ks = mempty
-tabIntersectionWith _ _ (TAB ks _) | null ks = mempty
-tabIntersectionWith merge (TAB xKeys xVals) (TAB yKeys yVals) = runST do
-    let xWid = sizeofArray xKeys
-    let yWid = sizeofArray yKeys
+tabIntersectionWith f x@(TAB xKeys xVals) y@(TAB yKeys yVals) =
+    case (sizeofArray xKeys, sizeofArray yKeys) of
+        ( 0,  _  ) -> mempty
+        ( _,  0  ) -> mempty
+        ( 1,  1  ) -> let xk = xKeys!0
+                      in if xk == (yKeys!0)
+                         then tabSingleton xk (f (xVals!0) (yVals!0))
+                         else mempty
+        ( 1,  _  ) -> let xk = xKeys!0 in
+                      case tabLookup xk y of
+                          Nothing -> mempty
+                          Just yv -> tabSingleton xk (f (xVals!0) yv)
+        ( _,  1  ) -> let yk = yKeys!0 in
+                      case tabLookup yk x of
+                          Nothing -> mempty
+                          Just xv -> tabSingleton yk (f xv (yVals!0))
+        ( xw, yw ) -> tabIntersectionWithGeneric f x xw y yw
+
+tabIntersectionWithGeneric
+    :: Ord k => (v -> v -> v) -> Tab k v -> Int -> Tab k v -> Int -> Tab k v
+tabIntersectionWithGeneric merge (TAB xKeys xVals) xWid (TAB yKeys yVals) yWid =
+  runST do
     let rWid = min xWid yWid
     rKeys <- newArray rWid (error "setIntersection: uninitialized")
     rVals <- newArray rWid (error "setIntersection: uninitialized")
