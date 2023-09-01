@@ -92,30 +92,33 @@ rowZipWith = mzipWith
 
 rowCons :: a -> Array a -> Array a
 rowCons x xs = runArray do
-    let !wid = 1 + sizeofArray xs
-    !res <- newArray wid x
-    copyArray res 1 xs 0 (wid-1)
+    let !wid = sizeofArray xs
+    res <- newArray (wid+1) x
+    copyArray res 1 xs 0 wid
     pure res
 
 rowSnoc :: Array a -> a -> Array a
 rowSnoc xs x = runArray do
-    let !wid = 1 + sizeofArray xs
-    !res <- newArray wid x
-    copyArray res 0 xs 0 (wid-1)
+    let !wid = sizeofArray xs
+    !res <- newArray (wid+1) x
+    copyArray res 0 xs 0 wid
     pure res
 
 rowReverse :: Array a -> Array a
-rowReverse xs = runArray do
-    let !wid = sizeofArray xs
-    !res <- newArray wid (error "rowReverse: uninitialized")
-    let go i | i >= wid = pure res
-        go i            = writeArray res i (xs ! (wid - (i+1))) >> go (i+1)
-    go 0
+rowReverse xs =
+    let !wid = sizeofArray xs in
+    if wid == 0 then mempty else
+    runArray do
+        !res <- newArray wid (error "rowReverse: uninitialized")
+        let go i | i >= wid = pure res
+            go i            = writeArray res i (xs ! (wid - (i+1))) >> go (i+1)
+        go 0
 
 rowIntersperse :: a -> Array a -> Array a
 rowIntersperse x xs =
     let !wid = sizeofArray xs in
-    if wid == 0 then mempty else runArray do
+    if wid == 0 then mempty else
+    runArray do
         res <- newArray (wid*2 - 1) x
         let go i =
                 if i >= wid then pure res else do
@@ -152,7 +155,8 @@ rowFindIndex f a =
 rowFilter :: (a -> Bool) -> Array a -> Array a
 rowFilter f xs =
     let !wid = sizeofArray xs in
-    if wid==0 then xs else runST do
+    if wid==0 then xs else
+    runST do
         buf <- newArray wid (error "rowFilter: uninitialized")
         let go i outIx =
                 if i >= wid then
@@ -190,37 +194,29 @@ rowTake :: Int -> Array a -> Array a
 rowTake 0 _ = mempty
 rowTake n xs =
     let !wid = sizeofArray xs in
-    if n >= wid then xs else
-        runArray do
-            res <- newArray n (error "rowTake: uninitialized")
-            copyArray res 0 xs 0 n
-            pure res
-
-
--- | This is allocate a new array, and is O(n), not O(1).
-rowSlice :: Int -> Int -> Array a -> Array a
-rowSlice off sz xs =
-    if wid < (off + sz) || off<0 || sz<0 then
-        error "rowSlice: out of bounds"
-    else if sz==wid then
-        xs
-    else
-        cloneArray xs off sz
-  where
-    !wid = sizeofArray xs
+    if n >= wid then xs else cloneArray xs 0 n
 
 -- This allocates a new array, not a slice.  O(n), not O(1).
 rowDrop :: Int -> Array a -> Array a
 rowDrop 0 xs = xs
-rowDrop n xs =
-    let !wid = sizeofArray xs
-        !siz = wid - n
-    in
-    if siz <= 0 then mempty
-    else runArray do
-        res <- newArray siz (error "rowDrop: uninitialized")
-        copyArray res 0 xs n siz
-        pure res
+rowDrop n xs = if siz <= 0 then mempty else cloneArray xs n siz
+  where
+    !wid = sizeofArray xs
+    !siz = wid - n
+
+-- | This is allocate a new array, and is O(n), not O(1).
+rowSlice :: Int -> Int -> Array a -> Array a
+rowSlice off sz xs =
+    let
+        !wid = sizeofArray xs
+    in if wid < (off + sz) || off<0 || sz<0 then
+        error "rowSlice: out of bounds"
+    else if sz==0 then
+        mempty
+    else if sz==wid then
+        xs
+    else
+        cloneArray xs off sz
 
 rowDropEnd :: Int -> Array a -> Array a
 rowDropEnd n xs = rowTake (sizeofArray xs - n) xs
@@ -231,18 +227,17 @@ rowDelete i xs =
 
 -- Does no bounds checking
 rowUnsafeDelete :: Int -> Array a -> Array a
-rowUnsafeDelete i xs = runArray do
-    let !wid = sizeofArray xs
-    res <- newArray (wid-1) (error "rowUnsafeDelete: uninitialized")
-    do
-        if i == 0 then do
-            copyArray res 0 xs 1 (wid-1)
-        else if i+1 == wid then do
-            copyArray res 0 xs 0 (wid-1)
-        else do
-            copyArray res 0 xs 0     i
-            copyArray res i xs (i+1) (wid - (i+1))
-    pure res
+rowUnsafeDelete i xs =
+    let !wid = sizeofArray xs in
+    if i == 0 then do
+        cloneArray xs 1 (wid-1)
+    else if i+1 == wid then do
+        cloneArray xs 0 (wid-1)
+    else runArray do
+        res <- newArray (wid-1) (error "rowUnsafeDelete: uninitialized")
+        copyArray res 0 xs 0     i
+        copyArray res i xs (i+1) (wid - (i+1))
+        pure res
 
 rowInsert :: Int -> a -> Array a -> Array a
 rowInsert i x xs =
