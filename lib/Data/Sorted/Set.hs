@@ -242,6 +242,7 @@ ssetFindMin (SET s) =
     else s!0
 
 -- Do a search, return True if if found something, otherwise False.
+{-# INLINE ssetMember #-}
 ssetMember :: Ord k => k -> Set k -> Bool
 ssetMember k (SET ks) = snd (bsearch k ks)
 
@@ -259,27 +260,36 @@ ssetDrop i (SET ks) = SET (rowDrop i ks)
 ssetSplitAt :: Int -> Set k -> (Set k, Set k)
 ssetSplitAt i (SET ks) = (SET (rowTake i ks), SET (rowDrop i ks))
 
--- O(n) set intersection.
+-- O(n) set intersection.  Special cases for (size=0 and size=1)
 ssetIntersection :: Ord a => Set a -> Set a -> Set a
-ssetIntersection (SET xs) _ | null xs = mempty
-ssetIntersection _ (SET ys) | null ys = mempty
-ssetIntersection (SET xs) (SET ys) = runST do
-    let xWid = sizeofArray xs
-    let yWid = sizeofArray ys
-    let rWid = min xWid yWid
-    buf <- newArray rWid (error "setIntersection: uninitialized")
-    let go o i j = do
-            if i >= xWid || j >= yWid then pure o else do
-                let x = xs ! i
-                let y = ys ! j
-                case compare x y of
-                    EQ -> writeArray buf o x >> go (o+1) (i+1) (j+1)
-                    LT -> go o (i+1) j
-                    GT -> go o i (j+1)
-    used <- go 0 0 0
-    if used == rWid
-    then SET <$> unsafeFreezeArray buf
-    else SET <$> freezeArray buf 0 used
+ssetIntersection x@(SET xs) y@(SET ys) =
+    case (sizeofArray xs, sizeofArray ys) of
+        ( 0,  _  ) -> mempty
+        ( _,  0  ) -> mempty
+        ( 1,  1  ) -> if xs!0 == ys!0 then x else mempty
+        ( 1,  _  ) -> let xv = (xs!0) in
+                      if ssetMember xv y then ssetSingleton xv else mempty
+        ( _,  1  ) -> let yv = (ys!0) in
+                      if ssetMember yv x then ssetSingleton yv else mempty
+        ( xw, yw ) -> ssetIntersectionGeneric x xw y yw
+
+ssetIntersectionGeneric :: Ord a => Set a -> Int -> Set a -> Int -> Set a
+ssetIntersectionGeneric (SET xs) !xWid (SET ys) !yWid =
+    coerce $ runST do
+        let rWid = min xWid yWid
+        buf <- newArray rWid (error "setIntersection: uninitialized")
+        let go o i j = do
+                if i >= xWid || j >= yWid then pure o else do
+                    let x = xs ! i
+                    let y = ys ! j
+                    case compare x y of
+                        EQ -> writeArray buf o x >> go (o+1) (i+1) (j+1)
+                        LT -> go o (i+1) j
+                        GT -> go o i (j+1)
+        used <- go 0 0 0
+        if used == rWid
+        then unsafeFreezeArray buf
+        else freezeArray buf 0 used
 
 -- O(n) set difference.
 ssetDifference :: Ord a => Set a -> Set a -> Set a
