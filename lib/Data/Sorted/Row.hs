@@ -15,6 +15,7 @@ module Data.Sorted.Row
     , arrayFromListRev
     , rowGenerate
     , rowPut
+    , rowUnsafePut
     , rowZipWith
     , rowSlice
     , rowSingleton
@@ -162,15 +163,20 @@ rowFilter f xs =
 -- size as the input.
 rowPut :: Int -> a -> Array a -> Array a
 rowPut i x xs =
+    let !wid = sizeofArray xs in
     if i >= wid || i < 0 then
         xs
     else runArray do
-        res <- newArray wid x
-        copyArray res 0 xs 0 wid
+        res <- thawArray xs 0 wid
         writeArray res i x
         pure res
-  where
-    !wid = sizeofArray xs
+
+rowUnsafePut :: Int -> a -> Array a -> Array a
+rowUnsafePut i x xs = runArray do
+    let !wid = sizeofArray xs
+    res <- thawArray xs 0 wid
+    writeArray res i x
+    pure res
 
 -- This is allocate a new array, and is O(n), not O(1).
 rowTake :: Int -> Array a -> Array a

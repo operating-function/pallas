@@ -71,7 +71,7 @@ tabInsert :: Ord k => k -> v -> Tab k v -> Tab k v
 tabInsert k v (TAB ks vs) =
     let (i, found) = bsearch k ks in
     case found of
-        True  -> TAB ks (rowPut i v vs)
+        True  -> TAB ks (rowUnsafePut i v vs)
         False -> TAB (rowInsert i k ks) (rowInsert i v vs)
 
 -- Do a search on the keys set, if we found a match, return the matching
@@ -260,7 +260,7 @@ tabAlter f k tab@(TAB ks vs) =
     if found then
         case f (Just (vs!i)) of
             Nothing -> TAB (rowUnsafeDelete i ks) (rowUnsafeDelete i vs)
-            Just v  -> TAB ks                     (rowPut i v vs)
+            Just v  -> TAB ks                     (rowUnsafePut i v vs)
     else
         case f Nothing of
             Nothing -> tab -- no change
