@@ -110,6 +110,13 @@ emptySet = SET mempty
 ssetSingleton :: k -> Set k
 ssetSingleton k = SET (rowSingleton k)
 
+-- x must be less than y, otherwise the resulting set will be invalid.
+ssetUnsafeDuo :: k -> k -> Set k
+ssetUnsafeDuo x y = runST do
+    res <- newArray 2 x
+    writeArray res 1 y
+    SET <$> unsafeFreezeArray res
+
 -- Collect list into an mutable array.  Sort it, remove duplicates.
 --
 -- TODO: Avoid the copies by loading into a mutable array, sorting the
@@ -163,13 +170,29 @@ ssetSize :: Set k -> Int
 ssetSize (SET a) = sizeofArray a
 
 -- O(n+m) given input sets of size n and m.
+--
+-- We special-case sets of size zero and one.
+--
+-- TODO: Make sure that GHC optimizes away this pattern match.
 ssetUnion :: Ord k => Set k -> Set k -> Set k
-ssetUnion (SET xs) y | null xs = y
-ssetUnion x (SET ys) | null ys = x
-ssetUnion (SET xs) (SET ys) = runST do
-    let xWid = sizeofArray xs
-    let yWid = sizeofArray ys
-    let rWid = xWid + yWid
+ssetUnion x@(SET xs) y@(SET ys) =
+    case (sizeofArray xs, sizeofArray ys) of
+        ( 0,  _  ) -> y
+        ( _,  0  ) -> x
+        ( 1,  1  ) -> let xv = (xs!0)
+                          yv = (ys!0)
+                      in case compare xv yv of
+                          EQ -> x
+                          LT -> ssetUnsafeDuo xv yv
+                          GT -> ssetUnsafeDuo yv xv
+        ( 1,  _  ) -> ssetInsert (xs!0) y
+        ( _,  1  ) -> ssetInsert (ys!0) x
+        ( xw, yw ) -> ssetUnionGeneric x xw y yw
+
+ssetUnionGeneric :: Ord k => Set k -> Int -> Set k -> Int -> Set k
+ssetUnionGeneric (SET xs) !xWid (SET ys) !yWid = runST do
+    let !rWid = xWid + yWid
+
     buf <- newArray rWid (error "ssetUnion: uninitialized")
 
     let go o i j = do
