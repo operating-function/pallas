@@ -170,6 +170,7 @@ jetImpls = mapFromList
   , ( "_TabLookup"    , tabLookupJet )
   , ( "tabSplitAt"  , tabSplitAtJet )
   , ( "tabSplitLT"  , tabSplitLTJet )
+  , ( "tabMap",         tabMapJet )
   , ( "tabMapWithKey" , tabMapWithKeyJet )
   , ( "tabUnionWith", tabUnionWithJet )
   , ( "tabMinKey"   , tabMinKeyJet )
@@ -1022,6 +1023,13 @@ tabMapWithKeyJet f e =
 
     apply :: Fan -> Fan -> Fan -> Fan
     apply fun k v = fun %% k %% v
+
+tabMapJet :: Jet
+tabMapJet f e =
+    orExecTrace "tabMap" (f e) (doMap (e.!1) <$> getTab (e.!2))
+  where
+    doMap :: Fan -> Tab Fan Fan -> Fan
+    doMap fun a = TAb $ tabMap (fun %%) a
 
 tabUnionWithJet :: Jet
 tabUnionWithJet f e =
