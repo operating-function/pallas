@@ -49,7 +49,8 @@ import Data.Sorted.Row
 import Data.Sorted.Types
 import Prelude
 
-import Data.Bits (shiftR)
+import Data.Bits   (shiftR)
+import Data.Coerce (coerce)
 
 
 -- Searching -------------------------------------------------------------------
@@ -111,11 +112,11 @@ ssetSingleton :: k -> Set k
 ssetSingleton k = SET (rowSingleton k)
 
 -- x must be less than y, otherwise the resulting set will be invalid.
+{-# INLINE ssetUnsafeDuo #-}
 ssetUnsafeDuo :: k -> k -> Set k
-ssetUnsafeDuo x y = runST do
-    res <- newArray 2 x
-    writeArray res 1 y
-    SET <$> unsafeFreezeArray res
+ssetUnsafeDuo x y = coerce (rowDuo x y)
+  -- coerce here avoids the fmap.  SET is a newtype for row, so there
+  -- is a type-safe cast between the two.
 
 -- Collect list into an mutable array.  Sort it, remove duplicates.
 --

@@ -19,6 +19,7 @@ module Data.Sorted.Row
     , rowZipWith
     , rowSlice
     , rowSingleton
+    , rowDuo
     , rowSortUniqBy
     , rowUnsafeDelete
     , rowDelete
@@ -78,6 +79,12 @@ rowGenerate sz f = runArray do
 {-# INLINE rowSingleton #-}
 rowSingleton :: a -> Row a
 rowSingleton = pure
+
+rowDuo :: a -> a -> Row a
+rowDuo x y = runArray do
+    res <- newArray 2 x
+    writeArray res 1 y
+    pure res
 
 {-# INLINE rowZipWith #-}
 rowZipWith :: (a -> b -> c) -> Array a -> Array b -> Array c
