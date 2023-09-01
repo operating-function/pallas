@@ -65,6 +65,12 @@ emptyTab = TAB mempty mempty
 tabSingleton :: k -> v -> Tab k v
 tabSingleton k v = TAB (rowSingleton k) (rowSingleton v)
 
+-- The first key MUST be strictly smaller than the second.
+{-# INLINE tabUnsafeDuo #-}
+tabUnsafeDuo :: k -> v -> k -> v -> Tab k v
+tabUnsafeDuo xk xv yk yv =
+    TAB (rowDuo xk yk) (rowDuo xv yv)
+
 -- If found, update the values array at the found index.  Otherwise insert
 -- the key and value at the found-index of the relevent arrays.
 tabInsert :: Ord k => k -> v -> Tab k v -> Tab k v
@@ -72,6 +78,15 @@ tabInsert k v (TAB ks vs) =
     let (i, found) = bsearch k ks in
     case found of
         True  -> TAB ks (rowUnsafePut i v vs)
+        False -> TAB (rowInsert i k ks) (rowInsert i v vs)
+
+-- If found, merge the two values with (merge newVal oldVal).  Otherwise
+-- insert the key and value at the found-index of the relevant arrays.
+tabInsertWith :: Ord k => (v -> v -> v) -> k -> v -> Tab k v -> Tab k v
+tabInsertWith merge k v (TAB ks vs) =
+    let (i, found) = bsearch k ks in
+    case found of
+        True  -> TAB ks $ rowUnsafePut i (merge v (vs!i)) vs
         False -> TAB (rowInsert i k ks) (rowInsert i v vs)
 
 -- Do a search on the keys set, if we found a match, return the matching
@@ -133,11 +148,26 @@ tabUnion = tabUnionWith const
 
 -- O(n) union
 tabUnionWith :: Ord k => (v -> v -> v) -> Tab k v -> Tab k v -> Tab k v
-tabUnionWith _ (TAB xKeys _) y | null xKeys = y
-tabUnionWith _ x (TAB yKeys _) | null yKeys = x
-tabUnionWith merge (TAB xKeys xVals) (TAB yKeys yVals) = runST do
-    let xWid = sizeofArray xKeys
-    let yWid = sizeofArray yKeys
+tabUnionWith merge x@(TAB xKeys xVals) y@(TAB yKeys yVals) =
+    case (sizeofArray xKeys, sizeofArray yKeys) of
+        ( 0,  _  ) -> y
+        ( _,  0  ) -> x
+        ( 1,  1  ) -> let xk = xKeys!0
+                          yk = yKeys!0
+                          xv = xVals!0
+                          yv = yVals!0
+                      in case compare xk yk of
+                          LT -> tabUnsafeDuo xk xv yk yv
+                          GT -> tabUnsafeDuo yk yv xk xv
+                          EQ -> tabSingleton xk (merge xv yv)
+        ( 1,  _  ) -> tabInsertWith merge        (xKeys!0) (xVals!0) y
+        ( _,  1  ) -> tabInsertWith (flip merge) (yKeys!0) (yVals!0) x
+        ( xw, yw ) -> tabUnionWithGeneric merge x xw y yw
+
+tabUnionWithGeneric
+    :: Ord k => (v -> v -> v) -> Tab k v -> Int -> Tab k v -> Int -> Tab k v
+tabUnionWithGeneric merge (TAB xKeys xVals) !xWid (TAB yKeys yVals) !yWid =
+  runST do
     let rWid = xWid + yWid
 
     valsBuf <- newArray rWid (error "ssetUnion: uninitialized")
