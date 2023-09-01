@@ -87,6 +87,7 @@ jetImpls = mapFromList
   , ( "rowCons"     , vconsJet   )
   , ( "rowSnoc"     , vsnocJet   )
   , ( "sum"         , vsumJet    )
+  , ( "sumOf"       , vsumOfJet    )
   , ( "take"        , vtakeJet   )
   , ( "drop"        , vdropJet   )
   , ( "cat"         , vcatJet    )
@@ -526,6 +527,13 @@ vsumJet f env = orExec (f env) (vsum <$> getRow (env.!1))
   where
     vsum :: Array Fan -> Fan
     vsum s = NAT $ foldr (\fan n -> n + toNat fan) 0 s
+
+vsumOfJet :: Jet
+vsumOfJet f env =
+    orExec (f env) (vsumOf (env.!1) <$> getRow (env.!2))
+  where
+    vsumOf :: Fan -> Array Fan -> Fan
+    vsumOf fn s = NAT $ foldr (\fan n -> n + toNat (fn %% fan)) 0 s
 
   -- TODO: vfind
 

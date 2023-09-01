@@ -115,6 +115,7 @@ jetHashes
     , e "rowCons"             "6SM88ydMM19ksj1Vrkp8fVpZbZQPrUg3XnDT3L3DPcV"
     , e "rowSnoc"             "CwM7r5N6oe1ZdxgUy4fKumZn13RW7wRDh7zNqmwLpz1w"
     , e "sum"                 "3T3VDQGAPGabjo64qDSLGxD9JVdvZqPYEB1wEgEm6mgo"
+    , e "sumOf"               "2m4vPxjKE3WFZC2YKxRixvkQ85sHMZQksNHWrL9jLJXw"
     , e "cat"                 "2A7BCenKB8dxcFpctZHGYCSJKzcjg1TihTfNxeb1QvnP"
     , e "zip"                 "8qD9Mvtgc9mQtUS8Z8XUGntpVxdhpT7v8KRroZphtJCV"
     , e "drop"                "5VCieXW8sUMFpw4tNuhFaoDYwKf7xd6mXhZZpbytV2th"

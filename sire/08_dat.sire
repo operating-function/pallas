@@ -59,7 +59,8 @@
 = (rep i n)         | gen n (const i)
 = (rowAnd v)        | foldr and TRUE v
 = (rowOr v)         | foldr or FALSE v
-= (sum v)           | foldr add FALSE v
+= (sum v)           | foldr add 0 v
+= (sumOf f v)       | foldr (x acc & add acc (f x)) 0 v
 = (all f v)         | rowAnd (map f v)
 = (any f v)         | rowOr (map f v)
 = (cat vs)          | foldr weld v0 vs
@@ -224,7 +225,8 @@
 !!= [5 4 3] | rev ([3 4 5])
 !!= []      | rev ([])
 
-!!= 12                  | sum-([3 4 5])
+!!= 12                  | sum [3 4 5]
+!!= 24                  | sumOf (mul 2) [3 4 5]
 !!= [1 2 3 4 5 6 7 8 9] | cat [[] [1] [2 3] [4 5 6] [7 8] [9] []]
 
 !!= [1 2 3] (rowCons 1 [2 3])
@@ -913,7 +915,7 @@ F=found
 ^-^
 ^-^ slash slice chunks rep rowCons rowSnoc
 ^-^ rowIndexed findIdx elemIdx has
-^-^ rowAnd rowOr sum all any zip zipWith
+^-^ rowAnd rowOr sum sumOf all any zip zipWith
 ^-^ cat catMap
 ^-^ take drop rev
 ^-^ unfoldr span splitAt strictRow insert
