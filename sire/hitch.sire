@@ -491,9 +491,8 @@ newRootNode
 ++ hhDeleteKey                   ; hhDelete
 
 = (hmSize [config r])
-| if (isZero r)  0
-| sum
-| map tabLen
+| if (isZero r) 0
+| sumOf tabLen
 | getLeafRow hhMapTF r
 
 ; TODO: {hmKeys} returns a set in the empty case, and a row-of-rows
@@ -942,7 +941,7 @@ abstype#(HSetMap k v)
    ; since the point of hitchhikers is that they'll fit in an index node's
    ; grain, we count the number of items across all sets in the hitchhiker,
    ; not the number of tab entries.
-   | sum | map setLen | tabValsRow a
+   | sumOf setLen | tabValsRow a
 ++ tabSplitLT                          ; hhSplit
 ++ #[]                                 ; hhEmpty
 ++ hsmHHDeleteImpl                     ; hhDelete
