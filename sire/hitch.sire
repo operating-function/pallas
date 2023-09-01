@@ -473,18 +473,20 @@ newRootNode
 @ node | PIN | tabSing k v
 [config node]
 
+(tabUnionRightBiased x y)=(tabUnion y x)
+
 = hhMapTF
 ++ packIndexNode                 ; mkNode
 ++ PIN                           ; mkLeaf
 ++ hmCaseNode                    ; caseNode
-++ (tabUnionWith (a b)&b)        ; leafInsert
-++ (tabUnionWith (a b)&b)        ; leafMerge
+++ tabUnionRightBiased           ; leafInsert
+++ tabUnionRightBiased           ; leafMerge
 ++ tabLen                        ; leafLength
 ++ tabSplitAt                    ; leafSplitAt
 ++ tabMinKey                     ; leafFirstKey
 ++ #[]                           ; leafEmpty
 ++ hhDeleteKey                   ; leafDelete
-++ (tabUnionWith (a b)&b)        ; hhMerge
+++ tabUnionRightBiased           ; hhMerge
 ++ tabLen                        ; hhLength
 ++ tabSplitLT                    ; hhSplit
 ++ #[]                           ; hhEmpty
