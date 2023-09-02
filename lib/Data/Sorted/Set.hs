@@ -238,16 +238,39 @@ ssetIntersection x@(SET xs) y@(SET ys) =
                       if ssetMember yv x then ssetSingleton yv else mempty
         ( xw, yw ) -> ssetIntersectionGeneric x xw y yw
 
+-- This assumes that neither of the inputs are empty.
+--
+-- TODO: Skip the shrinking optimization if the sizes are small.
 ssetIntersectionGeneric :: Ord a => Set a -> Int -> Set a -> Int -> Set a
 ssetIntersectionGeneric (SET xs) !xWid (SET ys) !yWid =
-    coerce $ runST do
-        -- Find the overlapping range of the the sets so we can walk merely the
-        -- parts we know overlap
-        let xMin = bsearchIndex (ys!0) xs
-        let xMax = bsearchPostIndex (ys ! (yWid-1)) xs
-        let yMin = bsearchIndex (xs!0) ys
-        let yMax = bsearchPostIndex (xs ! (xWid-1)) ys
+    let
+        xSmallest = xs ! 0
+        xLargest  = xs ! (xWid-1)
+        ySmallest = ys ! 0
+        yLargest  = ys ! (yWid-1)
+    in
 
+    -- If there is no overlap, then the intersection is empty.
+    if xSmallest > yLargest then mempty else
+    if ySmallest > xLargest then mempty else
+
+    -- Find the overlapping range of the the sets so we can walk merely the
+    -- parts we know overlap
+    let
+        (xMin, yMin) =
+            case compare xSmallest ySmallest of
+                EQ -> (0, 0)
+                GT -> (0, bsearchIndex xSmallest ys)
+                LT -> (bsearchIndex ySmallest xs, 0)
+
+        (xMax, yMax) =
+            case compare xLargest yLargest of
+                EQ -> (xWid, yWid)
+                GT -> (bsearchPostIndex yLargest xs, yWid)
+                LT -> (xWid, bsearchPostIndex xLargest ys)
+    in
+
+    coerce $ runST do
         let rWid = min (xMax - xMin) (yMax - yMin)
         buf <- newArray rWid (error "setIntersection: uninitialized")
         let go o i j = do
