@@ -7,6 +7,7 @@
 {-# OPTIONS_GHC -Wall        #-}
 {-# OPTIONS_GHC -Werror      #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 module Data.Sorted.Set
     ( ssetFromList
@@ -32,11 +33,6 @@ module Data.Sorted.Set
     , ssetMember
     , ssetTake
     , ssetDrop
-    , rowGenerate
-    , bsearch
-    , bsearch_
-    , bfind_
-    , bfind
     )
 where
 
@@ -46,59 +42,12 @@ import Data.Foldable
 import Data.MonoTraversable
 import Data.Primitive.Array
 import Data.Sorted.Row
+import Data.Sorted.Search
 import Data.Sorted.Types
 import Prelude
 
-import Data.Bits   (shiftR)
 import Data.Coerce (coerce)
-
-
--- Searching -------------------------------------------------------------------
-
--- TODO: Manually unbox into (# Int# , Int# #) instead.
--- TODO: Is `shiftR` actually better than `div`?  Check the compiler output.
-bsearch_
-    :: (a -> a -> Ordering)
-    -> a
-    -> Array a
-    -> Int
-    -> Int
-    -> (Int, Bool)
-bsearch_ cmp key row low end =
-    if low >= end then (low, False) else
-    let i = (low + end) `shiftR` 1 in
-    case cmp key (row ! i) of
-        LT -> bsearch_ cmp key row low i
-        EQ -> (i, True)
-        GT -> bsearch_ cmp key row (i+1) end
-
--- TODO: Manually unbox into (# Int# , Int# #) instead.
-{-# INLINE bsearch #-}
-bsearch :: Ord a => a -> Array a -> (Int, Bool)
-bsearch key row = bsearch_ compare key row 0 (sizeofArray row)
-
--- TODO: Manually unbox into (# Int# , Int# #) instead.
--- TODO: Is `shiftR` actually better than `div`?  Check the compiler output.
-bfind_
-    :: (a -> Bool)
-    -> Array a
-    -> Int
-    -> Int
-    -> Int
-bfind_ f row low end =
-    if low >= end then low else
-    let i = (low + end) `shiftR` 1 in
-    case f (row ! i) of
-        True  -> bfind_ f row (i+1) end
-        False -> bfind_ f row low   i
-
--- Assuming that the predicate is monotone, find the first element where
--- the predicate is not true.
---
--- TODO: (This is not quite accurate, find a better way to say this).
-{-# INLINE bfind #-}
-bfind :: (a -> Bool) -> Array a -> Int
-bfind f row = bfind_ f row 0 (sizeofArray row)
+import GHC.Exts    (Int(..))
 
 
 --------------------------------------------------------------------------------
@@ -126,15 +75,21 @@ ssetFromList :: Ord k => [k] -> Set k
 ssetFromList kList =
     SET $ rowSortUniqBy compare $ arrayFromList kList
 
+{-# INLINE ssetInsert #-}
 ssetInsert :: Ord k => k -> Set k -> Set k
-ssetInsert k set@(SET ks) =
-    let (i, found) = bsearch k ks in
-    if found then set else SET (rowInsert i k ks)
+ssetInsert k set@(SET ks@(Array ks#)) =
+    let !(# i, found #) = bsearch# k ks# in
+    case found of
+        0# -> SET (rowInsert (I# i) k ks)
+        _  -> set
 
+{-# INLINE ssetDelete #-}
 ssetDelete :: Ord k => k -> Set k -> Set k
-ssetDelete k set@(SET ks) =
-    let (i, found) = bsearch k ks in
-    if found then SET (rowDelete i ks) else set
+ssetDelete k set@(SET ks@(Array ks#)) =
+    let !(# i, found #) = bsearch# k ks# in
+    case found of
+        0# -> set
+        _  -> SET (rowDelete (I# i) ks)
 
 {-# INLINE ssetLookupMin #-}
 ssetLookupMin :: Set a -> Maybe a
@@ -160,6 +115,7 @@ ssetToAscList (SET a) = toList a
 ssetToArray :: Set k -> Array k
 ssetToArray (SET a) = a
 
+{-# INLINE ssetToDescList #-}
 ssetToDescList :: Set k -> [k]
 ssetToDescList (SET a) = go (length a - 1)
   where
@@ -226,15 +182,18 @@ ssetIsEmpty :: Set k -> Bool
 ssetIsEmpty (SET a) = null a
 
 -- TODO: Should we check this invariant?
+{-# INLINE ssetFromDistinctAscList #-}
 ssetFromDistinctAscList :: [k] -> Set k
 ssetFromDistinctAscList ksList = SET (arrayFromList ksList)
 
+{-# INLINE ssetFindMax #-}
 ssetFindMax :: Set k -> k
 ssetFindMax (SET s) =
     case sizeofArray s of
         0 -> error "setFindMax: empty set"
         n -> s ! (n-1)
 
+{-# INLINE ssetFindMin #-}
 ssetFindMin :: Set k -> k
 ssetFindMin (SET s) =
     if null s
@@ -244,19 +203,25 @@ ssetFindMin (SET s) =
 -- Do a search, return True if if found something, otherwise False.
 {-# INLINE ssetMember #-}
 ssetMember :: Ord k => k -> Set k -> Bool
-ssetMember k (SET ks) = snd (bsearch k ks)
+ssetMember k (SET (Array ks#)) =
+    case bsearch# k ks# of
+        (# _, 0# #) -> False
+        (# _, _  #) -> True
 
 -- This doesn't affect the order invariants, so we just run the operation
 -- directly against the underlying array.
+{-# INLINE ssetTake #-}
 ssetTake :: Int -> Set k -> Set k
 ssetTake i (SET ks) = SET (rowTake i ks)
 
 -- This doesn't affect the order invariants, so we just run the operation
 -- directly against the underlying array.
+{-# INLINE ssetDrop #-}
 ssetDrop :: Int -> Set k -> Set k
 ssetDrop i (SET ks) = SET (rowDrop i ks)
 
 -- Just split the underlying array, set invariants are not at risk.
+{-# INLINE ssetSplitAt #-}
 ssetSplitAt :: Int -> Set k -> (Set k, Set k)
 ssetSplitAt i (SET ks) = (SET (rowTake i ks), SET (rowDrop i ks))
 
@@ -318,13 +283,13 @@ ssetDifference (SET xs) (SET ys) = runST do
 
 -- Assuming that the predicate is monotone, find the point where the
 -- predicate stops holding, and split the set there.
+{-# INLINE ssetSpanAntitone #-}
 ssetSpanAntitone :: (a -> Bool) -> Set a -> (Set a, Set a)
 ssetSpanAntitone f (SET ks) =
+    let numTrue = bfind f ks in
     ( SET $ rowTake numTrue ks
     , SET $ rowDrop numTrue ks
     )
-  where
-    numTrue = bfind f ks
 
 --------------------------------------------------------------------------------
 -- TODO: Optimize and verify these instances

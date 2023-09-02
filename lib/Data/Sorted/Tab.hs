@@ -7,6 +7,7 @@
 {-# OPTIONS_GHC -Wall        #-}
 {-# OPTIONS_GHC -Werror      #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 module Data.Sorted.Tab
     ( mkTab
@@ -49,10 +50,13 @@ import Data.Foldable
 import Data.MonoTraversable
 import Data.Primitive.Array
 import Data.Sorted.Row
+import Data.Sorted.Search
 import Data.Sorted.Set
 import Data.Sorted.Types
 
 import PlunderPrelude (on)
+
+import GHC.Exts (Int(..), (+#), indexArray#)
 
 
 -- Searching -------------------------------------------------------------------
@@ -74,29 +78,32 @@ tabUnsafeDuo xk xv yk yv =
 -- If found, update the values array at the found index.  Otherwise insert
 -- the key and value at the found-index of the relevent arrays.
 tabInsert :: Ord k => k -> v -> Tab k v -> Tab k v
-tabInsert k v (TAB ks vs) =
-    let (i, found) = bsearch k ks in
+tabInsert k v (TAB ks@(Array ks#) vs) =
+    let !(# i#, found #) = bsearch# k ks# in
+    let i = I# i# in
     case found of
-        True  -> TAB ks (rowUnsafePut i v vs)
-        False -> TAB (rowInsert i k ks) (rowInsert i v vs)
+        1# -> TAB ks (rowUnsafePut i v vs)
+        _  -> TAB (rowInsert i k ks) (rowInsert i v vs)
 
 -- If found, merge the two values with (merge newVal oldVal).  Otherwise
 -- insert the key and value at the found-index of the relevant arrays.
 tabInsertWith :: Ord k => (v -> v -> v) -> k -> v -> Tab k v -> Tab k v
-tabInsertWith merge k v (TAB ks vs) =
-    let (i, found) = bsearch k ks in
+tabInsertWith merge k v (TAB ks@(Array ks#) vs) =
+    let !(# i#, found #) = bsearch# k ks# in
+    let i = I# i# in
     case found of
-        True  -> TAB ks $ rowUnsafePut i (merge v (vs!i)) vs
-        False -> TAB (rowInsert i k ks) (rowInsert i v vs)
+        1# -> TAB ks $ rowUnsafePut i (merge v (vs!i)) vs
+        _  -> TAB (rowInsert i k ks) (rowInsert i v vs)
 
 -- Do a search on the keys set, if we found a match, return the matching
 -- value in the values array.
 tabLookup :: Ord k => k -> Tab k v -> Maybe v
-tabLookup k (TAB ks vs) =
-    let (i, found) = bsearch k ks in
-    if found
-    then Just (vs ! i)
-    else Nothing
+tabLookup k (TAB (Array ks#) (Array vs#)) =
+    let !(# i, found #) = bsearch# k ks# in
+    case found of
+        0# -> Nothing
+        _  -> case indexArray# vs# i of
+                  (# res #) -> Just res
 
 {-# INLINE tabSize #-}
 tabSize :: Tab k v -> Int
@@ -109,6 +116,7 @@ tabElemAt i (TAB ks vs) =
     then error "tabElemAt: out-of-bounds"
     else (ks!i, vs!i)
 
+{-# INLINE tabSplitAt #-}
 tabSplitAt :: Int -> Tab k v -> (Tab k v, Tab k v)
 tabSplitAt i (TAB ks vs) =
     ( TAB (rowTake i ks) (rowTake i vs)
@@ -117,15 +125,18 @@ tabSplitAt i (TAB ks vs) =
 
 -- Find index, call split (TODO: What behavior on found vs not-found?
 -- Avoid off-by-one-errors)
+{-# INLINE tabSplit #-}
 tabSplit :: Ord k => k -> Tab k v -> (Tab k v, Tab k v)
-tabSplit k (TAB ks vs) =
-    let (i, found) = bsearch k ks
-        j = i + (if found then 1 else 0)
+tabSplit k (TAB ks@(Array ks#) vs) =
+    let !(# i#, found #) = bsearch# k ks#
+        i = I# i#
+        j = I# (i# +# found)
     in 
         ( TAB (rowTake i ks) (rowTake i vs)
         , TAB (rowDrop j ks) (rowDrop j vs)
         )
 
+{-# INLINE tabSpanAntitone #-}
 tabSpanAntitone :: (k -> Bool) -> Tab k v -> (Tab k v, Tab k v)
 tabSpanAntitone f (TAB ks vs) =
     ( TAB (rowTake numTrue ks) (rowTake numTrue vs)
@@ -288,10 +299,12 @@ tabIntersectionWithGeneric merge (TAB xKeys xVals) xWid (TAB yKeys yVals) yWid =
     then TAB <$> unsafeFreezeArray rKeys <*> unsafeFreezeArray rVals
     else TAB <$> freezeArray rKeys 0 used <*> freezeArray rVals 0 used
 
+{-# INLINE tabLookupMin #-}
 tabLookupMin :: Tab k v -> Maybe (k, v)
 tabLookupMin (TAB k v) =
     if null k then Nothing else Just (k!0, v!0)
 
+{-# INLINE tabLookupMax #-}
 tabLookupMax :: Tab k v -> Maybe (k, v)
 tabLookupMax (TAB k v) =
     case sizeofArray k of
@@ -299,23 +312,26 @@ tabLookupMax (TAB k v) =
         n -> let !i = n-1 in Just (k!i, v!i)
 
 tabAlter :: Ord k => (Maybe v -> Maybe v) -> k -> Tab k v -> Tab k v
-tabAlter f k tab@(TAB ks vs) =
-    let (i, found) = bsearch k ks in
-    if found then
-        case f (Just (vs!i)) of
-            Nothing -> TAB (rowUnsafeDelete i ks) (rowUnsafeDelete i vs)
-            Just v  -> TAB ks                     (rowUnsafePut i v vs)
-    else
-        case f Nothing of
-            Nothing -> tab -- no change
-            Just v  -> TAB (rowInsert i k ks) (rowInsert i v vs)
+tabAlter f k tab@(TAB ks@(Array ks#) vs) =
+    let !(# i#, found #) = bsearch# k ks# in
+    let i = I# i# in
+    case found of
+        1# ->
+            case f (Just (vs!i)) of
+                Nothing -> TAB (rowUnsafeDelete i ks) (rowUnsafeDelete i vs)
+                Just v  -> TAB ks                     (rowUnsafePut i v vs)
+        _ ->
+            case f Nothing of
+                Nothing -> tab -- no change
+                Just v  -> TAB (rowInsert i k ks) (rowInsert i v vs)
 
 tabDelete :: Ord k => k -> Tab k v -> Tab k v
-tabDelete k tab@(TAB ks vs) =
-    let (i, found) = bsearch k ks in
+tabDelete k tab@(TAB ks@(Array ks#) vs) =
+    let !(# i#, found #) = bsearch# k ks# in
     case found of
-        False -> tab
-        True  -> TAB (rowUnsafeDelete i ks) (rowUnsafeDelete i vs)
+        0# -> tab
+        _  -> let i = I# i#
+              in TAB (rowUnsafeDelete i ks) (rowUnsafeDelete i vs)
 
 {-# INLINE tabMember #-}
 tabMember :: Ord k => k -> Tab k v -> Bool
@@ -394,6 +410,7 @@ tabFromPairsList pairs =
     let buf = rowSortUniqBy (on compare fst) $ arrayFromListRev pairs in
     TAB (fst <$> buf) (snd <$> buf)
 
+{-# INLINE tabToAscPairsList #-}
 tabToAscPairsList :: Tab k v -> [(k,v)]
 tabToAscPairsList (TAB k v) = go 0
   where
@@ -401,12 +418,14 @@ tabToAscPairsList (TAB k v) = go 0
     go i | i >= len = []
     go i            = (k!i, v!i) : go (i+1)
 
+{-# INLINE tabToDescPairsList #-}
 tabToDescPairsList :: Tab k v -> [(k,v)]
 tabToDescPairsList (TAB k v) = go (length k - 1)
   where
     go i | i < 0 = []
     go i         = (k!i, v!i) : go (i-1)
 
+{-# INLINE mkTab #-}
 mkTab :: Set k -> Array v -> Tab k v
 mkTab (SET k) v =
     if sizeofArray k /= sizeofArray v
