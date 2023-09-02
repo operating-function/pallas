@@ -162,6 +162,7 @@ jetHashes
     , e "tabMapWithKey"       "h7FeXVcAaSFRi8ytgZp3gkViu18xLQVSWxFKR6JPKyp"
     , e "tabMap"              "4JsWvbtQWvhEoTovEQGDX5EF9FEAuE6ZaCbSduh6jQf5"
     , e "tabUnionWith"        "41Qqb5DDhSFCgyyWQ2kCzTp31Nz53kg9uese83w4nPAF"
+    , e "tabWeld"             "7WKtBwfvrCWY4ojU5zBXiaFxh29pRPFs7NcutLdKta9L"
     , e "tabMinKey"           "7rk82gGb1DPK28m6WdsagHCbtnneUraNnuUV4cdxttww"
     , e "tabFoldlWithKey"     "CJbdhD9yXenQTjF5J7rFKKTyWqRMbnCSxUH92t29DV9f"
     , e "padWeld"             "4bkXyh7SUM1zHBmznchkeFBBrue63qcNMk32XmQD8TNa"
