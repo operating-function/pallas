@@ -241,20 +241,31 @@ ssetIntersection x@(SET xs) y@(SET ys) =
 ssetIntersectionGeneric :: Ord a => Set a -> Int -> Set a -> Int -> Set a
 ssetIntersectionGeneric (SET xs) !xWid (SET ys) !yWid =
     coerce $ runST do
-        let rWid = min xWid yWid
+        -- Find the overlapping range of the the sets so we can walk merely the
+        -- parts we know overlap
+        let xMin = fst $ bsearch (indexArray ys 0) xs
+        let xMax = asPostIdx $ bsearch (indexArray ys (yWid - 1)) xs
+        let yMin = fst $ bsearch (indexArray xs 0) ys
+        let yMax = asPostIdx $ bsearch (indexArray xs (xWid - 1)) ys
+
+        let rWid = min (xMax - xMin) (yMax - yMin)
         buf <- newArray rWid (error "setIntersection: uninitialized")
         let go o i j = do
-                if i >= xWid || j >= yWid then pure o else do
-                    let x = xs ! i
-                    let y = ys ! j
-                    case compare x y of
-                        EQ -> writeArray buf o x >> go (o+1) (i+1) (j+1)
-                        LT -> go o (i+1) j
-                        GT -> go o i (j+1)
-        used <- go 0 0 0
+                  if i >= xMax || j >= yMax then pure o else do
+                      let x = xs ! i
+                      let y = ys ! j
+                      case compare x y of
+                          EQ -> writeArray buf o x >> go (o+1) (i+1) (j+1)
+                          LT -> go o (i+1) j
+                          GT -> go o i (j+1)
+        used <- go 0 xMin yMin
         if used == rWid
         then unsafeFreezeArray buf
         else freezeArray buf 0 used
+    where
+      asPostIdx :: (Int, Bool) -> Int
+      asPostIdx (i, False) = i
+      asPostIdx (i, True)  = i + 1
 
 -- O(n) set difference.
 ssetDifference :: Ord a => Set a -> Set a -> Set a
