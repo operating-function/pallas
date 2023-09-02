@@ -243,10 +243,10 @@ ssetIntersectionGeneric (SET xs) !xWid (SET ys) !yWid =
     coerce $ runST do
         -- Find the overlapping range of the the sets so we can walk merely the
         -- parts we know overlap
-        let xMin = fst $ bsearch (indexArray ys 0) xs
-        let xMax = asPostIdx $ bsearch (indexArray ys (yWid - 1)) xs
-        let yMin = fst $ bsearch (indexArray xs 0) ys
-        let yMax = asPostIdx $ bsearch (indexArray xs (xWid - 1)) ys
+        let xMin = bsearchIndex (ys!0) xs
+        let xMax = bsearchPostIndex (ys ! (yWid-1)) xs
+        let yMin = bsearchIndex (xs!0) ys
+        let yMax = bsearchPostIndex (xs ! (xWid-1)) ys
 
         let rWid = min (xMax - xMin) (yMax - yMin)
         buf <- newArray rWid (error "setIntersection: uninitialized")
@@ -262,10 +262,6 @@ ssetIntersectionGeneric (SET xs) !xWid (SET ys) !yWid =
         if used == rWid
         then unsafeFreezeArray buf
         else freezeArray buf 0 used
-    where
-      asPostIdx :: (Int, Bool) -> Int
-      asPostIdx (i, False) = i
-      asPostIdx (i, True)  = i + 1
 
 -- O(n) set difference.
 ssetDifference :: Ord a => Set a -> Set a -> Set a

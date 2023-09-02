@@ -14,6 +14,8 @@ module Data.Sorted.Search
     ( bsearch
     , bsearch#
     , bsearch_
+    , bsearchIndex
+    , bsearchPostIndex
     , bfind_
     , bfind
     , bfind#
@@ -62,6 +64,18 @@ bsearch key (Array row) =
         bit = case found# of 0# -> False; _ -> True
     in
         (i, bit)
+
+{-# INLINE bsearchIndex #-}
+bsearchIndex :: Ord a => a -> Array a -> Int
+bsearchIndex key (Array row) =
+    let !(# i#, _ #) = bsearch_ compare key row 0# (sizeofArray# row)
+    in I# i#
+
+{-# INLINE bsearchPostIndex #-}
+bsearchPostIndex :: Ord a => a -> Array a -> Int
+bsearchPostIndex key (Array row) =
+    let !(# i#, found# #) = bsearch_ compare key row 0# (sizeofArray# row)
+    in I# (i# +# found#)
 
 bfind_
     :: (a -> Bool)
