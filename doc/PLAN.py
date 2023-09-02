@@ -51,7 +51,7 @@ class Val:
         if t == 'hol': return '<>'
         if t == 'pin': return f'<{v[0]}>'
         if t == 'law': return f'{{{v[0]} {v[1]} {v[2]}}}'
-        if t == 'app': return f'({' '.join([repr(x) for x in self.list])})'
+        if t == 'app': return f"({' '.join([repr(x) for x in self.list])})"
 
 
 ### Rules ######################################################################
