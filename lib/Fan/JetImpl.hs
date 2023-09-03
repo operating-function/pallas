@@ -6,6 +6,7 @@
 
 {-# OPTIONS_GHC -Wall    #-}
 {-# OPTIONS_GHC -Werror  #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 module Fan.JetImpl (installJetImpls, jetImpls, doTrk) where
 
@@ -14,6 +15,7 @@ import Control.Parallel
 import Data.Bits
 import Data.Maybe
 import Data.Sorted
+import Data.Sorted.Search
 import Fan.Convert
 import Fan.Eval
 import Fan.Jets
@@ -24,7 +26,7 @@ import PlunderPrelude
 import Data.ByteString.Builder (byteString, toLazyByteString)
 import Foreign.Marshal.Alloc   (allocaBytes)
 import Foreign.Ptr             (castPtr)
-import GHC.Exts                (Word(..))
+import GHC.Exts                (Int(..), Word(..))
 import Jelly.Fast.FFI          (c_jet_blake3)
 import Unsafe.Coerce           (unsafeCoerce)
 
@@ -96,6 +98,7 @@ jetImpls = mapFromList
   , ( "listToRowReversed"   , listToRowReversedJet )
   , ( "sizedListToRow" , sizedListToRowJet )
   , ( "unfoldr"     , unfoldrJet )
+  , ( "bsearch"     , bsearchJet )
 
   , ( "isDigit"     , isDigitJet )
 
@@ -416,6 +419,14 @@ unfoldrJet f env = orExecTrace "unfoldr" (f env)
   where
     fun = env.!1
     build val = fromNoun @(Maybe (Fan, Fan)) (fun %% val)
+
+bsearchJet :: Jet
+bsearchJet f env = orExecTrace "bsearch" (f env) do
+  (Array row) <- getRow (env.!2)
+  let !(# idx#, found# #) = bsearch# (env.!1) row
+  let idx :: Natural = fromIntegral $ I# idx#
+      found :: Natural = fromIntegral $ I# found#
+  pure $ NAT $ (idx `shiftL` 1) + found
 
 -- TODO Just don't do this, use bars instead of rows of bytes.
 --

@@ -121,6 +121,7 @@ jetHashes
     , e "drop"                "5VCieXW8sUMFpw4tNuhFaoDYwKf7xd6mXhZZpbytV2th"
     , e "take"                "9Bx1LgjDJWCCNdnPeosNtsqAVpAkrfvvjbZwWNhkLNjX"
     , e "unfoldr"             "EhMbquBLZ8uXjqypKS2dTdxMpMdaUsMq6NG1LxNh1Kwi"
+    , e "bsearch"             "CXHscZzeZaDKvr5JTJ44XXY3j5HHKkFHPLi8r3ZT31gk"
     , e "listToRow"           "5a4pB8s1SZmwxFa8fydvvvbycBUQ1RPcmKRHQ5FmYJDL"
     , e "listToRowReversed"   "EaRpRmBZVbQV8t3cUj1B77dxMKR13NKUyk5ueGsF2AcG"
     , e "sizedListToRow"      "9cYJs4NyusCFj8vEoddGEKvNriavxoJ6nLb3rp94gMQn"
