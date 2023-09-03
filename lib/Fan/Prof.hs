@@ -584,6 +584,11 @@ withSimpleTracingEvent :: MonadUnliftIO m => Name -> Cat -> m a -> m a
 withSimpleTracingEvent name cat =
     bracket_ (startEvent name cat) (popEvent False mempty)
 
+-- For simple events, which use no args (and no flow events when I add those).
+withSimpleTracingEventPure :: Name -> Cat -> a -> a
+withSimpleTracingEventPure name cat a =
+    unsafePerformIO do withSimpleTracingEvent name cat do evaluate a
+
 withTracingEventArgs :: MonadUnliftIO m => Name -> Cat -> Args -> m a -> m a
 withTracingEventArgs name cat args =
     bracket_ (startEvent name cat) (popEvent False args)
