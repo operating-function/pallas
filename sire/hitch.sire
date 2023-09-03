@@ -72,12 +72,13 @@
 ;; Index ;;
 ;;;;;;;;;;;
 
-;; A node is either [0 index hitchhikers] or [1 leaf]
+;; A node is either [index hitchhikers] or leaf, where leaf is a map or a set.
 # datatype HitchNode
 * INDEXNODE idx:Any hh:Any
 * LEAFNODE leaf:Any
 
 abstype#(Index k v) ; TODO: (???)
+abstype#(LazyIndex k v) ; TODO: (???)
 
 ;; An index is a row of [a row of keys, a row of subnodes]
 > Index k v
@@ -376,23 +377,6 @@ newRootNode
   @ splitHH | splitHitchhikersByKeys treeFun keys merged
   | cat
   | map [hh node]&(go_openTreeFun hh node) | zip splitHH vals
-
-; Given a node, ensure that all hitchhikers have been pushed down to leaves.
-= (flushDownwards treeFun node)  ; -> node
-@ TREE_FUN(..) treeFun
-^ _ hhEmpty node
-? (go_openTreeFun hh node)
-# datacase (caseNode node)
-* (LEAFNODE leaves)
-  | if (isZero | hhLength hh) node
-  @ !item (leafInsert leaves hh)
-  | mkLeaf item
-* (INDEXNODE [keys vals] hitchhikers)
-  @ !merged (hhMerge hitchhikers hh)
-  | if (isZero | hhLength merged) node
-  @ splitHH | splitHitchhikersByKeys treeFun keys merged
-  @ !nuvals | map [hh node]&(go_openTreeFun hh node) | zip splitHH vals
-  | mkNode [keys nuvals] hhEmpty
 
 = (nodeNeedsMerge config treeFun node)
 @ TREE_CONFIG(..) config
@@ -739,18 +723,47 @@ newRootNode
 !!= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1 2] %[3 4] %[5]]
 !!= [%[1 2 3] %[4 5]] | consolidate 2 4 [%[1 2 3] %[4 5]]
 
+; Given a node, ensure that all hitchhikers have been pushed down to leaves,
+; but produces this resulting tree lazily instead of strictly. This means
+; nothing has pins, which force evaluation.
+> TreeFun > Index k v > LazyIndex k v
+= (flushDownwardsLazily treeFun node)  ; -> node
+@ TREE_FUN(..) treeFun
+^ _ hhEmpty node
+? (go_openTreeFun hh node)
+# datacase (caseNode node)
+* (LEAFNODE leaves)
+    | if (isZero | hhLength hh) leaves
+    | leafInsert leaves hh
+* (INDEXNODE [keys vals] hitchhikers)
+    @ merged | hhMerge hitchhikers hh
+    @ nuvals
+        | if (isZero | hhLength merged)
+            | map node&(go_openTreeFun hhEmpty node) vals
+        @ splitHH | splitHitchhikersByKeys treeFun keys merged
+        | map [hh node]&(go_openTreeFun hh node) | zip splitHH vals
+    [keys nuvals hhEmpty]
+
+; Like hsCaseNode, but works on the unpinned structure returned by
+; flushDownwardsLazily.
+> LazyIndex k v > HitchNode
+= (hsCaseNodeLazy node)
+| if | isSet node
+  | LEAFNODE node
+@ [keys nodes hh] node
+| INDEXNODE [keys nodes] hh
+
+> LazyIndex k v > k
 = (getLeftmostValue a)
-# datacase (hsCaseNode a)
+# datacase (hsCaseNodeLazy a)
 * (LEAFNODE s)
   | setMin s
 * (INDEXNODE [keys vals] _)
   | getLeftmostValue (idx 0 vals)
 
-abstype#(SetNode k) ; TODO: (???)
-
 ; implementation detail of intersection
 ;
-> Set k > SetNode k > Row (Set k)
+> Set k > LazyIndex k v > Row (Set k)
 = (checkSetAgainst a b)
 # datacase b
 * (LEAFNODE bLeaves)
@@ -777,19 +790,19 @@ abstype#(SetNode k) ; TODO: (???)
       ++ idx 0 vals
       ++ SOME [(drop 1 keys) (drop 1 vals)]
   | if (setIsEmpty tryLeaves) | loop [restLeaves restIndex]
-  @ !result | checkSetAgainst tryLeaves (hsCaseNode subNode)
+  @ result | checkSetAgainst tryLeaves (hsCaseNodeLazy subNode)
   | if (isZero | len result) | loop [restLeaves restIndex]
   | SOME [result [restLeaves restIndex]]
 
 !!= [%[1] %[5]]
    | checkSetAgainst %[1 5]
    ^ INDEXNODE _ %[]
-   | ([5], (PIN %[1 2], PIN %[5 7]))
+   | ([5], (%[1 2], %[5 7]))
 
 !!= []
    | checkSetAgainst %[8 9]
    ^ INDEXNODE _ %[]
-   | ([5], (PIN %[1 2], PIN %[5 7]))
+   | ([5], (%[1 2], %[5 7]))
 
 = (findIntersectStep find [arange anode brange bnode])
 : a as <- **listCase anode  NONE
@@ -837,8 +850,9 @@ abstype#(SetNode k) ; TODO: (???)
   ++ aconfig
   ++ | build
      | consolidate minLeafItems maxLeafItems
-     | find (flushDownwards hhSetTF a)
-            (flushDownwards hhSetTF b)
+     | find
+     * flushDownwardsLazily hhSetTF a
+     * flushDownwardsLazily hhSetTF b
 ;
 * (build r)
   | if (isZero | len r) 0
@@ -847,19 +861,19 @@ abstype#(SetNode k) ; TODO: (???)
   | fixup aconfig hhSetTF [keys vals]
 ;
 * (find left right)
-  # datacase (hsCaseNode left)
+  # datacase (hsCaseNodeLazy left)
   * (LEAFNODE leftLeaves)
-    # datacase (hsCaseNode right)
+    # datacase (hsCaseNodeLazy right)
     * (LEAFNODE rightLeaves)
       @ c | setIntersect leftLeaves rightLeaves
       | if (setIsEmpty c) []
       [c]
     * (INDEXNODE rightIdx _)
-      | checkSetAgainst leftLeaves (hsCaseNode right)
+      | checkSetAgainst leftLeaves (hsCaseNodeLazy right)
   * (INDEXNODE leftIdx leftHH)
-    # datacase (hsCaseNode right)
+    # datacase (hsCaseNodeLazy right)
     * (LEAFNODE rightLeaves)
-      | checkSetAgainst rightLeaves (hsCaseNode left)
+      | checkSetAgainst rightLeaves (hsCaseNodeLazy left)
     * (INDEXNODE rightIdx rightHH)
       @ [aIdxKeys aVals] leftIdx
       @ [bIdxKeys bVals] rightIdx
