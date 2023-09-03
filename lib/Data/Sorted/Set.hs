@@ -37,6 +37,7 @@ module Data.Sorted.Set
 where
 
 import Control.Monad.ST
+import Data.Bits
 import Data.Containers
 import Data.Foldable
 import Data.MonoTraversable
@@ -48,7 +49,7 @@ import Prelude
 
 import ClassyPrelude (when)
 import Data.Coerce   (coerce)
-import GHC.Exts      (Int(..), sizeofArray#)
+import GHC.Exts      (Int(..), sizeofArray#, (+#))
 
 
 --------------------------------------------------------------------------------
@@ -278,64 +279,115 @@ ssetSplitAt i (SET ks) = (SET (rowTake i ks), SET (rowDrop i ks))
 ssetIntersection :: Ord a => Set a -> Set a -> Set a
 ssetIntersection x@(SET xs) y@(SET ys) =
     case (sizeofArray xs, sizeofArray ys) of
-        ( 0,  _  ) -> mempty
-        ( _,  0  ) -> mempty
-        ( 1,  1  ) -> if xs!0 == ys!0 then x else mempty
-        ( 1,  _  ) -> let xv = (xs!0) in
-                      if ssetMember xv y then ssetSingleton xv else mempty
-        ( _,  1  ) -> let yv = (ys!0) in
-                      if ssetMember yv x then ssetSingleton yv else mempty
-        ( xw, yw ) -> ssetIntersectionGeneric x xw y yw
+        ( 0,    _    ) -> mempty
+        ( _,    0    ) -> mempty
+        ( 1,    1    ) -> if xs!0 == ys!0 then x else mempty
+        ( 1,    _    ) -> let xv = (xs!0) in
+                          if ssetMember xv y then ssetSingleton xv else mempty
+        ( _,    1    ) -> let yv = (ys!0) in
+                          if ssetMember yv x then ssetSingleton yv else mempty
+        ( xWid, yWid ) ->
+            let
+                xSmallest = xs ! 0
+                yLargest  = ys ! (yWid-1)
+                xLargest  = xs ! (xWid-1)
+                ySmallest = ys ! 0
+            in
 
--- This assumes that neither of the inputs are empty.
---
--- TODO: Skip the shrinking optimization if the sizes are small.
-ssetIntersectionGeneric :: Ord a => Set a -> Int -> Set a -> Int -> Set a
-ssetIntersectionGeneric (SET xs) !xWid (SET ys) !yWid =
-    let
-        xSmallest = xs ! 0
-        xLargest  = xs ! (xWid-1)
-        ySmallest = ys ! 0
-        yLargest  = ys ! (yWid-1)
-    in
+            -- If no overlap is possible, return empty.
+            if xSmallest > yLargest then mempty else
+            if ySmallest > xLargest then mempty else
 
-    -- If there is no overlap, then the intersection is empty.
-    if xSmallest > yLargest then mempty else
-    if ySmallest > xLargest then mempty else
+            -- figure out which subregions overlap.
+            let
+                (xMin, yMin) =
+                    case compare xSmallest ySmallest of
+                        EQ -> (0, 0)
+                        GT -> (0, bsearchIndex xSmallest ys)
+                        LT -> (bsearchIndex ySmallest xs, 0)
 
-    -- Find the overlapping range of the sets so we can walk merely the
-    -- parts we know overlap
-    let
-        (xMin, yMin) =
-            case compare xSmallest ySmallest of
-                EQ -> (0, 0)
-                GT -> (0, bsearchIndex xSmallest ys)
-                LT -> (bsearchIndex ySmallest xs, 0)
+                (xMax, yMax) =
+                    case compare xLargest yLargest of
+                        EQ -> (xWid, yWid)
+                        GT -> (bsearchPostIndex yLargest xs, yWid)
+                        LT -> (xWid, bsearchPostIndex xLargest ys)
 
-        (xMax, yMax) =
-            case compare xLargest yLargest of
-                EQ -> (xWid, yWid)
-                GT -> (bsearchPostIndex yLargest xs, yWid)
-                LT -> (xWid, bsearchPostIndex xLargest ys)
-    in
+                xSz = (xMax - xMin)
+                ySz = (yMax - yMin)
+            in
+                -- Run the intersection algorithm against the overlapping
+                -- region, with the smaller region as the left-hand-side.
+                coerce $
+                if xSz > ySz
+                then ssetIntersectionGeneric ys yMin yMax ySz xs xMin xMax xSz
+                else ssetIntersectionGeneric xs xMin xMax xSz ys yMin yMax ySz
 
-    coerce $ runST do
-        let xOverlapWidth = xMax - xMin
-        let yOverlapWidth = yMax - yMin
-        let rWid = min xOverlapWidth yOverlapWidth
-        buf <- newArray rWid (error "setIntersection: uninitialized")
-        let go o i j = do
-                  if i >= xMax || j >= yMax then pure o else do
-                      let x = xs ! i
-                      let y = ys ! j
-                      case compare x y of
-                          EQ -> writeArray buf o x >> go (o+1) (i+1) (j+1)
-                          LT -> go o (i+1) j
-                          GT -> go o i (j+1)
-        used <- go 0 xMin yMin
-        if used == rWid
-        then unsafeFreezeArray buf
-        else freezeArray buf 0 used
+{-
+    Performs intersection by divide-and-conquor on two non-empty slices
+    for two sorted arrays.  Returns a sorted, unique array containing
+    the intersection.
+-}
+ssetIntersectionGeneric
+    :: Ord a
+    => Array a -> Int -> Int -> Int
+    -> Array a -> Int -> Int -> Int
+    -> Array a
+ssetIntersectionGeneric xs !xMin !xMax !xSz ys !yMin !yMax !ySz = runST do
+    let rWid = min ySz xSz
+
+    buf <- newArray rWid (error "setIntersection: uninitialized")
+
+    let go o iLow iEnd jLow jEnd = do
+              case (iEnd - iLow, jEnd - jLow) of
+                  (0, _) -> pure o
+                  (_, 0) -> pure o
+                  (1, 1) ->
+                      let xVal = xs!iLow; yVal = ys!jLow in
+                      if xVal ==yVal
+                      then writeArray buf o xVal >> pure (o+1)
+                      else pure o
+
+                  (1, _) ->
+                      let xVal = xs!iLow in
+                      case bsearch_ xVal ys jLow jEnd of
+                          (# _, 0# #) -> pure o
+                          (# _, _  #) -> writeArray buf o xVal >> pure (o+1)
+
+                  (_, 1) ->
+                      let yVal = ys!jLow in
+                      case bsearch_ yVal xs iLow iEnd of
+                          (# _, 0# #) -> pure o
+                          (# _, _  #) -> writeArray buf o yVal >> pure (o+1)
+
+                  (_, _) ->
+
+                      -- Get the middle value for the left-set.
+                      let iMid               = (iLow + iEnd) `shiftR` 1
+                          iMidVal            = xs ! iMid
+                          !(# jMid, found #) = bsearch_ iMidVal ys jLow jEnd
+                      in do
+                              -- Recurse to the left of the split on both.
+                              o2 <- go o iLow iMid jLow (I# jMid)
+
+                              -- Write out the pivot value, if it exists
+                              -- in both arrays.
+                              o3 <- case found of
+                                        0# -> pure o2
+                                        _  -> do writeArray buf o2 iMidVal
+                                                 pure (o2+1)
+
+                              -- Skip over the pivot if it matched.
+                              let iMid' = iMid + 1
+                              let jMid' = I# (jMid +# found)
+
+                              -- Recurse to the right of the split on both.
+                              go o3  iMid' iEnd jMid' jEnd
+
+    used <- go 0 xMin xMax yMin yMax
+
+    if used == rWid
+    then unsafeFreezeArray buf
+    else freezeArray buf 0 used
 
 -- O(n) set difference.
 ssetDifference :: Ord a => Set a -> Set a -> Set a
