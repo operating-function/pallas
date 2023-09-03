@@ -26,7 +26,7 @@ import PlunderPrelude
 import Data.ByteString.Builder (byteString, toLazyByteString)
 import Foreign.Marshal.Alloc   (allocaBytes)
 import Foreign.Ptr             (castPtr)
-import GHC.Exts                (Int(..), Word(..))
+import GHC.Exts                (Word(..), int2Word#, uncheckedIShiftL#, (+#))
 import Jelly.Fast.FFI          (c_jet_blake3)
 import Unsafe.Coerce           (unsafeCoerce)
 
@@ -422,11 +422,9 @@ unfoldrJet f env = orExecTrace "unfoldr" (f env)
 
 bsearchJet :: Jet
 bsearchJet f env = orExecTrace "bsearch" (f env) do
-  (Array row) <- getRow (env.!2)
-  let !(# idx#, found# #) = bsearch# (env.!1) row
-  let idx :: Natural = fromIntegral $ I# idx#
-      found :: Natural = fromIntegral $ I# found#
-  pure $ NAT $ (idx `shiftL` 1) + found
+  row <- getRow (env.!2)
+  let !(# idx, found #) = bsearch_ (env.!1) row 0 (sizeofArray row)
+  pure $ NAT $ NatS# (int2Word# ((idx `uncheckedIShiftL#` 1#) +# found))
 
 -- TODO Just don't do this, use bars instead of rows of bytes.
 --

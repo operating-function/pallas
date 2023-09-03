@@ -56,7 +56,7 @@ import Data.Sorted.Types
 
 import PlunderPrelude (on)
 
-import GHC.Exts (Int(..), (+#), indexArray#)
+import GHC.Exts (Int(..), (+#), indexArray#, sizeofArray#)
 
 
 -- Searching -------------------------------------------------------------------
@@ -79,7 +79,7 @@ tabUnsafeDuo xk xv yk yv =
 -- the key and value at the found-index of the relevent arrays.
 tabInsert :: Ord k => k -> v -> Tab k v -> Tab k v
 tabInsert k v (TAB ks@(Array ks#) vs) =
-    let !(# i#, found #) = bsearch# k ks# in
+    let !(# i#, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     let i = I# i# in
     case found of
         1# -> TAB ks (rowUnsafePut i v vs)
@@ -89,7 +89,7 @@ tabInsert k v (TAB ks@(Array ks#) vs) =
 -- insert the key and value at the found-index of the relevant arrays.
 tabInsertWith :: Ord k => (v -> v -> v) -> k -> v -> Tab k v -> Tab k v
 tabInsertWith merge k v (TAB ks@(Array ks#) vs) =
-    let !(# i#, found #) = bsearch# k ks# in
+    let !(# i#, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     let i = I# i# in
     case found of
         1# -> TAB ks $ rowUnsafePut i (merge v (vs!i)) vs
@@ -99,7 +99,7 @@ tabInsertWith merge k v (TAB ks@(Array ks#) vs) =
 -- value in the values array.
 tabLookup :: Ord k => k -> Tab k v -> Maybe v
 tabLookup k (TAB (Array ks#) (Array vs#)) =
-    let !(# i, found #) = bsearch# k ks# in
+    let !(# i, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     case found of
         0# -> Nothing
         _  -> case indexArray# vs# i of
@@ -128,7 +128,7 @@ tabSplitAt i (TAB ks vs) =
 {-# INLINE tabSplit #-}
 tabSplit :: Ord k => k -> Tab k v -> (Tab k v, Tab k v)
 tabSplit k (TAB ks@(Array ks#) vs) =
-    let !(# i#, found #) = bsearch# k ks#
+    let !(# i#, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#)
         i = I# i#
         j = I# (i# +# found)
     in 
@@ -313,7 +313,7 @@ tabLookupMax (TAB k v) =
 
 tabAlter :: Ord k => (Maybe v -> Maybe v) -> k -> Tab k v -> Tab k v
 tabAlter f k tab@(TAB ks@(Array ks#) vs) =
-    let !(# i#, found #) = bsearch# k ks# in
+    let !(# i#, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     let i = I# i# in
     case found of
         1# ->
@@ -327,7 +327,7 @@ tabAlter f k tab@(TAB ks@(Array ks#) vs) =
 
 tabDelete :: Ord k => k -> Tab k v -> Tab k v
 tabDelete k tab@(TAB ks@(Array ks#) vs) =
-    let !(# i#, found #) = bsearch# k ks# in
+    let !(# i#, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     case found of
         0# -> tab
         _  -> let i = I# i#

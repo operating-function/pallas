@@ -31,35 +31,36 @@ import GHC.Exts (Array#, indexArray#, sizeofArray#)
 
 -- Searching -------------------------------------------------------------------
 
-bsearch_
+bsearch#
     :: (a -> a -> Ordering)
     -> a
     -> Array# a
     -> Int#
     -> Int#
     -> (# Int#, Int# #) -- (Int, Bool)
-bsearch_ cmp key row low end =
+bsearch# cmp key row low end =
     case low >=# end of
       0# ->
           let i = (low +# end) `uncheckedIShiftRL#` 1# in
           case indexArray# row i of
             (# res #) ->
               case cmp key res of
-                  LT -> bsearch_ cmp key row low i
+                  LT -> bsearch# cmp key row low i
                   EQ -> (# i, 1# #)
-                  GT -> bsearch_ cmp key row (i +# 1#) end
+                  GT -> bsearch# cmp key row (i +# 1#) end
       _  ->  (# low, 0# #)
 
 
-{-# INLINE bsearch# #-}
-bsearch# :: Ord a => a -> Array# a -> (# Int#, Int# #)
-bsearch# key row = bsearch_ compare key row 0# (sizeofArray# row)
+-- Boxed input, unboxed output.
+{-# INLINE bsearch_ #-}
+bsearch_ :: Ord a => a -> Array a -> Int -> Int -> (# Int#, Int# #)
+bsearch_ key (Array row) (I# low) (I# end) = bsearch# compare key row low end
 
 {-# INLINE bsearch #-}
 bsearch :: Ord a => a -> Array a -> (Int, Bool)
 bsearch key (Array row) =
     let
-        !(# i#, found# #) = bsearch_ compare key row 0# (sizeofArray# row)
+        !(# i#, found# #) = bsearch# compare key row 0# (sizeofArray# row)
         i = I# i#
         bit = case found# of 0# -> False; _ -> True
     in
@@ -68,13 +69,13 @@ bsearch key (Array row) =
 {-# INLINE bsearchIndex #-}
 bsearchIndex :: Ord a => a -> Array a -> Int
 bsearchIndex key (Array row) =
-    let !(# i#, _ #) = bsearch_ compare key row 0# (sizeofArray# row)
+    let !(# i#, _ #) = bsearch# compare key row 0# (sizeofArray# row)
     in I# i#
 
 {-# INLINE bsearchPostIndex #-}
 bsearchPostIndex :: Ord a => a -> Array a -> Int
 bsearchPostIndex key (Array row) =
-    let !(# i#, found# #) = bsearch_ compare key row 0# (sizeofArray# row)
+    let !(# i#, found# #) = bsearch# compare key row 0# (sizeofArray# row)
     in I# (i# +# found#)
 
 bfind_

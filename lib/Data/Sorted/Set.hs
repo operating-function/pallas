@@ -48,7 +48,7 @@ import Prelude
 
 import ClassyPrelude (when)
 import Data.Coerce   (coerce)
-import GHC.Exts      (Int(..))
+import GHC.Exts      (Int(..), sizeofArray#)
 
 
 --------------------------------------------------------------------------------
@@ -79,7 +79,7 @@ ssetFromList kList =
 {-# INLINE ssetInsert #-}
 ssetInsert :: Ord k => k -> Set k -> Set k
 ssetInsert k set@(SET ks@(Array ks#)) =
-    let !(# i, found #) = bsearch# k ks# in
+    let !(# i, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     case found of
         0# -> SET (rowInsert (I# i) k ks)
         _  -> set
@@ -87,7 +87,7 @@ ssetInsert k set@(SET ks@(Array ks#)) =
 {-# INLINE ssetDelete #-}
 ssetDelete :: Ord k => k -> Set k -> Set k
 ssetDelete k set@(SET ks@(Array ks#)) =
-    let !(# i, found #) = bsearch# k ks# in
+    let !(# i, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     case found of
         0# -> set
         _  -> SET (rowDelete (I# i) ks)
@@ -253,7 +253,7 @@ ssetFindMin (SET s) =
 {-# INLINE ssetMember #-}
 ssetMember :: Ord k => k -> Set k -> Bool
 ssetMember k (SET (Array ks#)) =
-    case bsearch# k ks# of
+    case bsearch# compare k ks# 0# (sizeofArray# ks#) of
         (# _, 0# #) -> False
         (# _, _  #) -> True
 
