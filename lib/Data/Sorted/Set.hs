@@ -51,6 +51,8 @@ import ClassyPrelude (when)
 import Data.Coerce   (coerce)
 import GHC.Exts      (Int(..), sizeofArray#, (+#))
 
+-- import qualified Fan.Prof as Prof
+
 
 --------------------------------------------------------------------------------
 
@@ -75,11 +77,13 @@ ssetUnsafeDuo x y = coerce (rowDuo x y)
 -- mutable array, and then doing an unsafe freeze of that.
 ssetFromList :: Ord k => [k] -> Set k
 ssetFromList kList =
+    -- Prof.withSimpleTracingEventPure "ssetFromList" "sorted" $
     SET $ rowSortUniqBy compare $ arrayFromList kList
 
 {-# INLINE ssetInsert #-}
 ssetInsert :: Ord k => k -> Set k -> Set k
 ssetInsert k set@(SET ks@(Array ks#)) =
+    -- Prof.withSimpleTracingEventPure "setInsert" "sorted" $
     let !(# i, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     case found of
         0# -> SET (rowInsert (I# i) k ks)
@@ -88,6 +92,7 @@ ssetInsert k set@(SET ks@(Array ks#)) =
 {-# INLINE ssetDelete #-}
 ssetDelete :: Ord k => k -> Set k -> Set k
 ssetDelete k set@(SET ks@(Array ks#)) =
+    -- Prof.withSimpleTracingEventPure "setDelete" "sorted" $
     let !(# i, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     case found of
         0# -> set
@@ -153,6 +158,7 @@ ssetUnion x@(SET xs) y@(SET ys) =
 -- TODO: Skip the shrinking optimization if the sizes are small.
 ssetUnionGeneric :: Ord a => Set a -> Int -> Set a -> Int -> Set a
 ssetUnionGeneric (SET xs) !xWid (SET ys) !yWid =
+    -- Prof.withSimpleTracingEventPure "setUnionGeneric" "sorted" $
     let
         xSmallest = xs ! 0
         xLargest  = xs ! (xWid-1)
@@ -262,13 +268,17 @@ ssetMember k (SET (Array ks#)) =
 -- directly against the underlying array.
 {-# INLINE ssetTake #-}
 ssetTake :: Int -> Set k -> Set k
-ssetTake i (SET ks) = SET (rowTake i ks)
+ssetTake i (SET ks) =
+    -- Prof.withSimpleTracingEventPure "setTake" "sorted" $
+    SET (rowTake i ks)
 
 -- This doesn't affect the order invariants, so we just run the operation
 -- directly against the underlying array.
 {-# INLINE ssetDrop #-}
 ssetDrop :: Int -> Set k -> Set k
-ssetDrop i (SET ks) = SET (rowDrop i ks)
+ssetDrop i (SET ks) =
+    -- Prof.withSimpleTracingEventPure "setDrop" "sorted" $
+    SET (rowDrop i ks)
 
 -- Just split the underlying array, set invariants are not at risk.
 {-# INLINE ssetSplitAt #-}
@@ -278,6 +288,7 @@ ssetSplitAt i (SET ks) = (SET (rowTake i ks), SET (rowDrop i ks))
 -- O(n) set intersection.  Special cases for (size=0 and size=1)
 ssetIntersection :: Ord a => Set a -> Set a -> Set a
 ssetIntersection x@(SET xs) y@(SET ys) =
+    -- Prof.withSimpleTracingEventPure "setIntersection" "sorted" $
     case (sizeofArray xs, sizeofArray ys) of
         ( 0,    _    ) -> mempty
         ( _,    0    ) -> mempty
@@ -412,7 +423,6 @@ ssetDifference (SET xs) (SET ys) = runST do
     if used == xWid
     then SET <$> unsafeFreezeArray buf
     else SET <$> freezeArray buf 0 used
-
 
 -- Assuming that the predicate is monotone, find the point where the
 -- predicate stops holding, and split the set there.

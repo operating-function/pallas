@@ -55,8 +55,9 @@ import Data.Sorted.Set
 import Data.Sorted.Types
 
 import PlunderPrelude (on)
+import GHC.Exts       (Int(..), indexArray#, sizeofArray#, (+#))
 
-import GHC.Exts (Int(..), (+#), indexArray#, sizeofArray#)
+-- import qualified Fan.Prof as Prof
 
 
 -- Searching -------------------------------------------------------------------
@@ -79,6 +80,7 @@ tabUnsafeDuo xk xv yk yv =
 -- the key and value at the found-index of the relevent arrays.
 tabInsert :: Ord k => k -> v -> Tab k v -> Tab k v
 tabInsert k v (TAB ks@(Array ks#) vs) =
+    -- Prof.withSimpleTracingEventPure "tabInsert" "sorted" $
     let !(# i#, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     let i = I# i# in
     case found of
@@ -99,6 +101,7 @@ tabInsertWith merge k v (TAB ks@(Array ks#) vs) =
 -- value in the values array.
 tabLookup :: Ord k => k -> Tab k v -> Maybe v
 tabLookup k (TAB (Array ks#) (Array vs#)) =
+    -- Prof.withSimpleTracingEventPure "tabLookup" "sorted" $
     let !(# i, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     case found of
         0# -> Nothing
@@ -160,6 +163,7 @@ tabUnion = tabUnionWith const
 -- O(n) union
 tabUnionWith :: Ord k => (v -> v -> v) -> Tab k v -> Tab k v -> Tab k v
 tabUnionWith merge x@(TAB xKeys xVals) y@(TAB yKeys yVals) =
+    -- Prof.withSimpleTracingEventPure "tabUnion" "sorted" $
     case (sizeofArray xKeys, sizeofArray yKeys) of
         ( 0,  _  ) -> y
         ( _,  0  ) -> x
@@ -223,7 +227,9 @@ tabUnionWithGeneric merge (TAB xKeys xVals) !xWid (TAB yKeys yVals) !yWid =
 tabDifference :: Ord k => Tab k v -> Tab k v -> Tab k v
 tabDifference x (TAB yKeys _) | null yKeys = x
 tabDifference (TAB xKeys _) _ | null xKeys = mempty
-tabDifference (TAB xKeys xVals) (TAB yKeys yVals) = runST do
+tabDifference (TAB xKeys xVals) (TAB yKeys yVals) =
+    -- Prof.withSimpleTracingEventPure "tabDifference" "sorted" $
+    runST do
     let xWid = sizeofArray xKeys
     let yWid = sizeofArray yVals
     rKeys <- newArray xWid (error "tabDifference: uninitialized")
@@ -259,6 +265,7 @@ tabIntersection x y = tabIntersectionWith const x y
 
 tabIntersectionWith :: Ord k => (v -> v -> v) -> Tab k v -> Tab k v -> Tab k v
 tabIntersectionWith f x@(TAB xKeys xVals) y@(TAB yKeys yVals) =
+    -- Prof.withSimpleTracingEventPure "tabIntersectionWith" "sorted" $
     case (sizeofArray xKeys, sizeofArray yKeys) of
         ( 0,  _  ) -> mempty
         ( _,  0  ) -> mempty
@@ -313,6 +320,7 @@ tabLookupMax (TAB k v) =
 
 tabAlter :: Ord k => (Maybe v -> Maybe v) -> k -> Tab k v -> Tab k v
 tabAlter f k tab@(TAB ks@(Array ks#) vs) =
+    -- Prof.withSimpleTracingEventPure "tabAlter" "sorted" $
     let !(# i#, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
     let i = I# i# in
     case found of
@@ -351,7 +359,9 @@ tabKeysList (TAB k _) = toList k
 
 {-# INLINE tabFoldlWithKey' #-}
 tabFoldlWithKey' :: (a -> k -> v -> a) -> a -> Tab k v -> a
-tabFoldlWithKey' f !x (TAB ks vs) = go 0 x
+tabFoldlWithKey' f !x (TAB ks vs) =
+    -- Prof.withSimpleTracingEventPure "tabFoldWithKey" "sorted" do
+    go 0 x
   where
     !wid = sizeofArray ks
 
@@ -359,7 +369,9 @@ tabFoldlWithKey' f !x (TAB ks vs) = go 0 x
     go i !acc | otherwise = go (i+1) $ f acc (ks!i) (vs!i)
 
 tabFilterWithKey :: (k -> v -> Bool) -> Tab k v -> Tab k v
-tabFilterWithKey f tab@(TAB ks vs) = runST do
+tabFilterWithKey f tab@(TAB ks vs) =
+  -- Prof.withSimpleTracingEventPure "tabFilterWithKey" "sorted" $
+  runST do
     let !wid = sizeofArray ks
     keysBuf <- newArray wid (error "tabFilterWithKey: uninitialized")
     valsBuf <- newArray wid (error "tabFilterWithKey: uninitialized")
@@ -407,6 +419,7 @@ tabElemsList (TAB _ v) = toList v
 -}
 tabFromPairsList :: Ord k => [(k,v)] -> Tab k v
 tabFromPairsList pairs =
+    -- Prof.withSimpleTracingEventPure "tabFromPairsList" "sorted" $
     let buf = rowSortUniqBy (on compare fst) $ arrayFromListRev pairs in
     TAB (fst <$> buf) (snd <$> buf)
 

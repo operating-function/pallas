@@ -9,7 +9,7 @@ import Test.Tasty
 import Test.Tasty.QuickCheck as QC
 import Data.Sorted
 
-import Optics (over, both)
+import Optics (both, over)
 
 import qualified Data.Set as S
 import qualified Data.Map as M
