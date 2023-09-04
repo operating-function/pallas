@@ -335,11 +335,13 @@ tabAlter f k tab@(TAB ks@(Array ks#) vs) =
 
 tabDelete :: Ord k => k -> Tab k v -> Tab k v
 tabDelete k tab@(TAB ks@(Array ks#) vs) =
-    let !(# i#, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
-    case found of
-        0# -> tab
-        _  -> let i = I# i#
-              in TAB (rowUnsafeDelete i ks) (rowUnsafeDelete i vs)
+    -- Prof.withSimpleTracingEventPure "tabDelete" "sorted" $
+    case bsearch# compare k ks# 0# (sizeofArray# ks#) of
+        (# _,  0# #) -> tab
+        (# i#, _  #) -> TAB ks' vs'
+            where i = I# i#
+                  !ks' = rowUnsafeDelete i ks
+                  !vs' = rowUnsafeDelete i vs
 
 {-# INLINE tabMember #-}
 tabMember :: Ord k => k -> Tab k v -> Bool

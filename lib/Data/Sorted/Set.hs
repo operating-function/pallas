@@ -49,7 +49,7 @@ import Prelude
 
 import ClassyPrelude (when)
 import Data.Coerce   (coerce)
-import GHC.Exts      (Int(..), sizeofArray#, (+#))
+import GHC.Exts      (Array#, Int(..), Int#, sizeofArray#, (+#))
 
 -- import qualified Fan.Prof as Prof
 
@@ -80,14 +80,19 @@ ssetFromList kList =
     -- Prof.withSimpleTracingEventPure "ssetFromList" "sorted" $
     SET $ rowSortUniqBy compare $ arrayFromList kList
 
+{-# INLINE ssetInsert# #-}
+ssetInsert# :: Ord a => a -> Array# a -> Int# -> Array# a
+ssetInsert# k ks# wid# =
+    let !(# i, found #) = bsearch# compare k ks# 0# wid# in
+    case found of
+        0# -> rowUnsafeInsert# i k ks# wid#
+        _  -> ks#
+
 {-# INLINE ssetInsert #-}
 ssetInsert :: Ord k => k -> Set k -> Set k
-ssetInsert k set@(SET ks@(Array ks#)) =
+ssetInsert k (SET (Array ks#)) =
     -- Prof.withSimpleTracingEventPure "setInsert" "sorted" $
-    let !(# i, found #) = bsearch# compare k ks# 0# (sizeofArray# ks#) in
-    case found of
-        0# -> SET (rowInsert (I# i) k ks)
-        _  -> set
+    SET (Array (ssetInsert# k ks# (sizeofArray# ks#)))
 
 {-# INLINE ssetDelete #-}
 ssetDelete :: Ord k => k -> Set k -> Set k
