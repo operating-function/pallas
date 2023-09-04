@@ -8,6 +8,7 @@
 {-# OPTIONS_GHC -Wall        #-}
 {-# OPTIONS_GHC -Werror      #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 module Data.Sorted.Row
     ( (!)
@@ -24,6 +25,7 @@ module Data.Sorted.Row
     , rowUnsafeDelete
     , rowDelete
     , rowInsert
+    , rowUnsafeInsert#
     , rowTake
     , rowDrop
     , rowReverse
@@ -39,6 +41,10 @@ import Data.Sorted.Types
 import PlunderPrelude    hiding ((!))
 
 import Data.Vector.Mutable (MVector(..))
+import GHC.Exts            (Int(..), Int#, (==#), (+#), (-#))
+import GHC.Exts            (Array#, sizeofArray#, unsafeFreezeArray#, copyArray#)
+import GHC.Exts            (newArray#)
+import GHC.Exts            (runRW#)
 
 import qualified Data.Vector.Algorithms.Merge as VA
 
@@ -90,19 +96,41 @@ rowDuo x y = runArray do
 rowZipWith :: (a -> b -> c) -> Array a -> Array b -> Array c
 rowZipWith = mzipWith
 
-rowCons :: a -> Array a -> Array a
-rowCons x xs = runArray do
-    let !wid = sizeofArray xs
-    res <- newArray (wid+1) x
-    copyArray res 1 xs 0 wid
-    pure res
+{-# INLINE rowCons# #-}
+rowCons# :: Int# -> a -> Array# a -> Array# a
+rowCons# wid x xs =
+    runRW# \s1 ->
+        let !(# s2, res #) = newArray# (wid +# 1#) x s1 in
+        let !s3            = copyArray# xs 0# res 1# wid s2 in
+        let !(# _, fin #)  = unsafeFreezeArray# res s3 in
+        fin
 
+{-# INLINE rowSnoc# #-}
+rowSnoc# :: Int# -> Array# a -> a -> Array# a
+rowSnoc# wid xs x =
+    runRW# \s1 ->
+        let !(# s2, res #) = newArray# (wid +# 1#) x s1 in
+        let !s3            = copyArray# xs 0# res 0# wid s2 in
+        let !(# _, fin #)  = unsafeFreezeArray# res s3 in
+        fin
+
+{-# INLINE rowUnsafeInsertCenter# #-}
+rowUnsafeInsertCenter# :: Int# -> Int# -> Array# a -> a -> Array# a
+rowUnsafeInsertCenter# i wid xs x =
+    runRW# \s1 ->
+    let !(# s2, res #) = newArray# (wid +# 1#) x s1 in
+    let !s3            = copyArray# xs 0# res 0# i s2 in
+    let !s4            = copyArray# xs i res (i +# 1#) (wid -# i) s3 in
+    let !(# _, fin #)  = unsafeFreezeArray# res s4 in
+    fin
+
+{-# INLINE rowCons #-}
+rowCons :: a -> Array a -> Array a
+rowCons x (Array xs) = Array (rowCons# (sizeofArray# xs) x xs)
+
+{-# INLINE rowSnoc #-}
 rowSnoc :: Array a -> a -> Array a
-rowSnoc xs x = runArray do
-    let !wid = sizeofArray xs
-    !res <- newArray (wid+1) x
-    copyArray res 0 xs 0 wid
-    pure res
+rowSnoc (Array xs) x = Array (rowSnoc# (sizeofArray# xs) xs x)
 
 rowReverse :: Array a -> Array a
 rowReverse xs =
@@ -239,20 +267,21 @@ rowUnsafeDelete i xs =
         copyArray res i xs (i+1) (wid - (i+1))
         pure res
 
+{-# INLINE rowUnsafeInsert# #-}
+rowUnsafeInsert# :: Int# -> a -> Array# a -> Int# -> Array# a
+rowUnsafeInsert# i x xs wid =
+    case i of
+    0# -> rowCons# wid x xs
+    _  -> case i ==# wid of
+              1# -> rowSnoc# wid xs x
+              _  -> rowUnsafeInsertCenter# i wid xs x
+
 rowInsert :: Int -> a -> Array a -> Array a
-rowInsert i x xs =
-    let !wid = sizeofArray xs in
-    if i == 0 then
-        rowCons x xs
-    else if i == wid then
-        rowSnoc xs x
-    else if i > wid || i < 0 then
-        error "rowInsert: out of bounds"
-    else runArray do
-        res <- newArray (wid+1) x
-        copyArray res 0     xs 0 i
-        copyArray res (i+1) xs i (wid-i)
-        pure res
+rowInsert i@(I# i#) x (Array xs) =
+    let !wid = sizeofArray# xs in
+    if i > (I# wid) || i < 0
+    then error "rowInsert: out of bounds"
+    else Array (rowUnsafeInsert# i# x xs wid)
 
 rowSortBy :: (a -> a -> Ordering) -> Array a -> Array a
 rowSortBy cmp xs = runST do
