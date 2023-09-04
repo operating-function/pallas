@@ -53,8 +53,46 @@ main = do
                    , (ls1, ls2, ls1', ls2')
                    , (lS1, lS2, lS1', lS2')
                    )
-  defaultMain $
-    [ bgroup "set-union"
+  defaultMain
+    [ bgroup "set-insert"
+        [ bench "t0.mem" $ whnf (ssetMember 0) t1
+        , bench "t0.new" $ whnf (ssetInsert 0) t1
+        , bench "t0.std" $ whnf (S.insert 0) t1'
+
+        , bench "t1.mem" $ whnf (ssetMember 1) t1
+        , bench "t1.new" $ whnf (ssetInsert 1) t1
+        , bench "t1.std" $ whnf (S.insert 1) t1'
+
+        , bench "t2.mem" $ whnf (ssetMember 2) t1
+        , bench "t2.new" $ whnf (ssetInsert 2) t1
+        , bench "t2.std" $ whnf (S.insert 2) t1'
+
+        , bench "t3.mem" $ whnf (ssetMember 3) t1
+        , bench "t3.new" $ whnf (ssetInsert 3) t1
+        , bench "t3.std" $ whnf (S.insert 3) t1'
+
+        , bench "t4.mem" $ whnf (ssetMember 4) t1
+        , bench "t4.new" $ whnf (ssetInsert 4) t1
+        , bench "t4.std" $ whnf (S.insert 4) t1'
+
+        , bench "t5.mem" $ whnf (ssetMember 5) t1
+        , bench "t5.new" $ whnf (ssetInsert 5) t1
+        , bench "t5.std" $ whnf (S.insert 5) t1'
+
+        , bench "m0.new" $ whnf (ssetInsert 0) m1
+        , bench "m0.std" $ whnf (S.insert 0) m1'
+
+        , bench "m1.new" $ whnf (ssetInsert 1) m1
+        , bench "m1.std" $ whnf (S.insert 1) m1'
+
+        , bench "m500.new" $ whnf (ssetInsert 500) m1
+        , bench "m500.std" $ whnf (S.insert 500) m1'
+
+        , bench "m1000.new" $ whnf (ssetInsert 1000) m1
+        , bench "m1000.std" $ whnf (S.insert 1000) m1'
+        ]
+
+    , bgroup "set-union"
         [ bench "tin.new" $ whnf (ssetUnion t1) t2
         , bench "tin.std" $ whnf (S.union t1') t2'
 
