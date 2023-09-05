@@ -47,7 +47,6 @@ import Data.Sorted.Search
 import Data.Sorted.Types
 import Prelude
 
-import ClassyPrelude (when)
 import Data.Coerce   (coerce)
 import GHC.Exts      (Array#, Int(..), Int#, sizeofArray#, (+#))
 
@@ -199,11 +198,8 @@ ssetUnionGeneric (SET xs) !xWid (SET ys) !yWid =
         let xOverlapWidth = xMax - xMin
         let yOverlapWidth = yMax - yMin
 
-        let maxOverlapWidth = (xOverlapWidth + yOverlapWidth)
-
-        let bufferWidth = beforeCount + afterCount + maxOverlapWidth
-
-        buf <- newArray bufferWidth (error "setUnion: uninitialized")
+        let maxOverlapWidth = xOverlapWidth + yOverlapWidth
+        buf <- newArray maxOverlapWidth (error "setUnion: uninitialized")
 
         let go o i j = do
                 let xRemain = xMax - i
@@ -224,19 +220,19 @@ ssetUnionGeneric (SET xs) !xWid (SET ys) !yWid =
                             LT -> writeArray buf o x >> go (o+1) (i+1) j
                             GT -> writeArray buf o y >> go (o+1) i     (j+1)
 
-        when (beforeCount > 0) do
-            copyArray buf 0 initialArray 0 beforeCount
+        overlapCount <- go 0 xMin yMin
+        overlap <- unsafeFreezeArray buf
 
-        written <- go beforeCount xMin yMin
-
-        when (afterCount > 0) do
-            copyArray buf written finalArray afterStart afterCount
-
-        let totalWritten = written + afterCount
-
-        if totalWritten == bufferWidth
-        then unsafeFreezeArray buf
-        else freezeArray buf 0 totalWritten
+        if (overlapCount == maxOverlapWidth && afterCount+beforeCount == 0)
+        then do
+            pure overlap
+        else do
+            let totalCount = beforeCount + overlapCount + afterCount
+            res <- newArray totalCount (error "setUnion: uninitialized")
+            copyArray res 0                          initialArray 0          beforeCount
+            copyArray res beforeCount                overlap      0          overlapCount
+            copyArray res (beforeCount+overlapCount) finalArray   afterStart afterCount
+            unsafeFreezeArray res
 
 {-# INLINE ssetIsEmpty #-}
 ssetIsEmpty :: Set k -> Bool
