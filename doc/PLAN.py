@@ -127,7 +127,7 @@ def X(k,e):
         case ('hol', _): raise Exception("<<loop>>")
         case (_, 0):
             (_,n,a,b) = e.list;
-            return Law(N(n), N(a), F(b))
+            return W(N(n), N(a), F(b))
         case (_, 1):
             (_,p,l,a,n,x) = e.list
             return P(p,l,a,n,E(x))
@@ -154,8 +154,6 @@ def F(o):
 # Evaluate to Weak-Head-Normal-Form
 def E(o):
     match o.type:
-        case 'nat': return o
-        case 'pin': return o
         case 'hol': raise Exception("<<loop>>")
         case 'app':
             E(o.head)
@@ -165,13 +163,14 @@ def E(o):
                 print(f"        {o}  ==>  {new}")
                 o.update(new)
                 E(o)
-            return o
-        case 'law':
-            if o.args.nat > 0:
-                return o
-            o.update(Hol())
-            o.update(R(0, o, b))
-            return E(o)
+    return o
+
+def W(n,a,b):
+    if a.val == 0:
+        o = Hol()
+        o.update(R(0, o, b))
+        return E(o)
+    return Law(n,a,b)
 
 
 ### Running Some Examples ######################################################
