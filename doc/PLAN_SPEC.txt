@@ -1,39 +1,40 @@
 Every PLAN vaue is either a pin x:<i>, a law x:{n a b}, an app x:(f g),
 a nat x:@, or a black hole x:<>.
 
-(o <- x) mutates o in place, replacing it's value with x.
+(o <- x) mutates o in place, updating it's value to equal x.
 
-Run F[x] to normalize a value.
+Unmatched patterns diverge.
 
-E[o] =                                  | F[o] =
-    when o:(f x)                        |     E[o]
-        E[f]                            |     when o:(f x)
-        when A[f]=1                     |          F[f]; F[x]
-            o <- S[o]                   |     o
-            o <- X[o,o]                 |
-            E[o]                        | S[o:(f x y)]       = (S[(f x)] y)
-    o                                   | S[o:(<{n a b}> y)] = o
-                                        | S[o:(<f> x)]       = S[(f x)]
-N[o] = E[o]; if o:@ then o else 0       | S[o]               = o
-                                        |
-X[(f x), e]         = X[f,e]            | I[f, (e x), 0] = x
-X[<p>, e]           = X[p,e]            | I[f, e,     0] = e
-X[{n a b}, e]       = R[a,e,b]          | I[f, (e x), n] = I[f, e, n-1]
-X[0, (_ n a b)]     = W[N[n],N[a],F[b]] | I[f, e,     n] = f
-X[1, (_ p l a n x)] = P[p,l,a,n,E[x]]   |
-X[2, (_ z p x)]     = C[z,p,N[x]]       | A[(f x)]     = A[f]-1
-X[3, (_ x)]         = N[x]+1            | A[<p>]       = A[p]
-X[4, (_ x)]         = <F[x]>            | A[{n a b}]   = a
-                                        | A[n:@]       = I[1, (3 5 3), n]
-C[z,p,n] = if n=0 then z else (p (n-1)) |
-                                        | R[n,e,b:@] | b≤n = I[x,e,(n-b)]
-P[p,l,a,n,(f x)]   = (a f x)            | R[n,e,(0 f x)]   = (R[n,e,f] R[n,e,x])
-P[p,l,a,n,<x>]     = (p x)              | R[n,e,(1 v b)]   = L[n,e,v,b]
-P[p,l,a,n,{n a b}] = (l n a b)          | R[n,e,(2 x)]     = x
-P[p,l,a,n,x:@]     = (n x)              | R[n,e,x]         = x
-                                        |
-W[_,0,b] = o := <>; o <- R[0,o,b]; E[o] | L[n,e,v,b] =
-W[n,a,b] = {n,a,b}                      |     x := <>
-                                        |     f := (e x)
+Run F[x] to normalize a value, to "evaluate".
+
+F[o] =                                  | N[o] = E[o]; if o:@ then o else 0
+    E[o]                                |
+    when o:(f x)                        | C[z,p,n] = if n=0 then z else (p (n-1))
+         F[f]; F[x]                     |
+    o                                   | S[o:(f x y)]       = (S[(f x)] y)
+                                        | S[o:(<{n a b}> y)] = o
+E[o] =                                  | S[o:(<f> x)]       = S[(f x)]
+    when o:(f x)                        | S[o]               = o
+        E[f]                            |
+        when A[f]=1                     | I[f, (e x), 0] = x
+            o <- S[o]                   | I[f, e,     0] = e
+            o <- X[o,o]                 | I[f, (e x), n] = I[f, e, n-1]
+            E[o]                        | I[f, e,     n] = f
+    o                                   |
+                                        | A[(f x)]     = A[f]-1
+X[(f x), e]         = X[f,e]            | A[<p>]       = A[p]
+X[<p>, e]           = X[p,e]            | A[{n a b}]   = a
+X[{n a b}, e]       = R[a,e,b]          | A[n:@]       = I[1, (3 5 3), n]
+X[0, (_ n a b)]     = W[N[n],N[a],F[b]] |
+X[1, (_ p l a n x)] = P[p,l,a,n,E[x]]   | R[n,e,b:@] | b≤n = I[x,e,(n-b)]
+X[2, (_ z p x)]     = C[z,p,N[x]]       | R[n,e,(0 f x)]   = (R[n,e,f] R[n,e,x])
+X[3, (_ x)]         = N[x]+1            | R[n,e,(1 v b)]   = L[n,e,v,b]
+X[4, (_ x)]         = <F[x]>            | R[n,e,(2 x)]     = x
+                                        | R[n,e,x]         = x
+P[p,l,a,n,(f x)]   = (a f x)            |
+P[p,l,a,n,<x>]     = (p x)              | L[n,e,v,b] =
+P[p,l,a,n,{n a b}] = (l n a b)          |     x := <>
+P[p,l,a,n,x:@]     = (n x)              |     f := (e x)
                                         |     x <- R[n+1,f,v]
-                                        |     R[n+1,f,b]
+W[_,0,b] = o := <>; o <- R[0,o,b]; E[o] |     R[n+1,f,b]
+W[n,a,b] = {n,a,b}                      |
