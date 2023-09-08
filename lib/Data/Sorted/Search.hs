@@ -12,6 +12,7 @@
 
 module Data.Sorted.Search
     ( bsearch
+    , bsearchFull
     , bsearch#
     , bsearch_
     , bsearchIndex
@@ -56,11 +57,15 @@ bsearch# cmp key row low end =
 bsearch_ :: Ord a => a -> Array a -> Int -> Int -> (# Int#, Int# #)
 bsearch_ key (Array row) (I# low) (I# end) = bsearch# compare key row low end
 
+{-# INLINE bsearchFull #-}
+bsearchFull :: Ord a => a -> Array a -> (Int, Bool)
+bsearchFull key row = bsearch key row 0 (sizeofArray row)
+
 {-# INLINE bsearch #-}
-bsearch :: Ord a => a -> Array a -> (Int, Bool)
-bsearch key (Array row) =
+bsearch :: Ord a => a -> Array a -> Int -> Int -> (Int, Bool)
+bsearch key (Array row) (I# offset) (I# width) =
     let
-        !(# i#, found# #) = bsearch# compare key row 0# (sizeofArray# row)
+        !(# i#, found# #) = bsearch# compare key row offset width
         i = I# i#
         bit = case found# of 0# -> False; _ -> True
     in
