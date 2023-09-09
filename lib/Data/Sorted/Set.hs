@@ -360,10 +360,8 @@ ssetIntersection x@(SET xs) y@(SET ys) =
         ( 0,    _    ) -> mempty
         ( _,    0    ) -> mempty
         ( 1,    1    ) -> if xs!0 == ys!0 then x else mempty
-        ( 1,    _    ) -> let xv = (xs!0) in
-                          if ssetMember xv y then ssetSingleton xv else mempty
-        ( _,    1    ) -> let yv = (ys!0) in
-                          if ssetMember yv x then ssetSingleton yv else mempty
+        ( 1,    _    ) -> if ssetMember (xs!0) y then x else mempty
+        ( _,    1    ) -> if ssetMember (ys!0) x then y else mempty
         ( xWid, yWid ) ->
             let
                 xSmallest = xs ! 0
