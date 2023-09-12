@@ -1189,20 +1189,40 @@ void seed_save (Seed ctx, size_t width, uint8_t *top) {
         debugs("       "); showbits("acc", 64, 64, st.acc);
         debugs("       "); showbits("mor", 64, st.fil, st.acc); debugs("\n");
 
-        // TODO: Why do we set this every time?  It's constant, no?
+        int maxref = (num_holes + num_nats) - 1;
+
         st.num_nats  = num_nats;
         st.num_holes = num_holes;
+        st.refbits   = word64_bits(maxref);
+
+        int until_cliff = (1 << st.refbits) - (maxref + 1);
+
+        /*
+            `until_cliff` is the number of fragments we can output before
+            the fragment width grows.
+
+            After we output, if this is zero, then we:
+
+            -   increment st.refbits
+            -   Set until_cliff to (maxref - 1).
+
+            Setting until_clif to the value of (maxref-1) works out
+            because the size increases every doubling of this value.
+        */
 
         for (int i=0; i<num_frags; i++) {
-                // TODO: We can avoid recalculating this every time,
-                // and just track the number of fragments remaining until
-                // the next size bump.  The Haskell code does this.
-                int maxref  = (num_holes + num_nats + i) - 1;
-                st.refbits = word64_bits(maxref);
                 debugf("\trefbits = %d\n", st.refbits);
-                debugf("\nFRAG(%d) [maxref=%d refbits=%d]\n\n", i, maxref, st.refbits);
+                debugf("\nFRAG(%d) [maxref=%d refbits=%d until=%d]\n\n",
+                       i, maxref, st.refbits, until_cliff);
 
                 serialize_frag(ctx, &st, ctx->frags[i]);
+
+                maxref++;
+                if (until_cliff == 0) {
+                        st.refbits++;
+                        until_cliff = maxref;
+                }
+                until_cliff--;
         }
 
         if (st.fil > 0) {
