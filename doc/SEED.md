@@ -26,17 +26,16 @@ tree-fragments, each of which may refer to any earlier fragment.
 
 Seed files have the following layout:
 
-    u64               magic = "PLANSEED"
-    u64               numHoles
-    u64               numBigs
-    u64               numWords
-    u8                numBytes
-    u64[numBigs]      bigSizes
-    u64[numWords]     words
-    u64[]             bigData
-    u8[sum(bigSizes)] bytes
-    u64               numFrags
-    u64[]             fragData  // a series of bit-encoded fragments
+    u64                numHoles
+    u64                numBigs
+    u64                numWords
+    u64                numBytes
+    u64                numFrags
+    u64[numBigs]       bigSizes
+    u64[sum(bigSizes)] bigData
+    u64[numWords]      words
+    u8[numBytes]       bytes
+    u64[]              fragData  // a series of bit-encoded fragments
 
 Decode item-by-item, appending each to an accumulator.
 
@@ -50,6 +49,9 @@ biggest possible index.  If there are four elements in the accumulator,
 each index is two bits, etc.
 
     indexBitWidth = ceil(log2(accumulator.length())
+
+The atoms are stored in decreasing order so that we don't need padding
+after the bytes to maintain word-alignment.
 
 
 # Encoding

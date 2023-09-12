@@ -890,8 +890,7 @@ struct frag_state {
         int refbits;
 };
 
-static void
-serialize_frag(Seed ctx, struct frag_state *st, FragVal frag) {
+static void serialize_frag(Seed ctx, struct frag_state *st, FragVal frag) {
         treenode_t *stack = st->stack;
 
         uint64_t fil       = st->fil;
@@ -907,170 +906,165 @@ serialize_frag(Seed ctx, struct frag_state *st, FragVal frag) {
         stack[sp++] = frag.tail;
         stack[sp]   = frag.head;
 
-        int parens = 1;
+        // this is the left-recursion depth.  It tracks the number of
+        // 1-tags that we need to output before the head leaf.
+        int deep = 0;
 
         while (sp >= 0) {
 
-                treenode_t t = stack[sp];
+            recur: // skipping the check (not needed when recursing downwwards)
 
-                treenode_value val = ctx->treenodes[t.ix];
+                treenode_t treeidx = stack[sp];
+                treenode_value val = ctx->treenodes[treeidx.ix];
 
-                if (NODEVAL_ISBACKREF(val)) {
-                        debugs("\n");
-                        for (int x=0; x<sp; x++) { debugs(" "); }
-                        if (DEBUG) print_tree_outline(ctx, t);
-                        debugs("\n");
-
-                        showbits("   ", 64, 64, acc);
-                        showbits("   ", 64, fil, acc);
-
-                        // Output a zero bit
-                        fil = (fil + 1) % 64;
-                        if (!fil) { showbits("flush", 64, 64, acc); *out++ = acc; acc = 0; }
-
-                        showbits("tag", 64, fil, acc);
-
-                        // Important that we truncate the high bits here.
-                        uint32_t lef  = (uint32_t) val.word;
-                        uint64_t tag  = ((val.word << 1) >> 62);
-                        uint64_t bits;
-
-                        if (DEBUG) {
-                        printf("lef=%u\n", lef);
-                        printf("(write "); print_tree_outline(ctx, t);
-                        }
-
-                        switch (NODEVAL_TAG(val)) {
-                            case 4: // bar (not used)
-                                die("impossible: 4 is bar tag");
-                                break;
-                            case 5: // pin
-                                bits = lef;
-                                break;
-                            case 6: // nat
-                                // lef is nat_t, use as index to get
-                                // index into ordered array, and then
-                                // offset by num_holes
-                                bits = numholes + ctx->rev_ordering[lef];
-                                break;
-                            case 7: // frag
-                                bits = numleaves + lef;
-                                break;
-                            default:
-                                die("impossible: already handled this case");
-                        }
-                        debugf(" {bits=%lu})\n", bits);
-
-                        uint64_t new_bits = (bits << fil);
-
-                        uint64_t overflow = (bits >> (64 - fil));
-
-                        showbits("OVO", 64, 64, overflow);
-                        debugf("\t\t\t\t[fil=%lu]\n", fil);
-                        debugf("\t\t\t\t[bits=%lu]\n", bits);
-                        debugf("\t\t\t\t[leaf=%s]\n", tag==2 ? "true" : "false");
-
-                        acc |= new_bits;
-                        fil += refbits;
-
-                        if (fil >= 64) {
-                                showbits("flush", 64, 64, acc);
-                                *out++ = acc;
-                                acc = overflow;
-                                fil -= 64;
-                        }
-
-                        showbits("   ", 64, fil, acc);
-                        showbits("   ", 64, 64, acc);
-
-                        debugs("\n");
-                        sp--;
-                } else { // is a node
-                        debugs("\n");
-                        debugs("(write true)\n");
-                        for (int x=0; x<sp; x++) debugs(" ");
-                        debugs("#");
-                        parens++;
-
-                        debugs("\n");
-                        showbits("   ", 64, 64, acc);
-                        showbits("   ", 64, fil, acc);
-
-                        // TODO: Instead of writing out each 1-bit
-                        // separately, we can walk the tree to find the head,
-                        // and then emit $DEPTH 1 bits.  I expect this would
-                        // be significantly faster.
-
-                        // Output a 1 bit.
-                        acc |= (1ULL << fil);
-                        showbits("tag", 64, (fil+1), acc);
-                        fil = (fil + 1) % 64;
-                        if (!fil) { showbits("flush", 64, 64, acc); *out++ = acc; acc = 0; }
-
-                        showbits("   ", 64, fil, acc);
-                        showbits("   ", 64, 64,  acc);
-
-                        // Replaces the current stack pointer.
+                /*
+                        If this is a node, push the tail and then recurse
+                        instead the head.  Also increment `deep` to
+                        track the number of 1-bits needed.
+                */
+                if (!NODEVAL_ISBACKREF(val)) {
+                        deep++;
                         stack[sp++] = NODEVAL_TAIL(val);
                         stack[sp]   = NODEVAL_HEAD(val);
+                        goto recur;
                 }
+
+                /*
+                        Output `deep` one bits.  Since the depth can be
+                        bigger than 64, we may need to output multiple
+                        words here.
+                */
+                while (deep) {
+                        int remain = 64 - fil;
+
+                        /*
+                                If all of the tag bits fit in the remaining
+                                bits of the accumulator, that's easy.
+                        */
+                        if (deep < remain) {
+                                acc |= ((1ULL<<deep)- 1ULL) << fil;
+                                fil += deep;
+                                deep=0;
+                                break;
+                        }
+
+                        /*
+                                Otherwise, fill the rest of the accumulator
+                                with ones and repeat the whole process.
+                        */
+                        *out++ = acc | (UINT64_MAX << fil);
+                        acc = fil = 0;
+                        deep -= remain;
+                }
+
+                /*
+                        We need to output a 0 bit here, to tag this as a leaf.
+                        However, we can do that more efficiently by just
+                        right shifting the significant-bits by one and then
+                        outputting refbits+1 bits.
+                */
+
+                /*
+                        This cast to u32 is important because the truncation
+                        drops the tag bits.  This should always be safe, unless
+                        there are billions of unique atoms in a single pin.
+                */
+                uint32_t leaf = (uint32_t) val.word;
+                uint64_t bits;
+
+                /*
+                        5=pin, 6=nat, 7=frag
+                */
+                switch (NODEVAL_TAG(val)) {
+                    case 5: bits = leaf; break;
+                    case 6: bits = numholes + ctx->rev_ordering[leaf]; break;
+                    case 7: bits = numleaves + leaf; break;
+                    default: die("impossible: 4 is bar tag (not used)");
+                }
+
+                /*
+                        `bits` is left-shifted by one to create a zero-tag
+                        at the front (indicating a leaf).  And we bump `fil` by
+                        (refbits+1) for the same reason.
+                */
+                bits <<= 1;
+                uint64_t new_bits = (bits << fil);
+                uint64_t overflow = (bits >> (64 - fil));
+                acc |= new_bits;
+                fil += refbits+1;
+
+                /*
+                        If the leaf data doesn't fit in the accumulator, output
+                        the accumulator, and replace it with the overflow data.
+                */
+                if (fil >= 64) {
+                        *out++ = acc;
+                        acc = overflow;
+                        fil -= 64;
+                }
+
+                sp--;
         }
 
+        // Flush these local variables back into the state (which is
+        // re-loaded when we process the next fragment).
         st->fil = fil;
         st->acc = acc;
         st->out = out;
 }
 
 size_t seed_size (Seed ctx) {
-        uint64_t width    = 40; // num_{holes,bytes,words,bigs,frags} = 8*5
-        uint64_t refrs    = 0;
-        uint32_t numholes = ctx->holes_count;
-        uint32_t numnats  = ctx->nats_count;
-        uint32_t numbytes = ctx->num_bytes;
-        uint32_t numwords = ctx->num_words;
-        uint32_t numbigs  = numnats - (numbytes + numwords);
-        uint32_t numfrags = ctx->frags_count;
+        uint64_t numholes = ctx->holes_count;
+        uint64_t numnats  = ctx->nats_count;
+        uint64_t numbytes = ctx->num_bytes;
+        uint64_t numwords = ctx->num_words;
+        uint64_t numbigs  = numnats - (numbytes + numwords);
+        uint64_t numfrags = ctx->frags_count;
 
-        refrs += numholes;
-        refrs += numnats;
-        width += numbytes;
-        width += numwords*8;
-        width += numbigs*8;  // sizes
+        // The backreferences table starts off holding all "external
+        // references" and all atoms.
+        uint64_t refrs = numholes + numnats;
 
-        debugf("buffer_bytes (after nats count) = %lu\n", width);
+        // This is the width before the bignat size information, it will
+        // be increased as we go along.  It includs the header, all the
+        // bytes, the works, and the word-width of each bignat.
+        uint64_t width = 40 + numbytes + numwords*8 + numbigs*8;
+
+        // Add the actual bignat data to the result width (each bignat
+        // takes n words).
         for (int j=0; j<numbigs; j++) {
                 int ix = ctx->ordering[j];
-                width += (8 * (ctx->nats[ix].nex + 1));
-                debugf("buffer_bytes (after n%d) = %lu\n", ix, width);
-                debugf("\n\tn%d = ", ix);
-                if (DEBUG) print_nat(ctx, (nat_t){ .ix = ix });
-                debugs("\n\n");
+                uint64_t w = ctx->nats[ix].nex + 1;
+                width += (8*w);
         }
-
-        debugf("buffer_bytes (after bignats) = %lu\n", width);
 
         uint64_t treebits = 0;
 
         for (int i=0; i<numfrags; i++) {
-                uint32_t maxref     = refrs - 1;
-                debugf("refrs=%lu, maxref=%d\n", refrs, maxref);
-                uint32_t leaf_width = word64_bits(maxref);
-                uint32_t leaves     = ctx->frags[i].leaves;
-                debugf("leafs=%d\n", leaves);
-                uint32_t frag_bits  = (leaves*leaf_width) + (leaves * 2) - 2;
-                    // (... - 2) because we can omit the outermost
-                    // one bit.  Every fragment is a pair, so the
-                    // parser just reads two forms per fragment:
-                    // (head, tail).
+                // `refers` is always at least one, because you can't
+                // have a cell without some atom (or external reference)
+                // to have as a leaf.
+                uint64_t maxref     = refrs - 1;
+                uint64_t leaf_width = word64_bits(maxref);
 
+                // Calculate the size of the fragment using the number
+                // of leaves and the bit-width of each leaf.
+                // The following formula works because:
+                //
+                // - Each leaf requires leaf_width bits
+                // - Each leaf requires a single tag bit.
+                // - Each interior node requires a single tag bit.
+                // - There are (num_leaves - 1) interior nodes
+                // - Every fragment is a cell, and so the outermost cell
+                //   does not requires a tag.
+                uint64_t leaves     = ctx->frags[i].leaves;
+                uint64_t frag_bits  = (leaves*leaf_width) + (leaves * 2) - 2;
+
+                // Accumulate the number of bits used in this fragment,
+                // and bump `refrs` since the next fragment can also
+                // reference this one.
                 treebits += frag_bits;
                 refrs++;
-
-                debugf("tree_bits (frags) = %lu\n", treebits);
-                debugf("\n\t[maxref=%u leafwid=%u leaves=%u bits=%u]\n", maxref, leaf_width, leaves, frag_bits);
-                debugf("\n\t\tf%d = ", i);
-                if (DEBUG) print_fragment_outline(ctx, (frag_t){i});
-                debugs("\n\n");
         }
 
         // Tree-bits is padded to be a multiple of 8 (treat as a byte-array);
@@ -1084,8 +1078,6 @@ size_t seed_size (Seed ctx) {
         // array of 64-bit words);
         uint64_t hanging_bytes = width % 8;
         if (hanging_bytes) width += (8 - hanging_bytes);
-
-        debugf("padded byte width = %lu\n", width);
 
         return width;
 }
@@ -1102,7 +1094,7 @@ void seed_save (Seed ctx, size_t width, uint8_t *top) {
         uint8_t *out     = top + 40 + (num_bigs*8);
 
 
-        // magic string + size metadata
+        // size metadata (40 bytes)
 
         header[0] = num_holes;
         header[1] = num_bigs;
@@ -1110,84 +1102,77 @@ void seed_save (Seed ctx, size_t width, uint8_t *top) {
         header[3] = num_bytes;
         header[4] = num_frags;
 
+        // bignat sizes
+
         for (int i=0; i < num_bigs; i++) {
-                debugs("BIGS.");
                 int ix = ctx->ordering[i];
                 leaf_t l = ctx->nats[ix];
                 uint64_t nw = l.nex + 1;
                 header[5+i] = nw;
-                debugf("word_width=%ld\n", nw);
         }
 
 
-        // Actual atom data
+        // Actual atom data in decreasing order.  Bignums first.
 
         for (int i=0; i < num_bigs; i++) {
-                debugs("BIGS.");
                 int ix = ctx->ordering[i];
-                debugf("\tn%d = ", ix);
-                // print_nat(ctx, (nat_t){ix});
-                debugs("\n");
                 leaf_t leaf = ctx->nats[ix];
                 memcpy(out, leaf.buf, leaf.nex * 8);
                 out += ((leaf.nex + 1) * 8);
                 ((uint64_t*)out)[-1] = leaf.msw;
         }
 
+        // Then words.
+
         for (int i=0; i<num_words; i++) {
-                debugs("WORDS.");
                 int ix = ctx->ordering[i + num_bigs];
                 ((uint64_t*)out)[0] = ctx->nats[ix].msw;
                 out += 8;
         }
 
+        // Then bytes.
+
         for (int i=0; i < num_bytes; i++) {
-                debugs("BYTES.");
                 int ix = ctx->ordering[i + num_bigs + num_words];
                 *out++ = (uint8_t) ctx->nats[ix].msw;
         }
 
-        if (!num_frags) {
-                // TODO Validate that we have filled the buffer.
-                return;
-        }
-
-        debugf("FRAGS(%d).", num_frags);
+        if (!num_frags) return;
 
         struct frag_state st;
 
-        // treenode_t and refcounts are both 32 bits, and there is one
-        // refcount for every node in the whole tree.  The stack only
-        // needs to be as big as the depth of the deepest fragment, so
-        // `refcounts` is plenty big.
-        //
-        // At this stage, we have already shattered the tree, so it's
-        // fine to canibalize memory like this.
-        //
-        // Should, however, document that a Seed context is "used up"
-        // after serialization, and can only be freed or wiped after that.
+        /*
+                treenode_t and refcounts are both 32 bits, and there is one
+                refcount for every node in the whole tree.  The stack only
+                needs to be as big as the depth of the deepest fragment, so
+                `refcounts` is plenty big.
+
+                At this stage, we have already shattered the tree, so it's
+                fine to canibalize memory like this.
+
+                We should, however, document that a Seed context is "used up"
+                after serialization, and can only be freed or wiped after that.
+        */
         st.stack = (void*) ctx->refcounts;
 
-        // If we are not in word-aligned state, we need to rewind to
-        // the last word-aligned byte.
+        /*
+                If we are not in word-aligned state, we need to rewind to the
+                last word-aligned byte.  We will load the extra bytes into the
+                initial accumulator and treat those bits as "already filled".
+        */
         int used = out - top;
         int clif = used % 8;
-        debugf("used=%d, clif=%d\n", used, clif);
         out -= clif;
 
         /*
-            We read in the current state of the first word, but we don't
-            move the pointer.  When this word has been filled with bytes,
-            we will flush it to the array, replacing the existing `clif`
-            bytes with the same data they started with.
+                We read in the current state of the first word, but we don't
+                move the pointer.  When this word has been filled with bytes,
+                we will flush it to the array, replacing the existing `clif`
+                bytes with the same data they started with.
         */
         st.out = (uint64_t*) out;
         st.acc = *(st.out);
         st.fil = 8 * clif;
-
-        debugf("\tfil = %lu\n", st.fil);
-        debugs("       "); showbits("acc", 64, 64, st.acc);
-        debugs("       "); showbits("mor", 64, st.fil, st.acc); debugs("\n");
 
         int maxref = (num_holes + num_nats) - 1;
 
@@ -1198,23 +1183,19 @@ void seed_save (Seed ctx, size_t width, uint8_t *top) {
         int until_cliff = (1 << st.refbits) - (maxref + 1);
 
         /*
-            `until_cliff` is the number of fragments we can output before
-            the fragment width grows.
+                `until_cliff` is the number of fragments we can output before
+                the fragment width grows.
 
-            After we output, if this is zero, then we:
+                After we output, if this is zero, then we:
 
-            -   increment st.refbits
-            -   Set until_cliff to (maxref - 1).
+                -   increment st.refbits
+                -   Set until_cliff to (maxref - 1).
 
-            Setting until_clif to the value of (maxref-1) works out
-            because the size increases every doubling of this value.
+                Setting until_clif to the value of (maxref-1) works out
+                because the size increases every doubling of this value.
         */
 
         for (int i=0; i<num_frags; i++) {
-                debugf("\trefbits = %d\n", st.refbits);
-                debugf("\nFRAG(%d) [maxref=%d refbits=%d until=%d]\n\n",
-                       i, maxref, st.refbits, until_cliff);
-
                 serialize_frag(ctx, &st, ctx->frags[i]);
 
                 maxref++;
@@ -1225,18 +1206,23 @@ void seed_save (Seed ctx, size_t width, uint8_t *top) {
                 until_cliff--;
         }
 
-        if (st.fil > 0) {
-                debugs("\n");
-                showbits("final_flush", 64, 64, st.acc);
-                debugs("\n\n");
-                *(st.out) = st.acc;
-                st.out++;
-        }
+        /*
+                If there is still data in the accumulator word (st.acc),
+                then flush that to the buffer.
 
-       uint8_t *end = (uint8_t*) st.out;
-       if (end - top != width) {
-               die("bytes_written=%lu != width=%lu\n", (end-top), width);
-       }
+                The only time this doesn't happen is if the output
+                perfectly fits in a multiple of 64 bits.
+        */
+        if (st.fil > 0) { *st.out++ = st.acc; }
+
+        /*
+                Calculate the number of bytes written, and verify that we
+                filled the whole buffer and didn't overflow it.
+        */
+        uint8_t *end = (uint8_t*) st.out;
+        if (end - top != width) {
+                die("bytes_written=%lu != width=%lu\n", (end-top), width);
+        }
 }
 
 
@@ -1331,7 +1317,7 @@ load_fragtree(FragLoadSt *s) {
 
                 uint64_t nex = s->ptr[0];
 
-                uint64_t why = nex & ((1<<extra) - 1);
+                uint64_t why = nex & ((1ULL << extra) - 1ULL);
                 uint64_t more = why << already;
 
                 debugf(
@@ -1575,11 +1561,10 @@ void seed_load(Seed ctx, size_t wid, uint8_t *top) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Testing /////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #if DEBUG
 static void showbits_(char *key, int wid, int num, uint64_t bits) {
-        if (!DEBUG) return;
         putchar('\t');
         putchar(' ');
         if (key) debugf("%s:", key);
