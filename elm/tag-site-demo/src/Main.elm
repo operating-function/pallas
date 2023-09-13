@@ -11,6 +11,7 @@ import Browser
 import Dict exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Html.Keyed
 import Html exposing (..)
 import Time
 
@@ -298,18 +299,45 @@ tagViewDiv model =
 
 imgResult : (Int, String) -> Html Msg
 imgResult (id, thumbnail) =
-    div [ style "flex-basis" "350px"
+    let child = if String.endsWith "webm" thumbnail
+                then [-- Wrap the video tag in an elm Keyed node. The video
+                      -- source is a separate element under the video tag, and
+                      -- if we try just putting the "src" under video, I've
+                      -- found that the video won't even be loaded a good chunk
+                      -- of the time.(!?)
+                      --
+                      -- But browsers will not react to just the source tag
+                      -- changing: the entire video dom node needs to be
+                      -- recreated. So we tell Elm its "keyed" identity so it
+                      -- will recreate this subtree on change.
+                      Html.Keyed.node "div" []
+                      [(thumbnail,
+                        video [ style "object-fit" "cover"
+                              , style "max-width" "100%"
+                              , style "height" "auto"
+                              , style "justify-content" "center"
+                              , style "vertical-align" "middle"
+                              , controls False
+                              , autoplay True
+                              , loop True
+                              -- The "muted" attribute is ignored when added to
+                              -- dynamically added DOM nodes, use the "muted"
+                              -- property instead.
+                              , property "muted" (Json.Encode.bool True)
+                              ] [source [ src thumbnail
+                                        , type_ "video/webm"] []])]]
+                else [img [ src thumbnail
+                          , style "object-fit" "cover"
+                          , style "max-width" "100%"
+                          , style "height" "auto"
+                          , style "justify-content" "center"
+                          , style "vertical-align" "middle"
+                          ] []]
+    in div [ style "flex-basis" "350px"
         , style "max-width" "250px"
         , style "max-height" "250px"
         , style "overflow" "hidden"
-        ]
-        [img [ src thumbnail
-             , style "object-fit" "cover"
-             , style "max-width" "100%"
-             , style "height" "auto"
-             , style "justify-content" "center"
-             , style "vertical-align" "middle"
-             ] []]
+        ] child
 
 imgHeadline : ImgResults -> String
 imgHeadline imgResults = if imgResults.total == 0
