@@ -29,7 +29,7 @@
 
 > Row a > Opt (a, Row a)
 = (rowUncons r)
-| if (isZero | len r) NONE
+| if (null r) NONE
 | SOME [(idx 0 r) (drop 1 r)]
 
 !!= NONE               (rowUncons [])
@@ -442,6 +442,10 @@ newRootNode
 ;; HitchhikerMap ;;
 ;;;;;;;;;;;;;;;;;;;
 
+abstype#(HSet a)
+abstype#(HMap k v)
+abstype#(HSetMap k v)
+
 (hhDeleteKey k _ t)=(tabDel k t)
 
 = (hmEmpty config) | [config 0]
@@ -549,6 +553,9 @@ newRootNode
 
 = (hsNull [config r])
 | isZero r
+
+= (hsRawNode [config r])
+r
 
 = (hsCaseNode pinnedNode)
 @ !node (pinItem pinnedNode)
@@ -674,229 +681,132 @@ newRootNode
 !!= 0 | hsNull | hsInsert 9 | hsSingleton twoThreeConfig 9
 !!= 1 | hsNull | hsDelete 9 | hsSingleton twoThreeConfig 9
 
-; takes a list of sets and compacts them down so each is in a range between
-; `min` and `max`.
-;
-> Nat > Nat > Row (Set k) > Row (Set k)
-= (consolidate min max row)
-@ rowLen | len row
-^ unfoldr _ [0 0 NIL]
-? (loop [i curSize curOut])
-| if (gth i rowLen) NONE
-| if | eql i rowLen
-  | if (listIsEmpty curOut) NONE
-  @ !u | setCatRowAsc | listToRowReversed curOut
-  | if (setIsEmpty u) NONE
-  | SOME [u [(inc i) 0 NIL]]
-;
-@ next    | idx i row
-@ nextLen | setLen next
-;
-; if adding the next set would go over the max, then emit a set.
-| if | gth (add curSize nextLen) max
-  | if | lth curSize min
-    ; we can't add the next set without going over max, but we're currently
-    ; under the minimum, so split the set.
-    @ off | sub max curSize
-    @ [head tail] | setSplitAt off next
-    @ !u | setCatRowAsc | listToRowReversed | CONS head curOut
-    @ nextStep [(inc i) (setLen tail) (CONS tail NIL)]
-    | if (setIsEmpty u) | loop nextStep
-    | SOME [u nextStep]
-  ; we can just combine and be done.
-  @ !u | setCatRowAsc | listToRowReversed curOut
-  @ nextStep [(inc i) 0 (CONS next NIL)]
-  | if (setIsEmpty u) | loop nextStep
-  | SOME [u nextStep]
-;
-| loop [(inc i) (add nextLen curSize) (CONS next curOut)]
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Hitchhiker Set New Intersect ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-; test minimize splitting, between min and max
-!!= []                | consolidate 2 4 []
-!!= [%[1]]            | consolidate 2 4 [%[1]]
-!!= [%[1 2]]          | consolidate 2 4 [%[1 2]]
-!!= [%[1 2 3]]        | consolidate 2 4 [%[1 2 3]]
-!!= [%[1 2 3 4]]      | consolidate 2 4 [%[1 2 3 4]]
-!!= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1 2 3 4 5]]
-!!= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1] %[2] %[3] %[4] %[5]]
-!!= [%[1 2 3 4] %[5]] | consolidate 2 4 [%[1 2] %[3 4] %[5]]
-!!= [%[1 2 3] %[4 5]] | consolidate 2 4 [%[1 2 3] %[4 5]]
-
-; Given a node, ensure that all hitchhikers have been pushed down to leaves,
-; but produces this resulting tree lazily instead of strictly. This means
-; nothing has pins, which force evaluation.
-> TreeFun > Index k v > LazyIndex k v
-= (flushDownwardsLazily treeFun node)  ; -> node
+; Like getLeafRow, but returns a list instead.
+;
+;> TreeFun > Index k v > List (Set k)
+= (getLeafList treeFun node)
 @ TREE_FUN(..) treeFun
 ^ _ hhEmpty node
 ? (go_openTreeFun hh node)
 # datacase (caseNode node)
 * (LEAFNODE leaves)
-    | if (isZero | hhLength hh) leaves
-    | leafInsert leaves hh
+  @ !item (leafInsert leaves hh)
+  | CONS item NIL
 * (INDEXNODE [keys vals] hitchhikers)
-    @ merged | hhMerge hitchhikers hh
-    @ nuvals
-        | if (isZero | hhLength merged)
-            | map node&(go_openTreeFun hhEmpty node) vals
-        @ splitHH | splitHitchhikersByKeys treeFun keys merged
-        | map [hh node]&(go_openTreeFun hh node) | zip splitHH vals
-    [keys nuvals hhEmpty]
+  @ !merged (hhMerge hitchhikers hh)
+  @ splitHH | splitHitchhikersByKeys treeFun keys merged
+  | listCat
+  | listMap [hh node]&(go_openTreeFun hh node)
+  | listFromRow
+  | zip splitHH vals
 
-; Like hsCaseNode, but works on the unpinned structure returned by
-; flushDownwardsLazily.
-> LazyIndex k v > HitchNode
-= (hsCaseNodeLazy node)
-| if | isSet node
-  | LEAFNODE node
-@ [keys nodes hh] node
-| INDEXNODE [keys nodes] hh
+> List (Set k) > List (Set k) > List (Set k)
+= (setlistIntersect ao bo)
+| **listCase ao NIL
+& (a as)
+| **listCase bo NIL
+& (b bs)
+@ amin | setMin a
+@ amax | setMax a
+@ bmin | setMin b
+@ bmax | setMax b
+@ overlap | and lte-amin-bmax lte-bmin-amax
+@ int | setIntersect a b
+@ rest
+  | switch (cmp amax bmax) 0
+  ++ setlistIntersect as bo
+  ++ setlistIntersect as bs
+  ++ setlistIntersect ao bs
+| if | and overlap (not | setIsEmpty int)
+  | CONS int rest
+rest
 
-> LazyIndex k v > k
-= (getLeftmostValue a)
-# datacase (hsCaseNodeLazy a)
-* (LEAFNODE s)
-  | setMin s
-* (INDEXNODE [keys vals] _)
-  | getLeftmostValue (idx 0 vals)
+!!= ~[]
+    | setlistIntersect
+    * ~[%[1 2 3] %[4 5 6]]
+    * ~[%[7 8 9] %[10 11 12]]
 
-; implementation detail of intersection
+!!= ~[%[6] %[7]]
+    | setlistIntersect
+    * ~[%[4 5 6] %[7 8 9]]
+    * ~[%[6 7]]
+
+!!= ~[%[2] %[4] %[9]]
+    | setlistIntersect
+    * ~[%[2] %[3] %[4 6] %[9]]
+    * ~[%[2] %[4 5] %[7 8 9]]
+
+> Row (HSet k) > List (Set k)
+= (hsMultiIntersect setRow)
+| if (isZero | len setRow) NIL
+| if (eql 1 | len setRow)
+    @ [_ node] | idx 0 setRow
+    | getLeafList hhSetTF node
 ;
-> Set k > LazyIndex k v > Row (Set k)
-= (checkSetAgainst a b)
-# datacase b
-* (LEAFNODE bLeaves)
-  @ !c | setIntersect a bLeaves
-  | if (setIsEmpty c) []
-  [c]
-* (INDEXNODE index _)
-  ; todo: i don't think you can rewrite this without the unfoldr, but could you
-  ; at least use integer indexes instead of making a ton of copies of the keys
-  ; and vals rows?
-  | cat
-  ^ unfoldr _ [a (SOME index)]
-  ? (loop [leaves mybIdx])
-  : [keys vals] <- **maybeCase mybIdx NONE
-  | if (setIsEmpty leaves) NONE
-  @ [[tryLeaves restLeaves] subNode restIndex]
-    @ l | len vals
-    | if | (eql 0 l)
-      | die "invalid treeindex in checkSetAgainst"
-    | if | (eql 1 l)
-      | [[leaves %[]] (idx 0 vals) NONE]
-    | else
-      ++ setSplitLT (idx 0 keys) leaves
-      ++ idx 0 vals
-      ++ SOME [(drop 1 keys) (drop 1 vals)]
-  | if (setIsEmpty tryLeaves) | loop [restLeaves restIndex]
-  @ result | checkSetAgainst tryLeaves (hsCaseNodeLazy subNode)
-  | if (isZero | len result) | loop [restLeaves restIndex]
-  | SOME [result [restLeaves restIndex]]
+@ mybNodes | map hsRawNode setRow
+| if (any isZero mybNodes)
+    NIL
+;
+@ setNodes
+    | map (getLeafList hhSetTF) mybNodes
+;
+; manual foldl1 like
+^ _ (idx 0 setNodes) 1 (dec (len setNodes))
+? (go acc i rem)
+| ifNot rem acc
+@ rem | dec rem
+@ acc | setlistIntersect acc (idx i setNodes)
+| seq acc
+| go acc (inc i) rem
 
-!!= [%[1] %[5]]
-   | checkSetAgainst %[1 5]
-   ^ INDEXNODE _ %[]
-   | ([5], (%[1 2], %[5 7]))
+> Nat > List (Set a) > List (Set a)
+= (lsDrop num sets)
+| if (isZero num) sets
+| **listCase sets NIL
+& (x xs)
+@ xl | setLen x
+| if | gte num xl
+  | lsDrop (sub num xl) xs
+| CONS
+* setDrop num x
+* xs
 
-!!= []
-   | checkSetAgainst %[8 9]
-   ^ INDEXNODE _ %[]
-   | ([5], (%[1 2], %[5 7]))
+!!= ~[%[5]] | lsDrop 4 ~[%[1 2 3] %[4 5]]
 
-= (findIntersectStep find [arange anode brange bnode])
-: a as <- **listCase anode  NONE
-: b bs <- **listCase bnode  NONE
-;
-@ asNil | **listIsEmpty as
-@ bsNil | **listIsEmpty bs
-; both ranges at end.
-| if (and asNil bsNil)
-  | SOME [(find a b) [NIL NIL NIL NIL]]
-;
-: amin aminxs <- **listCase arange NONE
-: bmin bminxs <- **listCase brange NONE
-; right range at end.
-| if bsNil
-  : amax arest <- **listCase aminxs (die "missing a range")
-  | if (lte bmin amax)
-    | SOME [(find a b) [aminxs as brange bnode]]
-  | findIntersectStep find [aminxs as brange bnode]
-; left range at end.
-| if asNil
-  : bmax brest <- **listCase bminxs (die "missing b range")
-  | if (lte amin bmax)
-    | SOME [(find a b) [arange anode bminxs bs]]
-  | findIntersectStep find [arange anode bminxs bs]
-; both ranges.
-: amax arest <- **listCase aminxs (die "missing a range")
-: bmax brest <- **listCase bminxs (die "missing b range")
-@ advances | if (eql amax bmax) [aminxs as bminxs bs]
-           | if (gth amax bmax) [arange anode bminxs bs]
-           [aminxs as brange bnode]
-| if (and (lth amin bmax) (lth bmin amax))
-  | SOME [(find a b) advances]
-| findIntersectStep find advances
+> Nat > List (Set k) > List (Set k)
+= (lsTake num sets)
+| if (isZero num) NIL
+| **listCase sets NIL
+& (x xs)
+@ xl | setLen x
+| if | lth num xl  ; num < xl
+    | CONS (setTake num x) NIL
+| CONS
+* x
+* lsTake (sub num xl) xs
 
-= (hsIntersection as bs)
-@ [aconfig ar] as
-@ [_ br] bs
-| if (isZero ar) bs
-| if (isZero br) as
-@ TREE_CONFIG(..) aconfig
-# mutrec %impl | top ar br
-;
-* (top a b)
-  ++ aconfig
-  ++ | build
-     | consolidate minLeafItems maxLeafItems
-     | find
-     * flushDownwardsLazily hhSetTF a
-     * flushDownwardsLazily hhSetTF b
-;
-* (build r)
-  | if (isZero | len r) 0
-  @ vals | map PIN r
-  @ keys | map setMin | drop 1 r
-  | fixup aconfig hhSetTF [keys vals]
-;
-* (find left right)
-  # datacase (hsCaseNodeLazy left)
-  * (LEAFNODE leftLeaves)
-    # datacase (hsCaseNodeLazy right)
-    * (LEAFNODE rightLeaves)
-      @ c | setIntersect leftLeaves rightLeaves
-      | if (setIsEmpty c) []
-      [c]
-    * (INDEXNODE rightIdx _)
-      | checkSetAgainst leftLeaves (hsCaseNodeLazy right)
-  * (INDEXNODE leftIdx leftHH)
-    # datacase (hsCaseNodeLazy right)
-    * (LEAFNODE rightLeaves)
-      | checkSetAgainst rightLeaves (hsCaseNodeLazy left)
-    * (INDEXNODE rightIdx rightHH)
-      @ [aIdxKeys aVals] leftIdx
-      @ [bIdxKeys bVals] rightIdx
-      @ !aLeftmost | getLeftmostValue | idx 0 aVals
-      @ !bLeftmost | getLeftmostValue | idx 0 bVals
-      @ !aRestList | listFromRow aIdxKeys
-      @ !bRestList | listFromRow bIdxKeys
-      @ !aKeys | CONS aLeftmost aRestList
-      @ !bKeys | CONS bLeftmost bRestList
-      | cat
-      | unfoldr (findIntersectStep find)
-      ++ aKeys
-      ++ listFromRow aVals
-      ++ bKeys
-      ++ listFromRow bVals
+!!= ~[%[1 2 3]]      | lsTake 3 ~[%[1 2 3] %[4 5]]
+!!= ~[%[1 2 3] %[4]] | lsTake 4 ~[%[1 2 3] %[4 5]]
+
+> List (Set k) > Nat
+= (lsLen sets)
+| listFoldl (i s)&(add i | setLen s) 0 sets
+
+!!= 2
+    | lsLen (CONS %[4] (CONS %[5] NIL))
+
+> List (Set k) > List k
+= (lsToList ls)
+| listCat
+| listMap setToList ls
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; HitchhikerSetMap ;;
 ;;;;;;;;;;;;;;;;;;;;;;
-
-abstype#(HSet a)
-abstype#(HMap k v)
-abstype#(HSetMap k v)
 
 = (hsmEmpty mapConfig setConfig)
 [mapConfig setConfig 0]
@@ -1044,7 +954,10 @@ abstype#(HSetMap k v)
 ^-^ hmEmpty hmSingleton hmSize hmKeys hmInsert hmInsertMany hmDelete hmLookup
 ; hitchhikerset (hs)
 ^-^ hsEmpty hsNull hsSingleton hsInsert hsInsertMany hsDelete hsToSet hsFromSet
-^-^ hsMember hsIntersection hsUnion
+^-^ hsMember hsUnion
+^-^ hsMultiIntersect
+; listset (ls)
+^-^ lsDrop lsTake lsLen lsToList
 ; hitchhiersetmap (hsm)
 ^-^ hsmEmpty hsmInsert hsmInsertMany hsmDelete hsmLookup
 ^-^ tabSplitLT

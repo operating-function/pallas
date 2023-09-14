@@ -123,12 +123,12 @@
 ;; HitchhikerSetTest ;;
 ;;;;;;;;;;;;;;;;;;;;;;;
 
-= (mkIntList count gen)
+= (mkIntList genLen count gen)
 ^ _ 0 NIL gen
 ? (loop_mkint_list idx cur gen)
 | if | eql idx count
     [gen cur]
-@ [gen val] | genBitsNat 9 gen
+@ [gen val] | genBitsNat genLen gen
 | loop_mkint_list (inc idx) (CONS val cur) gen
 
 = (buildSetFrom list)
@@ -145,7 +145,7 @@
 = (testEqsSet build member seed)
 @ gen          | mkRand seed
 @ [gen count]  | genBitsNat 6 gen
-@ [gen inList] | mkIntList count gen
+@ [gen inList] | mkIntList 9 count gen
 @ checkItems   | setToRow (buildSetFrom inList)
 @ checkLen     | len checkItems
 | seq (FORCE (inList,checkLen,checkItems))
@@ -164,7 +164,7 @@
 = (testDeleteSet build member delete seed)
 @ gen          | mkRand seed
 @ [gen count]  | genBitsNat 6 gen
-@ [gen inList] | mkIntList count gen
+@ [gen inList] | mkIntList 9 count gen
 @ set          | buildSetFrom inList
 @ setWid       | setLen set
 | seq (FORCE (inList,set,setWid))
@@ -292,25 +292,30 @@
     FALSE
 | loop_eqs_tabset (inc i)
 
-
-
-
-= (testIntersectionSet build intersect seed)
+;; Test that doing a three way intersection returns the same result as just
+;; doing the intersections on the input sets. This uses smaller numbers and
+;; larger counts to increase the chance of inclusion in all three sets.
+= (testMultiIntersectionSet build intersect seed)
 @ gen          | mkRand seed
-@ [gen countA] | genBitsNat 6 gen
-@ [gen listA]  | mkIntList countA gen
-@ [gen countB] | genBitsNat 6 gen
-@ [gen listB]  | mkIntList countB gen
+@ [gen countA] | genBitsNat 7 gen
+@ [gen listA]  | mkIntList 8 countA gen
+@ [gen countB] | genBitsNat 7 gen
+@ [gen listB]  | mkIntList 8 countB gen
+@ [gen countC] | genBitsNat 7 gen
+@ [gen listC]  | mkIntList 8 countB gen
 @ setA         | buildSetFrom listA
 @ setB         | buildSetFrom listB
+@ setC         | buildSetFrom listC
 @ hsA          | hsFromSet twoThreeConfig setA
 @ hsB          | hsFromSet twoThreeConfig setB
-@ setInt       | setIntersect setA setB
-@ hsInt        | intersect hsA hsB
+@ hsC          | hsFromSet twoThreeConfig setC
+@ setInt       | setIntersect setC
+               | setIntersect setB setA
+@ rows         | intersect [hsA hsB hsC]
 ;
-@ hsIntAsSet   | hsToSet hsInt
-| if (eql setInt hsIntAsSet) TRUE
-| trk [%notequal setInt hsIntAsSet] FALSE
+@ rowsAsSet   | setCatRowAsc | listToRow rows
+| if (eql setInt rowsAsSet) TRUE
+| trk [%notequal setInt rowsAsSet] FALSE
 
 ;;;;;;;;;;;;
 ;; Runner ;;
@@ -326,5 +331,4 @@ seeds=[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
 !! all (testEqsTabSet buildHSMinsertFrom hsmLookup) seeds
 !! all (testEqsTabSet buildHSMinsertManyFrom hsmLookup) seeds
 !! all (testDeleteTabSet buildHSMinsertFrom hsmLookup hsmDelete) seeds
-
-!! all (testIntersectionSet buildHSinsertFrom hsIntersection) seeds
+!! all (testMultiIntersectionSet buildHSinsertFrom hsMultiIntersect) seeds

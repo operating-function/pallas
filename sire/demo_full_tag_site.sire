@@ -399,14 +399,13 @@ abstype#Image ;; TODO: fix.  What is the real type?
  ## =status   | **buildStatus st
 ;
 @ ids
-  | hsToSet
-  | foldr hsIntersection (hsEmpty idsetConfig) idsets
+  | hsMultiIntersect idsets
 ;
 ;| trk [%ids ids]
 @ targetIds
-    | setToList
-    | setTake 25
-    | setDrop offset ids
+    | lsToList
+    | lsTake 25
+    | lsDrop offset ids
 @ records
     | listToRow
     ^ (listMapMaybe _ targetIds)
@@ -424,7 +423,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
 | JMAP
 ## =tag      | JSTR b#{OK}
 ## =contents | JMAP
-            ## =total  | JNUM | setLen ids
+            ## =total  | JNUM | lsLen ids
             ## =offset | JNUM | offset
             ## =query  | JVEC | map tagToStr searchTags
             ## =slice  | JVEC | records

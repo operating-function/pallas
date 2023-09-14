@@ -54,6 +54,7 @@
 = (setToList set) | listFromRow (_SetToRow set)
 = (setHas k set)  | has k (_SetToRow set)
 = (setMin set)    | idx 0 (_SetToRow set)
+= (setMax set)    | idx (dec | setLen set) (_SetToRow set)
 
 ; {setPort} ports a row operation to a set.  For this to work, the row
 ; operation must always return a result that is in ascending order and
@@ -383,7 +384,7 @@ setToRow=(_SetToRow)
 ^-^
 ^-^ setIns setDel setHas
 ^-^ setUnion setWeld setCatRow setCatList setCatRowAsc
-^-^ setMin setPop setDrop setTake setSplitAt setSplitLT
+^-^ setMin setMax setPop setDrop setTake setSplitAt setSplitLT
 ^-^ setIntersect setSub setElem
 ^-^
 ^-^ setUnion setDifference setInsert setSubtract setIntersection
