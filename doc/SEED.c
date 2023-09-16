@@ -131,8 +131,9 @@ Exp *frag_load(Exp **tab, u64 tabSz, int *use, u64 *acc, u64 **mor) {
         u64 maxref = tabSz-1;
         u64 refSz = u64_bits(maxref);
         int remain = 64 - *use;
-        u64 tmp = ((*acc >> *use) | (**mor << remain)); // combine
-        u64 ref = tmp & ((1ULL << refSz) - 1);          // mask
+
+        u64 msk = (1ULL << refSz) - 1ULL;
+        u64 ref = msk & (!(*use) ? *acc : ((*acc >> *use) | (**mor << remain)));
 
         // move forward by refSz bits.
         *use += refSz;
