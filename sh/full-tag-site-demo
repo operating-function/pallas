@@ -7,12 +7,11 @@
 
 THREADS=16
 FIRST_PAGE=1
-LAST_PAGE=20
-#LAST_PAGE=600
-#LAST_PAGE=20263
+# Use --last-page to pick a different range.
 
 USE_LOCAL=0
 USE_CDN=0
+REQ_LAST_PAGE=0
 MACHINE_DIR=$(realpath .fulltag-demo)
 MACHINE_ARGS=()
 
@@ -20,6 +19,7 @@ usage ()
 {
     echo "Usage: ./full-tag-site-demo [ -d | --demosrc SRCDIR ]
                             [ --use-local | --use-cdn ]
+                            [ --last-page NUM ]
                             [ --machine-dir MACHINEDIR ]
                             [ -p | --profile-output PROF_FILE ]
                             [ -P | --profile-laws ]
@@ -34,7 +34,7 @@ usage ()
     exit 2
 }
 
-PARSED_ARGUMENTS=$(getopt -a -n alphabet -o d:p:P --long demosrc:,machine-dir:,profile-output:,profile-laws,use-local,use-cdn,help -- "$@")
+PARSED_ARGUMENTS=$(getopt -a -n alphabet -o d:p:P --long demosrc:,machine-dir:,profile-output:,last-page:,profile-laws,use-local,use-cdn,help -- "$@")
 VALID_ARGUMENTS=$?
 if [ "$VALID_ARGUMENTS" != "0" ]; then
   usage
@@ -81,6 +81,7 @@ do
     -d | --demosrc)        DEMOSRC="$2"             ; shift 2 ;;
     --use-local)           USE_LOCAL=1              ; shift   ;;
     --use-cdn)             USE_CDN=1                ; shift   ;;
+    --last-page)           REQ_LAST_PAGE="$2"       ; shift 2 ;;
     --machine-dir)         MACHINE_DIR="$2"         ; shift 2 ;;
     -p | --profile-output) MACHINE_ARGS+=("-p" "$2"); shift 2 ;;
     -P | --profile-laws)   MACHINE_ARGS+=("-P")     ; shift   ;;
@@ -114,6 +115,13 @@ if [ -z "${DEMOSRC}" ]; then
 
     DEMOSRC="./elm/tag-site-demo/datadir"
 fi
+
+if [ "${REQ_LAST_PAGE}" -ne 0 ]; then
+    LAST_PAGE=$REQ_LAST_PAGE
+else
+    LAST_PAGE=$(ls "${DEMOSRC}/json" | grep -o -E '[0-9]+' | sort -n | tail -n 1)
+fi
+
 
 UPLOAD_IMG=0
 
