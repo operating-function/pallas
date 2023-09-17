@@ -67,7 +67,7 @@ executables:
   plunder:
     main: Main.hs
     source-dirs: exe/plunder
-    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    ghc-options: -threaded -rtsopts "-with-rtsopts=-N -Iw60"
     dependencies:
       - plunder
 
