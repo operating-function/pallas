@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 11_str <- 10_chr
+### 10_str <- 09_chr
 
 """
 """ Strings
@@ -17,14 +17,14 @@
 /+  01_fan
 /+  02_bit  [if ifNot and or not]
 /+  03_nat  [add sub lsh roundUp met mul rsh mod div]
-/+  06_row  []
+/+  05_row  []
 /+  04_cmp  [eql neq]
-/+  06_row  [foldl]
-/+  07_rex  []
-/+  08_dat  [CONS NIL listFoldl listToRow listMap listLen listAll]
-/+  08_dat  [{,} {>}]
-/+  09_sci  []
-/+  10_chr  [isUpper isDigit toUpper toLower ord]
+/+  05_row  [foldl]
+/+  06_rex  []
+/+  07_dat  [CONS NIL listFoldl listToRow listMap listLen listAll]
+/+  07_dat  [{,} {>}]
+/+  08_sci  []
+/+  09_chr  [isUpper isDigit toUpper toLower ord]
 
 
 """ Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 07_rex <- 06_row
+### 06_rex <- 05_row
 
 """
 """ Rex Syntax Trees
@@ -32,8 +32,8 @@
 /+  02_bit  [if ifNot or else and]
 /+  03_nat  [dec]
 /+  04_cmp  [eql neq isZero]
-/+  06_row  [idx len put switch null mut]
-/+  06_row  [weld map c1 v0 v1 v2 v3 v4 v5]
+/+  05_row  [idx len put switch null mut]
+/+  05_row  [weld map c1 v0 v1 v2 v3 v4 v5]
 
 
 """ Rex Representation (possibly data-jetted) """"""""""""""""""""""""""""""""""

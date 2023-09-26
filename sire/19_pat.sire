@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 19_pat <- 18_sug
+### 19_pat <- 17_sug
 
 """
 """ Pattern Matching
@@ -38,28 +38,28 @@
 /+  01_fan
 /+  02_bit  [if else ifNot not and or FALSE]
 /+  03_nat  [add div inc]
-/+  06_row  [len null idx get put fst]
+/+  05_row  [len null idx get put fst]
 /+  04_cmp  [eql neq gte lth isZero]
-/+  06_row  [weld map foldl foldr v1 v2 v4]
-/+  07_rex  [rexKids rexRune rexHeir rexSons rexText {``}]
-/+  07_rex  [rexIsNode rexIsLeaf]
-/+  07_rex  [rexGetKidsOfNodeWithRune rexGetWord]
-/+  07_rex  [rexGetNodeWithRune]
-/+  07_rex  [rexSetRune rexSetSons rexSetHeir]
-/+  07_rex  [NEST OPEN WORD]
-/+  08_dat
-/+  09_sci  []
-/+  10_chr  []
-/+  11_str  [strWeld strCat]
-/+  12_set  [readKey "%"]
-/+  13_tab  ["##" tabToPairs tabFromPairs tabIdx tabToList tabIns]
-/+  13_tab  [isTabSugar readWideTabLit]
-/+  14_exp
-/+  15_hax  ['#']
-/+  16_pad  []
-/+  17_bar  []
-/+  18_sug  [{`} {:} {~} {::} {~~} {==}]
-/+  18_sug  [readColExp colExpE]
+/+  05_row  [weld map foldl foldr v1 v2 v4]
+/+  06_rex  [rexKids rexRune rexHeir rexSons rexText {``}]
+/+  06_rex  [rexIsNode rexIsLeaf]
+/+  06_rex  [rexGetKidsOfNodeWithRune rexGetWord]
+/+  06_rex  [rexGetNodeWithRune]
+/+  06_rex  [rexSetRune rexSetSons rexSetHeir]
+/+  06_rex  [NEST OPEN WORD]
+/+  07_dat
+/+  08_sci  []
+/+  09_chr  []
+/+  10_str  [strWeld strCat]
+/+  11_set  [readKey "%"]
+/+  12_tab  ["##" tabToPairs tabFromPairs tabIdx tabToList tabIns]
+/+  12_tab  [isTabSugar readWideTabLit]
+/+  13_exp
+/+  14_hax  ['#']
+/+  15_pad  []
+/+  16_bar  []
+/+  17_sug  [{`} {:} {~} {::} {~~} {==}]
+/+  17_sug  [readColExp colExpE]
 
 
 """ Pattern Matching On Rows """""""""""""""""""""""""""""""""""""""""""""""""""

@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 09_sci <- 08_dat
+### 08_sci <- 07_dat
 
 """
 """ Science
@@ -19,11 +19,11 @@
 /+  01_fan  [isNat]
 /+  02_bit  [if]
 /+  03_nat  []
-/+  06_row  [idx]
+/+  05_row  [idx]
 /+  04_cmp  []
-/+  06_row  [map rowApply]
-/+  07_rex  []
-/+  08_dat  ["," drop CONS NIL listToRow]
+/+  05_row  [map rowApply]
+/+  06_rex  []
+/+  07_dat  ["," drop CONS NIL listToRow]
 
 
 """ Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

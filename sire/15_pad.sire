@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 16_pad <- 15_hax
+### 15_pad <- 14_hax
 
 """
 """ Pads
@@ -46,19 +46,19 @@
 /+  01_fan  [die seq isNat const]
 /+  02_bit  [if ifNot else]
 /+  03_nat  [add mul sub bex dec met lsh rsh mod]
-/+  06_row  [idx len]
+/+  05_row  [idx len]
 /+  04_cmp  [eql neq lte isZero]
-/+  06_row  [map weld foldl]
-/+  07_rex  [rexKids rexText rexIsLeaf SHUT WORD CURL {``}]
-/+  08_dat  [{,} {++}]
-/+  08_dat  [listFromRow listCase listSnoc NIL CONS]
-/+  09_sci  []
-/+  10_chr  []
-/+  11_str  [explode strToList strFromList]
-/+  12_set  []
-/+  13_tab  []
-/+  14_exp  [cnsE]
-/+  15_hax  [{#}]
+/+  05_row  [map weld foldl]
+/+  06_rex  [rexKids rexText rexIsLeaf SHUT WORD CURL {``}]
+/+  07_dat  [{,} {++}]
+/+  07_dat  [listFromRow listCase listSnoc NIL CONS]
+/+  08_sci  []
+/+  09_chr  []
+/+  10_str  [explode strToList strFromList]
+/+  11_set  []
+/+  12_tab  []
+/+  13_exp  [cnsE]
+/+  14_hax  [{#}]
 
 
 """ Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 12_set <- 11_str
+### 11_set <- 10_str
 
 """
 """ Sets
@@ -25,14 +25,14 @@
 /+  02_bit  [if else ifNot and or not]
 /+  03_nat  [add sub mul dec]
 /+  03_nat  [even odd]
-/+  06_row  [idx get len]
+/+  05_row  [idx get len]
 /+  04_cmp  [eql neq lte lth gth gte isZero]
-/+  06_row  [null weld v2 isRow map foldl foldr fst snd]
-/+  07_rex
-/+  08_dat
-/+  09_sci  []
-/+  10_chr  [isDigit ord chr]
-/+  11_str  [strToList strWeld loadKeyWord loadDecimal]
+/+  05_row  [null weld v2 isRow map foldl foldr fst snd]
+/+  06_rex
+/+  07_dat
+/+  08_sci  []
+/+  09_chr  [isDigit ord chr]
+/+  10_str  [strToList strWeld loadKeyWord loadDecimal]
 
 
 """ Sets """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

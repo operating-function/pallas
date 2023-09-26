@@ -885,7 +885,7 @@
 
 """ Traversal """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; TODO: Move these into the bootstrapping process?  Maybe into 13_tab.sire?
+; TODO: Move these into the bootstrapping process?  Maybe into 12_tab.sire?
 
 = (tabTraverseState ss f tab ok)
 @ keys (tabKeysRow tab)

@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 17_bar <- 16_pad
+### 16_bar <- 15_pad
 
 """
 """ Bars
@@ -35,22 +35,22 @@
 /+  02_bit  [bit not if else ifNot or and]
 /+  03_nat  [even]
 /+  03_nat  [mod lsh rsh add bex mul sub dec div]
-/+  06_row  [len get idx]
+/+  05_row  [len get idx]
 /+  04_cmp  [eql neq gte lte min isZero]
-/+  06_row  [map foldl foldr gen weld v1 v2 v4]
-/+  06_row  [fst snd]
-/+  07_rex  [SHUT CURL WORD]
-/+  07_rex  [rexKids rexHeir rexText {``}]
-/+  07_rex  [rexGetLeaf]
-/+  08_dat
-/+  09_sci  []
-/+  10_chr  [isPrint toLower]
-/+  11_str  [explode strCat strWeld strFromList]
-/+  12_set  ["%"]
-/+  13_tab  []
-/+  14_exp  [cnsE]
-/+  15_hax  ["#"]
-/+  16_pad  [padLen padWeld]
+/+  05_row  [map foldl foldr gen weld v1 v2 v4]
+/+  05_row  [fst snd]
+/+  06_rex  [SHUT CURL WORD]
+/+  06_rex  [rexKids rexHeir rexText {``}]
+/+  06_rex  [rexGetLeaf]
+/+  07_dat
+/+  08_sci  []
+/+  09_chr  [isPrint toLower]
+/+  10_str  [explode strCat strWeld strFromList]
+/+  11_set  ["%"]
+/+  12_tab  []
+/+  13_exp  [cnsE]
+/+  14_hax  ["#"]
+/+  15_pad  [padLen padWeld]
 
 
 """ Definitions """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

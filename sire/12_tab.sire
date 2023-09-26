@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 13_tab <- 12_set
+### 12_tab <- 11_set
 
 """
 """ Tabs
@@ -19,19 +19,19 @@
 /+  02_bit  [if ifNot and or not nor]
 /+  03_nat  [add toNat]
 /+  04_cmp  [eql neq lth lte gte gth isZero]
-/+  06_row  [len get idx head put isRow]
-/+  06_row  [null map weld rowRepel rowApply rev fst snd]
-/+  06_row  [foldl foldr]
-/+  07_rex  [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
-/+  07_rex  [OPEN EMBD PREF]
-/+  08_dat
-/+  09_sci  [inspect fullInspection]
-/+  10_chr  []
-/+  11_str  [strWeld]
-/+  12_set  [isSet emptySet setLen setHas setMin setToList]
-/+  12_set  [setToRow setFromRowAsc]
-/+  12_set  [setPop]
-/+  12_set  [{%} readKey]
+/+  05_row  [len get idx head put isRow]
+/+  05_row  [null map weld rowRepel rowApply rev fst snd]
+/+  05_row  [foldl foldr]
+/+  06_rex  [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
+/+  06_rex  [OPEN EMBD PREF]
+/+  07_dat
+/+  08_sci  [inspect fullInspection]
+/+  09_chr  []
+/+  10_str  [strWeld]
+/+  11_set  [isSet emptySet setLen setHas setMin setToList]
+/+  11_set  [setToRow setFromRowAsc]
+/+  11_set  [setPop]
+/+  11_set  [{%} readKey]
 
 
 """ Tabs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

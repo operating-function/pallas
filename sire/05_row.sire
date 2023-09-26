@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 06_row <- 04_cmp
+### 05_row <- 04_cmp
 
 """
 """ Rows
@@ -12,7 +12,7 @@
 """ data-jetted arrays.  Since PLAN is untyped, these are also used as
 """ the building block used for tuples/records/datatypes.
 """
-""" The bulk of the row operations are defined in 08_dat.sire, since many
+""" The bulk of the row operations are defined in 07_dat.sire, since many
 """ operations are more naturally defined along with operations on other
 """ data types (such as lists and optional values).
 """

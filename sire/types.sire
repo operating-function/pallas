@@ -12,7 +12,7 @@
 
 """ Utilities """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-; TODO: Move these into 14_exp (or wherever).
+; TODO: Move these into 13_exp (or wherever).
 
 = (defC sig bodyExp)
 | OPEN "#=" (sigE sig, bodyExp) 0

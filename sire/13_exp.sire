@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 14_exp <- 13_tab
+### 13_exp <- 12_tab
 
 """
 """ Sire Expressions
@@ -21,21 +21,21 @@
 /+  01_fan
 /+  02_bit  [if else or ifNot FALSE and not]
 /+  03_nat  [even add mod sub mul]
-/+  06_row  [len idx get put]
+/+  05_row  [len idx get put]
 /+  04_cmp  [eql neq isZero]
-/+  06_row  [v1 v2 v3 foldr map rowApply]
-/+  07_rex  [rexHeir rexEmbd rexSons rexText rexRune]
-/+  07_rex  [rexIsLeaf rexIsEmbd rexIsNode]
-/+  07_rex  [WORD EMBD NEST OPEN PREF CORD]
-/+  07_rex  [rexGetWord rexKids rexStyle {``}]
-/+  07_rex  [rexGetNodeWithRune rexGetKidsOfNodeWithRune]
-/+  07_rex  [rexGetWordNoHeir rexSetHeir]
-/+  08_dat
-/+  09_sci  []
-/+  10_chr  [isAlpha isDigit]
-/+  11_str  [strCat explode strWeld]
-/+  12_set  ['%']
-/+  13_tab  [tabToPairs '#' tabE]
+/+  05_row  [v1 v2 v3 foldr map rowApply]
+/+  06_rex  [rexHeir rexEmbd rexSons rexText rexRune]
+/+  06_rex  [rexIsLeaf rexIsEmbd rexIsNode]
+/+  06_rex  [WORD EMBD NEST OPEN PREF CORD]
+/+  06_rex  [rexGetWord rexKids rexStyle {``}]
+/+  06_rex  [rexGetNodeWithRune rexGetKidsOfNodeWithRune]
+/+  06_rex  [rexGetWordNoHeir rexSetHeir]
+/+  07_dat
+/+  08_sci  []
+/+  09_chr  [isAlpha isDigit]
+/+  10_str  [strCat explode strWeld]
+/+  11_set  ['%']
+/+  12_tab  [tabToPairs '#' tabE]
 
 
 """ Parsing and Printing Nats """"""""""""""""""""""""""""""""""""""""""""""""""

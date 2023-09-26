@@ -2,7 +2,7 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 
-### 08_dat <- 07_rex
+### 07_dat <- 06_rex
 
 """
 """ Data Structures
@@ -20,10 +20,10 @@
 /+  03_nat  [dec sub add lsh rsh div roundUp mod mul]
 /+  03_nat  [even odd]
 /+  03_nat  [LT GT EQ]
-/+  06_row  [head arity len idx get mut]
+/+  05_row  [head arity len idx get mut]
 /+  04_cmp  [eql neq cmp lth gth lte gte min isZero]
-/+  06_row
-/+  07_rex
+/+  05_row
+/+  06_rex
 
 
 """ Fake Typing Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""""

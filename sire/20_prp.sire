@@ -17,21 +17,21 @@
 /+  01_fan
 /+  02_bit
 /+  03_nat
-/+  06_row
+/+  05_row
 /+  04_cmp
-/+  06_row
-/+  07_rex
-/+  08_dat
-/+  09_sci
-/+  10_chr
-/+  11_str
-/+  12_set
-/+  13_tab
-/+  14_exp
-/+  15_hax
-/+  16_pad
-/+  17_bar
-/+  18_sug
+/+  05_row
+/+  06_rex
+/+  07_dat
+/+  08_sci
+/+  09_chr
+/+  10_str
+/+  11_set
+/+  12_tab
+/+  13_exp
+/+  14_hax
+/+  15_pad
+/+  16_bar
+/+  17_sug
 /+  19_pat
 
 
