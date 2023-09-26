@@ -31,11 +31,11 @@ run n e (NAT 1 `APP` v `APP` b) = run (n+1) f b where f = (run (n+1) f v : e)
 run _ _ (NAT 2 `APP` x)         = x
 run _ _ x                       = x
 
-subst (APP f x)            xs   = subst f (x:xs)
+subst (APP f x)            xs = subst f (x:xs)
 subst x@(PIN _ _ (Just e)) xs = e (x:xs)
-subst x@(PIN l@LAW{} _ _)  xs   = exec l (x:xs)
-subst (PIN i _ _)          xs   = subst i xs
-subst x                    xs   = exec x (x:xs)
+subst x@(PIN l@LAW{} _ _)  xs = exec l (x:xs)
+subst (PIN i _ _)          xs = subst i xs
+subst x                    xs = exec x (x:xs)
 
 nat (NAT n) = n
 nat _       = 0
