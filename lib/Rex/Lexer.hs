@@ -55,7 +55,7 @@ data Nest
     | PAREN [Form]
   deriving (Eq, Ord, Show)
 
-data CordType = THICK | THIN | CURL
+data CordType = THICK | LIGHT | CURLY | LINED | PAGED
   deriving (Eq, Ord, Show)
 
 data Leaf
@@ -78,6 +78,11 @@ page = do
         <|> (string "'''"    $> False)
     (thic,) <$> takeRest
 
+page' :: Parser (CordType, Text)
+page' = do
+    (thic, text) <- page
+    pure (if thic then PAGED else LINED, text)
+
 isNameChar :: Char -> Bool
 isNameChar = (`elem` ("_" <> ['a'..'z'] <> ['A'..'Z'] <> ['0'..'9']))
 
@@ -95,8 +100,8 @@ cord' quo = pack <$> (char quo *> many(satisfy(/= quo)) <* char quo)
 
 cord :: Parser (CordType, Text)
 cord = ((THICK,) <$> cord' '"')
-   <|> ((THIN,)  <$> cord' '\'')
-   <|> ((CURL,)  <$> curl)
+   <|> ((LIGHT,) <$> cord' '\'')
+   <|> ((CURLY,) <$> curl)
 
 -- Parenthesis body in infix mode.  Occurs after initial form.
 plix :: Form -> Parser Nest
@@ -185,7 +190,8 @@ nest :: Parser Nest
 nest = brak <|> para
 
 leaf :: Parser Leaf
-leaf = (uncurry C <$> cord)
+leaf = (uncurry C <$> page')
+   <|> (uncurry C <$> cord)
    <|> (N <$> name)
 
 curl :: Parser Text

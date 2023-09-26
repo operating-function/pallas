@@ -80,8 +80,10 @@ formToRex = form
   item :: Item -> R.Rex
   item (LEAF (N t))       = R.T R.WORD t Nothing
   item (LEAF (C THICK t)) = R.T R.TAPE t Nothing
-  item (LEAF (C THIN t))  = R.T R.CORD t Nothing
-  item (LEAF (C CURL t))  = R.T R.CURL t Nothing
+  item (LEAF (C LIGHT t)) = R.T R.CORD t Nothing
+  item (LEAF (C CURLY t)) = R.T R.CURL t Nothing
+  item (LEAF (C PAGED t)) = R.T R.PAGE t Nothing
+  item (LEAF (C LINED t)) = R.T R.LINE t Nothing
   item (NEST n)           = nest n
 
   rn m r cs = R.N m r cs Nothing -- "Rune node"
