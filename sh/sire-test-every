@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# TODO: This doesn't actually work because sire doesn't exit with an
+# error code when something fails.  Fix that?
+
+for x in sire/*.sire
+do
+        plunder sire "$x" </dev/null
+        err=$?
+        if [ $err -ne 0 ]
+        then
+                echo "$x FAILED!!!"
+                echo
+                echo "press ENTER to continue"
+                read
+        fi
+done
