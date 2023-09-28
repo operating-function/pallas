@@ -123,6 +123,7 @@ data RunType
                   FilePath -- Seed file
                   FilePath -- SireFile
     | RTShow FilePath
+    | RTRepl FilePath Bool Bool
     | RTLoot FilePath Prof Bool [FilePath]
     | RTBoot Prof Bool FilePath Text
     | RTUses FilePath Int
@@ -207,6 +208,11 @@ runType defaultDir = subparser
 
    <> plunderCmd "show" "Print a seed file"
       (RTShow <$> seedFile)
+
+   <> plunderCmd "repl" "Interact with a seed file"
+      (RTRepl <$> seedFile
+              <*> doptWarn
+              <*> doptCrash)
 
    <> plunderCmd "start" "Resume an idle machine."
       (RTStart <$> storeArg
@@ -330,6 +336,11 @@ main = do
         RTBoot _ _ d y  -> bootMachine d y
         RTUses d w      -> duMachine d w
         RTShow fp       -> showSeed fp
+        RTRepl fp j c   -> do
+            writeIORef F.vWarnOnJetFallback j
+            writeIORef F.vCrashOnJetFallback c
+            replSeed fp
+
         RTOpen d cog    -> void (openBrowser d cog)
         RTTerm d cog    -> void (openTerminal d cog)
 
@@ -364,6 +375,7 @@ withProfileOutput args act = do
         RTSave p l _ _ _ _      -> (,l) <$> p
         RTLoot _ p l _          -> (,l) <$> p
         RTShow _                -> Nothing
+        RTRepl _ _ _            -> Nothing
         RTOpen _ _              -> Nothing
         RTTerm _ _              -> Nothing
         RTStart _ p l _ _ _ _ _ -> (,l) <$> p
@@ -399,7 +411,6 @@ saveSeed outFile inputFile = do
     byt <- F.saveSeed pin
     writeFile outFile byt
 
--- TODO: Output the result of an expression?  Not just "main"?
 showSeed :: (Debug, Rex.RexColor) => FilePath -> IO ()
 showSeed seedFileToShow = do
     writeIORef F.vShowFan showFan
@@ -410,6 +421,36 @@ showSeed seedFileToShow = do
     fullPrint pin.item
   where
     fullPrint x = trkM $ F.REX $ Sire.planRexFull $ toNoun x
+
+-- TODO: If given something like $path.sire:main, load that instead of
+-- just using a seed.
+replSeed :: (Debug, Rex.RexColor) => FilePath -> IO ()
+replSeed seedFileToShow = do
+    writeIORef F.vJetMatch           $! F.jetMatch
+    writeIORef F.vShowFan            $! showFan
+    writeIORef F.vTrkFan             $! trkFan
+    writeIORef F.vWarnOnJetFallback  $! False -- True
+    writeIORef F.vCrashOnJetFallback $! False -- True
+    byt <- readFile seedFileToShow
+    pin <- F.loadSeed byt >>= either throwIO pure
+    interactive pin.item
+  where
+    fullPrint x = trkM $ F.REX $ Sire.planRexFull $ toNoun x
+
+    interactive st0 = do
+        input <- (try $ BS.hGetSome stdin 80) >>= \case
+                     Left (e :: IOError) | isEOFError e -> pure mempty
+                     Left (e :: IOError)                -> throwIO e
+                     Right ln                           -> pure ln
+        let result = (st0 F.%% F.BAR input)
+        case fromNoun result of
+            Nothing -> do
+                fullPrint result
+                error ("bad noun")
+            Just (output, st1) -> do
+                BS.putStr output
+                unless (null input) do
+                    interactive st1
 
 -- pokeCog :: (Debug, Rex.RexColor) => FilePath -> Text -> FilePath
 --         -> IO ()
