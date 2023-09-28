@@ -35,6 +35,7 @@ module Fan.Eval
     , appN
     , kloList
     , kloWalk
+    , kloArgs
     , fanIdx
     , mkRow
     , evalArity
@@ -214,7 +215,6 @@ instance Eq Fan where
     REX x   == REX y   = x==y
     _       == _       = False
 
--- No point in checking (.quik), since that only tells us if neq.
 instance Ord Pin where
     compare x y =
         case GHC.reallyUnsafePtrEquality x y of
@@ -464,6 +464,20 @@ valTag _         = 0
 
 kloList :: Fan -> [Fan]
 kloList = reverse . kloWalk
+
+--
+-- `kloArgs` returns a list of the arguments of a closure in traversal order.
+--
+-- kloArgs (0 1 2) -> [2,1]
+-- kloArgs 0       -> []
+-- kloArgs [3 4]   -> [3,4]
+--
+kloArgs :: Fan -> [Fan]
+kloArgs = exceptHead . kloWalk
+  where
+    exceptHead []     = error "impossible"
+    exceptHead [_]    = []
+    exceptHead (x:xs) = x : exceptHead xs
 
 kloWalk :: Fan -> [Fan]
 kloWalk (KLO _ xs) = go (sizeofSmallArray xs - 1)
