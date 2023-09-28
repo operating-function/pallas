@@ -631,11 +631,15 @@ barFlatJet _ env =
     BAR $ toStrict $ toLazyByteString $ go $ (env.!1)
   where
     go (BAR b) = byteString b
-    go (ROW r) = concat (go <$> r)
-    go (TAb r) = concat (go <$> toList r)
-    go FUN{}   = mempty
-    go NAT{}   = mempty
-    go _       = error "TODO"
+    go PIN{}   = mempty                    -- pin
+    go COw{}   = mempty                    -- law
+    go SET{}   = mempty                    -- law
+    go REX{}   = mempty                    -- law
+    go FUN{}   = mempty                    -- law
+    go (ROW r) = concat (go <$> r)         -- app
+    go (TAb r) = concat (go <$> toList r)  -- app
+    go k@KLO{} = concat (go <$> kloArgs k) -- app
+    go NAT{}   = mempty                    -- nat
 
 getInt :: Fan -> Maybe Int
 getInt (NAT n) | n < maxInt = Just (fromIntegral n)
