@@ -508,6 +508,8 @@ newline=(natBar 10)
 
 barNewline=(barSing 10)
 
+barSpace=(barSing ' ')
+
 
 """ Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -537,4 +539,4 @@ barNewline=(barSing 10)
 ^-^
 ^-^ newline barUnlines
 ^-^ barSubstringSearch
-^-^ barNewline
+^-^ barNewline barSpace
