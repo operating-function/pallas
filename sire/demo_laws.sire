@@ -200,19 +200,6 @@ hexAlphabet=(natBar "0123456789abcdef")
 ;; Printing Rex Expressions ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= (showTree x)
-| barFlat
-^ _ x
-? (go x)
-| if isNat-x
-    | if strIsSymbol-x [b#'%' natBar-x]
-    | natBar showNat-x
-@ node | unApply car-x (CONS cdr-x NIL)
-@ kids | listToRow
-       | listIntersperse b#" "
-       | listMap go node
-| (b#"(" , kids , b#")" )
-
 = (">=" ss rex err ok)
 @ heir  | rexHeir rex
 @ sons  | rexSons rex
@@ -225,80 +212,6 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= 0 (3 >= 4)
 !!= 1 (4 >= 4)
 !!= 1 (4 >= 3)
-
-
-= (showRex expr)
-@ style (rexStyle expr)
-@ type  (rexType expr)
-# switch type
-* NODE
-        @ rune (rexRune expr)
-        @ sons (rexSons expr)
-        @ heir (rexHeir expr)
-        @ bune (natBar rune)
-        |
-            & x
-            | barCat
-            | if (heir == 0)
-                | [b#'(' x b#')']
-            | else
-                | [b#'(' x b#')' showRex-heir]
-        # switch style
-        * PREF
-                | barWeld bune showRex-(idx 0 sons)
-        * SHUT
-                | barIntercalate bune (map showRex sons)
-        * INFX
-                | barIntercalate (barCat [b#" " bune b#" "])
-                | map showRex sons
-        | barIntercalate b#" "
-        | if (rune=='|' && (1 /= len sons))
-            (map showRex sons)
-        | weld [bune] (map showRex sons)
-* LEAF
-        @ t (rexText expr)
-        # switch style
-        * WORD | natBar t
-        * CORD | barCat [b#"'" natBar-t b#"'"]
-        * TAPE | barCat [b#'"' natBar-t b#'"']
-        * LINE | barCat [b#"'" natBar-t b#"'"]
-        * PAGE | barCat [b#'"' natBar-t b#'"']
-        * CURL | barCat [b#'{' natBar-t b#'}']
-* EMBD
-        | showTree (rexEmbd expr)
-
-!!= b#'()'                 | showRex ``()
-!!= b#'3'                  | showRex ``3
-!!= b#'"3"'                | showRex ``"3"
-!!= b#'(3 4 5)'            | showRex ``(3 4 5)
-!!= b#'(+ 3 4 5)'          | showRex ``(+ 3 4 5)
-!!= b#'(3 + 4 + 5)'        | showRex ``(3 + 4 + 5)
-!!= b#'(%((3=3) , (4=4)))' | showRex ``(%(3=3, 4=4))
-!!= b#'((+3) (+4) (+5))'   | showRex ``(+3 +4 +5)
-!!= b#'(3+4+5)9'           | showRex ``((3+4+5)9)
-!!= b#'(| p)(q r)s'        | showRex ``((| p)(q r)s)
-!!= b#'(| p)(q r)s'        | showRex `` | p
-                                        | q r
-                                        s
-
-= showRexExample
-| showRex
-    `
-    = (showRex expr)
-    | **rexCase expr
-        & (r x k)
-        @ hed | barCat
-             ++ b#"("
-             ++ | barIntercalate b#" "
-                | if (r == '|') map-showRex-x
-                | weld [natBar-r] map-showRex-x
-             ++ b#")"
-        | if (k == 0) hed
-        | barWeld hed showRex-k
-      (name & natBar name)
-      (cord & barCat [b#'"' natBar-cord b#'"'])
-      (page & showRex (CORD strCat-page))
-      (cnst & showRex valRex-cnst)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
