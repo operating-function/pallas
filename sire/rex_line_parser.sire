@@ -1,4 +1,4 @@
-### rex_line_parser <- parse
+### rex_line_parser <- rex_show
 
 ;;; TODO: #datacase should accept any three kids, the cases shouldn't
 ;;; be required to be an heir.
@@ -38,6 +38,8 @@
 * THICK=THICK
 * LIGHT=LIGHT
 * CURLY=CURLY
+* PAGED=PAGED
+* LINED=LINED
 
 ;; TODO: Using the same name twice in #datatype results in invalid code.
 ;; Validate the input to make sure this is not possible.
@@ -77,28 +79,54 @@ name=(**stringOf1 isNameChar)
 | andThenLeft (stringOf (neq quo))
 | char quo
 
-;; TODO: support {{nesting}}
-;; TODO: support \}escaping
 > Parser r Bar
 = curl
 | andThen (char '{')
-| andThenLeft (stringOf | neq '}') (char '}')
+^ (_ ~[] FALSE 1)
+? (go acc quote depth)
+| if (depth == 0)
+    | parserPure (barFromListRev | listUnsafeTail acc)
+: c <- bind anyChar
+| if quote
+    | go (c::acc) FALSE depth
+# switch c
+* '{' | go (c::acc) FALSE (inc depth)
+* '}' | go (c::acc) FALSE (dec depth)
+* '\' | go acc      TRUE  depth
+* _   | go (c::acc) FALSE depth
+
+= (readLineStr prefix)
+| try
+| andThen (string prefix)
+| parserTakeRest
+
+> Parser r (Bit, Str)
+= page
+| choice
+* parserMap t&(TRUE,t)  | readLineStr b#{"""}
+* parserMap t&(FALSE,t) | readLineStr b#{'''}
+
+> Parser r (Bit, Str)
+= page_
+: (thic, text) <- page
+| parserPure (if thic PAGED LINED, text)
 
 > Parser r (CordType, Bar)
 = leaf
-| choice (pmap x&(LTEXT THICK x) | cord {"})
-| choice (pmap x&(LTEXT LIGHT x) | cord {'})
-| choice (pmap x&(LTEXT CURLY x) | curl)
-         (pmap x&(LNAME x)      | name)
+| choices
+~~ pmap x&(LTEXT PAGED x) | readLineStr b#{"""}
+~~ pmap x&(LTEXT LINED x) | readLineStr b#{'''}
+~~ pmap x&(LTEXT THICK x) | cord {"}
+~~ pmap x&(LTEXT LIGHT x) | cord {'}
+~~ pmap x&(LTEXT CURLY x) | curl
+~~ pmap x&(LNAME x)       | name
 
-spc=(char ' ')
+spc=(choice (char ' ') (char newlineChar))
 spc0=(many spc)
 whyt=(some spc)
 
 = (parserDebug ctx x buf off err fail ok)
 | trk 'parserDebug',ctx,(barTake 10 | barDrop off buf)
-; trk 'parserDebug',ctx,[=buf =off]
-; trk 'parserDebug',ctx,[=err =fail =ok]
 | x buf off err fail ok
 
 empt=(parserMap (const NIL) (char ']'))
@@ -128,7 +156,6 @@ empt=(parserMap (const NIL) (char ']'))
 * (CONS _ _)
 ^ parserFail (barFlat [reason _ notAllow])
 | barIntercalateList b#{, }
-^ trk [hi=_] _
 | listMap x&(barCat [b#{'} natBar-x b#{'}])
 | listNub r::conflicts
 
@@ -151,7 +178,6 @@ empt=(parserMap (const NIL) (char ']'))
 ; expect to see the end of a parenthesis nesting (either prefix or infix),
 ; and return an empty list.
 = term
-| parserDebug "term"
 | parserMap (const NIL) (char ')')
 
 ; Body of parenthesis in prefix mode, after initial (rune+space)
@@ -197,7 +223,6 @@ empt=(parserMap (const NIL) (char ']'))
 
 ; In nest-infix, read an infix rune, a space, and an item.
 = (mixy faro)
-| parserDebug "mixy"
 : ryn <- bind (try | andThenLeft rune whyt)
 : mor <- bind faro
 | parserPure (LEFT ryn :: mor)
@@ -211,8 +236,6 @@ empt=(parserMap (const NIL) (char ']'))
 ;   - an infix rune
 ;   - a form
 = (fart faro i)
-| trk ("fart", [=faro], [=i])
-| parserDebug "fart",[=i]
 | parserMap (CONS i)
 | choices
 ~~ term
@@ -222,17 +245,12 @@ empt=(parserMap (const NIL) (char ']'))
 ; In nest-infix, expect a form and then get more items.
 = (faro form buf off err fail ok)
 ^ (_ buf off err fail ok)
-| parserDebug "faro"
 : i <- bind (parserMap RIGHT form)
-| trk 'faro got',[=i]
 | fart (faro form) i
 
 > Parser r Form > Form > Parser r Nest
 = (plix form initialForm)
-| parserDebug "plix"
-;
 : items <- bind (fart (faro form) (RIGHT initialForm))
-| trk [=items]
 # datacase items
 * NIL | die "plix: impossible (never empty, has hard-coded initial val)"
 * (CONS i moreItems)
@@ -260,11 +278,9 @@ empt=(parserMap (const NIL) (char ']'))
 | andThen spc0
 | choices
 ~~ parserMap const-(PREFX bar []) (char ')')
-~~ | parserDebug 'just rune'
-   : ryn <- bind (try (andThenLeft rune (char ')')))
+~~ : ryn <- bind (try (andThenLeft rune (char ')')))
    | parserPure (PREFX ryn [])
-~~ | parserDebug 'nest-prefix'
-   | bind (try | andThenLeft rune whyt) (pree form)
+~~ bind (try | andThenLeft rune whyt) (pree form)
 ~~ bind form (plix form)
 
 (nest form)=(choice (brak form) (para form))
@@ -302,14 +318,6 @@ empt=(parserMap (const NIL) (char ']'))
 * parserMap2 BEFO rune (shin form)
 * shin form
 
-> Parser r (Bit, Str)
-= page
-: thic <- bind | choice
-               * parserMap (const TRUE)  (string b#{"""})
-               * parserMap (const FALSE) (string b#{'''})
-: rest <- bind parserTakeRest
-| parserPure (thic, rest)
-
 > Parser r (Nat, Frag)
 = (frag buf off err fail ok)
 ^ (_ buf off err fail ok)
@@ -318,11 +326,11 @@ empt=(parserMap (const NIL) (char ']'))
     * NONE     | RUNE r
     * (SOME x) | FORM (BEFO r x)
 : d <- bind parserGetLineOffset
-: x <- ^ bind (choices _) ; (parserMap2 rinse rune (optional | shin form))
+: x <- ^ bind (choices _)
       ~~ parserMap (uncurry LSTR) page
       ~~ parserMap2 rinse rune (optional | shin form)
       ~~ parserMap FORM form
-@ o (datacase#x)(FORM _ * 0)(LSTR _ _ * 2)(RUNE r * dec barLen-r)
+@ o (datacase#x)(FORM _ * 1)(LSTR _ _ * 3)(RUNE r * barLen r)
 | parserPure (add o d, x)
 
 = nada
@@ -342,11 +350,6 @@ empt=(parserMap (const NIL) (char ']'))
 : lis <- bind | andThen spc0
               | choice nada (pcons frag loan)
 | parserPure (listToRow lis)
-
-= (main bar)
-: result <- runParser line bar
-| trk [=result]
-| 'exit' 0
 
 
 ;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -376,37 +379,40 @@ empt=(parserMap (const NIL) (char ']'))
   | runParser form b#{[[foo] bar]}
 
 !!= OKAY-(b#{%%})          | runParser rune b#{%%}
-!!= OKAY-(0, RUNE b#{%})   | runParser frag b#{%}
-!!= OKAY-(1, RUNE b#{%%})  | runParser frag b#{%%}
-!!= OKAY-(2, RUNE b#{%%%}) | runParser frag b#{%%%}
+!!= OKAY-(1, RUNE b#{%})   | runParser frag b#{%}
+!!= OKAY-(2, RUNE b#{%%})  | runParser frag b#{%%}
+!!= OKAY-(3, RUNE b#{%%%}) | runParser frag b#{%%%}
 
 !!=   | OKAY
-     ++ ^ (0,_) | FORM | SHIP ,(INEST (PREFX com []))
-     ++ ^ (4,_) | RUNE | b#{$$}
-     ++ ^ (6,_) | FORM | SHIP ,(INEST (PREFX com ,(SHIP ,(ILEAF LNAME-(b#x)))))
+     ++ ^ (1,_) | FORM | SHIP ,(INEST (PREFX com []))
+     ++ ^ (5,_) | RUNE | b#{$$}
+     ++ ^ (7,_) | FORM | SHIP ,(INEST (PREFX com ,(SHIP ,(ILEAF LNAME-(b#x)))))
   | runParser line b#{[] $$ [x]}
 
-!!= OKAY-[(4, LSTR 1 b#{ xyz })] | runParser line b#{  """ xyz }
-!!= OKAY-[(4, LSTR 1 b#{xyz})]   | runParser line b#{  """xyz}
-!!= OKAY-[(2, LSTR 1 b#{xyz})]   | runParser line b#{"""xyz}
+!!= OKAY-[(5, LSTR TRUE b#{ xyz })]  | runParser line b#{  """ xyz }
+!!= OKAY-[(5, LSTR TRUE b#{xyz})]    | runParser line b#{  """xyz}
+!!= OKAY-[(3, LSTR TRUE b#{xyz})]    | runParser line b#{"""xyz}
+!!= OKAY-[(5, LSTR FALSE b#{ xyz })] | runParser line b#{  ''' xyz }
+!!= OKAY-[(5, LSTR FALSE b#{xyz})]   | runParser line b#{  '''xyz}
+!!= OKAY-[(3, LSTR FALSE b#{xyz})]   | runParser line b#{'''xyz}
 
-!!= OKAY-[(0, FORM (SHIP ,(INEST (PREFX bar []))))]
+!!= OKAY-[(1, FORM (SHIP ,(INEST (PREFX bar []))))]
   | runParser line b#{()}
 
-!!= OKAY-[(0, FORM (SHIP ,(INEST (PREFX lus []))))]
+!!= OKAY-[(1, FORM (SHIP ,(INEST (PREFX lus []))))]
   | runParser line b#{(+)}
 
-!!=   ^ OKAY-[(0, FORM (SHIP ,(INEST (PREFX lus _))))]
+!!=   ^ OKAY-[(1, FORM (SHIP ,(INEST (PREFX lus _))))]
      ++ SHIP ,(ILEAF | LNAME b#3)
      ++ SHIP ,(ILEAF | LNAME b#4)
   | runParser line b#{(+ 3 4)}
 
-!!=   ^ OKAY-[(0, FORM (SHIP ,(INEST (PREFX lus _))))]
+!!=   ^ OKAY-[(1, FORM (SHIP ,(INEST (PREFX lus _))))]
      ++ SHIP ,(ILEAF | LNAME b#3)
      ++ SHIP ,(INEST | PREFX lus [])
   | runParser line b#{(+ 3 +)}
 
-!!=   ^ OKAY [(2, _)]
+!!=   ^ OKAY [(3, _)]
       ^ FORM (SHIP [_])
       ^ INEST | PREFX lus ,(SHIP [_])
       ^ INEST | PREFX lus ,(SHIP [_])
@@ -414,36 +420,36 @@ empt=(parserMap (const NIL) (char ']'))
       | ILEAF | LNAME b#3
   | runParser line b#{  (+ + + 3)  }
 
-!!=   ^ OKAY [(2, FORM _)]
+!!=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST (WRAPD _))
       | SHIP ,(ILEAF | LNAME b#3)
   | runParser line b#{  (3)  }
 
-!!=   ^ OKAY [(2, FORM _)]
+!!=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST (WRAPD _))
       | SHIP ,(ILEAF | LNAME b#3)
   | runParser line b#{  ( 3 )  }
 
-!!=   ^ OKAY [(2, FORM _)]
+!!=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST (PAREN _))
      ++ SHIP ,(ILEAF | LNAME b#3)
      ++ SHIP ,(ILEAF | LNAME b#4)
      ++ SHIP ,(ILEAF | LNAME b#5)
   | runParser line b#{  (3 4 5)  }
 
-!!=   ^ OKAY [(2, FORM _)]
+!!=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST | INFIX com _)
      ++ ,(SHIP ,(ILEAF | LNAME b#3))
      ++ ,(SHIP ,(ILEAF | LNAME b#4))
   | runParser line b#{  (3 , 4)  }
 
-!!=   ^ OKAY [(2, FORM _)]
+!!=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST | WRAPD (SHIN com _))
      ++ ,(ILEAF | LNAME b#3)
      ++ ,(ILEAF | LNAME b#4)
   | runParser line b#{  (3,4)  }
 
-!!=   ^ OKAY [(2, FORM _)]
+!!=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST | INFIX com _)
      ++ ,(SHIN com [,(ILEAF | LNAME b#3) ,(ILEAF | LNAME b#4)])
      ++ ,(SHIN com [,(ILEAF | LNAME b#5) ,(ILEAF | LNAME b#6)])
