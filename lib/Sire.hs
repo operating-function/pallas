@@ -545,11 +545,15 @@ loadFile pax = do
         _ ->
             error "must be given a path to a .sire file"
 
+-- Line number, line text, parsed line.
 type Lexed = (Int, Text, [(Int, Lex.Frag)])
 
 readRexStream :: FilePath -> Handle -> IO [(Int, Rex)]
 readRexStream pax = fmap (blox . lexLns pax . fmap pack . lines) . hGetContents
 
+-- depth and fstLineNum are just properties of the first line in
+-- the block.  However, those properties are the last item of the list,
+-- so it's faster to cache them out.
 data PartialBlock = PB
     { depth      :: !Int
     , fstLineNum :: !Int
@@ -567,33 +571,37 @@ initialBlockState = BS 1 Nothing
 blockStep :: BlockState -> Maybe Lexed -> (BlockState, [(Int,[Lexed])])
 blockStep = \cases
 
-    -- EOF
+    -- EOF (without partial block)
     (BS ln Nothing) Nothing   -> (BS ln Nothing, [])
-    (BS ln (Just pb)) Nothing -> (BS ln Nothing, wrap pb)
 
-    -- Empty line outside of block
+    -- EOF (with partial block)
+    (BS ln (Just pb)) Nothing -> (BS ln Nothing, emit pb)
+
+    -- Empty line (without partial block)
     (BS ln Nothing) (Just (_, t, _)) | blankLine t ->
         (BS (ln+1) Nothing, [])
 
-    -- Empty line during block
+    -- Empty line (with partial block)
     (BS ln (Just pb)) (Just (_, t, _)) | blankLine t ->
-        (BS (ln+1) Nothing, wrap pb)
+        (BS (ln+1) Nothing, emit pb)
 
-    -- new line during block
-    (BS ln (Just pb)) (Just l@(_, _, ts)) ->
-        case ts of
-           (d,_) : _ | d < pb.depth ->
-               (wrap pb <>) <$> blockStep (BS ln Nothing) (Just l)
-           _ ->
-               (BS (ln+1) (Just pb{acc = l : pb.acc}), [])
-
-    -- comment line outsidie of block
+    -- comment (without partial block)
     (BS ln Nothing) (Just (_, _, [])) ->
         (BS (ln+1) Nothing, [])
 
-    -- new line outside of block.  If the first form is closed, it's a
-    -- one-line block, otherwise we consume lines until we see a blank
-    -- line or EOF.
+    -- line containing forms (with partial block)
+    (BS ln (Just pb)) (Just l@(_, _, ts)) ->
+        case ts of
+           (d,_) : _ | d < pb.depth ->
+               (emit pb <>) <$> blockStep (BS ln Nothing) (Just l)
+           _ ->
+               (BS (ln+1) (Just pb{acc = l : pb.acc}), [])
+
+    -- line containing forms (without partial block)
+    --
+    -- If the first form is closed, it's a one-line block,
+    -- otherwise we consume lines until we see a blank line
+    -- or EOF.
     (BS ln Nothing) (Just l@(_, _, t:_)) ->
         case t of
             (_, Lex.FORM{}) ->
@@ -603,8 +611,8 @@ blockStep = \cases
                   where pb = PB depth ln [l]
 
   where
-    wrap :: PartialBlock -> [(Int, [Lexed])]
-    wrap pb = pure (pb.fstLineNum, reverse pb.acc)
+    emit :: PartialBlock -> [(Int, [Lexed])]
+    emit pb = pure (pb.fstLineNum, reverse pb.acc)
 
     -- lines with comments are not blank (even if no actual rex content)
     blankLine :: Text -> Bool
