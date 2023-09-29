@@ -1,8 +1,8 @@
 ### rex_block_parser <- rex_line_parser
 
 /+ prelude
+/+ rex_show
 /+ rex_line_parser
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -36,30 +36,25 @@
 = (formToRex topForm)
 # mutrec 'form_to_rex' (form topForm)
 * (nest n)
-    | trk ['nest' n]
     # datacase n
     * (WRAPD f)    | form f
     * (PREFX r fs) | rn NEST (barNat r) (map form fs)
     * (PAREN ns)   | goApp ns
     * (INFIX r fs) | rn INFX (barNat r) (map goApp fs)
 * (form f)
-    | trk ['form' f]
     # datacase f
     * (BEFO ru bod) | rn PREF (barNat ru) [(form bod)]
     * (SHIP i)      | itmz i
     * (SHIN ru ps)  | rn SHUT (barNat ru) (map itmz ps)
 * (goApp fs)
-    | trk 'goApp',fs
     | form
     | if (len fs == 1) (idx 0 fs)
     | SHIP ,(INEST (PREFX b#"|" fs))
 * (itmz is)
-    | trk ['itmz' [=is]]
     @ i (idx 0 is)
     | if (len is == 1) (item i)
     | rexAddCont (item i) (itmz | drop 1 is)
 * (item i)
-    | trk 'item',i
     # datacase i
     * (INEST n) | nest n
     * (ILEAF l) # datacase l
@@ -68,41 +63,32 @@
                               * THICK | TAPE barNat-t NONE
                               * LIGHT | CORD barNat-t NONE
                               * CURLY | CURL barNat-t NONE
+                              * LINED | LINE barNat-t NONE
+                              * PAGED | PAGE barNat-t NONE
 
 > Elem > Rex
 = (iRex e)
 # datacase e
 * (I t x k) | OPEN (barNat t) (rev x) (fromSome 0 k)
-* (T f t k) | (if f PAGE LINE) t (fromSome 0 k)
+* (T f b k) | (if f PAGE LINE) barNat-b (fromSome 0 k)
 
 > Frag > Rex
 = (fRex f)
 # datacase f
 * (RUNE rune)   | OPEN (barNat rune) [] NONE
-* (FORM wide)   | trk [=wide] | formToRex wide
-* (LSTR thic t) | (if thic PAGE LINE) t NONE
-
-= (showTree x)
-| barFlat
-^ _ x
-? (go x)
-| if isNat-x
-    | if strIsSymbol-x [b#'%' natBar-x]
-    | natBar showNat-x
-@ node | unApply car-x (CONS cdr-x NIL)
-@ kids | listToRow
-       | listIntersperse b#" "
-       | listMap go node
-| (b#"(" , kids , b#")" )
+* (FORM wide)   | formToRex wide
+* (LSTR thic t) | (if thic PAGE LINE) barNat-t NONE
 
 !!= (iRex (I b#"+++" [] NONE)) ` +++
-!!= (iRex (T TRUE "hi" NONE))  ` """hi
-!!= (iRex (T FALSE "hi" NONE)) ` '''hi
+
+!!= (iRex (T TRUE b#"hi" NONE))  ` """hi
+
+!!= (iRex (T FALSE b#"hi" NONE)) ` '''hi
 
 = (go bar)
 # datacase (runParser frag bar)
 * (FAIL e)         | die (FAIL e)
-* (OKAY [col frg]) | trk [=col =frg] | fRex frg
+* (OKAY [col frg]) | fRex frg
 
 !!= (go b#"..")           ` ..
 !!= (go b#"(3 4 5)")      ` (3 4 5)
@@ -118,6 +104,7 @@
 !!= (go b#{''""{}})       ` ''""{}
 !!= (go b#{('')("")({})}) ` ''""{}
 !!= (go b#{(3)(4)})       ` (3)(4)
+!!= (go b#{''' xyz})      ` ''' xyz
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -153,24 +140,19 @@
 
 (testMerge x y)=(eitherMap (overSnd (compose rexClose iRex)) (merge x y))
 
-!!= | showTree | RIGHT-(3, `"foo"xxx)
-  | showTree | testMerge (3, `xxx) (3, T TRUE "foo" 0)
+!!= RIGHT-(3, `"foo"xxx)
+  | testMerge (3, `xxx) (3, T TRUE b#foo 0)
 
 !!= LEFT-"Line strings may not have child nodes."
-  | testMerge (4, `xxx) (3, T TRUE "foo" 0)
+  | testMerge (4, `xxx) (3, T TRUE b#foo 0)
 
 !!= LEFT-"Impossible: invalid merge"
-  | testMerge (2, `xxx) (3, T TRUE "foo" 0)
+  | testMerge (2, `xxx) (3, T TRUE b#foo 0)
 
 !!=   | RIGHT (3, `[x y]xxx)
-  | testMerge (3, `xxx) (3, I b#"," [`x] (SOME `y))
-
+  | testMerge (3, `xxx) (3, I b#{,} [`x] (SOME `y))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-''' TODO: Why can't line-strings have child nodes?  Can't we just have
-''' that end the line-string and push another argument onto the last
-''' open rune?
 
 badBlock="Invariant Violation: item indented too little for block"
 
@@ -200,15 +182,12 @@ badBlock="Invariant Violation: item indented too little for block"
 > Nat > List (Nat, Elem) > Either Str (List (Nat, Elem))
 = (close p elems)
 # datacase elems
-* NIL
-    | RIGHT ~[]
+* NIL | RIGHT ~[]
 * (CONS i is)
-| trk [=p fst_i=(fst i) =i]
 | if (gte p | fst i)
     | RIGHT (i::is)
 # datacase is
-* NIL
-    | LEFT badBlock
+* NIL | LEFT badBlock
 * (CONS j ks)
     : ij <- eitherBind (merge (overSnd iRex i) j)
     | close p (ij::ks)
@@ -349,7 +328,6 @@ oneForm="Blocks starting with closed forms may only contain one form."
              & (bar ret)
              : frags <- eitherBind (runParser line bar)
              | ret frags
-| trk [=results]
 # datacase (parseBlock results)
 * (LEFT e)  | e
 * (RIGHT v) | rexClose v
@@ -368,3 +346,251 @@ oneForm="Blocks starting with closed forms may only contain one form."
 
 !!= `(f (x y))a
   | testParseBlock [b#"| f | x y" b#"" b#"a"]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# typedef Lexed (Nat, Bar, Row (Nat, Frag))
+
+( lexedLinNum [ln _  _   ] )=ln
+( lexedInput  [_  in _   ] )=in
+( lexedTokens [_  _  toks] )=toks
+
+# record PartialBlock
+| PB depth:Nat fstLineNum:Nat acc:(List Lexed)
+
+# typedef BlockState (Nat, PartialBlock)
+
+;; files start on line one with an empty block-buffer.
+initialBS=(1, NONE)
+
+> PartialBlock > (Row (Nat, Row Lexed))
+= (emit (PB depth ln acc))
+| [(ln, listToRowReversed acc)]
+
+> BlockState > Opt Lexed > (BlockState, Row (Nat, Row Lexed))
+= (blockStep (ln, mPb) mLine)
+# datacase mLine
+* NONE ; eof
+    # datacase mPb
+    * NONE    ((ln, NONE), [])
+    * SOME-pb ((ln, NONE), emit pb)
+* SOME-(lnLexed@(lnNum, lnTxt, lnToks))
+    | if lnTxt==0 (die 'badLine',[=mLine =lnLexed =lnTxt])
+    @ isBlank   | barAll (eql spaceChar) lnTxt
+    @ isComment | null-lnToks
+    ; blank line
+    | if isBlank
+        # datacase mPb
+        * NONE    ((inc ln, NONE), [])      ; blank line outside of block
+        * SOME-pb ((inc ln, NONE), emit pb) ; blank line inside block
+    ; line contains nothing but a comment.  If there is no partial block,
+    ; we just ignore it.   If there is a partial block, we include it.
+    ; It contributes nothing to the rex result, but if we want to
+    ; reproduce the block for error messages, we need to record it.
+    | if isComment
+        # datacase mPb
+        * NONE               | ((inc ln, NONE), [])
+        * SOME-(PB bd bn ls) | ((inc ln, SOME (PB bd bn lnLexed::ls)), [])
+    ;
+    @ [fstTokDepth fstTok] (fst lnToks)
+    ;
+    # datacase mPb
+    * NONE
+        # datacase fstTok
+        * (FORM _) ; closed forms get output immediately.
+            | if (len lnToks == 1)
+                ((inc ln, NONE), [(ln, [lnLexed])])
+            | else
+                @ lnLexed (lnNum, lnTxt, rowCons (0, RUNE b#{|}) lnToks)
+                ((inc ln, NONE), [(ln, [lnLexed])])
+        * _
+            ((inc ln, SOME (PB fstTokDepth ln ~[lnLexed])), [])
+    * SOME-(pb @ PB bd bn ls)
+        | if (gte fstTokDepth bd)
+            ((inc ln, SOME (PB bd bn lnLexed::ls)), [])
+        | else
+            @ [res output] | blockStep (ln, NONE) (SOME lnLexed)
+            | (res, weld (emit pb) output)
+
+
+;;; Parsing Files ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> List Bar > List (Nat, Row Lexed)
+= (blox lines)
+^ _ (1, NONE) lines
+? (go st@(lineNum, mPb) lines)
+# datacase lines
+* NONE
+    @ (_, output) | blockStep st NONE
+    | output
+* (CONS lineBar lines)
+    # datacase (runParser line lineBar)
+    * FAIL-e  | {lexedLn: fail} e
+    * OKAY-ts
+        @ (st, output) | blockStep st (SOME (lineNum, lineBar, ts))
+        | weld output
+        | go st lines
+
+; Row Lexed > Rex
+= (blockToRex (firstLineNum, lexedLines))
+# datacase
+    | rush
+    | listFromRow
+    | catMap lexedTokens
+    | lexedLines
+* (LEFT e)  | die | FAIL e
+* (RIGHT v) | v
+
+
+;;; Testing `blockStep` ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Bar > Lexed
+= (lexedLn lnNum l)
+# datacase (runParser line l)
+* FAIL-e  | {lexedLn: fail} e
+* OKAY-ts | (lnNum, l, ts)
+
+(justHi lineNum)=(lexedLn lineNum b#{hi})
+
+(justBar lineNum)=(lexedLn lineNum b#{|})
+
+(barHi lineNum)=(lexedLn lineNum b#{     | hi  })
+
+!!= ++ 9
+    ++ b#"| | |"
+    ++ ++ (1, (%RUNE, b#{|}))
+       ++ (3, (%RUNE, b#{|}))
+       ++ (5, (%RUNE, b#{|}))
+  | lexedLn 9 b#"| | |"
+
+;; EOF with nothing buffered: no change
+!!= ((1,NONE), []) | blockStep (1,NONE) NONE
+!!= ((5,NONE), []) | blockStep (5,NONE) NONE
+
+;; Blank line on empty state: bumps line count
+!!= ((2,NONE), []) | blockStep (1,NONE) | SOME (lexedLn 1 b#{})
+!!= ((3,NONE), []) | blockStep (2,NONE) | SOME (lexedLn 2 b#{            })
+
+
+;; EOF with one line buffered, outputs buffer, line count does not change.
+!!= ++ (1,NONE)
+    ++ [(1, [(justBar 1)])]
+  ^ blockStep _ NONE
+  | (1, SOME (PB 1 1 ~[(justBar 1)]))
+
+;; blank line with one line buffered: output lines and bump line count.
+!!= ++ (3,NONE)
+    ++ [(1, [(justBar 1)])]
+  ^ blockStep _ (SOME | lexedLn 2 b#{})
+  | (2, SOME (PB 1 1 ~[(justBar 1)]))
+
+;; comment line alone (not in a block): ignore and bump line count
+!!= ((2, NONE), [])
+  ^ blockStep _ (SOME | lexedLn 2 b#{ ; hi})
+  | (1, NONE)
+
+;; comment line mid-block: incorporate the comment line.
+!!= ((2, SOME (PB 1 1 ~[(lexedLn 2 b#{ ; hi}) (justBar 1)])), [])
+  ^ blockStep _ (SOME | lexedLn 2 b#{ ; hi})
+  | (1, SOME (PB 1 1 ~[(justBar 1)]))
+
+;; closed form alone (no partial block).  Immediately output
+;; the single-line as a block.
+!!= ((2, NONE), [(1, ,(lexedLn 2 b#{  hi  }))])
+  ^ blockStep _ (SOME | lexedLn 2 b#{  hi  })
+  | (1, NONE)
+
+;; Open form alone (no partial block).  Push to buffer.
+!!= ((2, SOME (PB 6 1 ~[(lexedLn 2 b#{     | hi  })])), [])
+  ^ blockStep _ (SOME | lexedLn 2 b#{     | hi  })
+  | (1, NONE)
+
+; line added to partial-block with depth less than block depth
+
+!!= ((2, SOME (PB 1 1 ~[(justBar 1)])), [])
+  ^ blockStep _ (SOME | justBar 1)
+  | (1, NONE)
+
+!!= ((3, SOME (PB 1 1 ~[(barHi 2) (justBar 1)])), [])
+  ^ blockStep _ (SOME | barHi 2)
+  | (2, SOME (PB 1 1 ~[(justBar 1)]))
+
+!!= ((3, SOME (PB 1 1 ~[(barHi 2) (justBar 1)])), [])
+  ^ blockStep fst-_ (SOME | barHi 2)
+  ^ blockStep fst-_ (SOME | justBar 1)
+  | ((1, NONE), [])
+
+
+; New line is added to partial block, but depth
+; is less than block depth.  The partial block is
+; output and then the line is re-processed with an
+; empty partial-block
+
+!!= ((3, SOME (PB 1 2 ~[(justBar 2)])), [(1, [(barHi 1)])])
+  ^ blockStep _ (SOME | justBar 2)
+  | (2, SOME (PB 6 1 ~[(barHi 1)]))
+
+!!=   ^ ((3, NONE), _)
+     ++ (1, [(barHi 1)])
+     ++ (2, [(justHi 2)])
+  ^ blockStep _ (SOME | justHi 2)
+  | (2, SOME (PB 6 1 ~[(barHi 1)]))
+
+!!=   ^ ((3, NONE), _)
+     ++ (1, [(barHi 1)])
+     ++ (2, [(justHi 2)])
+  ^ blockStep fst-_ (SOME | justHi 2)
+  ^ blockStep fst-_ (SOME | barHi 1)
+  | ((1, NONE), [])
+
+
+;;; Testing the whole thing: ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+!!= ++ `(s (| n)(| a))(| k)(| e)
+    ++ `(die (|die))die
+    ++ `pizza
+    ++ `(| pie)
+    ++ `(| bird)
+  | map (compose rexClose blockToRex)
+  | blox
+ ~~ b#"""    |   s
+ ~~ b#"""      | n
+ ~~ b#"""      | a
+ ~~ b#"""    |   k
+ ~~ b#"""    |   e
+ ~~ b#"""  | die
+ ~~ b#"""  |die
+ ~~ b#"""  die
+ ~~ b#"""
+ ~~ b#"""pizza
+ ~~ b#"""| pie
+ ~~ b#"""
+ ~~ b#"""| bird
+ ~~ b#"""
+
+!!=  ++ b#'(s (| n)((| a)))((| k)((| e)))'
+     ++ b#'(die (|die))(die)'
+     ++ b#pizza
+     ++ b#'(| pie)'
+     ++ b#'(| bird)'
+  | map blk&(| rexShow | rexClose | blockToRex blk)
+  | blox
+ ~~ b#"""    |   s
+ ~~ b#"""      | n
+ ~~ b#"""      | a
+ ~~ b#"""    |   k
+ ~~ b#"""    |   e
+ ~~ b#"""  | die
+ ~~ b#"""  |die
+ ~~ b#"""  die
+ ~~ b#"""
+ ~~ b#"""pizza
+ ~~ b#"""| pie
+ ~~ b#"""
+ ~~ b#"""| bird
+ ~~ b#"""
+ ~~ b#"""
+ ~~ b#"""
+ ~~ b#"""
+ ~~ b#"""
+ ~~ b#"""
