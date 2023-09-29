@@ -165,7 +165,7 @@ xy=(choice (char 'x') (char 'y'))
 = (parserGetLineOffset buf topOff err fail ok)
 ^ _ 0 topOff
 ? (loop !count off)
-| if ((off == 0) || (newlineChar == barIdx buf off))
+| if ((off == 0) || (newlineChar == barIdx off buf))
     | ok topOff count
 | loop (inc count) (dec off)
 
