@@ -590,7 +590,13 @@
 = symSigExpect | "Expected `x` or signature `(x y z)`"
 = symSigNoHeir | "name-sequence cannot have an heir"
 
-;
+= sigExpect
+  """function/datatype signatures must be something like:
+  """
+  """    x
+  """    (x y...)
+  """    x-x-...
+
 ;
 ; `readDestroyer` parsing something with the same shape as a function
 ; signature:
@@ -604,9 +610,12 @@
     : sym <- readKey rex err
     | ok sym []
 ;
-: sons heir
-        < rexGetNodeWithRune {|} rex
-        | err rex symSigExpect
+@ rune (rexRune rex)
+@ sons (rexSons rex)
+@ heir (rexHeir rex)
+;
+| if (and (neq rune {|}) (neq rune {-}))
+        | err rex sigExpect
 | ifNot (isZero heir)
         | err rex symSigNoHeir
 | if (null sons)
