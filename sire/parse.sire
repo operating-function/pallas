@@ -28,6 +28,12 @@
 > (a > r)
 > r
 
+= (anyChar buf off err fail ok)
+| if (gte off | barLen buf) (**fail b#more)
+@ !chr (barIdx off buf)
+@ !off (inc off)
+| **ok off chr
+
 ;; TODO: else should auto-inline but it does not!  What gives?
 
 = (satisfies expected f buf off err fail ok)
