@@ -185,14 +185,16 @@ emptyBar=(0 1 1 1)
 (barDropWhile f b)=(barDrop (barCountHeadMatching f b) b)
 (barTakeWhile f b)=(barTake (barCountHeadMatching f b) b)
 
-= (barToList b)      | listGen (barLen b) (barGet b)
-= (barFindIndex f b) | listFindIndex f (barToList b) NONE SOME
-= (barElemIndex e b) | listElemIndex e (barToList b) NONE SOME
-= (barSplitAt i b)   | [(barTake i b) (barDrop i b)]
-= (barFromRow r)     | barGen (len r) (get r)
-= (barFilter f b)    | barFromRow | filter f (barToRow b)
-= (barMap f b)       | barGen (barLen b) (compose f barGet-b)
-= (barCatMap f b)    | barCat | gen (barLen b) (compose f barGet-b)
+= (barToList b)       | listGen (barLen b) (barGet b)
+= (barFindIndex f b)  | listFindIndex f (barToList b) NONE SOME
+= (barElemIndex e b)  | listElemIndex e (barToList b) NONE SOME
+= (barSplitAt i b)    | [(barTake i b) (barDrop i b)]
+= (barFromRow r)      | barGen (len r) (get r)
+= (barFromList bs)    | barFromRow (listToRow bs)
+= (barFromListRev bs) | barFromRow (listToRowReversed bs)
+= (barFilter f b)     | barFromRow | filter f (barToRow b)
+= (barMap f b)        | barGen (barLen b) (compose f barGet-b)
+= (barCatMap f b)     | barCat | gen (barLen b) (compose f barGet-b)
 
 rowToBar=barFromRow
 
@@ -525,7 +527,7 @@ barSpace=(barSing ' ')
 ^-^ barTake barDrop barSlice
 ^-^ barFlat barHas
 ^-^ barBytes barToRow rowFromBar barToList
-^-^ barFromRow rowToBar
+^-^ barFromRow barFromList barFromListRev rowToBar
 ^-^ barMap barFilter
 ^-^ barFindIndex barElemIndex barElemIndexOff barElemIndexEnd
 ^-^ barSplitAt barSplitOne barSplitOneWith barSplitWith barSplit
