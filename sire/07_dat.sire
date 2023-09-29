@@ -291,16 +291,17 @@
 & (x _)
 | x
 
-; TODO: Maybe just (idx 0 l)?
-(listUnsafeHead l)=(listSafeHead 0 l)
+(listUnsafeHead l)=(fst l)
+(listUnsafeTail l)=(snd l)
 
-!!= NONE   | listHead NIL
-!!= SOME-3 | listHead (CONS 3 (CONS 4 NIL))
-!!= 3      | listUnsafeHead (CONS 3 (CONS 4 NIL))
-!!= 0      | listUnsafeHead NIL
-!!= 5      | fromSome 4 (SOME 5)
-!!= 5      | unpackSome (SOME 5)
-!!= 4      | fromSome 4 NONE
+!!= NONE       | listHead NIL
+!!= SOME-3     | listHead (CONS 3 (CONS 4 NIL))
+!!= 3          | listUnsafeHead (CONS 3 (CONS 4 NIL))
+!!= CONS-4-NIL | listUnsafeTail (CONS 3 (CONS 4 NIL))
+!!= 0          | listUnsafeHead NIL
+!!= 5          | fromSome 4 (SOME 5)
+!!= 5          | unpackSome (SOME 5)
+!!= 4          | fromSome 4 NONE
 
 = (listLast l)
 | **listCase l NONE
@@ -945,7 +946,7 @@ F=found
 ^-^ listCase
 ^-^ listSing
 ^-^ listMap
-^-^ listHead listSafeHead listUnsafeHead listLast
+^-^ listHead listSafeHead listUnsafeHead listUnsafeTail listLast
 ^-^
 ^-^ listFoldl listFoldr listMap listLen listSum listToRow sizedListToRow
 ^-^ listToRowReversed listFromRow listAnd listOr listSum listAll listAny
