@@ -38,6 +38,10 @@ static void *reallocarray(void *optr, size_t nmemb, size_t size) {
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
+#if defined(__APPLE__) || defined(__MACH__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#define BSD
+#endif
+
 
 // Forward Declarations ////////////////////////////////////////////////////////
 
@@ -642,6 +646,16 @@ int cmp_nat(const void *xv, const void *yv, void *sv) {
         return mpn_cmp(x.buf, y.buf, x.nex);
 }
 
+#ifdef BSD
+int cmp_nat_wrapper(void *sv, const void *xv, const void *yv) {
+        return cmp_nat(xv, yv, sv);
+}
+#else
+int cmp_nat_wrapper(const void *xv, const void *yv, void *sv) {
+        return cmp_nat(xv, yv, sv);
+}
+#endif
+
 static void print_nat(Seed, nat_t);
 
 void seed_done(Seed ctx) {
@@ -667,7 +681,11 @@ void seed_done(Seed ctx) {
 
         for (int i = 0; i < nats; i++) { ctx->ordering[i] = i; }
 
-        qsort_r(ctx->ordering, nats, sizeof(int32_t), cmp_nat, ctx);
+#ifdef BSD
+        qsort_r(ctx->ordering, nats, sizeof(int32_t), ctx, cmp_nat_wrapper);
+#else
+        qsort_r(ctx->ordering, nats, sizeof(int32_t), cmp_nat_wrapper, ctx);
+#endif
 
         for (int i = 0; i < nats; i++) {
                 ctx->rev_ordering[ctx->ordering[i]] = i;
@@ -905,6 +923,7 @@ struct frag_state {
 
 static void serialize_frag(Seed ctx, struct frag_state *st, FragVal frag) {
         treenode_t *stack = st->stack;
+        treenode_t treeidx;
 
         uint64_t fil       = st->fil;
         uint64_t acc       = st->acc;
@@ -927,7 +946,7 @@ static void serialize_frag(Seed ctx, struct frag_state *st, FragVal frag) {
 
             recur: // skipping the check (not needed when recursing downwwards)
 
-                treenode_t treeidx = stack[sp];
+                treeidx = stack[sp];
                 treenode_value val = ctx->treenodes[treeidx.ix];
 
                 /*
