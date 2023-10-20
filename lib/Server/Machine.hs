@@ -29,15 +29,16 @@ where
 
 import PlunderPrelude
 
-import Control.Concurrent.STM.TQueue (flushTQueue)
-import Control.Monad.State           (StateT, execStateT, modify', runStateT)
-import Fan                           (Fan(..), PrimopCrash(..), (%%))
-import GHC.Conc                      (unsafeIOToSTM)
-import GHC.Prim                      (reallyUnsafePtrEquality#)
-import Optics                        (set)
-import Server.Convert                ()
-import System.Random                 (randomIO)
-import System.Random.Shuffle         (shuffleM)
+import Control.Monad.State   (StateT, execStateT, modify', runStateT)
+import Fan                   (Fan(..), PrimopCrash(..), (%%))
+import GHC.Conc              (unsafeIOToSTM)
+import GHC.Prim              (reallyUnsafePtrEquality#)
+import Optics                (set)
+import Server.Convert        ()
+import System.Random         (randomIO)
+import System.Random.Shuffle (shuffleM)
+
+import qualified GHC.Natural as GHC
 
 import Data.Sorted
 import Fan.Convert
@@ -54,6 +55,12 @@ import qualified Data.IntMap as IM
 import qualified Data.Map    as M
 import qualified Data.Set    as S
 import qualified Data.Vector as V
+
+--------------------------------------------------------------------------------
+
+receiptQueueMax :: GHC.Natural
+receiptQueueMax = 16384
+
 
 --------------------------------------------------------------------------------
 
@@ -107,7 +114,7 @@ data Machine = MACHINE {
 
   -- | Command to log immediately (because of a pending add)
   logImmediately   :: TVar Bool,
-  logReceiptQueue  :: TQueue (Receipt, [STM OnCommitFlow])
+  logReceiptQueue  :: TBQueue (Receipt, [STM OnCommitFlow])
   }
 
 oneSecondInNs :: NanoTime
@@ -652,7 +659,7 @@ replayAndCrankMachine cache ctx replayFrom = do
       liveVar          <- newTVarIO moment
       writVar          <- newTVarIO (lastBatch, moment)
       logImmediately   <- newTVarIO False
-      logReceiptQueue  <- newTQueueIO
+      logReceiptQueue  <- newTBQueueIO receiptQueueMax
 
       runner <- atomically do
           vMoment   <- newTVar moment
@@ -994,7 +1001,7 @@ runnerFun initialFlows machine processName st =
     exportState (receipt, onCommit) = do
         when (length onCommit > 0) do
             writeTVar machine.logImmediately True
-        writeTQueue machine.logReceiptQueue (receipt, onCommit)
+        writeTBQueue machine.logReceiptQueue (receipt, onCommit)
 
     -- TODO: Optimize
     collectResponses :: IntMap (Maybe a) -> [(Int, a)]
@@ -1455,18 +1462,27 @@ logFun machine =
         live                 <- readTVar machine.liveVar
         (lastBatchNum, writ) <- readTVar machine.writVar
         forcedLog            <- readTVar machine.logImmediately
+        fullQ                <- isFullTBQueue machine.logReceiptQueue
 
-        let nextLogWork = writ.work + logbatchWorkIntervalInNs
-        let shouldLog   = shutdown || forcedLog || (live.work > nextLogWork)
+        -- TODO: IIUC "workNs" is currently actually just the runtime.
+        -- The idea was that we would use "total execution time" to
+        -- trigger snapshots, in order to bound the amount of time needed
+        -- to replay.  This makes no sense for log batches, and the
+        -- total-runtime makes no sense for snapshots.  Shit is working,
+        -- however, so there's no need to changes this atm.
+
+        let timedLog  = live.work > (writ.work + logbatchWorkIntervalInNs)
+        let shouldLog = shutdown || forcedLog || fullQ || timedLog
 
         unless shouldLog retry
 
         when forcedLog (writeTVar machine.logImmediately False)
 
-        receipts <- flushTQueue machine.logReceiptQueue
+        receipts <- flushTBQueue machine.logReceiptQueue
         moment   <- readTVar machine.liveVar
 
-        pure LOG_NEXT{batchNum=(lastBatchNum + 1), ..}
+        let batchNum = lastBatchNum + 1
+        pure LOG_NEXT{shutdown, receipts, moment, batchNum}
 
     doBatch :: LogNext -> IO ([Flow], [Flow])
     doBatch next = do
