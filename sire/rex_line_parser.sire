@@ -1,3 +1,7 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
 ### rex_line_parser <- rex_show
 
 ;;; TODO: #datacase should accept any three kids, the cases shouldn't

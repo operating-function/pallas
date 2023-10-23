@@ -1,3 +1,9 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+### rex_show <- parse
+
 ; TODO: This doesn't handle cases where line-strings have heirs that
 ; are not line-strings.
 
@@ -8,8 +14,6 @@
 
 ; TODO: Implement some basic layout engine instead of just falling back
 ; to closed-forms for everything besides the heir and the last son.
-
-### rex_show <- parse
 
 /+ prelude
 

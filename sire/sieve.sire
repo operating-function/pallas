@@ -1,3 +1,7 @@
+;
+; Copyright Michael Hueschen
+;
+
 ### sieve <- quickcheck
 
 """
