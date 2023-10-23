@@ -335,7 +335,7 @@ static void rehash_nodes_if_full(Seed ctx) {
                 so we just need to, starting at the correct bucket,
                 scan for an empty slot and write the value there.
         */
-        for (uint64_t i=0; i<oldwid; i++) {
+        for (int end=oldwid, i=0; i<end; i++) {
                 NodeEntry ent = oldtab[i];
 
                 uint64_t j = ent.hax;
@@ -382,7 +382,7 @@ static void rehash_leaves_if_full(Seed ctx) {
                 so we just need to, starting at the correct bucket,
                 scan for an empty slot and write the value there.
         */
-        for (uint64_t i=0; i<oldwid; i++) {
+        for (int end=oldwid, i=0; i<end; i++) {
                 LeafEntry ent = oldtab[i];
 
                 // empty slot
@@ -394,11 +394,11 @@ static void rehash_leaves_if_full(Seed ctx) {
                         LeafEntry *tar = newtab + j;
                         if (tar->ptr.ix == UINT32_MAX) {
                                 *tar = ent;
-                                debugf(("\t\t%"PRIu64" -> %"PRIu64"\n"), i, j);
+                                debugf(("\t\t%d -> %"PRIu64"\n"), i, j);
                                 break;
                         } else {
                                 debugf(
-                                    "\t\t\t(%"PRIu64" -> %"PRIu64") is taken\n",
+                                    "\t\t\t(%d -> %"PRIu64") is taken\n",
                                       i, j
                                 );
                         }
@@ -665,7 +665,7 @@ void seed_done(Seed ctx) {
                 die("Can't finalize empty Seed context\n");
         }
 
-        uint32_t nats = ctx->nats_count;
+        int nats = ctx->nats_count;
 
         treenode_t top = (treenode_t){ .ix = num - 1 };
 
@@ -1064,7 +1064,7 @@ size_t seed_size (Seed ctx) {
 
         // Add the actual bignat data to the result width (each bignat
         // takes n words).
-        for (int j=0; j<numbigs; j++) {
+        for (int end=numbigs, j=0; j<end; j++) {
                 int ix = ctx->ordering[j];
                 uint64_t w = ctx->nats[ix].nex + 1;
                 width += (8*w);
@@ -1072,7 +1072,7 @@ size_t seed_size (Seed ctx) {
 
         uint64_t treebits = 0;
 
-        for (int i=0; i<numfrags; i++) {
+        for (int end=numfrags, i=0; i<end; i++) {
                 // `refers` is always at least one, because you can't
                 // have a cell without some atom (or external reference)
                 // to have as a leaf.
@@ -1136,7 +1136,7 @@ void seed_save (Seed ctx, size_t width, uint8_t *top) {
 
         // bignat sizes
 
-        for (int i=0; i < num_bigs; i++) {
+        for (int end=num_bigs, i=0; i < end; i++) {
                 int ix = ctx->ordering[i];
                 leaf_t l = ctx->nats[ix];
                 uint64_t nw = l.nex + 1;
@@ -1146,7 +1146,7 @@ void seed_save (Seed ctx, size_t width, uint8_t *top) {
 
         // Actual atom data in decreasing order.  Bignums first.
 
-        for (int i=0; i < num_bigs; i++) {
+        for (int end=num_bigs, i=0; i < end; i++) {
                 int ix = ctx->ordering[i];
                 leaf_t leaf = ctx->nats[ix];
                 memcpy(out, leaf.buf, leaf.nex * 8);
