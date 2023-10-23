@@ -1117,10 +1117,10 @@ size_t seed_size (Seed ctx) {
 void seed_save (Seed ctx, size_t width, uint8_t *top) {
         uint32_t num_holes = ctx->holes_count;
         uint32_t num_nats  = ctx->nats_count;
-        uint16_t num_bytes = ctx->num_bytes;
-        uint16_t num_words = ctx->num_words;
-        uint16_t num_bigs  = num_nats - (num_bytes + num_words);
-        uint32_t num_frags = ctx->frags_count;
+        uint64_t num_bytes = ctx->num_bytes;
+        uint64_t num_words = ctx->num_words;
+        uint64_t num_bigs  = num_nats - (num_bytes + num_words);
+        uint64_t num_frags = ctx->frags_count;
 
         uint64_t *header = (void*) top;
         uint8_t *out     = top + 40 + (num_bigs*8);
