@@ -30,25 +30,25 @@
 !!= (NIL, b#asdf) | consumeLines | b#asdf
 
 !!= (~[b#foo], b#bar)
-  | consumeLines | # b """foo
-                       """bar
+  | consumeLines | # b } foo
+                       } bar
 
 !!= (~[b#foo b#bar], b#{})
-  | consumeLines | # b """foo
-                       """bar
-                       """
+  | consumeLines | # b } foo
+                       } bar
+                       }
 
 !!= (~[b#foo b#bar b#{}], b#{})
-  | consumeLines | # b """foo
-                       """bar
-                       """
-                       """
+  | consumeLines | # b } foo
+                       } bar
+                       }
+                       }
 
 !!= (~[b#foo b#bar b#{}], b#{xyz})
-  | consumeLines | # b """foo
-                       """bar
-                       """
-                       """xyz
+  | consumeLines | # b } foo
+                       } bar
+                       }
+                       } xyz
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -82,8 +82,8 @@
 | (output, lineRepl cog leftover)
 
 !!= (b#{asdf#hi}, lineRepl catCog b#{'hi'})
-  | lineRepl catCog b#{asdf#} # b """hi
-                                  """'hi'
+  | lineRepl catCog b#{asdf#} # b } hi
+                                  } 'hi'
 
 !!= (b#{'hi'}, lineRepl catCog b#{})
   | lineRepl catCog b#{'hi'} b#{}
@@ -113,15 +113,15 @@ barDoubleNewline=(barDuo newlineChar newlineChar)
 | output
 
 !!=   ^ (_, lineRepl (rexRepl 3,NONE) b#{})
-      # b """| asdf
-          """
-          """asdf
-          """
-          """
+      # b } | asdf
+          }
+          } asdf
+          }
+          }
   | lineRepl (rexRepl [1 NONE]) b#{}
-  # b """ | asdf
-      """asdf
-      """
+  # b }  | asdf
+      } asdf
+      }
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

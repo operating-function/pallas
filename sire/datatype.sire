@@ -105,34 +105,32 @@ dataTag=_DataTag
 | rowE (map varE fields)
 
 
-"""
-""" This example:
-"""
-"""     record#(Pair a b)#(PAIR fst:a snd:b)
-"""
-""" Expands to:
-"""
-"""     = (PAIR fst snd) | [fst snd]
-"""     = (getFst x)     | idx 0 x
-"""     = (getSnd x)     | idx 1 x
-"""     = (setFst v x)   | mut 0 v x
-"""     = (setSnd v x)   | mut 1 v x
-"""
-""" This input format works too:
-"""
-"""     # record (Pair a b)
-"""     | PAIR fst:a snd:b
-"""
-""" And also this:
-"""
-"""     # record (Pair a b)
-"""     | PAIR
-"""     * fst : a
-"""     * snd : b
+;; This example:
+;;
+;;     record#(Pair a b)#(PAIR fst:a snd:b)
+;;
+;; Expands to:
+;;
+;;     = (PAIR fst snd) | [fst snd]
+;;     = (getFst x)     | idx 0 x
+;;     = (getSnd x)     | idx 1 x
+;;     = (setFst v x)   | mut 0 v x
+;;     = (setSnd v x)   | mut 1 v x
+;;
+;; This input format works too:
+;;
+;;     # record (Pair a b)
+;;     | PAIR fst:a snd:b
+;;
+;; And also this:
+;;
+;;     # record (Pair a b)
+;;     | PAIR
+;;     * fst : a
+;;     * snd : b
 
-= sigExpect | "Expected `x` or signature `(x y z)`"
-
-fieldExpect="Expected something like (field:type)"
+= sigExpect   } Expected `x` or signature `(x y z)`
+= fieldExpect } Expected something like (field:type)
 
 = (parseField rex err ret)
 @ sKids (rexKids rex)
@@ -149,9 +147,9 @@ fieldExpect="Expected something like (field:type)"
 & (rex ret)
 | parseField rex err ret
 
-  = fieldItemExpect
-""" * field : type
-""" * field : type
+= fieldItemExpect
+} * field : type
+} * field : type
 
 = (parseItemizedFields rex err ret)
 ^ _ NIL rex
@@ -187,18 +185,18 @@ fieldExpect="Expected something like (field:type)"
 : tag < readKey tagRex err
 | ok (0, sym, SOME tag)
 
-""" {readConstructorSig} accepts inputs that look like one of the
-""" following:
-"""
-"""     CNSTR
-"""     (CNSTR (field:type)*)
-"""     (CNSTR (* field : type)(* field : type)
-"""     (|CNSTR)(* field : type)(* field : type)
-"""
-"""     CNSTR="tag"
-"""     (CNSTR="tag" (field:type)*)
-"""     (CNSTR="tag" (* field : type)(* field : type)
-"""     (|CNSTR="tag")(* field : type)(* field : type)
+;; {readConstructorSig} accepts inputs that look like one of the
+;; following:
+;;
+;;     CNSTR
+;;     (CNSTR (field:type)*)
+;;     (CNSTR (* field : type)(* field : type)
+;;     (|CNSTR)(* field : type)(* field : type)
+;;
+;;     CNSTR="tag"
+;;     (CNSTR="tag" (field:type)*)
+;;     (CNSTR="tag" (* field : type)(* field : type)
+;;     (|CNSTR="tag")(* field : type)(* field : type)
 
 > Rex > Parser (Nat, Symbol, Opt Nat, Row Symbol)
 = (readConstructorSig r err ok)
@@ -234,8 +232,8 @@ fieldExpect="Expected something like (field:type)"
 : fields <- parseManyFields (drop 1 kids) err
 | ok (0, cnstr, oTag, fields)
 
-""" {readDatatypeSig} uses an inglorious short-term hack: it simply runs
-""" the record-signature parser against a fudged input.
+;; {readDatatypeSig} uses an inglorious short-term hack: it simply runs
+;; the record-signature parser against a fudged input.
 
 > Rex > Parser (Nat, Symbol, Opt Nat, Row Symbol)
 = (readDatatypeSig node err ok)
@@ -389,11 +387,11 @@ ex=(PAIR %a %b)
 ;;; #datatype ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = datatypeExpected
-  """ Expected something like
-  """
-  """     # datatype Type
-  """     * CONSTR
-  """     * CONSTR field:type ...
+} Expected something like
+}
+}     # datatype Type
+}     * CONSTR
+}     * CONSTR field:type ...
 
 > Macro
 = ({#datatype} ss rex err ok)

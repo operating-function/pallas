@@ -73,7 +73,7 @@ whyt :: Parser ()
 whyt = void $ some spc
 
 lineStr :: Parser Text
-lineStr = string "\"\"\"" >> takeRest
+lineStr = char '}' >> (eof <|> void (char ' ')) >> takeRest
 
 isNameChar :: Char -> Bool
 isNameChar = (`elem` ("_" <> ['a'..'z'] <> ['A'..'Z'] <> ['0'..'9']))
@@ -260,7 +260,7 @@ frag = do
          (FORM <$> form)
 
     -- Indentation depth is the right-most character of a rune or block-quote.
-    let o = case x of { FORM{} -> 0; LINE{} -> 2; RUNE r -> length r - 1 }
+    let o = case x of { FORM{} -> 0; LINE{} -> 0; RUNE r -> length r - 1 }
 
     pure (o+d, x)
   where

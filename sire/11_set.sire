@@ -197,11 +197,11 @@
 cenExpect="% expects something like %foo or %[...]"
 
 = setKeyExpect
-  """ A set key literal must be one of:
-  """
-  """ -   String ('', 'x', 'text', ...)
-  """ -   Number number (0, 3, 12341234, ...)
-  """ -   Identifier (x, _Y_3, ...)
+} A set key literal must be one of:
+}
+} -   String ('', 'x', 'text', ...)
+} -   Number number (0, 3, 12341234, ...)
+} -   Identifier (x, _Y_3, ...)
 
 = (readSetKey rex err ok)
 @ style | rexStyle rex
@@ -343,14 +343,14 @@ cenExpect="% expects something like %foo or %[...]"
 !!= %[3 4 'a']
  %% 3
  %% 4
- %% """a
+ %% } a
 
 !!= %[3 4 'a']
- %% 3 4 """a
+ %% 3 4 } a
 
 !!= %[3 4 'a']
  %% 3
- %% 4 """a
+ %% 4 } a
 
 !!= %[a b c] | setCatRow [%[a] %[b] %[c]]
 !!= %[a b c] | setCatList [%[a] [%[b] [%[c] 0]]]

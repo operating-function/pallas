@@ -103,7 +103,8 @@ name=(**stringOf1 isNameChar)
 
 > Parser r Bar
 = readLineStr
-| andThen (string b#{"""})
+| andThen (char '}')
+| andThen (choice eof (char ' '))
 | parserTakeRest
 
 > Parser r (CordType, Bar)
@@ -157,8 +158,8 @@ empt=(parserMap (const NIL) (char ']'))
   | runParser (assertUnambiguous "Shut" ("+", ~["+" "+"])) b#{}
 
 !!=   | FAIL
-      # b """Shut-form mixes runes: '+', '*'.
-          """This implementation doesn't allow ambiguous infix forms
+      # b } Shut-form mixes runes: '+', '*'.
+          } This implementation doesn't allow ambiguous infix forms
   | runParser (assertUnambiguous "Shut" ("+", ~["+" "*"])) b#{}
 
 ; This is the same as `frag` but does not accept pages.
@@ -387,12 +388,12 @@ empt=(parserMap (const NIL) (char ']'))
      ++ ^ (7,_) | FORM | SHIP ,(INEST (PREFX com ,(SHIP ,(ILEAF LNAME-(b#x)))))
   | runParser line b#{[] $$ [x]}
 
-!!= OKAY-[(5, LSTR b#{ xyz })]  | runParser line b#{  """ xyz }
-!!= OKAY-[(5, LSTR b#{xyz})]    | runParser line b#{  """xyz}
-!!= OKAY-[(3, LSTR b#{xyz})]    | runParser line b#{"""xyz}
-!!= OKAY-[(5, LSTR b#{ xyz })]  | runParser line b#{  """ xyz }
-!!= OKAY-[(5, LSTR b#{xyz})]    | runParser line b#{  """xyz}
-!!= OKAY-[(3, LSTR b#{xyz})]    | runParser line b#{"""xyz}
+!!= OKAY-[(5, LSTR b#{ xyz })]  | runParser line b#}   }  xyz 
+!!= OKAY-[(5, LSTR b#{xyz})]    | runParser line b#}   } xyz
+!!= OKAY-[(3, LSTR b#{xyz})]    | runParser line b#} } xyz
+!!= OKAY-[(5, LSTR b#{ xyz })]  | runParser line b#}   }  xyz 
+!!= OKAY-[(5, LSTR b#{xyz})]    | runParser line b#}   } xyz
+!!= OKAY-[(3, LSTR b#{xyz})]    | runParser line b#} } xyz
 
 !!= OKAY-[(1, FORM (SHIP ,(INEST (PREFX bar []))))]
   | runParser line b#{()}

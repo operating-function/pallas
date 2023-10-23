@@ -330,10 +330,10 @@
 @ typ (idx 0 bindSpec)
 | if (eql 'o' typ)
         | todo
-      """ No codegen for record-wildcard patterns:
-      """
-      """ We don't know how to handle these yet, higher-level code should
-      """ compile them away before calling this codegen routine.
+        } No codegen for record-wildcard patterns:
+        }
+        } We don't know how to handle these yet, higher-level code should
+        } compile them away before calling this codegen routine.
 | if (eql 'v' typ)
         @ var (idx 1 bindSpec)
         | ok ss [0 var exp []]::acc
@@ -561,8 +561,8 @@
 
 ;;; Read Signatures with Support for Destructuring ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= sigExpect | "Expected `x` or signature `(x y z)`"
-= sigNoHeir | "name-sequence cannot have an heir"
+= sigExpect } Expected `x` or signature `(x y z)`
+= sigNoHeir } name-sequence cannot have an heir
 
 = (readBindSig rex err ok)
 @ rune (rexRune rex)
@@ -585,15 +585,15 @@
 !!= [[[%r [[%v %x] [%s %a]]] [%v %y] [%s %z]]]
         | readBindSig ``([x !a] y !z) v2 v1
 
-= symSigExpect | "Expected `x` or signature `(x y z)`"
-= symSigNoHeir | "name-sequence cannot have an heir"
+= symSigExpect } Expected `x` or signature `(x y z)`
+= symSigNoHeir } name-sequence cannot have an heir
 
 = sigExpect
-  """function/datatype signatures must be something like:
-  """
-  """    x
-  """    (x y...)
-  """    x-x-...
+} function/datatype signatures must be something like:
+}
+}     x
+}     (x y...)
+}     x-x-...
 
 ;
 ; `readDestroyer` parsing something with the same shape as a function

@@ -94,15 +94,15 @@ abstype#(Call a)
 
 abstype#PausedCog
 
-""" abstype#CogInput
-"""
-""" ; internally does (if (isTab e) ({cog_event} e) ({cog_crash} (cdr e)))
-""" case CogInput of
-"""     COG_EVENT e:(Tab Nat Any)
-"""     COG_CRASH e:(Tab Nat Any)
-"""
-""" # newtype PausedCog
-""" | PAUSED_COG m:(CogInput > PausedCog)
+} abstype#CogInput
+}
+} ; internally does (if (isTab e) ({cog_event} e) ({cog_crash} (cdr e)))
+} case CogInput of
+}     COG_EVENT e:(Tab Nat Any)
+}     COG_CRASH e:(Tab Nat Any)
+}
+} # newtype PausedCog
+} | PAUSED_COG m:(CogInput > PausedCog)
 
 
 ;;; Basic Control Flow ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

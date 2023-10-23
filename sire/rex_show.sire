@@ -85,7 +85,7 @@
 @ heir  | rexHeir r
 ^ (barRep d spaceChar, _)
 # switch style
-* %LINE ++ b#{"""}
+* %LINE ++ b#'} '
         ++ natBar text
         ++ | if (isZero heir) 0
            | (barNewline, rexRenderOpen d heir)
@@ -122,17 +122,17 @@
 !!= b#'(3+4+5)(9)'         | rexShow ``((3+4+5)9)
 !!= b#'(| p)((q r)(s))'    | rexShow ``(| p)(q r)(s)
 
-!!=   # b """| p
-          """| q r
-          """s
+!!=   # b } | p
+          } | q r
+          } s
   | rexShow
  `` | p
     | q r
     s
 
-!!=   # b """| p
-          """    | q r
-          """s
+!!=   # b } | p
+          }     | q r
+          } s
   | rexShow
  `` | p
       | q r
@@ -159,8 +159,8 @@
         (page & rexShow (CORD strCat-page))
         (cnst & rexShow valRex-cnst)
   # b
-"""= (rexShow expr)
-"""| (**rexCase) expr (& (r x k))((@ hed (| barCat)((++ (b#"("))((++ (barIntercalate (b#" "))((if (r == '|') (map-rexShow-x))((weld [(natBar-r)] (map-rexShow-x)))))((++ (b#")"))))))((if (k == 0) hed)((barWeld hed (rexShow-k))))) (name & (natBar name)) (cord & (barCat [(b#'"') (natBar-cord) (b#'"')])) (page & (rexShow (CORD (strCat-page)))) (cnst & (rexShow (valRex-cnst)))
+  } = (rexShow expr)
+  } | (**rexCase) expr (& (r x k))((@ hed (| barCat)((++ (b#"("))((++ (barIntercalate (b#" "))((if (r == '|') (map-rexShow-x))((weld [(natBar-r)] (map-rexShow-x)))))((++ (b#")"))))))((if (k == 0) hed)((barWeld hed (rexShow-k))))) (name & (natBar name)) (cord & (barCat [(b#'"') (natBar-cord) (b#'"')])) (page & (rexShow (CORD (strCat-page)))) (cnst & (rexShow (valRex-cnst)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

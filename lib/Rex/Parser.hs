@@ -17,9 +17,9 @@
     TODO Alternatively, find some way to eliminate the one remaining
     edge-cases that requires this code to have an error-path at all:
 
-      """ foo
-            (bar)
-          "zaz"
+      }  foo
+          (bar)
+        "zaz"
 
     What should the layout algorithm do with the above?
 
@@ -108,9 +108,9 @@ impossible str = error ("Impossible: " <> str)
 -- It is invalid for line-strings to have child-nodes, that's the only
 -- input that we handle but reject.
 --
---     """ Hello, hello
---         """ Yeah, that's right?
---         """ What're you going to do about it?
+--     } Hello, hello
+--         } Yeah, that's right?
+--         } What're you going to do about it?
 --
 -- There is a situation where we are adding a continuation to a form
 -- that already has a continuation, for example:

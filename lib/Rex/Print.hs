@@ -76,8 +76,8 @@ rexBlock rex = case rex of
 
     T LINE t k ->
         case rexBlock <$> k of
-            Nothing   -> (2, LINED t Nothing)
-            Just heir -> (max 2 (fst heir), LINED t (Just heir))
+            Nothing   -> (0, LINED t Nothing)
+            Just heir -> (fst heir, LINED t (Just heir))
 
     N OPEN runeTex kids heir ->
         (max ourPad heirPad, RUNIC RUNIC_BLOCK{..})
@@ -142,7 +142,7 @@ blockLines d (pad, val) =
             (d,) <$> toList ps
 
         LINED t k ->
-            (:) (d-2, mkStr ("\"\"\"" <> t))
+            (:) (d, mkStr if null t then "}" else "} " <> t)
                 (maybe [] (blockLines d) k)
 
         RUNIC RUNIC_BLOCK{..} ->

@@ -773,10 +773,10 @@ repl s1 mImport = do
 
     trkM $ toNoun @Text $ unlines
         [ ""
-        , " ==== Sire REPL ===="
+        , "==== Sire REPL ===="
         , ""
-        , " Since input is multi-line, there is currently no input-prompt."
-        , " Just type away!"
+        , "Since input is multi-line, there is currently no input-prompt."
+        , "Just type away!"
         ]
 
     let s2 = switchToContext "REPL" s1

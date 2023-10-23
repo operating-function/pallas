@@ -27,33 +27,31 @@
 
 ;;; Type Values ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-"""
-""" {SCHEME} is the constructor for a type.  (SCHEME 3 e) means
-""" (forall a b c. e).
-"""
-""" In Hindley-Milner, the forall can only occur on the outside of a type,
-""" so there is no forall in the actual TypeExp structure, only at the
-""" onset, in SCHEME.
-"""
-""" {TCON} and {TVAR} are the constructors for type-expressions.
-"""
-""" TVAR references a type-variable (by index).
-"""
-""" TCON references a abstract type by binding-key, along with 0-or-more
-""" type parameters.
-"""
-""" For example:
-"""
-"""     forall a. List (Either a a)
-"""
-""" Is represented as:
-"""
-"""      | SCHEME 1
-"""      | TCON getBinderKey#List
-"""      ,   | TCON getBinderKey#Either
-"""         ++ TVAR 0
-"""         ++ TVAR 0
-"""
+;;; {SCHEME} is the constructor for a type.  (SCHEME 3 e) means
+;;; (forall a b c. e).
+;;;
+;;; In Hindley-Milner, the forall can only occur on the outside of a type,
+;;; so there is no forall in the actual TypeExp structure, only at the
+;;; onset, in SCHEME.
+;;;
+;;; {TCON} and {TVAR} are the constructors for type-expressions.
+;;;
+;;; TVAR references a type-variable (by index).
+;;;
+;;; TCON references a abstract type by binding-key, along with 0-or-more
+;;; type parameters.
+;;;
+;;; For example:
+;;;
+;;;     forall a. List (Either a a)
+;;;
+;;; Is represented as:
+;;;
+;;;      | SCHEME 1
+;;;      | TCON getBinderKey#List
+;;;      ,   | TCON getBinderKey#Either
+;;;         ++ TVAR 0
+;;;         ++ TVAR 0
 
 (TCON key params)=[key params]
 (TVAR key)=key
@@ -63,11 +61,9 @@
 
 ;;; Type Expressions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-"""
-""" {TExp} is a syntactic type expression.  Type expressions are first
-""" parsed into this, then name-resolved, then compiled into the above
-""" structures.
-"""
+;;; {TExp} is a syntactic type expression.  Type expressions are first
+;;; parsed into this, then name-resolved, then compiled into the above
+;;; structures.
 
 # datatype TExp
 * T_FUN a:TExp b:TExp
@@ -79,10 +75,10 @@
 ;;; Parsing Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = schemeExpected
-""" Scheme signatures look like:
-"""
-"""     Any
-"""     (Fun a b)
+} Scheme signatures look like:
+}
+}     Any
+}     (Fun a b)
 
 = (parseSchemeSig rex err ok)
 @ rune (rexRune rex)
@@ -98,32 +94,29 @@
     | err rex "type params must be unique"
 | ok lawName varNames
 
-"""
-""" {#abstype} is used to backfill things that were earlier in the
-""" bootstrapping process than the type system, and things that are
-""" built using PLAN primitives (instead of typed-sire constructucts).
-"""
-""" Pins, Functions, Rows, Tabs, etc.
-"""
-""" {#abstype} simply defines a new type with no operations, and
-""" operations are backfilled retroactivly using {#backfill}.  This can
-""" be abused to create bindings that don't match their declared types,
-""" so don't do that.
-"""
-""" {#abstype} is also used internally by the versions of {#record},
-""" and {#datatype} that are exported by this modules.
-"""
+;; {#abstype} is used to backfill things that were earlier in the
+;; bootstrapping process than the type system, and things that are
+;; built using PLAN primitives (instead of typed-sire constructucts).
+;;
+;; Pins, Functions, Rows, Tabs, etc.
+;;
+;; {#abstype} simply defines a new type with no operations, and
+;; operations are backfilled retroactivly using {#backfill}.  This can
+;; be abused to create bindings that don't match their declared types,
+;; so don't do that.
+;;
+;; {#abstype} is also used internally by the versions of {#record},
+;; and {#datatype} that are exported by this modules.
 
-"""
-""" TODO: Check that the type name uses the TypeNamingConvention,
-""" and that the type variables use the variableNamingConvention.
-"""
+;; TODO: Check that the type name uses the TypeNamingConvention,
+;; and that the type variables use the variableNamingConvention.
+;;
 
 = absExpected
-""" Expected something like one of these:
-"""
-"""     abstype#Any
-"""     abstype#(Fun a b)
+} Expected something like one of these:
+}
+}     abstype#Any
+}     abstype#(Fun a b)
 
 ; = ("#getTypeNames" st rex err ok)
 ; | ok st (cnsE (tabGet p %typeName))
@@ -155,16 +148,12 @@
 | defKPC key #[typeName=sym] [sym]
 | cnsE (SCHEME 0 | TCON key [])
 
-"""
-""" This section redefines {#record} and {#datatype} to also generate
-""" a new opaque type.
-"""
-
-"""
-""" TODO This is jank af, break {#record} and {#abstype} into re-usable
-""" parser + code generated and use those here (instead of just manually
-""" expanding both macros and combining the result).
-"""
+;;; This section redefines {#record} and {#datatype} to also generate
+;;; a new opaque type.
+;;;
+;;; TODO This is jank af, break {#record} and {#abstype} into re-usable
+;;; parser + code generated and use those here (instead of just manually
+;;; expanding both macros and combining the result).
 
 oldRecord=(.{#record})
 oldDataType=(.{#datatype})
@@ -332,30 +321,28 @@ abstype#TyExp
 
 ;;; Parsing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-"""
-""" Type :=
-"""
-"""     | TyCon
-"""     | tyVar
-"""     | (Row a)
-"""     | Row-a
-"""     | (Type > Type)
-"""     | (Type > Type > Type)
-"""     | (Type > Type > Type > ...)
-"""
-"""     | ()                       ;; UNIT=0
-"""     | (,)                      ;; UNIT=0
-"""     | ,a [a]                   ;; *FORBIDDEN* (looks like list type)
-"""     | (a, b)                   ;; Pair a b
-"""     | (a, b, c)                ;; Trip a b c
-"""     | ...
-"""
+;;; Type :=
+;;;
+;;;     | TyCon
+;;;     | tyVar
+;;;     | (Row a)
+;;;     | Row-a
+;;;     | (Type > Type)
+;;;     | (Type > Type > Type)
+;;;     | (Type > Type > Type > ...)
+;;;
+;;;     | ()                       ;; UNIT=0
+;;;     | (,)                      ;; UNIT=0
+;;;     | ,a [a]                   ;; *FORBIDDEN* (looks like list type)
+;;;     | (a, b)                   ;; Pair a b
+;;;     | (a, b, c)                ;; Trip a b c
+;;;     | ...
 
 = annBindExpected
-""" Expected something like:
-"""
-"""     > Type
-"""     = Binding ...
+} Expected something like:
+}
+}     > Type
+}     = Binding ...
 
 = (separateAnnotation ss topRex err ok)
 ^ _ NONE topRex
@@ -510,9 +497,7 @@ abstype#TyExp
 
 ;;; Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-"""
-""" {#typedef} creates a named type based on a type-expression.
-"""
+;; {#typedef} creates a named type based on a type-expression.
 
 = ({#typedef} ss rex err ok)
 @ kids                    | rexKids rex
@@ -555,11 +540,9 @@ printType#Fun
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-"""
-""" {txpFree} returns the set of type variables used in a type-expression,
-""" For example the set of type-variables in {Either a (b, List a)}
-""" is {%[a b]}.
-"""
+;; {txpFree} returns the set of type variables used in a type-expression,
+;; For example the set of type-variables in {Either a (b, List a)}
+;; is {%[a b]}.
 
 > TyExp > Set Symbol
 = (txpFree x)
@@ -569,19 +552,17 @@ printType#Fun
 * (T_VAR sym)    | setSing sym
 * (T_TUP xs)     | setCatRow (map txpFree xs)
 
-"""
-""" {>} is the type-annotation rune.  It is prefixed directly onto the
-""" same block as the definition it annotates
-"""
-"""     > Nat > Nat
-"""     (add3 x)=(add 3 x)
-"""
-""" TODO: Support separate blocks for annotation and binding.
-"""
-"""     \ add3 : Nat > Nat
-"""
-"""     (add3 x)=(add 3 x)
-"""
+;; {>} is the type-annotation rune.  It is prefixed directly onto the
+;; same block as the definition it annotates
+;;
+;;     > Nat > Nat
+;;     (add3 x)=(add 3 x)
+;;
+;; TODO: Support separate blocks for annotation and binding.
+;;
+;;     \ add3 : Nat > Nat
+;;
+;;     (add3 x)=(add 3 x)
 
 = ('>' ss rex err ok)
 : ss tExp bindKey binding
@@ -594,22 +575,20 @@ printType#Fun
     ;
 | ok ss binding
 
-"""
-""" {#backfill} assigns a type to an existing binding without checking it.
-"""
-""" This is intended as a way to retroactively assign types to things
-""" that we defined before the type system was built, and to give types
-""" to things that are defined directly in terms of PLAN primitives.
-"""
-""" (At the moment, nothing is checked at all, so this isn't actually
-""" different from `>`.  In the future it will be, though.
-"""
+;; {#backfill} assigns a type to an existing binding without checking it.
+;;
+;; This is intended as a way to retroactively assign types to things
+;; that we defined before the type system was built, and to give types
+;; to things that are defined directly in terms of PLAN primitives.
+;;
+;; (At the moment, nothing is checked at all, so this isn't actually
+;; different from `>`.  In the future it will be, though.
 
 = backfillExpected
-""" Expected something like:
-"""
-""" # backfill main
-""" > Int > Ptr Ptr-Char > IO ()
+} Expected something like:
+}
+} # backfill main
+} > Int > Ptr Ptr-Char > IO ()
 
 = ('#backfill' ss rex err ok)
 @ kids rexKids-rex
@@ -622,10 +601,8 @@ printType#Fun
 @ ss (addProps ss valKey | tabSing 'type' scheme)
 | ok ss ``(#*)
 
-"""
-""" {#typeof} prints the type of a binding.  It is meant to be used
-""" interactively from the REPL.
-"""
+;; {#typeof} prints the type of a binding.  It is meant to be used
+;; interactively from the REPL.
 
 = ("#typeof" ss rex err ok)
 @ kids (rexKids rex)

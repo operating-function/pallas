@@ -135,12 +135,12 @@
 !!= 0 | rexIsCapsSymbol ``(hi there)
 
 = colSigExpect
-  """ Expected something like one of these:
-  """
-  """     arg
-  """     &(arg ...)
-  """     ?(fun arg ...)
-  """     ??(fun arg ...)
+} Expected something like one of these:
+}
+}     arg
+}     &(arg ...)
+}     ?(fun arg ...)
+}     ??(fun arg ...)
 
 ; ?(f x y) | ??(f x y) | (x y) | .*
 > Rex > Read (Bit, Opt Text, Row Rex)

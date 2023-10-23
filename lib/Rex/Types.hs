@@ -34,7 +34,7 @@ data TextShape
     | CORD  --  'foo'
     | TAPE  --  "foo"
     | CURL  --  {foo}
-    | LINE  --  """foo
+    | LINE  --  } foo
   deriving (Eq, Ord, Show, Generic, NFData, Enum)
 
 type Leaf = (TextShape, Text)

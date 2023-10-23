@@ -651,11 +651,11 @@
     | ELAM pin (nam, nam, pats, bodyExp)
 
 = leafExpect
-  """ Expected something like
-  """
-  """     foo
-  """     123
-  """     0xAF
+} Expected something like
+}
+}     foo
+}     123
+}     0xAF
 
 = (getHexLit bar fall ret)
 | if (neq b#0x | barTake 2 bar) fall

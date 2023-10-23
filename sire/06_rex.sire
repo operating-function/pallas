@@ -314,10 +314,10 @@ sx=(OPEN "=" (v2 wx w9) 0)
 !!= "WORD" | rexStyle `` hi
 !!= "TAPE" | rexStyle `` ""
 !!= "CORD" | rexStyle `` ''
-!!= "LINE" | rexStyle `` """
+!!= "LINE" | rexStyle `` }
 !!= "CURL" | rexStyle `` {}
 
-!!= ``"foobar" | rexClose `` """foobar
+!!= ``"foobar" | rexClose `` } foobar
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

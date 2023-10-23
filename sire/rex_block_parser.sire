@@ -84,7 +84,7 @@
 
 !!= (iRex (I b#"+++" [] NONE)) ` +++
 
-!!= (iRex (T b#"hi" NONE))  ` """hi
+!!= (iRex (T b#"hi" NONE))  ` } hi
 
 = (go bar)
 # datacase (runParser frag bar)
@@ -105,7 +105,7 @@
 !!= (go b#{''""{}})       ` ''""{}
 !!= (go b#{('')("")({})}) ` ''""{}
 !!= (go b#{(3)(4)})       ` (3)(4)
-!!= (go b#{""" xyz})      ` """ xyz
+!!= (go b#'} xyz')        ` } xyz
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -554,20 +554,20 @@ initialBS=(1, NONE)
     ++ `(| bird)
   | map (compose rexClose blockToRex)
   | blox
- ~~ b#"""    |   s
- ~~ b#"""      | n
- ~~ b#"""      | a
- ~~ b#"""    |   k
- ~~ b#"""    |   e
- ~~ b#"""  | die
- ~~ b#"""  |die
- ~~ b#"""  die
- ~~ b#"""
- ~~ b#"""pizza
- ~~ b#"""| pie
- ~~ b#"""
- ~~ b#"""| bird
- ~~ b#"""
+ ~~ b#}     |   s
+ ~~ b#}       | n
+ ~~ b#}       | a
+ ~~ b#}     |   k
+ ~~ b#}     |   e
+ ~~ b#}   | die
+ ~~ b#}   |die
+ ~~ b#}   die
+ ~~ b#}
+ ~~ b#} pizza
+ ~~ b#} | pie
+ ~~ b#}
+ ~~ b#} | bird
+ ~~ b#}
 
 !!=  ++ b#'(s (| n)((| a)))((| k)((| e)))'
      ++ b#'(die (|die))(die)'
@@ -576,22 +576,22 @@ initialBS=(1, NONE)
      ++ b#'(| bird)'
   | map blk&(| rexShow | rexClose | blockToRex blk)
   | blox
- ~~ b#"""    |   s
- ~~ b#"""      | n
- ~~ b#"""      | a
- ~~ b#"""    |   k
- ~~ b#"""    |   e
- ~~ b#"""  | die
- ~~ b#"""  |die
- ~~ b#"""  die
- ~~ b#"""
- ~~ b#"""pizza
- ~~ b#"""| pie
- ~~ b#"""
- ~~ b#"""| bird
- ~~ b#"""
- ~~ b#"""
- ~~ b#"""
- ~~ b#"""
- ~~ b#"""
- ~~ b#"""
+ ~~ b#}     |   s
+ ~~ b#}       | n
+ ~~ b#}       | a
+ ~~ b#}     |   k
+ ~~ b#}     |   e
+ ~~ b#}   | die
+ ~~ b#}   |die
+ ~~ b#}   die
+ ~~ b#}
+ ~~ b#} pizza
+ ~~ b#} | pie
+ ~~ b#}
+ ~~ b#} | bird
+ ~~ b#}
+ ~~ b#}
+ ~~ b#}
+ ~~ b#}
+ ~~ b#}
+ ~~ b#}
