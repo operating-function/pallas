@@ -12,7 +12,7 @@
 """
 
 
-""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan
 /+  02_bit
@@ -35,7 +35,7 @@
 /+  19_pat
 
 
-""" Functions for getting bindings and adding properties """""""""""""""""""""""
+;;; Functions for getting bindings and adding properties ;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO support inline annotations in = macro
 = (getBind name ss rex err ok)
@@ -94,7 +94,7 @@
 | tabGet props propName
 
 
-""" Convenience Macros to Query properties of bindings. """"""""""""""""""""""""
+;;; Convenience Macros to Query properties of bindings. ;;;;;;;;;;;;;;;;;;;;;;;;
 
 = ('#getKey' ss rex err ok)
 : _ symbol      <- rexParseKids rex [readRex readSymbol] err
@@ -154,7 +154,7 @@ why=4
 (0 !!= getProp#(why.src))
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ {#getKey} {#hasProp} {#getProp} {#setProp}

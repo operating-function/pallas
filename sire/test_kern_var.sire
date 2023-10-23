@@ -9,7 +9,7 @@
 /+  stew
 
 
-""" ThreadIDs """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; ThreadIDs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (checkThreadId expected return)
 : tid <- myThreadId
@@ -47,7 +47,7 @@
     | KERNEL ~[0 3] 0 [0 DONE (FULL 9 [(1,10)]) 0] [0 0 0 0]
 
 
-;; getKernelState ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; getKernelState ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; TODO: Write an #assert macro
 = (assert chk exp ok)
@@ -68,7 +68,7 @@
     | KERNEL ~[0] 0 [0] [0]
 
 
-;; Allocate 9 Refs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Allocate 9 Refs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (justAlloc i return)
 | trk ['justAlloc' i]
@@ -83,7 +83,7 @@
             [0 0 0 0 0 0 0 0 0 0]
 
 
-;; Allocate 9 Refs and then release them all. ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Allocate 9 Refs and then release them all. ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (freeLoop i return)
 | trk ['freeLoop' i]
@@ -104,7 +104,7 @@
              [0 0 0 0 0 0 0 0 0 0]
 
 
-;; Allocate an empty MVar and try to read it. ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Allocate an empty MVar and try to read it. ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (starvedReader return)
 : key <- newEmptyMVar
@@ -114,7 +114,7 @@
     | KERNEL ~[] ~[] (DONE, EMPTY [0]) [0 0]
 
 
-;; Pass a value via an MVar ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Pass a value via an MVar ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (satedReader return)
 : key <- newEmptyMVar
@@ -127,7 +127,7 @@
     | KERNEL ~[0 2] ~[] (0, EMPTY [], 0) [0 0 0]
 
 
-;; Pass a value via an MVar, leave full ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Pass a value via an MVar, leave full ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (satedReader return)
 : key <- newEmptyMVar
@@ -142,7 +142,7 @@
     | KERNEL ~[0 2] ~[] (0, FULL 10 [], 0) [0 0 0]
 
 
-;; Starved Writer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Starved Writer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (starvingWriters return)
 : key <- newMVar 9
@@ -159,7 +159,7 @@
              [0 0 0 0 0 0 0]
 
 
-;; Sated Writers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Sated Writers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (satedWriters return)
 : key <- newMVar 9
@@ -174,7 +174,7 @@
     | KERNEL ~[0 3 2] ~[] (0, EMPTY [], DONE, DONE) [0 0 0 0]
 
 
-;; Canceled threads are not reused until the next input. ;;;;;;;;;;;;;;;;;;;;;;;
+;;; Canceled threads are not reused until the next input. ;;;;;;;;;;;;;;;;;;;;;;
 
 = (canceledCalls return)
 : foo <- fork (syscall HTTP_HEAR)
@@ -196,7 +196,7 @@
              [0 0 0 0 0]
 
 
-;; Compond Events ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Compond Events ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (compoundEvents return)
 : foo <- fork (syscall HTTP_HEAR)

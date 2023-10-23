@@ -13,7 +13,7 @@
 """
 
 
-""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan
 /+  02_bit  [if else ifNot and or not bit TRUE FALSE]
@@ -26,7 +26,7 @@
 /+  06_rex
 
 
-""" Fake Typing Syntax """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Fake Typing Syntax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (">" st rex err ok)
 @ heir (rexHeir rex)
@@ -41,7 +41,7 @@
 | ok st ``(#*)
 
 
-""" Basic Row Operations """""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Basic Row Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (rowCons x xs)=(weld (v1 x) xs)
 (rowSnoc xs x)=(weld xs (v1 x))
@@ -103,7 +103,7 @@
 !!= (v3 0 1 0) | insert 3 9 (v2 0 1)
 
 
-""" Generating Basic Sire Expressions """"""""""""""""""""""""""""""""""""""""""
+;;; Generating Basic Sire Expressions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (appE exps)
 | if (eql 1 (len exps))
@@ -137,7 +137,7 @@
 | rev exps
 
 
-""" Row Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Row Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = ("," st rex err ok)
 | ok st (rowE | rexKids rex)
@@ -148,7 +148,7 @@
 !!= 3,4   (v2 3 4)
 
 
-""" Maybe """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Maybe ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ''' TODO Use (0 | [x])
 
@@ -187,7 +187,7 @@
 !!= 1 | isNone NONE
 
 
-""" Unfolding """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Unfolding ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; TODO: Would it be better to just use the list version and then generate
 ; a row from that?  This is a very natural function on lazy lists.
@@ -205,7 +205,7 @@
   | if (lte x 5) (SOME [x (inc x)]) NONE
 
 
-""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 !!= [0 1 2] (v3 0 1 2)
 
@@ -260,7 +260,7 @@
 !!= 1 | not (has "aa" ["bb" "cc"])
 
 
-""" Lists """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = NIL           | 0
 = (**CONS x xs) | [x xs]
@@ -314,7 +314,8 @@
 !!= SOME-3 | listLast (CONS 3 NIL)
 !!= SOME-4 | listLast (CONS 3 (CONS 4 NIL))
 
-""" Operations With Lists """"""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Operations With Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (listFoldl f z l)
 | **listCase l z
@@ -523,7 +524,7 @@
 !!= [0 5]       | sortUniq [0 0 5 5 0 0]
 
 
-""" Searching """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Searching ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (listIndexed l)=(listZip (listEnumFrom 0) l)
 
@@ -616,7 +617,7 @@
   | listSearch (const FALSE) (listTake 10 | listEnumFrom 0)
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (listIntersperse sep xs)
 | **listCase xs xs
@@ -664,7 +665,8 @@
 !!= (listProd [1 [2 0]] [3 [4 0]])
   | [[1 3] [[1 4] [[2 3] [[2 4] 0]]]]
 
-""" Either """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Either ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (**LEFT x)  [0 x]
 = (**RIGHT x) [1 x]
@@ -707,7 +709,7 @@
   | partition [LEFT-0 RIGHT-1 RIGHT-2 LEFT-3]
 
 
-""" Maybe utils that depend on list """""""""""""""""""""""""""""""""""""""""""
+;;; Maybe utils that depend on list ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (listCatMaybes top)
 | **listCase top NIL
@@ -748,7 +750,7 @@
 !!= [1 4 5] | catMaybes [SOME-1 NONE SOME-4 SOME-5 NONE]
 
 
-""" Tall-Form Row Literals """""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Tall-Form Row Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 openRowExpect={Expected something like (++ x), (++ f x y), etc}
 
@@ -796,7 +798,7 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
  ++ 5
 
 
-""" Binary Search """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Binary Search ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; {bsearch} finds the index of an item within a "row set".  The input
 ; row is presumed to be in ascending order and without duplciates.
@@ -859,7 +861,7 @@ F=found
 !!= 1 | search_chk [1 3 5 6] | rowIndexed [N|0 F|0 N|1 F|1 N|2 F|2 F|3 N|4 N|4]
 
 
-""" Traversing Lists """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Traversing Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > (a > (b>r)) > Row a > m (Row b)
 = (traverseList f xs return)
@@ -897,7 +899,7 @@ F=found
   | pure (add st item) item
 
 
-""" Traversing Rows """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Traversing Rows ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > (a > (b>r)) > Row a > m (Row b)
 = (rowTraverse f xs return)
@@ -922,7 +924,7 @@ F=found
   | pure (add st item) (inc item)
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ slash slice chunks rep rowCons rowSnoc

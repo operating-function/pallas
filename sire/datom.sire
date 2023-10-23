@@ -11,7 +11,8 @@
 """ Embeddable Entity/Attribute/Value datastore.
 """
 
-""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  boot
 /+  hitch
@@ -22,14 +23,14 @@
 /+  stew
 
 
-""" Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (fromSingletonSet opt bad gud)
 | if (neq 1 | setLen opt) bad
 | **gud (setMin opt)
 
 
-""" Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; for v0, all trees are Tabs and Sets, not hitch stuff. doing all the hitch
 ;; stuff will require adding a `Multimap a b c -> Map a (Map b (MapSet c))`
@@ -314,7 +315,8 @@ e
     : eid <- **fromSingletonSet eidSet | 'invalid eid for aid?! ' aid
     | lookupByEA eid attr db
 
-""" User Transact Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; User Transact Parsing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Resolve a lookup ref into an eid or error.
 ;
@@ -575,7 +577,8 @@ e
 * (LEFT l)  | 'datom transaction failed: ' [errors=l =db]
 * (RIGHT r) | r
 
-""" Pull """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Pull ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; AttrExpr, an "attribute expression", the parsed version of trying to represent
 ; the way of specifying an attribute in a pull, in either direction, subject to
@@ -754,7 +757,7 @@ e
 | RIGHT results
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ fromSingletonSet

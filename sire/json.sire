@@ -12,7 +12,7 @@
 /+  types
 
 
-""" Lexemes """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Lexemes ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 abstype#(Result2 a b) ; type (Result2 a b) = (Or Str (a, b))
 abstype#(Opt2 a b)    ; type (Opt2 a b)    = (Or Zero (a, b))
@@ -36,7 +36,7 @@ typedef#Expo#(Opt2 Nat Nat)
 * ( TERR   = err    ) off:Nat why:Str
 
 
-""" Lexing Whitespace  """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Lexing Whitespace  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (chomp input off)
 # switch (barIdx off input)
@@ -49,7 +49,7 @@ typedef#Expo#(Opt2 Nat Nat)
 !!= 7 (chomp b#'	  	   xyz' 0)
 
 
-""" Lexing Strings """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Lexing Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (lexStringLoop input top off)
 @ off (barElemIndexOff '"' off input)
@@ -83,7 +83,7 @@ typedef#Expo#(Opt2 Nat Nat)
   | lexString b#'"fdsafdsa\"more' 1
 
 
-""" Lexing Digits """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Lexing Digits ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (consumeDigits input startOff)
 ^ _ 0 startOff
@@ -97,7 +97,7 @@ typedef#Expo#(Opt2 Nat Nat)
 !!= [0 0]    (consumeDigits b#'+1234+' 0)
 
 
-""" Lexing Strings of Zeros """"""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Lexing Strings of Zeros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (consumeZeros input startOff)
 ^ _ 0 startOff
@@ -111,7 +111,7 @@ typedef#Expo#(Opt2 Nat Nat)
 !!= [3 5] | consumeZeros b#{+0000+} 2
 
 
-""" Lexing Decimal Sections """"""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Lexing Decimal Sections ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = noDig | 'No digits after dot (.)'
 
@@ -143,7 +143,7 @@ typedef#Expo#(Opt2 Nat Nat)
 !!= noDig      | lexDecimal b#'#.#'     1
 
 
-""" Lexing Exponent Sections """""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Lexing Exponent Sections ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;
 ; optional exponent. {e,E}{-,+,[nothing]}[digits]
@@ -196,7 +196,7 @@ typedef#Expo#(Opt2 Nat Nat)
 !!= [0 1]      | lexExponent b#'#g00#'  1
 
 
-""" Lexing Json """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Lexing Json ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (lexJson input)
 ^ _ 0
@@ -298,10 +298,7 @@ typedef#Expo#(Opt2 Nat Nat)
  ++ TSPACE
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-
-""" Representation """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 abstype#Json
 
@@ -384,7 +381,7 @@ setProp#(JMAP.conRaw)#TRUE
  ++ [%m [foo={null}]]
 
 
-""" Parser """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Parser ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (eatSpace stream)
 : t ts <- **listCase stream stream
@@ -516,10 +513,10 @@ setProp#(JMAP.conRaw)#TRUE
  ## =null | JNULL
 
 
-""" Printer """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Printer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-""" TODO: Substitue escape characters.
-""" TODO: Handle edge-cases with "\u1234" escapes.
+;;; TODO: Substitue escape characters.
+;;; TODO: Handle edge-cases with "\u1234" escapes.
 
 = (printVec go vec)
 ^ [b#{[} _ b#{]}]
@@ -567,7 +564,7 @@ setProp#(JMAP.conRaw)#TRUE
  ++ printJson | idx 0 | parseJson b#{ {"str":"x", "null":null}}
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ JLexeme

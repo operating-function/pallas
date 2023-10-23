@@ -18,7 +18,7 @@
 /+  stew
 
 
-""" Schema """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Schema ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = strollSchema
 ^ assertTransact _ emptyDB
@@ -96,9 +96,10 @@
 ;     both Roam, logseq and other imitators. But this involves another
 ;     attribute in ":page/" to support.
 
-""" Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"""
-""" These are general and should be moved elsewhere
+
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; These are general and should be moved elsewhere
 
 ; We need to be able to generate random uids, which are like base64 but with
 ; '-' and '_' instead of '+' and '/'.
@@ -119,7 +120,8 @@
 = (assertRight x)
 | fromRight ('assertion failed' x) x
 
-""" Database Record """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Database Record ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 # record StrollDb
 | STROLL_DB gen:Rand db:DB
@@ -161,7 +163,8 @@
     | loop gen
 [uid (STROLL_DB gen db)]
 
-""" Queries """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Queries ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Imagine you are writing a web frontend for the above and you want to deal
 ; with it entirely with pulls. This is contrived, since at least logseq's

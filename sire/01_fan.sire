@@ -36,7 +36,7 @@
 """
 
 
-; """ Names for PLAN Primitives """"""""""""""""""""""""""""""""""""""""""""""""""
+;;; Names for PLAN Primitives ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = LAW     | 0
 = valCase | 1
@@ -47,7 +47,7 @@
 = todo    | "todo"  ; Calling a primop above 4 is a crash.
 
 
-; """ Primops API """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Primops API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = id (id x ? x)
 
@@ -73,7 +73,7 @@
 = (_IsOne x)   | 1 (_ & 0) (_ _ _ & 0)     (_ _ & 0) (2 0 _IsZero) x
 
 
-""" Jet Aliases """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Jet Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; The _JetNaming convention is used for laws that runtime systems are
 ; expected to optimize.  It is unsightly, however.
@@ -96,7 +96,7 @@
 = isOne   | _IsOne
 
 
-""" Convenient Lisp-Style Cell Accessors """""""""""""""""""""""""""""""""""""""
+;;; Convenient Lisp-Style Cell Accessors ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (caar x)   | car | car | x
 = (cadr x)   | car | cdr | x
@@ -113,7 +113,7 @@
 = (caaaar x) | car | car | car | car | x
 
 
-""" Common Combinators """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Common Combinators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (id x)          | x
 = (const x y)     | x
@@ -124,7 +124,7 @@
 = (supply x f)    | f x
 
 
-""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 !!= 0   | pinItem 4
 !!= 4   | pinItem | 4 4
@@ -174,7 +174,7 @@
 !!= 7 | (0 'f' 0 (1 7 1))
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ LAW valCase natCase inc PIN die todo

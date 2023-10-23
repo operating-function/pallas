@@ -19,7 +19,7 @@
 """
 
 
-""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan
 /+  02_bit  [if else ifNot and or not]
@@ -35,7 +35,7 @@
 /+  10_str  [strToList strWeld loadKeyWord loadDecimal]
 
 
-""" Sets """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Sets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; {_MkSet} is an internal routine that expects to be given a
 ; "row set" a sorted row with no duplicates.
@@ -143,7 +143,7 @@
 = (setPop c)            | (setMin c, setDrop 1 c)
 
 
-""" % Rune: Atoms, Tabs, and Sets """"""""""""""""""""""""""""""""""""""""""""""
+;;; % Rune: Atoms, Tabs, and Sets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (readKey rex err ok)
 | if (neq 0 | rexHeir rex)
@@ -170,7 +170,7 @@
 !!= 9   (readKey (EMBD 9) v2 x&x)
 
 
-""" %% Rune: Tall-Form Tabs and Sets """""""""""""""""""""""""""""""""""""""""""
+;;; %% Rune: Tall-Form Tabs and Sets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (readSetLine rex err ok)
 | rexGetNodeWithRune {%%} rex
@@ -263,7 +263,7 @@ cenExpect="% expects something like %foo or %[...]"
 | ok st (EMBD val)
 
 
-""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 !!= %[a]   | setFromRow [%a %a]
 !!= %[a b] | setFromRow [%a %b]
@@ -361,7 +361,7 @@ cenExpect="% expects something like %foo or %[...]"
 !!= (%[0 1], %[2 3]) | setSplitLT 2 %[0 1 2 3]
 
 
-""" Aliases """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 setUnion=setWeld
 setDifference=setSub
@@ -371,7 +371,7 @@ setIntersection=setIntersect
 setToRow=(_SetToRow)
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ isSet

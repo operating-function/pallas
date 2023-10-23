@@ -33,7 +33,7 @@
 """
 
 
-""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan
 /+  02_bit  [if else ifNot not and or FALSE]
@@ -62,7 +62,7 @@
 /+  17_sug  [readColExp colExpE]
 
 
-""" Pattern Matching On Rows """""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Pattern Matching On Rows ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; TODO: Rebuild this as a call to (sequenceBinds >=> bindSeqE).
 
@@ -98,7 +98,7 @@
         (#| x y)
 
 
-""" Parsing Binders in General """""""""""""""""""""""""""""""""""""""""""""""""
+;;; Parsing Binders in General ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; # datatype Pat
 ; * PVAR=v n:Sym
@@ -303,7 +303,7 @@
      ++ [%v %y]
 
 
-""" Sequence Binds """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Sequence Binds ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;
 ; Then, generate a binder sequence from this:
@@ -451,7 +451,7 @@
    ++ ``(foo foo)
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (bindSeqE binds body deps)
 @ addBind
@@ -488,7 +488,7 @@
    | [%_g5 %y %z]
 
 
-""" Multi Binders """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Multi Binders ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (isMultiBinder rex)
 | eql "=" (rexRune rex)
@@ -509,7 +509,7 @@
         [RIGHT-[[%v %x] ``3] RIGHT-[[%v %y] ``(#| 3 4)]]
 
 
-""" Lambda Binders """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Lambda Binders ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (isLambdaBinder rex)
 | and (rexIsNode rex)
@@ -527,7 +527,7 @@
 !!= 0 | isLambdaBinder ``[]
 
 
-""" Pattern Matching on Tabs """""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Pattern Matching on Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; TODO: Rebuild this as a call to (sequenceBinds >=> bindSeqE).
 = (destructureTabE nex bindings tabExp bodyExp ok)
@@ -561,7 +561,7 @@
         (add y q)
 
 
-""" Read Signatures with Support for Destructuring """""""""""""""""""""""""""""
+;;; Read Signatures with Support for Destructuring ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = sigExpect | "Expected `x` or signature `(x y z)`"
 = sigNoHeir | "name-sequence cannot have an heir"
@@ -641,7 +641,7 @@
 
 
 
-""" Generic Pattern Matching """""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Generic Pattern Matching ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (makeDestroyer ss binds bodyExpr pure)
 : ss sig
@@ -788,7 +788,7 @@
     | addV3 [1 2 3] [10 20 30]
 
 
-""" Named Lambdas with Destroy """""""""""""""""""""""""""""""""""""""""""""""""
+;;; Named Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; TODO: Lambda binders should have binder-identities
 
@@ -814,7 +814,7 @@
 !!= ~[0 0 0] | listTake 3 z?(0::z)
 
 
-""" Anon Lambdas with Destroy """"""""""""""""""""""""""""""""""""""""""""""""""
+;;; Anon Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = ("&" ss rex err ok)
 : sigRex bodyExpr <- rexParseKids rex [readRex readRex] err
@@ -832,7 +832,7 @@
      | foldr ([k v] t & tabIns k v t) #[] [[%x 0] [%y 1] [%z 2]]
 
 
-""" Col Sugar with Destroy """""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Col Sugar with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = ({:} ss rex err ok)
 : valExp oFunName binds bodyExp
@@ -843,7 +843,7 @@
 | colExpE valExp oFunName sig bodyExp
 
 
-""" Top-Level Definitions with Destroy """""""""""""""""""""""""""""""""""""""""
+;;; Top-Level Definitions with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (keyE k)
 | if (strIsSymbol k) (varE k) (txtE k)
@@ -1019,7 +1019,7 @@
         [y x]
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ readBindSig parseBinder

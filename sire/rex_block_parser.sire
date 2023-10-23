@@ -301,7 +301,7 @@ oneForm="Blocks starting with closed forms may only contain one form."
   | testRush b#"| f x y (z | z | z)"
 
 
-;; Block Parser ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Block Parser ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > (Nat, Frag) > Bit
 = (fragIsForm [_ frag])

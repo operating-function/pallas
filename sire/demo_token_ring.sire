@@ -9,7 +9,7 @@
 /+  stew
 
 
-""" Talker """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Talker ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (talker ourName us them white theMsg cogExit)
 ; trk [%talker ourName us them theMsg]

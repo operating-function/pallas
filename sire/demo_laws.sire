@@ -18,7 +18,7 @@
 /+  stew
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (gulf f t)=(gen (sub inc-t f) add-f)
 
@@ -138,9 +138,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= (mat 9) | add (bex 9) 72
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Some Monadic Operations on `Option` ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Some Monadic Operations on `Option` ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > Row (Opt a)
 > Opt (Row a)
@@ -160,9 +158,7 @@ hexAlphabet=(natBar "0123456789abcdef")
    | optionRowSequence [SOME-3 SOME-4 SOME-5]
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Parsing Nat Literals ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Parsing Nat Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > Char > Opt Nat
 = (readDigit char)
@@ -196,9 +192,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 !! eql NONE     readNat-"a"
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Printing Rex Expressions ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Printing Rex Expressions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (">=" ss rex err ok)
 @ heir  | rexHeir rex
@@ -214,9 +208,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= 1 (4 >= 3)
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Scratch Pad: Pronouncing Numbers ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Scratch Pad: Pronouncing Numbers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (natWords n)
 # switch n
@@ -243,9 +235,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 !!= %OneZero       natWords-10
 
 
-;;;;;;;;;;;;;;;;;;;
-;; Serialization ;;
-;;;;;;;;;;;;;;;;;;;
+;;; Serialization ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (jam external top)
 @ pos | len external
@@ -333,9 +323,7 @@ hexAlphabet=(natBar "0123456789abcdef")
     ++ pinHash r
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Macro: Value Recursion (Knots) ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Macro: Value Recursion (Knots) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (readBindPairs rex err ok)
 ^ _ NIL rex

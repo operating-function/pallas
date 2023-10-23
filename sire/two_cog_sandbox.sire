@@ -10,7 +10,8 @@
 /+  stew
 /+  datatype  ["#record" "#datatype" "#datacase"]
 
-""" Sandbox """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Sandbox ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; The sandbox takes two cog functions: the container and the item. Both use the
 ; virtual `%sandbox` hardware to talk to the sandbox, which are zeroed
@@ -186,7 +187,8 @@
 ; (`withSandbox` is just an alias to the second half of the recursive loop.)
 | sandboxPerformFilter container item
 
-""" allowAll """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; allowAll ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; A sandbox policy cog which performs no filtering at all. This is mostly for
 ; demonstration.
@@ -196,7 +198,8 @@
 ? (allowAllCog req resp)
 | allowAllCog req
 
-""" Filter Tools """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Filter Tools ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Filter tools are a set of generic tools for building a very simple filtering
 ; mechanism for c with `withSandbox`. From a row of request prefixes, we build
@@ -249,7 +252,8 @@
 !!= FALSE | requestMatches (buildMatcher [[%eval 4] [%eval 5]])
                            [%eval 2]
 
-""" Filter Container """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Filter Container ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; A basic, non-updatable container which takes in a list of prefix patterns,
 ; rejects anything that doesn't match them, prevents talking to cogs which
@@ -354,7 +358,8 @@
         FALSE
     | or (eql %reap (idx 1 r)) (eql %stop (idx 1 r))
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ withSandbox

@@ -53,7 +53,7 @@
 * LTEXT=LTEXT x:CordType y:Str
 
 
-;; Common Constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Common Constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; These are just ugly literals
 
@@ -356,7 +356,7 @@ empt=(parserMap (const NIL) (char ']'))
 | parserPure (listToRow lis)
 
 
-;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 !!= (OKAY (LTEXT THICK b#foo)) | runParser leaf b#{"foo"}
 !!= (OKAY (LTEXT LIGHT b#foo)) | runParser leaf b#{'foo'}

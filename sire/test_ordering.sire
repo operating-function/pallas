@@ -8,7 +8,7 @@
 /+  stew
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (flipOrd o)
 | if (eql o EQ) EQ
@@ -27,7 +27,7 @@ raw=(pinItem cmp)
       (eql (raw y x) flipOrd-expected)
 
 
-""" PLAN Type Ordering Tests """""""""""""""""""""""""""""""""""""""""""""""""""
+;;; PLAN Type Ordering Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 !! checkOrder EQ 0 0         ; Nats are the same as nats.
 !! checkOrder LT 0 const     ; Nats are smaller than pins.
@@ -53,7 +53,7 @@ raw=(pinItem cmp)
 !! checkOrder EQ 1 1
 
 
-""" Basic Ordering Tests """""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Basic Ordering Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 !! checkOrder LT 9     const
 !! checkOrder EQ const const
@@ -111,7 +111,7 @@ raw=(pinItem cmp)
 !! checkOrder GT (0 3 3 3) (0 2 2 2)
 
 
-""" Rows, Tabs, and Sets """""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Rows, Tabs, and Sets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; non-empty rows and tabs are closures.
 !! checkOrder EQ []  []
@@ -168,7 +168,7 @@ anonConst=(4 (x y & x))
 !! checkOrder GT [0] | (2 1)
 
 
-""" Fun, Pin, Bar, Cow, Rex """"""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Fun, Pin, Bar, Cow, Rex ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; These are all laws
 

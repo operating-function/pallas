@@ -54,7 +54,7 @@
 """
 
 
-""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan
 /+  02_bit  [if ifNot and or not else]
@@ -90,7 +90,7 @@
 /+  16_bar  []
 
 
-""" Parsing Signatures """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Parsing Signatures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = sigExpect | "Expected `x` or signature `(x y z)`"
 = sigNoHeir | "name-sequence cannot have an heir"
@@ -113,7 +113,7 @@
 !!= [``([][]) sigNoHeir] | readSignature ``([][])  v2 id
 
 
-""" The Col Macro """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; The Col Macro ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = cbExpect | "Expected a <- (or <) node in : binder"
 
@@ -261,7 +261,7 @@
         (.{:} 0 ``((: x <* f)(, 3)) v2 v2)
 
 
-""" Fancy Function Application """""""""""""""""""""""""""""""""""""""""""""""""
+;;; Fancy Function Application ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (unwrapTarSeq rex err ok)
 ^ _ NIL rex
@@ -321,7 +321,7 @@
 !!= 3                 | ()(* add)(* 2)(* 1)
 
 
-""" Closed List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Closed List Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (consE x xs)=(rowE [x xs])
 nilE=(cnsE NIL)
@@ -355,7 +355,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 !!= ~[]      | 0
 
 
-""" Open List Literals """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Open List Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (readItemized rune readItem readUnmatchingHeir rex err ok)
 ^ _ rex ok
@@ -393,7 +393,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
        ~~ 5
 
 
-""" Quasi Quotation """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Quasi Quotation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; {readQuasiTree} reads a quasi-quoted rex input and returns a Rex
 ; node with the quasi-quoted parts stored as embedded values.
@@ -582,7 +582,7 @@ four=(WORD {4} 0)
 !!= 0 | (0 || 0 || 0)
 
 
-""" Short-Hand Assertion """""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Short-Hand Assertion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (readAssert more rex err ok)
 @ kids (rexKids rex)
@@ -625,7 +625,7 @@ four=(WORD {4} 0)
  | 3
 
 
-""" Equality """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Equality ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (readBinOpRow expectMsg rune readExp rex err ok)
 @ fail | err rex expectMsg
@@ -694,7 +694,7 @@ four=(WORD {4} 0)
 !!= 0 (3 == 3 == 4)
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ rexGetRune

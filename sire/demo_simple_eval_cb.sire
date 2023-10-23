@@ -8,7 +8,7 @@
 /+  stew
 
 
-""" Eval Tests """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Eval Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; This is a simple eval callback. It waits on a single eval, prints the
 ; results, and exits.

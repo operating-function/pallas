@@ -63,7 +63,7 @@
 /+  types
 
 
-""" Types """"""""""""""""""""'"""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 typedef#ThreadId#Nat
 
@@ -101,7 +101,7 @@ abstype#PausedCog
 """ | PAUSED_COG m:(CogInput > PausedCog)
 
 
-""" Basic Control Flow """""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Basic Control Flow ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > a > Thread
 = (DONE _ end me fr kl sl rq)
@@ -177,7 +177,7 @@ abstype#KernelState ; TODO
 ;
 
 
-""" Refs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Refs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 abstype#(Ref a)
 
@@ -213,7 +213,7 @@ abstype#(Ref a)
 | k 0 end me fr kl sl rq
 
 
-""" MVar """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; MVar ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 abstype#(MVar a) ; TODO: #datatype should create this
 
@@ -271,7 +271,7 @@ newEmptyMVar=(newRef (**EMPTY []))
         | exe 0 (k val end me) them fr kl sl rq
 
 
-""" The Kernel """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; The Kernel ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > Call a > Cog a
 = (syscall request k end me fr kl sl rq)
@@ -342,7 +342,7 @@ cog
 ; the runtime system.
 
 
-""" Sys Calls """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Sys Calls ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (EVAL tim exp)        | weld [%eval tim] exp
 = (EVAL1 tim f p)       | [%eval tim f p]
@@ -404,7 +404,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 > HttpReqId > HttpStatusCode > HttpStatusMsg > HttpHeader > Bar > Call ()
 
 
-""" Utils """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; TODO: Hack: This doesn't belong here.
 = (forceUnpackEvalResult ctx res)
@@ -438,8 +438,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 | return results
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ MVar

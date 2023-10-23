@@ -14,7 +14,7 @@
 /+  stew
 
 
-""" Demo """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; This will generate a random byte, get the current time,
 ;;; wait for $byte seconds, and repeat
@@ -46,7 +46,7 @@
 | (forever (randomWait v)) k
 
 
-;; Manual Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Manual Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; threadDemoTwice %zod ;;; Boot Machine
 ; _ 1 x#11             ;;; Got a random byte.
@@ -60,6 +60,6 @@
 ; _ 1 x#11             ;;; Invalid response to trigger logging.
 
 
-;; Export For Boot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Export For Boot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 main=threadDemoTwice

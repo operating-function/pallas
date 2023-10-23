@@ -10,7 +10,7 @@
 /+  demo_multi_effect_html [multi_demo_index_html]
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO Support `(# x)("""...)("""...)
 = favicon
@@ -143,12 +143,13 @@
         | done 0
 | runSocketLoop broadcast class vOpen next
 
-;;;   ++ | tableAdd (TELNET_WAIT h) (onTelnetWait h)
-;;;      | tableAdd (TELNET_RECV h) (onTelnetRecv h)
-;;;      | tableAdd TELNET_OPEN PIN-onTelnetOpen
-;;;      | table
+;   ++ | tableAdd (TELNET_WAIT h) (onTelnetWait h)
+;      | tableAdd (TELNET_RECV h) (onTelnetRecv h)
+;      | tableAdd TELNET_OPEN PIN-onTelnetOpen
+;      | table
 
-;; Random Wait ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Random Wait ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; This will generate a random byte, get the current time,
 ;;; wait for $byte seconds, and repeat
@@ -174,7 +175,7 @@
 | k x
 
 
-;; WebSocket Server ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; WebSocket Server ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; = (runWebSocket _next)
 ; : vOpen <- newRef %[]

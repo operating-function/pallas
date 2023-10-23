@@ -9,7 +9,7 @@
 /+  stew
 
 
-;; Kernel State ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Kernel State ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; State =
 ;;;     ( List Nat      ++  free slots
@@ -33,7 +33,7 @@
 (setRequest key val st)=(**modifyRequestsRow (mut key val) st)
 
 
-;; Core Thread Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Core Thread Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > State > (State, ThreadId)
 = (allocateThread [free slots requests])
@@ -211,7 +211,7 @@
 | ioLoop st (**getRequestsRow st)
 
 
-;; IO Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; IO Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (syscall req exe tid st)
 | **setSlot tid exe
@@ -277,7 +277,7 @@
 | st
 
 
-;; MVars ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; MVars ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; data MVar a
 ;;;   | Full a (Row (ThreadId,a))  ;;  Value + Pending writes
@@ -344,7 +344,7 @@
 | return rs
 
 
-;; Looping ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Looping ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (forList_ list f return)
 : x xs <- listCase list (return ())
@@ -372,7 +372,7 @@
 (traverse f set return)=(**for set f return)
 
 
-;; Concurency ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Concurency ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > IO a > IO b > IO (a, b)
 = (concurrently x y return)
@@ -410,7 +410,7 @@
 (forConcurrently xs f return)=(**mapConcurrently f xs return)
 
 
-;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^ pure andThen forever
 ^-^ exit cancel fork prepareFork finalizeFork cancelFork

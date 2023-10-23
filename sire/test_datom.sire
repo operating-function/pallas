@@ -11,7 +11,7 @@
 /+  datom
 
 
-""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = postDB
 ^ assertTransact _ emptyDB
@@ -225,7 +225,7 @@
     | lookupByVA tendiesEid ":order/lineItems" multiOrders
 
 
-""" Pull """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Pull ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 !!=    | RIGHT [':item/product'='Hamburger' ':item/quantity'=1]
     | pull [":item/product" ":item/quantity"] 11 multiOrders

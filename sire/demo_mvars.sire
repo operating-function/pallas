@@ -10,7 +10,7 @@
 /+  stew
 
 
-;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = yieldDemo
 | runCog
@@ -30,7 +30,7 @@
 | trk [%x (idx 0 curTime)]
 | trk [%y (idx 0 curTime)]
 ;
-;;; One at a time ;;;
+; One at a time
 ;
 : forTime <- for [2 1 0 1 2]
            & (off return)
@@ -39,7 +39,7 @@
            : _   <- syscall (**TIME_WAIT (add off tim))
            | return tim
 ;
-;;; All at the same time ;;
+; All at the same time
 ;
 : forPar <- forConcurrently [2 1 0 1 2]
           & (off return)
@@ -55,11 +55,11 @@
 | return ()
 
 
-;; Manual Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Manual Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-yieldDemo %zod ;;; Boot Machine
+yieldDemo %zod ; Boot Machine
 
 
-;; Export For Boot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Export For Boot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 main=yieldDemo

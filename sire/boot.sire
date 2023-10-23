@@ -4,7 +4,7 @@
 
 ### boot <- 21_par
 
-;; Re-export everything
+;;;; Re-export everything in the boot-sequence.
 
 /+ 01_fan
 /+ 02_bit

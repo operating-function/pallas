@@ -10,7 +10,7 @@
 /+ datatype
 
 
-""" Utilities """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Utilities ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; TODO: Move these into 13_exp (or wherever).
 
@@ -25,7 +25,7 @@
 
 
 
-""" Type Values """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Type Values ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 """
 """ {SCHEME} is the constructor for a type.  (SCHEME 3 e) means
@@ -61,7 +61,7 @@
 (SCHEME vars typ)=[vars typ]
 
 
-""" Type Expressions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Type Expressions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 """
 """ {TExp} is a syntactic type expression.  Type expressions are first
@@ -76,7 +76,7 @@
 * T_TUP exps:(Row TExp)
 
 
-""" Parsing Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Parsing Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = schemeExpected
 """ Scheme signatures look like:
@@ -184,7 +184,7 @@ oldDataType=(.{#datatype})
   #* $dCmd
 
 
-""" Declare Basic Types """"""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Declare Basic Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 abstype#Type
 abstype#Void
@@ -330,7 +330,7 @@ abstype#TyExp
     | ret result
 
 
-""" Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Parsing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 """
 """ Type :=
@@ -508,7 +508,7 @@ abstype#TyExp
 | ok ss annTy bindKey bindRex
 
 
-""" Macros """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 """
 """ {#typedef} creates a named type based on a type-expression.
@@ -553,7 +553,7 @@ printType#Unit
 printType#Fun
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 """
 """ {txpFree} returns the set of type variables used in a type-expression,
@@ -638,7 +638,7 @@ printType#Fun
 | ok ss ``(#*)
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ {#typedef} {#abstype} {#printType} {#typeof} {#backfill}

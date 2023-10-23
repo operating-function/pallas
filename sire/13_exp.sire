@@ -16,7 +16,7 @@
 """
 
 
-""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan
 /+  02_bit  [if else or ifNot FALSE and not]
@@ -38,7 +38,7 @@
 /+  12_tab  [tabToPairs '#' tabE]
 
 
-""" Parsing and Printing Nats """"""""""""""""""""""""""""""""""""""""""""""""""
+;;; Parsing and Printing Nats ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (showNat n)=(strCat digits-n)
 
@@ -128,7 +128,7 @@
 !!= [``(%(.)) cenWord] | readAtomLit ``(%(.))   v2 id
 
 
-""" Expresssions """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Expresssions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (natE n)         | WORD (showNat n) 0
 = (varE v)         | WORD v 0
@@ -168,7 +168,7 @@
 | PREF "**" [(varE f)] 0
 
 
-""" Bloodlines """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Bloodlines ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Given a list of rex nodes, make each one the heir of the last.
 > List Rex > Rex
@@ -178,7 +178,7 @@
   | bloodline [``(a=1) [``(b=2) [``(c=3) 0]]]
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (readNodeWithRune rune rex err ret)
 | **rexGetNodeWithRune rune rex
@@ -209,7 +209,7 @@
 
 
 
-""" Sire Symbols """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Sire Symbols ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (isSymbolChar c)
 | or eql-"_"-c
@@ -268,8 +268,7 @@ symTodo='todo: support .foo and .234'
 | natE nat
 
 
-""" Sire Law Signatures """"""""""""""""""""""""""""""""""""""""""""""""""""""""
-
+;;; Sire Law Signatures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (rexParseRow rexRow readRow err ok)
 ^ rowTraverse _ (zip readRow rexRow) ok
@@ -304,7 +303,7 @@ symTodo='todo: support .foo and .234'
 
 
 
-""" Read Row of Names """"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Read Row of Names ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = nrBadForm | "Patterns must be a symbol (x) or a row of: (x,y,z)"
 = nrBadHeir | "Name-sequence cannot have an heir"
@@ -335,7 +334,7 @@ symTodo='todo: support .foo and .234'
 !!= [``([][]) nrBadHeir] | readRowOfNames ``([][])   v2 id
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ readNodeWithRune

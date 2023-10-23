@@ -11,13 +11,12 @@
 /+  stew
 
 
-""" MapTest """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; MapTest ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (flipUnfoldr b0 f)=(unfoldr f b0)
 
-;;;;;;;;;;;;;;;;;;;;;;;
-;; HitchhikerMapTest ;;
-;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; HitchhikerMapTest ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;
 ; Builds an assoc list of 0-256 to random lower case strings.
@@ -119,9 +118,8 @@
     | FALSE
 | loop_eqs_tab (inc idx)
 
-;;;;;;;;;;;;;;;;;;;;;;;
-;; HitchhikerSetTest ;;
-;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; HitchhikerSetTest ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (mkIntList genLen count gen)
 ^ _ 0 NIL gen
@@ -199,9 +197,7 @@
 | loop_eqs_set (inc idx)
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; HitchhikerSetMapTest ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; HitchhikerSetMapTest ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; we can reuse mkTestPair, but we need our own
 
@@ -317,9 +313,8 @@
 | if (eql setInt rowsAsSet) TRUE
 | trk [%notequal setInt rowsAsSet] FALSE
 
-;;;;;;;;;;;;
-;; Runner ;;
-;;;;;;;;;;;;
+
+;;; Runner ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 seeds=[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
 !! all (testEqsTab buildHMinsertFrom hmLookup) seeds

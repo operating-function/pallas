@@ -12,7 +12,7 @@
 """
 
 
-""" Imports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan  [lawBody trk isLaw inc seq const id]
 /+  01_fan  [car cdr]
@@ -34,7 +34,7 @@
 /+  11_set  [{%} readKey]
 
 
-""" Tabs """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 ;; This assumes that the keys are assending and unique.
@@ -58,7 +58,7 @@
 = (_TabKeysList tab) | setToList | _TabKeys tab
 
 
-""" Tab Lookup """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Tab Lookup ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (tabIdx key tab)
 @ keys (_TabKeysRow tab)
@@ -73,7 +73,7 @@ ex=(_MkTab [1 2 3] [4 5 6])
 !!= 6 | tabGet ex 3
 
 
-""" Basic Quations about Tabs """"""""""""""""""""""""""""""""""""""""""""""""""
+;;; Basic Quations about Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (_TabLen tab)     | len (_TabVals tab)
 = (_TabIsEmpty tab) | null (_TabVals tab)
@@ -81,7 +81,7 @@ ex=(_MkTab [1 2 3] [4 5 6])
 = (_TabLookup k t)  | if (_TabHas k t) (SOME | tabIdx k t) NONE
 
 
-""" Tab Insertion """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Tab Insertion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (findInsIdx key keysRow)
 | findIdx (lte key) keysRow (len keysRow) id
@@ -131,14 +131,15 @@ ex=(_MkTab [1 2 3] [4 5 6])
 !!= ( _MkTab [1 5]   [5 7]   ) | tabInsWith add 5 6 | ex1
 !!= ( _MkTab [1 5 9] [5 1 3] ) | tabInsWith add 9 3 | ex1
 
-""" Switching on Tabs """"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+;;; Switching on Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (tabSwitch key fal tab)
 | ifNot (_TabHas key tab) fal
 | tabIdx key tab
 
 
-""" Raw Table Construction from Ordered Pairs """"""""""""""""""""""""""""""""""
+;;; Raw Table Construction from Ordered Pairs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (tabFromAscPairs pairs)
 @ keys | map fst pairs
@@ -160,7 +161,7 @@ tab=(tabFromAscPairs par)
 !!= par | tabToPairs tab
 
 
-""" Table Construction from unique pairs """""""""""""""""""""""""""""""""""""""
+;;; Table Construction from unique pairs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; TODO: Implementing {tabFromPairs} with sort+uniq is faster.
 ; TODO: Or maybe use some kinda of "multi-insert" routine?
@@ -187,7 +188,7 @@ tab=(tabFromAscPairs par)
 !!= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 7] [3 8]]
 
 
-""" Treating a Tab like an Array """""""""""""""""""""""""""""""""""""""""""""""
+;;; Treating a Tab like an Array ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (tabElemIdx i tab)
 @ pairs (tabToPairs tab)
@@ -195,7 +196,7 @@ tab=(tabFromAscPairs par)
 | idx i pairs
 
 
-""" Deletion """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Deletion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; TODO: Avoid using tabFromPairs for everything
 
@@ -309,7 +310,7 @@ tabUnion=tabWeld
 | foldl do start | tabToPairs tab
 
 
-""" Parsing """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Parsing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 pairExpect={Expected something like =x or x=3}
 
@@ -400,7 +401,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 | go acc heir
 
 
-""" Expansion """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Expansion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > Tab Exp > Exp
 = (tabE tab)
@@ -409,7 +410,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 ++ rowE (_TabVals tab)
 
 
-""" Rune Macros """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Rune Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = ({#} ss rex err ok)
 | readWideTabLit readRex rex err
@@ -436,7 +437,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 | ok ss (rowE | rexKids rex)
 
 
-""" Tests """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 !!= 1 | isTab #[]
 !!= 1 | isTab #[0=0]
@@ -498,7 +499,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 !!= ["a"=1 b=2 {c}=3] | (## =b 2)(## ="a" 1)(## ={c} 3)
 
 
-""" Aliases """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = tabLookup   | _TabLookup
 = tabKeysSet  | _TabKeys
@@ -510,7 +511,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 = tabIsEmpty  | _TabIsEmpty
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
 ^-^ tabSing _MkTab isTab

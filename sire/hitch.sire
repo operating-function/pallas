@@ -16,7 +16,7 @@
 /+  types
 
 
-""" Util """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Util ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;
 ; Given an index and a hitchhiker object, creates a packed representation.
@@ -45,9 +45,8 @@
 !!= NONE               (rowUnsnoc [])
 !!= (SOME [[0 1 2] 3]) (rowUnsnoc [0 1 2 3])
 
-;;;;;;;;;;;;;
-;; TreeFun ;;
-;;;;;;;;;;;;;
+
+;;; TreeFun ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 # record TreeFun
 | TREE_FUN
@@ -68,9 +67,7 @@
 * hhDelete     : Any
 
 
-;;;;;;;;;;;
-;; Index ;;
-;;;;;;;;;;;
+;;; Index ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; A node is either [index hitchhikers] or leaf, where leaf is a map or a set.
 # datatype HitchNode
@@ -196,9 +193,8 @@ abstype#(LazyIndex k v) ; TODO: (???)
 @ idx   | rsh b 1
 | add found idx
 
-;;;;;;;;;;
-;; Leaf ;;
-;;;;;;;;;;
+
+;;; Leaf ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 > TreeFun > Nat > Index k n
 = (splitLeafMany treeFun maxLeafItems items)
@@ -232,9 +228,8 @@ abstype#(LazyIndex k v) ; TODO: (???)
     [(listToRowReversed keys) (listToRowReversed leafs)]
 | die %leafConstraintViolation
 
-;;;;;;;;;;;;;;;;
-;; TreeConfig ;;
-;;;;;;;;;;;;;;;;
+
+;;; TreeConfig ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 # record TreeConfig
 | TREE_CONFIG
@@ -276,9 +271,8 @@ abstype#(LazyIndex k v) ; TODO: (???)
 * maxFanout
 * minFanout
 
-;;;;;;;;;;
-;; Tree ;;
-;;;;;;;;;;
+
+;;; Tree ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (fixup treeConfig treeFun index)
 @ TREE_CONFIG(..) treeConfig
@@ -438,9 +432,7 @@ newRootNode
   | die "deleteRec: node with single child"
 
 
-;;;;;;;;;;;;;;;;;;;
-;; HitchhikerMap ;;
-;;;;;;;;;;;;;;;;;;;
+;;; HitchhikerMap ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 abstype#(HSet a)
 abstype#(HMap k v)
@@ -542,9 +534,8 @@ abstype#(HSetMap k v)
 * (LEAFNODE items)
   | tabLookup key items
 
-;;;;;;;;;;;;;;;;;;;
-;; HitchhikerSet ;;
-;;;;;;;;;;;;;;;;;;;
+
+;;; HitchhikerSet ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (hsDeleteItem k _ c)=(setDel k c)
 
@@ -681,9 +672,8 @@ r
 !!= 0 | hsNull | hsInsert 9 | hsSingleton twoThreeConfig 9
 !!= 1 | hsNull | hsDelete 9 | hsSingleton twoThreeConfig 9
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Hitchhiker Set New Intersect ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Hitchhiker Set New Intersect ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Like getLeafRow, but returns a list instead.
 ;
@@ -804,9 +794,8 @@ rest
 | listCat
 | listMap setToList ls
 
-;;;;;;;;;;;;;;;;;;;;;;
-;; HitchhikerSetMap ;;
-;;;;;;;;;;;;;;;;;;;;;;
+
+;;; HitchhikerSetMap ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (hsmEmpty mapConfig setConfig)
 [mapConfig setConfig 0]
@@ -941,7 +930,7 @@ rest
   [setConfig (hsRawInsertMany hh setConfig ret)]
 
 
-""" Exports """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; shared configuration
 ^-^
