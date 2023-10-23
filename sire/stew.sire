@@ -669,7 +669,6 @@
 * {CORD} | ok | ENAT txt
 * {TAPE} | ok | ENAT txt
 * {LINE} | ok | ENAT txt
-* {PAGE} | ok | ENAT txt
 * {CURL} | ok | ENAT txt
 * {WORD} | if (okIdn bar) (ok (EREF txt))
          @ bar (barFilter (neq '_') bar)

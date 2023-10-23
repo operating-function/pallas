@@ -174,7 +174,6 @@ wideLeaf = curry \case
     (TAPE, t) -> cText (cord '"'  '"'  t)
     (CURL, t) -> cText (cord '{'  '}'  t)
     (LINE, _) -> error "Impossible"
-    (PAGE, _) -> error "Impossible"
   where
     cord top end txt = rbChar top <> rbText txt <> rbChar end
 
@@ -182,8 +181,7 @@ wideLeaf = curry \case
    TOOD Test this.
 -}
 fixWide :: TextShape -> Text -> Maybe Rex
-fixWide LINE t            = Just (T CORD t Nothing)
-fixWide PAGE t            = Just (T TAPE t Nothing)
+fixWide LINE t            = Just (T TAPE t Nothing)
 fixWide CURL _            = Nothing
 fixWide WORD t | isName t = Nothing
 fixWide WORD t            = Just (T CORD t Nothing)

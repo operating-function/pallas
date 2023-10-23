@@ -12,13 +12,13 @@
 
 # datatype Elem
 * I=I rune:Bar sons:(List Rex) heir:(Maybe Rex)
-* T=T thic:Bit text:Bar        heir:(Maybe Rex)
+* T=T text:Bar                 heir:(Maybe Rex)
 
 > Elem > Elem
 = (elemClose elem)
 # datacase elem
 * (I r s h) | I r (map rexClose s) (fmapMaybe h rexClose)
-* (T t x h) | T t x                (fmapMaybe h rexClose)
+* (T x h)   | T x                (fmapMaybe h rexClose)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -68,26 +68,23 @@
                               * LIGHT | CORD barNat-t NONE
                               * CURLY | CURL barNat-t NONE
                               * LINED | LINE barNat-t NONE
-                              * PAGED | PAGE barNat-t NONE
 
 > Elem > Rex
 = (iRex e)
 # datacase e
 * (I t x k) | OPEN (barNat t) (rev x) (fromSome 0 k)
-* (T f b k) | (if f PAGE LINE) barNat-b (fromSome 0 k)
+* (T b k)   | LINE barNat-b (fromSome 0 k)
 
 > Frag > Rex
 = (fRex f)
 # datacase f
-* (RUNE rune)   | OPEN (barNat rune) [] NONE
-* (FORM wide)   | formToRex wide
-* (LSTR thic t) | (if thic PAGE LINE) barNat-t NONE
+* (RUNE rune) | OPEN (barNat rune) [] NONE
+* (FORM wide) | formToRex wide
+* (LSTR t)    | LINE barNat-t NONE
 
 !!= (iRex (I b#"+++" [] NONE)) ` +++
 
-!!= (iRex (T TRUE b#"hi" NONE))  ` """hi
-
-!!= (iRex (T FALSE b#"hi" NONE)) ` '''hi
+!!= (iRex (T b#"hi" NONE))  ` """hi
 
 = (go bar)
 # datacase (runParser frag bar)
@@ -108,7 +105,7 @@
 !!= (go b#{''""{}})       ` ''""{}
 !!= (go b#{('')("")({})}) ` ''""{}
 !!= (go b#{(3)(4)})       ` (3)(4)
-!!= (go b#{''' xyz})      ` ''' xyz
+!!= (go b#{""" xyz})      ` """ xyz
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -127,10 +124,10 @@
 | if (ord == LT)
     | LEFT ("Impossible: invalid merge")
 # datacase i
-* (T th t h)
+* (T t h)
     | if ((h /= 0) || (ord == GT))
         | LEFT "Line strings may not have child nodes."
-    | RIGHT (ip, T th t (SOME r))
+    | RIGHT (ip, T t (SOME r))
 * (I ryn ss h)
     | RIGHT
     # datacase h
@@ -145,13 +142,13 @@
 (testMerge x y)=(eitherMap (overSnd (compose rexClose iRex)) (merge x y))
 
 !!= RIGHT-(3, `"foo"xxx)
-  | testMerge (3, `xxx) (3, T TRUE b#foo 0)
+  | testMerge (3, `xxx) (3, T b#foo 0)
 
 !!= LEFT-"Line strings may not have child nodes."
-  | testMerge (4, `xxx) (3, T TRUE b#foo 0)
+  | testMerge (4, `xxx) (3, T b#foo 0)
 
 !!= LEFT-"Impossible: invalid merge"
-  | testMerge (2, `xxx) (3, T TRUE b#foo 0)
+  | testMerge (2, `xxx) (3, T b#foo 0)
 
 !!=   | RIGHT (3, `[x y]xxx)
   | testMerge (3, `xxx) (3, I b#{,} [`x] (SOME `y))
@@ -227,10 +224,10 @@ exItem=(I b#"," [`x] (SOME `y))
     # datacase stk
     * NIL         | LEFT "Impossible: SOME-Form case already handled in `rush`"
     * (CONS i is) | eitherMap x&(x::is) (merge (fp, fRex f) i)
-* (LSTR s l)
+* (LSTR l)
     # datacase stk
-    * NIL         | LEFT "Impossible: SOME-Page case already handled in `rush`"
-    * (CONS _ _)  | RIGHT (fp, T s l NONE)::stk
+    * NIL         | LEFT "Impossible: SOME-Line case already handled in `rush`"
+    * (CONS _ _)  | RIGHT (fp, T l NONE)::stk
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -274,8 +271,8 @@ oneForm="Blocks starting with closed forms may only contain one form."
 * (RUNE r)
     : x <- eitherBind (pushAll (p, I r [] NONE) fs)
     | RIGHT | iRex | snd | listFoldl1 forceMerge x
-* (LSTR th l)
-    : x <- eitherBind (pushAll (p, T th l NONE) fs)
+* (LSTR l)
+    : x <- eitherBind (pushAll (p, T l NONE) fs)
     | RIGHT | iRex | snd | listFoldl1 forceMerge x
 * (FORM _)
     # datacase fs

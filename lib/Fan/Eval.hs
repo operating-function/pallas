@@ -424,7 +424,6 @@ rexNoun = \case
         Rex.CORD -> NAT "CORD"
         Rex.TAPE -> NAT "TAPE"
         Rex.LINE -> NAT "LINE"
-        Rex.PAGE -> NAT "PAGE"
         Rex.CURL -> NAT "CURL"
 
 a2 :: a -> a -> SmallArray a
@@ -631,7 +630,6 @@ matchRex = \case
         NAT "CORD" -> Just Rex.CORD
         NAT "TAPE" -> Just Rex.TAPE
         NAT "LINE" -> Just Rex.LINE
-        NAT "PAGE" -> Just Rex.PAGE
         NAT "CURL" -> Just Rex.CURL
         _          -> Nothing
 

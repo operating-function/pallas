@@ -142,7 +142,6 @@ aliasRex mSymb vl =
 -- TODO Jank AF.  Much hack.
 chooseMode :: GRex a -> (GRex a -> GRex a) -> (GRex a -> GRex a) -> GRex a
 chooseMode vr@(N OPEN _ _ _)   _    open = open vr
-chooseMode vr@(T PAGE _ _)     _    open = open vr
 chooseMode vr@(T LINE _ _)     _    open = open vr
 chooseMode    (N SHUT "-" k h) wide _    = wide (N NEST "|" k h)
 chooseMode vr@_                wide _    = wide vr

@@ -44,7 +44,6 @@
 (CORD text heir)=(REX | v3 {CORD} text heir)
 (TAPE text heir)=(REX | v3 {TAPE} text heir)
 (LINE text heir)=(REX | v3 {LINE} text heir)
-(PAGE text heir)=(REX | v3 {PAGE} text heir)
 (CURL text heir)=(REX | v3 {CURL} text heir)
 
 (OPEN rune sons heir)=(REX | v4 {OPEN} rune sons heir)
@@ -176,7 +175,6 @@
 @ style (rexStyle rex)
 @ expected | or (eql style "TAPE")
            | or (eql style "CORD")
-           | or (eql style "PAGE")
                 (eql style "LINE")
 | ifNot expected fall
 | rexGetLeaf rex fall ok
@@ -238,8 +236,7 @@
 ^ rexEvery _ topRex
 & rex
 @ sty (rexStyle rex)
-| if (eql "LINE" sty) | CORD rexText-rex rexHeir-rex
-| if (eql "PAGE" sty) | TAPE rexText-rex rexHeir-rex
+| if (eql "LINE" sty) | TAPE rexText-rex rexHeir-rex
 | if (neq "OPEN" sty) | rex
 | NEST (rexRune rex) (rexSons rex) (rexHeir rex)
 
@@ -317,8 +314,7 @@ sx=(OPEN "=" (v2 wx w9) 0)
 !!= "WORD" | rexStyle `` hi
 !!= "TAPE" | rexStyle `` ""
 !!= "CORD" | rexStyle `` ''
-!!= "LINE" | rexStyle `` '''
-!!= "PAGE" | rexStyle `` """
+!!= "LINE" | rexStyle `` """
 !!= "CURL" | rexStyle `` {}
 
 !!= ``"foobar" | rexClose `` """foobar
@@ -329,7 +325,7 @@ sx=(OPEN "=" (v2 wx w9) 0)
 ^-^
 ^-^ REX
 ^-^ EMBD
-^-^ WORD CORD TAPE LINE PAGE CURL
+^-^ WORD CORD TAPE LINE CURL
 ^-^ OPEN NEST INFX PREF SHUT
 ^-^
 ^-^ rexIsNode rexIsLeaf rexIsEmbd

@@ -22,7 +22,7 @@
 # datatype Frag
 * RUNE=RUNE x:Str
 * FORM=FORM x:Form
-* LSTR=LSTR x:Bit y:Str
+* LSTR=LSTR y:Str
 
 # datatype Form
 * BEFO=BEFO x:Str y:Form        ;;  +()()
@@ -45,7 +45,6 @@
 * THICK=THICK
 * LIGHT=LIGHT
 * CURLY=CURLY
-* PAGED=PAGED
 * LINED=LINED
 
 ;; TODO: Using the same name twice in #datatype results in invalid code.
@@ -102,27 +101,15 @@ name=(**stringOf1 isNameChar)
 * '\' | go acc      TRUE  depth
 * _   | go (c::acc) FALSE depth
 
-= (readLineStr prefix)
-| try
-| andThen (string prefix)
+> Parser r Bar
+= readLineStr
+| andThen (string b#{"""})
 | parserTakeRest
-
-> Parser r (Bit, Str)
-= page
-| choice
-* parserMap t&(TRUE,t)  | readLineStr b#{"""}
-* parserMap t&(FALSE,t) | readLineStr b#{'''}
-
-> Parser r (Bit, Str)
-= page_
-: (thic, text) <- page
-| parserPure (if thic PAGED LINED, text)
 
 > Parser r (CordType, Bar)
 = leaf
 | choices
-~~ pmap x&(LTEXT PAGED x) | readLineStr b#{"""}
-~~ pmap x&(LTEXT LINED x) | readLineStr b#{'''}
+~~ pmap x&(LTEXT LINED x) | readLineStr
 ~~ pmap x&(LTEXT THICK x) | cord {"}
 ~~ pmap x&(LTEXT LIGHT x) | cord {'}
 ~~ pmap x&(LTEXT CURLY x) | curl
@@ -334,10 +321,10 @@ empt=(parserMap (const NIL) (char ']'))
     * (SOME x) | FORM (BEFO r x)
 : d <- bind parserGetLineOffset
 : x <- ^ bind (choices _)
-      ~~ parserMap (uncurry LSTR) page
+      ~~ parserMap LSTR readLineStr
       ~~ parserMap2 rinse rune (optional | shin form)
       ~~ parserMap FORM form
-@ o (datacase#x)(FORM _ * 1)(LSTR _ _ * 3)(RUNE r * barLen r)
+@ o (datacase#x)(FORM _ * 1)(LSTR _ * 3)(RUNE r * barLen r)
 | parserPure (add o d, x)
 
 = nada
@@ -362,9 +349,13 @@ empt=(parserMap (const NIL) (char ']'))
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 !!= (OKAY (LTEXT THICK b#foo)) | runParser leaf b#{"foo"}
+
 !!= (OKAY (LTEXT LIGHT b#foo)) | runParser leaf b#{'foo'}
+
 !!= (OKAY (LTEXT CURLY b#foo)) | runParser leaf b#{{foo}}
+
 !!= (OKAY (LNAME b#foo))       | runParser leaf b#{foo}
+
 !!= (FAIL b#more)              | runParser leaf b#{'foo}
 
 !!=   | OKAY (SHIP [ILEAF-(LTEXT THICK b#foo)])
@@ -396,12 +387,12 @@ empt=(parserMap (const NIL) (char ']'))
      ++ ^ (7,_) | FORM | SHIP ,(INEST (PREFX com ,(SHIP ,(ILEAF LNAME-(b#x)))))
   | runParser line b#{[] $$ [x]}
 
-!!= OKAY-[(5, LSTR TRUE b#{ xyz })]  | runParser line b#{  """ xyz }
-!!= OKAY-[(5, LSTR TRUE b#{xyz})]    | runParser line b#{  """xyz}
-!!= OKAY-[(3, LSTR TRUE b#{xyz})]    | runParser line b#{"""xyz}
-!!= OKAY-[(5, LSTR FALSE b#{ xyz })] | runParser line b#{  ''' xyz }
-!!= OKAY-[(5, LSTR FALSE b#{xyz})]   | runParser line b#{  '''xyz}
-!!= OKAY-[(3, LSTR FALSE b#{xyz})]   | runParser line b#{'''xyz}
+!!= OKAY-[(5, LSTR b#{ xyz })]  | runParser line b#{  """ xyz }
+!!= OKAY-[(5, LSTR b#{xyz})]    | runParser line b#{  """xyz}
+!!= OKAY-[(3, LSTR b#{xyz})]    | runParser line b#{"""xyz}
+!!= OKAY-[(5, LSTR b#{ xyz })]  | runParser line b#{  """ xyz }
+!!= OKAY-[(5, LSTR b#{xyz})]    | runParser line b#{  """xyz}
+!!= OKAY-[(3, LSTR b#{xyz})]    | runParser line b#{"""xyz}
 
 !!= OKAY-[(1, FORM (SHIP ,(INEST (PREFX bar []))))]
   | runParser line b#{()}

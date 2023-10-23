@@ -148,7 +148,7 @@
 
 ;;; Maybe ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-''' TODO Use (0 | [x])
+""" TODO Use (0 | [x])
 
 = NONE       | 0
 = (**SOME x) | 0 x
@@ -343,14 +343,12 @@
 & (x xs)
 | CONS f-x listMap-f-xs
 
-'''
-''' TODO: Create a versions of {listToRow} and {listToRowReversed}
-''' that work with static lengths:
-'''
-''' -  It always produces a row of a certain size.
-''' -  If the list is too long, only the head is taken.
-''' -  If the list is too short, the rest of the row is zeros.
-'''
+;; TODO: Create a versions of {listToRow} and {listToRowReversed}
+;; that work with static lengths:
+;;
+;; -  It always produces a row of a certain size.
+;; -  If the list is too long, only the head is taken.
+;; -  If the list is too short, the rest of the row is zeros.
 
 = (listLen l)           | listFoldr (x acc & inc acc) 0 l
 = (listSum l)           | listFoldr add 0 l

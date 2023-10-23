@@ -54,7 +54,7 @@ module Loot.Syntax
     , bodBox
     , barBox
     , readOpenSet
-    , readPage
+    , readLineStr
     , boxRex
     , keyBox
     )
@@ -117,16 +117,15 @@ textBox :: TextShape -> Text -> Box
 textBox style t =
     case (style, wideTextBox style t) of
       (LINE, bax) -> bax { boxTall = T LINE t Nothing }
-      (PAGE, bax) -> bax { boxTall = T PAGE t Nothing }
       (_,    bax) -> bax
 
-pageBox :: TextShape -> [Text] -> Box
-pageBox shape linez =
+lineBox :: [Text] -> Box
+lineBox linez =
     BOX Nothing (absurd <$> go linez)
   where
-    go []     = T shape "" Nothing
-    go [l]    = T shape l  Nothing
-    go (l:ls) = T shape l  (Just $ go ls)
+    go []     = T LINE "" Nothing
+    go [l]    = T LINE l  Nothing
+    go (l:ls) = T LINE l  (Just $ go ls)
 
 cordBox :: Text -> Box
 cordBox txt =
@@ -136,7 +135,7 @@ cordBox txt =
         [l] | hasTic -> textBox TAPE l
         [l] | hasQuo -> textBox CORD l
         [l]          -> textBox CORD l
-        ls           -> pageBox PAGE ls
+        ls           -> lineBox ls
   where
     hasBot = hasTic && hasQuo
     hasTic = elem '\'' txt
@@ -153,8 +152,8 @@ natBox n =
             | okCord s        -> textBox CORD s
             | okTape s        -> textBox TAPE s
             | okCurl s        -> textBox CURL s
-            | isLineStr s     -> pageBox PAGE [s]
-            | isBlocStr s     -> pageBox PAGE (T.splitOn "\n" s)
+            | isLineStr s     -> lineBox [s]
+            | isBlocStr s     -> lineBox (T.splitOn "\n" s)
             | otherwise       -> decimal
   where
     decimal = nameBox (tshow n)
@@ -372,7 +371,7 @@ barBox bs =
     linesResult = do
         txt   <- either (const Nothing) Just bsTxt
         l:|ls <- pageLines txt
-        let bx  = pageBox PAGE (l:ls)
+        let bx  = lineBox (l:ls)
         let tal = N OPEN "#" [T WORD "b" NONE] (Just bx.boxTall)
         pure (BOX Nothing tal)
 
@@ -1120,9 +1119,8 @@ readCord = matchLeaf "cord" \case
     (CURL,t) -> Just t
     _        -> Nothing
 
-readPage :: Red v Text
-readPage = matchLeaf "page" \case
-    (PAGE,l) -> Just l
+readLineStr :: Red v Text
+readLineStr = matchLeaf "lineStr" \case
     (LINE,l) -> Just l
     _        -> Nothing
 
@@ -1134,7 +1132,7 @@ readNat :: Red v Nat
 readNat =
     readNumb <|> readColn <|> readTape <|> line
   where
-    line = utf8Nat <$> readPage
+    line = utf8Nat <$> readLineStr
     readTape = utf8Nat <$> readCord
     readColn = rune "%" >> form1 (utf8Nat <$> readName)
 
@@ -1146,7 +1144,7 @@ readNumb =
         _     -> readMay (filter (/= '_') n)
 
 readAnyText :: Red v Text
-readAnyText = (readName <|> readCord <|> readPage)
+readAnyText = (readName <|> readCord <|> readLineStr)
 
 -- TODO Use x#_ and b#_ syntax
 readBar :: Red v ByteString

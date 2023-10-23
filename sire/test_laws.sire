@@ -57,9 +57,9 @@
 """| listMap barBytes
 """| randGen seed
 """
-"""''' `<-` is not longer implemented
-"""'''
-"""''' We crash now.
+"""""" `<-` is not longer implemented
+""""""
+"""""" We crash now.
 """
 """[_ seed]<-[[%rand]]
 """abc=(barBytes seed)

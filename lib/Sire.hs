@@ -917,18 +917,17 @@ readExpr e rex = do
                 Just macVal -> expand macVal rex >>= readExpr e
                 Nothing     -> readPrimExpr e rex
 
-readMultiLine :: InCtx => TextShape -> [Text] -> Maybe Rex -> Repl Sire
-readMultiLine ts acc = \case
+readMultiLine :: InCtx => [Text] -> Maybe Rex -> Repl Sire
+readMultiLine acc = \case
     Nothing -> pure $ S_VAL $ NAT $ utf8Nat $ unlines $ reverse acc
     Just h  -> case h of
-        T s t k | s==ts -> readMultiLine ts (t:acc) k
-        _               -> parseFail h "Mis-matched node in text block"
+        T s t k | s==LINE -> readMultiLine (t:acc) k
+        _                 -> parseFail h "Mis-matched node in text block"
 
 readPrimExpr :: InCtx => [Maybe Nat] -> Rex -> Repl Sire
 readPrimExpr e rex = case rex of
     C v              -> pure (S_VAL v)
-    T LINE t k       -> readMultiLine LINE [t] k
-    T PAGE t k       -> readMultiLine PAGE [t] k
+    T LINE t k       -> readMultiLine [t] k
     T _    _ Just{}  -> parseFail rex "leaves cannot have heirs"
     T _    _ Nothing -> readPrimLeaf rex e rex
     N _ r s h        -> readNode r s h

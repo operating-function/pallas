@@ -70,8 +70,7 @@
     * WORD | natBar t
     * CORD | barCat (b#{'}, natBar t, b#{'}, rexRenderClosed heir)
     * TAPE | barCat (b#{"}, natBar t, b#{"}, rexRenderClosed heir)
-    * LINE | barCat (b#{'}, natBar t, b#{'}, rexRenderClosed heir)
-    * PAGE | barCat (b#{"}, natBar t, b#{"}, rexRenderClosed heir)
+    * LINE | barCat (b#{"}, natBar t, b#{"}, rexRenderClosed heir)
     * CURL | barCat (b#"{", natBar t, b#"}", rexRenderClosed heir)
 * EMBD
     | planRender (rexEmbd expr)
@@ -86,11 +85,7 @@
 @ heir  | rexHeir r
 ^ (barRep d spaceChar, _)
 # switch style
-* %LINE ++ b#{'''}
-        ++ natBar text
-        ++ | if (isZero heir) 0
-           | (barNewline, rexRenderOpen d heir)
-* %PAGE ++ b#{"""}
+* %LINE ++ b#{"""}
         ++ natBar text
         ++ | if (isZero heir) 0
            | (barNewline, rexRenderOpen d heir)

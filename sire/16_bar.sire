@@ -275,7 +275,7 @@ rowToBar=barFromRow
 
 = (foldMultiLine rex err ok)
 @ topStyle (idx 0 | lawBody rex)
-| if (and (neq {LINE} topStyle) (neq {PAGE} topStyle))
+| if (neq {LINE} topStyle)
     | err rex 'non-line-string contains heir.  What?'
 ^ (_ NIL rex)
 ? (go acc rex)

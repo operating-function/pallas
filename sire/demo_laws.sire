@@ -51,15 +51,15 @@ hexAlphabet=(natBar "0123456789abcdef")
 @ acc (| add acc | add mul-pos-b | mul-pos | mul 16 a)
 | loop acc bs (mul 256 pos)
 
-!! eql (add 1  0     ) | lawBody | barFromHex '''
-!! eql (add 1  bex-8 ) | lawBody | barFromHex '''1
-!! eql (add 16 bex-8 ) | lawBody | barFromHex '''10
-!! eql (add 1  bex-16) | lawBody | barFromHex '''100
-!! eql (add 16 bex-16) | lawBody | barFromHex '''1000
-!! eql 0xfe            | barNat  | barFromHex '''fe
-!! eql 0xfe00          | barNat  | barFromHex '''00fe
-!! eql 0xfe00          | barNat  | barFromHex '''00fe
-!! eql 0xfe0011        | barNat  | barFromHex '''1100fe
+!! eql (add 1  0     ) | lawBody | barFromHex """
+!! eql (add 1  bex-8 ) | lawBody | barFromHex """1
+!! eql (add 16 bex-8 ) | lawBody | barFromHex """10
+!! eql (add 1  bex-16) | lawBody | barFromHex """100
+!! eql (add 16 bex-16) | lawBody | barFromHex """1000
+!! eql 0xfe            | barNat  | barFromHex """fe
+!! eql 0xfe00          | barNat  | barFromHex """00fe
+!! eql 0xfe00          | barNat  | barFromHex """00fe
+!! eql 0xfe0011        | barNat  | barFromHex """1100fe
 
 !! eql  | barCat
        ++ x#7470ea5654831e01ffc04ee0e43a32fb

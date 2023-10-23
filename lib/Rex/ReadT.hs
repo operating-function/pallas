@@ -14,7 +14,7 @@ module Rex.ReadT
     , Reading
     , doRead
     , readThis
-    , matchLeaf, leaf, matchName, matchCord, matchPage
+    , matchLeaf, leaf, matchName, matchCord, matchLineStr
     , matchLeafCont, matchNameCord, matchNameText
     , formMatch, formMatchNoCont, formMatchCont, formMatchEither
     , subTree
@@ -225,7 +225,6 @@ matchNameText expect f =
     go (WORD, n) (T CORD t Nothing) = f n t
     go (WORD, n) (T TAPE t Nothing) = f n t
     go (WORD, n) (T LINE t Nothing) = f n t
-    go (WORD, n) (T PAGE t Nothing) = f n t
     go _         _                  = Nothing
 
 matchCord :: Monad m => Text -> (Text -> Maybe a) -> ReadT z m a
@@ -234,10 +233,9 @@ matchCord expect f = matchLeaf expect \case
   (TAPE, t) -> f t
   _         -> Nothing
 
-matchPage :: Monad m => Text -> (Text -> Maybe a) -> ReadT z m a
-matchPage expect f = matchLeaf expect \case
+matchLineStr :: Monad m => Text -> (Text -> Maybe a) -> ReadT z m a
+matchLineStr expect f = matchLeaf expect \case
   (LINE, l) -> f l
-  (PAGE, l) -> f l
   _         -> Nothing
 
 formMatch

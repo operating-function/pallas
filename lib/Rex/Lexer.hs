@@ -34,7 +34,7 @@ type Parser = Parsec Void Text
 data Frag
     = RUNE Text
     | FORM Form
-    | LINE Bool Text
+    | LINE Text
   deriving (Eq, Ord, Show)
 
 data Form
@@ -55,7 +55,7 @@ data Nest
     | PAREN [Form]
   deriving (Eq, Ord, Show)
 
-data CordType = THICK | LIGHT | CURLY | LINED | PAGED
+data CordType = THICK | LIGHT | CURLY | LINED
   deriving (Eq, Ord, Show)
 
 data Leaf
@@ -72,16 +72,8 @@ spc0 = void $ many spc
 whyt :: Parser ()
 whyt = void $ some spc
 
-page :: Parser (Bool, Text)
-page = do
-    thic <- (string "\"\"\"" $> True)
-        <|> (string "'''"    $> False)
-    (thic,) <$> takeRest
-
-page' :: Parser (CordType, Text)
-page' = do
-    (thic, text) <- page
-    pure (if thic then PAGED else LINED, text)
+lineStr :: Parser Text
+lineStr = string "\"\"\"" >> takeRest
 
 isNameChar :: Char -> Bool
 isNameChar = (`elem` ("_" <> ['a'..'z'] <> ['A'..'Z'] <> ['0'..'9']))
@@ -190,7 +182,7 @@ nest :: Parser Nest
 nest = brak <|> para
 
 leaf :: Parser Leaf
-leaf = (uncurry C <$> page')
+leaf = (C LINED <$> lineStr)
    <|> (uncurry C <$> cord)
    <|> (N <$> name)
 
@@ -263,7 +255,7 @@ form = (BEFO <$> rune <*> shin) <|> shin
 frag :: Parser (Int, Frag)
 frag = do
     d <- getOffset
-    x <- (uncurry LINE <$> page)            <|>
+    x <- (LINE <$> lineStr)                 <|>
          (rinse <$> rune <*> optional shin) <|>
          (FORM <$> form)
 

@@ -39,18 +39,17 @@ import qualified Rex.Types as R
 
 data Elem
     = I Text [R.Rex] (Maybe R.Rex)
-    | T Bool Text    (Maybe R.Rex)
+    | T Text    (Maybe R.Rex)
   deriving (Show)
 
 iRex :: Elem -> R.Rex
 iRex (I t x k) = R.N R.OPEN t (reverse x) k
-iRex (T f t k) = R.T (if f then R.PAGE else R.LINE) t k
+iRex (T t k)   = R.T R.LINE t k
 
 fRex :: Frag -> R.Rex
-fRex (RUNE rune)    = R.N R.OPEN rune [] Nothing
-fRex (FORM wide)    = formToRex wide
-fRex (LINE True t)  = R.T R.PAGE t Nothing
-fRex (LINE False t) = R.T R.LINE t Nothing
+fRex (RUNE rune) = R.N R.OPEN rune [] Nothing
+fRex (FORM wide) = formToRex wide
+fRex (LINE t)    = R.T R.LINE t Nothing
 
 
 -- Converting Forms into Runic Trees -------------------------------------------
@@ -82,7 +81,6 @@ formToRex = form
   item (LEAF (C THICK t)) = R.T R.TAPE t Nothing
   item (LEAF (C LIGHT t)) = R.T R.CORD t Nothing
   item (LEAF (C CURLY t)) = R.T R.CURL t Nothing
-  item (LEAF (C PAGED t)) = R.T R.PAGE t Nothing
   item (LEAF (C LINED t)) = R.T R.LINE t Nothing
   item (NEST n)           = nest n
 
@@ -132,9 +130,9 @@ merge :: (Int, R.Rex) -> (Int, Elem) -> Either Text (Int, Elem)
 merge (rp,r) (ip,i) =
   case (compare rp ip, i) of
     (LT , _              ) -> impossible "invalid merge"
-    (_  , T _  _ Just{}  ) -> Left "Line strings cannot have child nodes."
-    (GT , T _  _ Nothing ) -> Left "Line strings cannot have child nodes."
-    (EQ , T th t Nothing ) -> pure (ip, T th t (Just r))
+    (_  , T _ Just{}     ) -> Left "Line strings cannot have child nodes."
+    (GT , T _ Nothing    ) -> Left "Line strings cannot have child nodes."
+    (EQ , T t Nothing    ) -> pure (ip, T t (Just r))
     (_  , I t cs (Just k)) -> pure (ip, I t (k:cs) (Just r))
     (EQ , I t cs Nothing ) -> pure (ip, I t cs (Just r))
     (GT , I t cs Nothing ) -> pure (ip, I t (r:cs) Nothing)
@@ -173,20 +171,20 @@ pushOnto stack (fp,f) = do
     (FORM _, [])   -> impossible "Just-Form case already handled in `rush`"
     (LINE{}, [])   -> impossible "Just-Page case already handled in `rush`"
     (RUNE r, is)   -> pure ((fp, I r [] Nothing) : is)
-    (LINE s l, is) -> pure ((fp, T s l Nothing) : is)
+    (LINE l, is)   -> pure ((fp, T l Nothing) : is)
     (FORM _, i:is) -> (:is) <$> merge (fp, fRex f) i
 
 
 -- | Given a list of fragments in parse order, produce a Rex.
 rush :: [(Int, Frag)] -> Either Text (Maybe R.Rex)
 rush = \case
-  []                  -> error "impossible: rush given an empty list"
-  (p, RUNE r)    : fs -> fmap (Just . iRex . snd . foldl1 forceMerge)
-                              (pushAll (p, I r [] Nothing) fs)
-  (p, LINE th l) : fs -> fmap (Just . iRex . snd . foldl1 forceMerge)
-                              (pushAll (p, T th l Nothing) fs)
-  (_, w@FORM{})  : [] -> pure $ Just $ fRex w
-  (_, FORM{})    : _  -> error oneForm
+  []                 -> error "impossible: rush given an empty list"
+  (p, RUNE r)   : fs -> fmap (Just . iRex . snd . foldl1 forceMerge)
+                             (pushAll (p, I r [] Nothing) fs)
+  (p, LINE l)   : fs -> fmap (Just . iRex . snd . foldl1 forceMerge)
+                             (pushAll (p, T l Nothing) fs)
+  (_, w@FORM{}) : [] -> pure $ Just $ fRex w
+  (_, FORM{})   : _  -> error oneForm
 
  where
   oneForm = "Blocks starting with closed forms may only contain one form."

@@ -66,23 +66,18 @@ type Block = (Int, Blocky)
 data Blocky
     = PHRASE [RexBuilder] -- Never empty but not worth enforcing.
     | RUNIC RunicBlock
-    | LINED Bool Text (Maybe Block)
+    | LINED Text (Maybe Block)
   deriving (Show)
-
-thic :: TextShape -> Bool
-thic PAGE = True
-thic TAPE = True
-thic _    = False
 
 rexBlock :: RexColor => Rex -> Block
 rexBlock rex = case rex of
     C v ->
         absurd v
 
-    T s t k | isLineStr s ->
+    T LINE t k ->
         case rexBlock <$> k of
-            Nothing   -> (2, LINED (thic s) t Nothing)
-            Just heir -> (max 2 (fst heir), LINED (thic s) t (Just heir))
+            Nothing   -> (2, LINED t Nothing)
+            Just heir -> (max 2 (fst heir), LINED t (Just heir))
 
     N OPEN runeTex kids heir ->
         (max ourPad heirPad, RUNIC RUNIC_BLOCK{..})
@@ -128,14 +123,8 @@ toPhrases = \case
                 else
                     go (buf <> " " <> r) acc rs
 
-isLineStr :: TextShape -> Bool
-isLineStr PAGE = True
-isLineStr LINE = True
-isLineStr _    = False
-
 isPhrasic :: Rex -> Bool
 isPhrasic (N OPEN _ _ _) = False
-isPhrasic (T PAGE _ _)   = False
 isPhrasic (T LINE _ _)   = False
 isPhrasic _              = True
 
@@ -152,8 +141,8 @@ blockLines d (pad, val) =
         PHRASE ps ->
             (d,) <$> toList ps
 
-        LINED fat t k ->
-            (:) (d-2, mkStr ((if fat then "\"\"\"" else "'''") <> t))
+        LINED t k ->
+            (:) (d-2, mkStr ("\"\"\"" <> t))
                 (maybe [] (blockLines d) k)
 
         RUNIC RUNIC_BLOCK{..} ->
