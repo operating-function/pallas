@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <gmp.h>
 
 #include "seed.h"
@@ -389,10 +390,13 @@ static void rehash_leaves_if_full(Seed ctx) {
                         LeafEntry *tar = newtab + j;
                         if (tar->ptr.ix == UINT32_MAX) {
                                 *tar = ent;
-                                debugf("\t\t%lu -> %lu\n", i, j);
+                                debugf(("\t\t%"PRIu64" -> %"PRIu64"\n"), i, j);
                                 break;
                         } else {
-                                debugf("\t\t\t(%lu -> %lu) is taken\n", i, j);
+                                debugf(
+                                    "\t\t\t(%"PRIu64" -> %"PRIu64") is taken\n",
+                                      i, j
+                                );
                         }
                 }
         }
@@ -529,7 +533,12 @@ static void shatter(Seed ctx, treenode_t top) {
 
     loop:
 
-        debugf("  sp[%lu] is t%u (leaves=%u)\n", end - sp, sp->ix, sp->leaves);
+        debugf(
+            "  sp[%"PRIu64"] is t%u (leaves=%u)\n",
+            end - sp,
+            sp->ix,
+            sp->leaves
+        );
 
         // stk[0] unprocessed
         if (sp->leaves == 0) {
@@ -696,9 +705,13 @@ static INLINE nat_t alloc_nat(Seed c) {
 }
 
 treenode_t seed_word(Seed ctx, uint64_t word) {
-        int byte_width = word64_bytes(word);
+        uint32_t byte_width = word64_bytes(word);
 
-        debugf("\tseed_packed_nat(%lu, width=%u)\n", word, byte_width);
+        debugf(
+            "\tseed_packed_nat(%"PRIu64", width=%"PRIu32")\n",
+            word,
+            byte_width
+        );
 
         // hashing works different here vs seed_barnat and seed_nat.
         // This is fine, because words are never equal to things greater
@@ -1221,7 +1234,8 @@ void seed_save (Seed ctx, size_t width, uint8_t *top) {
         */
         uint8_t *end = (uint8_t*) st.out;
         if (end - top != width) {
-                die("bytes_written=%lu != width=%lu\n", (end-top), width);
+                die("bytes_written=%"PRIu64" != width=%"PRIu64"\n",
+                    (end-top), width);
         }
 }
 
@@ -1303,7 +1317,10 @@ load_fragtree(FragLoadSt *s) {
         uint64_t leaf_mask = (1 << refbits) - 1;
         uint64_t leaf = (s->acc >> s->red) & leaf_mask;
 
-        debugf("\tacc=%lu red=%lu | mask=%lu leaf=%lu\n", s->acc, s->red, leaf_mask, leaf);
+        debugf(
+            "\tacc=%"PRIu64" red=%"PRIu64" | mask=%"PRIu64" leaf=%"PRIu64"\n",
+            s->acc, s->red, leaf_mask, leaf
+        );
 
         int oldred = s->red;
         debugf("[[refbits=%d oldred=%d]]\n", refbits, oldred);
@@ -1321,8 +1338,8 @@ load_fragtree(FragLoadSt *s) {
                 uint64_t more = why << already;
 
                 debugf(
-                  "[nex=%lu extra=%d remain=%d already=%d more=%lu why=%lu]\n",
-                  nex, extra, remain, already, more, why
+                    "[nex=%"PRIu64" extra=%d remain=%d already=%d more=%"PRIu64" why=%"PRIu64"]\n",
+                    nex, extra, remain, already, more, why
                 );
 
                 leaf |= more;
@@ -1334,7 +1351,7 @@ load_fragtree(FragLoadSt *s) {
         }
 
         if (leaf > s->max_ref) {
-                die("leaf val is out-of-bounds (%lu)\n", leaf);
+                die("leaf val is out-of-bounds (%"PRIu64")\n", leaf);
         }
 
         treenode_value v;
@@ -1396,7 +1413,7 @@ void seed_load(Seed ctx, size_t wid, uint8_t *top) {
         uint64_t num_bytes = header[3];
         uint64_t num_frags = header[4];
 
-        if (DEBUG) printf("\t(setting up %lu holes)\n", num_holes);
+        if (DEBUG) printf("\t(setting up %"PRIu64" holes)\n", num_holes);
         for (int i=0; i < num_holes; i++) seed_hole(ctx);
 
         int header_size = 40 + (8 * num_bigs);
@@ -1405,7 +1422,7 @@ void seed_load(Seed ctx, size_t wid, uint8_t *top) {
                 die("input buffer too small to include bignat widths\n");
         }
 
-        if (DEBUG) printf("\t(loading %lu bignat widths)\n", num_bigs);
+        if (DEBUG) printf("\t(loading %"PRIu64" bignat widths)\n", num_bigs);
         uint64_t bigwidths[num_bigs];
         for (int i=0; i<num_bigs; i++) { bigwidths[i] = header[5+i]; }
 
@@ -1413,17 +1430,17 @@ void seed_load(Seed ctx, size_t wid, uint8_t *top) {
         st.wid -= header_size;
 
         if (DEBUG) {
-                printf("num_holes = %lu\n", num_holes);
-                printf("num_bytes = %lu\n", num_bytes);
-                printf("num_words = %lu\n", num_words);
-                printf("num_bigs  = %lu\n", num_bigs);
-                printf("num_frags = %lu\n", num_frags);
+                printf("num_holes = %"PRIu64"\n", num_holes);
+                printf("num_bytes = %"PRIu64"\n", num_bytes);
+                printf("num_words = %"PRIu64"\n", num_words);
+                printf("num_bigs  = %"PRIu64"\n", num_bigs);
+                printf("num_frags = %"PRIu64"\n", num_frags);
                 for (int i=0; i<num_bigs; i++) {
                         printf("bignat_width[%d] = %ld\n", i, bigwidths[i]);
                 }
         }
 
-        if (DEBUG) printf("\t(loading %lu bigs)\n", num_bigs);
+        if (DEBUG) printf("\t(loading %"PRIu64" bigs)\n", num_bigs);
         for (int i=0; i<num_bigs; i++) {
                 uint64_t wid  = bigwidths[i];  // TODO wid<2 is an error
                 uint32_t nix  = alloc_nat(ctx).ix;
@@ -1435,7 +1452,7 @@ void seed_load(Seed ctx, size_t wid, uint8_t *top) {
                 st.buf += (8*wid);
         }
 
-        if (DEBUG) printf("\t(loading %lu words)\n", num_words);
+        if (DEBUG) printf("\t(loading %"PRIu64" words)\n", num_words);
         for (int i=0; i<num_words; i++) {
                 uint64_t word = ((uint64_t*)st.buf)[0];
                 uint32_t nix = alloc_nat(ctx).ix;
@@ -1444,7 +1461,7 @@ void seed_load(Seed ctx, size_t wid, uint8_t *top) {
                 st.wid -= 8;
         }
 
-        if (DEBUG) printf("\t(loading %lu bytes)\n", num_bytes);
+        if (DEBUG) printf("\t(loading %"PRIu64" bytes)\n", num_bytes);
         for (int i=0; i<num_bytes; i++) {
                 uint64_t byte = st.buf[i];
                 uint32_t nix = alloc_nat(ctx).ix;
@@ -1455,7 +1472,7 @@ void seed_load(Seed ctx, size_t wid, uint8_t *top) {
 
         uint64_t num_nats = num_bytes + num_words + num_bigs;
 
-        if (DEBUG) printf("\t(loading %lu frags)\n", num_frags);
+        if (DEBUG) printf("\t(loading %"PRIu64" frags)\n", num_frags);
         if (num_frags) {
                 int used = (st.buf - top);
                 int clif = used % 8;
@@ -1474,7 +1491,7 @@ void seed_load(Seed ctx, size_t wid, uint8_t *top) {
                 st.buf -= clif;
                 st.wid += clif;
 
-                debugf("\tst.wid = %lu\n", st.wid);
+                debugf("\tst.wid = %"PRIu64"\n", st.wid);
                 debugf("\tst.buf = 0x%lx\n", (uint64_t) st.buf);
 
                 red = clif * 8;
@@ -1503,13 +1520,18 @@ void seed_load(Seed ctx, size_t wid, uint8_t *top) {
                         debugs("\t[frag_loader_state]\n");
                         debugf("\tptr = 0x%016lx\n", (uint64_t) s.ptr);
 
-                        debugs("       "); showbits("acc", 64, 64, s.acc); debugs("\n");
-                        debugs("       "); showbits("mor", 64, (64-s.red), (s.acc >> s.red)); debugs("\n");
-                        debugf("\tred = %lu\n", s.red);
+                        debugs("       ");
+                        showbits("acc", 64, 64, s.acc);
+                        debugs("\n");
+                        debugs("       ");
+                        showbits("mor", 64, (64-s.red), (s.acc >> s.red));
+                        debugs("\n");
+
+                        debugf("\tred = %"PRIu64"\n", s.red);
                         debugf("\trem = %d\n", s.rem);
-                        debugf("\tref_bits = %lu\n", s.ref_bits);
-                        debugf("\tmax_ref = %lu\n", s.max_ref);
-                        debugf("\tnum_nats = %lu\n", s.num_nats);
+                        debugf("\tref_bits = %"PRIu64"\n", s.ref_bits);
+                        debugf("\tmax_ref = %"PRIu64"\n", s.max_ref);
+                        debugf("\tnum_nats = %"PRIu64"\n", s.num_nats);
 
                         FragVal fv = load_fragment(&s);
                         frag_t frag = alloc_frag(ctx, fv);
@@ -1552,7 +1574,7 @@ void seed_load(Seed ctx, size_t wid, uint8_t *top) {
                 }
 
                 if (st.wid != 0) {
-                        debugf("EXTRA STUFF %lu bytes unread!\n", st.wid);
+                        debugf("EXTRA STUFF %"PRIu64" bytes unread!\n", st.wid);
                 }
         }
 }
@@ -1791,7 +1813,8 @@ static void seed_debug_leaves(Seed ctx, bool details) {
                         uint64_t bin = ent.leaf.hax & mask;
                         uint64_t distance = (((uint64_t)i) - bin);
                         printf("\t\t    bytes: %-4lu\n", width);
-                        printf("\t\t    bin: %lu [dist=%lu]\n", bin, distance);
+                        printf("\t\t    bin: %"PRIu64" [dist=%"PRIu64"]\n",
+                               bin, distance);
                         printf("\t\t    hash: 0x%016lx\n", ent.leaf.hax);
                 }
         }
@@ -1816,7 +1839,10 @@ static void seed_debug_interior_nodes(Seed ctx) {
                 uint64_t bin = ent.hax & mask;
                 uint64_t distance = (((uint64_t)i) - bin);
 
-                printf("\t\t%4d = t%u\tbin=%lu\tdist=%lu\thash=%08x\n", i, ent.ptr.ix, bin, distance, ent.hax);
+                printf(
+                    "\t\t%4d = t%u\tbin=%"PRIu64"\tdist=%"PRIu64"\thash=%08x\n",
+                    i, ent.ptr.ix, bin, distance, ent.hax
+                );
         }
 }
 
