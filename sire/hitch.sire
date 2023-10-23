@@ -4,9 +4,13 @@
 
 ### hitch <- gen
 
-;;;
-;;; The shared code for hitchhiker trees
-;;;
+;;;; HitchHiker Trees
+;;;; ================
+;;;;
+;;;; The shared code for hitchhiker trees.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  boot
 /+  switch    ["#switch"]

@@ -4,78 +4,77 @@
 
 ### 05_row <- 04_cmp
 
-"""
-""" Rows
-""" ====
-"""
-""" This module defines some very basic operations on rows, which are
-""" data-jetted arrays.  Since PLAN is untyped, these are also used as
-""" the building block used for tuples/records/datatypes.
-"""
-""" The bulk of the row operations are defined in 07_dat.sire, since many
-""" operations are more naturally defined along with operations on other
-""" data types (such as lists and optional values).
-"""
-""" A row is represented as (_Cow n) partially applied to n arguments,
-""" for example:
-"""
-"""     [5 4 3] = ((_Cow 3) 3 4 5)
-"""             = ((0 0 4 0) 3 4 5)
-"""             = (0 0 4 0 3 4 5)
-"""
-""" `_Get`, `_Idx`, and `_Len` are primarily intended to be used with
-""" rows, however their legal code is defined to work on any closure.
-""" For example, then length of (1 2 3) is 2 and its first element is 3.
-"""
-""" Similarly, operations like `map` and `gen` are defined in terms of
-""" these primitives also work with closures.
-"""
-""" Jetting
-""" =======
-"""
-""" Without jetting, the row operations all degrade into, essentially,
-""" linked-list operations.  Because of this, the core operations on
-""" rows are very important:
-"""
-""" -   _Head
-""" -   _Null
-""" -   _Arity
-""" -   _Len
-""" -   _Put
-""" -   _Get
-""" -   _Switch
-""" -   _IsCow
-""" -   _IsRow
-""" -   _Gen
-"""
-""" `_Switch` in particular should be optimized in the same was as `_If`.
-""" If the result is know to be demanded, the runtime can avoid creating
-""" thunks for each branch.
-"""
-"""
-""" Less Important Jets
-""" -------------------
-"""
-""" These jets are very helpful, but are defined in terms of other
-""" core jets, and thus perform well without jetting.
-"""
-""" -   _Map
-""" -   _Weld
-""" -   _Rev
-"""
-""" These jets are trivial, but are executed extremely often, and are
-""" often used in hot loops.
-"""
-""" -   _Idx
-""" -   _Mut
-"""
-"""
-""" Unimportant Jets
-""" ----------------
-"""
-""" These jets are used rarely and perform well without jets:
-"""
-""" -   _CowSize
+;;;; Rows
+;;;; ====
+;;;;
+;;;; This module defines some very basic operations on rows, which are
+;;;; data-jetted arrays.  Since PLAN is untyped, these are also used as
+;;;; the building block used for tuples/records/datatypes.
+;;;;
+;;;; The bulk of the row operations are defined in 07_dat.sire, since many
+;;;; operations are more naturally defined along with operations on other
+;;;; data types (such as lists and optional values).
+;;;;
+;;;; A row is represented as (_Cow n) partially applied to n arguments,
+;;;; for example:
+;;;;
+;;;;     [5 4 3] = ((_Cow 3) 3 4 5)
+;;;;             = ((0 0 4 0) 3 4 5)
+;;;;             = (0 0 4 0 3 4 5)
+;;;;
+;;;; `_Get`, `_Idx`, and `_Len` are primarily intended to be used with
+;;;; rows, however their legal code is defined to work on any closure.
+;;;; For example, then length of (1 2 3) is 2 and its first element is 3.
+;;;;
+;;;; Similarly, operations like `map` and `gen` are defined in terms of
+;;;; these primitives also work with closures.
+;;;;
+;;;; Jetting
+;;;; =======
+;;;;
+;;;; Without jetting, the row operations all degrade into, essentially,
+;;;; linked-list operations.  Because of this, the core operations on
+;;;; rows are very important:
+;;;;
+;;;; -   _Head
+;;;; -   _Null
+;;;; -   _Arity
+;;;; -   _Len
+;;;; -   _Put
+;;;; -   _Get
+;;;; -   _Switch
+;;;; -   _IsCow
+;;;; -   _IsRow
+;;;; -   _Gen
+;;;;
+;;;; `_Switch` in particular should be optimized in the same was as `_If`.
+;;;; If the result is know to be demanded, the runtime can avoid creating
+;;;; thunks for each branch.
+;;;;
+;;;;
+;;;; Less Important Jets
+;;;; -------------------
+;;;;
+;;;; These jets are very helpful, but are defined in terms of other
+;;;; core jets, and thus perform well without jetting.
+;;;;
+;;;; -   _Map
+;;;; -   _Weld
+;;;; -   _Rev
+;;;;
+;;;; These jets are trivial, but are executed extremely often, and are
+;;;; often used in hot loops.
+;;;;
+;;;; -   _Idx
+;;;; -   _Mut
+;;;;
+;;;;
+;;;; Unimportant Jets
+;;;; ----------------
+;;;;
+;;;; These jets are used rarely and perform well without jets:
+;;;;
+;;;; -   _CowSize
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

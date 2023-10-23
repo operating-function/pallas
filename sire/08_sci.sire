@@ -4,12 +4,10 @@
 
 ### 08_sci <- 07_dat
 
-"""
-""" Science
-""" =======
-"""
-""" Utilities for inspecting Fan values.
-"""
+;;;; Science
+;;;; =======
+;;;;
+;;;; Utilities for inspecting Fan values.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

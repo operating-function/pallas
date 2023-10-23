@@ -4,12 +4,16 @@
 
 ### test_laws <- test_kern_var
 
+;;;; Rethink this now that we don't have a way to get random data in
+;;;; the REPL.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 /+  stew
 
-"""
-""" Rethink this now that we don't have a way to get random data in
-""" the REPL.
-"""
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 """/+  boot
 """/+  blake3
@@ -116,5 +120,3 @@
 """!! check []    , take 0 put-2-1
 """!! check [1]   , take 1 put-2-1
 """!! check [1 2] , take 2 put-2-1
-
-"""!! check [1 2] , take 3 put-2-1

@@ -4,13 +4,19 @@
 
 ### w48 <- w32
 
-;;; TODO Use macros to generate these for different word sizes (32,
-;;; 48, 64).
-;;;
-;;; TODO Split into w48 and i48.
-;;;
-;;; TODO Figure out why this diverges from w32, and if any of those
-;;; divergencies matter.
+;;;; 48-Bit Words
+;;;; ============
+;;;;
+;;;; TODO Use macros to generate these for different word sizes (32,
+;;;; 48, 64).
+;;;;
+;;;; TODO Split into w48 and i48.
+;;;;
+;;;; TODO Figure out why this diverges from w32, and if any of those
+;;;; divergencies matter.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  boot
 

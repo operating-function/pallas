@@ -4,13 +4,16 @@
 
 ### w32 <- boot
 
-;;; TODO Use macros to generate identical modules for different words
-;;; sizes? (8, 16, 32, 48, 64, 128, 256).
-;;;
-;;; TODO Split into w32, i32, and b32?  Or keep it all in one module?
-;;;
-;;; TODO Figure out why this diverges from w48, and if any of those
-;;; divergencies matter.
+;;;; TODO Use macros to generate identical modules for different words
+;;;; sizes? (8, 16, 32, 48, 64, 128, 256).
+;;;;
+;;;; TODO Split into w32, i32, and b32?  Or keep it all in one module?
+;;;;
+;;;; TODO Figure out why this diverges from w48, and if any of those
+;;;; divergencies matter.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  boot
 

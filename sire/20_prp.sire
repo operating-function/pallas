@@ -4,12 +4,10 @@
 
 ### 20_prp <- 19_pat
 
-"""
-""" Properties
-""" ==========
-"""
-""" Lookup and set properties on syntax objects.
-"""
+;;;; Properties
+;;;; ==========
+;;;;
+;;;; Lookup and set properties on syntax objects.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

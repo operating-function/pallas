@@ -4,48 +4,46 @@
 
 ### 03_nat <- 02_bit
 
-"""
-""" Natural Numbers
-""" ===============
-"""
-""" This module defines the core operations on natural numbers.
-"""
-"""
-""" Jetting
-""" -------
-"""
-""" Many of these operations require jets.  These functions will be very
-""" slow without jet:
-"""
-""" - _Add
-""" - _Mul
-""" - _Sub
-""" - _Div
-""" - _Pow
-""" - _Bitwise
-""" - _NatFold
-"""
-""" These operations are defined in terms of other jets, and can function
-""" without jets, but still benefit greatly from optimization:
-"""
-""" - _Bex
-""" - _Bix
-""" - _Lsh
-""" - _Rsh
-""" - _Mod
-""" - _Dis
-""" - _Con
-""" - _Mix
-""" - _PopCount
-""" - _Met
-"""
-""" These operations do not need jets, but may be worth jetting anyways:
-"""
-""" - _ToNat
-""" - _Dec
-""" - _Exec
-""" - _OrdWeld
-"""
+;;;; Natural Numbers
+;;;; ===============
+;;;;
+;;;; This module defines the core operations on natural numbers.
+;;;;
+;;;;
+;;;; Jetting
+;;;; -------
+;;;;
+;;;; Many of these operations require jets.  These functions will be very
+;;;; slow without jet:
+;;;;
+;;;; - _Add
+;;;; - _Mul
+;;;; - _Sub
+;;;; - _Div
+;;;; - _Pow
+;;;; - _Bitwise
+;;;; - _NatFold
+;;;;
+;;;; These operations are defined in terms of other jets, and can function
+;;;; without jets, but still benefit greatly from optimization:
+;;;;
+;;;; - _Bex
+;;;; - _Bix
+;;;; - _Lsh
+;;;; - _Rsh
+;;;; - _Mod
+;;;; - _Dis
+;;;; - _Con
+;;;; - _Mix
+;;;; - _PopCount
+;;;; - _Met
+;;;;
+;;;; These operations do not need jets, but may be worth jetting anyways:
+;;;;
+;;;; - _ToNat
+;;;; - _Dec
+;;;; - _Exec
+;;;; - _OrdWeld
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

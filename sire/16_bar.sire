@@ -4,27 +4,25 @@
 
 ### 16_bar <- 15_pad
 
-"""
-""" Bars
-""" ====
-"""
-""" Bars are data-jetted byte arrays.
-"""
-""" The data-jet has the noun-shape (0 1 1 PAD) where PAD is a bit-array
-""" whose width is a multiple of 8.
-"""
-"""     REPL> inspect b#"foo"
-"""     [0 1 1 24080230]
-"""
-"""     REPL> natPad %foo 24
-"""     24080230
-"""
-"""     REPL> (0 1 1 (natPad %foo 24))
-"""     b#foo
-"""
-"""     REPL> (0 1 1 (natPad %foo 32))
-"""     x#666f6f00
-"""
+;;;; Bars
+;;;; ====
+;;;;
+;;;; Bars are data-jetted byte arrays.
+;;;;
+;;;; The data-jet has the noun-shape (0 1 1 PAD) where PAD is a bit-array
+;;;; whose width is a multiple of 8.
+;;;;
+;;;;     REPL> inspect b#"foo"
+;;;;     [0 1 1 24080230]
+;;;;
+;;;;     REPL> natPad %foo 24
+;;;;     24080230
+;;;;
+;;;;     REPL> (0 1 1 (natPad %foo 24))
+;;;;     b#foo
+;;;;
+;;;;     REPL> (0 1 1 (natPad %foo 32))
+;;;;     x#666f6f00
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

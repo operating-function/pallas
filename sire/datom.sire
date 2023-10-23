@@ -4,12 +4,12 @@
 
 ### datom <- sandbox
 
-"""
-""" Datom
-""" =====
-"""
-""" Embeddable Entity/Attribute/Value datastore.
-"""
+;;;;
+;;;; Datom
+;;;; =====
+;;;;
+;;;; Embeddable Entity/Attribute/Value datastore.
+;;;;
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

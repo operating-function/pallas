@@ -4,26 +4,24 @@
 
 ### 06_rex <- 05_row
 
-"""
-""" Rex Syntax Trees
-""" ================
-"""
-""" This defines the representation for the Rex datajet.  Some utilities
-""" for working with Rex values.  It also includes the {``} macro,
-""" for lisp-style rex quoting.
-"""
-"""
-""" Jetting
-""" -------
-"""
-""" The Rex data jet is VERY much optional, and probably has a significant
-""" negative effect on performance.  This is made jettable so that an
-""" implementation of Sire in a host system can move data back-and-forth
-""" with the macros without constantly re-validating the whole tree.
-"""
-""" An implementation without a built-in Sire implementation should
-""" probably not jet any of this.
-"""
+;;;; Rex Syntax Trees
+;;;; ================
+;;;;
+;;;; This defines the representation for the Rex datajet.  Some utilities
+;;;; for working with Rex values.  It also includes the {``} macro,
+;;;; for lisp-style rex quoting.
+;;;;
+;;;;
+;;;; Jetting
+;;;; -------
+;;;;
+;;;; The Rex data jet is VERY much optional, and probably has a significant
+;;;; negative effect on performance.  This is made jettable so that an
+;;;; implementation of Sire in a host system can move data back-and-forth
+;;;; with the macros without constantly re-validating the whole tree.
+;;;;
+;;;; An implementation without a built-in Sire implementation should
+;;;; probably not jet any of this.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

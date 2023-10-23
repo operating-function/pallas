@@ -4,45 +4,43 @@
 
 ### 02_bit <- 01_fan
 
-"""
-""" Bits (Booleans)
-""" ===============
-"""
-""" This module defines the foundational operations on bits (booleans).
-"""
-"""
-""" Jetting
-""" -------
-"""
-""" All of the jets in this module are optional.
-"""
-""" If implementing a subset of these jets, then _If is the highest
-""" leverage, followed by _Bit and _Not.
-"""
-"""
-""" The `_If` Jet
-""" -------------
-"""
-""" `_If` is a particularly important jet because, if the result is known
-""" to be demanded, it can avoid creating thunks for both branches.
-"""
-""" Consider something like the following:
-"""
-"""     | _If (cond expr) (big "then" expr) (big "else" expr))
-"""
-""" The naive behavior is to:
-"""
-""" 1.  Construct thunks for all three arguments.
-""" 2.  Evaluate the condition thunk.
-""" 3.  Choose either the `then` or `else` branch.
-""" 4.  Evaluate that version.
-"""
-""" An optimized version can avoid constructing these thunks and just:
-"""
-""" 1. Evaluate the conditional expression.
-""" 2. Choose a branch.
-""" 3. Evaluate the expression for that branch.
-"""
+;;;; Bits (Booleans)
+;;;; ===============
+;;;;
+;;;; This module defines the foundational operations on bits (booleans).
+;;;;
+;;;;
+;;;; Jetting
+;;;; -------
+;;;;
+;;;; All of the jets in this module are optional.
+;;;;
+;;;; If implementing a subset of these jets, then _If is the highest
+;;;; leverage, followed by _Bit and _Not.
+;;;;
+;;;;
+;;;; The `_If` Jet
+;;;; -------------
+;;;;
+;;;; `_If` is a particularly important jet because, if the result is known
+;;;; to be demanded, it can avoid creating thunks for both branches.
+;;;;
+;;;; Consider something like the following:
+;;;;
+;;;;     | _If (cond expr) (big "then" expr) (big "else" expr))
+;;;;
+;;;; The naive behavior is to:
+;;;;
+;;;; 1.  Construct thunks for all three arguments.
+;;;; 2.  Evaluate the condition thunk.
+;;;; 3.  Choose either the `then` or `else` branch.
+;;;; 4.  Evaluate that version.
+;;;;
+;;;; An optimized version can avoid constructing these thunks and just:
+;;;;
+;;;; 1. Evaluate the conditional expression.
+;;;; 2. Choose a branch.
+;;;; 3. Evaluate the expression for that branch.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

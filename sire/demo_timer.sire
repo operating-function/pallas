@@ -4,7 +4,10 @@
 
 ### demo_timer <- demo_thread_yield
 
-;;; This is an example of a tiny program using the `kern.sire` exo-kernel.
+;;;; This is an example of a tiny program using the `kern.sire` exo-kernel.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  boot
 /+  kern

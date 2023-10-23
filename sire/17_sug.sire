@@ -4,54 +4,52 @@
 
 ### 17_sug <- 16_bar
 
-"""
-""" Syntactic Sugar
-""" ===============
-"""
-""" This module is a collection of convenience macros.
-"""
-""" - `:` is convenient syntax for continuation-passing.
-"""
-""" - `~` and `~~` implement list-literals.
-"""
-"""
-""" The Col Macro
-""" -------------
-"""
-""" `:` is a shorthand for a function call where the last argument is
-""" a callback lambda.
-"""
-""" This pattern comes up quite a lot since we don't have do notation.
-"""
-""" You write something like:
-"""
-"""     : (x y z) <- foo x y
-"""     | add x
-"""     | add y z
-"""
-""" And that expands to:
-"""
-"""     - foo x y
-"""     & (x y z)
-"""     | add x
-"""     | add y z
-"""
-""" (Remember that `-` is function application, just like `|`)
-"""
-"""
-""" List Literals
-""" -------------
-"""
-""" Wide form:
-"""
-"""     ~[3 4 5]
-"""
-""" Tall form:
-"""
-"""    ~~ 3
-"""    ~~ 4
-"""    ~~ 5
-"""
+;;;; Syntactic Sugar
+;;;; ===============
+;;;;
+;;;; This module is a collection of convenience macros.
+;;;;
+;;;; - `:` is convenient syntax for continuation-passing.
+;;;;
+;;;; - `~` and `~~` implement list-literals.
+;;;;
+;;;;
+;;;; The Col Macro
+;;;; -------------
+;;;;
+;;;; `:` is a shorthand for a function call where the last argument is
+;;;; a callback lambda.
+;;;;
+;;;; This pattern comes up quite a lot since we don't have do notation.
+;;;;
+;;;; You write something like:
+;;;;
+;;;;     : (x y z) <- foo x y
+;;;;     | add x
+;;;;     | add y z
+;;;;
+;;;; And that expands to:
+;;;;
+;;;;     - foo x y
+;;;;     & (x y z)
+;;;;     | add x
+;;;;     | add y z
+;;;;
+;;;; (Remember that `-` is function application, just like `|`)
+;;;;
+;;;;
+;;;; List Literals
+;;;; -------------
+;;;;
+;;;; Wide form:
+;;;;
+;;;;     ~[3 4 5]
+;;;;
+;;;; Tall form:
+;;;;
+;;;;    ~~ 3
+;;;;    ~~ 4
+;;;;    ~~ 5
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

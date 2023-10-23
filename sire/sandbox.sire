@@ -4,16 +4,22 @@
 
 ### sandbox <- kern
 
+;;;;
+;;;; This is a generic wrapper around a cog function, which validates that the
+;;;; cog is only attempting to send reap/stop cog requests on cogs that it
+;;;; started.
+;;;;
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 /+  boot
 /+  kern
 /+  mutrec
 /+  stew
 
-"""
-""" This is a generic wrapper around a cog function, which validates that the
-""" cog is only attempting to send reap/stop cog requests on cogs that it
-""" started.
-"""
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (isCogSpin r)
 | ifNot | isRow r

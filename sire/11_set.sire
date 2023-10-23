@@ -4,19 +4,17 @@
 
 ### 11_set <- 10_str
 
-"""
-""" Sets
-""" ====
-"""
-""" Data jetted sets of nouns.
-"""
-""" Sets are represented as a law of the form:
-"""
-"""     (0 1 2 row)
-"""
-""" Where the row has no duplicate elements, and all elements are stored
-""" in ascending order.
-"""
+;;;; Sets
+;;;; ====
+;;;;
+;;;; Data jetted sets of nouns.
+;;;;
+;;;; Sets are represented as a law of the form:
+;;;;
+;;;;     (0 1 2 row)
+;;;;
+;;;; Where the row has no duplicate elements, and all elements are stored
+;;;; in ascending order.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

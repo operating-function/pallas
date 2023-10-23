@@ -4,12 +4,10 @@
 
 ### 12_tab <- 11_set
 
-"""
-""" Tabs
-""" ====
-"""
-""" A tab is a data-jetted map from noun to noun.
-"""
+;;;; Tabs
+;;;; ====
+;;;;
+;;;; A tab is a data-jetted map from noun to noun.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

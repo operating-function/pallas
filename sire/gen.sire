@@ -4,14 +4,12 @@
 
 ### gen <- blake3
 
-"""
-""" Pseudo-Random Number Generator
-""" ==============================
-"""
-""" This is an extremely naive pseudo-random number generator that works
-""" by simply runing blake 3 on some seed, and then hashing that hash
-""" to get more random bits, etc.
-"""
+;;;; Pseudo-Random Number Generator
+;;;; ==============================
+;;;;
+;;;; This is an extremely naive pseudo-random number generator that works
+;;;; by simply runing blake 3 on some seed, and then hashing that hash
+;;;; to get more random bits, etc.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

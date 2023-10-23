@@ -4,12 +4,10 @@
 
 ### 21_par <- 20_prp
 
-"""
-""" Parallel
-""" ========
-"""
-""" Utilities for evaluating things in parallel.
-"""
+;;;; Parallel
+;;;; ========
+;;;;
+;;;; Utilities for evaluating things in parallel.
 
 
 ;;; Import ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

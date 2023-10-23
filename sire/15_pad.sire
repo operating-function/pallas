@@ -4,42 +4,40 @@
 
 ### 15_pad <- 14_hax
 
-"""
-""" Pads
-""" ====
-"""
-""" A pad is a bit-string encoded as a non-zero nat.
-"""
-""" Pads are not data-jetted, since the direct nat works perfectly.
-"""
-""" Pads are encoded least-significant-bit-first, with the high bit used
-""" to indicate the end of the bit-array.
-"""
-"""     p#""       = 0b1
-"""     p#"00"     = 0b100
-"""     p#"01"     = 0b110
-"""     p#"111000" = 0b1000111
-"""
-""" All of the pad operations coerce their inputs into pads, and always
-""" return pads.
-"""
-""" toPad: Coerces a value into a non-zero natural number.
-"""
-""" padNat: Convert a pad to a nat (dropping all trailining zeros).
-"""
-""" natPad: Convert a nat into a pad with a specific minimum bit-width.
-"""
-""" padWeld: Concatenate two pads
-"""
-""" padCat: Concatenate a row of pads (TODO)
-"""
-""" padCatTree: Concatenate a rose-tree of pads (TODO)
-"""
-""" padIdx: TODO
-""" padGet: TODO
-""" padSet: TODO
-""" padMap: TODO
-"""
+;;;; Pads
+;;;; ====
+;;;;
+;;;; A pad is a bit-string encoded as a non-zero nat.
+;;;;
+;;;; Pads are not data-jetted, since the direct nat works perfectly.
+;;;;
+;;;; Pads are encoded least-significant-bit-first, with the high bit used
+;;;; to indicate the end of the bit-array.
+;;;;
+;;;;     p#""       = 0b1
+;;;;     p#"00"     = 0b100
+;;;;     p#"01"     = 0b110
+;;;;     p#"111000" = 0b1000111
+;;;;
+;;;; All of the pad operations coerce their inputs into pads, and always
+;;;; return pads.
+;;;;
+;;;; toPad: Coerces a value into a non-zero natural number.
+;;;;
+;;;; padNat: Convert a pad to a nat (dropping all trailining zeros).
+;;;;
+;;;; natPad: Convert a nat into a pad with a specific minimum bit-width.
+;;;;
+;;;; padWeld: Concatenate two pads
+;;;;
+;;;; padCat: Concatenate a row of pads (TODO)
+;;;;
+;;;; padCatTree: Concatenate a rose-tree of pads (TODO)
+;;;;
+;;;; padIdx: TODO
+;;;; padGet: TODO
+;;;; padSet: TODO
+;;;; padMap: TODO
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

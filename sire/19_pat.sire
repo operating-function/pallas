@@ -4,33 +4,31 @@
 
 ### 19_pat <- 17_sug
 
-"""
-""" Pattern Matching
-""" ================
-"""
-""" Extends `@` to support destructuring on:
-"""
-""" - Rows
-""" - Tabs
-""" - Pins
-""" - Laws
-"""
-""" Also supports strictness annotations on bindings.
-"""
-"""
-""" TODOs
-""" -----
-"""
-""" -   TODO: Don't output `_` bindings.
-"""
-""" -   TODO: Don't output trivial rebindings (x=y).
-"""
-""" -   TODO: Implement LAW/PIN patterns in a principled way.
-"""
-"""     We should register some sort of "destructuror" against the PIN /
-"""     LAW bindings in `01_fan.sire`. You should be able to shaddow
-"""     (or not import) these like anything else.
-"""
+;;;; Pattern Matching
+;;;; ================
+;;;;
+;;;; Extends `@` to support destructuring on:
+;;;;
+;;;; - Rows
+;;;; - Tabs
+;;;; - Pins
+;;;; - Laws
+;;;;
+;;;; Also supports strictness annotations on bindings.
+;;;;
+;;;;
+;;;; TODOs
+;;;; -----
+;;;;
+;;;; -   TODO: Don't output `_` bindings.
+;;;;
+;;;; -   TODO: Don't output trivial rebindings (x=y).
+;;;;
+;;;; -   TODO: Implement LAW/PIN patterns in a principled way.
+;;;;
+;;;;     We should register some sort of "destructuror" against the PIN /
+;;;;     LAW bindings in `01_fan.sire`. You should be able to shaddow
+;;;;     (or not import) these like anything else.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

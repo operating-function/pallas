@@ -4,16 +4,14 @@
 
 ### 13_exp <- 12_tab
 
-"""
-""" Sire Expressions
-""" ================
-"""
-""" This is a collection of utilities for working with Rex trees that
-""" represent Sire expressions.
-"""
-""" This is initially useful for writing macros, but should also be
-""" useful in sire-in-sire once that's fully working.
-"""
+;;;; Sire Expressions
+;;;; ================
+;;;;
+;;;; This is a collection of utilities for working with Rex trees that
+;;;; represent Sire expressions.
+;;;;
+;;;; This is initially useful for writing macros, but should also be
+;;;; useful in sire-in-sire once that's fully working.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

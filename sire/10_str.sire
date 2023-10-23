@@ -4,12 +4,10 @@
 
 ### 10_str <- 09_chr
 
-"""
-""" Strings
-""" =======
-"""
-""" A `Str` is a utf8 string represented as a natural number.
-"""
+;;;; Strings
+;;;; =======
+;;;;
+;;;; A `Str` is a utf8 string represented as a natural number.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

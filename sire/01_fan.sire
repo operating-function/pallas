@@ -4,36 +4,34 @@
 
 ### 01_fan
 
-"""
-""" PLAN Primitives
-""" ===============
-"""
-""" This module essentially just defines named wrappers around primitive
-""" PLAN operations.
-"""
-""" For example `_IsLaw` is just a nice interface to functionality provided
-""" by the `1` primop.
-"""
-"""     (_IsLaw x)=(1 _&0 (_ _ _)&1 (_ _)&0 _&0 x)
-"""
-""" In addition, this module includes some bread-and-butter utilities and
-""" combinators that are widely used but don't belong anywhere else.
-"""
-"""
-""" Jetting
-""" -------
-"""
-""" All of the jets in this file are optional.
-"""
-""" The _Trk jet prints it's first argument to some sort of debugging log.
-""" _Trk is the only is the only "effectful" jet, the effect is optional,
-""" and the effect is not observable from other PLAN code.
-"""
-""" There is an expectation that operations like _Car, _IsLaw, and _IsZero
-""" be very cheap.  They are marked as jets so that implementations are
-""" free to optimize them.  However, the unoptimized legal code should
-""" also perform well enough for moderate use-cases.
-"""
+;;;; PLAN Primitives
+;;;; ===============
+;;;;
+;;;; This module essentially just defines named wrappers around primitive
+;;;; PLAN operations.
+;;;;
+;;;; For example `_IsLaw` is just a nice interface to functionality provided
+;;;; by the `1` primop.
+;;;;
+;;;;     (_IsLaw x)=(1 _&0 (_ _ _)&1 (_ _)&0 _&0 x)
+;;;;
+;;;; In addition, this module includes some bread-and-butter utilities and
+;;;; combinators that are widely used but don't belong anywhere else.
+;;;;
+;;;;
+;;;; Jetting
+;;;; -------
+;;;;
+;;;; All of the jets in this file are optional.
+;;;;
+;;;; The _Trk jet prints it's first argument to some sort of debugging log.
+;;;; _Trk is the only is the only "effectful" jet, the effect is optional,
+;;;; and the effect is not observable from other PLAN code.
+;;;;
+;;;; There is an expectation that operations like _Car, _IsLaw, and _IsZero
+;;;; be very cheap.  They are marked as jets so that implementations are
+;;;; free to optimize them.  However, the unoptimized legal code should
+;;;; also perform well enough for moderate use-cases.
 
 
 ;;; Names for PLAN Primitives ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

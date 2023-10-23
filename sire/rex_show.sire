@@ -4,16 +4,19 @@
 
 ### rex_show <- parse
 
-; TODO: This doesn't handle cases where line-strings have heirs that
-; are not line-strings.
+;;;; TODO: This doesn't handle cases where line-strings have heirs that
+;;;; are not line-strings.
+;;;;
+;;;; TODO: Open-rune handling is a gigantic hack.  It only does the
+;;;; outer-most layer and it doesn't respect depth, so it only works in
+;;;; the case where all of the col=1 runes have the same width (which
+;;;; is usually).
+;;;;
+;;;; TODO: Implement some basic layout engine instead of just falling back
+;;;; to closed-forms for everything besides the heir and the last son.
 
-; TODO: Open-rune handling is a gigantic hack.  It only does the
-; outer-most layer and it doesn't respect depth, so it only works in
-; the case where all of the col=1 runes have the same width (which
-; is usually).
 
-; TODO: Implement some basic layout engine instead of just falling back
-; to closed-forms for everything besides the heir and the last son.
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+ prelude
 

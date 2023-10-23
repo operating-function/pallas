@@ -4,38 +4,34 @@
 
 ### mutrec <- switch
 
-"""
-""" Mutually Recursive Functions
-""" ============================
-"""
-
-'''
-''' Example Input:
-'''
-'''     = (foo x)
-'''     # mutrec %even_odd (even 9)
-'''     * (even x)
-'''         | ifNot x TRUE  (odd dec-x)
-'''     * (odd x)
-'''         | ifNot x FALSE (even dec-x)
-'''
-''' Example Output:
-'''
-'''      = (foo x)
-'''     #@ _core1
-'''         #? (_core1 _tag2 _g3)
-'''         #@ even (x #& _core1 0 x)
-'''         #@ odd  (x #& _core1 1 x)
-'''         #| switch _tag2 0
-'''         #|      **v2
-'''             #@ n _g3
-'''              | ifNot n TRUE (**odd dec-n)
-'''         #@ m _g3
-'''          | ifNot m FALSE (**even dec-m)
-'''     #@ even (n & _core1 0 n)
-'''     #@ odd  (m & _core1 1 m)
-'''      (**even x)
-'''
+;;;; Mutually Recursive Functions
+;;;; ============================
+;;;;
+;;;; Example Input:
+;;;;
+;;;;     = (foo x)
+;;;;     # mutrec %even_odd (even 9)
+;;;;     * (even x)
+;;;;         | ifNot x TRUE  (odd dec-x)
+;;;;     * (odd x)
+;;;;         | ifNot x FALSE (even dec-x)
+;;;;
+;;;; Example Output:
+;;;;
+;;;;      = (foo x)
+;;;;     #@ _core1
+;;;;         #? (_core1 _tag2 _g3)
+;;;;         #@ even (x #& _core1 0 x)
+;;;;         #@ odd  (x #& _core1 1 x)
+;;;;         #| switch _tag2 0
+;;;;         #|      **v2
+;;;;             #@ n _g3
+;;;;              | ifNot n TRUE (**odd dec-n)
+;;;;         #@ m _g3
+;;;;          | ifNot m FALSE (**even dec-m)
+;;;;     #@ even (n & _core1 0 n)
+;;;;     #@ odd  (m & _core1 1 m)
+;;;;      (**even x)
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

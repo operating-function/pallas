@@ -4,127 +4,128 @@
 
 ### stew <- types
 
+;;;; stew.sire
+;;;; =========
+;;;;
+;;;; This is a parser, printer, and compiler for Stew, the "Steward Language".
+;;;; Stew is an interim language between Sire and Heir.  Stew is built
+;;;; using the Sire macro system but does not itself support further
+;;;; macro-extension, instead using the traditional parse, type-check,
+;;;; compiler flow.
+;;;;
+;;;; TODO: Kill io.sire
+;;;;
+;;;; TODO: Parse all built-in command runes:
+;;;;
+;;;; - [ ] !!=
+;;;; - [ ] =
+;;;; - [ ] *
+;;;; - [ ] <
+;;;; - [ ] ###
+;;;;
+;;;; TODO: Parse all macro-defined commands:
+;;;;
+;;;; - [ ] !!
+;;;; - [x] #mutual
+;;;; - [ ] #record
+;;;; - [ ] #datatype
+;;;;
+;;;; TODO: Parse all leaf-expressions:
+;;;;
+;;;; - [x] parse decimal literals
+;;;; - [x] parse hex literals
+;;;; - [x] identifiers (rejecting malformed ones)
+;;;;
+;;;; DONE: Parse all built-in expression runes:
+;;;;
+;;;; - [x] | -
+;;;; - [x] @
+;;;; - [x] @@
+;;;; - [x] &
+;;;; - [x] ?
+;;;; - [x] ??
+;;;; - [x] **
+;;;; - [x] ^
+;;;;
+;;;; TODO: Parse all macro-defined expressions:
+;;;;
+;;;; - [x] #p
+;;;; - [x] #b
+;;;; - [x] #x
+;;;; - [x] %
+;;;; - [x] %%
+;;;; - [x] #  (tabs)
+;;;; - [x] ##
+;;;; - [x] @   (lambda binds)
+;;;; - [x] @   (multi binds)
+;;;; - [x] ``
+;;;; - [x] `
+;;;; - [x] &&
+;;;; - [x] ||
+;;;; - [x] ==
+;;;; - [x] /=
+;;;; - [x] , (rows)
+;;;; - [x] , (tabs)
+;;;; - [x] ++
+;;;; - [x] :
+;;;; - [x] ~
+;;;; - [x] ~~
+;;;; - [x] ::
+;;;; - [x] # (keywords)
+;;;; - [x] #datacase
+;;;; - [x] #mutrec
+;;;; - [x] #switch
+;;;; - [x] . (non-symbolic references)
+;;;; - [x] Correctly print non-symbol references.
+;;;; - [ ] Fix inline annotations on function literals.
+;;;; - [ ] Make sure function literals support all details.
+;;;; - [x] RECORD(..) patterns
+;;;;
+;;;; TODO: Support non-atomic keys in tabs.
+;;;;
+;;;; TODO: Parse expressions that don't exist yet.
+;;;;
+;;;; - [ ] / ("has type")
+;;;;
+;;;; Parse other commands:
+;;;;
+;;;; - [ ] >
+;;;; - [ ] \
+;;;; - [ ] #abstype
+;;;; - [ ] #backfill
+;;;; - [ ] #typedef
+;;;; - [ ] #typeof
+;;;; - [ ] #printType
+;;;; - [ ] #getenv
+;;;; - [ ] #getKey
+;;;; - [ ] #getProp
+;;;; - [ ] #setProp
+;;;; - [ ] #hasProp
+;;;; - [ ] #getTypeNames
+;;;;
+;;;; - [x] Compile stew to sire.
+;;;; - [x] Write a macro that parses stew, compiles it to sire, and
+;;;;       expands to that.
+;;;; - [x] Redefine all runes to invoke TheBigStewMacro.
+;;;;
+;;;; - [ ] Name resolution
+;;;;
+;;;; - [ ] Merge switch.sire and datatype.sire
+;;;; - [ ] Implement #openrecord (#datacase on records)
+;;;; - [ ] Merge (#switch / #openrecord / #datacase) into #case
+;;;; - [ ] #case supports multiple values.
+;;;; - [ ] #case supports recursive patterns.
+;;;; - [ ] Merge #record and #datatype into #data
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 /+  boot
 /+  datatype
 /+  switch
 /+  datatype  [parseDatacase resolveDatacase]
 /+  mutrec    [readMutRecExp genMutRecE]
 /+  types
-
-"""
-""" stew.sire
-""" =========
-"""
-""" This is a parser, printer, and compiler for Stew, the "Steward Language".
-""" Stew is an interim language between Sire and Heir.  Stew is built
-""" using the Sire macro system but does not itself support further
-""" macro-extension, instead using the traditional parse, type-check,
-""" compiler flow.
-"""
-""" TODO: Kill io.sire
-"""
-""" TODO: Parse all built-in command runes:
-"""
-""" - [ ] !!=
-""" - [ ] =
-""" - [ ] *
-""" - [ ] <
-""" - [ ] ###
-"""
-""" TODO: Parse all macro-defined commands:
-"""
-""" - [ ] !!
-""" - [x] #mutual
-""" - [ ] #record
-""" - [ ] #datatype
-"""
-""" TODO: Parse all leaf-expressions:
-"""
-""" - [x] parse decimal literals
-""" - [x] parse hex literals
-""" - [x] identifiers (rejecting malformed ones)
-"""
-""" DONE: Parse all built-in expression runes:
-"""
-""" - [x] | -
-""" - [x] @
-""" - [x] @@
-""" - [x] &
-""" - [x] ?
-""" - [x] ??
-""" - [x] **
-""" - [x] ^
-"""
-""" TODO: Parse all macro-defined expressions:
-"""
-""" - [x] #p
-""" - [x] #b
-""" - [x] #x
-""" - [x] %
-""" - [x] %%
-""" - [x] #  (tabs)
-""" - [x] ##
-""" - [x] @   (lambda binds)
-""" - [x] @   (multi binds)
-""" - [x] ``
-""" - [x] `
-""" - [x] &&
-""" - [x] ||
-""" - [x] ==
-""" - [x] /=
-""" - [x] , (rows)
-""" - [x] , (tabs)
-""" - [x] ++
-""" - [x] :
-""" - [x] ~
-""" - [x] ~~
-""" - [x] ::
-""" - [x] # (keywords)
-""" - [x] #datacase
-""" - [x] #mutrec
-""" - [x] #switch
-""" - [x] . (non-symbolic references)
-""" - [x] Correctly print non-symbol references.
-""" - [ ] Fix inline annotations on function literals.
-""" - [ ] Make sure function literals support all details.
-""" - [x] RECORD(..) patterns
-"""
-""" TODO: Support non-atomic keys in tabs.
-"""
-""" TODO: Parse expressions that don't exist yet.
-"""
-""" - [ ] / ("has type")
-"""
-""" Parse other commands:
-"""
-""" - [ ] >
-""" - [ ] \
-""" - [ ] #abstype
-""" - [ ] #backfill
-""" - [ ] #typedef
-""" - [ ] #typeof
-""" - [ ] #printType
-""" - [ ] #getenv
-""" - [ ] #getKey
-""" - [ ] #getProp
-""" - [ ] #setProp
-""" - [ ] #hasProp
-""" - [ ] #getTypeNames
-"""
-""" - [x] Compile stew to sire.
-""" - [x] Write a macro that parses stew, compiles it to sire, and
-"""       expands to that.
-""" - [x] Redefine all runes to invoke TheBigStewMacro.
-"""
-""" - [ ] Name resolution
-"""
-""" - [ ] Merge switch.sire and datatype.sire
-""" - [ ] Implement #openrecord (#datacase on records)
-""" - [ ] Merge (#switch / #openrecord / #datacase) into #case
-""" - [ ] #case supports multiple values.
-""" - [ ] #case supports recursive patterns.
-""" - [ ] Merge #record and #datatype into #data
-"""
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

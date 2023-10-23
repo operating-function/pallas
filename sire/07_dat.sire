@@ -4,13 +4,11 @@
 
 ### 07_dat <- 06_rex
 
-"""
-""" Data Structures
-""" ===============
-"""
-""" Rows (vectors), lists, maybe, either, and operations on these
-""" datatype.
-"""
+;;;; Data Structures
+;;;; ===============
+;;;;
+;;;; Rows (vectors), lists, maybe, either, and operations on these
+;;;; datatype.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -4,30 +4,31 @@
 
 ### sieve <- quickcheck
 
-"""
-""" Sieve of Eratosthenes
-""" =========================================
-"""
-""" This module defines a list of prime numbers, computed in the final approach
-""" outlined in:
-"""
-""" 'The Genuine Sieve of Eratosthenes' by Melissa E. O’Neill
-""" (https://www.cs.hmc.edu/~oneill/papers/Sieve-JFP.pdf)
-"""
-""" The core of the approach is to maintain a priority queue (PQ) of 'next
-""" known composite numbers', and then to check each input number for
-""" key-membership in the PQ. Membership indicates composite-ness.
-""" Non-membership indicates primality.
-"""
-""" In the composite case, we reinsert the 'next composite', which corresponds
-""" to a 'stepping' of the current composite by a factor, or multiple of a
-""" factor. This is accomplished by maintaining, inside of the PQ, an infinite
-""" list of successor values for each known composite.
-"""
-""" This approach also uses a 'wheel', which filters down the numerical search
-""" space by only generating numbers which are known not to be composites of
-""" certain factors (in this case 2, 3, 5, 7).
-"""
+;;;; Sieve of Eratosthenes
+;;;; =====================
+;;;;
+;;;; This module defines a list of prime numbers, computed in the final approach
+;;;; outlined in:
+;;;;
+;;;; 'The Genuine Sieve of Eratosthenes' by Melissa E. O’Neill
+;;;; (https://www.cs.hmc.edu/~oneill/papers/Sieve-JFP.pdf)
+;;;;
+;;;; The core of the approach is to maintain a priority queue (PQ) of 'next
+;;;; known composite numbers', and then to check each input number for
+;;;; key-membership in the PQ. Membership indicates composite-ness.
+;;;; Non-membership indicates primality.
+;;;;
+;;;; In the composite case, we reinsert the 'next composite', which corresponds
+;;;; to a 'stepping' of the current composite by a factor, or multiple of a
+;;;; factor. This is accomplished by maintaining, inside of the PQ, an infinite
+;;;; list of successor values for each known composite.
+;;;;
+;;;; This approach also uses a 'wheel', which filters down the numerical search
+;;;; space by only generating numbers which are known not to be composites of
+;;;; certain factors (in this case 2, 3, 5, 7).
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  prelude
 /+  stew

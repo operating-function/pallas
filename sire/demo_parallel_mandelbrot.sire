@@ -4,8 +4,8 @@
 
 ### demo_parallel_mandelbrot <- demo_no_claim_fork_and_send
 
-;;; We emulate floating point math with by using signed integers with
-;;; a fixed point, so that 10.000.000 is floating 1.0.
+;;;; We emulate floating point math with by using signed integers with
+;;;; a fixed point, so that 10.000.000 is floating 1.0.
 
 /+  boot
 /+  w64

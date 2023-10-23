@@ -4,19 +4,21 @@
 
 ### pq <- splitmix
 
-"""
-""" Priority Queue
-""" ==============
-"""
-""" This implementation is based on section 4.16 of the book 'ML for the Working
-""" Programmer' by Larry C. Paulson (Cambridge University Press [1996]).
-"""
-""" It is modified to support a customizeable comparator function (`cmp`, below)
-""" which is passed as an argument to many `pq.*` functions. This allows similar
-""" functionality to, for example, a Haskell `Ord` instance. `cmp` takes 2
-""" arguments and outputs a LT/EQ/GT value (see 03_nat.sire) indicating their
-""" relation to each other.
-"""
+;;;; Priority Queues
+;;;; ===============
+;;;;
+;;;; This implementation is based on section 4.16 of the book 'ML for the
+;;;; Working Programmer' by Larry C. Paulson (Cambridge University Press
+;;;; [1996]).
+;;;;
+;;;; It is modified to support a customizeable comparator function (`cmp`,
+;;;; below) which is passed as an argument to many `pq.*` functions. This
+;;;; allows similar functionality to, for example, a Haskell `Ord`
+;;;; instance. `cmp` takes 2 arguments and outputs a LT/EQ/GT value
+;;;; (see 03_nat.sire) indicating their relation to each other.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  02_bit    [if and TRUE FALSE]
 /+  03_nat    [LT EQ GT div sub]
