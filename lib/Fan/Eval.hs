@@ -781,7 +781,7 @@ loadPinFromBlob refs hax item = do
 pinExec :: Fan -> Fan -> (SmallArray Fan -> Fan)
 pinExec self = \case
     FUN law -> executeLaw self law.code law.code
-    item    -> foldl' (%%) item . toList
+    item    -> foldl' (%%) item . drop 1 . toList
 
 
 -- Evaluation ------------------------------------------------------------------
