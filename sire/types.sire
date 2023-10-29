@@ -618,11 +618,15 @@ printType#Fun
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
+^-^ showType
+^-^
 ^-^ {#typedef} {#abstype} {#printType} {#typeof} {#backfill}
 ^-^
 ^-^ {#record} {#datatype} {#datacase}
 ^-^
 ^-^ '>'
+^-^
+^-^ SCHEME TVAR TCON
 ^-^
 ^-^ Void Any Type
 ^-^ Nat Pin Fun
