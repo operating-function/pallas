@@ -134,7 +134,7 @@ data RunType
     | RTShow FilePath
     | RTRepl FilePath InterpreterOpts
     | RTLoot FilePath ProfilingOpts [FilePath]
-    | RTBoot ProfilingOpts FilePath Text
+    | RTBoot ProfilingOpts InterpreterOpts MachineOpts Bool FilePath Text
     | RTUses FilePath Int
     | RTOpen FilePath CogId
     | RTTerm FilePath CogId
@@ -227,6 +227,9 @@ runType defaultDir = subparser
 
    <> plunderCmd "boot" "Boots a machine."
       (RTBoot <$> profilingOpts
+              <*> interpreterOpts
+              <*> machineOpts
+              <*> startAtBoot
               <*> storeArg
               <*> bootHashArg)
 
@@ -265,6 +268,10 @@ runType defaultDir = subparser
                     <> long "profile-laws"
                     <> help "Include law-execution in profile traces."
                      )
+
+    startAtBoot :: Parser Bool
+    startAtBoot = switch ( long "start"
+                        <> help "Immediate start the machine after boot" )
 
     doptWarn :: Parser Bool
     doptWarn = switch ( short 'f'
@@ -335,7 +342,11 @@ main = do
       withInterpreterOpts args $
       withDebugOutput $
       case args of
-        RTBoot _ d y    -> bootMachine d y
+        RTBoot _ _ mo start d y    -> do
+            bootMachine d y
+            when start $ do
+              runMachine d EarliestSnapshot mo
+
         RTUses d w      -> duMachine d w
         RTShow fp       -> showSeed fp
         RTRepl fp _   -> do
@@ -365,16 +376,16 @@ withProfileOutput args act = do
         _                                    -> act
   where
     argsProf = \case
-        RTSire _ po _ _    -> Just po
-        RTSave po _ _ _    -> Just po
-        RTLoot _ po _      -> Just po
-        RTShow _           -> Nothing
-        RTRepl _ _         -> Nothing
-        RTOpen _ _         -> Nothing
-        RTTerm _ _         -> Nothing
-        RTStart _ po _ _ _ -> Just po
-        RTUses _ _         -> Nothing
-        RTBoot po _ _      -> Just po
+        RTSire _ po _ _     -> Just po
+        RTSave po _ _ _     -> Just po
+        RTLoot _ po _       -> Just po
+        RTShow _            -> Nothing
+        RTRepl _ _          -> Nothing
+        RTOpen _ _          -> Nothing
+        RTTerm _ _          -> Nothing
+        RTStart _ po _ _ _  -> Just po
+        RTUses _ _          -> Nothing
+        RTBoot po _ _ _ _ _ -> Just po
         -- RTPoke _ _ _ _       -> Nothing
 
 withInterpreterOpts :: RunType -> IO () -> IO ()
@@ -387,16 +398,16 @@ withInterpreterOpts args act = do
         _ -> act
   where
     argsInterpreter = \case
-        RTSire _ _ io _    -> Just io
-        RTSave _ io _ _    -> Just io
-        RTShow _           -> Nothing
-        RTRepl _ io        -> Just io
-        RTLoot _ _ _       -> Nothing
-        RTBoot _ _ _       -> Nothing
-        RTUses _ _         -> Nothing
-        RTOpen _ _         -> Nothing
-        RTTerm _ _         -> Nothing
-        RTStart _ _ io _ _ -> Just io
+        RTSire _ _ io _     -> Just io
+        RTSave _ io _ _     -> Just io
+        RTShow _            -> Nothing
+        RTRepl _ io         -> Just io
+        RTLoot _ _ _        -> Nothing
+        RTBoot _ io _ _ _ _ -> Just io
+        RTUses _ _          -> Nothing
+        RTOpen _ _          -> Nothing
+        RTTerm _ _          -> Nothing
+        RTStart _ _ io _ _  -> Just io
 
 bootMachine :: (Debug, Rex.RexColor) => FilePath -> Text -> IO ()
 bootMachine storeDir pash = do
