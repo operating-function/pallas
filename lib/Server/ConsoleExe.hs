@@ -10,6 +10,7 @@
 module Server.ConsoleExe (main) where
 
 import Data.Acquire
+import Fan.Convert
 import Options.Applicative
 import PlunderPrelude       hiding (Handler, handle)
 import Server.Debug
@@ -19,13 +20,12 @@ import Server.Types.Logging
 import System.Environment
 import System.Posix.Signals hiding (Handler)
 import System.Process
-import Fan.Convert
 
 import Server.Hardware.Http  (createHardwareHttp)
+import Server.Hardware.Port  (createHardwarePort)
+import Server.Hardware.Rand  (createHardwareRand)
 import Server.Hardware.Types (DeviceTable(..))
 import System.Random         (randomIO)
-import Server.Hardware.Port (createHardwarePort)
-import Server.Hardware.Rand (createHardwareRand)
 -- ort Server.Hardware.Sock (createHardwareSock)
 import Server.Hardware.Time (createHardwareTime)
 -- ort Server.Hardware.Wock (createHardwareWock)
@@ -51,8 +51,8 @@ import qualified Sire
 import qualified Data.ByteString  as BS
 import qualified Data.Char        as C
 import qualified Fan              as F
-import qualified Fan.Seed         as F
 import qualified Fan.Prof         as Prof
+import qualified Fan.Seed         as F
 import qualified Server.LmdbStore as DB
 
 --------------------------------------------------------------------------------
@@ -112,31 +112,37 @@ withDirectoryWriteLock storeDir a =
 
 type Prof = Maybe FilePath
 
+data ProfilingOpts = ProfilingOpts Prof Bool
+
+data InterpreterOpts
+  = InterpreterOpts Bool -- Warn on jet deopt
+                    Bool -- Crash on jet deopt
+
+data MachineOpts
+  = MachineOpts Bool -- snapshots enabled?
+                Int  -- Number of EVAL workers
+
 data RunType
-    = RTSire FilePath Prof Bool
-                           Bool       -- Warn on jet deopt
-                           Bool       -- Crash on jet deopt
-                           [FilePath] -- SireFile
-    | RTSave Prof Bool
-                  Bool     -- Warn on jet deopt
-                  Bool     -- Crash on jet deopt
-                  FilePath -- Seed file
-                  FilePath -- SireFile
+    = RTSire FilePath
+             ProfilingOpts
+             InterpreterOpts
+             [FilePath] -- SireFile
+    | RTSave ProfilingOpts
+             InterpreterOpts
+             FilePath -- Seed file
+             FilePath -- SireFile
     | RTShow FilePath
-    | RTRepl FilePath Bool Bool
-    | RTLoot FilePath Prof Bool [FilePath]
-    | RTBoot Prof Bool FilePath Text
+    | RTRepl FilePath InterpreterOpts
+    | RTLoot FilePath ProfilingOpts [FilePath]
+    | RTBoot ProfilingOpts FilePath Text
     | RTUses FilePath Int
     | RTOpen FilePath CogId
     | RTTerm FilePath CogId
     -- TODO: Rename 'run' or 'spin' or 'crank' or something.
     | RTStart FilePath
-              Prof
-              Bool -- profiling file
-              Bool -- profile laws
-              Bool -- Warn on jet deopt
-              Bool -- Crash on jet deopt
-              Int  -- Number of EVAL workers
+              ProfilingOpts
+              InterpreterOpts
+              MachineOpts
               ReplayFrom
     -- | RTPoke FilePath Text FilePath
 
@@ -192,17 +198,13 @@ runType defaultDir = subparser
 
    <> plunderCmd "sire" "Runs an standalone Sire repl."
       (RTSire <$> storeOpt
-              <*> profOpt
-              <*> profLaw
-              <*> doptWarn
-              <*> doptCrash
+              <*> profilingOpts
+              <*> interpreterOpts
               <*> many sireFile)
 
    <> plunderCmd "save" "Loads a sire file ane save a seed"
-      (RTSave <$> profOpt
-              <*> profLaw
-              <*> doptWarn
-              <*> doptCrash
+      (RTSave <$> profilingOpts
+              <*> interpreterOpts
               <*> seedFile
               <*> sireFile)
 
@@ -211,25 +213,20 @@ runType defaultDir = subparser
 
    <> plunderCmd "repl" "Interact with a seed file"
       (RTRepl <$> seedFile
-              <*> doptWarn
-              <*> doptCrash)
+              <*> interpreterOpts)
 
    <> plunderCmd "start" "Resume an idle machine."
       (RTStart <$> storeArg
-               <*> profOpt
-               <*> profLaw
-               <*> doSnap
-               <*> doptWarn
-               <*> doptCrash
-               <*> numWorkers
+               <*> profilingOpts
+               <*> interpreterOpts
+               <*> machineOpts
                <*> replayFromOption)
 
    <> plunderCmd "loot" "Runs an standalone sire repl."
-      (RTLoot <$> storeOpt <*> profOpt <*> profLaw <*> many lootFile)
+      (RTLoot <$> storeOpt <*> profilingOpts <*> many lootFile)
 
    <> plunderCmd "boot" "Boots a machine."
-      (RTBoot <$> profOpt
-              <*> profLaw
+      (RTBoot <$> profilingOpts
               <*> storeArg
               <*> bootHashArg)
 
@@ -247,6 +244,10 @@ runType defaultDir = subparser
     storeHlp = help "Location of plunder data"
     profHelp = help "Where to output profile traces (JSON)"
     storeArg = strArgument (metavar "STORE" <> storeHlp)
+
+    profilingOpts = ProfilingOpts <$> profOutput <*> profLaw
+    interpreterOpts = InterpreterOpts <$> doptWarn <*> doptCrash
+    machineOpts = MachineOpts <$> doSnap <*> numWorkers
 
     storeOpt =
         strOption ( long "store"
@@ -287,7 +288,7 @@ runType defaultDir = subparser
                      )
 
 
-    profOpt =
+    profOutput =
         fmap (\x -> if null x then Nothing else Just x) $
         strOption ( long "profile-output"
                  <> value ""
@@ -331,57 +332,71 @@ main = do
             (runInfo ddir)
 
     withProfileOutput args $
+      withInterpreterOpts args $
       withDebugOutput $
       case args of
-        RTBoot _ _ d y  -> bootMachine d y
+        RTBoot _ d y    -> bootMachine d y
         RTUses d w      -> duMachine d w
         RTShow fp       -> showSeed fp
-        RTRepl fp j c   -> do
-            writeIORef F.vWarnOnJetFallback j
-            writeIORef F.vCrashOnJetFallback c
+        RTRepl fp _   -> do
             replSeed fp
 
         RTOpen d cog    -> void (openBrowser d cog)
         RTTerm d cog    -> void (openTerminal d cog)
 
-        RTLoot _ _ _ fz -> do
+        RTLoot _ _ fz -> do
             liftIO $ Loot.ReplExe.replMain fz
 
-        RTSire _ _ _ j c fz -> do
-            writeIORef F.vWarnOnJetFallback j
-            writeIORef F.vCrashOnJetFallback c
+        RTSire _ _ _ fz -> do
             liftIO $ Sire.main fz
 
-        RTSave _ _ j c sd sr -> do
-            writeIORef F.vWarnOnJetFallback j
-            writeIORef F.vCrashOnJetFallback c
+        RTSave _ _ sd sr -> do
             saveSeed sd sr
 
-        RTStart d _ _ s j c w r -> do
-            writeIORef F.vWarnOnJetFallback j
-            writeIORef F.vCrashOnJetFallback c
-            runMachine d r s w
+        RTStart d _ _ mo r -> do
+            runMachine d r mo
 
 withProfileOutput :: RunType -> IO () -> IO ()
 withProfileOutput args act = do
     case argsProf args of
-        Nothing          -> act
-        Just (fil, laws) -> do
+        Just (ProfilingOpts (Just fil) laws) -> do
             putStrLn ("Profiling Output: " <> pack fil)
             Prof.withProfileOutput fil laws act
+        _                                    -> act
   where
     argsProf = \case
-        RTSire _ p l _ _ _      -> (,l) <$> p
-        RTSave p l _ _ _ _      -> (,l) <$> p
-        RTLoot _ p l _          -> (,l) <$> p
-        RTShow _                -> Nothing
-        RTRepl _ _ _            -> Nothing
-        RTOpen _ _              -> Nothing
-        RTTerm _ _              -> Nothing
-        RTStart _ p l _ _ _ _ _ -> (,l) <$> p
-        RTUses _ _              -> Nothing
-        RTBoot p l _ _          -> (,l) <$> p
+        RTSire _ po _ _    -> Just po
+        RTSave po _ _ _    -> Just po
+        RTLoot _ po _      -> Just po
+        RTShow _           -> Nothing
+        RTRepl _ _         -> Nothing
+        RTOpen _ _         -> Nothing
+        RTTerm _ _         -> Nothing
+        RTStart _ po _ _ _ -> Just po
+        RTUses _ _         -> Nothing
+        RTBoot po _ _      -> Just po
         -- RTPoke _ _ _ _       -> Nothing
+
+withInterpreterOpts :: RunType -> IO () -> IO ()
+withInterpreterOpts args act = do
+    case argsInterpreter args of
+        Just (InterpreterOpts j c) -> do
+            writeIORef F.vWarnOnJetFallback j
+            writeIORef F.vCrashOnJetFallback c
+            act
+        _ -> act
+  where
+    argsInterpreter = \case
+        RTSire _ _ io _    -> Just io
+        RTSave _ io _ _    -> Just io
+        RTShow _           -> Nothing
+        RTRepl _ io        -> Just io
+        RTLoot _ _ _       -> Nothing
+        RTBoot _ _ _       -> Nothing
+        RTUses _ _         -> Nothing
+        RTOpen _ _         -> Nothing
+        RTTerm _ _         -> Nothing
+        RTStart _ _ io _ _ -> Just io
 
 bootMachine :: (Debug, Rex.RexColor) => FilePath -> Text -> IO ()
 bootMachine storeDir pash = do
@@ -556,8 +571,8 @@ withMachineIn storeDir numWorkers enableSnaps machineAction = do
             pure MACHINE_CONTEXT{lmdb,hw,eval,enableSnaps}
     with machineState machineAction
 
-runMachine :: Debug => FilePath -> ReplayFrom -> Bool -> Int -> IO ()
-runMachine storeDir replayFrom enableSnaps numWorkers = do
+runMachine :: Debug => FilePath -> ReplayFrom -> MachineOpts -> IO ()
+runMachine storeDir replayFrom (MachineOpts enableSnaps numWorkers) = do
     cache <- DB.CUSHION <$> newIORef mempty
     withMachineIn storeDir numWorkers enableSnaps $ \ctx -> do
         machine <- withCogDebugging $ replayAndCrankMachine cache ctx replayFrom
