@@ -270,6 +270,10 @@ getCurrentReqNoun s = do
                 _     -> mempty
         _ -> mempty
 
+-- A request noun is empty if it is a row with a nonzero value.
+hasNonzeroReqs :: Fan -> Bool
+hasNonzeroReqs = any (/= NAT 0) . getCurrentReqNoun
+
 data EvalCancelledError = EVAL_CANCELLED
   deriving (Exception, Show)
 
@@ -534,6 +538,7 @@ recomputeEvals m cogId tab =
             Nothing -> Nothing
             Just CG_CRASHED{} -> Nothing
             Just CG_TIMEOUT{} -> Nothing
+            Just CG_FINISHED{} -> Nothing
             Just (CG_SPINNING cog) -> do
                 let row = getCurrentReqNoun cog
                 case row V.!? idx of
@@ -1036,6 +1041,11 @@ runnerFun initialFlows machine processName st =
 
             -- We now have a mapping from cog ids to the CogSysCalls map. We
             -- need to verify if waiting on this will ever complete.
+            --
+            -- Note: This is a separate mechanism than CG_FINISHED; the
+            -- interpreter not understanding a request should trigger an
+            -- interpreter shutdown but should not trigger a %reap or %stop
+            -- visible finished state.
             case machineHasLiveRequests machineSysCalls of
                 False -> pure Nothing
                 True -> do
@@ -1143,7 +1153,9 @@ runResponse st cogNum rets = do
         OKAY{}       -> makeOKReceipt cogNum rets
 
   let newState = case result of
-        OKAY _ resultFan -> CG_SPINNING resultFan
+        OKAY _ resultFan -> case hasNonzeroReqs resultFan of
+                                True  -> CG_SPINNING resultFan
+                                False -> CG_FINISHED resultFan
         CRASH op arg     -> CG_CRASHED op arg fun
         TIMEOUT          -> CG_TIMEOUT runtimeUs fun
 
@@ -1292,6 +1304,7 @@ parseRequests runner cogId = do
               let actual   = case cogState of
                     CG_CRASHED{}       -> mempty
                     CG_TIMEOUT{}       -> mempty
+                    CG_FINISHED{}      -> mempty
                     CG_SPINNING cogFun -> getCurrentReqNoun cogFun
 
               for_ (mapToList expected) \(i,(v,_)) ->

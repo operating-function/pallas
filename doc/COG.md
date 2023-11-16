@@ -131,11 +131,15 @@ is a row matching one of the following patterns:
 -   `[0 fan]`: represents a spinning cog which has requests and can
     process responses.
 
--   `[1 (op : nat) (arg : fan) (final : fan)]`: represents a crashed cog,
-    with the `op` and `arg` being the values that caused the crash and
-    `fun` being the final value of the cog before the crashing event.
+-   `[1 fan]`: represents a finished cog, a cog which shut down cleanly
+    by having no requests, so it will never receive a response in the
+    future.
 
--   `[2 (duration : nat) (final : fan)]`: represents a cog which had a
+-   `[2 (op : nat) (arg : fan) (final : fan)]`: represents a crashed cog,
+    with the `op` and `arg` being the values that caused the crash and
+    `final` being the final value of the cog before the crashing event.
+
+-   `[3 (duration : nat) (final : fan)]`: represents a cog which had a
     request timeout.
 
 These patterns are also what are returned in the `[%cog %stop]` and

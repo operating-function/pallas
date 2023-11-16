@@ -10,7 +10,7 @@ module Server.Types.Logging where
 
 import PlunderPrelude
 
-import Fan (Fan)
+import Fan         (Fan)
 import Server.Time
 
 --------------------------------------------------------------------------------
@@ -91,12 +91,14 @@ data LogBatch = LogBatch {
 -- | Whether a cog is spinning, or in an error state.
 data CogState
   = CG_SPINNING Fan
+  | CG_FINISHED Fan
   | CG_CRASHED { op :: Nat, arg :: Fan, final :: Fan }
   | CG_TIMEOUT { duration :: NanoTime, final :: Fan }
   deriving (Show)
 
 cogSpinningFun :: CogState -> Maybe Fan
 cogSpinningFun (CG_SPINNING fan) = Just fan
+cogSpinningFun CG_FINISHED{}     = Nothing
 cogSpinningFun CG_CRASHED{}      = Nothing
 cogSpinningFun CG_TIMEOUT{}      = Nothing
 
