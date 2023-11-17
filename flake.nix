@@ -75,6 +75,11 @@
 
         devShells.default = pkgs.mkShell {
           buildInputs = devPkgs;
+          nativeBuildInputs = [
+            pkgs.elmPackages.elm
+            pkgs.elmPackages.elm-live
+            pkgs.nodePackages.uglify-js
+          ];
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath devPkgs;
         };
 
