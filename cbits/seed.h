@@ -149,10 +149,9 @@ treenode_t seed_barnat (Seed, size_t num_bytes, uint8_t  *bytes);
 treenode_t seed_cons   (Seed, treenode_t h, treenode_t t);
 
 size_t seed_size(Seed);
-
-void seed_save(Seed, size_t, uint8_t*);
-void seed_load(Seed, size_t, uint8_t*);
-void seed_touch(Seed, treenode_t);
+size_t seed_save(Seed, size_t, uint8_t*);
+void   seed_load(Seed, size_t, uint8_t*);
+void   seed_touch(Seed, treenode_t);
 
 // delete me
 void print_tree_pub(Seed ctx, treenode_t tree);

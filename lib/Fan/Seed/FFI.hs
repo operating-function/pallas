@@ -74,7 +74,7 @@ foreign import ccall unsafe "seed_size"
     c_size :: Ctx -> IO CSize
 
 foreign import ccall unsafe "seed_save"
-    c_save :: Ctx -> CSize -> Ptr Word8 -> IO ()
+    c_save :: Ctx -> CSize -> Ptr Word8 -> IO CSize
 
 foreign import ccall unsafe "seed_load"
     c_load :: Ctx -> CSize -> Ptr Word8 -> IO ()

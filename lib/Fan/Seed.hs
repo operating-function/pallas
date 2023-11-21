@@ -324,7 +324,20 @@ saveWorker !ctx !vZoo !vPins !top = do
     Prof.withSimpleTracingEvent "write" "save" do
         withForeignPtr ptr \buf -> do
             void (BS.memset buf 0 wid)
-            Seed.c_save ctx wid buf
+            written <- Seed.c_save ctx wid buf
+            unless (wid == written) do
+                error $ unlines $
+                    [ "INTERNAL ERROR IN save_seed()"
+                    , ""
+                    , "When serializing a fan value (using seed), the number"
+                    , "of bytes written did not match the pre-computed buffer"
+                    , "size.  This is is an internal invariant violation and"
+                    , "is fatal, please submit a bug report!"
+                    , ""
+                    , "Here is the plan value that we were trying to"
+                    , "serialize:"
+                    , ""
+                    ] <> (fmap ("\t" <>) $ lines $ unpack $ showFan top)
 
     Prof.withSimpleTracingEvent "wipe" "save" do
         Seed.c_wipe ctx

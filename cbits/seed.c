@@ -1114,7 +1114,7 @@ size_t seed_size (Seed ctx) {
         return width;
 }
 
-void seed_save (Seed ctx, size_t width, uint8_t *top) {
+size_t seed_save (Seed ctx, size_t width, uint8_t *top) {
         uint32_t num_holes = ctx->holes_count;
         uint32_t num_nats  = ctx->nats_count;
         uint64_t num_bytes = ctx->num_bytes;
@@ -1169,7 +1169,9 @@ void seed_save (Seed ctx, size_t width, uint8_t *top) {
                 *out++ = (uint8_t) ctx->nats[ix].msw;
         }
 
-        if (!num_frags) return;
+        if (!num_frags) {
+                return (out - top);
+        }
 
         struct frag_state st;
 
@@ -1252,10 +1254,7 @@ void seed_save (Seed ctx, size_t width, uint8_t *top) {
                 filled the whole buffer and didn't overflow it.
         */
         uint8_t *end = (uint8_t*) st.out;
-        if (end - top != width) {
-                die("bytes_written=%"PRIu64" != width=%"PRIu64"\n",
-                    (end-top), width);
-        }
+        return (end - top);
 }
 
 
