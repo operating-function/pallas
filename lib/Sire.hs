@@ -490,43 +490,50 @@ main pax = do
 -- TODO Take file lock.
 withCache
     :: FilePath
-    -> (Tab Any Any -> IO (a, Tab Any Any))
+    -> (IORef (Tab Any Any) -> IO a)
     -> IO a
-withCache dir act = do
-    let fil = takeDirectory dir <.> "cache"
-    ex <- doesFileExist fil
-    c1 <- if not ex then
-              pure mempty
-          else do
-              byt <- Prof.withSimpleTracingEvent "read" "cache" $ readFile fil
-              pak <- Prof.withSimpleTracingEvent "load" "cache" $ loadPod byt
-              pure case pak of
-                  Left (err :: LoadErr) ->
-                      seq (error ("bad cache: " <> show err)) mempty
-                  Right pin            ->
-                      case pin.item of
-                          TAb t -> trace "loaded and hash matches" t
-                          _     -> error "bad cache pin"
+withCache dir act =
+    bracket acquire release \(_, _, vCache) ->
+        act vCache
+  where
+    acquire :: IO (Tab Any Any, FilePath, IORef (Tab Any Any))
+    acquire = do
+        let fil = takeDirectory dir <.> "cache"
+        ex <- doesFileExist fil
+        c1 <- if not ex then
+                  pure mempty
+              else do
+                  byt <- Prof.withSimpleTracingEvent "read" "cache" $ readFile fil
+                  pak <- Prof.withSimpleTracingEvent "load" "cache" $ loadPod byt
+                  pure case pak of
+                      Left (err :: LoadErr) ->
+                          seq (error ("bad cache: " <> show err)) mempty
+                      Right pin            ->
+                          case pin.item of
+                              TAb t -> trace "loaded and hash matches" t
+                              _     -> error "bad cache pin"
 
-    (x, c2) <- act (c1 :: Tab Any Any)
+        vCache <- newIORef c1
+        pure (c1, fil, vCache)
 
-    unless (c1 == c2) do
-        p <- F.mkPin' (TAb c2)
-        print ("cache hash":: Text, p.hash)
-        eByt <- Prof.withSimpleTracingEvent "save"  "cache" $ try $ savePod p
-        case eByt of
-           Left (POD_INTEGRITY_CHECK_FAILED hax p2) -> do
-               trkM (REX $ planRexFull $ toNoun p)
-               trkM (REX $ planRexFull $ toNoun hax)
-               trkM (REX $ planRexFull $ toNoun p2)
-           Left (e :: LoadErr) -> do
-               trkM (REX $ planRexFull $ toNoun e)
-               pure ()
-           Right byt -> do
-               ()  <- Prof.withSimpleTracingEvent "write" "cache" $ writeFile fil byt
-               pure ()
+    release (c1, fil, vCache) = do
+        c2 <- readIORef vCache
 
-    pure x
+        unless (c1 == c2) do
+            p <- F.mkPin' (TAb c2)
+            print ("cache hash":: Text, p.hash)
+            eByt <- Prof.withSimpleTracingEvent "save"  "cache" $ try $ savePod p
+            case eByt of
+               Left (POD_INTEGRITY_CHECK_FAILED hax p2) -> do
+                   trkM (REX $ planRexFull $ toNoun p)
+                   trkM (REX $ planRexFull $ toNoun hax)
+                   trkM (REX $ planRexFull $ toNoun p2)
+               Left (e :: LoadErr) -> do
+                   trkM (REX $ planRexFull $ toNoun e)
+                   pure ()
+               Right byt -> do
+                   ()  <- Prof.withSimpleTracingEvent "write" "cache" $ writeFile fil byt
+                   pure ()
 
 loadFile :: RexColor => FilePath -> IO Any
 loadFile pax = do
@@ -602,14 +609,16 @@ runSire file inRepl s1 = \case
                 runSire file inRepl s1 rs
 
 
-doFile :: FilePath -> Tab Any Any -> Text -> Any -> IO ((Any, ByteString), Tab Any Any)
-doFile dir c1 modu s1 = do
+doFile :: FilePath -> IORef (Tab Any Any) -> Text -> Any -> IO (Any, ByteString)
+doFile dir vCache modu s1 = do
     let file = modu <> ".sire"
     let pax  = dir </> unpack file
 
     fileBytes <- readFile pax
 
     topRexes <- openFile pax ReadMode >>= readRexStream pax
+
+    c1 <- readIORef vCache
 
     let moduNoun = NAT (utf8Nat modu)
 
@@ -644,14 +653,14 @@ doFile dir c1 modu s1 = do
                 Just s2 -> do
                     let s3 = revertSwitchToRepl modu s2
                     print (modu, "LOADED FROM CACHE!"::Text)
-                    pure ((s3, hax), c1)
+                    pure (s3, hax)
 
                 Nothing -> do
                     s2 <- runSire file False s1 rexes
                     let sEnt = switchToContext "REPL" s2
                     let ent  = ROW $ arrayFromListN 2 [toNoun hax, sEnt]
-                    let c2   = insertMap (toNoun modu) ent c1
-                    pure ((s2, hax), c2)
+                    modifyIORef vCache (insertMap (toNoun modu) ent)
+                    pure (s2, hax)
 
         -- There is something before this in the load sequence.
         -- Load that first.
@@ -659,7 +668,7 @@ doFile dir c1 modu s1 = do
             case tryReadModuleName prior of
                 Nothing -> terror ("Bad module name: " <> rexText prior)
                 Just nm -> do
-                  ((s2, predHash), c2) <- doFile dir c1 nm s1
+                  (s2, predHash) <- doFile dir vCache nm s1
                   Prof.withSimpleTracingEvent (encodeUtf8 modu) "Sire" do
 
                     -- Massive slow hack, stream two inputs separately.
@@ -672,8 +681,9 @@ doFile dir c1 modu s1 = do
                                res <- BS.packCStringLen (outbuf, 32)
                                pure res
 
+                    cacheNow <- readIORef vCache
                     let mCached = do
-                            entry          <- lookup moduNoun c2
+                            entry          <- lookup moduNoun cacheNow
                             (cacheKey, st) <- fromNoun entry
                             guard (cacheKey == hax)
                             pure st
@@ -682,14 +692,14 @@ doFile dir c1 modu s1 = do
                         Just s3 -> do
                             let s4 = revertSwitchToRepl modu s3
                             print (modu, "LOADED FROM CACHE!"::Text)
-                            pure ((s4, hax), c2)
+                            pure (s4, hax)
 
                         Nothing -> do
                             s3 <- runSire file False s2 rexes
                             let sEnt = switchToContext "REPL" s3
                             let ent = ROW $ arrayFromListN 2 [toNoun hax, sEnt]
-                            let c3  = insertMap (toNoun modu) ent c2
-                            pure ((s3, hax), c3)
+                            modifyIORef' vCache $ insertMap (toNoun modu) ent
+                            pure (s3, hax)
 
         Right (ln, rex@(N _ "###" _ _)) : _ ->
             inContext file ln rex
@@ -703,7 +713,8 @@ doFile dir c1 modu s1 = do
             hPutStrLn stderr "\n"
             hPutStrLn stderr msg
             hPutStrLn stderr "\n"
-            error "TODO: Include the parsed results as well as the error" -- each error result should also include the processed result!
+            error "TODO: Include the parsed results as well as the error"
+            -- Each error result should also include the processed result!
             -- inContext file ln rex
                 -- $ parseFail_ rex s1 "All files must start with module declaration"
 
