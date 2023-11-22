@@ -63,7 +63,7 @@
 /+  04_cmp  [eql neq lth isZero]
 /+  06_rex  [rexRune rexSons rexHeir rexKids]
 /+  06_rex  [rexIsNode rexIsEmbd rexIsLeaf]
-/+  06_rex  [rexGetNode rexEmbd {``}]
+/+  06_rex  [rexGetNode rexEmbd {'}]
 /+  06_rex  [REX PREF NEST EMBD OPEN WORD TEXT]
 /+  06_rex  [rexGetNodeWithRune]
 /+  06_rex  [rexStyle rexText]
@@ -104,11 +104,11 @@
         | readSymbol son err ret
 | readSymbol rex err (compose ok v1)
 
-!!= [%a %b %c]           | readSignature ``(a b c) v2 id
-!!= [%a]                 | readSignature ``(a)     v2 id
-!!= [%a]                 | readSignature ``a       v2 id
-!!= [``[a b] sigExpect]  | readSignature ``[a b]   v2 id
-!!= [``([][]) sigNoHeir] | readSignature ``([][])  v2 id
+!!= [%a %b %c]          | readSignature '(a b c) v2 id
+!!= [%a]                | readSignature '(a)     v2 id
+!!= [%a]                | readSignature 'a       v2 id
+!!= ['[a b] sigExpect]  | readSignature '[a b]   v2 id
+!!= ['([][]) sigNoHeir] | readSignature '([][])  v2 id
 
 
 ;;; The Col Macro ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -128,11 +128,11 @@
 | and (eql %WORD rexStyle-rex)
       (strIsCapitalized rexText-rex)
 
-!!= 1 | rexIsCapsSymbol ``Foo
-!!= 0 | rexIsCapsSymbol ``foo
-!!= 0 | rexIsCapsSymbol ``{Foo}
-!!= 0 | rexIsCapsSymbol ``0
-!!= 0 | rexIsCapsSymbol ``(hi there)
+!!= 1 | rexIsCapsSymbol 'Foo
+!!= 0 | rexIsCapsSymbol 'foo
+!!= 0 | rexIsCapsSymbol '{Foo}
+!!= 0 | rexIsCapsSymbol '0
+!!= 0 | rexIsCapsSymbol '(hi there)
 
 = colSigExpect
 } Expected something like one of these:
@@ -183,11 +183,11 @@
 
 (tryColSig x)=(readColSig readSymbol x id v2)
 
-!!= ( NONE                , [%Foo %x]    ) | tryColSig ``(&(Foo x))
-!!= ( NONE                , [%Foo %x %y] ) | tryColSig ``(&(Foo x y))
-!!= ( SOME ({Foo}, FALSE) , [%x]         ) | tryColSig ``(?(Foo x))
-!!= ( SOME ({Foo}, FALSE) , [%x %y]      ) | tryColSig ``(?(Foo x y))
-!!= ( SOME ({Foo}, TRUE)  , [%x]         ) | tryColSig ``(??(Foo x))
+!!= ( NONE                , [%Foo %x]    ) | tryColSig '(&(Foo x))
+!!= ( NONE                , [%Foo %x %y] ) | tryColSig '(&(Foo x y))
+!!= ( SOME ({Foo}, FALSE) , [%x]         ) | tryColSig '(?(Foo x))
+!!= ( SOME ({Foo}, FALSE) , [%x %y]      ) | tryColSig '(?(Foo x y))
+!!= ( SOME ({Foo}, TRUE)  , [%x]         ) | tryColSig '(??(Foo x))
 
 = (readColSigSeq readPat sigRexes err ok)
 | if (eql 1 | len sigRexes)
@@ -197,12 +197,12 @@
 
 (tryColSigSeq xs)=(readColSigSeq readSymbol xs id v2)
 
-!!= ( NONE                , [%Foo %x]    ) | tryColSigSeq [``Foo ``x]
-!!= ( NONE                , [%Foo %x]    ) | tryColSigSeq [``(&(Foo x))]
-!!= ( NONE                , [%Foo %x %y] ) | tryColSigSeq [``(&(Foo x y))]
-!!= ( SOME ({Foo}, FALSE) , [%x]         ) | tryColSigSeq [``(?(Foo x))]
-!!= ( SOME ({Foo}, FALSE) , [%x %y]      ) | tryColSigSeq [``(?(Foo x y))]
-!!= ( SOME ({Foo}, TRUE)  , [%x]         ) | tryColSigSeq [``(??(Foo x))]
+!!= ( NONE                , [%Foo %x]    ) | tryColSigSeq ['Foo 'x]
+!!= ( NONE                , [%Foo %x]    ) | tryColSigSeq ['(&(Foo x))]
+!!= ( NONE                , [%Foo %x %y] ) | tryColSigSeq ['(&(Foo x y))]
+!!= ( SOME ({Foo}, FALSE) , [%x]         ) | tryColSigSeq ['(?(Foo x))]
+!!= ( SOME ({Foo}, FALSE) , [%x %y]      ) | tryColSigSeq ['(?(Foo x y))]
+!!= ( SOME ({Foo}, TRUE)  , [%x]         ) | tryColSigSeq ['(??(Foo x))]
 
 = colNeedsHeir } Heir is required
 = colTwoSons   } Expected at least two sons
@@ -251,12 +251,12 @@
 : rune kids heir <- rexGetNode rex fall
 | **ok rune
 
-!!= [{+} {+}]
-        : rune <- **rexGetRune ``(3 + 4) 99
-        , rune rune
+!!=   [{+} {+}]
+  : rune <- **rexGetRune '(3 + 4) 99
+  , rune rune
 
-!!= [``(<* f) cbExpect]
-        (.{:} 0 ``((: x <* f)(, 3)) v2 v2)
+!!= ['(<* f) cbExpect]
+  | (.{:} 0 '((: x <* f)(, 3)) v2 v2)
 
 
 ;;; Fancy Function Application ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -280,13 +280,13 @@
 | loop (CONS item acc) (rexHeir rex)
 
 !!=     ^ unwrapTarSeq _ v2 v1
-       `` * add
+        ' * add
           * 2
           * inc 2
     ,
-   ++ `` add
-   ++ `` 2
-   ++ `` | inc 2
+   ++ ' add
+   ++ ' 2
+   ++ ' | inc 2
 
 = (readFancyApp readExp rex err ok)
 @ sons    | rexSons rex
@@ -494,8 +494,8 @@ four=(WORD {4} 0)
 
 four=(WORD {4} 0)
 
-!!= ``(3 4 5) | `(3 4 5)
-!!= ``(3 4 5) | `($(WORD {3} 0) 4 5)
+!!= '(3 4 5) | `(3 4 5)
+!!= '(3 4 5) | `($(WORD {3} 0) 4 5)
 
 !!= `(3 $(cnsE four) 5)
     `(3 $$four 5)
@@ -588,15 +588,15 @@ four=(WORD {4} 0)
 | ok (appE kids :: more)
 
 = (assertE exps)
-| if (isZero exps) ``(#*)
+| if (isZero exps) '(#*)
 | bloodline
 ^ listMap _ exps
 & exp (OPEN {#!!=} (natE 1, exp) 0)
 
 !!=   | assertE
-     ~~ ``(eql 3 (add 1 2))
-     ~~ ``(eql 4 (add 3 1))
- ``
+     ~~ '(eql 3 (add 1 2))
+     ~~ '(eql 4 (add 3 1))
+  '
   #!!= 1 (eql 3 (add 1 2))
   #!!= 1 (eql 4 (add 3 1))
 

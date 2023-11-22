@@ -14,7 +14,7 @@
 ;;;;
 ;;;; This module also defines a handeful of such named macros:
 ;;;;
-;;;; -   `#quote` is the same as `\``
+;;;; -   `#quote` is the same as {'}
 ;;;;
 ;;;; -   `#getenv` returns the current global symbol table (as a tab).
 ;;;;
@@ -52,7 +52,7 @@
 /+  05_row  [len idx]
 /+  04_cmp  [eql neq]
 /+  05_row  [v1 v2 v4 null weld]
-/+  06_rex  [rexKids rexGetWord {``} rexRune]
+/+  06_rex  [rexKids rexGetWord {'} rexRune]
 /+  07_dat  [{,}]
 /+  08_sci  []
 /+  09_chr  []
@@ -129,7 +129,7 @@ oldHax=(.{#})
 
 !!= 1 | not (tabIsEmpty #getenv)
 
-!!= ``((foo#bar)zaz) (foo#bar)zaz
+!!= '((foo#bar)zaz) (foo#bar)zaz
 
 ^-^ {#} {%} eql {#quote} tabKeysSet {#getenv}
 

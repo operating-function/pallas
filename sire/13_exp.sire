@@ -25,7 +25,7 @@
 /+  06_rex  [rexHeir rexEmbd rexSons rexText rexRune]
 /+  06_rex  [rexIsLeaf rexIsEmbd rexIsNode]
 /+  06_rex  [WORD EMBD NEST OPEN PREF TEXT]
-/+  06_rex  [rexGetWord rexKids rexStyle {``}]
+/+  06_rex  [rexGetWord rexKids rexStyle {'}]
 /+  06_rex  [rexGetNodeWithRune rexGetKidsOfNodeWithRune]
 /+  06_rex  [rexGetWordNoHeir rexSetHeir]
 /+  07_dat
@@ -114,16 +114,16 @@
 !!= 1   | getNatStr {1}   [] id
 !!= []  | getNatStr {a}   [] id
 
-!!= 345           | readNat ``345 v2 id
-!!= 0             | readNat ``0   v2 id
-!!= [``[] rnWord] | readNat ``[]  v2 id
-!!= [``a  rnNumb] | readNat ``a   v2 id
+!!= 345          | readNat '345 v2 id
+!!= 0            | readNat '0   v2 id
+!!= ['[] rnWord] | readNat '[]  v2 id
+!!= ['a  rnNumb] | readNat 'a   v2 id
 
-!!= 345                | readAtomLit ``345     v2 id
-!!= %asdf              | readAtomLit ``(%asdf) v2 id
-!!= %asdf              | readAtomLit ``{asdf}  v2 id
-!!= [``(%) cenOneKid]  | readAtomLit ``(%)     v2 id
-!!= [``(%(.)) cenWord] | readAtomLit ``(%(.))   v2 id
+!!= 345               | readAtomLit '345     v2 id
+!!= %asdf             | readAtomLit '(%asdf) v2 id
+!!= %asdf             | readAtomLit '{asdf}  v2 id
+!!= ['(%) cenOneKid]  | readAtomLit '(%)     v2 id
+!!= ['(%(.)) cenWord] | readAtomLit '(%(.))   v2 id
 
 
 ;;; Expresssions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -172,8 +172,8 @@
 > List Rex > Rex
 (bloodline lis)=(listFoldr (i r & rexSetHeir r i) 0 lis)
 
-!!= ``((a=1)(b=2)(c=3))
-  | bloodline [``(a=1) [``(b=2) [``(c=3) 0]]]
+!!= '((a=1)(b=2)(c=3))
+  | bloodline ['(a=1) ['(b=2) ['(c=3) 0]]]
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -201,9 +201,9 @@
 
 = needBar | {Expected a | node}
 
-!!= [``3 ``4]         | readNodeWithoutHeirButWithRune {,} ``[3 4] v2 id
-!!= [``[3 4] needBar] | readNodeWithoutHeirButWithRune {|} ``[3 4] v2 id
-!!= [``[3 4] needBar] | readNodeWithoutHeirButWithRune {|} ``[3 4] v2 id
+!!= ['3 '4]          | readNodeWithoutHeirButWithRune {,} '[3 4] v2 id
+!!= ['[3 4] needBar] | readNodeWithoutHeirButWithRune {|} '[3 4] v2 id
+!!= ['[3 4] needBar] | readNodeWithoutHeirButWithRune {|} '[3 4] v2 id
 
 
 
@@ -255,11 +255,11 @@ symTodo={todo: support .foo and .234}
 | ifNot strIsSymbol-word | (err rex badSymChar)
 | ok word
 
-!!= [{asdf}]         ^ readSymbol _ v2 v1 | ``(.{asdf})
-!!= [{ }]            ^ readSymbol _ v2 v1 | ``(.{ })
-!!= [{}]             ^ readSymbol _ v2 v1 | ``(.{})
-!!= [``(.x) symTodo] ^ readSymbol _ v2 v1 | ``(.x)
-!!= [``(.1) symTodo] ^ readSymbol _ v2 v1 | ``(.1)
+!!= [{asdf}]        ^ readSymbol _ v2 v1 | '(.{asdf})
+!!= [{ }]           ^ readSymbol _ v2 v1 | '(.{ })
+!!= [{}]            ^ readSymbol _ v2 v1 | '(.{})
+!!= ['(.x) symTodo] ^ readSymbol _ v2 v1 | '(.x)
+!!= ['(.1) symTodo] ^ readSymbol _ v2 v1 | '(.1)
 
 = (litE nat)
 | if (strIsSymbol nat) (txtE nat)
@@ -321,15 +321,15 @@ symTodo={todo: support .foo and .234}
 | else
     | err rex nrBadForm
 
-!!= [%x]                 | readRowOfNames ``x        v2 id
-!!= [%x]                 | readRowOfNames ``(x)      v2 id
-!!= []                   | readRowOfNames ``[]       v2 id
-!!= [%x]                 | readRowOfNames ``[x]      v2 id
-!!= [%x %y]              | readRowOfNames ``[x y]    v2 id
-!!= [%x %y %z]           | readRowOfNames ``[x y z]  v2 id
-!!= [``9 badSymChar]     | readRowOfNames ``[x y 9]  v2 id
-!!= [``() nrBadForm]     | readRowOfNames ``()       v2 id
-!!= [``([][]) nrBadHeir] | readRowOfNames ``([][])   v2 id
+!!= [%x]                | readRowOfNames 'x        v2 id
+!!= [%x]                | readRowOfNames '(x)      v2 id
+!!= []                  | readRowOfNames '[]       v2 id
+!!= [%x]                | readRowOfNames '[x]      v2 id
+!!= [%x %y]             | readRowOfNames '[x y]    v2 id
+!!= [%x %y %z]          | readRowOfNames '[x y z]  v2 id
+!!= ['9 badSymChar]     | readRowOfNames '[x y 9]  v2 id
+!!= ['() nrBadForm]     | readRowOfNames '()       v2 id
+!!= ['([][]) nrBadHeir] | readRowOfNames '([][])   v2 id
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

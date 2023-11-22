@@ -56,12 +56,12 @@
 
 = (checkKernelState return)
 : [end me fr kl sl rq] <- getKernelState
-| assert (end == KERNEL)     ``(end == KERNEL)
-| assert (me  == 0)          ``(me == 0)
-| assert (fr  == ~[])        ``(fr == ~[])
-| assert (kl  == ~[])        ``(kl == ~[])
-| assert (sl  == [0])        ``(sl == [0])
-| assert (rq  == [0])        ``(rq == [0])
+| assert (end == KERNEL)      '(end == KERNEL)
+| assert (me  == 0)           '(me == 0)
+| assert (fr  == ~[])         '(fr == ~[])
+| assert (kl  == ~[])         '(kl == ~[])
+| assert (sl  == [0])         '(sl == [0])
+| assert (rq  == [0])         '(rq == [0])
 | return ()
 
 !!= (runCog checkKernelState)

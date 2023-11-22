@@ -48,7 +48,7 @@
 /+  05_row  [idx len]
 /+  04_cmp  [eql neq lte isZero]
 /+  05_row  [map weld foldl]
-/+  06_rex  [rexKids rexText rexIsLeaf SHUT WORD TEXT {``}]
+/+  06_rex  [rexKids rexText rexIsLeaf SHUT WORD TEXT {'}]
 /+  07_dat  [{,} {++}]
 /+  07_dat  [listFromRow listCase listSnoc NIL CONS]
 /+  08_sci  []
@@ -167,8 +167,8 @@ emptyPad=1
 !!= {01} (showPadStr p#01)
 !!= {00} (showPadStr p#00)
 
-!!= ``(p#{})   | showPadLit p#{}
-!!= ``(p#{00}) | showPadLit p#00
+!!= '(p#{})   | showPadLit p#{}
+!!= '(p#{00}) | showPadLit p#00
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

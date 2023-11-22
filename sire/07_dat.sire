@@ -33,10 +33,10 @@
 | ok st heir
 
 = ({\} st _ err ok)
-| ok st ``(#*)
+| ok st '(#*)
 
 = ({#typedef} st _ err ok)
-| ok st ``(#*)
+| ok st '(#*)
 
 
 ;;; Basic Row Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

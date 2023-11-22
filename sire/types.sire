@@ -235,7 +235,7 @@ abstype#TyExp
 | if (isZero nam)
     | die [{Is not a type} con]
 | if (null par)
-    | if (eql con unitKey) ``()
+    | if (eql con unitKey) '()
     | varE nam
 @ kids (map loop par)
 | if (eql con funKey)
@@ -273,7 +273,7 @@ abstype#TyExp
 | trk
     | OPEN {=} [(varE symbol)]
     | showType ss scheme
-| ok ss ``(#*)
+| ok ss '(#*)
 
 = (tyApp name scheme params err ok)
 @ [arity topTy] scheme
@@ -369,29 +369,29 @@ abstype#TyExp
 | loop acc (rexHeir rex)
 
 !!=  ++ [8]
-     ++ `` > Row Nat
-           > Row Nat
+     ++ ' > Row Nat
+          > Row Nat
      ++ 7
-     ++ `` = 7 (id x) x
+     ++ ' = 7 (id x) x
   ^ separateAnnotation [7] _ v2 v4
- `` > Row Nat
+  ' > Row Nat
     > Row Nat
     = (id x) x
 
 !!=  ++ [8]
-     ++ `` > Row Nat > Row Nat
+     ++ ' > Row Nat > Row Nat
      ++ 7
-     ++ `` = 7 (id x) x
+     ++ ' = 7 (id x) x
   ^ separateAnnotation [7] _ v2 v4
- `` > Row Nat > Row Nat
+  ' > Row Nat > Row Nat
     = (id x) x
 
 !!=  ++ [7]
-     ++ `` > Row Nat > Row Nat
+     ++ ' > Row Nat > Row Nat
      ++ 32
-     ++ `` = 32 (id x) x
+     ++ ' = 32 (id x) x
   ^ separateAnnotation [7] _ v2 v4
- `` > Row Nat > Row Nat
+  ' > Row Nat > Row Nat
     = 32 (id x) x
 
 
@@ -599,7 +599,7 @@ printType#Fun
 @ tyVars       | setToRow (txpFree typExp)
 : scheme       < compileType tyVars typExp err
 @ ss (addProps ss valKey | tabSing {type} scheme)
-| ok ss ``(#*)
+| ok ss '(#*)
 
 ;; {#typeof} prints the type of a binding.  It is meant to be used
 ;; interactively from the REPL.
@@ -612,7 +612,7 @@ printType#Fun
 @ scheme | getProp ss bind {type}
 | if (isZero scheme) | {untyped} symbol
 | trk (NEST {\} [(varE symbol)] | showType ss scheme)
-| ok ss ``(#*)
+| ok ss '(#*)
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -158,9 +158,9 @@
     | ok fan
 | err rex {Invalid Key: Expected a word, text, or an embeded natural}
 
-!!= {a} (readKey ``{a}    v2 x&x)
-!!= {a} (readKey ``a      v2 x&x)
-!!= 9   (readKey ``9      v2 x&x)
+!!= {a} (readKey '{a}     v2 x&x)
+!!= {a} (readKey 'a       v2 x&x)
+!!= 9   (readKey '9       v2 x&x)
 !!= 9   (readKey (EMBD 9) v2 x&x)
 
 
@@ -225,10 +225,10 @@
 & (acc keys)
 | ok acc
 
-!!= (setFromRow [{a} {b} {c}]) | readCenBracket ``[a b c] v2 id
-!!= (setFromRow [{a} {b} {c}]) | readCenBracket ``[c b a] v2 id
-!!= [``(a b c) cenExpect]      | readCenBracket ``(a b c) v2 id
-!!= [``c {duplicate key}]      | readCenBracket ``[c b c] v2 id
+!!= (setFromRow [{a} {b} {c}]) | readCenBracket '[a b c] v2 id
+!!= (setFromRow [{a} {b} {c}]) | readCenBracket '[c b a] v2 id
+!!= ['(a b c) cenExpect]       | readCenBracket '(a b c) v2 id
+!!= ['c {duplicate key}]       | readCenBracket '[c b c] v2 id
 
 = (readCenLit rex err ok)
 @ kids (rexKids rex)
@@ -242,12 +242,12 @@
 | readCenBracket kid err
 | set&(ok RIGHT-set)
 
-!!= (LEFT {a})                   | readCenLit ``(%a)     v2 id
-!!= (LEFT {1})                   | readCenLit ``(%1)     v2 id
-!!= [``1 cenExpect]              | readCenLit ``1        v2 id
-!!= (RIGHT emptySet)             | readCenLit ``(%[])    v2 id
-!!= (RIGHT setSing-{a})          | readCenLit ``(%[a])   v2 id
-!!= (RIGHT setFromRow-[{a} {b}]) | readCenLit ``(%[a b]) v2 id
+!!= (LEFT {a})                   | readCenLit '(%a)     v2 id
+!!= (LEFT {1})                   | readCenLit '(%1)     v2 id
+!!= ['1 cenExpect]               | readCenLit '1        v2 id
+!!= (RIGHT emptySet)             | readCenLit '(%[])    v2 id
+!!= (RIGHT setSing-{a})          | readCenLit '(%[a])   v2 id
+!!= (RIGHT setFromRow-[{a} {b}]) | readCenLit '(%[a b]) v2 id
 
 = ({%} st rex err ok)
 | readCenLit rex err
