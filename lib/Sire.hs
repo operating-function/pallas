@@ -29,7 +29,6 @@ import Rex                   (GRex(..), RuneShape(..), TextShape(..), rexLine)
 import Rex.Print             (RexColor, RexColorScheme(NoColors))
 import Sire.Compile          (compileSire)
 import System.Directory      (doesFileExist)
-import System.Environment    (getProgName)
 import System.IO             (hGetContents)
 import System.Exit           (exitWith, ExitCode(ExitFailure))
 
@@ -456,49 +455,57 @@ execute rex = do
             _ | expRune rune     -> execExpr rex
             _                    -> parseFail rex ("Unbound rune: " <> rune)
 
+getIndicatedModule :: String -> IO Text
+getIndicatedModule pax = do
+    let (dir, fil) = splitFileName pax
+    unless (dir `elem` okDirs) invalid
+    case splitExtensions fil of
+        (modu, ".sire") -> pure (pack modu)
+        (modu, "")      -> pure (pack modu)
+        _               -> invalid
+  where
+
+    okDirs :: [String]
+    okDirs = [ "", "./", "sire/", "./sire/" ]
+
+    invalid :: a
+    invalid = error ("Not a sire module: " <> pax)
+
 {-
     TODO: Caching
 -}
-main :: RexColor => [FilePath] -> IO ()
-main pax = do
+main :: RexColor => [String] -> IO ()
+main moduleIndicators = do
+
+  modules <- traverse getIndicatedModule moduleIndicators
+
   writeIORef F.vShowFan  showFan
   writeIORef F.vTrkFan   trkFan
   writeIORef F.vJetMatch (F.jetMatch)
   handle (\(F.PRIMOP_CRASH op arg) -> dieFan op arg) $
     Prof.withProcessName "Sire" $
     Prof.withThreadName "Sire" do
-    let go f = do
-            let (dir, fil) = splitFileName f
-            case splitExtension fil of
-                (modu, ".sire") -> do
-                    let modTxt = pack modu
-                    ss <- withCache dir \cache -> do
-                              doFile dir cache modTxt initialSireStateAny
-                    repl (fst ss) (Just modTxt)
-                _ -> error "must be given a path to a .sire file"
+    let go preloads modu = do
+            (ss, _hax) <- withCache \cache -> do
+                              for_ preloads \pre -> do
+                                  doFile cache pre initialSireStateAny
+                              doFile cache modu initialSireStateAny
+            repl ss (Just modu)
 
-    case pax of
-        []  -> repl initialSireStateAny Nothing
-        [f] -> go f
-        _   -> usage
-  where
-    usage :: IO a
-    usage = do
-        nm <- getProgName
-        error ("usage: " <> nm <> " [file]")
+    case reverse modules of
+        []   -> repl initialSireStateAny Nothing
+        m:ms -> go (reverse ms) m
 
 -- TODO Take file lock.
-withCache
-    :: FilePath
-    -> (IORef (Tab Any Any) -> IO a)
-    -> IO a
-withCache dir act =
-    bracket acquire release \(_, _, vCache) ->
+withCache :: (IORef (Tab Any Any) -> IO a) -> IO a
+withCache act =
+    bracket acquire release \(_, vCache) ->
         act vCache
   where
-    acquire :: IO (Tab Any Any, FilePath, IORef (Tab Any Any))
+    fil = "./sire.cache"
+
+    acquire :: IO (Tab Any Any, IORef (Tab Any Any))
     acquire = do
-        let fil = takeDirectory dir <.> "cache"
         ex <- doesFileExist fil
         c1 <- if not ex then
                   pure mempty
@@ -514,9 +521,9 @@ withCache dir act =
                               _     -> error "bad cache pin"
 
         vCache <- newIORef c1
-        pure (c1, fil, vCache)
+        pure (c1, vCache)
 
-    release (c1, fil, vCache) = do
+    release (c1, vCache) = do
         c2 <- readIORef vCache
 
         unless (c1 == c2) do
@@ -532,27 +539,22 @@ withCache dir act =
                    trkM (REX $ planRexFull $ toNoun e)
                    pure ()
                Right byt -> do
-                   ()  <- Prof.withSimpleTracingEvent "write" "cache" $ writeFile fil byt
+                   ()  <- Prof.withSimpleTracingEvent "write" "cache" $
+                              writeFile fil byt
                    pure ()
 
 loadFile :: RexColor => FilePath -> IO Any
-loadFile pax = do
+loadFile modu = do
     writeIORef F.vShowFan  showFan
     writeIORef F.vTrkFan   trkFan
     writeIORef F.vJetMatch (F.jetMatch)
 
-    let (dir, fil) = splitFileName pax
-
-    case splitExtension fil of
-        (modu, ".sire") -> do
-            (ss, _hax) <- withCache dir \cache ->
-                              doFile dir cache (pack modu) initialSireStateAny
-            let scope = (getState ss).scope
-            case lookup "main" scope of
-                Nothing -> error "No `main` defined in this file"
-                Just vl -> pure vl.d.value
-        _ ->
-            error "must be given a path to a .sire file"
+    (ss, _hax) <- withCache \cache ->
+                      doFile cache (pack modu) initialSireStateAny
+    let scope = (getState ss).scope
+    case lookup "main" scope of
+        Nothing -> error "No `main` defined in this file"
+        Just vl -> pure vl.d.value
 
 readRexStream :: FilePath -> Handle -> IO [Either Text (Int, Rex)]
 readRexStream pax = fmap (blox pax . fmap (encodeUtf8 . pack) . lines) . hGetContents
@@ -609,10 +611,10 @@ runSire file inRepl s1 = \case
                 runSire file inRepl s1 rs
 
 
-doFile :: FilePath -> IORef (Tab Any Any) -> Text -> Any -> IO (Any, ByteString)
-doFile dir vCache modu s1 = do
+doFile :: IORef (Tab Any Any) -> Text -> Any -> IO (Any, ByteString)
+doFile vCache modu s1 = do
     let file = modu <> ".sire"
-    let pax  = dir </> unpack file
+    let pax  = "./sire" </> unpack file
 
     fileBytes <- readFile pax
 
@@ -668,7 +670,7 @@ doFile dir vCache modu s1 = do
             case tryReadModuleName prior of
                 Nothing -> terror ("Bad module name: " <> rexText prior)
                 Just nm -> do
-                  (s2, predHash) <- doFile dir vCache nm s1
+                  (s2, predHash) <- doFile vCache nm s1
                   Prof.withSimpleTracingEvent (encodeUtf8 modu) "Sire" do
 
                     -- Massive slow hack, stream two inputs separately.
