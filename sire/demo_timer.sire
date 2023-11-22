@@ -17,7 +17,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (timeDemo count return)
-| trk 'timeDemo',count,return
+| trk {timeDemo},count,return
 | if (isZero count)
         | return ()
 : ??(td_got_time now) <- syscall TIME_WHEN

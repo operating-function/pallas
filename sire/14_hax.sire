@@ -29,19 +29,19 @@
 ;;;; Expands the by passing `(# x)` to the `#quote` function.  Let's say that:
 ;;;;
 ;;;;    (v2 x y)=[x y]
-;;;;    ("#quote" e n kids heir)=(| RIGHT | v2 0 | EBED | idx 0 kids)
+;;;;    ({#quote} e n kids heir)=(| RIGHT | v2 0 | EBED | idx 0 kids)
 ;;;;
 ;;;; Then quote#[3 4] is expanded by calling:
 ;;;;
-;;;;     (.{#quote} env nextGensym [[0 ',' [[1 '3'] [1 '4']]]] 0)
+;;;;     (.{#quote} env nextGensym [[0 {,} [[1 {3}] [1 {4}]]]] 0)
 ;;;;
 ;;;; Which expands to this rex:
 ;;;;
-;;;;     (1 [0 [4 [0 ',' [[1 '3'] [1 '4']]]]])
+;;;;     (1 [0 [4 [0 {,} [[1 {3}] [1 {4}]]]]])
 ;;;;
 ;;;; Which evaluates to:
 ;;;;
-;;;;     [0 ',' [[1 '3'] [1 '4']]]
+;;;;     [0 {,} [[1 {3}] [1 {4}]]]
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -53,12 +53,12 @@
 /+  04_cmp  [eql neq]
 /+  05_row  [v1 v2 v4 null weld]
 /+  06_rex  [rexKids rexGetWord {``} rexRune]
-/+  07_dat  [","]
+/+  07_dat  [{,}]
 /+  08_sci  []
 /+  09_chr  []
 /+  10_str  [strWeld]
-/+  11_set  ["%"]
-/+  12_tab  ["#"]
+/+  11_set  [{%}]
+/+  12_tab  [{#}]
 /+  12_tab  [tabGet tabHas tabKeysSet isTab tabIsEmpty]
 /+  13_exp  [cnsE varE]
 
@@ -72,9 +72,9 @@
 = (showSymbol x)
 | x
 
-= haxNeedKid | "# Macros needs at least on kid"
-= haxFstWord | "First parameter to # must be a symbol."
-= haxBadSymb | (key & strWeld "Undefined Symbol: " showSymbol-key)
+= haxNeedKid | {# Macros needs at least on kid}
+= haxFstWord | {First parameter to # must be a symbol.}
+= haxBadSymb | (key & strWeld {Undefined Symbol: } showSymbol-key)
 
 oldHax=(.{#})
 
@@ -82,7 +82,7 @@ oldHax=(.{#})
 @ scope (idx 2 ss)
 @ bind  (tabGet scope name)
 | if (isZero bind)
-    | err | strWeld "undefined symbol: " name
+    | err | strWeld {undefined symbol: } name
 | **ok (pinItem bind)
 
 = ({#} st rex err ok)
@@ -93,12 +93,12 @@ oldHax=(.{#})
 ; trk [=kids]
 | if (null kids)
     | err rex haxNeedKid
-| if (eql (1,",") (numKids, rexRune firstKid))
+| if (eql (1,{,}) (numKids, rexRune firstKid))
     | oldHax st rex err ok
 | **rexGetWord firstKid
     | err rex haxFstWord
 & (name heir)
-@ key     | strWeld "#" name
+@ key     | strWeld {#} name
 @ scope   | idx 2 st
 | getBind st key
     (const | err rex haxBadSymb-key)
@@ -106,16 +106,16 @@ oldHax=(.{#})
 @ funVal | idx 1 funBind
 | funVal st rex err ok
 
-= ("#foo" st rex err ok) ; envr next kids heir)
+= ({#foo} st rex err ok) ; envr next kids heir)
 | ok st (cnsE rex)
 
-= ("#quote" st rex err ok)
+= ({#quote} st rex err ok)
 @ kids rexKids-rex
 | if (neq 1 len-kids)
-    | err rex "#foo expects exactly one kid (or heir)"
+    | err rex {#foo expects exactly one kid (or heir)}
 | ok st (cnsE idx-0-kids)
 
-= ("#getenv" st rex err ok)
+= ({#getenv} st rex err ok)
 @ e (idx 2 st)
 | ok st (cnsE e)
 
@@ -134,13 +134,13 @@ oldHax=(.{#})
 ^-^ {#} {%} eql {#quote} tabKeysSet {#getenv}
 
 !!= (tabKeysSet #getenv)
-  | %['#' '%' 'eql' '#quote' 'tabKeysSet' '#getenv']
+  | %[{#} {%} {eql} {#quote} {tabKeysSet} {#getenv}]
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
-^-^ "#"
-^-^ "#quote"
-^-^ "#getenv"
+^-^ {#}
+^-^ {#quote}
+^-^ {#getenv}
 ^-^

@@ -24,7 +24,7 @@
 /+  05_row  [v1 v2 v3 foldr map rowApply]
 /+  06_rex  [rexHeir rexEmbd rexSons rexText rexRune]
 /+  06_rex  [rexIsLeaf rexIsEmbd rexIsNode]
-/+  06_rex  [WORD EMBD NEST OPEN PREF CORD]
+/+  06_rex  [WORD EMBD NEST OPEN PREF TEXT]
 /+  06_rex  [rexGetWord rexKids rexStyle {``}]
 /+  06_rex  [rexGetNodeWithRune rexGetKidsOfNodeWithRune]
 /+  06_rex  [rexGetWordNoHeir rexSetHeir]
@@ -32,17 +32,17 @@
 /+  08_sci  []
 /+  09_chr  [isAlpha isDigit]
 /+  10_str  [strCat explode strWeld]
-/+  11_set  ['%']
-/+  12_tab  [tabToPairs '#' tabE]
+/+  11_set  [{%}]
+/+  12_tab  [tabToPairs {#} tabE]
 
 
 ;;; Parsing and Printing Nats ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (showNat n)=(strCat digits-n)
 
-(showDigit d)=(add d '0')
+(showDigit d)=(add d {0})
 
-(loadDigit chr)=(mod (sub chr '0') 10)
+(loadDigit chr)=(mod (sub chr {0}) 10)
 
 = (getDigit chr fall ret)
 @ res (**loadDigit chr)
@@ -63,8 +63,8 @@
 
 ;;
 
-= rnWord | "Expected a bare word"
-= rnNumb | "Invalid number literal"
+= rnWord } Expected a bare word
+= rnNumb } Invalid number literal
 
 = (readNat rex err ret)
 | rexGetWordNoHeir rex (err rex rnWord)
@@ -73,25 +73,25 @@
 & numb
 | ret numb
 
-= cenOneKid | "% literals must have one kid"
-= cenWord   | "% literals expect a word (and no heir)"
+= cenOneKid } % literals must have one kid
+= cenWord   } % literals expect a word (and no heir)
 
 = (readAtomLit rex err ret)
 | ifNot (isZero rexHeir-rex)
-        | err rex "Unexpected heir"
+        | err rex {Unexpected heir}
 | if (rexIsEmbd rex)
         @ val (rexEmbd rex)
         | ifNot (isNat val)
-                | err rex "Embed fan is not a number"
+                | err rex {Embed fan is not a number}
         | ret val
 | if (rexIsLeaf rex)
-        | if (eql "WORD" (rexStyle rex))
+        | if (eql {WORD} (rexStyle rex))
                 | readNat rex err ret
         | else
                 | ret (rexText rex)
 | else
-        | rexGetKidsOfNodeWithRune "%" rex
-                | err rex "Expected a %234 literal"
+        | rexGetKidsOfNodeWithRune {%} rex
+                | err rex {Expected a %234 literal}
         & kids
         | if (neq 1 len-kids)
                 | err rex cenOneKid
@@ -101,18 +101,18 @@
         | ret text
 
 
-!!= 1  | getDigit "1"  [] id
-!!= 5  | getDigit "5"  [] id
-!!= 9  | getDigit "9"  [] id
-!!= [] | getDigit "a"  [] id
-!!= [] | getDigit ""   [] id
-!!= [] | getDigit "10" [] id
+!!= 1  | getDigit {1}  [] id
+!!= 5  | getDigit {5}  [] id
+!!= 9  | getDigit {9}  [] id
+!!= [] | getDigit {a}  [] id
+!!= [] | getDigit {}   [] id
+!!= [] | getDigit {10} [] id
 
-!!= 123 | getNatStr "123" [] id
-!!= []  | getNatStr ""    [] id
-!!= 0   | getNatStr "0"   [] id
-!!= 1   | getNatStr "1"   [] id
-!!= []  | getNatStr "a"   [] id
+!!= 123 | getNatStr {123} [] id
+!!= []  | getNatStr {}    [] id
+!!= 0   | getNatStr {0}   [] id
+!!= 1   | getNatStr {1}   [] id
+!!= []  | getNatStr {a}   [] id
 
 !!= 345           | readNat ``345 v2 id
 !!= 0             | readNat ``0   v2 id
@@ -121,7 +121,7 @@
 
 !!= 345                | readAtomLit ``345     v2 id
 !!= %asdf              | readAtomLit ``(%asdf) v2 id
-!!= %asdf              | readAtomLit ``"asdf"  v2 id
+!!= %asdf              | readAtomLit ``{asdf}  v2 id
 !!= [``(%) cenOneKid]  | readAtomLit ``(%)     v2 id
 !!= [``(%(.)) cenWord] | readAtomLit ``(%(.))   v2 id
 
@@ -131,16 +131,16 @@
 = (natE n)         | WORD (showNat n) 0
 = (varE v)         | WORD v 0
 = (cnsE v)         | EMBD v
-= (barE xs)        | NEST "#|" xs 0
-= (letE i x b)     | OPEN "#@"  [varE-i    x] b
-= (recE i x b)     | OPEN "#@@" [varE-i    x] b
-= (txtE t)         | CORD t 0
-= (tmpName s n)    | strCat ["_" s showNat-n]
+= (barE xs)        | NEST {#|} xs 0
+= (letE i x b)     | OPEN {#@}  [varE-i    x] b
+= (recE i x b)     | OPEN {#@@} [varE-i    x] b
+= (txtE t)         | TEXT t 0
+= (tmpName s n)    | strCat [{_} s showNat-n]
 = (tmpVarE s n)    | varE (tmpName s n)
-= (sigE r)         | if (eql 1 len-r) varE-(idx 0 r) (NEST "|" (map varE r) 0)
-= (lamE rs b)      | OPEN "#&"  [(sigE rs)] b
-= (wutE rs b)      | OPEN "#?"  [(sigE rs)] b
-= (wutWutE rs b)   | OPEN "#??" [(sigE rs)] b
+= (sigE r)         | if (eql 1 len-r) varE-(idx 0 r) (NEST {|} (map varE r) 0)
+= (lamE rs b)      | OPEN {#&}  [(sigE rs)] b
+= (wutE rs b)      | OPEN {#?}  [(sigE rs)] b
+= (wutWutE rs b)   | OPEN {#??} [(sigE rs)] b
 
 = (**generateUniqueKey st ok)
 @ nex | get st 0
@@ -157,13 +157,13 @@
 & (st nex)
 | **ok st (tmpVarE name nex)
 
-(**generateTempAnon st ok)=(generateTempName "g" st ok)
-(**generateAnonVarE st ok)=(generateVarE "g" st ok)
+(**generateTempAnon st ok)=(generateTempName {g} st ok)
+(**generateAnonVarE st ok)=(generateVarE {g} st ok)
 
 = (inlinedLamE f rs b)
-^ OPEN "#?" [_] b
-^ NEST "|" (rowCons _ | map varE rs) 0
-| PREF "**" [(varE f)] 0
+^ OPEN {#?} [_] b
+^ NEST {|} (rowCons _ | map varE rs) 0
+| PREF {**} [(varE f)] 0
 
 
 ;;; Bloodlines ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -181,13 +181,13 @@
 = (readNodeWithRune rune rex err ret)
 | **rexGetNodeWithRune rune rex
         | err rex
-        | strCat ("Expected a ", rune, " node")
+        | strCat ({Expected a }, rune, { node})
 | ret
 
 = (readKidsOfNodeWithRune rune rex err ret)
 | **rexGetKidsOfNodeWithRune rune rex
         | err rex
-        | strCat ("Expected a ", rune, " node")
+        | strCat ({Expected a }, rune, { node})
 | ret
 
 
@@ -196,10 +196,10 @@
 & (sons heir)
 | if (neq 0 heir)
         | err heir
-        | strCat ("Unexpected heir on ", rune, " node")
+        | strCat ({Unexpected heir on }, rune, { node})
 | **ok sons
 
-= needBar | "Expected a | node"
+= needBar | {Expected a | node}
 
 !!= [``3 ``4]         | readNodeWithoutHeirButWithRune {,} ``[3 4] v2 id
 !!= [``[3 4] needBar] | readNodeWithoutHeirButWithRune {|} ``[3 4] v2 id
@@ -210,7 +210,7 @@
 ;;; Sire Symbols ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (isSymbolChar c)
-| or eql-"_"-c
+| or eql-{_}-c
 | or isAlpha-c
      isDigit-c
 
@@ -227,14 +227,14 @@
 | and (isZero heir)
       (strIsSymbol word)
 
-= badSymChar | "Invalid Character in Symbol"
-= badSymHeir | "Unexpected heir on symbol"
-= badSymBare | "expected a bare word"
+= badSymChar } Invalid Character in Symbol
+= badSymHeir } Unexpected heir on symbol
+= badSymBare } expected a bare word
 
 = (readWord rex err ok)
-| rexGetWord rex (err rex "Expected a word") ok
+| rexGetWord rex (err rex {Expected a word}) ok
 
-symTodo='todo: support .foo and .234'
+symTodo={todo: support .foo and .234}
 
 = (readSymbol rex err ok)
 @ rune (rexRune rex)
@@ -242,11 +242,11 @@ symTodo='todo: support .foo and .234'
 @ nKid (len kids)
 | if (eql {.} rune)
     | if (neq 1 nKid)
-        | err rex "Should be .x, .5, .{x}, etc"
+        | err rex {Should be .x, .5, .{x}, etc}
     @ kid (idx 0 kids)
     | ifNot (rexIsLeaf kid)
-        | err rex "Should be .x, .5, .{x}, etc"
-    | if (eql "WORD" | rexStyle kid)
+        | err rex {Should be .x, .5, .{x}, etc}
+    | if (eql {WORD} | rexStyle kid)
         | err rex symTodo
     | ok (rexText kid)
 | rexGetWord rex | (err rex badSymBare)
@@ -255,9 +255,9 @@ symTodo='todo: support .foo and .234'
 | ifNot strIsSymbol-word | (err rex badSymChar)
 | ok word
 
-!!= ["asdf"]         ^ readSymbol _ v2 v1 | ``(.{asdf})
-!!= [" "]            ^ readSymbol _ v2 v1 | ``(.' ')
-!!= [""]             ^ readSymbol _ v2 v1 | ``(."")
+!!= [{asdf}]         ^ readSymbol _ v2 v1 | ``(.{asdf})
+!!= [{ }]            ^ readSymbol _ v2 v1 | ``(.{ })
+!!= [{}]             ^ readSymbol _ v2 v1 | ``(.{})
 !!= [``(.x) symTodo] ^ readSymbol _ v2 v1 | ``(.x)
 !!= [``(.1) symTodo] ^ readSymbol _ v2 v1 | ``(.1)
 
@@ -277,11 +277,11 @@ symTodo='todo: support .foo and .234'
 
 = (rexParseSonsRow rex readers err ok)
 | ifNot (rexIsNode rex)
-    | err rex "Expected a node"
+    | err rex {Expected a node}
 @ sons (rexSons rex)
 | if (neq len-readers len-sons)
     | err rex
-    | strCat ("Expecting ", showNat len-readers, " sons")
+    | strCat ({Expecting }, showNat len-readers, { sons})
 | rexParseRow sons readers err ok
 
 = (rexParseSons rex readers err ok)
@@ -289,11 +289,11 @@ symTodo='todo: support .foo and .234'
 
 = (rexParseKidsRow rex readers err ok)
 | ifNot (rexIsNode rex)
-    | err rex "Expected a node"
+    | err rex {Expected a node}
 @ kids (rexKids rex)
 | if (neq len-readers len-kids)
     | err rex
-    | strCat ("Expecting ", showNat len-readers, " kids")
+    | strCat ({Expecting }, showNat len-readers, { kids})
 | rexParseRow kids readers err ok
 
 = (rexParseKids rex readers err ok)
@@ -303,18 +303,18 @@ symTodo='todo: support .foo and .234'
 
 ;;; Read Row of Names ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= nrBadForm | "Patterns must be a symbol (x) or a row of: (x,y,z)"
-= nrBadHeir | "Name-sequence cannot have an heir"
+= nrBadForm } Patterns must be a symbol (x) or a row of: (x,y,z)
+= nrBadHeir } Name-sequence cannot have an heir
 
 = (readRowOfNames rex err ok)
 | if (rexIsNode rex)
-    | if (neq (rexRune rex) ",") | err rex nrBadForm
+    | if (neq (rexRune rex) {,}) | err rex nrBadForm
     | if (neq (rexHeir rex) 0)   | err rex nrBadHeir
     @ step
         ? (step son ret)
         | readSymbol son err ret
     | rowTraverse step (rexSons rex) ok
-| if (eql "WORD" rexStyle-rex)
+| if (eql {WORD} rexStyle-rex)
     | readSymbol rex err
     & sym
     | ok [sym]

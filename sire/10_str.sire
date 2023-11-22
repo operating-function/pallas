@@ -47,7 +47,7 @@
 = (strCapitalize str)
 @ hed (mod str 256)
 @ cap (toUpper hed)
-; trk ["hed",hed "cap",cap]
+; trk [{hed},hed {cap},cap]
 | add cap (sub str hed)
 
 (strIsCapitalized str)=(isUpper (mod str 256))
@@ -74,23 +74,23 @@
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= "fdsa" (strWeld "" "fdsa")
-!!= "fdsa" (strWeld "f" "dsa")
+!!= {fdsa} (strWeld {} {fdsa})
+!!= {fdsa} (strWeld {f} {dsa})
 
 ; TODO: Why the fuck does this crash?  It makes no sense!  It's doing
 ; the same things as the other things??
-!!= "fdsa" (strWeld "f" "dsa")
+!!= {fdsa} (strWeld {f} {dsa})
 
 ;;; 3 4
 
-!!= ["f"]     (explode "f")
+!!= [{f}]     (explode {f})
 !!= [255]     (explode 255)
-!!= ["f" "d"] (explode "fd")
+!!= [{f} {d}] (explode {fd})
 
-!!= 0 (strLen "")
-!!= 1 (strLen "a")
-!!= 2 (strLen "ab")
-!!= 3 (strLen "abc")
+!!= 0 (strLen {})
+!!= 1 (strLen {a})
+!!= 2 (strLen {ab})
+!!= 3 (strLen {abc})
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

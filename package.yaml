@@ -198,7 +198,6 @@ dependencies:
 - kazura-queue
 - largeword
 - lmdb
-- megaparsec
 - memory
 - mono-traversable
 - mtl

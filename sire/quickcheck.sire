@@ -130,7 +130,7 @@ qcIs=SOME
     * NIL
         | lastGood
     * (CONS v nextShrinks)
-        | if (debug ["shrink: " v] (prop v == SOME FALSE))
+        | if (debug [{shrink: } v] (prop v == SOME FALSE))
             | runShrinks (inc count) v        (shrink v)
         | else
             | runShrinks count       lastGood nextShrinks
@@ -144,7 +144,7 @@ qcIs=SOME
     @ sg2,sg1 | splitSMGen sg
     @ size    | computeSize getSuccessCount-st getRecentDiscardCount-st
     @ v       | gen sg2 size
-    # datacase (debug ["go: " v] (prop v))
+    # datacase (debug [{go: } v] (prop v))
     * (SOME res)
         | if res
             | go (setSuccessCount (inc | getSuccessCount st) st) sg1
@@ -223,12 +223,10 @@ getSize=(sized pureGen)
 | f (gen r n)
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; shrinkers
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; shrinkers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; shrink lists should be in *ascending* order. we try the smallest first. if
-;; the prop passes, we keep going "up" the list.
+;;; shrink lists should be in *ascending* order. we try the smallest first. if
+;;; the prop passes, we keep going "up" the list.
 
 > (a -> List a)
 > (b -> List b)
@@ -284,12 +282,12 @@ getSize=(sized pureGen)
 # datacase result
 * (OK passed dropped)
     `
-    | $(TAPE name 0) SUCCESS
+    | $(TEXT name 0) SUCCESS
    ## =passed  $(WORD showNat-passed 0)
    ## =dropped $(WORD showNat-dropped 0)
 * (FAIL gen size passed dropped failed)
    `
-   | $(TAPE name 0) FAILURE
+   | $(TEXT name 0) FAILURE
    | =parameters
       ## =seed    $(WORD showNat-seed 0)
       ## =stdgen  $(EMBD gen)
@@ -300,7 +298,7 @@ getSize=(sized pureGen)
    | $(EMBD failed)
 * (GAVE_UP passed dropped)
    `
-   | $(TAPE name 0) GAVE UP
+   | $(TEXT name 0) GAVE UP
   ## =passed  $(WORD showNat-passed 0)
   ## =dropped $(WORD showNat-dropped 0)
 
@@ -350,15 +348,15 @@ getSize=(sized pureGen)
 = (revRev ls)     | eql ls              | listRev (listRev ls)
 = (palindrome ls) | eql ls              | listRev ls
 
-!! qc1_pass 42 'w64 is a w64' (prop1 isW64)          arbU64
-!! qc1_pass 42 'w64 is not 0' (prop1 neq-0)          arbU64
-!! qc1_fail 42 'w64 is a w32' (prop1 isW32)          arbU64
-!! qc1_pass 42 'list is list' (prop1 isList)         arbU64List
-!! qc1_pass 42 'list is list' (prop1 isListOf-isW64) arbU64List
-!! qc1_fail 42 'palindrome'   (prop1 palindrome)     arbU64List
-!! qc2_fail 42 'eq pair'      (prop2 eql)            arbU64 arbU64
-!! qc1_pass 42 'sub neg'      (prop2 subNeg)         arbU64
-!! qc1_pass 42 'rev rev'      (prop1 revRev)         arbU64List
+!! qc1_pass 42 {w64 is a w64} (prop1 isW64)          arbU64
+!! qc1_pass 42 {w64 is not 0} (prop1 neq-0)          arbU64
+!! qc1_fail 42 {w64 is a w32} (prop1 isW32)          arbU64
+!! qc1_pass 42 {list is list} (prop1 isList)         arbU64List
+!! qc1_pass 42 {list is list} (prop1 isListOf-isW64) arbU64List
+!! qc1_fail 42 {palindrome}   (prop1 palindrome)     arbU64List
+!! qc2_fail 42 {eq pair}      (prop2 eql)            arbU64 arbU64
+!! qc1_pass 42 {sub neg}      (prop2 subNeg)         arbU64
+!! qc1_pass 42 {rev rev}      (prop1 revRev)         arbU64List
 
 ^-^
 ^-^ ARGS

@@ -24,13 +24,13 @@
 
 = (planRender x)
 | if isNat-x
-    | if strIsSymbol-x [b#'%' natBar-x]
+    | if strIsSymbol-x [b#{%} natBar-x]
     | natBar showNat-x
 @ node | unApply car-x (CONS cdr-x NIL)
 @ kids | listToRow
-       | listIntersperse b#" "
+       | listIntersperse b#{ }
        | listMap planRender node
-| (b#"(" , kids , b#")" )
+| (b#{(} , kids , b#{)} )
 
 (planShow x)=(barFlat | planRender x)
 
@@ -46,7 +46,7 @@
     @ rune | rexRune expr
     @ sons | rexSons expr
     @ bune | natBar rune
-    | if ((style == %NEST) && (rune == ","))
+    | if ((style == %NEST) && (rune == {,}))
        ++ b#{[}
        ++ intersperse barSpace (map rexRenderClosed sons)
        ++ b#{]}
@@ -61,17 +61,15 @@
     * INFX | intersperse barCat-[barSpace bune barSpace]
            | map rexRenderClosed sons
     * _    | intersperse barSpace
-           | if (rune=='|' && (1 /= len sons))
+           | if (rune=={|} && (1 /= len sons))
                | map rexRenderClosed sons
            | rowCons bune (map rexRenderClosed sons)
 * LEAF
     @ t (rexText expr)
     # switch style
     * WORD | natBar t
-    * CORD | barCat (b#{'}, natBar t, b#{'}, rexRenderClosed heir)
-    * TAPE | barCat (b#{"}, natBar t, b#{"}, rexRenderClosed heir)
-    * LINE | barCat (b#{"}, natBar t, b#{"}, rexRenderClosed heir)
-    * CURL | barCat (b#"{", natBar t, b#"}", rexRenderClosed heir)
+    * TEXT | barCat (b#}_{_, natBar t, b#}_}_, rexRenderClosed heir)
+    * LINE | barCat (b#}_"_, natBar t, b#}_"_, rexRenderClosed heir)
 * EMBD
     | planRender (rexEmbd expr)
 
@@ -85,7 +83,7 @@
 @ heir  | rexHeir r
 ^ (barRep d spaceChar, _)
 # switch style
-* %LINE ++ b#'} '
+* %LINE ++ b#}_} _
         ++ natBar text
         ++ | if (isZero heir) 0
            | (barNewline, rexRenderOpen d heir)
@@ -111,16 +109,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= b#'()'                 | rexShow ``()
-!!= b#'3'                  | rexShow ``3
-!!= b#'"3"'                | rexShow ``"3"
-!!= b#'(3 4 5)'            | rexShow ``(3 4 5)
-!!= b#'(+ 3 4 5)'          | rexShow ``(+ 3 4 5)
-!!= b#'(3 + 4 + 5)'        | rexShow ``(3 + 4 + 5)
-!!= b#'(%((3=3) , (4=4)))' | rexShow ``(%(3=3, 4=4))
-!!= b#'((+3) (+4) (+5))'   | rexShow ``(+3 +4 +5)
-!!= b#'(3+4+5)(9)'         | rexShow ``((3+4+5)9)
-!!= b#'(| p)((q r)(s))'    | rexShow ``(| p)(q r)(s)
+!!= b#{()}                 | rexShow ``()
+!!= b#{3}                  | rexShow ``3
+!!= b#{{3}}                | rexShow ``{3}
+!!= b#{(3 4 5)}            | rexShow ``(3 4 5)
+!!= b#{(+ 3 4 5)}          | rexShow ``(+ 3 4 5)
+!!= b#{(3 + 4 + 5)}        | rexShow ``(3 + 4 + 5)
+!!= b#{(%((3=3) , (4=4)))} | rexShow ``(%(3=3, 4=4))
+!!= b#{((+3) (+4) (+5))}   | rexShow ``(+3 +4 +5)
+!!= b#{(3+4+5)(9)}         | rexShow ``((3+4+5)9)
+!!= b#{(| p)((q r)(s))}    | rexShow ``(| p)(q r)(s)
 
 !!=   # b } | p
           } | q r
@@ -147,20 +145,20 @@
       | **rexCase expr
           & (r x k)
           @ hed | barCat
-               ++ b#"("
-               ++ | barIntercalate b#" "
-                  | if (r == '|') map-rexShow-x
+               ++ b#{(}
+               ++ | barIntercalate b#{ }
+                  | if (r == {|}) map-rexShow-x
                   | weld [natBar-r] map-rexShow-x
-               ++ b#")"
+               ++ b#{)}
           | if (k == 0) hed
           | barWeld hed rexShow-k
         (name & natBar name)
-        (cord & barCat [b#'"' natBar-cord b#'"'])
-        (page & rexShow (CORD strCat-page))
+        (cord & barCat [b#{"} natBar-cord b#{"}])
+        (page & rexShow (TEXT strCat-page))
         (cnst & rexShow valRex-cnst)
   # b
   } = (rexShow expr)
-  } | (**rexCase) expr (& (r x k))((@ hed (| barCat)((++ (b#"("))((++ (barIntercalate (b#" "))((if (r == '|') (map-rexShow-x))((weld [(natBar-r)] (map-rexShow-x)))))((++ (b#")"))))))((if (k == 0) hed)((barWeld hed (rexShow-k))))) (name & (natBar name)) (cord & (barCat [(b#'"') (natBar-cord) (b#'"')])) (page & (rexShow (CORD (strCat-page)))) (cnst & (rexShow (valRex-cnst)))
+  } | (**rexCase) expr (& (r x k))((@ hed (| barCat)((++ (b#{(}))((++ (barIntercalate (b#{ }))((if (r == {|}) (map-rexShow-x))((weld [(natBar-r)] (map-rexShow-x)))))((++ (b#{)}))))))((if (k == 0) hed)((barWeld hed (rexShow-k))))) (name & (natBar name)) (cord & (barCat [(b#{"}) (natBar-cord) (b#{"})])) (page & (rexShow (TEXT (strCat-page)))) (cnst & (rexShow (valRex-cnst)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

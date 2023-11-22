@@ -49,11 +49,11 @@
 /+  08_sci  []
 /+  09_chr  []
 /+  10_str  [strWeld strCat]
-/+  11_set  [readKey "%"]
-/+  12_tab  ["##" tabToPairs tabFromPairs tabIdx tabToList tabIns]
+/+  11_set  [readKey {%}]
+/+  12_tab  [{##} tabToPairs tabFromPairs tabIdx tabToList tabIns]
 /+  12_tab  [isTabSugar readWideTabLit]
 /+  13_exp
-/+  14_hax  ['#']
+/+  14_hax  [{#}]
 /+  15_pad  []
 /+  16_bar  []
 /+  17_sug  [{`} {:} {~} {::} {~~} {==}]
@@ -71,7 +71,7 @@
         ? (go binds)
         : bind binds <- **listCase binds bodyExpr
         @ bindVar (idx 1 bind)
-        | if (eql '_' bindVar) (go binds)
+        | if (eql {_} bindVar) (go binds)
         | letE bindVar
                 | appE
                ++ cnsE (idx (idx 0 bind))
@@ -113,14 +113,14 @@
 ;     =>
 ;
 ;   | ROW
-;  ++ VAR 1 'x'
+;  ++ VAR 1 {x}
 ;  ++ ROW
-;      ++ VAR 2 'y'
-;      ++ VAR 3 'z'
+;      ++ VAR 2 {y}
+;      ++ VAR 3 {z}
 ;  ++ TAB
-;      ## =a (VAR 4 'b')
-;      ## =c (VAR 5 'd')
-;      ## =e (VAR 6 'f')
+;      ## =a (VAR 4 {b})
+;      ## =c (VAR 5 {d})
+;      ## =e (VAR 6 {f})
 ;
 ; Then generate code from that:
 ;
@@ -130,34 +130,34 @@
 ; #@ y    (idx-0      _g1)
 ; #@ z    (idx-1      _g1)
 ; #@ _g2  (idx-2      _g0)
-; #@ b    (tabIdx-"a" _g2)
-; #@ d    (tabIdx-"c" _g2)
-; #@ f    (tabIdx-"e" _g2)
+; #@ b    (tabIdx-{a} _g2)
+; #@ d    (tabIdx-{c} _g2)
+; #@ f    (tabIdx-{e} _g2)
 ;  body
 ;
 ; This same process should work more-or-less verbatim in other contexts:
 ; functions, lambdas, etc.
 ;
 
-= sbBadForm | "seq-patterns must be a single banged symbol: !x"
-= sbBadHeir | "seq-patterns may not have an heir"
+= sbBadForm } seq-patterns must be a single banged symbol: !x
+= sbBadHeir } seq-patterns may not have an heir
 
 = (parseSeqBinder rex err ok)
 @ sons | rexSons rex
 @ expr | idx 0 sons
 | if (not (rexIsNode rex))   | err rex sbBadForm
-| if (neq (rexRune rex) "!") | err rex sbBadForm
+| if (neq (rexRune rex) {!}) | err rex sbBadForm
 | if (neq (len sons) 1)      | err rex sbBadForm
 | if (neq (rexHeir rex) 0)   | err rex sbBadHeir
 : sym <- readSymbol expr err
 | ok [%s sym]
 
-= rbBadForm | "Row-Patterns must be a row of symbols [x y z]"
-= rbBadHeir | "Row-Patterns may not have an heir"
+= rbBadForm } Row-Patterns must be a row of symbols [x y z]
+= rbBadHeir } Row-Patterns may not have an heir
 
 = (parseRowBinder parseBinder rex err ok)
 | if (not (rexIsNode rex))   | err rex rbBadForm
-| if (neq (rexRune rex) ",") | err rex rbBadForm
+| if (neq (rexRune rex) {,}) | err rex rbBadForm
 | if (neq (rexHeir rex) 0)   | err rex rbBadHeir
 : elems <- rowTraverse (son ret & parseBinder son err ret) (rexSons rex)
 | ok [%r elems]
@@ -174,7 +174,7 @@
 | if (eql 1 len-kids)
     | parseBinder (idx 0 kids) err ok
 | if (neq 2 len-kids)
-    | err rex "Alias-Patterns expect two kids: x=y"
+    | err rex {Alias-Patterns expect two kids: x=y}
 : foo < parseBinder (idx 0 kids) err
 : bar < parseBinder (idx 1 kids) err
 | ok [%a foo bar]
@@ -184,9 +184,9 @@
 = (parsePinBinder parseBinder rex err ok)
 : kids <- readNodeWithoutHeirButWithRune {|} rex err
 | if (neq 2 len-kids)
-    | err rex "Pin-Pattern expects two kids: (PIN x)"
+    | err rex {Pin-Pattern expects two kids: (PIN x)}
 | ifNot (eql `PIN | idx 0 kids)
-    | err rex "Pin-Pattern expects rex-head to be `PIN"
+    | err rex {Pin-Pattern expects rex-head to be `PIN}
 : item < parseBinder (idx 1 kids) err
 | ok [%pin item]
 
@@ -195,9 +195,9 @@
 = (parseLawBinder parseBinder rex err ok)
 : kids <- readNodeWithoutHeirButWithRune {|} rex err
 | if (neq 4 len-kids)
-    | err rex "Law-Pattern expects four kids: (LAW n a b)"
+    | err rex {Law-Pattern expects four kids: (LAW n a b)}
 | ifNot (eql `LAW | idx 0 kids)
-    | err rex "Law-Pattern expects rex-head to be `LAW"
+    | err rex {Law-Pattern expects rex-head to be `LAW}
 : n < parseBinder (idx 1 kids) err
 : a < parseBinder (idx 2 kids) err
 : b < parseBinder (idx 3 kids) err
@@ -209,10 +209,10 @@
     : sym <- readSymbol (rexSetHeir 0 rex) err
     | if (isZero heir)
         | ok [%v sym]
-    | ifNot (eql '..' | rexRune heir)
-        | err rex (strWeld 'expected something like CONSTR(..) ; wrong rune' (rexRune heir))
+    | ifNot (eql {..} | rexRune heir)
+        | err rex (strWeld {expected something like CONSTR(..) ; wrong rune} (rexRune heir))
     | ifNot (null | rexKids heir)
-        | err rex 'expected something like CONSTR(..); has kids'
+        | err rex {expected something like CONSTR(..); has kids}
     | ok [%o sym]
 @ rune (rexRune rex)
 | if (eql rune {.})
@@ -250,11 +250,11 @@
     | if (eql head `PIN)
         | parsePinBinder parseBinder rex err ok
     ^ parseBinder _ err ok
-    | rexSetRune ","
+    | rexSetRune {,}
     | rexSetSons (drop 1 | rexSons rex)
     | rex
 | else
-    | err rex "Unknown binding pattern"
+    | err rex {Unknown binding pattern}
 
 !!= (parseBinder `[x y z] v2 id)
  ++ %r
@@ -290,10 +290,10 @@
 
 !!= (parseBinder ``(foo@[#[=x] [y]]) v2 id)
  ++ %a
- ++ [%v 'foo']
+ ++ [%v {foo}]
  ++  ++ %r
-     ++  ++ [%t #[x=[%v 'x']]]
-         ++ [%r [[%v 'y']]]
+     ++  ++ [%t #[x=[%v {x}]]]
+         ++ [%r [[%v {y}]]]
 
 !!= (parseBinder ``[x y] v2 id)
  ++ %r
@@ -311,14 +311,14 @@
 ;
 ;     =>
 ;
-; ~~ [ "x"    ``(idx-0      _g0) ]
-; ~~ [ "_g1"  ``(idx-1      _g0) ]
-; ~~ [ "y"    ``(idx-0      _g1) ]
-; ~~ [ "z"    ``(idx-1      _g1) ]
-; ~~ [ "_g2"  ``(idx-2      _g0) ]
-; ~~ [ "b"    ``(tabIdx-"a" _g2) ]
-; ~~ [ "d"    ``(tabIdx-"c" _g2) ]
-; ~~ [ "f"    ``(tabIdx-"e" _g2) ]
+; ~~ [ {x}    ``(idx-0      _g0) ]
+; ~~ [ {_g1}  ``(idx-1      _g0) ]
+; ~~ [ {y}    ``(idx-0      _g1) ]
+; ~~ [ {z}    ``(idx-1      _g1) ]
+; ~~ [ {_g2}  ``(idx-2      _g0) ]
+; ~~ [ {b}    ``(tabIdx-{a} _g2) ]
+; ~~ [ {d}    ``(tabIdx-{c} _g2) ]
+; ~~ [ {f}    ``(tabIdx-{e} _g2) ]
 ;
 
 = (sequenceBindPair ss bindSpec exp)
@@ -328,30 +328,30 @@
         | [ss (map (take 3) row) (cat | map idx-3 row)]
 ? (go exp bindSpec ss acc ok)
 @ typ (idx 0 bindSpec)
-| if (eql 'o' typ)
+| if (eql {o} typ)
         | todo
         } No codegen for record-wildcard patterns:
         }
         } We don't know how to handle these yet, higher-level code should
         } compile them away before calling this codegen routine.
-| if (eql 'v' typ)
+| if (eql {v} typ)
         @ var (idx 1 bindSpec)
         | ok ss [0 var exp []]::acc
-| if (eql 's' typ)
+| if (eql {s} typ)
         @ var (idx 1 bindSpec)
         | ok ss [0 var exp [var]]::acc
-: ss tmp <- generateTempName "g" ss
-| if (eql 'a' typ)
+: ss tmp <- generateTempName {g} ss
+| if (eql {a} typ)
         @ acc [0 tmp exp []]::acc
         : ss acc <- go (varE tmp) (idx 1 bindSpec) ss acc
         : ss acc <- go (varE tmp) (idx 2 bindSpec) ss acc
         | ok ss acc
-| if (eql 'pin' typ)
+| if (eql {pin} typ)
         @ acc [0 tmp exp []]::acc
         @ exp (appE (cnsE pinItem, varE tmp))
         : ss acc <- go exp (idx 1 bindSpec) ss acc
         | ok ss acc
-| if (eql 'law' typ)
+| if (eql {law} typ)
         @ acc [0 tmp exp []]::acc
         : ss acc <- go appE-(cnsE lawName, varE tmp) (idx 1 bindSpec) ss acc
         : ss acc <- go appE-(cnsE lawArgs, varE tmp) (idx 2 bindSpec) ss acc
@@ -360,7 +360,7 @@
 @ dat (idx 1 bindSpec)
 @ acc [0 tmp exp []]::acc
 @ res
-        | if (eql 't' typ)
+        | if (eql {t} typ)
                 ^ foldl _ [ss acc] (tabToPairs dat)
                 & (st elem)
                 @ ss  (idx 0 st)
@@ -370,7 +370,7 @@
                 @ exp (appE (cnsE tabIdx-key, varE tmp))
                 : ss acc <- go exp pat ss acc
                 | [ss acc]
-        | if (eql 'r' typ)
+        | if (eql {r} typ)
                 ^ listFoldl _ [ss acc] (listIndexed | listFromRow dat)
                 & (st elem)
                 @ ss  (idx 0 st)
@@ -381,7 +381,7 @@
                 : ss acc <- go exp pat ss acc
                 | [ss acc]
         | else
-            | die ['bad bind spec' bindSpec]
+            | die [{bad bind spec} bindSpec]
 @ ss  (idx 0 res)
 @ acc (idx 1 res)
 | ok ss acc
@@ -416,14 +416,14 @@
 
 !!=    ++ 5
        ++ [[0 %y (``x)]]
-       ++ ['y']
+       ++ [{y}]
     | sequenceBinds 5 [[[%s %y] ``x]]
 
 !!=    ++ [8]
-       ++  ++ [0 '_g5'  `(foo foo)]
-           ++ [0 '_g6'  `(#| $$(idx 0) _g5)]
+       ++  ++ [0 {_g5}  `(foo foo)]
+           ++ [0 {_g6}  `(#| $$(idx 0) _g5)]
            ++ [0 %x     `(#| $$(idx 0) _g6)]
-           ++ [0 '_g7'  `(#| $$(idx 1) _g5)]
+           ++ [0 {_g7}  `(#| $$(idx 1) _g5)]
            ++ [0 %y     `(#| $$(idx 0) _g7)]
        ++  [%x %y]
     | sequenceBinds [5]
@@ -435,10 +435,10 @@
 
 !!=
        ++ [8]
-       ++  ++ [0 '_g5'  `(foo foo)]
-           ++ [0 '_g6'  `(#| $$(idx 0) _g5)]
-           ++ [0 %x     `(#| $$(tabIdx 'x') _g6)]
-           ++ [0 '_g7'  `(#| $$(idx 1) _g5)]
+       ++  ++ [0 {_g5}  `(foo foo)]
+           ++ [0 {_g6}  `(#| $$(idx 0) _g5)]
+           ++ [0 %x     `(#| $$(tabIdx {x}) _g6)]
+           ++ [0 {_g7}  `(#| $$(idx 1) _g5)]
            ++ [0 %y     `(#| $$(idx 0) _g7)]
        ++ []
     | sequenceBinds [5]
@@ -457,7 +457,7 @@
         @ var (idx 1 bind)
         @ exp (idx 2 bind)
         @ sameVar (readSymbol exp (_ _ & FALSE) (eql var))
-        | if (or (eql var '_') sameVar) body
+        | if (or (eql var {_}) sameVar) body
         | letE var exp body
 @ addDep
         & (dep body)
@@ -477,11 +477,11 @@
        #| $$seq $(varE %z)
         x
    | bindSeqE
-          ++ [5 '_g5'  `(foo foo)]
-          ++ [6 '_g6'  `(#| $$(idx 1) _g5)]
+          ++ [5 {_g5}  `(foo foo)]
+          ++ [6 {_g6}  `(#| $$(idx 1) _g5)]
           ++ [1 %y     `(#| $$(idx 0) _g6)]
-          ++ [7 '_g7'  `(#| $$(idx 0) _g5)]
-          ++ [2 %x     `(#| $$(tabIdx 'x') _g7)]
+          ++ [7 {_g7}  `(#| $$(idx 0) _g5)]
+          ++ [2 %x     `(#| $$(tabIdx {x}) _g7)]
        | ``x
    | [%_g5 %y %z]
 
@@ -489,13 +489,13 @@
 ;;; Multi Binders ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (isMultiBinder rex)
-| eql "=" (rexRune rex)
+| eql {=} (rexRune rex)
 
-= mbNeedsTwo | "Each multi-bind needs at least two son"
+= mbNeedsTwo | {Each multi-bind needs at least two son}
 
 = (readMultiBinder readExp rex err ok)
 | if (isZero rex) ok-[]
-: sons heir <- readNodeWithRune "=" rex err
+: sons heir <- readNodeWithRune {=} rex err
 | if (lth len-sons 2) (err rex mbNeedsTwo)
 : bind < parseBinder (idx 0 sons) err
 : exp  < readExp (appE | drop 1 sons) err
@@ -529,7 +529,7 @@
 
 ; TODO: Rebuild this as a call to (sequenceBinds >=> bindSeqE).
 = (destructureTabE nex bindings tabExp bodyExp ok)
-@ tmp (tmpName "g" nex)
+@ tmp (tmpName {g} nex)
 @ go
         ? (go bind)
         | **listCase bind
@@ -647,7 +647,7 @@
           & (ss bind ret)
           | if (eql %v (idx 0 bind))
                   | ret ss (idx 1 bind)
-          : ss nam <- generateTempName "g" ss
+          : ss nam <- generateTempName {g} ss
           | ret ss nam
 ; trk #[=sig]
 @ binder | zip binds (map varE sig)
@@ -666,7 +666,7 @@
 @ kids (rexKids rex)
 @ nKid (len kids)
 | if (and (neq 3 nKid) (neq 2 nKid))
-    | err rex "@ requires 2 or 3 kids"
+    | err rex {@ requires 2 or 3 kids}
 | if (eql 2 nKid)
     : binds      < readMultiBinder readExp (idx 0 kids) err
     : letBodyExp < readExp                 (idx 1 kids) err
@@ -719,8 +719,8 @@
 | bindSeqE bindSeq bodyExpr deps
 
 = (showState ss)
-^ put _ 2 'scope'
-^ put _ 4 'allbinds'
+^ put _ 2 {scope}
+^ put _ 4 {allbinds}
 | ss
 
 = ({@} ss rex err ok)
@@ -799,7 +799,7 @@
 | ok sym []
 
 ;
-= ("?" ss rex err ok)
+= ({?} ss rex err ok)
 : sigRex bodyExpr <- rexParseKids rex [readRex readRex] err
 : sym    binds    <- readNamedLambdaSig sigRex err
 : ss sig bodyExpr <- makeDestroyer ss binds bodyExpr
@@ -814,7 +814,7 @@
 
 ;;; Anon Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= ("&" ss rex err ok)
+= ({&} ss rex err ok)
 : sigRex bodyExpr <- rexParseKids rex [readRex readRex] err
 : binds           <- readBindSig sigRex err
 : ss sig bodyExpr <- makeDestroyer ss binds bodyExpr
@@ -872,7 +872,7 @@
         : bind <- parseBinder sigRex err
         | ok (0, bind, bodRex)
 | else
-    | err rex "Expected two kids"
+    | err rex {Expected two kids}
 
 !!=  ++ 0
      ++ [%v %x]
@@ -907,7 +907,7 @@
 = (unrollTis rex)
 @ heir (rexHeir rex)
 | if (isZero heir)            | ~[rex]
-| if (neq (rexRune heir) "=") | ~[rex]
+| if (neq (rexRune heir) {=}) | ~[rex]
 | CONS (rexSetHeir 0 rex)
 | unrollTis heir
 
@@ -928,7 +928,7 @@
 | if (len def == 4)
     @ [key sym binds bodRex] def
     : ss sig bod <- makeDestroyer ss binds bodRex
-    ^ [ss (OPEN "#=" _ acc)]
+    ^ [ss (OPEN {#=} _ acc)]
     | if key
         | (natE key, sogE sym sig, bod)
     | else
@@ -938,13 +938,13 @@
     @ [ss bSeq] (sequenceBinds ss [[bind bodRex]])
     ^ foldr _ [ss acc] bSeq
     & ([_ var exp] [ss acc])
-    ^ (ss, OPEN "#=" _ acc)
+    ^ (ss, OPEN {#=} _ acc)
     | if key
         | (natE key, keyE var, exp)
     | else
         | (keyE var, exp)
 
-= ("=" ss rex err ok)
+= ({=} ss rex err ok)
 : defBinds
   < ^ traverseList _ (unrollTis rex)
     ? (step defRex ret)
@@ -992,13 +992,13 @@
 !!= [n o w] [9 8 7]
 
 !!= 1
-    : ?(self x) <- (k & k 'self')
-    | and (eql x 'self')
+    : ?(self x) <- (k & k {self})
+    | and (eql x {self})
           (eql x lawName-self)
 
 !!= 1
-    : ??(self x) <- (k & k 'self')
-    | and (eql x 'self')
+    : ??(self x) <- (k & k {self})
+    | and (eql x {self})
           (| eql x | lawName | pinItem self)
 
 
@@ -1008,7 +1008,7 @@
         @ @(PIN five)  (4 5)
         | five
 
-!!= ('f', 1, 1)
+!!= ({f}, 1, 1)
         @ @(LAW n a b)  (f x ? x)
         [n a b]
 

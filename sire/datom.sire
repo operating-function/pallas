@@ -16,8 +16,8 @@
 
 /+  boot
 /+  hitch
-/+  switch    ["#switch"]
-/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  switch    [{#switch}]
+/+  datatype  [{#record} {#datatype} {#datacase}]
 /+  types
 /+  mutrec
 /+  stew
@@ -121,20 +121,20 @@
 | DB eav aev ave vae maxEid
 
 = dbIdentId 0
-= dbIdentStr ":db/ident"
+= dbIdentStr {:db/ident}
 = dbCardinalityId 1
-= dbCardinalityStr ":db/cardinality"
+= dbCardinalityStr {:db/cardinality}
 = dbUniqueId 2
-= dbUniqueStr ":db/unique"
+= dbUniqueStr {:db/unique}
 = dbIndexedId 3
-= dbIndexedStr ":db/indexed"
+= dbIndexedStr {:db/indexed}
 = dbValueTypeId 4
-= dbValueTypeStr ":db/valueType"
+= dbValueTypeStr {:db/valueType}
 = dbDocId 5
-= dbDocStr ":db/doc"
+= dbDocStr {:db/doc}
 
 = dbIdId 100  ; TODO: should be 0
-= dbIdStr ":db/id"
+= dbIdStr {:db/id}
 
 = emptyDB
 @ db
@@ -146,12 +146,12 @@
     | DB eav aev ave vae maxEid
 @ (baseAdd e a v db)
     | rawAdd e a v TRUE TRUE FALSE db
-; an "empty" db still needs to have some "built-in" tuples to allow for
+; an {empty} db still needs to have some {built-in} tuples to allow for
 ; attribute resolution. each attribute still has an eid.
 ;
 ; :db/ident is the name identity of an attribute. in the eav tuple
-; `[5 ":my/attr" "str"], we will first do an attribute/value lookup on
-; [":db/ident" ":my/attr"] and will use the entity number in storage.
+; `[5 {:my/attr} {str}], we will first do an attribute/value lookup on
+; [{:db/ident} {:my/attr}] and will use the entity number in storage.
 ;
 ; TODO: Must validate that incoming data type is a cord when I add value types.
 | baseAdd dbIdentId dbIdentId dbIdentStr
@@ -237,7 +237,7 @@ db
 e
 
 ; Given a user level attribute name, translate that to a numeric attribute
-; number and an 'indexed' boolean which is whether we can use the ave table to
+; number and an {indexed} boolean which is whether we can use the ave table to
 ; lookup data related to this attribute.
 ;
 > Str > Db > Either Error [Nat Bit Bit Bit Bit]
@@ -257,14 +257,14 @@ e
     uniq
 @ isMany
     @ attrMany | lookupByAidEid dbCardinalityId attrEid db
-    : many <- **singletonSetDefault attrMany "many"
+    : many <- **singletonSetDefault attrMany {many}
     # switch many
     * one  FALSE
     * many TRUE
-    * _    | 'unknown many value: ' many
+    * _    | {unknown many value: } many
 @ isRef
     @ attrValType | lookupByAidEid dbValueTypeId attrEid db
-    : t <- **singletonSetDefault attrValType "any"
+    : t <- **singletonSetDefault attrValType {any}
     # switch t
     * ref TRUE
     * _   FALSE
@@ -275,44 +275,44 @@ e
 = (lookupByEA eid attr db)
 : aid
     < **fromSingletonSet (lookupByAidV dbIdentId attr db)
-    | 'unknown attr' attr
+    | {unknown attr} attr
 | lookupByEidAid eid aid db
 
 > Any > Nat > Db > Set Any
 = (lookupByAE attr eid db)
 : aid
     < **fromSingletonSet (lookupByAidV dbIdentId attr db)
-    | 'unknown attr' attr
+    | {unknown attr} attr
 | lookupByAidEid aid eid db
 
 > Any > Any > Db > Set Nat
 = (lookupByAV attr val db)
 # datacase (resolveAttrName attr db)
-* (LEFT errs) | 'could not lookup. errors: ' errs
+* (LEFT errs) | {could not lookup. errors: } errs
 * (RIGHT [aid indexed unique _])
     | ifNot (or indexed unique)
-        | 'cannot lookup unindexed attr/val' attr
+        | {cannot lookup unindexed attr/val} attr
     | lookupByAidV aid val db
 
 > Any > Any > Db > Set Nat
 = (lookupByVA val attr db)
 # datacase (resolveAttrName attr db)
 * (LEFT errs)
-    | 'could not lookup. errors: ' errs
+    | {could not lookup. errors: } errs
 * (RIGHT [aid _ _ _ ref])
     | ifNot ref
-        | 'cannot lookup non-ref values' attr
+        | {cannot lookup non-ref values} attr
     | lookupByVAid val aid db
 
 > Any > Any > Nat > Db > Set Nat
 = (lookupByIdentA identAttr identVal attr db)
 # datacase | resolveAttrName identAttr db
 * (LEFT err)
-    | 'could not lookup. error: ' err
+    | {could not lookup. error: } err
 * (RIGHT [aid _ unique _])
-    | ifNot unique | 'cannot lookup unindexed attribute ' identAttr
+    | ifNot unique | {cannot lookup unindexed attribute } identAttr
     @ eidSet | lookupByAidV aid identVal db
-    : eid <- **fromSingletonSet eidSet | 'invalid eid for aid?! ' aid
+    : eid <- **fromSingletonSet eidSet | {invalid eid for aid?! } aid
     | lookupByEA eid attr db
 
 
@@ -336,9 +336,9 @@ e
 ; Immediately resolves an entity to a numeric entity id.
 ;
 ; 5               -> RIGHT [5 ...]
-; [":b/first" 5]  -> RIGHT [9 ...] (assuming underlying LOOKUP succeeds)
-; [":b/second" 6] -> LEFT err (assuming lookup fails)
-; %["tmpid"]      -> RIGHT [2 ...] (assigns a tmpid and adds it to the map)
+; [{:b/first} 5]  -> RIGHT [9 ...] (assuming underlying LOOKUP succeeds)
+; [{:b/second} 6] -> LEFT err (assuming lookup fails)
+; %[{tmpid}]      -> RIGHT [2 ...] (assigns a tmpid and adds it to the map)
 ;
 > Tab Str Nat > Db > Any > Either Error [Nat (Tab Str Nat) Db]
 = (parseEntityId txnTmpIds db i)
@@ -359,7 +359,7 @@ e
         @ [eid db] | allocEntity db
         | RIGHT [eid (tabIns val eid txnTmpIds) db]
     | RIGHT [eid txnTmpIds db]
-| LEFT ["Couldn't parse" i]
+| LEFT [{Couldn't parse} i]
 
 ; Given a map, parse it into a series of actions and return the numeric eid
 ; parsed or assigned.
@@ -531,7 +531,7 @@ e
 | if (isRow item)
     | parseListForm txnTmpIds db item
 ;
-| LEFT "1) What"
+| LEFT {1) What}
 
 > Db > Row Any > Either (Row Error) (Row TxnAction, Db)
 = (parseAllItems db items)
@@ -574,13 +574,13 @@ e
 > Row TxnAction > Db > Db
 = (assertTransact items db)
 # datacase (transact items db)
-* (LEFT l)  | 'datom transaction failed: ' [errors=l =db]
+* (LEFT l)  | {datom transaction failed: } [errors=l =db]
 * (RIGHT r) | r
 
 
 ;;; Pull ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; AttrExpr, an "attribute expression", the parsed version of trying to represent
+; AttrExpr, an {attribute expression}, the parsed version of trying to represent
 ; the way of specifying an attribute in a pull, in either direction, subject to
 ; a set of options which controls how the results from the attribute match will
 ; be returned.
@@ -612,15 +612,15 @@ e
 ; If nat is a backwards lookup, return the real attribute name in a SOME.
 ;
 ; Datomic and its descendants represent backward lookups by just changing the
-; last component of the attribute name to start with a '_'. We should find a
+; last component of the attribute name to start with a {_}. We should find a
 ; better way to represent this, but for now, literally clone.
 ;
 > Nat > Opt Nat
 = (isBackwardsAttribute n)
 @ bar | natBar n
-: lastIdx < maybeCase (barElemIndexEnd "/" bar) NONE
+: lastIdx < maybeCase (barElemIndexEnd {/} bar) NONE
 @ [first last] | barSplitAt (inc lastIdx) bar
-| if (neq '_' | barGet last 0)
+| if (neq {_} | barGet last 0)
     | NONE
 | SOME
 | barNat
@@ -631,7 +631,7 @@ e
 = (parse db val)
 | if | isRow val
     ; TODO: all non simple list forms.
-    | LEFT "todo: any map term"
+    | LEFT {todo: any map term}
 | if | isTab val
     : specs
         < collectErrors
@@ -644,7 +644,7 @@ e
             | RIGHT [keyExpr parsedVals]
         * _ | LEFT | **BAD_MAP_VAL parsed
     | RIGHT | PULL_MAP specs
-| if (val == "*")
+| if (val == {*})
     | RIGHT PULL_WILDCARD
 | if (val == dbIdStr)
     | RIGHT | **PULL_ATTR | ATTR_EID #[] ; ATTR_EID takes a tab
@@ -663,7 +663,7 @@ e
 = (lookupAttr db eid expr)
 ;
 @ (handleOptions name options attrType rawSet)
-  @ outputKey | fromSome name | tabLookup ":as" options
+  @ outputKey | fromSome name | tabLookup {:as} options
   ; TODO: handle limits in rawSet.
   | RIGHT [outputKey rawSet attrType]
 # datacase expr
@@ -687,7 +687,7 @@ e
 * PULL_WILDCARD
     ; We have to return a map of all attributes to their values, including
     ; recursively, which is hard. We need to already have individual
-    | 'pull wildcard unimplemented' 0
+    | {pull wildcard unimplemented} 0
 * (PULL_ATTR expr)
     : [outputKey set [indexed unique isMany isRef]]
         < doRight | lookupAttr db eid expr

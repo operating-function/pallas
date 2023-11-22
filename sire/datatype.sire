@@ -29,7 +29,7 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  boot
-/+  switch  ['#switch' switchE unrollSlip2Tar]
+/+  switch  [{#switch} switchE unrollSlip2Tar]
 
 
 ;;; Getting that tag from an object ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -51,8 +51,8 @@ dataTag=_DataTag
 (0     !!= dataTag 0)
 (1     !!= dataTag 1)
 (2     !!= dataTag 2)
-('foo' !!= dataTag 'foo')
-('bar' !!= dataTag ['bar' 9])
+({foo} !!= dataTag {foo})
+({bar} !!= dataTag [{bar} 9])
 (0     !!= dataTag [0 1 2 3])
 ([3 4] !!= dataTag [a=3 b=4])
 (2     !!= dataTag (0 1 2))
@@ -64,37 +64,37 @@ dataTag=_DataTag
 = (constrToCamel prefix constr)
 | strWeld prefix
 | strFromList
-^ _ ('_' :: strToList (strToLower constr))
+^ _ ({_} :: strToList (strToLower constr))
 ? (fixUnderscores str)
 : c cs <- listCase str str
 : d ds <- listCase cs  str
-| if (c /= '_') (c :: fixUnderscores cs)
+| if (c /= {_}) (c :: fixUnderscores cs)
 | fixUnderscores (toUpper d :: ds)
 
-!!= 'mkTreeConfig' | constrToCamel %mk 'TREE_CONFIG'
+!!= {mkTreeConfig} | constrToCamel %mk {TREE_CONFIG}
 
 = (defC sig bodyExp)
-| OPEN "#=" (sigE sig, bodyExp) 0
+| OPEN {#=} (sigE sig, bodyExp) 0
 
 = (defKC key sig bodyExp)
-| OPEN "#=" (natE key, sigE sig, bodyExp) 0
+| OPEN {#=} (natE key, sigE sig, bodyExp) 0
 
 = (defKPC key props sig bodyExp)
-| OPEN "#=" (natE key, cnsE props, sigE sig, bodyExp) 0
+| OPEN {#=} (natE key, cnsE props, sigE sig, bodyExp) 0
 
 > (Nat, Str) > Cmd
 = (mkGetterC pair)
 @ ix,field | pair
-@ nam      | strWeld "get" (strCapitalize field)
-| defC (nam, "x")
-| appE (cnsE (idx ix), varE "x")
+@ nam      | strWeld {get} (strCapitalize field)
+| defC (nam, {x})
+| appE (cnsE (idx ix), varE {x})
 
 > (Nat, Str) > Cmd
 = (mkSetterC pair)
 @ ix,field | pair
-@ nam      | strWeld "set" (strCapitalize field)
-| defC [nam 'x' 'record']
-| appE (cnsE (mut ix), varE 'x', varE 'record')
+@ nam      | strWeld {set} (strCapitalize field)
+| defC [nam {x} {record}]
+| appE (cnsE (mut ix), varE {x}, varE {record})
 
 = (mkConstrKC key constr fields)
 | defKC key (rowCons constr fields)
@@ -135,7 +135,7 @@ dataTag=_DataTag
 = (parseField rex err ret)
 @ sKids (rexKids rex)
 @ sRune (rexRune rex)
-| ifNot (":" == sRune)   | err rex fieldExpect
+| ifNot ({:} == sRune)   | err rex fieldExpect
 | ifNot (2 == len-sKids) | err rex fieldExpect
 : sym <- readSymbol (idx 0 sKids) err
 @ typ (idx 1 sKids)
@@ -156,7 +156,7 @@ dataTag=_DataTag
 ? (go acc rex)
 | if (isZero rex)
     | ret (listToRowReversed acc)
-| ifNot (rexRune rex == '*')
+| ifNot (rexRune rex == {*})
     | err rex fieldItemExpect
 @ sons    (rexSons rex)
 @ numSons (len sons)
@@ -178,8 +178,8 @@ dataTag=_DataTag
 ;
 @ kids@[symRex tagRex] (rexKids rex)
 ;
-| if ((rexRune rex /= "=") || (len kids /= 2))
-    | err rex "Expecting CONSTR or CONSTR=tag"
+| if ((rexRune rex /= {=}) || (len kids /= 2))
+    | err rex {Expecting CONSTR or CONSTR=tag}
 ;
 : sym < readSymbol symRex err
 : tag < readKey tagRex err
@@ -193,10 +193,10 @@ dataTag=_DataTag
 ;;     (CNSTR (* field : type)(* field : type)
 ;;     (|CNSTR)(* field : type)(* field : type)
 ;;
-;;     CNSTR="tag"
-;;     (CNSTR="tag" (field:type)*)
-;;     (CNSTR="tag" (* field : type)(* field : type)
-;;     (|CNSTR="tag")(* field : type)(* field : type)
+;;     CNSTR={tag}
+;;     (CNSTR={tag} (field:type)*)
+;;     (CNSTR={tag} (* field : type)(* field : type)
+;;     (|CNSTR={tag})(* field : type)(* field : type)
 
 > Rex > Parser (Nat, Symbol, Opt Nat, Row Symbol)
 = (readConstructorSig r err ok)
@@ -207,14 +207,14 @@ dataTag=_DataTag
 ;
 @ rune | rexRune r
 ;
-| if (rune == "=")
+| if (rune == {=})
     : (_, cnstr, oTag) < readSymbolMaybeWithTag r err
     | ok (0, cnstr, oTag, [])
 ;
 @ kids@[cnstrRex] | rexKids r
 @ numKids         | len kids
 ;
-| if ((rune /= "|") || isZero numKids)
+| if ((rune /= {|}) || isZero numKids)
     | err r sigExpect
 ;
 : (_, cnstr, oTag)
@@ -226,7 +226,7 @@ dataTag=_DataTag
 @ fields     | drop 1 kids
 @ firstField | idx 0 fields
 ;
-| if (eql 2 numKids && ("*" == rexRune firstField))
+| if (eql 2 numKids && ({*} == rexRune firstField))
     : fields <- parseItemizedFields (idx 1 kids) err
     | ok (0, cnstr, oTag, fields)
 : fields <- parseManyFields (drop 1 kids) err
@@ -238,10 +238,10 @@ dataTag=_DataTag
 > Rex > Parser (Nat, Symbol, Opt Nat, Row Symbol)
 = (readDatatypeSig node err ok)
 @ rune (rexRune node)
-| if (neq "*" rune)
-    | err node "Expecting something like (* CNSTR field:type ...)"
+| if (neq {*} rune)
+    | err node {Expecting something like (* CNSTR field:type ...)}
 ^ readConstructorSig _ err ok
-| rexSetRune "|" node
+| rexSetRune {|} node
 
 = (rexToTrip rex)
 @ bad
@@ -252,8 +252,8 @@ dataTag=_DataTag
     | bad
 | rowCons rune sons
 
-; '#record'/Macro
-= ('#record' ss rex err ok)
+; {#record}/Macro
+= ({#record} ss rex err ok)
 @ kids    (rexKids rex)
 @ numKids (len kids)
 ;
@@ -265,7 +265,7 @@ dataTag=_DataTag
     < readConstructorSig (idx 2 kids) err
 ;
 | if (oTag /= NONE)
-    | err sigRex "Record constructors are never tagged"
+    | err sigRex {Record constructors are never tagged}
 ;
 : ss constrKey <- generateUniqueKey ss
 ;
@@ -327,16 +327,16 @@ ex=(PAIR %a %b)
     | go acc that
 
 
-!!=  ++ [0 %FOO NONE [(0, 'x', ``a)]]
-     ++ [0 %BAR NONE [(0, 'x', ``b) (0, 'y', ``c) (0, 'z', ``d)]]
+!!=  ++ [0 %FOO NONE [(0, {x}, ``a)]]
+     ++ [0 %BAR NONE [(0, {x}, ``b) (0, {y}, ``c) (0, {z}, ``d)]]
      ++ [0 %LOL NONE []]
   ^ readDataBranches _ v2 id
  `` * FOO x:a
     * BAR x:b y:c z:d
     * LOL
 
-!!=  ++ [0 %FOO (SOME %f) [(0, 'x', ``a)]]
-     ++ [0 %BAR (SOME %b) [(0, 'x', ``b) (0, 'y', ``c) (0, 'z', ``d)]]
+!!=  ++ [0 %FOO (SOME %f) [(0, {x}, ``a)]]
+     ++ [0 %BAR (SOME %b) [(0, {x}, ``b) (0, {y}, ``c) (0, {z}, ``d)]]
      ++ [0 %LOL (SOME %l) []]
   ^ readDataBranches _ v2 id
  `` * FOO=f x:a
@@ -363,7 +363,7 @@ ex=(PAIR %a %b)
 ? (loop ix acc remain)
 ;
 | seq ix
-; trk 'loop',[=ix =acc =remain]
+; trk {loop},[=ix =acc =remain]
 ;
 : kca remain <- **listCase remain (bloodline acc)
 @ [key cns oTag arg] kca
@@ -420,10 +420,10 @@ ex=(PAIR %a %b)
 * THIS=l x:a
 * THAT=r x:b
 
-!!= 'l'      | getProp#(THIS.conTag)
+!!= {l}      | getProp#(THIS.conTag)
 !!= 1        | getProp#(THIS.conAri)
 !!= _DataTag | getProp#(THIS.conFun)
-!!= 'r'      | getProp#(THAT.conTag)
+!!= {r}      | getProp#(THAT.conTag)
 !!= 1        | getProp#(THAT.conAri)
 !!= _DataTag | getProp#(THAT.conFun)
 
@@ -441,7 +441,7 @@ ex=(PAIR %a %b)
 : clauses
     < ^ unrollSlip2Tar cases _ err
       ? (onAlien x err ret)
-      | err x 'Not a switch branch'
+      | err x {Not a switch branch}
 ;
 ^ _ NONE ~[] (listFromRow clauses)
 ? (go oFallback acc remain)
@@ -454,7 +454,7 @@ ex=(PAIR %a %b)
 ;
 | if (eql ``_ sigRex)
     | ifNot (isZero oFallback)
-        | err cases "Only one fallback-pattern is allowed"
+        | err cases {Only one fallback-pattern is allowed}
     | go (SOME bodyExp) acc remain
 ;
 : constr fields
@@ -477,7 +477,7 @@ ex=(PAIR %a %b)
 @ heir            | rexHeir rex
 ;
 | if (isZero heir || (len sons /= 2))
-    | err rex '#datacase requires one son plus an heir.'
+    | err rex {#datacase requires one son plus an heir.}
 ;
 : exp      < readExp valExp err
 : fb cases < parseDatacaseBody readExp heir err
@@ -509,35 +509,35 @@ ex=(PAIR %a %b)
 ;
 | trk #[=bindKey =bindRow =props =constr]
 ;
-| ifNot (tabHas 'conTag' props)
+| ifNot (tabHas {conTag} props)
     ^ err sigRex (strWeld _ constr)
-    | "Unknown constructor(tag): "
+    | {Unknown constructor(tag): }
 ;
-| ifNot (tabHas 'conAri' props)
+| ifNot (tabHas {conAri} props)
     ^ err sigRex (strWeld _ constr)
-    | "Unknown constructor(ari): "
+    | {Unknown constructor(ari): }
 ;
-| ifNot (tabHas 'conFun' props)
+| ifNot (tabHas {conFun} props)
     ^ err sigRex (strWeld _ constr)
-    | "Unknown constructor(fun): "
+    | {Unknown constructor(fun): }
 ;
-| ifNot (tabHas 'conHas' props)
+| ifNot (tabHas {conHas} props)
     ^ err sigRex (strWeld _ constr)
-    | "Unknown constructor(has): "
+    | {Unknown constructor(has): }
 ;
-| ifNot (tabHas 'conRaw' props)
+| ifNot (tabHas {conRaw} props)
     ^ err sigRex (strWeld _ constr)
-    | "Unknown constructor(raw): "
+    | {Unknown constructor(raw): }
 ;
-@ tag    | tabGet props 'conTag'
-@ ari    | tabGet props 'conAri'
-@ fun    | tabGet props 'conFun'
-@ hasTag | tabGet props 'conHas'
-@ isRaw  | tabGet props 'conRaw'
+@ tag    | tabGet props {conTag}
+@ ari    | tabGet props {conAri}
+@ fun    | tabGet props {conFun}
+@ hasTag | tabGet props {conHas}
+@ isRaw  | tabGet props {conRaw}
 ;
 | if (len fields /= ari)
     ^ err sigRex (strWeld _ | showNat ari)
-    | 'This constructor requires arity='
+    | {This constructor requires arity=}
 ;
 @ acc (DATA_CASE tag ari fields bodyRex isRaw)::acc
 | go hasTag fun acc remain
@@ -555,11 +555,11 @@ ex=(PAIR %a %b)
 !!=  ++ TRUE
      ++ dataTag
      ++ cnsE 0
-     ++  ++ [0 0 []                  ``[x "]"]         FALSE]
-         ++ [1 2 [[%v '_'] [%v '_']] ``[x " " (go xs)] FALSE]
+     ++  ++ [0 0 []                  ``[x {]}]         FALSE]
+         ++ [1 2 [[%v {_}] [%v {_}]] ``[x { } (go xs)] FALSE]
   ^ _ v2 v4
-  @ xpr `` * LNULL       [x "]"]
-           * (LCONS _ _) [x " " (go xs)]
+  @ xpr `` * LNULL       [x {]}]
+           * (LCONS _ _) [x { } (go xs)]
   @ scope [LNULL=(PIN [3]) LCONS=(PIN [4])]
   @ props ## =3
               ## =conTag 0
@@ -577,11 +577,11 @@ ex=(PAIR %a %b)
 
 !!=  ++ TRUE
      ++ dataTag
-     ++ ``[x " " (go xs)]
-     ++  ++ [0 0 [] ``[x "]"] FALSE]
+     ++ ``[x { } (go xs)]
+     ++  ++ [0 0 [] ``[x {]}] FALSE]
   ^ _ v2 v4
-  @ xpr `` * LNULL [x "]"]
-           * _     [x " " (go xs)]
+  @ xpr `` * LNULL [x {]}]
+           * _     [x { } (go xs)]
   @ scope [LNULL=(PIN [3]) LCONS=(PIN [4])]
   @ props ## =3
               ## =conTag 0
@@ -601,31 +601,31 @@ ex=(PAIR %a %b)
          * _ 0
 
 !!=  ++ xpr
-     ++ "Only one fallback-pattern is allowed"
+     ++ {Only one fallback-pattern is allowed}
   | readDatacaseBody 0 xpr v2 v4
 
 
 ;;; makeDatacaseExpr ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (makeDatacaseExpr hasTag fun ss valExp fallback cases return)
-: ss tmpExp <- generateVarE "g" ss
+: ss tmpExp <- generateVarE {g} ss
 : ss pairs
     < ^ rowTraverseState ss _ cases
       & (ss [tag ari params body isRaw] continue)
       @ rowPat
           | if isRaw
               | if (len params /= 1)
-                  | die 'raw datatype with fields != 1??  Nonsense.'
+                  | die {raw datatype with fields != 1??  Nonsense.}
               | idx 0 params
           | if hasTag
-          * (%r, rowCons [%v '_'] params)
+          * (%r, rowCons [%v {_}] params)
           * (%r, params)
       @ binds [(rowPat, valExp)]
       @ [ss bSeq deps] (sequenceBinds ss binds)
       | continue ss (tag, bindSeqE bSeq body deps)
 @ tagExp (appE (cnsE fun, tmpExp))
 @ result
-    | OPEN '#@' [tmpExp valExp]
+    | OPEN {#@} [tmpExp valExp]
     | switchE tagExp fallback
     | tabFromPairs
     | pairs
@@ -634,15 +634,15 @@ ex=(PAIR %a %b)
 
 ;;; #datacase ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= ('#datacase' ss rex err ok)
+= ({#datacase} ss rex err ok)
 ;;;
 @ sons | rexSons rex
 @ heir | rexHeir rex
 ;;;
 | if (neq 2 (len sons))
-    | err rex '#datacase requires one son plus an heir.'
+    | err rex {#datacase requires one son plus an heir.}
 | if (isZero heir)
-    | err rex '#datacase requires one son plus an heir.'
+    | err rex {#datacase requires one son plus an heir.}
 ;;;
 @ [_ valExp] sons
 : hasTag fun fb cases < readDatacaseBody ss heir err
@@ -654,34 +654,34 @@ ex=(PAIR %a %b)
 * LCONS x:a y:(List a)
 
 = (showList xs)
-| strWeld "["
+| strWeld {[}
 ^ _ xs
 ? (go xs)
 # datacase xs
 * LNULL
-    | "]"
+    | {]}
 * (LCONS x xs)
     | strCat
     # datacase xs
-    * LNULL       [x "]"]
-    * (LCONS _ _) [x " " (go xs)]
+    * LNULL       [x {]}]
+    * (LCONS _ _) [x { } (go xs)]
 
-!!= '[a b c]'
+!!= {[a b c]}
         | showList | LCONS %a | LCONS %b | LCONS %c LNULL
 
-!!= 'hi' # datacase (LCONS 3 4)
-         * LNULL 'bye'
-         * _     'hi'
+!!= {hi} # datacase (LCONS 3 4)
+         * LNULL {bye}
+         * _     {hi}
 
-!!= 'hi' # datacase (LCONS 3 4)
-         * LNULL 'byte'
+!!= {hi} # datacase (LCONS 3 4)
+         * LNULL {byte}
          * _
-         | 'hi'
+         | {hi}
 
 ; TODO
-; !!= 'hi' # datacase (LCONS 3 4)
-;          * LNULL 'bye'
-;          | 'hi'
+; !!= {hi} # datacase (LCONS 3 4)
+;          * LNULL {bye}
+;          | {hi}
 
 
 ;;; Dynamic Typing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -728,10 +728,10 @@ setProp#(FALSE.conHas)#FALSE
 setProp#(FALSE.conRaw)#FALSE
 setProp#(FALSE.conTag)#zero
 
-!!= 'true'
+!!= {true}
   # datacase TRUE
-  * TRUE  'true'
-  * FALSE 'false'
+  * TRUE  {true}
+  * FALSE {false}
 
 
 ;;; Opt ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -748,9 +748,9 @@ setProp#(SOME.conFun)#len
 setProp#(SOME.conHas)#FALSE
 setProp#(SOME.conRaw)#FALSE
 
-!!= ['some' %x]
+!!= [{some} %x]
   # datacase (SOME %x)
-  * NONE     | 'none'
+  * NONE     | {none}
   * (SOME x) | [{some} x]
 
 
@@ -768,11 +768,11 @@ setProp#(NIL.conFun)#len
 setProp#(NIL.conHas)#FALSE
 setProp#(NIL.conRaw)#FALSE
 
-!!= 'xyz abcd'
+!!= {xyz abcd}
   ^ _ ~[{x} {y} {z } {abcd}]
   ? (strCatList lis)
   # datacase lis
-  * NIL         | ''
+  * NIL         | {}
   * (CONS x xs) | strWeld x (strCatList xs)
 
 
@@ -794,8 +794,8 @@ setProp#(RIGHT.conRaw)#FALSE
 
 = (showEither eat)
 # datacase eat
-* (LEFT x)  ['left' x]
-* (RIGHT x) ['right' x]
+* (LEFT x)  [{left} x]
+* (RIGHT x) [{right} x]
 
 !!= [%left  %x] | showEither | LEFT  | {x}
 !!= [%right %y] | showEither | RIGHT | {y}
@@ -814,7 +814,7 @@ setProp#(RIGHT.conRaw)#FALSE
 ^-^
 ^-^ parseDatacase resolveDatacase makeDatacaseExpr
 ^-^
-^-^ '#datacase'
-^-^ '#datatype'
-^-^ '#record'
+^-^ {#datacase}
+^-^ {#datatype}
+^-^ {#record}
 ^-^

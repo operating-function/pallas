@@ -313,7 +313,7 @@ cog
 > Void
 = (KERNEL fr kl sl rq event)
 | ifNot (isTab event)
-    | die ["TODO: Crash handling is not implemented" event]
+    | die [{TODO: Crash handling is not implemented} event]
 @ fr | listWeld kl fr
 @ kl | ~[]
 ;
@@ -418,9 +418,9 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 ; TODO: Hack: This doesn't belong here.
 = (forceUnpackEvalResult ctx res)
 # switch (len res)
-* 0 (die ('eval-timeout' ctx))
+* 0 (die ({eval-timeout} ctx))
 * 1 (idx 0 res)
-* 2 (die ('eval-crash' ctx))
+* 2 (die ({eval-crash} ctx))
 
 ; parallel map (using the EVAL syscall)
 > Nat > (a > b) > Row a > Cog (Row b)
@@ -433,7 +433,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
       : tid <- fork & threadExit
                     : myTid < myThreadId
                     : eRes < syscall (EVAL1 ms f arg)
-                    @ !res | forceUnpackEvalResult "pmap" eRes
+                    @ !res | forceUnpackEvalResult {pmap} eRes
                     : _    < putMVar var res
                     | threadExit ()
       | stepReturn var

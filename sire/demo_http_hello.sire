@@ -29,13 +29,13 @@
     , st
     | [rid 400 b#bad [] b#{}]
 
-!!=  | handleReq (tabIns b#"index.html" b#"<body />" #[])
-     | [5 "GET" b#{index.html} [] b#{}]
-  ++ (tabIns b#"index.html" b#"<body />" #[])
-  ++ [5 200 b#gotcha [(b#{Content-Type}, b#{text/plain})] b#"<body />"]
+!!=  | handleReq (tabIns b#{index.html} b#{<body />} #[])
+     | [5 {GET} b#{index.html} [] b#{}]
+  ++ (tabIns b#{index.html} b#{<body />} #[])
+  ++ [5 200 b#gotcha [(b#{Content-Type}, b#{text/plain})] b#{<body />}]
 
 !!=  | handleReq #[]
-     | [5 "PUT" b#{/path} [] b#data]
+     | [5 {PUT} b#{/path} [] b#data]
   ++ (tabIns b#{/path} b#data #[])
   ++ [5 201 b#done [] b#{}]
 

@@ -19,12 +19,12 @@
 | idx-1-ali_seed_addr
 
 = ourName
-| 'bob'
+| {bob}
 
 = whitelist
 | setSing idx-1-ali_seed_addr
 
-;"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Http design:
 ;
@@ -73,39 +73,39 @@
   & rangeBarIdx
   ;; TODO handle parse errors
   @ rangeBar (snd (idx rangeBarIdx headers))
-  | trk ['rangeBar:' rangeBar]
-  @ bounds | listToRow (barSplitWith (x&(eql x '-')) (barDrop 6 rangeBar))
+  | trk [{rangeBar:} rangeBar]
+  @ bounds | listToRow (barSplitWith (x&(eql x {-})) (barDrop 6 rangeBar))
   | if (barIsEmpty (idx 1 bounds))
     | take 1 bounds
   | bounds
-| trk ['byteRange:' byteRange]
+| trk [{byteRange:} byteRange]
 @ bars | weld [path] byteRange
-| trk ['bars:' bars]
+| trk [{bars:} bars]
 @ payload (barCat (map barSer bars))
 : (PIN st) < readRef vSt
 | maybeCase (getSrvrPort st)
-  : _ <- fork (syscall (**HTTP_ECHO rid 500 b#'no portId' [] b#''))
+  : _ <- fork (syscall (**HTTP_ECHO rid 500 b#{no portId} [] b#{}))
   : _ <- putMVar portMV ()
   | return ()
 & portId
 : ??(p_send now) <- syscall (**PORT_SEND portId payload)
-| trk [ourName %sent payload 'on port' portId %at now]
+| trk [ourName %sent payload {on port} portId %at now]
 ;
 ;; receive file choice bytes
 : recvBars <- recvFileBar portId
-; trk ['recvBars len' (barLen recvBars) ', blake3 hash' (blake3 recvBars)]
+; trk [{recvBars len} (barLen recvBars) {, blake3 hash} (blake3 recvBars)]
 @ bars | barDeserMultiRow recvBars
 @ [fileContentType fileBar] | take 2 bars
-; trk ['fileContentType:' fileContentType]
+; trk [{fileContentType:} fileContentType]
 @ optRangeDescr | if (eql 3 (len bars))
                   | SOME (idx 2 bars)
                 | NONE
-; trk ['optRangeDescr:' optRangeDescr]
+; trk [{optRangeDescr:} optRangeDescr]
 @ rangeHead | maybeCase optRangeDescr
               | []
             & rD
-            | [(b#'Content-Range', rD)]
-@ head | weld [(b#'Content-Type', fileContentType) (b#'Accept-Ranges', b#'bytes') (b#'Content-Length', (barShowDecimal (barLen fileBar)))] rangeHead
+            | [(b#{Content-Range}, rD)]
+@ head | weld [(b#{Content-Type}, fileContentType) (b#{Accept-Ranges}, b#{bytes}) (b#{Content-Length}, (barShowDecimal (barLen fileBar)))] rangeHead
 : _ <- fork (syscall (**HTTP_ECHO rid 206 b#partial head fileBar))
 : _ <- putMVar portMV ()
 | return ()
@@ -115,7 +115,7 @@
 * _ | NONE
 * GET
   ;; `/file` path are handled dynamically, so we do not handle them here.
-  | if (barIsPrefixOf b#'/file' path 0)
+  | if (barIsPrefixOf b#{/file} path 0)
     | NONE
   | **fmapMaybe | tabLookup path (**getFiles st)
   & [type (PIN content)]
@@ -140,13 +140,13 @@
 @ [rid method path headers pBody@(PIN body)] request
 # switch method
 * PUT
-  ; trk ["getting PUT at path" path]
+  ; trk [{getting PUT at path} path]
   @ barType | **fromSome b#{text/plain}
             | tabLookup b#{content-type}
             | tabFromPairs headers
   : (PIN st) <- readRef vSt
   @ newTotalSize | add (barLen body) | getFileBytes st
-  ; trk ["body size:" (barLen body)]
+  ; trk [{body size:} (barLen body)]
   @ files (**getFiles st)
   @ files | tabIns path [barType pBody] files
   ; trk [%files (tabKeysList files)]
@@ -157,14 +157,14 @@
                          | st
   | return ()
 * GET
-  ; trk ["getting GET at path" path]
-  | if (eql b#'/file' path)
+  ; trk [{getting GET at path} path]
+  | if (eql b#{/file} path)
     : (PIN st) <- readRef vSt
     @ tks | setToRow (getSrvrFiles st)
     @ payload | printJson (JMAP (map JSTR tks))
     : _ <- fork (syscall (**HTTP_ECHO rid 200 b#gotcha [] payload))
     | return ()
-  | if (barIsPrefixOf b#'/file/' path 0)
+  | if (barIsPrefixOf b#{/file/} path 0)
     | handleStreamFile vSt portMV rid path headers return
   : _ <- fork (syscall (**HTTP_ECHO rid 404 b#bad [] b#{}))
   | return ()
@@ -178,7 +178,7 @@
 : _                 <- handleReq vSt portMV req
 | runHttpServer vSt portMV return
 
-;"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (client vSt return)
 @ portRqst [usAddr themAddr NONE (natBar 0)]
@@ -186,7 +186,7 @@
 @ [_cpThem _cpPayload cpMbPortId] | clientPort
 | trk [ourName %got %clientPort clientPort]
 | **maybeCase cpMbPortId
-  | trk "no client port, exiting"
+  | trk {no client port, exiting}
   | return ()
 & portId
 : _ <- modifyState vSt & st
@@ -201,7 +201,7 @@
                        | setSrvrFiles (setFromRow bars)
                        | st
 : (PIN st) <- readRef vSt
-| trk ['files: ' (getSrvrFiles st)]
+| trk [{files: } (getSrvrFiles st)]
 | return ()
 
 > Cog ()

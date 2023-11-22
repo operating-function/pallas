@@ -16,7 +16,7 @@
 | idx-1-bob_seed_addr
 
 = ourName
-| 'ali'
+| {ali}
 
 = whitelist
 | setSing idx-1-bob_seed_addr
@@ -28,7 +28,7 @@
 = (chatter cogExit)
 : servThread <- fork
                   & done
-                  | trk [ourName 'registered SERV']
+                  | trk [ourName {registered SERV}]
                   : ??(p_serv _) <- syscall (**PORT_SERV usSeed staticHandler)
                   | done 0
 : ??(p_dyno serverPort) <- syscall (**PORT_DYNO usSeed)
@@ -37,7 +37,7 @@
 ? (loop count)
 @ payload | natBar count
 : ??(p_send now) <- syscall (**PORT_SEND portId payload)
-| trk [ourName %sent payload 'on port' portId %at now]
+| trk [ourName %sent payload {on port} portId %at now]
 : ??(p_recv [recvWhen (PIN recvBody)]) <- syscall (**PORT_RECV portId)
 | trk [ourName %recvd recvBody %at recvWhen]
 @ count (barNat recvBody)

@@ -15,11 +15,11 @@
 = (showChar c)
 | if (gte c 33 && lte c 126) (barSing c)
 # switch c
-* 0  | 'null'
-* 9  | 'tab'
-* 10 | 'newline'
-* 13 | 'carriage return'
-* 32 | 'space'
+* 0  | {null}
+* 9  | {tab}
+* 10 | {newline}
+* 13 | {carriage return}
+* 32 | {space}
 * _  | barWeld {byte=} | natBar | showNat c
 
 
@@ -111,7 +111,7 @@
 
 = (choices os buf off err fail ok)
 # datacase os
-* NIL         | fail "empty choices"
+* NIL         | fail {empty choices}
 * (CONS o os) | choices1 o os buf off err fail ok
 
 = (many item)
@@ -131,7 +131,7 @@
 
 (pcons x y)=(parserMap2 CONS x y)
 
-xy=(choice (char 'x') (char 'y'))
+xy=(choice (char {x}) (char {y}))
 
 = (xys buf off err fail ok)
 ^ (_ buf off err fail ok)
@@ -189,7 +189,7 @@ xy=(choice (char 'x') (char 'y'))
 = (stringOf1 chk buf startOff err fail ok)
 : off res <- stringOf chk buf startOff err fail
 | if (off == startOff)
-    | fail 'stringOf1'
+    | fail {stringOf1}
 | ok off res
 
 = (parserTakeRest buf off err fail ok)
@@ -208,11 +208,11 @@ xy=(choice (char 'x') (char 'y'))
 ;; TODO: inlining should trigger here, but it does not!
 
 = (parse_eof bar)     | **runParser eof bar
-= (parse_x bar)       | **runParser (**char 'x') bar
-= (parse_y bar)       | **runParser (**char 'y') bar
-= (parse_xy bar)      | **runParser (**andThen (char 'x') (char 'y')) bar
-= (parse_xx bar)      | **runParser (**bind (char 'x') char) bar
-= (parse_x_y bar)     | **runParser (**choice (char 'x') (char 'y')) bar
+= (parse_x bar)       | **runParser (**char {x}) bar
+= (parse_y bar)       | **runParser (**char {y}) bar
+= (parse_xy bar)      | **runParser (**andThen (char {x}) (char {y})) bar
+= (parse_xx bar)      | **runParser (**bind (char {x}) char) bar
+= (parse_x_y bar)     | **runParser (**choice (char {x}) (char {y})) bar
 = (parse_xys bar)     | **runParser xys bar
 = (parse_many_xy bar) | **runParser (many xy) bar
 = (parse_some_xy bar) | **runParser (some xy) bar

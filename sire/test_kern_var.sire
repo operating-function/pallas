@@ -14,7 +14,7 @@
 = (checkThreadId expected return)
 : tid <- myThreadId
 | ifNot (tid == expected)
-    | die ["You failed the test" tid '!=' expected]
+    | die [{You failed the test} tid {!=} expected]
 | return ()
 
 = (checkIds return)
@@ -24,7 +24,7 @@
 : t2 <- fork (checkThreadId 1)   ; each thread runs to completion
 : t3 <- fork (checkThreadId 1)   ; before the next one spawns.
 | ifNot ([t0 t1 t2 t3] == 0,1,1,1)
-    | die "You failed the test!"
+    | die {You failed the test!}
 | return ()
 
 !!= (runCog checkIds)
@@ -40,7 +40,7 @@
 : t2 <- fork (checkThreadId 3)
 : t3 <- fork (checkThreadId 3)
 | ifNot ([t0 t1 t2 t3] == [0 1 3 3])
-    | die "You failed the test!"
+    | die {You failed the test!}
 | return ()
 
 !!= (runCog checkIds_v2)
@@ -51,7 +51,7 @@
 
 ; TODO: Write an #assert macro
 = (assert chk exp ok)
-| ifNot chk (die ["assertion failed" exp])
+| ifNot chk (die [{assertion failed} exp])
 | ok
 
 = (checkKernelState return)
@@ -71,7 +71,7 @@
 ;;; Allocate 9 Refs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (justAlloc i return)
-| trk ['justAlloc' i]
+| trk [{justAlloc} i]
 | if (i == 9) (return ())
 : v <- newRef i
 | justAlloc (inc i) return
@@ -86,13 +86,13 @@
 ;;; Allocate 9 Refs and then release them all. ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (freeLoop i return)
-| trk ['freeLoop' i]
+| trk [{freeLoop} i]
 : _ <- freeRef i
 | if (0 == i) (return ())
 | freeLoop (dec i) return
 
 = (allocLoop i return)
-| trk ['allocloop' i]
+| trk [{allocloop} i]
 | if (i == 9) (freeLoop 9 return)
 : v <- newRef i
 | allocLoop (inc i) return
@@ -189,7 +189,7 @@
 !!= (runCog canceledCalls)
     | KERNEL ~[0] ~[4 3 1] [0 0 DONE 0 0] [0 0 [%http 0 %hear] 0 0]
 
-!!= ((runCog canceledCalls) [2='fake response'])
+!!= ((runCog canceledCalls) [2={fake response}])
     | KERNEL ~[2 4 3 1 0]
              ~[]           ;; Canceled list merged into free list
              [0 0 0 0 0]
@@ -215,19 +215,19 @@
              [0 0 DONE 0 DONE 0]
              [0 0 [%http 0 %hear] 0 [%http 0 %hear] 0]
 
-!!= ((runCog compoundEvents) [2='fake'])
+!!= ((runCog compoundEvents) [2={fake}])
     | KERNEL ~[2 5 3 1 0]
              ~[]           ;; Canceled list merged into free list
              [0 0 0 0 DONE 0]
              [0 0 0 0 [%http 0 %hear] 0]
 
-!!= ((runCog compoundEvents) [2='fake'] [4='response'])
+!!= ((runCog compoundEvents) [2={fake}] [4={response}])
     | KERNEL ~[4 2 5 3 1 0]
              ~[]             ;; Canceled list merged into free list
              [0 0 0 0 0 0]
              [0 0 0 0 0 0]
 
-!!= ((runCog compoundEvents) [2='fake' 4='response'])
+!!= ((runCog compoundEvents) [2={fake} 4={response}])
     | KERNEL ~[4 2 5 3 1 0]
              ~[]             ;; Canceled list merged into free list
              [0 0 0 0 0 0]

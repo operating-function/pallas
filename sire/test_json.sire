@@ -45,12 +45,12 @@
 
 = exampleMinified
 | barCat
-, b#'{"type":"application","elm-version":"0.19.1","dependencies":'
-  b#'{"direct":{"elm/time":"1.0.0","elm/core":"1.0.5","elm/html":'
-  b#'"1.0.0","elm/json":"1.1.3","elm/random":"1.0.0","elm/browser'
-  b#'":"1.0.2"},"indirect":{"elm/url":"1.0.0","elm/virtual-dom":"'
-  b#'1.0.3"}},"test-dependencies":{"direct":{},"indirect":{}},"so'
-  b#'urce-directories":["src"]}'
+, b#} {"type":"application","elm-version":"0.19.1","dependencies":
+  b#} {"direct":{"elm/time":"1.0.0","elm/core":"1.0.5","elm/html":
+  b#} "1.0.0","elm/json":"1.1.3","elm/random":"1.0.0","elm/browser
+  b#} ":"1.0.2"},"indirect":{"elm/url":"1.0.0","elm/virtual-dom":"
+  b#} 1.0.3"}},"test-dependencies":{"direct":{},"indirect":{}},"so
+  b#} urce-directories":["src"]}
 
 %start
 
@@ -108,7 +108,7 @@
 @ val   | parseJson x
 @ round | printJson idx-0-val
 | if (neq round x)
-    | die [[x '!=' round] x]
+    | die [[x {!=} round] x]
 | 1
 
 !! (| rowAnd | map chk | map printJson | listToRow | listTake 100 | allJSON 0)

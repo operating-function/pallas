@@ -20,10 +20,10 @@
 = files
 @ html multi_demo_index_html
 | PIN
-## ="/index.html"  [ "text/html"    b#{Hello World!} ]
-## ="/hello.txt"   [ "text/plain"   html             ]
-## ="/"            [ "text/html"    html             ]
-## ="/favicon.ico" [ "image/x-icon" favicon          ]
+## ={/index.html}  [ {text/html}    b#{Hello World!} ]
+## ={/hello.txt}   [ {text/plain}   html             ]
+## ={/}            [ {text/html}    html             ]
+## ={/favicon.ico} [ {image/x-icon} favicon          ]
 
 (RAND req)=[0 0 req]
 (SERV req)=[0 1 req]
@@ -41,7 +41,7 @@
 = (WEBSOCKET_SEND h b) | [0 3 [4 h b]]
 
 = (onHTTPExit conns table req val)
-| die "HTTP Server request should not return"
+| die {HTTP Server request should not return}
 
 = (guarenteeNewline bar)
 | if barIsEmpty-bar bar
@@ -55,10 +55,10 @@
 !! | eql (barWeld b#asdf (natBar 10))
    | guarenteeNewline b#asdf
 
-!! eql b#"" (guarenteeNewline b#"")
+!! eql b#{} (guarenteeNewline b#{})
 
 = (parseInput bar)
-@ isSpace (i & or (eql " " i) (eql 10 i))
+@ isSpace (i & or (eql { } i) (eql 10 i))
 @ [command rest] (barSplitOneWith isSpace bar)
 ++ command
 ++ barDropWhile isSpace rest
@@ -105,9 +105,9 @@
 
 = (runLocalFileServer next)
 : tid <- myThreadId
-| trk 'serv',[=tid]
+| trk {serv},[=tid]
 : res <- syscall HTTP_SERV files
-| die "Impossible: File Server does not respond"
+| die {Impossible: File Server does not respond}
 | next res
 
 = (sendAllLoop send conns bar next)
@@ -116,30 +116,30 @@
 | sendAllLoop send cs bar next
 
 = (sendAll vTelnetOpen vWebSocketOpen bar next)
-| trk ["ALL_SEND" bar]
+| trk [{ALL_SEND} bar]
 : tels <- readRef vTelnetOpen
 : webs <- readRef vWebSocketOpen
-| trk ["ALL_SEND" bar [=tels =webs]]
+| trk [{ALL_SEND} bar [=tels =webs]]
 : ____ <- sendAllLoop SOCK_SEND (setToList tels) bar
 : ____ <- sendAllLoop WOCK_SEND (setToList webs) bar
 | next 0
 
 = (runSocketLoop broadcast class vOpen next)
-| trk 'WAITING_FOR_SOCKET',(**sockOpen class)
+| trk {WAITING_FOR_SOCKET},(**sockOpen class)
 : sock <- syscall (**sockOpen class)
-| trk 'NEW_SOCKET',sock
+| trk {NEW_SOCKET},sock
 : _ <- registerSocket vOpen sock
-| trk 'registered',sock
+| trk {registered},sock
 : _ <- fork (handleSocketInput broadcast class vOpen sock)
-| trk 'readThread',_
+| trk {readThread},_
 : _ <- fork
         & done
-        | trk 'loopThread',_
+        | trk {loopThread},_
         : _ <- syscall (**sockWait class sock)
         : _ <- syscall (**sockKill class sock)
         : _ <- unregisterSocket vOpen sock
         : s <- getKernelState
-        | trk 'socked_end',sock
+        | trk {socked_end},sock
         | done 0
 | runSocketLoop broadcast class vOpen next
 
@@ -204,7 +204,7 @@
 
 = (repeatRequestDemo done)
 : now <- syscall TIME_WHEN
-; trk 'now',now
+; trk {now},now
 | repeatRequestDemo done
 
 main=(runCog effectDemo)

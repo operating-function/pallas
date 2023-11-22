@@ -33,10 +33,8 @@ where
 
 import PlunderPrelude
 import Rex.Types
+import Rex.Mechanism (wordy)
 
-import Rex.Lexer (isName)
-
-import qualified Data.Text    as T
 import qualified Text.Builder as TB
 
 
@@ -170,42 +168,53 @@ errorComment = rbRun . cErr . rbText
 wideLeaf :: RexColor => TextShape -> Text -> RexBuilder
 wideLeaf = curry \case
     (WORD, t) -> cBare (rbText t)
-    (CORD, t) -> cText (cord '\'' '\'' t)
-    (TAPE, t) -> cText (cord '"'  '"'  t)
-    (CURL, t) -> cText (cord '{'  '}'  t)
+    (TEXT, t) ->
+        case quoteNeeded t of
+            Nothing -> cText (rbChar '{' <>             rbText t <> rbChar '}')
+            Just c  -> cText (rbChar '}' <> rbChar c <> rbText t <> rbChar c)
     (LINE, _) -> error "Impossible"
+
+runeChars :: [Char]
+runeChars = "$!#%&*+,-./:<=>?@\\^`'\"|~"
+
+wordChars :: [Char]
+wordChars = ("_" <> ['a'..'z'] <> ['A'..'Z'] <> ['0'..'9'])
+
+quoteNeeded :: Text -> Maybe Char
+quoteNeeded t = do
+    guard $ not $ matching 1 $ toList t <> ['}']
+    if length t < 8 && not ('_' `elem` t) && not (' ' `elem` t) then
+        pure '_'
+    else
+        -- If we don't have a good way to print it (it uses all
+        -- characters, just print it correctly).
+        --
+        -- (The fully general way would be to force this to be a
+        -- line-string, but this is an extremely rare edge-case so we'll
+        -- punt for now.
+        headMay $ filter (not . (`elem` t))
+                $ ("|#" <> runeChars <> wordChars :: [Char])
   where
-    cord top end txt = rbChar top <> rbText txt <> rbChar end
+    matching :: Int -> [Char] -> Bool
+    matching 0 []       = True
+    matching 0 _        = False
+    matching _ []       = False
+    matching i ('{':cs) = matching (i+1) cs
+    matching i ('}':cs) = matching (i-1) cs
+    matching i (_  :cs) = matching i     cs
+
+isName :: Text -> Bool
+isName t = not (null t) && all ((`elem` wordy) . fromIntegral . fromEnum) t
+
 
 {-
    TOOD Test this.
 -}
 fixWide :: TextShape -> Text -> Maybe Rex
-fixWide LINE t            = Just (T TAPE t Nothing)
-fixWide CURL _            = Nothing
+fixWide LINE t            = Just (T TEXT t Nothing)
+fixWide TEXT _            = Nothing
 fixWide WORD t | isName t = Nothing
-fixWide WORD t            = Just (T CORD t Nothing)
-
-
-fixWide TAPE t =
-    case (elem '"' t, elem '\'' t) of
-        (False, _) -> Nothing
-        (_, False) -> Just (T CORD t Nothing)
-        (_, _)     -> let (x,qy) = T.breakOn "\"" t
-                          y = drop 1 qy
-                      in Just ( T TAPE x
-                              $ Just
-                              $ T TAPE y
-                              $ Nothing
-                              )
-
-fixWide CORD t =
-    case (elem '"' t, elem '\'' t) of
-        (_, False) -> Nothing
-        (False, _) -> Just (T TAPE t Nothing)
-        (_, _)     -> let (x,qy) = T.breakOn "'" t
-                          y = drop 1 qy
-                      in Just (T CORD x $ Just $ T CORD y $ Nothing)
+fixWide WORD t            = Just (T TEXT t Nothing)
 
 isShut :: Rex -> Bool
 isShut (N PREF  _ _ _)  = True

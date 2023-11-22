@@ -17,7 +17,7 @@
 
 > GenStream a > Nat > List a
 = (generate n g)
-| trk 'generate',n,g
+| trk {generate},n,g
 | if (eql 0 n) NIL
 # datacase (g 0)
 * DONE        | NIL

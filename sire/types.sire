@@ -15,13 +15,13 @@
 ; TODO: Move these into 13_exp (or wherever).
 
 = (defC sig bodyExp)
-| OPEN "#=" (sigE sig, bodyExp) 0
+| OPEN {#=} (sigE sig, bodyExp) 0
 
 = (defKC key sig bodyExp)
-| OPEN "#=" (natE key, sigE sig, bodyExp) 0
+| OPEN {#=} (natE key, sigE sig, bodyExp) 0
 
 = (defKPC key props sig bodyExp)
-| OPEN "#=" (natE key, cnsE props, sigE sig, bodyExp) 0
+| OPEN {#=} (natE key, cnsE props, sigE sig, bodyExp) 0
 
 
 
@@ -82,7 +82,7 @@
 
 = (parseSchemeSig rex err ok)
 @ rune (rexRune rex)
-| ifNot (rune == '|')
+| ifNot (rune == {|})
     : lawName < readSymbol rex err
     | ok lawName []
 : names < readSignature rex err
@@ -91,7 +91,7 @@
 @ lawName  (idx 0 names)
 @ varNames (drop 1 names)
 | if (len varNames /= setLen (setFromRow varNames))
-    | err rex "type params must be unique"
+    | err rex {type params must be unique}
 | ok lawName varNames
 
 ;; {#abstype} is used to backfill things that were earlier in the
@@ -118,17 +118,17 @@
 }     abstype#Any
 }     abstype#(Fun a b)
 
-; = ("#getTypeNames" st rex err ok)
+; = ({#getTypeNames} st rex err ok)
 ; | ok st (cnsE (tabGet p %typeName))
 
-= ("#abstype" st rex err ok)
+= ({#abstype} st rex err ok)
 @ sons@[_ sigRex] (rexSons rex)
 @ rune (rexRune sigRex)
 ;
 | if (len sons /= 2)
     | err rex absExpected
 ;
-| if (rune == '|')
+| if (rune == {|})
     : names < readSignature sigRex err
     | if (lth len 2)
         | err rex absExpected
@@ -136,7 +136,7 @@
     @ numVars  (dec | len names)
     @ varNames (drop 1 names)
     | if (len varNames /= setLen (setFromRow varNames))
-        | err rex "type params must be unique"
+        | err rex {type params must be unique}
     : st key <- generateUniqueKey st
     | ok st
     | defKPC key #[typeName=sym] [sym]
@@ -218,9 +218,9 @@ abstype#TyExp
 !!= Any | SCHEME 0 (TCON anyKey [])
 !!= Fun | SCHEME 2 (TCON funKey [0 1])
 
-!!= getProp#(Any.typeName) 'Any'
-!!= getProp#(Nat.typeName) 'Nat'
-!!= getProp#(Fun.typeName) 'Fun'
+!!= getProp#(Any.typeName) {Any}
+!!= getProp#(Nat.typeName) {Nat}
+!!= getProp#(Fun.typeName) {Fun}
 
 = (lookupOr env key fallback ok)
 | ifNot (tabHas key env) fallback
@@ -231,16 +231,16 @@ abstype#TyExp
 ? (loop x@[con par])
 | if isNat-x
     | varE (idx x vars)
-@ nam (getPropByKey ss con 'typeName')
+@ nam (getPropByKey ss con {typeName})
 | if (isZero nam)
-    | die ["Is not a type" con]
+    | die [{Is not a type} con]
 | if (null par)
     | if (eql con unitKey) ``()
     | varE nam
 @ kids (map loop par)
 | if (eql con funKey)
     @ [x y] kids
-    | if (">" == rexRune y)
+    | if ({>} == rexRune y)
         @ ySons (rexSons y)
         | rexSetSons (rowCons x ySons) y
     | `($x > $y)
@@ -253,32 +253,32 @@ abstype#TyExp
 | if (eql con pentKey)
     @ [p q r s t] kids | `($p , $q , $r , $s , $t)
 | else
-    ^ NEST "|" _ 0
+    ^ NEST {|} _ 0
     | rowCons (varE nam) kids
 
 = (showType ss scheme@[arity x])
-| showTypeTree ss (gen arity | add 'a') x
+| showTypeTree ss (gen arity | add {a}) x
 
 = (readDefinedSymbol ss rex err ok)
 : sym          < readSymbol rex err
 : bindKey bind < getBind sym ss rex err
 | ok sym bindKey (idx 1 bind)
 
-= ("#printType" ss rex err ok)
+= ({#printType} ss rex err ok)
 @ kids (rexKids rex)
 | if (len kids /= 2)
-    | die 'Usage: printType#Type'
+    | die {Usage: printType#Type}
 : symbol key scheme
     < readDefinedSymbol ss (idx 1 kids) err
 | trk
-    | OPEN "=" [(varE symbol)]
+    | OPEN {=} [(varE symbol)]
     | showType ss scheme
 | ok ss ``(#*)
 
 = (tyApp name scheme params err ok)
 @ [arity topTy] scheme
 | if (arity /= len params)
-    | err (varE name) "Bad arity in type application"
+    | err (varE name) {Bad arity in type application}
 ^ ok (_ topTy)
 ? (subst x@[con para])
 | if isNat-x (idx x params)
@@ -292,7 +292,7 @@ abstype#TyExp
 * 3 Trip
 * 4 Quad
 * 5 Pent
-* _ ("todo support bigger tuples: " n)
+* _ ({todo support bigger tuples: } n)
 
 = (compileType vars tExp err ok)
 ^ : tree <- _ tExp
@@ -302,7 +302,7 @@ abstype#TyExp
 * (T_FUN a b)
     : x <- go a
     : y <- go b
-    : r <- tyApp 'Fun' Fun [x y] err
+    : r <- tyApp {Fun} Fun [x y] err
     | ret r
 * (T_REF nam scheme args)
     : params < rowTraverse go args
@@ -310,12 +310,12 @@ abstype#TyExp
     | ret result
 * (T_VAR sym)
     # datacase (elemIdx sym vars NONE SOME)
-    * NONE     | err varE-sym 'unbound type variable'
+    * NONE     | err varE-sym {unbound type variable}
     * (SOME i) | ret (TVAR i)
 * (T_TUP exps)
     : params < rowTraverse go exps
     @ scheme | tupleType (len exps)
-    : result < tyApp 'TUP' scheme params err
+    : result < tyApp {TUP} scheme params err
     | ret result
 
 
@@ -350,7 +350,7 @@ abstype#TyExp
 | if (isZero rex)
     | err topRex annBindExpected
 @ rune (rexRune rex)
-| if ((rune == "=") || (rune == "#="))
+| if ((rune == {=}) || (rune == {#=}))
     @ sons    (rexSons rex)
     @ kids    (rexKids rex)
     @ typeRex (bloodline | listRev acc)
@@ -362,8 +362,8 @@ abstype#TyExp
         @ newRex | rexSetSons (rowCons (natE key) sons) rex
         | ok ss typeRex key newRex
     | else
-        | err rex "What is this nonsense = node?"
-| if (rune /= ">")
+        | err rex {What is this nonsense = node?}
+| if (rune /= {>})
     | err topRex annBindExpected
 @ acc (rexSetHeir 0 rex)::acc
 | loop acc (rexHeir rex)
@@ -398,8 +398,8 @@ abstype#TyExp
 = (isTypeAnn rex)
 @ style (rexStyle rex)
 | and (rexIsNode rex)
-| and (rexRune rex == ">")
-      (style == "OPEN")
+| and (rexRune rex == {>})
+      (style == {OPEN})
 
 = (foldr1 f xs)
 | if (null xs)
@@ -425,9 +425,9 @@ abstype#TyExp
         | ok (T_VAR sym)
 @ rune (rexRune rex)
 | if (isZero rune)
-    | err rex "Expected symbol or rune"
+    | err rex {Expected symbol or rune}
 # switch rune
-* '|'
+* {|}
     @ kids (rexKids rex)
     @ head (idx 0 kids)
     @ para (drop 1 kids)
@@ -436,23 +436,23 @@ abstype#TyExp
         | ok | T_TUP []
     : sym < readSymbol head err
     | ifNot (isUpper | mod sym 256)
-        | err head "expected: TypeName"
+        | err head {expected: TypeName}
     : bindKey bind <- getBind sym ss rex err
     : params < rowTraverse loop para
     | ok (T_REF sym (idx 1 bind) params)
-* '>'
+* {>}
     : kidTypes < rowTraverse loop (rexKids rex)
     | ok (bigFun kidTypes)
-* '->'
+* {->}
     : kidTypes < rowTraverse loop (rexKids rex)
     | ok (bigFun kidTypes)
-* ','
+* {,}
     : kidTypes < rowTraverse loop (rexKids rex)
     | if (len kidTypes == 1)
-        | err rex 'Write (Row x), not [x]'
+        | err rex {Write (Row x), not [x]}
     | ok (T_TUP kidTypes)
 * _
-    | err rex (strWeld 'invalid type rune: ' rune)
+    | err rex (strWeld {invalid type rune: } rune)
 
 = (parseTypeAnnotation ss topRex err ok)
 ^ _ FALSE NIL topRex & l
@@ -460,19 +460,19 @@ abstype#TyExp
                      | ok ty
 ? (loop fancy acc rex ret)
 | if (isZero rex) (ret acc)
-| ifNot (isTypeAnn rex) (err rex "bad annotation")
+| ifNot (isTypeAnn rex) (err rex {bad annotation})
 @ heir      | rexHeir rex
 @ sons      | rexSons rex
 @ numSons   | len sons
 @ lastSonIx | dec numSons
 @ lastSon   | idx lastSonIx sons
 | if (fancy && not (isZero heir))
-    | err rex "Don't try to get fancy"
+    | err rex {Don't try to get fancy}
 | if ((numSons /= 0) && isTypeAnn lastSon)
     @ sons | take lastSonIx sons
     | if (any isTypeAnn sons)
-        | err rex "bad annotation (don't be weird)"
-    @ iRex | if (len sons == 1) (idx 0 sons) (NEST "|" sons 0)
+        | err rex {bad annotation (don't be weird)}
+    @ iRex | if (len sons == 1) (idx 0 sons) (NEST {|} sons 0)
     : item < parseType_ parseTypeAnnotation ss iRex err
     @ acc  | item::acc
     : acc  < loop TRUE acc lastSon
@@ -480,8 +480,8 @@ abstype#TyExp
     | ret acc
 @ sons (rexSons rex)
 | if (any isTypeAnn sons)
-    | err rex "bad annotation (don't be weird)"
-@ iRex | if (len sons == 1) (idx 0 sons) (NEST "|" sons 0)
+    | err rex {bad annotation (don't be weird)}
+@ iRex | if (len sons == 1) (idx 0 sons) (NEST {|} sons 0)
 : item < parseType_ parseTypeAnnotation ss iRex err
 @ acc | item::acc
 | loop fancy acc heir ret
@@ -504,7 +504,7 @@ abstype#TyExp
 @ [_typedef sigRex tyRex] | kids
 ;
 | if (len kids /= 3)
-    | err rex 'Usage: # typedef Type (a > b)'
+    | err rex {Usage: # typedef Type (a > b)}
 ;
 : sym vars < parseSchemeSig sigRex err
 : expr     < parseType ss tyRex err
@@ -564,12 +564,12 @@ printType#Fun
 ;;
 ;;     (add3 x)=(add 3 x)
 
-= ('>' ss rex err ok)
+= ({>} ss rex err ok)
 : ss tExp bindKey binding
     < parseTypeAnnotatedBinding ss rex err
 @ vars | setToRow (txpFree tExp)
 : type < compileType vars tExp err
-@ ss (addProps ss bindKey (tabSing 'type' type))
+@ ss (addProps ss bindKey (tabSing {type} type))
     ;
     ; TODO: property, what property?
     ;
@@ -590,7 +590,7 @@ printType#Fun
 } # backfill main
 } > Int > Ptr Ptr-Char > IO ()
 
-= ('#backfill' ss rex err ok)
+= ({#backfill} ss rex err ok)
 @ kids rexKids-rex
 | if (3 /= len kids) (err rex backfillExpected)
 @ [_ valRex typRex] kids
@@ -598,20 +598,20 @@ printType#Fun
 : typExp       < parseType ss typRex err
 @ tyVars       | setToRow (txpFree typExp)
 : scheme       < compileType tyVars typExp err
-@ ss (addProps ss valKey | tabSing 'type' scheme)
+@ ss (addProps ss valKey | tabSing {type} scheme)
 | ok ss ``(#*)
 
 ;; {#typeof} prints the type of a binding.  It is meant to be used
 ;; interactively from the REPL.
 
-= ("#typeof" ss rex err ok)
+= ({#typeof} ss rex err ok)
 @ kids (rexKids rex)
-| if (len kids /= 2) | die 'Usage: typeof#var'
+| if (len kids /= 2) | die {Usage: typeof#var}
 : symbol < readSymbol (idx 1 kids) err
 : _ bind < getBind symbol ss rex err
-@ scheme | getProp ss bind 'type'
-| if (isZero scheme) | 'untyped' symbol
-| trk (NEST "\" [(varE symbol)] | showType ss scheme)
+@ scheme | getProp ss bind {type}
+| if (isZero scheme) | {untyped} symbol
+| trk (NEST {\} [(varE symbol)] | showType ss scheme)
 | ok ss ``(#*)
 
 
@@ -624,7 +624,7 @@ printType#Fun
 ^-^
 ^-^ {#record} {#datatype} {#datacase}
 ^-^
-^-^ '>'
+^-^ {>}
 ^-^
 ^-^ SCHEME TVAR TCON
 ^-^

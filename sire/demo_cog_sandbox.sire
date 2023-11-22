@@ -24,7 +24,7 @@
 ; stop and steal that cog's value.
 : ??(stop_get_val val) <- syscall (COG_STOP id)
 | if | isNone val
-  | 'COG_STOP did not return the val for cog: ' val
+  | {COG_STOP did not return the val for cog: } val
 | trk [%stopVal (fromSome 0 val)]
 | return ()
 

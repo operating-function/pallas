@@ -19,7 +19,7 @@
 | idx-1-ali_seed_addr
 
 = ourName
-| 'bob'
+| {bob}
 
 = whitelist
 | setSing idx-1-ali_seed_addr
@@ -30,7 +30,7 @@
 @ [_cpThem _cpPayload cpMbPortId] | clientPort
 | trk [ourName %got %clientPort clientPort]
 | **maybeCase cpMbPortId
-  | trk "no client port, exiting"
+  | trk {no client port, exiting}
   | cogExit ()
 & portId
 ^ _ ()
@@ -41,7 +41,7 @@
 @ newCount (sub count 1)
 @ payload | natBar newCount
 : ??(p_send now) <- syscall (**PORT_SEND portId payload)
-| trk [ourName %sent payload 'on port' portId %at now]
+| trk [ourName %sent payload {on port} portId %at now]
 | if (lte newCount 1)
   | cogExit ()
 | loop ()

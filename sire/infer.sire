@@ -53,7 +53,7 @@
 ; # datacase n
 ; * (TVAR v)    | TVAR (f v)
 ; * (TCON c xs) | TCON c (map (mapTNode f) xs)
-; * _           | 'bad type node' n
+; * _           | {bad type node} n
 
 ; typedef#Ty#(TNode Str)
 
@@ -66,38 +66,38 @@
 
 ; > Substitution > Ty > Ty
 ; = (applySubst s ty)
-; ; trk ['applySubst' s ty]
-; ;^ trk ['applySubst' s ty '->' _] _
+; ; trk [{applySubst} s ty]
+; ;^ trk [{applySubst} s ty {->} _] _
 ; # datacase ty
 ; * (TVAR v)    | fromSome ty (tabLookup v s)
 ; * (TCON c xs) | TCON c (map applySubst-s xs)
-; * _           | 'bad type node' ty
+; * _           | {bad type node} ty
 
-; !!= | TCON funKey [TVAR-"y" TCON-natKey-[]]
-;   | applySubst [x="y"] (TCON funKey (TVAR %x, TCON natKey []))
+; !!= | TCON funKey [TVAR-{y} TCON-natKey-[]]
+;   | applySubst [x={y}] (TCON funKey (TVAR %x, TCON natKey []))
 
 
 ; > Substitution > Scheme > Scheme
 ; = (applySubstScheme s (SCHEME xs t))
 ; | SCHEME xs (applySubst (foldr tabDel s xs) t)
 
-; !!=   | SCHEME ["x"]
+; !!=   | SCHEME [{x}]
 ;       | TCON funKey
-;      ++ TVAR "x"
-;      ++ TVAR "b"
-;   | applySubstScheme [x="y" a="b"]
-;   | SCHEME ["x"]
+;      ++ TVAR {x}
+;      ++ TVAR {b}
+;   | applySubstScheme [x={y} a={b}]
+;   | SCHEME [{x}]
 ;   | TCON funKey
-;  ++ TVAR 'x'
-;  ++ TVAR 'a'
+;  ++ TVAR {x}
+;  ++ TVAR {a}
 
 
 ; > Substitution > Substitution > Substitution
 ; = (composeSubst x y)
-; ; trk ['composeSubst' x y]
-; ; trk ['composeSubst' x y '->' _] _
-; ; trk 'foo',[tabMap (applySubst x) y]
-; ; trk 'bar',(tabMap (trkVal 'hi') y)
+; ; trk [{composeSubst} x y]
+; ; trk [{composeSubst} x y {->} _] _
+; ; trk {foo},[tabMap (applySubst x) y]
+; ; trk {bar},(tabMap (trkVal {hi}) y)
 ; | tabUnion (tabMap (applySubst x) y) x
 
 ; !!= [x=3 y=4] | composeSubst [x=3 y=4] #[]
@@ -117,7 +117,7 @@
 ; | act 0 LEFT (s x & RIGHT [s x])
 
 ; = (gensymKeyToType key)
-; | TVAR (strWeld "_g" | showNat key)
+; | TVAR (strWeld {_g} | showNat key)
 
 ; > Infer Str
 ; = (genTyVar st err ok)
@@ -125,22 +125,22 @@
 ; @ !st (inc st)
 ; | ok st (gensymKeyToType key)
 
-; !!= (RIGHT [1 "_g0"]) (runInfer genTyVar)
+; !!= (RIGHT [1 {_g0}]) (runInfer genTyVar)
 
 ; > Ty > Set Str
 ; = (free x)
 ; # datacase x
 ; * (TVAR v)   | setSing v
 ; * (TCON _ p) | setCatRow (map free p)
-; * _          | 'bad type node' x
+; * _          | {bad type node} x
 
-; !!= %[a b] (free (TCON funKey ['a' (TCON funKey ['b' 'a'])]))
+; !!= %[a b] (free (TCON funKey [{a} (TCON funKey [{b} {a}])]))
 
 ; > Scheme > Set Str
 ; = (schemeFree (SCHEME params t))
 ; | setDifference (free t) (setFromRow params)
 
-; !!= %[b] | schemeFree | SCHEME ['a'] | TCON funKey ['a' 'b']
+; !!= %[b] | schemeFree | SCHEME [{a}] | TCON funKey [{a} {b}]
 
 ; > Str > Ty > Infer Substitution
 ; = (varBind key ty st err ok)
@@ -150,7 +150,7 @@
 
 ; > Exp > Ty > Ty > Infer Substitution
 ; = (unify sireCtx xt yt st err ok)
-; ; trk 'unify',[=xt =yt =st]
+; ; trk {unify},[=xt =yt =st]
 ; | if isNat-xt | varBind xt yt st err ok
 ; | if isNat-yt | varBind yt xt st err ok
 ; @ [xc xs] xt
@@ -173,21 +173,21 @@
 
 ; (tryUnify sire x y)=(runInfer | unify sire x y)
 
-; !!= (tryUnify 9 "a" "b")             |  RIGHT [0 [a={b}]]
-; !!= (tryUnify 9 "a" (TCON 0 []))     |  RIGHT [0 [a=(TCON 0 [])]]
-; !!= (tryUnify 9 "a" (TCON 0 ["b"]))  |  RIGHT [0 [a=(TCON 0 ["b"])]]
-; !!= (tryUnify 9 "a" (TCON 0 ["a"]))  |  LEFT | OCCURS_CHECK_FAILED "a"
-;                                              | TCON 0 ['a']
+; !!= (tryUnify 9 {a} {b})             |  RIGHT [0 [a={b}]]
+; !!= (tryUnify 9 {a} (TCON 0 []))     |  RIGHT [0 [a=(TCON 0 [])]]
+; !!= (tryUnify 9 {a} (TCON 0 [{b}]))  |  RIGHT [0 [a=(TCON 0 [{b}])]]
+; !!= (tryUnify 9 {a} (TCON 0 [{a}]))  |  LEFT | OCCURS_CHECK_FAILED {a}
+;                                              | TCON 0 [{a}]
 
-; !!=   | LEFT (NO_UNIFY 9 (TCON 1 ["b"]) (TCON 0 ["a"]))
+; !!=   | LEFT (NO_UNIFY 9 (TCON 1 [{b}]) (TCON 0 [{a}]))
 ;   | tryUnify 9
-;   * TCON 0 ,(TCON 1 ["b"])
-;   * TCON 0 ,(TCON 0 ["a"])
+;   * TCON 0 ,(TCON 1 [{b}])
+;   * TCON 0 ,(TCON 0 [{a}])
 
 ; !!=   | RIGHT 0,[a={b}]
 ;   | tryUnify 9
-;   * TCON 0 ,(TCON 0 ["a"])
-;   * TCON 0 ,(TCON 0 ["b"])
+;   * TCON 0 ,(TCON 0 [{a}])
+;   * TCON 0 ,(TCON 0 [{b}])
 
 
 ; > Substitution > Context > Context
@@ -218,14 +218,14 @@
 
 ; !!=   | runInfer | instantiate | SCHEME [%a %b] | TCON 9 [%a %b %foo]
 ;   ^ RIGHT [2 _]
-;   | TCON 9 ['_g0' '_g1' %foo]
+;   | TCON 9 [{_g0} {_g1} %foo]
 
 ; > Type > Scheme
 ; = (schemeFromType ty@(FORALL numParams tNode))
 ; @ names
 ;     | listToRow
 ;     | listTake numParams
-;     | listEnumFrom 'a'
+;     | listEnumFrom {a}
 ; | SCHEME names
 ; | mapTNode (get names) tNode
 
@@ -237,37 +237,37 @@
 ; & (in out)
 ; | TCON funKey [in out]
 
-; !!= (mkFunType ['a' 'b' 'c'] 'd')
-;   ^ TCON funKey ['a' _]
-;   ^ TCON funKey ['b' _]
-;   | TCON funKey ['c' 'd']
+; !!= (mkFunType [{a} {b} {c}] {d})
+;   ^ TCON funKey [{a} _]
+;   ^ TCON funKey [{b} _]
+;   | TCON funKey [{c} {d}]
 
 ; = (unsafeToVarName pat)
 ; # datacase pat
 ; * (PVAR v) | v
-; * _        | todo ["infer learns to support" showPat-pat]
+; * _        | todo [{infer learns to support} showPat-pat]
 
 ; > SireState > Context > Exp > Infer (Substitution, Ty)
 ; = (infer ss ctx exp st err ok)
-; ; trk [infer 'ss' ctx exp st 'err' 'ok']
+; ; trk [infer {ss} ctx exp st {err} {ok}]
 ; ^ (_ ctx exp st ok)
 ; ? (go ctx exp st ok)
-; ; trk ['go' ctx exp st ok]
-; ; trk ['go' ctx (showExp exp)]
+; ; trk [{go} ctx exp st ok]
+; ; trk [{go} ctx (showExp exp)]
 ; # datacase exp
-; * (EBED n) | 'embeded value with unknown type' exp
+; * (EBED n) | {embeded value with unknown type} exp
 ; * (ENAT n) | ok st (#[], TCON natKey [])
 ; * (EREF r)
 ;     # datacase (tabLookup r ctx)
 ;     * NONE
 ;         : _ bind <- getBind r ss (showExp exp)
-;                         (rex msg)&('inference failed', rex, msg)
+;                         (rex msg)&({inference failed}, rex, msg)
 ;         @ props | getProps ss bind
 ;         ; trk [=props =bind]
-;         @ type  | getProp ss bind 'type'
+;         @ type  | getProp ss bind {type}
 ;         | if (isZero type)
 ;             @ [_ _ _ bindMod bindName] bind
-;             | 'untyped' `($$bindMod).($$bindName)
+;             | {untyped} `($$bindMod).($$bindName)
 ;         : st ty <- instantiate (schemeFromType type) st err
 ;         | ok st (#[], ty)
 ;     * (SOME s)
@@ -323,12 +323,12 @@
 ;     | ok st (composeSubst s2 s1, tBod)
 ; * (EEQL xs)
 ;     | if (len xs /= 2)
-;         | todo 'infer == nodes with params /= 2'
+;         | todo {infer == nodes with params /= 2}
 ;     ^ (infer ss ctx _ st err ok)
-;     | EAPP (EAPP (EREF 'eql') fst-xs) snd-xs
+;     | EAPP (EAPP (EREF {eql}) fst-xs) snd-xs
 ;    ;; Hack, write inference rules directly
 ; * _
-;     | 'unsupportedSyntax'
+;     | {unsupportedSyntax}
 ;     | showExp exp
 
 ; = natN | TCON natKey []
@@ -344,15 +344,15 @@
 
 ; !!= (RIGHT (0, (#[], addN)))
 ;   | runInfer
-;   @ ss [6 '03_nat' [add=(PIN [5 0 0 '03_nat' 'add'])] 0 [5=[type=addT]]]
+;   @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add}])] 0 [5=[type=addT]]]
 ;   | infer ss #[]
-;   | EREF 'add'
+;   | EREF {add}
 
 ; !!= (RIGHT (1, ([_g0=incN], incN)))
 ;   | runInfer
-;   @ ss [6 '03_nat' [add=(PIN [5 0 0 '03_nat' 'add'])] 0 [5=[type=addT]]]
+;   @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add}])] 0 [5=[type=addT]]]
 ;   | infer ss #[]
-;   | EAPP (EREF 'add') (ENAT 3)
+;   | EAPP (EREF {add}) (ENAT 3)
 
 ; = (schemeToType scheme@(SCHEME params tExp))
 ; ; trk [=params =tExp]
@@ -360,7 +360,7 @@
 ; | SCHEME len-params
 ; ^ mapTNode _ tExp
 ; & i
-; @ notFound ('type variable not bound why?' [=i =scheme])
+; @ notFound ({type variable not bound why?} [=i =scheme])
 ; | elemIdx i params notFound id
 
 ; = (showTypeError ss e)
@@ -380,14 +380,14 @@
 ;       * infered $(showType ss i)
 ;       * unified $(showType ss u)
 ; * (OCCURS_CHECK_FAILED key ty)
-;     ++ 'occurs_check_failed'
+;     ++ {occurs_check_failed}
 ;     ## =symbol  key
 ;     ## =type ty
 
 ; = (doInfer ss exp err ok)
 ; | ok
 ; # datacase (runInfer (infer ss #[] exp))
-; * (LEFT e)         | 'TYPE_ERROR' (showTypeError ss e)
+; * (LEFT e)         | {TYPE_ERROR} (showTypeError ss e)
 ; * (RIGHT _,[_ tn]) | schemeToType | generalize #[] tn
 
 ; = (doCheck ss declared exp err ok)
@@ -406,11 +406,11 @@
 ;     : st s2 < unify exp mustBe ty st err
 ;     ; trk [=mustBe =ty =s1 =s2 tySubst=(applySubst s2 ty)]
 ;     ;
-;     ; trk 'checked',[=s2]
+;     ; trk {checked},[=s2]
 ;     @ unified | schemeToType | generalize #[] (applySubst s2 ty)
-;     ; trk [unified=(ty, '->', applySubst s2 ty, '->', generalize #[] (applySubst s2 ty), {->}, unified)]
-;     ; trk , 'result' ` ($(showExp exp) : $(showType ss unified))
-;     ; trk , 'result' ` ($(showExp exp) : $(showType ss combined))
+;     ; trk [unified=(ty, {->}, applySubst s2 ty, {->}, generalize #[] (applySubst s2 ty), {->}, unified)]
+;     ; trk , {result} ` ($(showExp exp) : $(showType ss unified))
+;     ; trk , {result} ` ($(showExp exp) : $(showType ss combined))
 ;     ; trk [=s2]
 ;     | if (neq unified declared)
 ;         | err
@@ -420,15 +420,15 @@
 ;    ++ composeSubst s2 s1
 ;    ++ applySubst s2 ty
 ; # datacase eRes
-; * (LEFT e)         | 'TYPE_ERROR' (showTypeError ss e)
+; * (LEFT e)         | {TYPE_ERROR} (showTypeError ss e)
 ; * (RIGHT _,[_ tn]) | ok | schemeToType | generalize #[] tn
 
 ; = ({#infer} ss rex err ok)
 ; @ kids@[_ exp] (rexKids rex)
-; | if (len kids /= 2) (err rex 'bad #infer')
+; | if (len kids /= 2) (err rex {bad #infer})
 ; : exp < readExp exp err
 ; : typ < doInfer ss exp err
-; ; trk ['infered' `($(showExp exp) : $(showType ss typ))]
+; ; trk [{infered} `($(showExp exp) : $(showType ss typ))]
 ; | ok ss (cnsE typ)
 
 ; infer#add
@@ -444,12 +444,12 @@
 ; @ kids | rexKids rex
 ; @ nKid | len kids
 ; @ rune | rexRune rex
-; | if ((nKid == 2) && (rune == '='))
+; | if ((nKid == 2) && (rune == {=}))
 ;     @ [sig exp] kids
 ;     : s <- readSignature sig err
 ;     : e <- readExp exp err
 ;     | ok s e
-; | if ((nKid == 3) && (rune == '='))
+; | if ((nKid == 3) && (rune == {=}))
 ;     ; trk [=kids]
 ;     @ [_key sig exp] kids
 ;     : s <- readSignature sig err
@@ -458,7 +458,7 @@
 ;     ; trk [=e]
 ;     | ok s e
 ; | else
-;      | err rex 'not a binder'
+;      | err rex {not a binder}
 
 ; > Row Str > Exp > Exp
 ; = (desugaredBindingBody sig body)
@@ -469,7 +469,7 @@
 ; | if (len sig == 1) body
 ; | (ELAM TRUE (self, self, map PVAR args, body))
 
-; = ('>' ss rex err ok)
+; = ({>} ss rex err ok)
 ; : ss tExp bKey bRex
 ;        < parseTypeAnnotatedBinding ss rex err
 ; @ vars | setToRow (txpFree tExp)
@@ -532,7 +532,7 @@
 ; * # backfill listTake (Nat > List a > List a)
 ; * # backfill listDrop (Nat > List a > List a)
 
-; infer#(CONS 3 (CONS 'foo' NIL))
+; infer#(CONS 3 (CONS {foo} NIL))
 
 ; (t2 x y)=[x y] ;; TODO Inline annotation
 ; backfill#t2#(a > b > (a,b))

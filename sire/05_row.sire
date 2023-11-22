@@ -248,13 +248,13 @@
 
 (FOO x y k)=(k x y)
 
-!!= (foldr FOO "z" (v0))       | "z"
-!!= (foldl FOO "z" (v0))       | "z"
-!!= (foldr FOO "z" (v3 1 2 3)) | FOO 1 | FOO 2 | FOO 3 "z"
-!!= (foldl FOO "z" (v3 1 2 3)) | FOO (FOO (FOO "z" 1) 2) 3
-!!= (foldl FOO "z" 1)          | "z"
-!!= (foldl FOO "z" (0 1))      | FOO "z" 1
-!!= (foldl FOO "z" (0 2 1))    | FOO (FOO "z" 1) 2
+!!= (foldr FOO {z} (v0))       | {z}
+!!= (foldl FOO {z} (v0))       | {z}
+!!= (foldr FOO {z} (v3 1 2 3)) | FOO 1 | FOO 2 | FOO 3 {z}
+!!= (foldl FOO {z} (v3 1 2 3)) | FOO (FOO (FOO {z} 1) 2) 3
+!!= (foldl FOO {z} 1)          | {z}
+!!= (foldl FOO {z} (0 1))      | FOO {z} 1
+!!= (foldl FOO {z} (0 2 1))    | FOO (FOO {z} 1) 2
 
 !!= (v3 1 2 3) | weld (v0) (v3 1 2 3)
 !!= (v3 1 2 3) | weld (v1 1) (v2 2 3)
@@ -281,7 +281,7 @@
 !!= 0 | len (v0)
 
 !!= 1 | null (v0)
-!!= 0 | null (v1 "x")
+!!= 0 | null (v1 {x})
 
 !!= 1 | eql 3 arity-0
 !!= 1 | eql 5 arity-1
@@ -328,7 +328,7 @@
 
 !!= 1 | null-get
 !!= 1 | null-0
-!!= 1 | not null-(0 'x')
+!!= 1 | not null-(0 {x})
 
 !!= 1        | uncurry sub (v2 4 3)
 !!= (v2 3 4) | curry id 3 4

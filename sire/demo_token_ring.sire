@@ -25,7 +25,7 @@
 
 = (tokenRing cogExit)
 ;
-; trk 'tokenRing',cogExit
+; trk {tokenRing},cogExit
 ;
 : ??(p_sire ali_seed_addr) <- syscall PORT_SIRE
 : ??(p_sire bob_seed_addr) <- syscall PORT_SIRE
@@ -40,9 +40,9 @@
 ;
 ; trk [=ali_seed =ali_addr =bob_seed =bob_addr]
 ;
-@ ali_msg b#"Hi, Bob.  What's good?"
-@ bob_msg b#"Life is good.  Charlie?"
-@ chr_msg b#"Life is good.  Alice?"
+@ ali_msg b#{Hi, Bob.  What's good?}
+@ bob_msg b#{Life is good.  Charlie?}
+@ chr_msg b#{Life is good.  Alice?}
 ;
 ; trk [%ali ali_seed ali_addr]
 ; trk [%bob bob_seed bob_addr]

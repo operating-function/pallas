@@ -23,11 +23,11 @@
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(isDigit c)=(and (gte c '0') (lte c '9'))
-(isUpper c)=(and (gte c 'A') (lte c 'Z'))
-(isLower c)=(and (gte c 'a') (lte c 'z'))
+(isDigit c)=(and (gte c {0}) (lte c {9}))
+(isUpper c)=(and (gte c {A}) (lte c {Z}))
+(isLower c)=(and (gte c {a}) (lte c {z}))
 (isAlpha c)=(or isUpper-c isLower-c)
-(isPrint c)=(and (gte c ' ') (lte c '~'))
+(isPrint c)=(and (gte c { }) (lte c {~}))
 
 (isAlphaNum c)=(or isAlpha-c isDigit-c)
 
@@ -44,18 +44,18 @@ spaceChar=32
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= 1 | eql 1   (ord "1")
-!!= 1 | eql "3" (chr 3)
+!!= 1 | eql 1   (ord {1})
+!!= 1 | eql {3} (chr 3)
 !!= 1 | eql 5   (ord (chr 5))
-!!= 1 | eql "9" (chr (ord "9"))
+!!= 1 | eql {9} (chr (ord {9}))
 
-!!= 1 | isLower 'c'
-!!= 1 | isUpper 'C'
-!!= 1 | not (isAlpha '0')
-!!= 1 | isDigit '0'
-!!= 1 | not (isDigit 'a')
+!!= 1 | isLower {c}
+!!= 1 | isUpper {C}
+!!= 1 | not (isAlpha {0})
+!!= 1 | isDigit {0}
+!!= 1 | not (isDigit {a})
 
-!!= 1 (isPrint 'a')
+!!= 1 (isPrint {a})
 !!= 0 (isPrint 1)
 
 

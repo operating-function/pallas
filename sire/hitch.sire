@@ -13,8 +13,8 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  boot
-/+  switch    ["#switch"]
-/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  switch    [{#switch}]
+/+  datatype  [{#record} {#datatype} {#datacase}]
 /+  mutrec
 /+  stew
 /+  types
@@ -93,7 +93,7 @@ abstype#(LazyIndex k v) ; TODO: (???)
 [(cat [lKeys [middle] rKeys]) (weld lVals rVals)]
 
 !! | eql [[5] [%a %b]]
-   | mergeIndex [[] ["a"]] 5 [[] ["b"]]
+   | mergeIndex [[] [{a}]] 5 [[] [{b}]]
 
 
 > v > Index k v
@@ -130,7 +130,7 @@ abstype#(LazyIndex k v) ; TODO: (???)
 [[leftKeys leftVals] middleKey [rightKeys rightVals]]
 
 !! | eql [[[] [[%a]]] %b [[] [[%b]]]]
-   | splitIndexAt 0 [["b"] [["a"] ["b"]]]
+   | splitIndexAt 0 [[{b}] [[{a}] [{b}]]]
 
 ;
 ;  Given a pure index with no hitchhikers, create a node.
@@ -159,7 +159,7 @@ abstype#(LazyIndex k v) ; TODO: (???)
 @ n                          | len leftKeys
 @ [leftVals valAndRightVals] | splitAt n vals
 | **maybeCase | rowUncons valAndRightVals
-    | die "valView: can't split empty index"
+    | die {valView: can't split empty index}
 & [val rightVals]
 [[leftKeys leftVals rightKeys rightVals] val]
 
@@ -339,7 +339,7 @@ newRootNode
         * (CONS [keys vals] _) (listFromRow keys, ~[vals])
   * (CONS k ks)
   # datacase il
-  * NIL (die "missing index in joinIndex")
+  * NIL (die {missing index in joinIndex})
   * (CONS [keys vals] ts)
   @ [keyrest valrest] | joinIndex ks ts
   @ !kout | listWeld (listFromRow keys) (CONS k keyrest)
@@ -433,7 +433,7 @@ newRootNode
     | mkNode
         | putIdx lCtx | mergeNodes config treeFun lChild lKey newChild
     prunedHH
-  | die "deleteRec: node with single child"
+  | die {deleteRec: node with single child}
 
 
 ;;; HitchhikerMap ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

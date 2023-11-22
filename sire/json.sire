@@ -5,8 +5,8 @@
 ### json <- io
 
 /+  boot
-/+  switch    ["#switch"]
-/+  mutrec    ["#mutrec"]
+/+  switch    [{#switch}]
+/+  mutrec    [{#mutrec}]
 /+  datatype
 /+  stew
 /+  types
@@ -46,17 +46,17 @@ typedef#Expo#(Opt2 Nat Nat)
 * 13 | chomp input (inc off)
 * _  | off
 
-!!= 7 (chomp b#'	  	   xyz' 0)
+!!= 7 (chomp b#{	  	   xyz} 0)
 
 
 ;;; Lexing Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (lexStringLoop input top off)
-@ off (barElemIndexOff '"' off input)
+@ off (barElemIndexOff {"} off input)
 | if (eql off barLen-input)
-    | 'Unexpected EOF (string)'
+    | {Unexpected EOF (string)}
 @ (countSlashes off count)
-    | if (eql '\' | barIdx off input)
+    | if (eql {\} | barIdx off input)
         | countSlashes (dec off) (inc count)
     | count
 @ numSlashes | **countSlashes (dec off) 0
@@ -71,16 +71,14 @@ typedef#Expo#(Opt2 Nat Nat)
 !!= (TSTR b#{fdsafdsa}, 10)
   | lexString b#{"fdsafdsa"} 1
 
-!!= (TSTR b#'fdsafdsa\"more', 16)
-  | lexString b#'"fdsafdsa\"more"' 1
+!!= (TSTR b#{fdsafdsa\"more}, 16)
+  | lexString b#{"fdsafdsa\"more"} 1
 
-; TODO: Sol says that escaping slashes wasn't intended in the parser for {}
-; literals. Remove that later.
-!!= (TSTR b#'fdsafdsa\\', 12)
-  | lexString b#{"fdsafdsa\\\\"} 1
+!!= (TSTR b#{fdsafdsa\\}, 12)
+  | lexString b#{"fdsafdsa\\"} 1
 
-!!= 'Unexpected EOF (string)'
-  | lexString b#'"fdsafdsa\"more' 1
+!!= {Unexpected EOF (string)}
+  | lexString b#{"fdsafdsa\"more} 1
 
 
 ;;; Lexing Digits ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -93,8 +91,8 @@ typedef#Expo#(Opt2 Nat Nat)
 @ !acc (add (sub chr 48) (mul 10 acc))
 | loop acc (inc off)
 
-!!= [1234 5] (consumeDigits b#'+1234+' 1)
-!!= [0 0]    (consumeDigits b#'+1234+' 0)
+!!= [1234 5] (consumeDigits b#{+1234+} 1)
+!!= [0 0]    (consumeDigits b#{+1234+} 0)
 
 
 ;;; Lexing Strings of Zeros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -102,7 +100,7 @@ typedef#Expo#(Opt2 Nat Nat)
 = (consumeZeros input startOff)
 ^ _ 0 startOff
 ? (go !count off)
-| if ('0' == barIdx off input)
+| if ({0} == barIdx off input)
     | go (inc count) (inc off)
 | [count off]
 
@@ -113,7 +111,7 @@ typedef#Expo#(Opt2 Nat Nat)
 
 ;;; Lexing Decimal Sections ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= noDig | 'No digits after dot (.)'
+= noDig | {No digits after dot (.)}
 
 ; This can't be turned into inlined-continuation-passing-style because
 ; we have two places where we return successfully, and the short-circult
@@ -126,7 +124,7 @@ typedef#Expo#(Opt2 Nat Nat)
 ;
 > Bar > Nat > Result2 Deci Nat
 = (lexDecimal input off)
-| ifNot ('.' == barIdx off input) [0 off]
+| ifNot ({.} == barIdx off input) [0 off]
 ;
 @ off            | inc off
 @ [numZeros zof] | **consumeZeros input off
@@ -135,12 +133,12 @@ typedef#Expo#(Opt2 Nat Nat)
 | if (dof == off) noDig
 | [[numZeros nat] dof]
 
-!!= [[2 33] 6] | lexDecimal b#'#.0033#' 1
-!!= [[1 0 ] 3] | lexDecimal b#'#.0#'    1
-!!= [[0 1 ] 3] | lexDecimal b#'#.1#'    1
-!!= [0      1] | lexDecimal b#'##'      1
-!!= [0      1] | lexDecimal b#'#e2#'    1
-!!= noDig      | lexDecimal b#'#.#'     1
+!!= [[2 33] 6] | lexDecimal b#{#.0033#} 1
+!!= [[1 0 ] 3] | lexDecimal b#{#.0#}    1
+!!= [[0 1 ] 3] | lexDecimal b#{#.1#}    1
+!!= [0      1] | lexDecimal b#{##}      1
+!!= [0      1] | lexDecimal b#{#e2#}    1
+!!= noDig      | lexDecimal b#{#.#}     1
 
 
 ;;; Lexing Exponent Sections ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -149,7 +147,7 @@ typedef#Expo#(Opt2 Nat Nat)
 ; optional exponent. {e,E}{-,+,[nothing]}[digits]
 ;
 
-= noDig | 'No digits in exponent'
+= noDig | {No digits in exponent}
 
 ;
 ; This can't be turned into inlined-continuation-passing-style because
@@ -165,14 +163,14 @@ typedef#Expo#(Opt2 Nat Nat)
 = (lexExponent input off)
 ;
 @ chr    (barIdx off input)
-@ hasExp ((chr == 'e') || (chr == 'E'))
+@ hasExp ((chr == {e}) || (chr == {E}))
 ;
 | ifNot hasExp [0 off]
 @ off    (inc off)
 ;
 @ chr    (barIdx off input)
-@ nega   (chr == '-')
-@ posi   (chr == '+')
+@ nega   (chr == {-})
+@ posi   (chr == {+})
 @ signed (nega || posi)
 @ off    (add off signed)
 ;
@@ -182,18 +180,18 @@ typedef#Expo#(Opt2 Nat Nat)
 ;
 | [[nega nat] dof]
 
-!!= [[0  0] 3] | lexExponent b#'#e0#'   1
-!!= [[0  0] 4] | lexExponent b#'#e00#'  1
-!!= [[0  0] 5] | lexExponent b#'#e+00#' 1
-!!= [[1  0] 5] | lexExponent b#'#e-00#' 1
-!!= [[1  1] 5] | lexExponent b#'#e-01#' 1
-!!= [[1 10] 5] | lexExponent b#'#e-10#' 1
-!!= [[1 11] 5] | lexExponent b#'#e-11#' 1
-!!= noDig      | lexExponent b#'#e-#'   1
-!!= noDig      | lexExponent b#'#e+#'   1
-!!= noDig      | lexExponent b#'#e#'    1
-!!= [0 0]      | lexExponent b#'#e00#'  0
-!!= [0 1]      | lexExponent b#'#g00#'  1
+!!= [[0  0] 3] | lexExponent b#{#e0#}   1
+!!= [[0  0] 4] | lexExponent b#{#e00#}  1
+!!= [[0  0] 5] | lexExponent b#{#e+00#} 1
+!!= [[1  0] 5] | lexExponent b#{#e-00#} 1
+!!= [[1  1] 5] | lexExponent b#{#e-01#} 1
+!!= [[1 10] 5] | lexExponent b#{#e-10#} 1
+!!= [[1 11] 5] | lexExponent b#{#e-11#} 1
+!!= noDig      | lexExponent b#{#e-#}   1
+!!= noDig      | lexExponent b#{#e+#}   1
+!!= noDig      | lexExponent b#{#e#}    1
+!!= [0 0]      | lexExponent b#{#e00#}  0
+!!= [0 1]      | lexExponent b#{#g00#}  1
 
 
 ;;; Lexing Json ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -214,14 +212,14 @@ typedef#Expo#(Opt2 Nat Nat)
     | ifNot (b#false == barSlice off 5 input) 0
     | (TFALSE, loop (add 5 off))
 ;
-* ',' (TCOMMA, loop (inc off))
-* ':' (TCOLON, loop (inc off))
-* '[' (TLBRAK, loop (inc off))
-* ']' (TRBRAK, loop (inc off))
-* '{' (TLCURL, loop (inc off))
-* '}' (TRCURL, loop (inc off))
+* }_,_ (TCOMMA, loop (inc off))
+* }_:_ (TCOLON, loop (inc off))
+* }_[_ (TLBRAK, loop (inc off))
+* }_]_ (TRBRAK, loop (inc off))
+* }_{_ (TLCURL, loop (inc off))
+* }_}_ (TRCURL, loop (inc off))
 ;
-* '"'
+* }_"_
     @ res (**lexString input (inc off))
     | if res (**TERR off res, 0)
     @ [tok off] res
@@ -238,8 +236,8 @@ typedef#Expo#(Opt2 Nat Nat)
     @ chr       | barIdx off input
     @ [nat dof] | **consumeDigits input off
     | if (dof == off)
-        | if neg (**TERR off 'Bad number, no digits', 0)
-        | (**TERR off 'Unexpected Character', 0)
+        | if neg (**TERR off {Bad number, no digits}, 0)
+        | (**TERR off {Unexpected Character}, 0)
     ;
     @ off               | dof
     @ [deci off]@decRes | lexDecimal input off
@@ -249,42 +247,42 @@ typedef#Expo#(Opt2 Nat Nat)
     ;
     | (**TNUM neg nat deci expi, loop off)
 
-!!= (listToRow | lexJson b#'{"x":999}')
+!!= (listToRow | lexJson b#{{"x":999}})
  ++ TLCURL
  ++ TSTR b#x
  ++ TCOLON
  ++ TNUM FALSE 999 0 0
  ++ TRCURL
 
-!!= (listToRow | lexJson b#'{"x":-999}')
+!!= (listToRow | lexJson b#{{"x":-999}})
  ++ TLCURL
  ++ TSTR b#x
  ++ TCOLON
  ++ TNUM TRUE 999 0 0
  ++ TRCURL
 
-!!= (listToRow | lexJson b#'{"x":9.9}')
+!!= (listToRow | lexJson b#{{"x":9.9}})
  ++ TLCURL
  ++ TSTR b#x
  ++ TCOLON
  ++ TNUM FALSE 9 [0 9] 0
  ++ TRCURL
 
-!!= (listToRow | lexJson b#'{"x":9e9}')
+!!= (listToRow | lexJson b#{{"x":9e9}})
  ++ TLCURL
  ++ TSTR b#x
  ++ TCOLON
  ++ TNUM FALSE 9 0 [0 9]
  ++ TRCURL
 
-!!= (listToRow | lexJson b#'{"x":09.09e9}')
+!!= (listToRow | lexJson b#{{"x":09.09e9}})
  ++ TLCURL
  ++ TSTR b#x
  ++ TCOLON
  ++ TNUM FALSE 9 [1 9] [0 9]
  ++ TRCURL
 
-!!= (listToRow | lexJson b#' { "x" : 999 } ')
+!!= (listToRow | lexJson b#{ { "x" : 999 } })
  ++ TSPACE
  ++ TLCURL
  ++ TSPACE
@@ -371,7 +369,7 @@ setProp#(JMAP.conRaw)#TRUE
 * JMAP|kv [{m} kv]
 
 !!=   | map jsonWithType
-      | [ "null" "true" "false" b#"lol" 0-9 [0-3 0-4 0-5] #[foo="null"] ]
+      | [ {null} {true} {false} b#{lol} 0-9 [0-3 0-4 0-5] #[foo={null}] ]
  ++ [%n %null]
  ++ [%t %true]
  ++ [%f %false]
@@ -392,7 +390,7 @@ setProp#(JMAP.conRaw)#TRUE
    | val inputStream topFail topOkay
 * (val stream fail ok)
    @ stream | eatSpace stream
-   : t ts   <- **listCase stream (fail "value" stream)
+   : t ts   <- **listCase stream (fail {value} stream)
    # switch (dataTag t)
    * null   | ok JNULL ts
    * true   | ok JTRUE ts
@@ -402,15 +400,15 @@ setProp#(JMAP.conRaw)#TRUE
    * str    | ok (JSTR | idx 1 t) ts
    * num    | ok (JNUM | idx 2 t) ts  ; todo: more data.
    * err    @ [_ off why] t
-            @ msg (strCat ["lex error @" showNat-off ": " why])
+            @ msg (strCat [{lex error @} showNat-off {: } why])
             | fail msg stream
-   * _      | fail "value" stream
+   * _      | fail {value} stream
 ;
 * (obj count pairs stream fail ok)
    ;
    @ stream (eatSpace stream)
    ;
-   : t@[k v] ts <- **listCase stream (fail "'}', or key" stream)
+   : t@[k v] ts <- **listCase stream (fail }@'}', or key@ stream)
    ;
    | if (t == TRCURL)
        @ !row (sizedListToRow count pairs)
@@ -419,7 +417,7 @@ setProp#(JMAP.conRaw)#TRUE
    ;
    | if (isNat t || neq {str} k)
        | trk #[=t =k =v]
-       | fail "'}', or key" stream
+       | fail }@'}', or key@ stream
    ;
    @ newKey   | barNat v
    @ stream   | eatSpace ts
@@ -433,7 +431,7 @@ setProp#(JMAP.conRaw)#TRUE
    @ !pairs        | CONS (newKey, newVal) pairs
    @ !count        | inc count
    @ stream        | eatSpace stream
-   @ complain      | fail 'Expecting , or }' stream
+   @ complain      | fail }@Expecting , or }@ stream
    : t ts          < **listCase stream complain
    ;
    | if (t == TRCURL) | obj count pairs stream fail ok
@@ -444,7 +442,7 @@ setProp#(JMAP.conRaw)#TRUE
 * (arr acc stream fail ok)
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [end]
    @ stream   | eatSpace stream
-   @ complain | fail "space, ']', or value" stream
+   @ complain | fail {space, ']', or value} stream
    : t ts     < **listCase stream complain
    ;
    | if (t == TRBRAK)
@@ -454,7 +452,7 @@ setProp#(JMAP.conRaw)#TRUE
    : val more <- val stream fail
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [more]
    @ more     | eatSpace more
-   @ complain | fail "space, ']', or value" stream
+   @ complain | fail {space, ']', or value} stream
    : m ms     < **listCase more complain
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [final]
    | if (TRBRAK == m)
@@ -464,7 +462,7 @@ setProp#(JMAP.conRaw)#TRUE
    | if (TCOMMA == m)
        @ acc (CONS val acc)
        | arr acc ms fail ok
-   | fail "space or ',' or ']'" more
+   | fail {space or ',' or ']'} more
 
 = (parseJson input)
 @ tokStream       | lexJson input
@@ -473,7 +471,7 @@ setProp#(JMAP.conRaw)#TRUE
 | parseLexerStream tokStream fail okay
 
 !!= (parseJson b#{"})
-  | 'lex error @0: Unexpected EOF (string)'
+  | {lex error @0: Unexpected EOF (string)}
 
 !!= (parseJson b#{[null]})
   ^ (JVEC [_], NIL)
@@ -525,7 +523,7 @@ setProp#(JMAP.conRaw)#TRUE
 | map go vec
 
 = (printMap go map)
-^ [b#'{' _ b#'}']
+^ [b#}_{_ _ b#}_}_]
 ^ (| listIntersperse b#{,} | listMap _ | tabToPairList map)
 & [k v]
 | (go (JSTR | natBar k), b#{:}, go v)

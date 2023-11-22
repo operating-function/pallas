@@ -36,15 +36,13 @@
 
 ;;; Rex Representation (possibly data-jetted) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(REX form)=(0 '_Rex' 1 form)
+(REX form)=(0 {_Rex} 1 form)
 
 (EMBD val)=(REX | v1 val)
 
 (WORD text heir)=(REX | v3 {WORD} text heir)
-(CORD text heir)=(REX | v3 {CORD} text heir)
-(TAPE text heir)=(REX | v3 {TAPE} text heir)
+(TEXT text heir)=(REX | v3 {TEXT} text heir)
 (LINE text heir)=(REX | v3 {LINE} text heir)
-(CURL text heir)=(REX | v3 {CURL} text heir)
 
 (OPEN rune sons heir)=(REX | v4 {OPEN} rune sons heir)
 (NEST rune sons heir)=(REX | v4 {NEST} rune sons heir)
@@ -150,15 +148,15 @@
 
 = (rexStyle rex)
 @ dat (lawBody rex)
-| if (eql 1 | len dat) "EMBD"
+| if (eql 1 | len dat) {EMBD}
 | idx 0 dat
 
 = (rexGetWord rex fall ok)
-| if (neq "WORD" rexStyle-rex) fall
+| if (neq {WORD} rexStyle-rex) fall
 | rexGetLeaf rex fall ok
 
 = (rexGetWordNoHeir rex fall ok)
-| if (neq "WORD" rexStyle-rex) fall
+| if (neq {WORD} rexStyle-rex) fall
 | rexGetLeaf rex fall
 & (text heir)
 | if (neq 0 heir) fall
@@ -166,16 +164,13 @@
 
 = (rexGetText rex fall ok)
 @ style (rexStyle rex)
-@ expected | or (eql style "TAPE")
-                (eql style "CORD")
+@ expected (eql style {TEXT})
 | ifNot expected fall
 | rexGetLeaf rex fall ok
 
 = (rexGetAnyText rex fall ok)
 @ style (rexStyle rex)
-@ expected | or (eql style "TAPE")
-           | or (eql style "CORD")
-                (eql style "LINE")
+@ expected | or (eql style {TEXT}) (eql style {LINE})
 | ifNot expected fall
 | rexGetLeaf rex fall ok
 
@@ -236,8 +231,8 @@
 ^ rexEvery _ topRex
 & rex
 @ sty (rexStyle rex)
-| if (eql "LINE" sty) | TAPE rexText-rex rexHeir-rex
-| if (neq "OPEN" sty) | rex
+| if (eql {LINE} sty) | TEXT rexText-rex rexHeir-rex
+| if (neq {OPEN} sty) | rex
 | NEST (rexRune rex) (rexSons rex) (rexHeir rex)
 
 
@@ -246,32 +241,32 @@
 = ({``} st rex err ok)
 @ args (rexKids rex)
 | if (neq 1 len-args)
-    | err rex "Expected 1 Parameter"
+    | err rex {Expected 1 Parameter}
 | ok st
 | EMBD (idx 0 args)
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= | OPEN "&" v0 0
-  | OPEN "&" v0 0
+!!= | OPEN {&} v0 0
+  | OPEN {&} v0 0
 
-!!= | OPEN "*" v0 0
-  | rexSetRune "*"
-  | OPEN "-" v0 0
+!!= | OPEN {*} v0 0
+  | rexSetRune {*}
+  | OPEN {-} v0 0
 
 !!= `` (f [x y])[z]
   | rexClose
  `` | f , x y
     , z
 
-wx=(WORD "x" 0)
-w9=(WORD "9" 0)
-hi=(TAPE "hi" 0)
-yo=(CORD "yo" 0)
-rw=(NEST "," v0 0)
+wx=(WORD {x} 0)
+w9=(WORD {9} 0)
+hi=(TEXT {hi} 0)
+yo=(TEXT {yo} 0)
+rw=(NEST {,} v0 0)
 e6=(EMBD 6)
-sx=(OPEN "=" (v2 wx w9) 0)
+sx=(OPEN {=} (v2 wx w9) 0)
 
 !!= 0 (rexIsNode hi)
 !!= 0 (rexIsNode yo)
@@ -294,30 +289,29 @@ sx=(OPEN "=" (v2 wx w9) 0)
 = (nestNod rune sons)      | NEST rune sons 0
 
 
-!!= 1 | eql ``3        | (w "3")
-!!= 1 | eql ``(3 4)    | nestNod "|" (v2 (w "3") (w "4"))
-!!= 1 | eql ``([a][b]) | nestAnd "," (v1 (w "a"))
-                       | nestNod "," (v1 (w "b"))
+!!= 1 | eql ``3        | (w {3})
+!!= 1 | eql ``(3 4)    | nestNod {|} (v2 (w {3}) (w {4}))
+!!= 1 | eql ``([a][b]) | nestAnd {,} (v1 (w {a}))
+                       | nestNod {,} (v1 (w {b}))
 !!= 1
   | eql
-      | NEST "*" (v2 (WORD "hi" 0) (WORD "yo" 0))
-      | WORD ""
-      | WORD "heh"
+      | NEST {*} (v2 (WORD {hi} 0) (WORD {yo} 0))
+      | WORD {}
+      | WORD {heh}
       | 0
-  | NEST "*" (v2 (WORD "hi" 0) (WORD "yo" 0))
-  | WORD ""
-  | WORD "heh"
+  | NEST {*} (v2 (WORD {hi} 0) (WORD {yo} 0))
+  | WORD {}
+  | WORD {heh}
   | 0
 
-!!= "NEST" | rexStyle `` []
-!!= "OPEN" | rexStyle `` | x
-!!= "WORD" | rexStyle `` hi
-!!= "TAPE" | rexStyle `` ""
-!!= "CORD" | rexStyle `` ''
-!!= "LINE" | rexStyle `` }
-!!= "CURL" | rexStyle `` {}
+!!= {NEST} | rexStyle `` []
+!!= {OPEN} | rexStyle `` | x
+!!= {WORD} | rexStyle `` hi
+!!= {LINE} | rexStyle `` }
+!!= {TEXT} | rexStyle `` {}
+!!= {TEXT} | rexStyle `` }__
 
-!!= ``"foobar" | rexClose `` } foobar
+!!= ``{foobar} | rexClose `` } foobar
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -325,7 +319,7 @@ sx=(OPEN "=" (v2 wx w9) 0)
 ^-^
 ^-^ REX
 ^-^ EMBD
-^-^ WORD CORD TAPE LINE CURL
+^-^ WORD TEXT LINE
 ^-^ OPEN NEST INFX PREF SHUT
 ^-^
 ^-^ rexIsNode rexIsLeaf rexIsEmbd

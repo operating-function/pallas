@@ -12,7 +12,7 @@
 ;;;; The data-jet has the noun-shape (0 1 1 PAD) where PAD is a bit-array
 ;;;; whose width is a multiple of 8.
 ;;;;
-;;;;     REPL> inspect b#"foo"
+;;;;     REPL> inspect b#{foo}
 ;;;;     [0 1 1 24080230]
 ;;;;
 ;;;;     REPL> natPad %foo 24
@@ -37,17 +37,17 @@
 /+  04_cmp  [eql neq gte lte min isZero]
 /+  05_row  [map foldl foldr gen weld v1 v2 v4]
 /+  05_row  [fst snd]
-/+  06_rex  [SHUT CURL WORD]
+/+  06_rex  [SHUT TEXT WORD]
 /+  06_rex  [rexKids rexHeir rexText {``}]
 /+  06_rex  [rexGetLeaf]
 /+  07_dat
 /+  08_sci  []
 /+  09_chr  [chr isPrint ord toLower]
 /+  10_str  [explode strCat strWeld strFromList]
-/+  11_set  ["%"]
+/+  11_set  [{%}]
 /+  12_tab  []
 /+  13_exp  [cnsE]
-/+  14_hax  ["#"]
+/+  14_hax  [{#}]
 /+  15_pad  [padLen padWeld]
 
 
@@ -268,22 +268,22 @@ rowToBar=barFromRow
 
 (barPad bar)=(lawBody bar)
 
-= blWantText | "Bar literals require a text parameter, for example: b#asdf"
-= blTwoKids  | "Bar literals need too kids, for example: b#adsf"
-= blBadHeir  | "Bar literals may not have heirs."
-= blBadMacro | "Bar literals must look like b#... or x#..."
+= blWantText } Bar literals require a text parameter, for example: b#asdf
+= blTwoKids  } Bar literals need too kids, for example: b#adsf
+= blBadHeir  } Bar literals may not have heirs.
+= blBadMacro } Bar literals must look like b#... or x#...
 
 = (foldMultiLine rex err ok)
 @ topStyle (idx 0 | lawBody rex)
 | if (neq {LINE} topStyle)
-    | err rex 'non-line-string contains heir.  What?'
+    | err rex {non-line-string contains heir.  What?}
 ^ (_ NIL rex)
 ? (go acc rex)
 | if (isZero rex)
     | ok | strFromList | listIntersperse 10 | listRev acc
 @ style (idx 0 | lawBody rex)
 | if (neq style topStyle)
-    | err rex 'Each line of a multiline-string must be a leaf of the same style'
+    | err rex {Each line of a multiline-string must be a leaf of the same style}
 @ acc (CONS (rexText rex) acc)
 | go acc (rexHeir rex)
 
@@ -293,9 +293,9 @@ rowToBar=barFromRow
 @ kids rexKids-rex
 @ text rexText-(idx 0 kids)
 | if (neq 2 len-kids) | err rex blTwoKids
-| if (and (neq "b" text) (neq "x" text))
+| if (and (neq {b} text) (neq {x} text))
     | err rex blBadMacro
-@ mk     | if (eql "b" text) natBar barFromHex
+@ mk     | if (eql {b} text) natBar barFromHex
 @ valRex | idx 1 kids
 | rexGetLeaf valRex
     | err valRex blWantText
@@ -376,29 +376,29 @@ hexAlphabet=(b#{0123456789abcdef})
 !!= b#12345 | barShowDecimal 12345
 
 ; TODO: {showBarLit} should use bare-words where possible (instead of
-; always quoting everyting with CURL)
+; always quoting everyting with TEXT)
 
 ; Bar > Rex
 = (showBarLit bar)
-^ SHUT "#" _ 0
+^ SHUT {#} _ 0
 | if (barAll isPrint bar)
-   ++ WORD "b" 0
-   ++ CURL (barNat bar) 0
+   ++ WORD {b} 0
+   ++ TEXT (barNat bar) 0
 | else
-   ++ WORD "x" 0
-   ++ CURL (barNat | barToHex bar) 0
+   ++ WORD {x} 0
+   ++ TEXT (barNat | barToHex bar) 0
 
-!!= (natBar-'asdf')        | readBarLit ``(b#asdf) v2 id
+!!= (natBar-{asdf})        | readBarLit ``(b#asdf) v2 id
 !!= [``(#b)    blTwoKids]  | readBarLit ``(#b)     v2 id
 !!= [``(b#b#b) blTwoKids]  | readBarLit ``(b#b#b)  v2 id
 !!= [``[]      blWantText] | readBarLit ``(b#[])   v2 id
 
-!!= (barFromHex 'asdf')    | readBarLit ``(x#asdf) v2 id
+!!= (barFromHex {asdf})    | readBarLit ``(x#asdf) v2 id
 !!= [``(#x)    blTwoKids]  | readBarLit ``(#x)     v2 id
 !!= [``(x#x#x) blTwoKids]  | readBarLit ``(x#x#x)  v2 id
 !!= [``[]      blWantText] | readBarLit ``(x#[])   v2 id
 
-!!= b#"deadbeef"     | barToHex x#deadbeef
+!!= b#{deadbeef}     | barToHex x#deadbeef
 !!= ``(x#{deadbeef}) | showBarLit x#deadbeef
 !!= ``(b#{deadbeef}) | showBarLit b#deadbeef
 !!= ``(b#{})         | showBarLit x#{}
@@ -418,19 +418,19 @@ newline=(natBar 10)
 | if (eql byte (barIdx ix bar)) ix
 | loop (inc ix)
 
-!!= 0 (barElemIndexOff 'c' 0 b#{caca})
-!!= 2 (barElemIndexOff 'c' 1 b#{caca})
-!!= 2 (barElemIndexOff 'c' 2 b#{caca})
-!!= 4 (barElemIndexOff 'c' 3 b#{caca})
-!!= 4 (barElemIndexOff 'c' 4 b#{caca})
-!!= 4 (barElemIndexOff 'c' 5 b#{caca})
+!!= 0 (barElemIndexOff {c} 0 b#{caca})
+!!= 2 (barElemIndexOff {c} 1 b#{caca})
+!!= 2 (barElemIndexOff {c} 2 b#{caca})
+!!= 4 (barElemIndexOff {c} 3 b#{caca})
+!!= 4 (barElemIndexOff {c} 4 b#{caca})
+!!= 4 (barElemIndexOff {c} 5 b#{caca})
 
-!!= 1 (barElemIndexOff 'c' 0 b#{acac})
-!!= 1 (barElemIndexOff 'c' 1 b#{acac})
-!!= 3 (barElemIndexOff 'c' 2 b#{acac})
-!!= 3 (barElemIndexOff 'c' 3 b#{acac})
-!!= 4 (barElemIndexOff 'c' 4 b#{acac})
-!!= 4 (barElemIndexOff 'c' 5 b#{acac})
+!!= 1 (barElemIndexOff {c} 0 b#{acac})
+!!= 1 (barElemIndexOff {c} 1 b#{acac})
+!!= 3 (barElemIndexOff {c} 2 b#{acac})
+!!= 3 (barElemIndexOff {c} 3 b#{acac})
+!!= 4 (barElemIndexOff {c} 4 b#{acac})
+!!= 4 (barElemIndexOff {c} 5 b#{acac})
 
 = (barUnlines lines)
 | barCatList
@@ -489,15 +489,15 @@ newline=(natBar 10)
 !!= 3 (barTrail 0x1000000ff)
 !!= 0 (barTrail 0x2000000ff)
 
-!!= 1 | bit (barHas %a b#"abc")
-!!= 1 | bit (barHas %b b#"abc")
-!!= 1 | bit (barHas %c b#"abc")
-!!= 1 | not (barHas %d b#"abc")
+!!= 1 | bit (barHas %a b#{abc})
+!!= 1 | bit (barHas %b b#{abc})
+!!= 1 | bit (barHas %c b#{abc})
+!!= 1 | not (barHas %d b#{abc})
 
-!!= 1 | bit (barHas 16 x#"102030")
-!!= 1 | bit (barHas 32 x#"102030")
-!!= 1 | bit (barHas 48 x#"102030")
-!!= 1 | not (barHas 45 x#"102030")
+!!= 1 | bit (barHas 16 x#{102030})
+!!= 1 | bit (barHas 32 x#{102030})
+!!= 1 | bit (barHas 48 x#{102030})
+!!= 1 | not (barHas 45 x#{102030})
 
 !!= 1 | checkBar 1     0 0
 !!= 1 | checkBar 257   0 1
@@ -507,14 +507,14 @@ newline=(natBar 10)
 !!= 1 | checkBar 65791 1 255
 !!= 1 | checkBar 65536 2 0
 
-!!= 1 | barIsEmpty b#""
+!!= 1 | barIsEmpty b#{}
 
 !!= [b#a b#zn]           (barSplitAt 1 b#azn)
 !!= [b#a b#n]            (barSplitOne %z b#azn)
-!!= [b#a b#aba b#n]      (listToRow | barSplit " " b#"a aba n")
-!!= [b#a b#aba b#n b#""] (listToRow | barSplit " " b#"a aba n ")
+!!= [b#a b#aba b#n]      (listToRow | barSplit { } b#{a aba n})
+!!= [b#a b#aba b#n b#{}] (listToRow | barSplit { } b#{a aba n })
 
-!!= b#""  (barDropWhile (eql %a) b#"")
+!!= b#{}  (barDropWhile (eql %a) b#{})
 !!= b#bcd (barDropWhile (eql %a) b#bcd)
 !!= b#bcd (barDropWhile (eql %a) b#aaabcd)
 
@@ -522,9 +522,9 @@ newline=(natBar 10)
 !!= b#bcd (barSlice 1 3 b#abcde)
 !!= b#bc  (barSlice 1 5 b#abc)
 
-!!= NONE      (barElemIndexEnd "/" b#{})
-!!= (SOME 0)  (barElemIndexEnd "/" b#{/})
-!!= (SOME 1)  (barElemIndexEnd "/" b#{//})
+!!= NONE      (barElemIndexEnd {/} b#{})
+!!= (SOME 0)  (barElemIndexEnd {/} b#{/})
+!!= (SOME 1)  (barElemIndexEnd {/} b#{//})
 
 !!= b#abc | barFromRow [%a %b %c]
 !!= b#bc  | barFilter (neq %a) b#abc
@@ -538,7 +538,7 @@ newline=(natBar 10)
 
 barNewline=(barSing 10)
 
-barSpace=(barSing ' ')
+barSpace=(barSing { })
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -565,7 +565,7 @@ barSpace=(barSing ' ')
 ^-^ readBarLit showBarLit
 ^-^ getHexBar barLoadDecimal barShowDecimal
 ^-^
-^-^ "#b" "#x" "#"
+^-^ {#b} {#x} {#}
 ^-^
 ^-^ newline barUnlines
 ^-^ barIsPrefixOf barSubstringSearch

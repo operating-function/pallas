@@ -18,12 +18,7 @@ import PlunderPrelude
 
 -- TODO: Rename to NodeShape
 -- TODO: Rename branches to mirror Fan repr
-data RuneShape
-    = OPEN
-    | NEST
-    | INFX
-    | PREF
-    | SHUT
+data RuneShape = OPEN | NEST | INFX | PREF | SHUT
   deriving (Eq, Ord, Show, Generic, NFData)
   deriving anyclass (Hashable)
 
@@ -31,9 +26,7 @@ data RuneShape
 -- TODO: Rename branches to mirror Fan repr
 data TextShape
     = WORD  --  foo
-    | CORD  --  'foo'
-    | TAPE  --  "foo"
-    | CURL  --  {foo}
+    | TEXT  --  {foo} or }_}_
     | LINE  --  } foo
   deriving (Eq, Ord, Show, Generic, NFData, Enum)
 

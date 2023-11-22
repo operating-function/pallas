@@ -214,23 +214,20 @@ matchNameCord :: Monad m => Text -> (Text -> Text -> Maybe a) -> ReadT z m a
 matchNameCord expect f =
     matchLeafCont expect go
   where
-    go (WORD, n) (T CORD t Nothing) = f n t
-    go (WORD, n) (T TAPE t Nothing) = f n t
+    go (WORD, n) (T TEXT t Nothing) = f n t
     go _         _                  = Nothing
 
 matchNameText :: Monad m => Text -> (Text -> Text -> Maybe a) -> ReadT z m a
 matchNameText expect f =
     matchLeafCont expect go
   where
-    go (WORD, n) (T CORD t Nothing) = f n t
-    go (WORD, n) (T TAPE t Nothing) = f n t
+    go (WORD, n) (T TEXT t Nothing) = f n t
     go (WORD, n) (T LINE t Nothing) = f n t
     go _         _                  = Nothing
 
 matchCord :: Monad m => Text -> (Text -> Maybe a) -> ReadT z m a
 matchCord expect f = matchLeaf expect \case
-  (CORD, t) -> f t
-  (TAPE, t) -> f t
+  (TEXT, t) -> f t
   _         -> Nothing
 
 matchLineStr :: Monad m => Text -> (Text -> Maybe a) -> ReadT z m a

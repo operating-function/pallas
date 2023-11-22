@@ -388,7 +388,7 @@ barNewline=(barSing 10)
 @ matches (barSubstringSearch needle bar)
 # datacase matches
 * NIL
-    | die 'no ENDHDR found!'
+    | die {no ENDHDR found!}
 * (CONS off xs)
     @ bodyOffset (add 7 off)
     | pamBodyPixels width height [bar bodyOffset]

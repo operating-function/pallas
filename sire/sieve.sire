@@ -54,9 +54,9 @@
 = (adjust y pq)
 ^ _ pq
 ? (go pq)
-@ [n ns] (maybeCase (pqMin pq) (die 'adjust: bad') id)
+@ [n ns] (maybeCase (pqMin pq) (die {adjust: bad}) id)
 | listCase ns
-  | die 'adjust: invariant violation: empty list'
+  | die {adjust: invariant violation: empty list}
 & (n0 ns)
 | if (lte n y)
   @ pq0 (idx 1 (pqDelMin cmpPairNatKey pq))
@@ -76,7 +76,7 @@
 | listCase ys
   | NIL
 & (y ys)
-@ nextComposite (maybeCase (pqMin pq) (die 'nextComposite: bad') (idx 0))
+@ nextComposite (maybeCase (pqMin pq) (die {nextComposite: bad}) (idx 0))
 | if (lte nextComposite y)
   | go ys (adjust y pq)
 | CONS y (go ys (insertPrime y ys pq))

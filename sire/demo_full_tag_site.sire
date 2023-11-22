@@ -9,7 +9,7 @@
 /+  switch
 /+  hitch
 /+  json
-/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  datatype  [{#record} {#datatype} {#datacase}]
 /+  stew
 /+  types
 
@@ -112,7 +112,7 @@
 ; TODO: Figure out tuned config for files.
 | hmSingleton
 * largeConfig
-* "/favicon.ico"
+* {/favicon.ico}
 * [b#{image/x-icon} favicon]
 
 * # typedef Lock  | MVar ()
@@ -158,7 +158,7 @@ typedef#Tag#Str
    b#{/a/b}
 
 = (getFilename path)
-# datacase (barElemIndexEnd "/" path)
+# datacase (barElemIndexEnd {/} path)
 * NONE           | {weird filename} path
 * (SOME lastIdx) | barDrop (inc lastIdx) path
 
@@ -188,22 +188,22 @@ typedef#Tag#Str
 = (unsafeGetJsonNumber json)
 # datacase json
 * JNUM|n | n
-* _      | 'unsafeGetJsonNumber: not a number' json
+* _      | {unsafeGetJsonNumber: not a number} json
 
 = (unsafeTabLookup key t)
 # datacase (tabLookup key t)
 * SOME|v | v
-* NONE   | 'unsafeTabLookup: missing key' key
+* NONE   | {unsafeTabLookup: missing key} key
 
 = (unsafeGetJsonArray json)
 # datacase json
 * JVEC|v | v
-* _      | 'unsafeGetJsonArray: not an array' json
+* _      | {unsafeGetJsonArray: not an array} json
 
 = (unsafeGetJsonStr json)
 # datacase json
 * JSTR|s | s
-* _      | 'unsafeGetJsonStr: not a string' json
+* _      | {unsafeGetJsonStr: not a string} json
 
 = (jsonImgToRow jsonBS m)
 @ id | unsafeGetJsonNumber | unsafeTabLookup %id m
@@ -270,9 +270,9 @@ abstype#Image ;; TODO: fix.  What is the real type?
 > Any > EvalResult b > b
 = (forceUnpackEvalResult ctx res)
 # switch (len res)
-* 0 (die ('eval-timeout' ctx))
+* 0 (die ({eval-timeout} ctx))
 * 1 (idx 0 res)
-* 2 (die ('eval-crash' [ctx res]))
+* 2 (die ({eval-crash} [ctx res]))
 
 ; TODO: user #datatype to define the json structure, and use #datacase here.
 = (jsonRow jsonBS)
@@ -444,7 +444,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
 * _ | NONE
 * POST
   # switch path
-  * b#"/search"
+  * b#{/search}
     # datacase (parseCmd body)
     * NONE     | SOME [400 b#bad [] b#{}]
     * (SOME q)
@@ -508,10 +508,10 @@ abstype#Image ;; TODO: fix.  What is the real type?
 = (addToState vSt rid jsonPin return)
 : ??(ats_evaled evalResult) < syscall (EVAL1 1000 parseLearn jsonPin)
 # switch (len evalResult)
-* 0 | trk b#"TIMEOUT in /learn"
+* 0 | trk b#{TIMEOUT in /learn}
     | syscall (**HTTP_ECHO rid 408 b#timeout [] b#{})
     | return
-* 2 | trk [b#"CRASH in /learn" (idx 0 evalResult) (idx 1 evalResult)]
+* 2 | trk [b#{CRASH in /learn} (idx 0 evalResult) (idx 1 evalResult)]
     | syscall (**HTTP_ECHO rid 500 b#error [] b#{})
     | return
 * 1
@@ -527,15 +527,15 @@ abstype#Image ;; TODO: fix.  What is the real type?
 # switch method
 * POST
   # switch path
-  * b#"/usecdn"
+  * b#{/usecdn}
     : _ <- fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
     : _ <- modifyRef vSt (@(PIN st))&(PIN (setLocal FALSE st))
     | return ()
-  * b#"/uselocal"
+  * b#{/uselocal}
     : _ <- fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
     : _ <- modifyRef vSt (@(PIN st))&(| PIN | setLocal TRUE st)
     | return ()
-  * b#"/learn"
+  * b#{/learn}
     : _ <- fork (addToState vSt rid pBody)
     | return ()
 * PUT

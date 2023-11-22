@@ -14,10 +14,10 @@
 ;;;; Pads are encoded least-significant-bit-first, with the high bit used
 ;;;; to indicate the end of the bit-array.
 ;;;;
-;;;;     p#""       = 0b1
-;;;;     p#"00"     = 0b100
-;;;;     p#"01"     = 0b110
-;;;;     p#"111000" = 0b1000111
+;;;;     p#{}       = 0b1
+;;;;     p#{00}     = 0b100
+;;;;     p#{01}     = 0b110
+;;;;     p#{111000} = 0b1000111
 ;;;;
 ;;;; All of the pad operations coerce their inputs into pads, and always
 ;;;; return pads.
@@ -48,7 +48,7 @@
 /+  05_row  [idx len]
 /+  04_cmp  [eql neq lte isZero]
 /+  05_row  [map weld foldl]
-/+  06_rex  [rexKids rexText rexIsLeaf SHUT WORD CURL {``}]
+/+  06_rex  [rexKids rexText rexIsLeaf SHUT WORD TEXT {``}]
 /+  07_dat  [{,} {++}]
 /+  07_dat  [listFromRow listCase listSnoc NIL CONS]
 /+  08_sci  []
@@ -107,21 +107,21 @@ emptyPad=1
 
 ; Rex > Str > Read Pad
 = (readPadStr rex str err ok)
-@ lis (listSnoc (strToList str) "1")
+@ lis (listSnoc (strToList str) {1})
 ^ _ 0 lis 1
 ? (loop acc lis pos)
 | **listCase lis (ok acc)
 & (b bs)
 @ nextPos (mul 2 pos)
 | seq nextPos
-| if (eql '0' b)
+| if (eql {0} b)
     | loop acc bs nextPos
-| if (eql '1' b)
+| if (eql {1} b)
     @ acc (add pos acc)
     | seq acc
     | loop acc bs nextPos
 | else
-    | err rex "pad literals must contain only zeros and ones"
+    | err rex {pad literals must contain only zeros and ones}
 
 ; Pad -> Str
 = (showPadStr pad)
@@ -129,21 +129,21 @@ emptyPad=1
 ^ _ pad
 ? (go rem)
 | if (lte rem 1) NIL
-| CONS (if (mod rem 2) '1' '0')
+| CONS (if (mod rem 2) {1} {0})
 | go (rsh rem 1)
 
 
 ;;; The `#p` Macro ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= hpBadShape | "Expcted two kids"
-= hpBadType  | "Bar literal expects a text parameter"
+= hpBadShape | {Expcted two kids}
+= hpBadType  | {Bar literal expects a text parameter}
 
 ; TODO: {showPadLit} should use bare-words for non-empty pads.
 
 = (showPadLit pad)
-^ SHUT "#" _ 0
-++ WORD "p" 0
-++ CURL (showPadStr pad) 0
+^ SHUT {#} _ 0
+++ WORD {p} 0
+++ TEXT (showPadStr pad) 0
 
 ; Rex > Read Bar
 = (readPadLit rex err ok)
@@ -178,7 +178,7 @@ emptyPad=1
 !!= 1 (toPad toPad)
 !!= 3 (toPad 3)
 
-!!= 01 p#""
+!!= 01 p#{}
 !!= 02 p#0
 !!= 04 p#00
 !!= 08 p#000
@@ -219,24 +219,24 @@ emptyPad=1
 !!= p#1011 (padWeld p#10 p#11)
 !!= p#0111 (padWeld p#01 p#11)
 
-!!= (padSplitAt 0 p#1111) [ p#''   p#1111 ]
+!!= (padSplitAt 0 p#1111) [ p#{}   p#1111 ]
 !!= (padSplitAt 1 p#1111) [ p#1    p#111  ]
 !!= (padSplitAt 2 p#1111) [ p#11   p#11   ]
 !!= (padSplitAt 3 p#1111) [ p#111  p#1    ]
-!!= (padSplitAt 4 p#1111) [ p#1111 p#''   ]
-!!= (padSplitAt 5 p#1111) [ p#1111 p#''   ]
-!!= (padSplitAt 9 p#1111) [ p#1111 p#''   ]
+!!= (padSplitAt 4 p#1111) [ p#1111 p#{}   ]
+!!= (padSplitAt 5 p#1111) [ p#1111 p#{}   ]
+!!= (padSplitAt 9 p#1111) [ p#1111 p#{}   ]
 
-!!= p#''   | padCat []
+!!= p#{}   | padCat []
 !!= p#1100 | padCat [p#1100]
 !!= p#1100 | padCat [p#11 p#00]
 !!= p#1011 | padCat [p#10 p#11]
 !!= p#1011 | padCat [p#1 p#0 p#1 p#1]
 !!= p#1011 | padCat [p#1 p#0 p#11]
-!!= p#1011 | padCat [p#1 p#0 p#11 p#'']
+!!= p#1011 | padCat [p#1 p#0 p#11 p#{}]
 
-!!= p#''   | padFlat []
-!!= p#''   | padFlat [[[]] []]
+!!= p#{}   | padFlat []
+!!= p#{}   | padFlat [[[]] []]
 !!= p#1100 | padFlat [p#1100]
 !!= p#1100 | padFlat (const p#1100)
 !!= p#1100 | padFlat [[p#1100]]
@@ -244,7 +244,7 @@ emptyPad=1
 !!= p#1011 | padFlat [p#10 p#11]
 !!= p#1011 | padFlat [[p#1 p#0] [p#1 p#1]]
 !!= p#1011 | padFlat [[p#1 p#0] p#11]
-!!= p#1011 | padFlat [[p#1 [] p#0] p#11 p#'']
+!!= p#1011 | padFlat [[p#1 [] p#0] p#11 p#{}]
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

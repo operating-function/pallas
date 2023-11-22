@@ -14,7 +14,7 @@
 
 ; /+ boot
 ; /+ blake3
-; /+ switch ["#switch"]
+; /+ switch [{#switch}]
 ;
 ; (snoc row e)=(weld row [e])
 ;
@@ -86,7 +86,7 @@
 ; ? (ack x i r)
 ; | trk %ack
 ; # switch i
-; * 0 | die 'wait to send me more'
+; * 0 | die {wait to send me more}
 ; * 1 | listen [[%recv pongKey sirePub]]
 ;
 ; [i r]<-[[%fork replyBot]]
@@ -104,14 +104,14 @@
 ; r=(add r 2_000_000_000)
 ; [i r]<-[[%wait r]]
 ;
-; ; 'what time is it?'
+; ; {what time is it?}
 ; ; [i r]<-[[%when]]
 ; ; _=(%when , i , r)
-; ; 'waiting'
+; ; {waiting}
 ; ; [i r]<-[[%wait r]]
-; ; 'done waiting'
+; ; {done waiting}
 ; ; _=(%wait , i , r)
-; ; 'now what time is it?'
+; ; {now what time is it?}
 ; ; [i r]<-[[%when]]
 ; ; _=(%when , i , r)
 ;

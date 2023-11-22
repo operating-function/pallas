@@ -8,7 +8,7 @@
 /+  kern
 /+  mutrec
 /+  stew
-/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  datatype  [{#record} {#datatype} {#datacase}]
 
 
 ;;; Sandbox ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -265,7 +265,7 @@
   | withHandleRequest %[] patterns (makeReqRequest %[] patterns)
 ;
 = (withHandleRequest cogids patterns requests responses)
-  @ rawRequests | fromSome ('impossible: bad response') | tabLookup 0 responses
+  @ rawRequests | fromSome ({impossible: bad response}) | tabLookup 0 responses
   ; we have to perform the
   @ requests
     ^ map _ rawRequests
@@ -276,7 +276,7 @@
   | withHandleResponse requests cogids patterns makeRespRequest
 ;
 = (withHandleResponse itemRequests cogids patterns containerRequests responses)
-  @ responses | fromSome ('impossible: bad responses') | tabLookup 0 responses
+  @ responses | fromSome ({impossible: bad responses}) | tabLookup 0 responses
   @ cogids | updateOwnedCogs cogids itemRequests responses
   | withHandleRequest cogids patterns (makeReqRequest cogids patterns)
 ;

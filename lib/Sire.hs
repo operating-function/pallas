@@ -15,6 +15,7 @@ import PlunderPrelude        hiding (hGetContents)
 import Sire.Types
 import System.FilePath.Posix
 
+import Data.Text.IO          (hPutStrLn)
 import Fan                   (Fan(COw, NAT, NAT, REX, ROW, TAb), (%%))
 import Fan.Convert           (FromNoun(fromNoun), ToNoun(toNoun))
 import Fan.FFI               (c_jet_blake3)
@@ -30,6 +31,7 @@ import Sire.Compile          (compileSire)
 import System.Directory      (doesFileExist)
 import System.Environment    (getProgName)
 import System.IO             (hGetContents)
+import System.Exit           (exitWith, ExitCode(ExitFailure))
 
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Unsafe as BS
@@ -39,8 +41,8 @@ import qualified Data.Set               as S
 import qualified Data.Text              as T
 import qualified Fan                    as F
 import qualified Fan.Prof               as Prof
-import qualified Rex.Lexer              as Lex
-import qualified Rex.Parser             as Rex
+import qualified Rex.Policy             as Rex
+import qualified Rex.Mechanism          as Rex
 
 
 -- Local Types -----------------------------------------------------------------
@@ -545,105 +547,27 @@ loadFile pax = do
         _ ->
             error "must be given a path to a .sire file"
 
--- Line number, line text, parsed line.
-type Lexed = (Int, Text, [(Int, Lex.Frag)])
-
-readRexStream :: FilePath -> Handle -> IO [(Int, Rex)]
-readRexStream pax = fmap (blox . lexLns pax . fmap pack . lines) . hGetContents
-
--- depth and fstLineNum are just properties of the first line in
--- the block.  However, those properties are the last item of the list,
--- so it's faster to cache them out.
-data PartialBlock = PB
-    { depth      :: !Int
-    , fstLineNum :: !Int
-    , acc        :: ![Lexed]
-    }
-
-data BlockState = BS
-    { _lineNum   :: !Int
-    , _partialSt :: !(Maybe PartialBlock)
-    }
-
-initialBlockState :: BlockState
-initialBlockState = BS 1 Nothing
-
-blockStep :: BlockState -> Maybe Lexed -> (BlockState, [(Int,[Lexed])])
-blockStep = \cases
-
-    -- EOF (without partial block)
-    (BS ln Nothing) Nothing   -> (BS ln Nothing, [])
-
-    -- EOF (with partial block)
-    (BS ln (Just pb)) Nothing -> (BS ln Nothing, emit pb)
-
-    -- Empty line (without partial block)
-    (BS ln Nothing) (Just (_, t, _)) | blankLine t ->
-        (BS (ln+1) Nothing, [])
-
-    -- Empty line (with partial block)
-    (BS ln (Just pb)) (Just (_, t, _)) | blankLine t ->
-        (BS (ln+1) Nothing, emit pb)
-
-    -- comment (without partial block)
-    (BS ln Nothing) (Just (_, _, [])) ->
-        (BS (ln+1) Nothing, [])
-
-    -- line containing forms (with partial block)
-    (BS ln (Just pb)) (Just l@(_, _, ts)) ->
-        case ts of
-           (d,_) : _ | d < pb.depth ->
-               (emit pb <>) <$> blockStep (BS ln Nothing) (Just l)
-           _ ->
-               (BS (ln+1) (Just pb{acc = l : pb.acc}), [])
-
-    -- line containing forms (without partial block)
-    --
-    -- If the first form is closed, it's a one-line block,
-    -- otherwise we consume lines until we see a blank line
-    -- or EOF.
-    (BS ln Nothing) (Just l@(_, _, t:_)) ->
-        case t of
-            (_, Lex.FORM{}) ->
-                (BS (ln+1) Nothing, [(ln, [l])])
-            (depth, _) ->
-                (BS (ln+1) (Just pb), [])
-                  where pb = PB depth ln [l]
-
-  where
-    emit :: PartialBlock -> [(Int, [Lexed])]
-    emit pb = pure (pb.fstLineNum, reverse pb.acc)
-
-    -- lines with comments are not blank (even if no actual rex content)
-    blankLine :: Text -> Bool
-    blankLine = T.null . T.strip
+readRexStream :: FilePath -> Handle -> IO [Either Text (Int, Rex)]
+readRexStream pax = fmap (blox pax . fmap (encodeUtf8 . pack) . lines) . hGetContents
 
 -- This just converts the `blockStep` state machine into a streaming
 -- function and crashes on error.
-blox :: [Lexed] -> [(Int, Rex)]
-blox = fmap doBlock . go initialBlockState
+blox :: FilePath -> [ByteString] -> [Either Text (Int, Rex)]
+blox pax = go (Rex.blockState pax)
   where
-    go :: BlockState -> [Lexed] -> [(Int, [Lexed])]
-    go st []     = snd (blockStep st Nothing)
-    go st (l:ls) = let (st', outs) = blockStep st (Just l)
-                   in outs <> go st' ls
+    foo :: [Rex.Block] -> [Either Text (Int, Rex)]
+    foo = (bar <$>)
 
-    doBlock :: (Int, [Lexed]) -> (Int, Rex)
-    doBlock (n, ls) =
-        case Rex.parseBlock (ls <&> \(_,_,ts) -> ts) of
-           Left msg       -> error (unpack msg)
-           Right Nothing  -> error "blox: impossible"
-           Right (Just r) -> (n, absurd <$> r)
+    bar :: Rex.Block -> Either Text (Int, Rex)
+    bar blk =
+        case blk.errors of
+            e:_ -> Left e
+            []  -> Right (blk.lineNum, absurd <$> blk.rex)
 
-lexLns :: FilePath -> [Text] -> [Lexed]
-lexLns fil = go 1
-  where
-    go :: Int -> [Text] -> [Lexed]
-    go _ []     = []
-    go n (t:ts) = case Lex.lexLine (fil, n) t of
-                      Left msg -> error (unpack msg)
-                        -- TODO: throw lexer error
-                      Right fs -> (n,t,fs) : go (n+1) ts
+    go :: Rex.BlockState -> [ByteString] -> [Either Text (Int, Rex)]
+    go st []     = foo $ snd $ Rex.rexStep st Nothing
+    go st (b:bs) = let (st2, out) = Rex.rexStep st (Just b)
+                   in foo out <> go st2 bs
 
 inContext :: Text -> Int -> Rex -> (InCtx => IO a) -> IO a
 inContext file line rex act =
@@ -654,13 +578,21 @@ inContext file line rex act =
                parseFail_ rex ss (planText $ toNoun (op, arg))
                  where ss = initialSireStateAny
 
-runSire :: Text -> Bool -> Any -> [(Int, Rex)] -> IO Any
+runSire :: Text -> Bool -> Any -> [Either Text (Int, Rex)] -> IO Any
 runSire file inRepl s1 = \case
-    []        -> pure s1
-    (ln,r):rs -> do
+    []                -> pure s1
+    Left msg : rs -> do
+        hPutStrLn stderr "\n"
+        hPutStrLn stderr msg
+        hPutStrLn stderr "\n"
+        if inRepl
+        then runSire file inRepl s1 rs
+        else exitWith (ExitFailure 1)
+
+    Right (ln,r) : rs -> do
         !es2 <- try $ inContext file ln r
                     $ evaluate
-                    $ runRepl (execute  r) (toNoun s1)
+                    $ runRepl (execute r) (toNoun s1)
         case es2 of
             Right s2 -> runSire file inRepl s2 rs
             Left pc  -> do
@@ -685,11 +617,11 @@ doFile dir c1 modu s1 = do
 
         [] -> do
             let msg  = "Module declarations are required, but this file is empty"
-            let rex  = (T TAPE "" Nothing)
+            let rex  = (T TEXT "" Nothing)
             inContext file 0 rex $ parseFail_ rex s1 msg
 
         -- No <- part means this is the starting point.
-        rexes@((_ln, N _ "###" [_] Nothing) : _) -> do
+        rexes@(Right (_ln, N _ "###" [_] Nothing) : _) -> do
           Prof.withSimpleTracingEvent (encodeUtf8 modu) "Sire" do
             -- Massive slow hack, stream two inputs separately.
             -- (C interface does not currently support this)
@@ -723,7 +655,7 @@ doFile dir c1 modu s1 = do
 
         -- There is something before this in the load sequence.
         -- Load that first.
-        rexes@((_ln, N _ "###" [_, N _ "<-" [prior] Nothing] Nothing) : _) -> do
+        rexes@(Right (_ln, N _ "###" [_, N _ "<-" [prior] Nothing] Nothing) : _) -> do
             case tryReadModuleName prior of
                 Nothing -> terror ("Bad module name: " <> rexText prior)
                 Just nm -> do
@@ -759,13 +691,21 @@ doFile dir c1 modu s1 = do
                             let c3  = insertMap (toNoun modu) ent c2
                             pure ((s3, hax), c3)
 
-        (ln, rex@(N _ "###" _ _)) : _ ->
+        Right (ln, rex@(N _ "###" _ _)) : _ ->
             inContext file ln rex
                 $ parseFail_ rex s1 "Bad module declaration statement"
 
-        (ln, rex) : _ ->
+        Right (ln, rex) : _ ->
             inContext file ln rex
                 $ parseFail_ rex s1 "All files must start with module declaration"
+
+        Left msg : _ -> do
+            hPutStrLn stderr "\n"
+            hPutStrLn stderr msg
+            hPutStrLn stderr "\n"
+            error "TODO: Include the parsed results as well as the error" -- each error result should also include the processed result!
+            -- inContext file ln rex
+                -- $ parseFail_ rex s1 "All files must start with module declaration"
 
 
 repl :: Any -> Maybe Text -> IO ()
@@ -919,7 +859,7 @@ readExpr e rex = do
 
 readMultiLine :: InCtx => [Text] -> Maybe Rex -> Repl Sire
 readMultiLine acc = \case
-    Nothing -> pure $ S_VAL $ NAT $ utf8Nat $ unlines $ reverse acc
+    Nothing -> pure $ S_VAL $ NAT $ utf8Nat $ intercalate "\n" $ reverse acc
     Just h  -> case h of
         T s t k | s==LINE -> readMultiLine (t:acc) k
         _                 -> parseFail h "Mis-matched node in text block"
@@ -1335,9 +1275,7 @@ tryReadNumb = \case
 
 tryReadCord :: Rex -> Maybe Text
 tryReadCord = \case
-    T CORD t Nothing -> Just t
-    T TAPE t Nothing -> Just t
-    T CURL t Nothing -> Just t
+    T TEXT t Nothing -> Just t
     _                -> Nothing
 
 tryReadIdnt :: Rex -> Maybe Text

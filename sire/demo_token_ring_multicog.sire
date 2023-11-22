@@ -38,9 +38,9 @@ ali_white=(setSing chr_addr)
 bob_white=(setSing ali_addr)
 chr_white=(setSing bob_addr)
 
-ali_msg=(b#"Hi, bob.  What's good?")
-bob_msg=(b#"Life is good.  Charlie?")
-chr_msg=(b#"Life is good.  Alice?")
+ali_msg=(b#{Hi, bob.  What's good?})
+bob_msg=(b#{Life is good.  Charlie?})
+chr_msg=(b#{Life is good.  Alice?})
 
 ali=(runCog (talker %ali ali_seed bob_addr ali_white ali_msg))
 bob=(runCog (talker %bob bob_seed chr_addr bob_white bob_msg))

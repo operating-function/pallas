@@ -16,7 +16,7 @@
 | idx-1-bob_seed_addr
 
 = ourName
-| 'ali'
+| {ali}
 
 = whitelist
 | setSing idx-1-bob_seed_addr
@@ -27,17 +27,17 @@
 = (go cogExit)
 : servThread <- fork
                   & done
-                  | trk [ourName 'registered SERV']
+                  | trk [ourName {registered SERV}]
                   : ??(p_serv _) <- syscall (**PORT_SERV usSeed staticHandler)
                   | done 0
 : ??(p_dyno serverPort) <- syscall (**PORT_DYNO usSeed)
-| trk ["we got a serverPort:" serverPort]
+| trk [{we got a serverPort:} serverPort]
 @ [spFrom _spPayload portId] | serverPort
 ^ _ 0
 ? (loop _)
 ;; receive file choice bytes
 : fileBar <- recvFileBar portId
-| trk ['fileBar len' (barLen fileBar) ', blake3 hash' (blake3 fileBar)]
+| trk [{fileBar len} (barLen fileBar) {, blake3 hash} (blake3 fileBar)]
 : ??(p_send now) <- syscall (**PORT_SEND portId (natBar (barLen fileBar)))
 : ??(p_send now) <- syscall (**PORT_SEND portId fileBar)
 | loop 0

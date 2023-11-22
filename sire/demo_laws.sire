@@ -24,14 +24,14 @@
 | map (x & mod x 256)
 | gulf 0 dec-y
 
-hexAlphabet=(natBar "0123456789abcdef")
+hexAlphabet=(natBar {0123456789abcdef})
 
 (hexChar n)=(barGet hexAlphabet n)
 
 (showByte n)=(barWeld b#0x byteToHex-n)
 
 = (showHash v)
-| strWeld "0x"
+| strWeld {0x}
 | barCat
 | map byteToHex v
 
@@ -161,16 +161,16 @@ hexAlphabet=(natBar "0123456789abcdef")
 > Char > Opt Nat
 = (readDigit char)
 | tabSwitch char NONE
-## ="0" SOME 0
-## ="1" SOME 1
-## ="2" SOME 2
-## ="3" SOME 3
-## ="4" SOME 4
-## ="5" SOME 5
-## ="6" SOME 6
-## ="7" SOME 7
-## ="8" SOME 8
-## ="9" SOME 9
+## ={0} SOME 0
+## ={1} SOME 1
+## ={2} SOME 2
+## ={3} SOME 3
+## ={4} SOME 4
+## ={5} SOME 5
+## ={6} SOME 6
+## ={7} SOME 7
+## ={8} SOME 8
+## ={9} SOME 9
 
 > Nat > Opt Nat
 = (readNat n)
@@ -183,21 +183,21 @@ hexAlphabet=(natBar "0123456789abcdef")
 | ifNot len-nums NONE
 | SOME (idx 1)(foldr f [1 0] nums)
 
-!! eql SOME-1   readNat-"1"
-!! eql SOME-12  readNat-"12"
-!! eql SOME-123 readNat-"123"
-!! eql NONE     readNat-""
-!! eql NONE     readNat-"a"
+!! eql SOME-1   readNat-{1}
+!! eql SOME-12  readNat-{12}
+!! eql SOME-123 readNat-{123}
+!! eql NONE     readNat-{}
+!! eql NONE     readNat-{a}
 
 
 ;;; Printing Rex Expressions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= (">=" ss rex err ok)
+= ({>=} ss rex err ok)
 @ heir  | rexHeir rex
 @ sons  | rexSons rex
 @ [x y] | sons
-| if (neq 0 heir)     | err rex "unexpected heir"
-| if (neq 2 len-sons) | err rex "Expected two sons"
+| if (neq 0 heir)     | err rex {unexpected heir}
+| if (neq 2 len-sons) | err rex {Expected two sons}
 | ok ss
 | appE (cnsE gte, x, y)
 
@@ -214,7 +214,7 @@ hexAlphabet=(natBar "0123456789abcdef")
 ^ _ n
 ? (loop n)
 # switch n
-* 0 ""
+* 0 {}
 * 1 %One
 * 2 %Two
 * 3 %Three
@@ -328,8 +328,8 @@ hexAlphabet=(natBar "0123456789abcdef")
 ? (loop acc rex)
 | if (isZero rex)
         | ok | listToRowReversed acc
-| if (neq "=" (rexRune rex))
-        | err rex "Knot patterns must be = nodes"
+| if (neq {=} (rexRune rex))
+        | err rex {Knot patterns must be = nodes}
 : sym rhs
        <- rexParseKids (rexSetHeir 0 rex) [readSymbol readRex] err
 @ acc (CONS [sym rhs] acc)
@@ -343,9 +343,9 @@ hexAlphabet=(natBar "0123456789abcdef")
 ;;;
 ;;; TODO Broken macro.  Unit test the SHIT out of all of this macro code.
 ;;;
-;;; = ("#knot" env nex xs mK)
+;;; = ({#knot} env nex xs mK)
 ;;; . env nex xs mK
-;;; | gensymMacro "#knot" [readBindPairs RIGHT]
+;;; | gensymMacro {#knot} [readBindPairs RIGHT]
 ;;; & (nex bindPairs body)
 ;;; @ knotRef  | gensymE nex
 ;;; @ bindSymz | map idx-0 bindPairs

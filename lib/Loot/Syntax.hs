@@ -51,6 +51,7 @@ module Loot.Syntax
     , rForm2c
     , rFormNc
     , rForm1Nc
+    , Box(..)
     , bodBox
     , barBox
     , readOpenSet
@@ -130,11 +131,11 @@ lineBox linez =
 cordBox :: Text -> Box
 cordBox txt =
     case lines txt of
-        []           -> textBox TAPE ""
+        []           -> textBox TEXT ""
         [l] | hasBot -> error "TODO: Escaping" l
-        [l] | hasTic -> textBox TAPE l
-        [l] | hasQuo -> textBox CORD l
-        [l]          -> textBox CORD l
+        [l] | hasTic -> textBox TEXT l
+        [l] | hasQuo -> textBox TEXT l -- TODO
+        [l]          -> textBox TEXT l
         ls           -> lineBox ls
   where
     hasBot = hasTic && hasQuo
@@ -149,9 +150,9 @@ natBox n =
             | nonAscii s      -> decimal
             | all C.isAlpha s -> cenBox s
             | n<256           -> decimal
-            | okCord s        -> textBox CORD s
-            | okTape s        -> textBox TAPE s
-            | okCurl s        -> textBox CURL s
+            | okCord s        -> textBox TEXT s -- TODO
+            | okTape s        -> textBox TEXT s -- TODO
+            | okCurl s        -> textBox TEXT s -- TODO
             | isLineStr s     -> lineBox [s]
             | isBlocStr s     -> lineBox (T.splitOn "\n" s)
             | otherwise       -> decimal
@@ -340,22 +341,13 @@ barBox bs =
                 rex = N SHUT "#" [word "b", word t] NONE
                 siz = 2 + length t
 
-            Right t | okCord t -> Just $
-                BOX (Just (siz, rex)) (absurd <$> rex)
-              where
-                rex = N SHUT "#" [word "b", T CORD t NONE] NONE
-                siz = 4 + length t
-
-            Right t | okTape t -> Just $
-                BOX (Just (siz, rex)) (absurd <$> rex)
-              where
-                rex = N SHUT "#" [word "b", T TAPE t NONE] NONE
-                siz = 4 + length t
-
+            -- TODO: Support more strings types (only newline + string
+            -- uses all printable chars + string has non-printable chars)
+            -- cannot be handled
             Right t | okCurl t -> Just $
                 BOX (Just (siz, rex)) (absurd <$> rex)
               where
-                rex = N SHUT "#" [word "b", T CURL t NONE] NONE
+                rex = N SHUT "#" [word "b", T TEXT t NONE] NONE
                 siz = 4 + length t
 
             _ -> Nothing
@@ -1114,9 +1106,7 @@ readName = matchLeaf "name" \case
 
 readCord :: Red v Text
 readCord = matchLeaf "cord" \case
-    (CORD,t) -> Just t
-    (TAPE,t) -> Just t
-    (CURL,t) -> Just t
+    (TEXT,t) -> Just t
     _        -> Nothing
 
 readLineStr :: Red v Text

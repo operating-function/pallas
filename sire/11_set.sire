@@ -46,7 +46,7 @@
 = (setIsEmpty set) | null (_SetToRow set)
 
 !!= 1 | setIsEmpty emptySet
-!!= 1 | not (setIsEmpty | setSing "a")
+!!= 1 | not (setIsEmpty | setSing {a})
 
 = (setLen set)    | len (_SetToRow set)
 = (setToList set) | listFromRow (_SetToRow set)
@@ -116,8 +116,8 @@
 !!= 0 | isOrderedWith lth [1 1]
 !!= 0 | isOrderedWith lth [1 2 0]
 !!= 0 | isOrderedWith lth [2 1]
-!!= 0 | isOrderedWith lth [2 1 (die 'never evaluated')]
-!!= 0 | isOrderedWith lth [1 1 (die 'never evaluated')]
+!!= 0 | isOrderedWith lth [2 1 (die {never evaluated})]
+!!= 0 | isOrderedWith lth [1 1 (die {never evaluated})]
 !!= 1 | isOrderedWith lth []
 
 = (isSet set)
@@ -145,24 +145,21 @@
 
 = (readKey rex err ok)
 | if (neq 0 | rexHeir rex)
-    | err rex (strWeld "Unexpected heir on key")
+    | err rex (strWeld {Unexpected heir on key})
 @ style (rexStyle rex)
-| if (eql "WORD" style)
+| if (eql {WORD} style)
     | ok (loadKeyWord rexText-rex)
-| if    | or (eql "TAPE" style)
-        | or (eql "CORD" style)
-        | or (eql "LINE" style)
-             (eql "CURL" style)
+| if    | or (eql {TEXT} style) (eql {LINE} style)
     | ok (rexText rex)
-| if (eql "EMBD" style)
+| if (eql {EMBD} style)
     @ fan (rexEmbd rex)
     | ifNot (isNat fan)
-        | err rex "Invalid Key: Embeded fan value is not a natural"
+        | err rex {Invalid Key: Embeded fan value is not a natural}
     | ok fan
-| err rex "Invalid Key: Expected a word, text, or an embeded natural"
+| err rex {Invalid Key: Expected a word, text, or an embeded natural}
 
-!!= 'a' (readKey ``"a"    v2 x&x)
-!!= 'a' (readKey ``a      v2 x&x)
+!!= {a} (readKey ``{a}    v2 x&x)
+!!= {a} (readKey ``a      v2 x&x)
 !!= 9   (readKey ``9      v2 x&x)
 !!= 9   (readKey (EMBD 9) v2 x&x)
 
@@ -171,7 +168,7 @@
 
 = (readSetLine rex err ok)
 | rexGetNodeWithRune {%%} rex
-    | err rex "Expected a %% node (in a tall-form set literal)"
+    | err rex {Expected a %% node (in a tall-form set literal)}
 & (sons heir)
 ^ rowTraverse _ sons (keys & ok keys heir)
 ? (step son pure)
@@ -186,7 +183,7 @@
 ^ go _ heir
 ^ foldl _ acc newKeys
 ? (step acc key)
-| if (setHas key acc) (err rex "duplicate key")
+| if (setHas key acc) (err rex {duplicate key})
 | setIns key acc
 
 = ({%%} st rex err ok)
@@ -194,12 +191,12 @@
 & set
 | ok st (EMBD set)
 
-cenExpect="% expects something like %foo or %[...]"
+= cenExpect } % expects something like %foo or %[...]
 
 = setKeyExpect
 } A set key literal must be one of:
 }
-} -   String ('', 'x', 'text', ...)
+} -   String ({}, {x}, {text}, ...)
 } -   Number number (0, 3, 12341234, ...)
 } -   Identifier (x, _Y_3, ...)
 
@@ -207,31 +204,31 @@ cenExpect="% expects something like %foo or %[...]"
 @ style | rexStyle rex
 @ text  | rexText rex
 @ embed | rexEmbd rex
-| if (eql "WORD" style)
+| if (eql {WORD} style)
     | ok (loadKeyWord text)
-| if (and (eql "EMBD" style) (isNat embed))
+| if (and (eql {EMBD} style) (isNat embed))
     | ok embed
 | if (rexIsLeaf rex)
     | ok text
 | err rex setKeyExpect
 
 = (readCenBracket rex err ok)
-| if (neq "," | rexRune rex)
+| if (neq {,} | rexRune rex)
     | err rex cenExpect
 | ^ rowTraverseState emptySet _ (rexKids rex)
   & (acc kid yield)
   | seq acc
   | readSetKey kid err
   & key
-  | if (setHas key acc) (err kid "duplicate key")
+  | if (setHas key acc) (err kid {duplicate key})
   | yield (setIns key acc) key
 & (acc keys)
 | ok acc
 
-!!= (setFromRow ['a' 'b' 'c']) | readCenBracket ``[a b c] v2 id
-!!= (setFromRow ['a' 'b' 'c']) | readCenBracket ``[c b a] v2 id
+!!= (setFromRow [{a} {b} {c}]) | readCenBracket ``[a b c] v2 id
+!!= (setFromRow [{a} {b} {c}]) | readCenBracket ``[c b a] v2 id
 !!= [``(a b c) cenExpect]      | readCenBracket ``(a b c) v2 id
-!!= [``c "duplicate key"]      | readCenBracket ``[c b c] v2 id
+!!= [``c {duplicate key}]      | readCenBracket ``[c b c] v2 id
 
 = (readCenLit rex err ok)
 @ kids (rexKids rex)
@@ -239,18 +236,18 @@ cenExpect="% expects something like %foo or %[...]"
 @ kid  (idx 0 kids)
 | if (neq nKid 1) (err rex cenExpect)
 | ifNot (rexIsNode kid)
-    | if (eql "WORD" rexStyle-kid)
+    | if (eql {WORD} rexStyle-kid)
         | ok (LEFT | rexText kid)
     | err rex cenExpect
 | readCenBracket kid err
 | set&(ok RIGHT-set)
 
-!!= (LEFT "a")                   | readCenLit ``(%a)     v2 id
-!!= (LEFT "1")                   | readCenLit ``(%1)     v2 id
+!!= (LEFT {a})                   | readCenLit ``(%a)     v2 id
+!!= (LEFT {1})                   | readCenLit ``(%1)     v2 id
 !!= [``1 cenExpect]              | readCenLit ``1        v2 id
 !!= (RIGHT emptySet)             | readCenLit ``(%[])    v2 id
-!!= (RIGHT setSing-"a")          | readCenLit ``(%[a])   v2 id
-!!= (RIGHT setFromRow-["a" "b"]) | readCenLit ``(%[a b]) v2 id
+!!= (RIGHT setSing-{a})          | readCenLit ``(%[a])   v2 id
+!!= (RIGHT setFromRow-[{a} {b}]) | readCenLit ``(%[a b]) v2 id
 
 = ({%} st rex err ok)
 | readCenLit rex err
@@ -278,19 +275,19 @@ cenExpect="% expects something like %foo or %[...]"
 !!= 0 | isSet (0 2 2 [])
 !!= 0 | isSet (0 1 1 [])
 
-!!= %a   | "a"
-!!= %3   | "3"
-!!= %x_x | "x_x"
+!!= %a   | {a}
+!!= %3   | {3}
+!!= %x_x | {x_x}
 
 !!= %[]    | %[]
 !!= %[a]   | %[97]
-!!= %[a]   | %['a']
+!!= %[a]   | %[{a}]
 !!= %[a b] | %[98 97]
-!!= %[a b] | %["b" 'a']
+!!= %[a b] | %[{b} {a}]
 
 !!= %[]        | emptySet
-!!= %['x']     | setIns 'x' emptySet
-!!= %[x]       | setIns 'x' emptySet
+!!= %[{x}]     | setIns {x} emptySet
+!!= %[x]       | setIns {x} emptySet
 !!= %[3]       | setIns 3   emptySet
 !!= %[3]       | setSing 3
 !!= %[3]       | setIns 3  %[]
@@ -332,23 +329,23 @@ cenExpect="% expects something like %foo or %[...]"
   | setCatRowAsc [%[7 9] %[8]]
 
 !!= %[3]       | %% 3
-!!= %[3 4 'a'] | (%%3)(%%4)(%% 'a')
-!!= %[3 4 'a'] | (%%3)(%%4)(%% 'a')
+!!= %[3 4 {a}] | (%%3)(%%4)(%% {a})
+!!= %[3 4 {a}] | (%%3)(%%4)(%% {a})
 
-!!= %[3 4 'a']
+!!= %[3 4 {a}]
  %% 3
  %% 4
  %% a
 
-!!= %[3 4 'a']
+!!= %[3 4 {a}]
  %% 3
  %% 4
  %% } a
 
-!!= %[3 4 'a']
+!!= %[3 4 {a}]
  %% 3 4 } a
 
-!!= %[3 4 'a']
+!!= %[3 4 {a}]
  %% 3
  %% 4 } a
 

@@ -13,9 +13,9 @@
 : ??(p_sire_1 ali_seed_addr) <- syscall PORT_SIRE
 : ??(p_sire_2 bob_seed_addr) <- syscall PORT_SIRE
 : ??(p_sire_3 ali_ul_seed_addr) <- syscall PORT_SIRE
-| trk ['ali_seed_addr' ali_seed_addr]
-| trk ['bob_seed_addr' bob_seed_addr]
-| trk ['ali_ul_seed_addr' ali_ul_seed_addr]
+| trk [{ali_seed_addr} ali_seed_addr]
+| trk [{bob_seed_addr} bob_seed_addr]
+| trk [{ali_ul_seed_addr} ali_ul_seed_addr]
 | cogExit ()
 
 ; used to generate
@@ -84,7 +84,7 @@ main=(runCog genSeedAddrs)
 @ fileBarBytes | barNat recvBody
 | if (eql 0 fileBarBytes)
   | return emptyBar
-| trk ['fileBarBytes:' fileBarBytes %recvd %at recvWhen]
+| trk [{fileBarBytes:} fileBarBytes %recvd %at recvWhen]
 : ??(p_recv [recvWhen (PIN fileContents)]) <- syscall (**PORT_RCLL portId fileBarBytes)
 | return fileContents
 
@@ -93,6 +93,6 @@ main=(runCog genSeedAddrs)
 @ fileBarBytes | barNat recvBody
 | if (eql 0 fileBarBytes)
   | return emptyBar
-| trk ['fileBarBytes:' fileBarBytes %recvd %at recvWhen]
+| trk [{fileBarBytes:} fileBarBytes %recvd %at recvWhen]
 : ??(p_recv [recvWhen pinFileContents]) <- syscall (**PORT_RCLL portId fileBarBytes)
 | return pinFileContents

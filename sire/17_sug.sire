@@ -64,7 +64,7 @@
 /+  06_rex  [rexRune rexSons rexHeir rexKids]
 /+  06_rex  [rexIsNode rexIsEmbd rexIsLeaf]
 /+  06_rex  [rexGetNode rexEmbd {``}]
-/+  06_rex  [REX PREF NEST EMBD OPEN WORD CORD]
+/+  06_rex  [REX PREF NEST EMBD OPEN WORD TEXT]
 /+  06_rex  [rexGetNodeWithRune]
 /+  06_rex  [rexStyle rexText]
 /+  06_rex  [rexSetRune rexSetHeir rexSetSons]
@@ -90,14 +90,14 @@
 
 ;;; Parsing Signatures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= sigExpect | "Expected `x` or signature `(x y z)`"
-= sigNoHeir | "name-sequence cannot have an heir"
+= sigExpect } Expected `x` or signature `(x y z)`
+= sigNoHeir } name-sequence cannot have an heir
 
 = (readSignature rex err ok)
 | ifNot (isZero rexHeir-rex)
         | err rex sigNoHeir
 | if (rexIsNode rex)
-        | if (neq "|" rexRune-rex)
+        | if (neq {|} rexRune-rex)
                 | (err rex sigExpect)
         ^ rowTraverse _ (rexSons rex) ok
         ? (step son ret)
@@ -113,15 +113,15 @@
 
 ;;; The Col Macro ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= cbExpect | "Expected a <- (or <) node in : binder"
+= cbExpect | {Expected a <- (or <) node in : binder}
 
 = (readColBinder readExp rex err ok)
 @ rune (rexRune rex)
-| if (and (neq "<-" rune) (neq "<" rune))
+| if (and (neq {<-} rune) (neq {<} rune))
     | err rex cbExpect
 | if (null | rexKids rex)
     | err rex {Empty bind expression}
-| readExp (rexSetRune "|" rex) err ok
+| readExp (rexSetRune {|} rex) err ok
 
 = (rexIsCapsSymbol rex)
 | and (neq 0 rex)
@@ -130,7 +130,7 @@
 
 !!= 1 | rexIsCapsSymbol ``Foo
 !!= 0 | rexIsCapsSymbol ``foo
-!!= 0 | rexIsCapsSymbol ``"Foo"
+!!= 0 | rexIsCapsSymbol ``{Foo}
 !!= 0 | rexIsCapsSymbol ``0
 !!= 0 | rexIsCapsSymbol ``(hi there)
 
@@ -153,10 +153,10 @@
 @ item   (fst sons)
 @ params (rexKids item)
 ;
-@ isPinned (eql '??' rune)
+@ isPinned (eql {??} rune)
 @ isExplicit
-    | or (eql '&' rune)
-    | or (eql '?' rune)
+    | or (eql {&} rune)
+    | or (eql {?} rune)
     | isPinned
 ;
 | if not-isExplicit
@@ -169,9 +169,9 @@
     | and (eql 1 nSon)
     | and (eql 0 heir)
     | and (not | null params)
-          (or (eql '&' rune) not-(null params))
+          (or (eql {&} rune) not-(null params))
 | if (not isOkay) fail
-| if (eql '&' rune)
+| if (eql {&} rune)
     | rowTraverse (flip readPat err) params
     & params
     | ok NONE params
@@ -185,9 +185,9 @@
 
 !!= ( NONE                , [%Foo %x]    ) | tryColSig ``(&(Foo x))
 !!= ( NONE                , [%Foo %x %y] ) | tryColSig ``(&(Foo x y))
-!!= ( SOME ("Foo", FALSE) , [%x]         ) | tryColSig ``(?(Foo x))
-!!= ( SOME ("Foo", FALSE) , [%x %y]      ) | tryColSig ``(?(Foo x y))
-!!= ( SOME ("Foo", TRUE)  , [%x]         ) | tryColSig ``(??(Foo x))
+!!= ( SOME ({Foo}, FALSE) , [%x]         ) | tryColSig ``(?(Foo x))
+!!= ( SOME ({Foo}, FALSE) , [%x %y]      ) | tryColSig ``(?(Foo x y))
+!!= ( SOME ({Foo}, TRUE)  , [%x]         ) | tryColSig ``(??(Foo x))
 
 = (readColSigSeq readPat sigRexes err ok)
 | if (eql 1 | len sigRexes)
@@ -200,12 +200,12 @@
 !!= ( NONE                , [%Foo %x]    ) | tryColSigSeq [``Foo ``x]
 !!= ( NONE                , [%Foo %x]    ) | tryColSigSeq [``(&(Foo x))]
 !!= ( NONE                , [%Foo %x %y] ) | tryColSigSeq [``(&(Foo x y))]
-!!= ( SOME ("Foo", FALSE) , [%x]         ) | tryColSigSeq [``(?(Foo x))]
-!!= ( SOME ("Foo", FALSE) , [%x %y]      ) | tryColSigSeq [``(?(Foo x y))]
-!!= ( SOME ("Foo", TRUE)  , [%x]         ) | tryColSigSeq [``(??(Foo x))]
+!!= ( SOME ({Foo}, FALSE) , [%x]         ) | tryColSigSeq [``(?(Foo x))]
+!!= ( SOME ({Foo}, FALSE) , [%x %y]      ) | tryColSigSeq [``(?(Foo x y))]
+!!= ( SOME ({Foo}, TRUE)  , [%x]         ) | tryColSigSeq [``(??(Foo x))]
 
-= colNeedsHeir | "Heir is required"
-= colTwoSons   | "Expected at least two sons"
+= colNeedsHeir } Heir is required
+= colTwoSons   } Expected at least two sons
 
 = (readColExp readPat readExp rex err ok)
 @ sons     (rexSons rex)
@@ -251,7 +251,7 @@
 : rune kids heir <- rexGetNode rex fall
 | **ok rune
 
-!!= ["+" "+"]
+!!= [{+} {+}]
         : rune <- **rexGetRune ``(3 + 4) 99
         , rune rune
 
@@ -269,7 +269,7 @@
 | if (isZero rex)   | ok | listToRowReversed acc
 | if (neq {*} rune) | loop (CONS rex acc) 0
 | if (null sons)
-    | err rex "Empty * item (not okay)"
+    | err rex {Empty * item (not okay)}
 @ item
     | if (eql 1 | len sons)
         (idx 0 sons)
@@ -336,8 +336,8 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 @ itemRexes | rexKids firstKid
 ;
 | if (neq 1 | len kids) fail
-| if (neq "~" | rexRune rex) fail
-| if (neq "," | rexRune firstKid) fail
+| if (neq {~} | rexRune rex) fail
+| if (neq {,} | rexRune firstKid) fail
 ;
 | rowTraverse (flip readExp err) itemRexes
 & items
@@ -358,7 +358,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 = (readItemized rune readItem readUnmatchingHeir rex err ok)
 ^ _ rex ok
 ? (go rex ret)
-; trk 'go',rex
+; trk {go},rex
 | if (isZero rex)
     | ret NIL
 | if (neq rune | rexRune rex)
@@ -369,7 +369,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
     | if (eql 1 | len sons) (idx 0 sons)
     | OPEN {|} sons 0
 | if (null sons)
-    | err (rexSetHeir 0 rex) "Expected non-empty line"
+    | err (rexSetHeir 0 rex) {Expected non-empty line}
 : item < readItem itemRex err
 ; trk #[=item]
 : tail < go (rexHeir rex)
@@ -380,7 +380,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 
 = ({~~} st rex err ok)
 : items <- readTallListLit readRex rex err
-; trk 'items',items,'->',(listE items)
+; trk {items},items,{->},(listE items)
 | ok st (listE items)
 
 !!= ~[3 4 5] | [3 [4 [5 0]]]
@@ -418,7 +418,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
     | readVal (fst kids) err (compose ok EMBD)
 | if (eql {$} rune)
     | if (neq 1 nKid)
-        | err rex 'Too many/few sons for $ in ` macro'
+        | err rex {Too many/few sons for $ in ` macro}
     | readExp (fst kids) err (compose ok EMBD)
 : heir
     < & ret
@@ -547,15 +547,15 @@ four=(WORD {4} 0)
 = (orE x y)  | `($$or $x $y)
 
 = ({&&} st rex err ok)
-: tree < readInfixRight readRex "&&" rex err
+: tree < readInfixRight readRex {&&} rex err
 | ok st (binTreeFold andE tree)
 
 = ({||} st rex err ok)
-: tree < readInfixRight readRex "||" rex err
+: tree < readInfixRight readRex {||} rex err
 | ok st (binTreeFold orE tree)
 
 = ({::} st rex err ok)
-: tree < readInfixRight readRex "::" rex err
+: tree < readInfixRight readRex {::} rex err
 | ok st (binTreeFold consE tree)
 
 !!= ~[3 4]   (3 :: 4 :: ~[])
@@ -656,11 +656,11 @@ four=(WORD {4} 0)
 = (multiEqlE st exps)
 @ numExps (len exps)
 | if (lth numExps 2)
-    | 'multiEqlE needs 2+ expressions' exps
+    | {multiEqlE needs 2+ expressions} exps
 | if (eql numExps 2)
     | (st, appE (cnsE eql, fst exps, snd exps))
 @ nextKey  | idx 0 st
-@ tmpVar   | tmpName "g" nextKey
+@ tmpVar   | tmpName {g} nextKey
 @ st       | put st 0 (inc nextKey)
 @ tmpRef   | varE tmpVar
 @ fstExp   | fst exps
@@ -669,7 +669,7 @@ four=(WORD {4} 0)
 ^ | letE tmpVar fstExp
   | _ (listFromRow restExps)
 ? (loop more)
-: x xs <- **listCase more (die "impossible")
+: x xs <- **listCase more (die {impossible})
 : y ys <- **listCase xs (appE (cnsE eql, tmpRef, x))
 ^ appE (cnsE and, _, loop xs)
 | appE (cnsE eql, tmpRef, x)

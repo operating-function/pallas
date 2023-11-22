@@ -79,7 +79,7 @@ st
 = (bytesToWords bytes)
 @ numBytes | len bytes
 | if (mod numBytes 4)
-    | die "byte-row length not a multiple of 4"
+    | die {byte-row length not a multiple of 4}
 : wix <- gen (div numBytes 4)
 @ bix (mul 4 wix)
 | u32FromBytesLSB
@@ -306,7 +306,7 @@ st
 
 = (b3HasherNewInternal keyWords flags)
 | ifNot (eql 8 | len keyWords)
-    | die "Incorrect length of keyWords"
+    | die {Incorrect length of keyWords}
 ++ b3ChunkstNew keyWords 0 flags
 ++ keyWords
 ++ NIL

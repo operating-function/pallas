@@ -18,13 +18,13 @@
 : var <- newEmptyMVar
 : bob <- fork & done
               : val <- takeMVar var
-              | trk ["BOB GOT #1" val]
+              | trk [{BOB GOT #1} val]
               : val <- takeMVar var
-              | trk ["BOB GOT #2" val]
+              | trk [{BOB GOT #2} val]
               | done 0
-: _ <- putMVar var "Hey Bob, do your thing first."
-: _ <- putMVar var "You done over there, Bob?"
-| trk "Control is returned to Alice"
+: _ <- putMVar var {Hey Bob, do your thing first.}
+: _ <- putMVar var {You done over there, Bob?}
+| trk {Control is returned to Alice}
 ;
 : curTime <- concurrently (syscall TIME_WHEN) (syscall TIME_WHEN)
 | trk [%x (idx 0 curTime)]

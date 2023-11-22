@@ -205,8 +205,8 @@
 | SHUT {=} (showKey key, showVal val) 0
 
 = (showSet set)
-^ PREF "%" [_] 0
-^ NEST "," _ 0
+^ PREF {%} [_] 0
+^ NEST {,} _ 0
 | map showKey (setToRow set)
 
 > Pat > Rex
@@ -240,7 +240,7 @@
   | PROW
  ++ PVAR %a
  ++ PALI (PVAR %b)
-      | PROW (PVAR "c", PSEQ "d")
+      | PROW (PVAR {c}, PSEQ {d})
 
 > Row Rex > Rex
 = (showSig rexes@[first])
@@ -250,7 +250,7 @@
 > (Exp > Rex) > Bit > StewFun > Rex
 = (showFun showExp pin (FUN self tag args body))
 | if (self /= tag)
-    | todo 'show lambdas where name is different from tag'
+    | todo {show lambdas where name is different from tag}
 @ selfRex  | varE self
 @ argRexes | map showPat args
 | if (isZero tag)
@@ -287,7 +287,7 @@
 * _          | NEST {|} (listToRow (showExp e)::acc) 0
 
 = (showCase showExp x f cs)
-| NEST {#} (varE 'datacase', showExp x)
+| NEST {#} (varE {datacase}, showExp x)
 | showDatacases showExp f cs
 
 > (Exp > Rex) > Opt Exp > Row ConCase > Rex
@@ -296,16 +296,16 @@
 ? (go arms)
 : [sym pats body] arms <- listCase arms 0
 @ symRex (varE sym)
-^ NEST "*" (_, showExp body) (go arms)
+^ NEST {*} (_, showExp body) (go arms)
 | if (null pats)
-    | 'mutrec arm with no arguments'
-    | ['impossible!' 'it makes no sense!']
-^ NEST "|" (rowCons symRex _) 0
+    | {mutrec arm with no arguments}
+    | [{impossible!} {it makes no sense!}]
+^ NEST {|} (rowCons symRex _) 0
 | map showPat pats
 
 = (showMutRec showExp tag body arms)
 | NEST {#}
-   ++ varE 'mutrec'
+   ++ varE {mutrec}
    ++ showExp (ENAT tag)
    ++ showExp body
 | showMutRecArms showExp arms
@@ -315,13 +315,13 @@
 ? (go arms)
 : [key exp] arms
     < listCase arms
-    | NEST "*" (varE "_", showExp wild) 0
-^ NEST "*" _ (go arms)
+    | NEST {*} (varE {_}, showExp wild) 0
+^ NEST {*} _ (go arms)
 | (showKey key, showExp exp)
 
 = (showSwitch showExp exp wild arms)
 | NEST {#}
-   ++ varE 'switch'
+   ++ varE {switch}
    ++ showExp exp
 | showSwitchArms showExp wild arms
 
@@ -336,11 +336,11 @@
 ^ rexSplice _ rex
 & val
 # datacase val
-* (LEFT l)  | PREF "$$" [showExp-l] 0
-* (RIGHT r) | PREF "$"  [showExp-r] 0
+* (LEFT l)  | PREF {$$} [showExp-l] 0
+* (RIGHT r) | PREF {$}  [showExp-r] 0
 
 > Chr > Bit
-(okIdnChar c)=(eql '_' c || isAlphaNum c)
+(okIdnChar c)=(eql {_} c || isAlphaNum c)
 
 > Bar > Bit
 = (okIdn bar)
@@ -358,7 +358,7 @@
     | WORD str 0
 | if (not (barIsEmpty bar) && barAll isPrint bar)
     ^ PREF dot [_] 0
-    | CURL str 0
+    | TEXT str 0
 | else
     ^ PREF dot [_] 0
     | WORD (showNat str) 0
@@ -366,15 +366,15 @@
 ; TODO: Fix loot printing for {...\{...}.
 ; TODO: Fix vim highlighting for {...\{...}.
 
-!!= ``abc      | showRef {.} 'abc'
-!!= ``(.0)     | showRef {.} ''
+!!= ``abc      | showRef {.} {abc}
+!!= ``(.0)     | showRef {.} {}
 !!= ``(.1)     | showRef {.} 1
-!!= ``(.{a c}) | showRef {.} 'a c'
-!!= ``(.{\{})  | showRef {.} '{'
+!!= ``(.{a c}) | showRef {.} {a c}
+!!= ``(.}_{_)  | showRef {.} }_{_
 
 = (mkApp row)
 | if (null row)
-    | die 'mkApp: function application with no function'
+    | die {mkApp: function application with no function}
 | foldl EAPP (idx 0 row) (drop 1 row)
 
 !!= 1                            | mkApp [1]
@@ -408,17 +408,17 @@
 * (ESWI e f as)  | showSwitch go e f as
 * (EREX r)       | NEST {``} [r] 0
 * (EQRX r)       | NEST {`} [(showQuasiQuotedRex go r)] 0
-* (ECON x xs)    | INFX "::" (showExp x, showExp xs) 0
+* (ECON x xs)    | INFX {::} (showExp x, showExp xs) 0
 * ENIL           | ``(~[])
-* (EEQL xs)      | INFX "==" (map showExp xs) 0
-* (ENEQ x y)     | INFX "/=" (showExp x, showExp y) 0
+* (EEQL xs)      | INFX {==} (map showExp xs) 0
+* (ENEQ x y)     | INFX {/=} (showExp x, showExp y) 0
 * _              | {showExp: Unknown syntax} exp
 
 
 !!= `` (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#{111} b#{asdf} (2 fanc))
   | showExp
-  | ELET (PVAR "n") (ENAT %inc)
-  | ELET (PVAR "fanc")
+  | ELET (PVAR {n}) (ENAT %inc)
+  | ELET (PVAR {fanc})
       | foldl EAPP (ELIN | EREF %mkLaw)
      ++ EREF %n
      ++ EREF %a
@@ -446,7 +446,7 @@
 !!= `` (? (const x y))x
   | showExp
   | ELAM FALSE
-  | FUN "const" "const" (PVAR %x, PVAR %y) (EREF %x)
+  | FUN {const} {const} (PVAR %x, PVAR %y) (EREF %x)
 
 !!= `` (^ (f _ y))x
   | showExp
@@ -489,17 +489,17 @@
 | ok (ESET set)
 
 = (parseOrExp readExp rex err ok)
-: tree <- readInfixRight readExp "||" rex err
+: tree <- readInfixRight readExp {||} rex err
 | ok (binTreeFold EOR tree)
 
 = (parseAndExp readExp rex err ok)
-: tree <- readInfixRight readExp "&&" rex err
+: tree <- readInfixRight readExp {&&} rex err
 | ok (binTreeFold EAND tree)
 
 = (readCom readExp rex err ok)
 @ rune (rexRune rex)
 @ kids (rexKids rex)
-| if (and (not null-kids) (eql "=" (rexRune fst-kids)))
+| if (and (not null-kids) (eql {=} (rexRune fst-kids)))
     : tab <- readWideTabLit readExp rex err
     | ok (ETAB tab)
 | else
@@ -510,7 +510,7 @@
 @ kids@[keywordRex] | rexKids rex
 @ params            | drop 1 kids
 | if (null kids)
-    | err rex '# with no parameter'
+    | err rex {# with no parameter}
 : sym <- readSymbol keywordRex err
 | ok keywordRex sym params
 
@@ -518,7 +518,7 @@
 = (parseHaxExp readExp rex err ok)
 @ kids (rexKids rex)
 @ rune (rexRune rex)
-| if ((1 == len kids) && (',' == rexRune fst-kids))
+| if ((1 == len kids) && ({,} == rexRune fst-kids))
     : tab <- readWideTabLit readExp fst-kids err
     | ok (ETAB tab)
 ;
@@ -526,7 +526,7 @@
     < readHaxOutline rex err
 ;
 # switch sym
-* _   | err symRex 'Unknown # keyword'
+* _   | err symRex {Unknown # keyword}
 * {p} | readPadLit rex err (pad & ok (EPAD pad))
 * {b} | readBarLit rex err (pad & ok (EBAR pad))
 * {x} | readBarLit rex err (pad & ok (EBAR pad))
@@ -554,7 +554,7 @@
 
 > (Rex > Read Exp) > Rex > Read Exp
 = (parseColCol readExp rex err ok)
-: tree <- readInfixRight readExp "::" rex err
+: tree <- readInfixRight readExp {::} rex err
 | ok (binTreeFold ECON tree)
 
 > (Rex > Read Exp) > Rex > Read Exp
@@ -604,7 +604,7 @@
 @ kids (rexKids rex)
 @ nKid (len kids)
 | if (lth nKid 2)
-    | err rex "Expected something like (^ exp exp...)body"
+    | err rex {Expected something like (^ exp exp...)body}
 @ bodyRex  | get kids (dec nKid)
 @ expRexes | take (dec nKid) kids
 : bodyExps < rowTraverse (x k & readExp x err k) expRexes
@@ -613,7 +613,7 @@
 
 = (readPam readExp rex err ok)
 @ kids (rexKids rex)
-| if (len kids /= 2) (err rex 'Bad lambda')
+| if (len kids /= 2) (err rex {Bad lambda})
 @ [sigRex bodRex] kids
 : pats <- readBindSig sigRex err
 : body <- readExp bodRex err
@@ -621,7 +621,7 @@
 
 = (readWut readExp pinned rex err ok)
 @ kids@[sigRex bodRex] (rexKids rex)
-| if (len kids /= 2) (err rex 'Bad lambda.')
+| if (len kids /= 2) (err rex {Bad lambda.})
 : func pats <- readDestroyer sigRex err
 : body <- readExp bodRex err
 | ok (ELAM pinned | FUN func func pats body)
@@ -630,14 +630,14 @@
 @ kids@[expRex]
     | rexKids rex
 | if (len kids /= 1)
-    | err rex "Expected something like: **x"
+    | err rex {Expected something like: **x}
 : exp <- readExp expRex err
 | ok (ELIN exp)
 
 = (readDot rex err ok)
 @ kids (rexKids rex)
 | if (len kids /= 1)
-    | err rex 'expected .key'
+    | err rex {expected .key}
 : key <- readKey (fst kids) err
 | ok (EREF key)
 
@@ -645,7 +645,7 @@
 : valExp oFunName pats bodyExp
     < readColExp parseBinder readExp rex err
 @ (nam, pin)
-    | fromSome (FALSE, "") oFunName
+    | fromSome (FALSE, {}) oFunName
 | ok
     | EAPP valExp
     | ELAM pin (nam, nam, pats, bodyExp)
@@ -666,12 +666,10 @@
 @ bar | natBar txt
 ;
 # switch (rexStyle rex)
-* {CORD} | ok | ENAT txt
-* {TAPE} | ok | ENAT txt
+* {TEXT} | ok | ENAT txt
 * {LINE} | ok | ENAT txt
-* {CURL} | ok | ENAT txt
 * {WORD} | if (okIdn bar) (ok (EREF txt))
-         @ bar (barFilter (neq '_') bar)
+         @ bar (barFilter (neq {_}) bar)
          ^ getNatStr (barNat bar) _ (compose ok ENAT)
          ^ getHexLit bar          _ (compose ok ENAT)
          | err rex leafExpect
@@ -679,9 +677,9 @@
 > Rex > Read Exp
 = (readExp rex err ok)
 # switch (rexType rex)
-* "EMBD" | ok EBED-(rexGetEmbd rex)
-* "LEAF" | readLeaf rex err ok
-* "NODE"
+* {EMBD} | ok EBED-(rexGetEmbd rex)
+* {LEAF} | readLeaf rex err ok
+* {NODE}
 # switch (rexRune rex)
 * {^}   | readKet readExp rex err ok
 * {|}   | readApp readExp rex err ok
@@ -709,7 +707,7 @@
 * {%%}  | parseCenCen rex err ok
 * {&&}  | parseAndExp readExp rex err ok
 * {||}  | parseOrExp readExp rex err ok
-* _     | err rex (strWeld 'Unknown Rune: ' | rexRune rex)
+* _     | err rex (strWeld {Unknown Rune: } | rexRune rex)
 
 > (Rex > Read Cmd) > (Rex > Read Exp) > Rex > Read Cmd
 = (readHaxCmd readCmd rex err ok)
@@ -738,9 +736,9 @@
 @ expected | rexClose rex
 @ out      | readExp rex v2 showExp
 | if (expected == out) 1
-| OPEN '/=' []
-| OPEN '*' [out]
-| OPEN '*' [expected]
+| OPEN {/=} []
+| OPEN {*} [out]
+| OPEN {*} [expected]
 | 0
 
 !! expRound `` x
@@ -771,7 +769,7 @@
 
 !!= ``[x=3 y=4]
   ^ readExp _ v2 showExp
-  `` #["x"=3 {y}=4]
+  `` #[{x}=3 {y}=4]
 
 !!= `` (@ f (? (f x))[x x])x
   ^ readExp _ v2 showExp
@@ -1024,20 +1022,20 @@
 = (resolvePat ss err pat ok)
 ^ traversePat _ pat ok
 & (pat ok)
-; trk 'hi',[=pat]
+; trk {hi},[=pat]
 # datacase pat
 * _
     | ok pat
 * (POPN constr)
     @ rex (showPat pat)
     : _ bind <- getBind constr ss rex err
-    @ fieldNames (getProp ss bind 'fieldNames')
+    @ fieldNames (getProp ss bind {fieldNames})
     | if (isZero fieldNames)
-        | err rex (strWeld "Unknown record constructor: " constr)
+        | err rex (strWeld {Unknown record constructor: } constr)
     | ok (PROW | map PVAR fieldNames)
 
 = (resolve ss exp err ok)
-; trk 'resolve',[=exp]
+; trk {resolve},[=exp]
 @ goPat (resolvePat ss err)
 ^ traverseExp _ exp ok
 & (exp ok)
@@ -1102,7 +1100,7 @@
 = (cKet go st bodyExp valExp ok)
 : st bodyRex <- go st bodyExp
 : st valRex  <- go st valExp
-| ok st (letE '_' valRex bodyRex)
+| ok st (letE {_} valRex bodyRex)
 
 = (cSwi go st x fb arms ok)
 : st xRex     <- go st x
@@ -1144,7 +1142,7 @@
 : st bodRex < go st bodExp
 ;
 @ var # datacase pat
-      * _          | todo 'support pattern matching in letrec bindings'
+      * _          | todo {support pattern matching in letrec bindings}
       * (PVAR var) | var
 ;
 | ok st (recE var valRex bodRex)
@@ -1237,7 +1235,7 @@
 * (ECAS v w as)    | cCas go ss v w as ok
 * (ELIN x)
     : ss rex < go ss x
-    | ok ss (NEST "#**" [rex] 0)
+    | ok ss (NEST {#**} [rex] 0)
 
 
 ;;; Compiler Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1258,7 +1256,7 @@
  ++ [6]
  ++ `((#@ _g5 $$0)(#| $$and (#| $$eql _g5 $$1) (#| $$eql _g5 $$2)))
 
-!!=   | comp [5] (ELIN (EAPP ELIN-(EREF 'id') (ENAT 1)))
+!!=   | comp [5] (ELIN (EAPP ELIN-(EREF {id}) (ENAT 1)))
  ++ [5]
  ++ ` (#** (#| (#** id) $$1))
 
@@ -1284,50 +1282,50 @@
 !!= [[5] ``((#?? (id x))x)]
   | comp [5]
   | ELAM TRUE
-  | (%id, %id, [(PVAR %x)], EREF 'x')
+  | (%id, %id, [(PVAR %x)], EREF {x})
 
 !!= [[5] ``((#& x)x)]
   | comp [5]
   | ELAM FALSE
-  | (0, 0, [(PVAR %x)], EREF 'x')
+  | (0, 0, [(PVAR %x)], EREF {x})
 
 !!= [[5] ``((#? (f x z))z)]
   | comp [5]
   | ELAM FALSE
-  | ('f', 'f', (PVAR %x, PVAR %z), EREF 'z')
+  | ({f}, {f}, (PVAR %x, PVAR %z), EREF {z})
 
 !!=  ++ [7]
      ++ ` (#& _g5)(#@ _g6 _g5)(#@ x (#| $$(idx 0) _g6))(#@ z (#| $$(idx 1) _g6))z
   | comp [5]
   | ELAM FALSE
-  | (0, 0, [(PROW (PVAR %x, PVAR %z))], EREF 'z')
+  | (0, 0, [(PROW (PVAR %x, PVAR %z))], EREF {z})
 
 !!=  ++ [6]
      ++ ` (#@ _g5 (#| $$(cow 2) $$2 $$1))(#@ x (#| $$(idx 0) _g5))x
   | comp [5]
   | ELET (PROW [(PVAR %x)])
       | EROW (ENAT 1, ENAT 2)
-  | EREF 'x'
+  | EREF {x}
 
 !!=  ++ [5]
      ++ ` (#@ _ (#| $$0 $$1))(#| _ _)
   | comp [5]
-  | EKET (EAPP EREF-'_' EREF-'_')
+  | EKET (EAPP EREF-{_} EREF-{_})
   | EAPP ENAT-0 ENAT-1
 
 !!=  ++ [5]
      ++ ` (#@@ x (#| $$(cow 2) x $$1))(#| car x)
   | comp [5]
-  | EREC (PVAR 'x')
-      | EROW (ENAT 1, EREF 'x')
-  | EAPP (EREF 'car')
-  | EREF 'x'
+  | EREC (PVAR {x})
+      | EROW (ENAT 1, EREF {x})
+  | EAPP (EREF {car})
+  | EREF {x}
 
 ; gross
 !!=  ++ [8] ;; TODO: This is wrong!!!  _tag9 is used, so state should be at 10.
      ++ rexClose
          `  #@ _core5
-                #? 'lol' (_core5 _tag7 _arg6)
+                #? {lol} (_core5 _tag7 _arg6)
                 #@ even
                     #? (**even x)
                     #| _core5 $$0 x
@@ -1338,11 +1336,11 @@
                 #| _core5 $$0 x
              even
   | comp [5]
-  | EMUT 'lol' (EREF 'even')
- ++ (%even, [(PVAR %x)], EREF 'x')
+  | EMUT {lol} (EREF {even})
+ ++ (%even, [(PVAR %x)], EREF {x})
 
 = scope
-    [SOME=(PIN [3 0 0 'REPL' 'SOME']) NONE=(PIN [4 0 0 'REPL' 'NONE'])]
+    [SOME=(PIN [3 0 0 {REPL} {SOME}]) NONE=(PIN [4 0 0 {REPL} {NONE}])]
 
 = props
     ## =3 ## =conTag 1
@@ -1356,7 +1354,7 @@
           ## =conHas FALSE
           ## =conRaw FALSE
 
-= ssEx [5 'REPL' scope #[] props]
+= ssEx [5 {REPL} scope #[] props]
 
 ; such a beauty
 !!=  ++ put ssEx 0 8
@@ -1370,9 +1368,9 @@
                 #@ _g7 x
                  ($$0)
   | comp ssEx
-  | ECAS EREF-'x' (SOME | ENAT 1)
- ++ CON_CASE 'SOME' [(PVAR 'x')] EREF-'x'
- ++ CON_CASE 'NONE' []             ENAT-0
+  | ECAS EREF-{x} (SOME | ENAT 1)
+ ++ CON_CASE {SOME} [(PVAR {x})] EREF-{x}
+ ++ CON_CASE {NONE} []             ENAT-0
 
 !!=  ++ put ssEx 0 7
      ++ rexClose
@@ -1384,8 +1382,8 @@
                     #@ x (#| $$(idx 0) _g6)
                      x
   | comp ssEx
-  | ECAS (EREF 'sx') NONE
- ++ CON_CASE 'SOME' ,(PVAR 'x') EREF-'x'
+  | ECAS (EREF {sx}) NONE
+ ++ CON_CASE {SOME} ,(PVAR {x}) EREF-{x}
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -59,9 +59,9 @@
 
 ; These are just ugly literals
 
-lus=(b#"+")
-bar=(b#"|")
-com=(b#",")
+lus=(b#{+})
+bar=(b#{|})
+com=(b#{,})
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -71,7 +71,7 @@ com=(b#",")
 | barHas c b#{$!#%&*+,-./:<=>?@\\^`|~}
 
 > Nat > Bit
-(isNameChar c)=((c == '_') || isAlphaNum c)
+(isNameChar c)=((c == {_}) || isAlphaNum c)
 
 > Parser r Bar
 rune=(**stringOf1 isRuneChar)
@@ -87,7 +87,7 @@ name=(**stringOf1 isNameChar)
 
 > Parser r Bar
 = curl
-| andThen (char '{')
+| andThen (char }_{_)
 ^ (_ ~[] FALSE 1)
 ? (go acc quote depth)
 | if (depth == 0)
@@ -96,15 +96,15 @@ name=(**stringOf1 isNameChar)
 | if quote
     | go (c::acc) FALSE depth
 # switch c
-* '{' | go (c::acc) FALSE (inc depth)
-* '}' | go (c::acc) FALSE (dec depth)
-* '\' | go acc      TRUE  depth
-* _   | go (c::acc) FALSE depth
+* }_{_ | go (c::acc) FALSE (inc depth)
+* }_}_ | go (c::acc) FALSE (dec depth)
+* }_\_ | go acc      TRUE  depth
+* _    | go (c::acc) FALSE depth
 
 > Parser r Bar
 = readLineStr
-| andThen (char '}')
-| andThen (choice eof (char ' '))
+| andThen (char }_}_)
+| andThen (choice eof (char { }))
 | parserTakeRest
 
 > Parser r (CordType, Bar)
@@ -116,15 +116,15 @@ name=(**stringOf1 isNameChar)
 ~~ pmap x&(LTEXT CURLY x) | curl
 ~~ pmap x&(LNAME x)       | name
 
-spc=(choice (char ' ') (char newlineChar))
+spc=(choice (char { }) (char newlineChar))
 spc0=(many spc)
 whyt=(some spc)
 
 = (parserDebug ctx x buf off err fail ok)
-| trk 'parserDebug',ctx,(barTake 10 | barDrop off buf)
+| trk {parserDebug},ctx,(barTake 10 | barDrop off buf)
 | x buf off err fail ok
 
-empt=(parserMap (const NIL) (char ']'))
+empt=(parserMap (const NIL) (char {]}))
 
 = (carl form buf off err fail ok)
 ^ (_ buf off err fail ok)
@@ -135,7 +135,7 @@ empt=(parserMap (const NIL) (char ']'))
 
 > Parser r Nest
 = (brak form)
-| andThen (char '[')
+| andThen (char {[})
 | andThen spc0
 : items <- bind (choice empt (carl form))
 | parserPure (PREFX com | listToRow items)
@@ -155,12 +155,12 @@ empt=(parserMap (const NIL) (char ']'))
 | listNub r::conflicts
 
 !!= OKAY-()
-  | runParser (assertUnambiguous "Shut" ("+", ~["+" "+"])) b#{}
+  | runParser (assertUnambiguous {Shut} ({+}, ~[{+} {+}])) b#{}
 
 !!=   | FAIL
       # b } Shut-form mixes runes: '+', '*'.
           } This implementation doesn't allow ambiguous infix forms
-  | runParser (assertUnambiguous "Shut" ("+", ~["+" "*"])) b#{}
+  | runParser (assertUnambiguous {Shut} ({+}, ~[{+} {*}])) b#{}
 
 ; This is the same as `frag` but does not accept pages.
 = (frog form)
@@ -173,7 +173,7 @@ empt=(parserMap (const NIL) (char ']'))
 ; expect to see the end of a parenthesis nesting (either prefix or infix),
 ; and return an empty list.
 = term
-| parserMap (const NIL) (char ')')
+| parserMap (const NIL) (char {)})
 
 ; Body of parenthesis in prefix mode, after initial (rune+space)
 > Bar > Parser r Nest
@@ -247,10 +247,10 @@ empt=(parserMap (const NIL) (char ']'))
 = (plix form initialForm)
 : items <- bind (fart (faro form) (RIGHT initialForm))
 # datacase items
-* NIL | die "plix: impossible (never empty, has hard-coded initial val)"
+* NIL | die {plix: impossible (never empty, has hard-coded initial val)}
 * (CONS i moreItems)
 # datacase i
-* (LEFT _) | die "plix: impossible (initial value is hard-coded as RIGHT)"
+* (LEFT _) | die {plix: impossible (initial value is hard-coded as RIGHT)}
 * (RIGHT i)
 # datacase moreItems
 * NIL (parserPure | WRAPD i)
@@ -261,7 +261,7 @@ empt=(parserMap (const NIL) (char ']'))
     | parserPure (PAREN | listToRow fs)
 * (CONS [ryn gs] more)
     | andThen
-    * assertUnambiguous "Nest" (ryn, listMap fst more)
+    * assertUnambiguous {Nest} (ryn, listMap fst more)
     * parserPure | INFIX ryn
                  | listToRow
                  | listMap (compose listToRow snd)
@@ -269,11 +269,11 @@ empt=(parserMap (const NIL) (char ']'))
 
 > Parser r Nest
 = (para form)
-| andThen (char '(')
+| andThen (char {(})
 | andThen spc0
 | choices
-~~ parserMap const-(PREFX bar []) (char ')')
-~~ : ryn <- bind (try (andThenLeft rune (char ')')))
+~~ parserMap const-(PREFX bar []) (char {)})
+~~ : ryn <- bind (try (andThenLeft rune (char {)})))
    | parserPure (PREFX ryn [])
 ~~ bind (try | andThenLeft rune whyt) (pree form)
 ~~ bind form (plix form)
@@ -296,7 +296,7 @@ empt=(parserMap (const NIL) (char ']'))
     | parserPure (SHIP i)
 * (CONS [r j] ps)
     | andThen
-    * assertUnambiguous "Shut" (r, listMap fst ps)
+    * assertUnambiguous {Shut} (r, listMap fst ps)
     * parserPure | SHIN r | listToRow (i :: j :: listMap snd ps)
 
 > Parser r Form

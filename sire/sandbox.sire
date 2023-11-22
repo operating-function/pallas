@@ -72,7 +72,7 @@
 & resp
 # datacase resp
 * NONE
-    | 'unwrapReqsResp: impossible lack of response value' 0
+    | {unwrapReqsResp: impossible lack of response value} 0
 * (SOME val)
     | trk [%val val]
     | **maybeCase val resp

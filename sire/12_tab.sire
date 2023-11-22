@@ -322,7 +322,7 @@ pairExpect={Expected something like =x or x=3}
 @ keyRex | idx 0 kids
 @ valRex | idx 1 kids
 @ valRex | if (eql 2 nKid) valRex keyRex
-| if (neq "=" rune)
+| if (neq {=} rune)
     | err rex pairExpect
 | if (nor (eql 1 nKid) (eql 2 nKid))
     | err rex pairExpect
@@ -335,7 +335,7 @@ pairExpect={Expected something like =x or x=3}
 tabExpect={Expected something like [], [x=1 ...], [=x ...]}
 
 = (readTabBracket readVal rex err ok)
-| if (neq "," | rexRune rex)
+| if (neq {,} | rexRune rex)
     | err rex tabExpect
 | ^ rowTraverseState emptyTab _ (rexKids rex)
   & (acc kid yield)
@@ -343,7 +343,7 @@ tabExpect={Expected something like [], [x=1 ...], [=x ...]}
   | readTabPair readVal kid err
   & (key val)
   | if (_TabHas key acc)
-      | err kid "duplicate key"
+      | err kid {duplicate key}
   | yield (tabIns key val acc) 0
 & (acc _)
 | ok acc
@@ -354,7 +354,7 @@ outerExpect={Expected something like #[x=1], [x=1], etc}
 @ rune | rexRune rex
 @ kids | rexKids rex
 @ nKid | len kids
-| if (eql "#" rune)
+| if (eql {#} rune)
     | if (neq 1 nKid)
         | err rex outerExpect
     @ kid (idx 0 kids)
@@ -365,8 +365,8 @@ outerExpect={Expected something like #[x=1], [x=1], etc}
 @ rune   (rexRune rex)
 @ kids   (rexKids rex)
 @ keyRex (idx 0 kids)
-| if (or (neq "=" rexRune-rex) (neq 1 len-kids))
-    | err rex "Expected something like: =key"
+| if (or (neq {=} rexRune-rex) (neq 1 len-kids))
+    | err rex {Expected something like: =key}
 | readKey keyRex rex
 & key
 | ok keyRex key
@@ -383,17 +383,17 @@ tallExpect={Expected something like (## =key val ...)(...)}
 @ firstSon | idx 0 sons
 @ moreSons | drop 1 sons
 @ heir     | rexHeir rex
-| if (or (neq "##" rune) (isZero nSons))
+| if (or (neq {##} rune) (isZero nSons))
     | err rex tallExpect
 | parseTallKey firstSon err
 & (keyRex newKey)
 @ valRex
     | if (eql 1 nSons) keyRex
-    | OPEN "|" moreSons 0
+    | OPEN {|} moreSons 0
 | readVal valRex err
 & newVal
 | if (_TabHas newKey acc)
-    | err firstSon "duplicate key"
+    | err firstSon {duplicate key}
 @ acc (tabIns newKey newVal acc)
 | seq acc
 | go acc heir
@@ -423,7 +423,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 = (isTabSugar rex)
 @ kids (rexKids rex)
 | and (not null-kids)
-      (| eql "=" | rexRune | idx 0 kids)
+      (| eql {=} | rexRune | idx 0 kids)
 
 ; This extends the basic row syntax to support tab literals (if theh
 ; elements are = nodes).
@@ -451,9 +451,9 @@ tallExpect={Expected something like (## =key val ...)(...)}
 !!= 1 | isTab (%[x y] [3 4])
 
 !!= [a=0]     | #[97=0]
-!!= [a=0]     | #['a'=0]
+!!= [a=0]     | #[{a}=0]
 !!= [a=0 b=1] | #[98=1 97=0]
-!!= [a=0 b=1] | #["b"=1 'a'=0]
+!!= [a=0 b=1] | #[{b}=1 {a}=0]
 
 !!= 0 | _TabLen #[]
 !!= 1 | _TabLen #[x=0]
@@ -494,7 +494,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 ;    | add 3 4
 ;
 
-!!= ["a"=1 b=2 {c}=3] | (## =b 2)(## ="a" 1)(## ={c} 3)
+!!= [{a}=1 b=2 {c}=3] | (## =b 2)(## ={a} 1)(## ={c} 3)
 
 
 ;;; Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

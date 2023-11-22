@@ -10,9 +10,11 @@ module Rex.TestExe (main) where
 import PlunderPrelude
 import Rex
 import Rex.TestUtils
+import Rex.Policy
+import Rex.Mechanism
 import Test.Tasty
 
-import Data.Text.IO (hPutStr, hPutStrLn)
+import Data.Text.IO (hPutStrLn)
 
 --------------------------------------------------------------------------------
 
@@ -27,10 +29,12 @@ goldenRex :: RexColor => GoldPaths -> TestTree
 goldenRex pax = do
     runTest pax doBlk (const $ pure ())
   where
-    doBlk fil h firstLn (BLK _pos tex blk) = do
+    doBlk :: FilePath -> Handle -> Bool -> Block -> IO ()
+    doBlk fil h firstLn blk = do
         unless firstLn (hPutStrLn h "")
-        hPutStr h $ case blk of Left err -> dent "!!" err
-                                Right vl -> verifyBlock fil tex vl
+        putStr case blk.errors of
+                 []  -> verifyBlock fil (unlines $ decodeUtf8 . (.byt) <$> blk.lines) blk.rex
+                 e:_ -> dent "!!" e
 
 verifyBlock :: RexColor => FilePath -> Text -> Rex -> Text
 verifyBlock fil inp rex =

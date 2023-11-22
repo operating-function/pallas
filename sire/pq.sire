@@ -25,7 +25,7 @@
 /+  04_cmp    [eql cmp neq]
 /+  07_dat    [listLen listUnsafeHead listDrop NIL listRev listFoldr]
 /+  07_dat    [SOME NONE maybeCase]
-/+  datatype  ["#datatype" "#datacase"]
+/+  datatype  [{#datatype} {#datacase}]
 /+  prelude
 /+  stew
 
@@ -93,7 +93,7 @@
             | BR v1 (BR w LF LF) LF
         | else
             | BR w t1 LF
-    | die 'siftDown: wat'
+    | die {siftDown: wat}
 * (BR v2 t2L t2R)
     | if ((GT /= cmp w v1) && (GT /= cmp w v2))
         | BR w t1 t2

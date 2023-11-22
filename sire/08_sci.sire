@@ -22,7 +22,7 @@
 /+  04_cmp  []
 /+  05_row  [map rowApply]
 /+  06_rex  []
-/+  07_dat  ["," drop CONS NIL listToRow]
+/+  07_dat  [{,} drop CONS NIL listToRow]
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -62,7 +62,7 @@
 | if (isLaw t)
     | car t (showPins | lawBody t)
 | if (isPin t)
-    ('PIN', showPins (pinItem t))
+    ({PIN}, showPins (pinItem t))
 | t
 
 

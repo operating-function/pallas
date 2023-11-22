@@ -46,7 +46,7 @@
 : clauses
   < ^ unrollSlip2Rune rune rex _ err
     ? (nonMatchingTail x err ret)
-    | err x 'Not a core arm'
+    | err x {Not a core arm}
 ^ rowTraverse _ clauses ok
 & (sigBody ret)
 @ [sigRex bodyRex] sigBody
@@ -55,16 +55,16 @@
 | ret [sym binds body]
 
 !!= [[%f [[%v %x]] ``x] [%g [[%v %y]] ``0]]
-  | readCoreBody '=' readRex ``((f x = x)(g y = 0)) v2 id
+  | readCoreBody {=} readRex ``((f x = x)(g y = 0)) v2 id
 
 !!= [[%f [[%r [[%v %x] [%v %y]]]] ``x]]
-  | readCoreBody '=' readRex ``((f [x y] = x)) v2 id
+  | readCoreBody {=} readRex ``((f [x y] = x)) v2 id
 
-!!= [``(*) 'Not a core arm']
-  | readCoreBody '=' readRex ``((f x = x)(g y = 0)(*)) v2 id
+!!= [``(*) {Not a core arm}]
+  | readCoreBody {=} readRex ``((f x = x)(g y = 0)(*)) v2 id
 
-!!= [``(= f) '= node expects two parameters']
-  | readCoreBody '=' readRex ``((= f|x x)(= f)) v2 id
+!!= [``(= f) {= node expects two parameters}]
+  | readCoreBody {=} readRex ``((= f|x x)(= f)) v2 id
 
 = (readMutRecExp readExp rex err ok)
 : _ coreTag letBody coreBody
@@ -86,8 +86,8 @@
   | [[%f [[%v %x]] ``x] [%g [[%v %y]] ``0]]
 
 !!=  ++ [7]
-     ++  ++  ++ 'f'
-             ++ ['_g5']
+     ++  ++  ++ {f}
+             ++ [{_g5}]
              ++ ` #@ _g6 _g5
                   #@ x (#| $$(idx 0) _g6)
                   #@ y (#| $$(idx 1) _g6)
@@ -98,14 +98,14 @@
 ; TODO Move this to `17-exp.sire`
 = (taggedLamE nam tag args body)
 @ sig (NEST {|} (rowCons (varE nam) args) 0)
-| OPEN "#?" [(litE tag) sig] body
+| OPEN {#?} [(litE tag) sig] body
 
 !!= (taggedLamE %f 2 [``x ``y ``z] ``x)
  `` #? 2 (f x y z)
      x
 
 = (matchE x wildExp patExps)
-| OPEN "#|"
+| OPEN {#|}
        ++ cnsE switch
        ++ appE (cnsE (idx 0), x)
        ++ wildExp
@@ -125,7 +125,7 @@
 
 = (genMutRecE st coreTag letBody coreBody ok)
 ;
-: st coreNam     <- generateTempName "core" st
+: st coreNam     <- generateTempName {core} st
 : st sigExpPairs <- genCoreBody coreBody st
 ;
 @ arms | listZip listEnumFrom-0 listFromRow-sigExpPairs
@@ -150,9 +150,9 @@
 : st coreArgs
     < ^ rowTraverseState st _ (rep 0 maxArgs)
       & (st item pure)
-      : st varExp <- generateVarE "arg" st
+      : st varExp <- generateVarE {arg} st
       | pure st varExp
-: st tagArgExp <- generateVarE "tag" st
+: st tagArgExp <- generateVarE {tag} st
 @ coreArgs
     | rowCons tagArgExp coreArgs
 @ branches
@@ -164,7 +164,7 @@
     & ([ix var] rest)
     | letE var (idx ix coreArgs) rest
 @ coreBody
-    | OPEN "#|" (cnsE switch, tagArgExp, cnsE 0)
+    | OPEN {#|} (cnsE switch, tagArgExp, cnsE 0)
     | bowE branches
 | ok st
 | letE coreNam
@@ -172,7 +172,7 @@
     | bindArms coreBody arms
 | bindArms letBody arms
 
-= ("#mutrec" st rex err ok)
+= ({#mutrec} st rex err ok)
 : coreTag letBody coreBody < readMutRecExp readRex rex err
 : st rex                   < genMutRecE st coreTag letBody coreBody
 | ok st rex
@@ -233,12 +233,12 @@
 
 ;;; #mutual ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= ("#mutual" st rex err ok)
+= ({#mutual} st rex err ok)
 : _ coreSymbol sigRex < rexParseKids rex [readRex readRex readRex] err
-: arms                < readCoreBody '=' readRex sigRex err
+: arms                < readCoreBody {=} readRex sigRex err
 : st sigExpPairs      < genCoreBody arms st
 : coreName            < readSymbol coreSymbol err
-: st tagIdn           < generateVarE "tag" st
+: st tagIdn           < generateVarE {tag} st
 @
     = coreIdn | varE coreName
     = arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
@@ -263,7 +263,7 @@
 : st coreArgIdns
         < ^ rowTraverseState st _ (gen maxArgs | const 0)
           & (st _item pure)
-          : st idn <- (generateVarE "arg" st)
+          : st idn <- (generateVarE {arg} st)
           | pure st idn
 : st armDefuns
         ; TODO: This does not actually need to traverse with state,
@@ -276,8 +276,8 @@
               = numArgs    | len armArgIdns
               = extraArgs  | sub maxArgs numArgs
           | pure st
-          | OPEN "#="
-             ++ NEST "|" (rowCons armIdn armArgIdns) 0
+          | OPEN {#=}
+             ++ NEST {|} (rowCons armIdn armArgIdns) 0
              ++ | appE
                 | weld (coreIdn, cnsE key)
                 | weld armArgIdns
@@ -298,11 +298,11 @@
         & ([ix var] rest)
         | letE var (idx ix coreSig) rest
     = coreBody
-        | OPEN "#|" (cnsE switch, tagIdn, cnsE 0)
+        | OPEN {#|} (cnsE switch, tagIdn, cnsE 0)
         | bowE branches
 | ok st
-| OPEN "#="
-       ++ NEST "|" (rowCons coreIdn coreSig) 0
+| OPEN {#=}
+       ++ NEST {|} (rowCons coreIdn coreSig) 0
        ++ bindArms coreBody arms
 | bloodline armDefuns
 
@@ -336,6 +336,6 @@
 ^-^
 ^-^ readMutRecExp genMutRecE
 ^-^
-^-^ "#mutual"
-^-^ "#mutrec"
+^-^ {#mutual}
+^-^ {#mutrec}
 ^-^

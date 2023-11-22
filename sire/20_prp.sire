@@ -43,16 +43,16 @@
 @ bRow  | pinItem bind
 @ key   | idx 0 bRow
 | if (isZero bind)
-    | err rex | strWeld "undefined symbol: " name
+    | err rex | strWeld {undefined symbol: } name
 | if (not key)
     | trk #[=bind]
-    | err rex "bindKey is zero!!"
+    | err rex {bindKey is zero!!}
 | **ok key bRow
 
 ;; TODO support inline annotations in = macro
 = (getProps ss@[_ curMod _ modules _curProps] bind)
 | if (isNat bind)
-    | 'not a binder' bind
+    | {not a binder} bind
 @ [bindKey _ _ bindMod bindName] bind
 | trk [getProps bindKey bindName bindMod]
 | if (eql curMod bindMod)
@@ -94,18 +94,18 @@
 
 ;;; Convenience Macros to Query properties of bindings. ;;;;;;;;;;;;;;;;;;;;;;;;
 
-= ('#getKey' ss rex err ok)
+= ({#getKey} ss rex err ok)
 : _ symbol      <- rexParseKids rex [readRex readSymbol] err
 : bindKey _bind <- getBind symbol ss rex err
 | ok ss (cnsE bindKey)
 
 = (readSymbDotProp rex err ret)
-| if (neq '.' rexRune-rex)
-  | err rex 'Expected a . rune'
+| if (neq {.} rexRune-rex)
+  | err rex {Expected a . rune}
 : symbol property <- rexParseKids rex [readSymbol readSymbol] err
 | ret [symbol property]
 
-= ('#hasProp' ss rex err expand)
+= ({#hasProp} ss rex err expand)
 : _ [symbol property]
     < rexParseKids rex [readRex readSymbDotProp] err
 : bindKey bind
@@ -115,13 +115,13 @@
 ^ expand ss (cnsE _)
 | tabHas property props
 
-= ('#getProp' ss rex err expand)
+= ({#getProp} ss rex err expand)
 : _ [symbol property] <- rexParseKids rex [readRex readSymbDotProp] err
 : bindKey bind        <- getBind symbol ss rex err
 ^ expand ss (cnsE _)
 | tabGet (getProps ss bind) property
 
-= ('#setProp' ss rex err expand)
+= ({#setProp} ss rex err expand)
 : _ [symbol property] valSym
     < rexParseKids rex [readRex readSymbDotProp readSymbol] err
 ;
@@ -136,7 +136,7 @@
 @ curProps (idx 4 ss)
 | if (tabHas key curProps)
     | tabGet curProps key
-| 'todo' 'walk remaining modules and do the lookup in each'
+| {todo} {walk remaining modules and do the lookup in each}
 
 = (getPropByKey ss key property)
 @ props (getPropsByKey ss key)

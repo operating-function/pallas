@@ -9,7 +9,7 @@
 /+  switch
 /+  hitch
 /+  json
-/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  datatype  [{#record} {#datatype} {#datacase}]
 /+  stew
 /+  types
 
@@ -24,7 +24,7 @@
 : ??(pmapDone rowBars)
     < pmap 5000 (mandelbrotLine width height) rowIds
 : eRes < syscall (EVAL1 600000 barCat rowBars)
-@ !fractBar | forceUnpackEvalResult "barCat rowBars" eRes
+@ !fractBar | forceUnpackEvalResult {barCat rowBars} eRes
 | cogExit fractBar
 
 = (trkTimer name cogFn cogExit)
@@ -32,7 +32,7 @@
 : res <- cogFn
 : ??(td_got_time endTime) <- syscall TIME_WHEN
 @ delta (sub endTime startTime)
-| trk [name 'took' delta 'seconds']
+| trk [name {took} delta {seconds}]
 | cogExit res
 
 
@@ -85,7 +85,7 @@
 ; TODO: Figure out tuned config for files.
 | hmSingleton
 * largeConfig
-* "/favicon.ico"
+* {/favicon.ico}
 * [b#{image/x-icon} favicon]
 
 # record CogState
@@ -156,14 +156,14 @@
 # switch method
 * POST
   # switch path
-  * b#"/fract"
+  * b#{/fract}
     # datacase (parseFract body)
     * NONE
       : _ <- fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
       | return ()
     * (SOME dims)
       @ [w h] dims
-      : !fractBar <- trkTimer 'mandelbrotDemo' (mandelbrotDemo w h)
+      : !fractBar <- trkTimer {mandelbrotDemo} (mandelbrotDemo w h)
       : _ <- fork (syscall (**HTTP_ECHO rid 200 b#ok [] fractBar))
       | return ()
 * PUT

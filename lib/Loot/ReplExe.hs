@@ -27,6 +27,7 @@ import Loot
 import Loot.Backend
 import PlunderPrelude
 import Rex
+import Rex.Policy
 import Hash256
 
 import qualified Rex.Print.Prim
@@ -88,13 +89,16 @@ replErr = throw . REPL_ERR
 runBlock
     :: RexColor
     => Handle -> Bool -> IORef (Map Symb Fan) -> Block -> IO ()
-runBlock h okErr vEnv (BLK _ _ eRes) = do
+runBlock h okErr vEnv blk = do
+    let eRes = case blk.errors of
+                   []  -> Right (blk.lineNum, blk.rex)
+                   e:_ -> Left e
     let onErr (REPL_ERR txt) = showError stderr okErr txt
     handle onErr do
-        rexed  <- either replErr pure eRes
-        env    <- readIORef vEnv
-        parsed <- either replErr pure (rexCmd rexed)
-        bitter <- pure (let ?env=env in desugarCmd parsed)
+        (_, rexed) <- either replErr pure eRes
+        env        <- readIORef vEnv
+        parsed     <- either replErr pure (rexCmd rexed)
+        bitter     <- pure (let ?env=env in desugarCmd parsed)
         runCmd h vEnv bitter
 
 pinRex :: Symb -> Hash256 -> Val Symb -> Rex

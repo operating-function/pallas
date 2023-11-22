@@ -421,10 +421,8 @@ rexNoun = \case
 
     textStyleConstr = \case
         Rex.WORD -> NAT "WORD"
-        Rex.CORD -> NAT "CORD"
-        Rex.TAPE -> NAT "TAPE"
+        Rex.TEXT -> NAT "TEXT"
         Rex.LINE -> NAT "LINE"
-        Rex.CURL -> NAT "CURL"
 
 a2 :: a -> a -> SmallArray a
 a2 p q = createSmallArray 2 p \a -> do
@@ -627,10 +625,8 @@ matchRex = \case
 
     matchTextShape = \case
         NAT "WORD" -> Just Rex.WORD
-        NAT "CORD" -> Just Rex.CORD
-        NAT "TAPE" -> Just Rex.TAPE
+        NAT "TEXT" -> Just Rex.TEXT
         NAT "LINE" -> Just Rex.LINE
-        NAT "CURL" -> Just Rex.CURL
         _          -> Nothing
 
     matchNodeShape = \case

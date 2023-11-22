@@ -48,7 +48,7 @@ listToTiers=listCat
 : xs xss <- listCase xss ~[]
 | tierSum
     | listMap (ys & listProd xs ys) yss
-| debug ['tierProd: xss + yss:' xss yss]
+| debug [{tierProd: xss + yss:} xss yss]
 | delay (tierProd xss yss)
 
 !!= (tierProd ~[~[1]] ~[~[2] ~[3]])
@@ -185,10 +185,10 @@ tiersPair=tierProd
 = (showResult name n ces)
 # datacase ces
 * NIL
-    ` | $(TAPE name 0) SUCCESS
+    ` | $(TEXT name 0) SUCCESS
      ## =passed  $(WORD showNat-n 0)
 * (CONS ce _)
-    ` | $(TAPE name 0) FAILURE
+    ` | $(TEXT name 0) FAILURE
      ## =counterexample $(EMBD ce)
 
 = (lc_exec name n p tiers shouldPass)
@@ -211,10 +211,10 @@ tiersPair=tierProd
 = (pqSortRev ls)  | eql (pqSort cmp ls) | listRev (pqSort flip-cmp ls)
 = (palindrome ls) | eql ls              | listRev ls
 
-!! lc_fail 'nat eql 1'    50 (eql 1)       (tiersNat 0)
-!! lc_pass 'list is list' 50 isList        (tiersList (tiersNat 0))
-!! lc_fail 'palindrome'   50 palindrome    (tiersList (tiersNat 0))
-!! lc_fail 'eq pair'      50 (uncurry eql) (tiersPair (tiersNat 0) (tiersNat 0))
-!! lc_pass 'sub neg'      50 subNeg        (tiersPair (tiersNat 0) (tiersNat 0))
-!! lc_pass 'rev rev'      50 revRev        (tiersList (tiersNat 0))
-!! lc_pass 'pqSort rev'   50 pqSortRev     (tiersList (tiersNat 0))
+!! lc_fail {nat eql 1}    50 (eql 1)       (tiersNat 0)
+!! lc_pass {list is list} 50 isList        (tiersList (tiersNat 0))
+!! lc_fail {palindrome}   50 palindrome    (tiersList (tiersNat 0))
+!! lc_fail {eq pair}      50 (uncurry eql) (tiersPair (tiersNat 0) (tiersNat 0))
+!! lc_pass {sub neg}      50 subNeg        (tiersPair (tiersNat 0) (tiersNat 0))
+!! lc_pass {rev rev}      50 revRev        (tiersList (tiersNat 0))
+!! lc_pass {pqSort rev}   50 pqSortRev     (tiersList (tiersNat 0))

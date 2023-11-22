@@ -26,16 +26,16 @@
 
 ;;; Fake Typing Syntax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= (">" st rex err ok)
+= ({>} st rex err ok)
 @ heir (rexHeir rex)
 | if (isZero heir)
-    | err rex "> annotations require an heir to annotate"
+    | err rex {> annotations require an heir to annotate}
 | ok st heir
 
-= ("\" st _ err ok)
+= ({\} st _ err ok)
 | ok st ``(#*)
 
-= ("#typedef" st _ err ok)
+= ({#typedef} st _ err ok)
 | ok st ``(#*)
 
 
@@ -106,20 +106,20 @@
 = (appE exps)
 | if (eql 1 (len exps))
     | idx 0 exps
-| NEST "#|" exps 0
+| NEST {#|} exps 0
 
 ; Same as `appE` but formatted in open mode.
 = (bopE exps)
 | if (eql 1 (len exps))
     | idx 0 exps
-| OPEN "#|" exps 0
+| OPEN {#|} exps 0
 
 ; Same as `appE` but formatted in open mode with last argument as heir.
 = (bapE exps)
 @ siz (len exps)
 @ las (dec siz)
 | if (eql 1 siz) (idx 0 exps)
-| OPEN "#|" (take las exps) (idx las exps)
+| OPEN {#|} (take las exps) (idx las exps)
 
 = (rowE exps)
 @ widt (len exps)
@@ -137,7 +137,7 @@
 
 ;;; Row Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= ("," st rex err ok)
+= ({,} st rex err ok)
 | ok st (rowE | rexKids rex)
 
 !!= []    v0
@@ -164,7 +164,7 @@
 
 (fromSome n x)=(**maybeCase x n id)
 
-(unpackSome x)=(**fromSome (die 'Unexpected NONE') x)
+(unpackSome x)=(**fromSome (die {Unexpected NONE}) x)
 
 !!= 1 | maybeCase SOME-0 0 inc
 !!= 1 | maybeCase SOME-1 0 id
@@ -254,8 +254,8 @@
 
 !!= [0,1,2 3,4,5 6,7,8 [9]] | chunks 3 [0 1 2 3 4 5 6 7 8 9]
 
-!!= 1 | has "aa" ["aa" "bb"]
-!!= 1 | not (has "aa" ["bb" "cc"])
+!!= 1 | has {aa} [{aa} {bb}]
+!!= 1 | not (has {aa} [{bb} {cc}])
 
 
 ;;; Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -407,12 +407,12 @@
 ; Convert a nat into a list of digits.
 ; TODO: Use `until`?
 = (listDigits num)
-| ifNot num (CONS "0" 0)
+| ifNot num (CONS {0} 0)
 ^ _ num NIL
 ? (loop mor acc)
 | seq acc
 | ifNot mor acc
-@ char (add (mod mor 10) "0")
+@ char (add (mod mor 10) {0})
 @ left (div mor 10)
 | loop left (CONS char acc)
 
@@ -575,8 +575,8 @@
 
 (elemIdxMany key row)=(findIdxMany (eql key) row)
 
-!!= (| listToRow | listIndexed | listFromRow ["a" "b" "c"])
-  [[0 "a"] [1 "b"] [2 "c"]]
+!!= (| listToRow | listIndexed | listFromRow [{a} {b} {c}])
+  [[0 {a}] [1 {b}] [2 {c}]]
 
 !!= SOME-0 | elemIdx 5 [5 6 7] NONE SOME
 !!= SOME-1 | elemIdx 6 [5 6 7] NONE SOME
@@ -669,12 +669,12 @@
 
 = (eitherCase x l r)     (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
 = (fromRight l x)        (**eitherCase x l id)
-= (unpackRight x)        (**fromRight (die 'Unexpected LEFT') x)
+= (unpackRight x)        (**fromRight (die {Unexpected LEFT}) x)
 = (eitherCaseLeft x r l) (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
 = (eitherOpen x r)       (**eitherCase x _&x r)
 = (eitherOpenLeft x l)   (**eitherCase x l _&x)
 = (fromLeft r x)         (**eitherCase x id r)
-= (unpackLeft x)         (**fromLeft (die 'Unexpected RIGHT') x)
+= (unpackLeft x)         (**fromLeft (die {Unexpected RIGHT}) x)
 = (eitherGetRight x k)   (**eitherCase x _&x k)
 = (eitherGetLeft x k)    (**eitherCase x k _&x)
 = (eitherMap f val)      (**eitherCase val 0 (x & 1 f-x))
@@ -765,7 +765,7 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
     | err rex openRowExpect
 @ itemRex
     | if (eql 1 | len sons) (idx 0 sons)
-    | OPEN "|" sons 0
+    | OPEN {|} sons 0
 | readExp itemRex err
 & exp
 @ acc (CONS exp acc)
@@ -843,8 +843,8 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
 @ e (snd kv)
 @ lr (lsearch k row)
 @ br (bsearch k row)
-| if (neq e lr) ['lsearch mismatch' ['for key' k] [e '!=' lr]]
-| if (neq e br) ['bsearch mismatch' ['for key' k] [e '!=' br]]
+| if (neq e lr) [{lsearch mismatch} [{for key} k] [e {!=} lr]]
+| if (neq e br) [{bsearch mismatch} [{for key} k] [e {!=} br]]
 | continue
 
 N=not_found
@@ -931,7 +931,7 @@ F=found
 ^-^ unfoldr span splitAt strictRow insert
 ^-^
 ^-^ bopE bapE bowE appE rowE
-^-^ ","
+^-^ {,}
 ^-^
 ^-^ NONE SOME maybeCase maybe ;; TODO: (optionCase, option)?
 ^-^ fromSome unpackSome
@@ -980,5 +980,5 @@ F=found
 ^-^ traverseList listTraverseState
 ^-^ rowTraverse rowTraverseState
 ^-^
-^-^ ">" "#typedef" "\"
+^-^ {>} {#typedef} {\}
 ^-^

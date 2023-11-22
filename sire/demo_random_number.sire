@@ -21,7 +21,7 @@
 = (RandLoop count calls response)
 @ bytes (tabGet response 0)
 | if not-(count == barLen bytes)
-    | die "%rand size is not what we asked for"
+    | die {%rand size is not what we asked for}
 | trk [=bytes]
 | if (isZero count) (RandLoop 0 [])
 @ count (dec count)

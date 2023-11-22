@@ -13,8 +13,8 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  boot
-/+  switch    ["#switch"]
-/+  datatype  ["#record" "#datatype" "#datacase"]
+/+  switch    [{#switch}]
+/+  datatype  [{#record} {#datatype} {#datacase}]
 /+  datom
 /+  gen
 /+  stew
@@ -25,34 +25,34 @@
 = strollSchema
 ^ assertTransact _ emptyDB
 ; Page attributes
-++ ## =":db/ident" ":page/title"
-   ## =":db/unique" TRUE
-   ## =":db/doc"
-       "When set on a block, that block is treated as a page with this title."
+++ ## ={:db/ident} {:page/title}
+   ## ={:db/unique} TRUE
+   ## ={:db/doc}
+       {When set on a block, that block is treated as a page with this title.}
 ; Block attributes
-++ ## =":db/ident" ":block/string"
-   ## =":db/cardinality" "one"
-   ## =":db/doc" "String content of a block"
-++ ## =":db/ident" ":block/uid"
-   ## =":db/cardinality" "one"
-   ## =":db/unique" TRUE
-   ## =":db/doc" "User referable text name for a block"
-++ ## =":db/ident" ":block/children"
-   ## =":db/cardinality" "many"
-   ## =":db/valueType" "ref"
-   ## =":db/doc" "Reference to all blocks under this block"
-++ ## =":db/ident" ":block/page"
-   ## =":db/cardinality" "one"
-   ## =":db/valueType" "ref"
-   ## =":db/indexed" TRUE
-   ## =":db/doc" "Reference to the page this block is displayed on."
-++ ## =":db/ident" ":block/refs"
-   ## =":db/cardinality" "many"
-   ## =":db/valueType" "ref"
-   ## =":db/doc" "Reference to all blocks `:block/string` textually refers to."
-++ ## =":db/ident" ":block/order"
-   ## =":db/cardinality" "one"
-   ## =":db/doc" "The order of these blocks in the list of `:block/children`."
+++ ## ={:db/ident} {:block/string}
+   ## ={:db/cardinality} {one}
+   ## ={:db/doc} {String content of a block}
+++ ## ={:db/ident} {:block/uid}
+   ## ={:db/cardinality} {one}
+   ## ={:db/unique} TRUE
+   ## ={:db/doc} {User referable text name for a block}
+++ ## ={:db/ident} {:block/children}
+   ## ={:db/cardinality} {many}
+   ## ={:db/valueType} {ref}
+   ## ={:db/doc} {Reference to all blocks under this block}
+++ ## ={:db/ident} {:block/page}
+   ## ={:db/cardinality} {one}
+   ## ={:db/valueType} {ref}
+   ## ={:db/indexed} TRUE
+   ## ={:db/doc} {Reference to the page this block is displayed on.}
+++ ## ={:db/ident} {:block/refs}
+   ## ={:db/cardinality} {many}
+   ## ={:db/valueType} {ref}
+   ## ={:db/doc} {Reference to all blocks `:block/string` textually refers to.}
+++ ## ={:db/ident} {:block/order}
+   ## ={:db/cardinality} {one}
+   ## ={:db/doc} {The order of these blocks in the list of `:block/children`.}
 
 ; Deliberately skipping :block/parents because we have a VAE table, unlike
 ; datascript. The data from :block/parents is derivable from :block/children,
@@ -88,9 +88,9 @@
 ;
 ;   - Roam has refused to implement this feature for basically its entire
 ;     existence when it's the most requested feature of the product. logseq
-;     has aliases and it's actually super trivial, just add a ":page/alias"
+;     has aliases and it's actually super trivial, just add a {:page/alias}
 ;     attribute and check for aliases every place you'd other look for
-;     ":page/title".
+;     {:page/title}.
 ;
 ; - Journal
 ;
@@ -104,7 +104,7 @@
 ;;; These are general and should be moved elsewhere
 
 ; We need to be able to generate random uids, which are like base64 but with
-; '-' and '_' instead of '+' and '/'.
+; {-} and {_} instead of {+} and {/}.
 
 = base64hepbar
   b#{ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_}
@@ -116,11 +116,11 @@
   & ([gen xs] i)
   @ [gen res] | genBitsNat 6 gen
   [gen (CONS (barIdx res base64hepbar) xs)]
-@ uid | listFoldl strWeld '' l
+@ uid | listFoldl strWeld {} l
 [gen uid]
 
 = (assertRight x)
-| fromRight ('assertion failed' x) x
+| fromRight ({assertion failed} x) x
 
 
 ;;; Database Record ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -146,7 +146,7 @@
 # datacase (transactStrollDb txn strollDb)
 * (LEFT l)
     | trk [%l l]
-    | 'stroll transaction failed: ' l
+    | {stroll transaction failed: } l
 * (RIGHT r) r
 
 ; Generates a unique id, checking that the uid isn't in the database
@@ -159,7 +159,7 @@
     ^ _ gen
     ? (loop gen)
     @ [gen uid] | genUid gen
-    @ matches | lookupByAV ":block/uid" uid db
+    @ matches | lookupByAV {:block/uid} uid db
     | if | setIsEmpty matches
         [gen uid]
     | loop gen
@@ -175,14 +175,14 @@
 ; said he doesn't reach for pulls in normal webapps, but the one example app I
 ; can find actually makes extensive use of them.)
 
-childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
+childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 
 ; Find the implicit block that make up a page, along with all its children.
 = (findPageBlock pageTitle strollDb)
 @ STROLL_DB(..) strollDb
-| pull ++ ":block/uid"
+| pull ++ {:block/uid}
        ++ childrenQuery
-       [":page/title" pageTitle]
+       [{:page/title} pageTitle]
        db
 
 ; Given a row of all the child blocks sorted by order, list the data for each
@@ -190,8 +190,8 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 > Row Any > DB > Either [Error] [(Tab Any Any)]
 = (findBlocksContent q strollDb)
 @ STROLL_DB(..) strollDb
-| pullMany ++ ":block/uid"
-           ++ ":block/string"
+| pullMany ++ {:block/uid}
+           ++ {:block/string}
            ++ childrenQuery
            q
            db
@@ -199,23 +199,23 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 = (sortRowTabByOrder t)
 ^ sortOn _ t
 & x
-| fromSome 0 | tabLookup ":block/order" x
+| fromSome 0 | tabLookup {:block/order} x
 
 ; Given any result map which contains a childrenQuery, produce an ordered list
 ; of uids to lookup sorted on order.
 = (makeOrderedChildrenQuery s)
-@ rowOfTab | fromSome [] | tabLookup ":block/children" s
+@ rowOfTab | fromSome [] | tabLookup {:block/children} s
 ^ map _ | sortRowTabByOrder rowOfTab
 & r
-[":block/uid" (fromSome ('missing uid' 0) | tabLookup ":block/uid" r)]
+[{:block/uid} (fromSome ({missing uid} 0) | tabLookup {:block/uid} r)]
 
 = (findBlocksChildrenUnsorted uid strollDb)
 @ STROLL_DB(..) strollDb
-# datacase | pull [childrenQuery] [":block/uid" uid] db
+# datacase | pull [childrenQuery] [{:block/uid} uid] db
 * (LEFT l) []
 * (RIGHT r)
     | fromSome []
-    | tabLookup ":block/children" r
+    | tabLookup {:block/children} r
 
 
 ; Given a block, find all blocks which reference this block and the page
@@ -228,30 +228,30 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ;
 = (findPageBlocksReferencing x strollDb)
 @ STROLL_DB(..) strollDb
-@ uid | fromSome "" | tabLookup ":block/uid" x
-| pull ++ ## =":block/_refs" ++ ":block/uid"
-                             ++ ## =":block/page" ++ ":block/uid"
-                                                  ++ ":page/title"
-       [":block/uid" uid]
+@ uid | fromSome {} | tabLookup {:block/uid} x
+| pull ++ ## ={:block/_refs} ++ {:block/uid}
+                             ++ ## ={:block/page} ++ {:block/uid}
+                                                  ++ {:page/title}
+       [{:block/uid} uid]
        db
 
 = (getEidOf uid strollDb)
 @ STROLL_DB(..) strollDb
 | setMin
-| lookupByAV ":block/uid" uid db
+| lookupByAV {:block/uid} uid db
 
 ; Returns the uid of the parent
 ;
 = (getParentOf uid strollDb)
 @ STROLL_DB(..) strollDb
-| fromSome ""
-| tabLookup ":block/uid"
+| fromSome {}
+| tabLookup {:block/uid}
 | idx 0
 | fromSome []
-| tabLookup ":block/children"
+| tabLookup {:block/children}
 | assertRight
-| pull [[":block/_children"=[":block/uid"]]]
-       [":block/uid" uid]
+| pull [[{:block/_children}=[{:block/uid}]]]
+       [{:block/uid} uid]
        db
 
 ; Get the block order by eid.
@@ -259,13 +259,13 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 = (getOrderByEid eid strollDb)
 @ STROLL_DB(..) strollDb
 | setMin
-| lookupByAE ":block/order" eid db
+| lookupByAE {:block/order} eid db
 
 = (getPageByEid eid strollDb)
 @ STROLL_DB(..) strollDb
 ; if this eid has a :page/title, it is a page.
-| ifNot (setIsEmpty | lookupByAE ":page/title" eid db) eid
-| setMin | lookupByAE ":block/page" eid db
+| ifNot (setIsEmpty | lookupByAE {:page/title} eid db) eid
+| setMin | lookupByAE {:block/page} eid db
 
 ; Given a uid, find all the eids of all the blocks this uid forward references
 ;
@@ -275,10 +275,10 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 | map [k v]&v
 | catMap tabToPairs
 | fromSome [] ; catMap expects a row of tabs
-| tabLookup ":block/refs"
+| tabLookup {:block/refs}
 | assertRight
-| pull ++ ## =":block/refs" ++ ":db/id"
-       [":block/uid" uid]
+| pull ++ ## ={:block/refs} ++ {:db/id}
+       [{:block/uid} uid]
        db
 
 ; Given a uid, find all the uids of all the blocks this uid forward references
@@ -287,14 +287,14 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 | map [k v]&v
 | catMap tabToPairs
 | fromSome [] ; catMap expects a row of tabs
-| tabLookup ":block/refs"
+| tabLookup {:block/refs}
 | assertRight
-| pull [[":block/refs"=[":block/uid"]]]
-       [":block/uid" uid]
+| pull [[{:block/refs}=[{:block/uid}]]]
+       [{:block/uid} uid]
        db
 
 = (findAllChildUids uid strollDb)
-| map x&(fromSome "" | tabLookup ":block/uid" x)
+| map x&(fromSome {} | tabLookup {:block/uid} x)
 | findBlocksChildrenUnsorted uid strollDb
 
 > (Nat > Nat) > String > Nat > StrollDb > StrollDb
@@ -303,15 +303,15 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ children | findBlocksChildrenUnsorted parentUid strollDb
 ^ mapMaybe _ children
 & node
-: uid < maybeCase (tabLookup ":block/uid" node) NONE
-: order < maybeCase (tabLookup ":block/order" node) NONE
+: uid < maybeCase (tabLookup {:block/uid} node) NONE
+: order < maybeCase (tabLookup {:block/order} node) NONE
 | if (lth order pos)
     | NONE
 ; TODO: If I allow reading of raw EID numbers during a pull via a virtual
-; ":db/id" like Datomic, we can get rid of the overhead of this lookup
+; {:db/id} like Datomic, we can get rid of the overhead of this lookup
 ; here, which is probably small in this one instance, but is a unneeded
 ; repeated lookup over all queries.
-| SOME [%add [":block/uid" uid] ":block/order" (fun order)]
+| SOME [%add [{:block/uid} uid] {:block/order} (fun order)]
 
 ; Create entries for a transaction which changes each block to a different page
 ; uid.
@@ -319,7 +319,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 > String > Nat > StrollDb > [Any]
 = (mkPageUpdates uid dstEid strollDb)
 | cat
-| rowCons [[%add [":block/uid" uid] ":block/page" dstEid]]
+| rowCons [[%add [{:block/uid} uid] {:block/page} dstEid]]
 | map u&(mkPageUpdates u dstEid strollDb)
 | findAllChildUids uid strollDb
 
@@ -336,19 +336,19 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ page
     ; TODO: this would work better as a query, since that would just return the
     ; eid directly.
-    | fromSome ('missing :block/page' 0)
-    | tabLookup ":block/page"
+    | fromSome ({missing :block/page} 0)
+    | tabLookup {:block/page}
     | idx 1
-    | pull [":block/page"] [":block/uid" parentUid] db
+    | pull [{:block/page}] [{:block/uid} parentUid] db
 @ newItem
-    ## =":block/uid" uid
-    ## =":block/string" ""
-    ## =":block/order" pos
-    ## =":block/page" page
+    ## ={:block/uid} uid
+    ## ={:block/string} {}
+    ## ={:block/order} pos
+    ## ={:block/page} page
 ;
 @ addChild
-    ## =":db/id" [":block/uid" parentUid]
-    ## =":block/children" newItem
+    ## ={:db/id} [{:block/uid} parentUid]
+    ## ={:block/children} newItem
 @ total | rowCons addChild childUpdates
 # datacase  | transact total db
 * (LEFT l)  | LEFT l
@@ -363,24 +363,24 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ [pageUid strollDb]  | generateUniqueID strollDb
 ^ [pageUid _]
 ^ assertTransactStrollDb _ strollDb
-++ ## =":db/id" %["newpage"]
-   ## =":page/title" pageTitle
-   ## =":block/uid" pageUid
-   ## =":block/children"
-      ++ ## =":block/string" ""
-         ## =":block/uid" pointUid
-         ## =":block/order" 0
-         ## =":block/page" %["newpage"]
+++ ## ={:db/id} %[{newpage}]
+   ## ={:page/title} pageTitle
+   ## ={:block/uid} pageUid
+   ## ={:block/children}
+      ++ ## ={:block/string} {}
+         ## ={:block/uid} pointUid
+         ## ={:block/order} 0
+         ## ={:block/page} %[{newpage}]
 
 ; Given a page title, resolves it to a uid, creating the page if necessary.
 ;
 > String > StrollDb > [Uid StrollDb]
 = (pageToUid pageTitle strollDb)
 @ STROLL_DB(..) strollDb
-@ eids | lookupByAV ":page/title" pageTitle db
+@ eids | lookupByAV {:page/title} pageTitle db
 | if | setIsEmpty eids
     | makeNewPage pageTitle strollDb
-@ uids | lookupByAE ":block/uid" (setMin eids) db
+@ uids | lookupByAE {:block/uid} (setMin eids) db
 [(setMin uids) strollDb]
 
 ; Parses a string for things which look like references.
@@ -394,21 +394,21 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ? (loop i bar out)
 | if | gth i len
     out
-| if | rowAnd ++ | eql (barIdx i bar) '('
-              ++ | eql (barIdx (inc i) bar) '('
-              ++ | eql (barIdx (add 11 i) bar) ')'
-              ++ | eql (barIdx (add 12 i) bar) ')'
+| if | rowAnd ++ | eql (barIdx i bar) {(}
+              ++ | eql (barIdx (inc i) bar) {(}
+              ++ | eql (barIdx (add 11 i) bar) {)}
+              ++ | eql (barIdx (add 12 i) bar) {)}
    ; todo: additionally validate that its base64
    @ ref | barNat | barSlice (add i 2) 9 bar
    | loop (add i 12) bar (CONS ref out)
 | loop (inc i) bar out
 
 !!=     [%bbCCddEE1 %aaBBccDD9]
-    | parseRefs "One ((aaBBccDD9)) Three ((bbCCddEE1))"
+    | parseRefs {One ((aaBBccDD9)) Three ((bbCCddEE1))}
 
 ; Parse inside links
 !!=     [%bbCCddEE1]
-    | parseRefs "Yesterday, [I wrote this](((bbCCddEE1)))"
+    | parseRefs {Yesterday, [I wrote this](((bbCCddEE1)))}
 
 ; Parses titles out of the data
 ;
@@ -425,12 +425,12 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 ? (loop i bar stack out)
 | if | gth i len
     out
-| if | rowAnd ++ | eql (barIdx i bar) '['
-              ++ | eql (barIdx (inc i) bar) '['
+| if | rowAnd ++ | eql (barIdx i bar) {[}
+              ++ | eql (barIdx (inc i) bar) {[}
     ; we mark that this is where we have the beginning of a mark
     | loop (add 2 i) bar (CONS (add 2 i) stack) out
-| if | rowAnd ++ | eql (barIdx i bar) ']'
-              ++ | eql (barIdx (inc i) bar) ']'
+| if | rowAnd ++ | eql (barIdx i bar) {]}
+              ++ | eql (barIdx (inc i) bar) {]}
     : x xs < **listCase stack
                  ; extra unmatched right close. ignore it
                  | loop (add 2 i) bar stack out
@@ -440,27 +440,27 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 
 ; Simple case
 !!=     [%Iceman]
-    | parseTitles "[[Iceman]]"
+    | parseTitles {[[Iceman]]}
 
 ;; Parse in links
 !!=     [%Iceman]
-    | parseTitles "[This dude]([[Iceman]])"
+    | parseTitles {[This dude]([[Iceman]])}
 
 ;; Simple recursive case
-!!=     ['[[Word]] More' %Word]
-    | parseTitles "[[[[Word]] More]]"
+!!=     [{[[Word]] More} %Word]
+    | parseTitles {[[[[Word]] More]]}
 
-;; Extra '[[' on left
-!!=     ['[[Word]] More' %Word]
-    | parseTitles "[[ [[[[Word]] More]]"
+;; Extra {[[} on left
+!!=     [{[[Word]] More} %Word]
+    | parseTitles {[[ [[[[Word]] More]]}
 
-;; Extra ']]' on right
-!!=     ['[[Word]] More' %Word]
-    | parseTitles "[[[[Word]] More]] ]]"
+;; Extra {]]} on right
+!!=     [{[[Word]] More} %Word]
+    | parseTitles {[[[[Word]] More]] ]]}
 
 ;; Parallel references
-!!=     ['[[One]] and [[Two]]' 'Two' 'One']
-    | parseTitles "[[[[One]] and [[Two]]]]"
+!!=     [{[[One]] and [[Two]]} {Two} {One}]
+    | parseTitles {[[[[One]] and [[Two]]]]}
 
 
 ; Sets the text content of a block to a given string, extracting page titles
@@ -480,7 +480,7 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ newRefUids | weld refs | listToRow titleRefs
 @ newRefEids
     | setCatRow
-    | map uid&(lookupByAV ":block/uid" uid db) newRefUids
+    | map uid&(lookupByAV {:block/uid} uid db) newRefUids
 ;
 ; Fetch the current references uids from textUid.
 @ currentRefEids | setFromRow | findAllRefEids textUid strollDb
@@ -489,9 +489,9 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
 @ toDel | setToRow | setSub currentRefEids newRefEids
 ;
 ^ assertTransactStrollDb (cat _) strollDb
-++ [[%add [":block/uid" textUid] ":block/string" text]]
-++ | map a&[%add [":block/uid" textUid] ":block/refs" a] toAdd
-++ | map r&[%rm [":block/uid" textUid] ":block/refs" r] toDel
+++ [[%add [{:block/uid} textUid] {:block/string} text]]
+++ | map a&[%add [{:block/uid} textUid] {:block/refs} a] toAdd
+++ | map r&[%rm [{:block/uid} textUid] {:block/refs} r] toDel
 
 ; Moves a bullet point to a new parent, updating all references and page
 ; entries.
@@ -516,9 +516,9 @@ childrenQuery=[":block/children"=[":block/uid" ":block/order"]]
     | mkPageUpdates nodeUid dstPage strollDb
 ;
 ^ assertTransactStrollDb (cat _) strollDb
-++ [[%rm [":block/uid" curParentUid] ":block/children" nodeEid]]
-++ [[%add [":block/uid" newParentUid] ":block/children" nodeEid]]
-++ [[%add nodeEid ":block/order" newOrder]]
+++ [[%rm [{:block/uid} curParentUid] {:block/children} nodeEid]]
+++ [[%add [{:block/uid} newParentUid] {:block/children} nodeEid]]
+++ [[%add nodeEid {:block/order} newOrder]]
 ++ prevReorders
 ++ newReorders
 ++ pageChanges

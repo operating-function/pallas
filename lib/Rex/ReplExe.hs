@@ -9,6 +9,7 @@ module Rex.ReplExe (main) where
 
 import PlunderPrelude
 import Rex
+import Rex.Policy (Block(..))
 
 --------------------------------------------------------------------------------
 
@@ -19,9 +20,12 @@ main = colorsOnlyInTerminal do
         "--nest":_ -> forceNest
         _          -> id
 
-    replStdin \case
-        BLK _ _ (Left err) -> putStrLn (dent "!!" $ err)
-        BLK _ _ (Right rx) -> putStrLn (rexFile $ f rx)
+    replStdin \(blk :: Block) ->
+        if null blk.errors then
+            putStrLn (rexFile $ f blk.rex)
+        else
+            for_ blk.errors \e -> do
+                putStrLn (dent "!!" $ e)
 
 forceOpen :: Rex -> Rex
 forceOpen = go
