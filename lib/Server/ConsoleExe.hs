@@ -196,22 +196,22 @@ runType defaultDir = subparser
       (RTOpen <$> storeOpt
               <*> cogIdArg)
 
-   <> plunderCmd "sire" "Runs an standalone Sire repl."
+   <> plunderCmd "sire" "Run a standalone Sire repl."
       (RTSire <$> storeOpt
               <*> profilingOpts
               <*> interpreterOpts
               <*> many sireFile)
 
-   <> plunderCmd "save" "Loads a sire file ane save a seed"
+   <> plunderCmd "save" "Load a sire file and save a seed."
       (RTSave <$> profilingOpts
               <*> interpreterOpts
               <*> seedFile
               <*> sireFile)
 
-   <> plunderCmd "show" "Print a seed file"
+   <> plunderCmd "show" "Print a seed file."
       (RTShow <$> seedFile)
 
-   <> plunderCmd "repl" "Interact with a seed file"
+   <> plunderCmd "repl" "Interact with a seed file."
       (RTRepl <$> seedFile
               <*> interpreterOpts)
 
@@ -222,10 +222,10 @@ runType defaultDir = subparser
                <*> machineOpts
                <*> replayFromOption)
 
-   <> plunderCmd "loot" "Runs an standalone sire repl."
+   <> plunderCmd "loot" "Run a standalone sire repl."
       (RTLoot <$> storeOpt <*> profilingOpts <*> many lootFile)
 
-   <> plunderCmd "boot" "Boots a machine."
+   <> plunderCmd "boot" "Boot a machine."
       (RTBoot <$> profilingOpts
               <*> interpreterOpts
               <*> machineOpts
