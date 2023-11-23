@@ -149,182 +149,83 @@ references d = \case
     S_LAM l   -> references (d + 1 + l.args) l.body
 
 
+-- Inlinling -------------------------------------------------------------------
 
--- Inline Application ----------------------------------------------------------
+data Expo = EXPO
+    { lam   :: Lam
+    , mark  :: Bool
+    , depth :: Int
+    , need  :: Int
+    , args  :: [(Int, Sire)]
+    }
+  deriving Show
 
-inlineExp
-    :: [Maybe Sire]
-    -> (Sire, [Sire])
-    -> Either Text (Sire, [Sire])
-inlineExp locals (f,xs) = case f of
-    S_LAM l -> (fn 0) l
-    S_GLO b -> maybe who (fn 0) (getLam b.d.code)
-    S_VAR v -> maybe who (fn v) (getLam =<< (locals !! fromIntegral v))
-    _       -> who
+data Expr = EXPR { sire :: Sire, expo :: Maybe Expo }
+
+exprApp :: Int -> Expr -> (Int, Sire) -> Maybe (Either Expo Sire)
+exprApp depth (EXPR _ me) dx = do
+    f <- me
+    guard f.mark
+    let fx = f { need = f.need - 1, args = dx : f.args }
+    pure if fx.need > 0
+         then Left fx
+         else Right (inlineApp fx)
   where
-    who = Left "Not a known function"
+    renum :: Int -> [(Int, Sire)] -> [Sire]
+    renum _  []         = []
+    renum !n ((d,s):ss) = migrate' (n+(depth-d)) 0 s : renum (n+1) ss
 
-    getLam (S_LAM s) = Just s
-    getLam (S_GLO b) = getLam b.d.code
-    getLam (S_LIN b) = getLam b
-    getLam _         = Nothing
+    migrate' :: Int -> Int -> Sire -> Sire
+    migrate' o b x = migrate (fromIntegral o) (fromIntegral b) x
 
-    fn :: Nat -> Lam -> Either Text (Sire, [Sire])
-    fn depth func = do
-        let arity     = fromIntegral func.args
-        let argExps   = take arity xs
-        let overflow  = drop arity xs
-        let numParams = length xs
+    inlineApp :: Expo -> Sire
+    inlineApp x =
+        let offset = fromIntegral (depth - x.depth)
+            body   = migrate offset (1 + x.lam.args) x.lam.body
+            args   = reverse x.args
+        in foldr S_LET body $ renum 1 ((depth, S_VAL 0) : args)
 
-        when (numParams < arity || isRecursive func) do
-            Left "too few params or is recursive"
-
-        pure $ (,overflow)
-             $ bindArgs argExps
-             $ migrate depth (fromIntegral $ arity+1) func.body
-
-    -- The (S_VAL 0) is a dummy-binder for self-reference.  It will be
-    -- optimized away by a later pass.  We know that this dummy is never
-    -- referenced referenced because we already checked that the
-    -- function was non-recursive before we inlined it.
-    bindArgs :: [Sire] -> Sire -> Sire
-    bindArgs args body = foldr S_LET body $ renumber 1 (S_VAL 0 : args)
-
-    -- Each argument is bound as a LET, so the self-ref is in scope,
-    -- as is every previous binding.
-    renumber :: Nat -> [Sire] -> [Sire]
-    renumber _ []     = []
-    renumber n (s:ss) = migrate n 0 s : renumber (n+1) ss
-
-
-
--- Inlining --------------------------------------------------------------------
-
-{-
-    Things that should be auto-inlined.
-
-    1)  Reference to marked global bindings.
-
-        | *else 3
-
-    2)  Direct calls to marked functions
-
-        | (**_ x & x) 3
-
-    3)  Reference to locally-bound marked functions
-
-        @ I (**I x ? x)
-        | I 3
-
-    4)  Reference to locally-bound marked-functions via chain of
-        references.
-
-        @ I (**I x ? x)
-        @ i I
-        | I 3
--}
-markThingsToBeInlined :: Sire -> Sire
-markThingsToBeInlined =
-    snd . go []
+reapply :: Int -> [Maybe Expo] -> [(Int,Sire)] -> Expr -> Expr
+reapply _     _ []             f = f
+reapply depth s ((d,x) : args) f =
+    case exprApp depth f (d,x) of
+        Nothing         -> fall Nothing
+        Just (Left fxe) -> fall (Just fxe)
+        Just (Right ex) -> inline depth s args ex
   where
-    mark :: Sire -> Sire
-    mark (S_LIN x) = mark x
-    mark x         = S_LIN x
+    offset = fromIntegral (depth - d)
+    s_app  = S_APP f.sire (migrate offset 0 x)
+    fall   = reapply depth s args . EXPR s_app
 
-    go :: [Bool] -> Sire -> (Bool, Sire)
-    go m = \case
-        x@S_VAL{} -> (False, x)
-        S_APP f x -> (False, S_APP (snd $ go m f) (snd $ go m x))
-        S_LET v b -> goLet m v b
-        S_VAR r   -> goVar m r
-        S_LIN f   -> mark <$> go m f
-        S_GLO b   -> goGlo b
-        S_LAM l   -> goLam m l
+inline :: Int -> [Maybe Expo] -> [(Int, Sire)] -> Sire -> Expr
+inline d s args = \case
+    x@(S_VAL _) -> rap $ EXPR x Nothing
+    x@(S_VAR v) -> rap $ EXPR x (s !! fromIntegral v)
+    x@(S_GLO b) -> rap $ EXPR x (inline d [] [] b.d.code).expo
 
-    globalIsMarked :: Binding -> Bool
-    globalIsMarked b =
-        case b.d.code of
-            S_LAM l -> l.inline
-            _       -> False
+    S_LAM lam ->
+        let need = fromIntegral lam.args
+            s'   = replicate (1 + need) Nothing <> s
+            d'   = 1 + need + d
+            sire = S_LAM lam{ body = (inline d' s' [] lam.body).sire }
+            expo = do guard (not $ isRecursive lam)
+                      let mark = lam.inline
+                      Just $ EXPO { lam, mark, depth=d, need, args=[] }
+        in rap (EXPR sire expo)
 
-    goVar m r | m !! fromIntegral r = (True,)  $ S_LIN (S_VAR r)
-    goVar _ r | otherwise           = (False,) $ S_VAR r
+    S_LET v b -> let vr = inline (d+1) (Nothing:s)  []   v
+                     br = inline (d+1) (noCyc vr:s) args b
+                 in EXPR (S_LET vr.sire br.sire) Nothing
 
-    goGlo g | globalIsMarked g = (True,  S_LIN (S_GLO g))
-    goGlo g | otherwise        = (False, S_GLO g)
+    S_LIN b -> let EXPR r me = inline d s [] b
+               in rap $ EXPR r (me <&> \x -> x{mark=True})
 
-    goLam m lam =
-        if lam.inline then (True, S_LIN e) else (False, e)
-      where
-        m2 = replicate (fromIntegral (1 + lam.args)) False <> m
-        e = S_LAM lam{ body = snd (go m2 lam.body) }
-
-    -- You can't inline something by self-reference through a letrec
-    -- binding, so we first process the binding with self-referenced
-    -- unmarked, and then we use the "is marked" flag of the result to
-    -- process the body.
-    goLet m v b =
-        let
-            (varIsMarked,  v2) = go (False : m) v
-            (bodyIsMarked, b2) = go (varIsMarked : m) b
-        in
-            (bodyIsMarked, S_LET v2 b2)
-
-
--- Inline All ------------------------------------------------------------------
-
-{-
-    Inlines every (**f x1 .. xn) where arity(f)=n and f is one of these:
-
-    -   A function literal.
-    -   A reference to a global function.
-    -   A reference to a local function.
--}
-inlineAll :: Sire -> Sire
-inlineAll topSire =
-     go [] (topSire, [])
+    S_APP f x -> let x' = (inline d s [] x).sire
+                 in inline d s ((d,x') : args) f
   where
-    go :: [Maybe Sire] -> (Sire, [Sire]) -> Sire
-    go s (h, xs) = case h of
-        x@S_VAL{}     -> apple x xs
-        x@S_GLO{}     -> apple x xs
-        x@S_VAR{}     -> apple x xs
-        S_APP f x     -> let x2 = go s (x,[]) in go s (f, x2:xs)
-        S_LET v b     -> apple (doLet s v b) xs
-        S_LAM f       -> apple (S_LAM $ doLam s f) xs
-        S_LIN S_LIN{} -> error "Internal Error:  doubled inline marker"
-        S_LIN x       -> doInline s (x,xs)
+    rap = reapply d s args
 
-    -- If we can't inline, we still apply the inline transformation to
-    -- the heade head.  Also, an unapplicable S_LIN annotation does not
-    -- remove the S_LIN optimization.  If this code is inlined into
-    -- other code, that can create new opportunities for inlining.
-    --
-    -- If we successfully inline, we re-process the result to see if
-    -- that brings forth more opportunities to inline.
-    doInline :: [Maybe Sire] -> (Sire, [Sire]) -> Sire
-    doInline s (h,xs) =
-         case inlineExp s (h,xs) of
-             Left _reason ->
-                 apple (S_LIN h2) xs where h2 = go s (h, [])
-             Right (newExp, extras) ->
-                 go s (newExp, extras)
-
-    -- Self-reference and arguments can never be inlined, so we just
-    -- bind them all as nothing values.
-    doLam :: [Maybe Sire] -> Lam -> Lam
-    doLam scope lam =
-        lam{body=newBody}
-      where
-        scope2  = replicate (fromIntegral(lam.args + 1)) Nothing <> scope
-        newBody = go scope2 (lam.body, [])
-
-    doLet :: [Maybe Sire] -> Sire -> Sire -> Sire
-    doLet l v b =
-        S_LET newV newB
-      where
-        newV = go (Nothing   : l) (v, [])
-        newB = go (Just newV : l) (b, [])
+    noCyc x = do { e <- x.expo; guard (not $ references 0 x.sire); pure e }
 
 
 -- Lambda Lifting --------------------------------------------------------------
@@ -811,14 +712,6 @@ eliminateUnusedBindings =
 --
 -- TODO Avoid running `eliminateUnusedBindings` many times.
 
-inline :: Sire -> Sire
-inline =
-    ( traceSireId "inlined"
-    . inlineAll
-    . traceSireId "marked"
-    . markThingsToBeInlined
-    )
-
 optimize :: Sire -> Sire
 optimize =
     ( traceSireId "no single-use bindings"
@@ -841,7 +734,7 @@ transformSire =
     . traceSireId "lifted"
     . lambdaLift
     . optimize
-    . inline
+    . (.sire) . inline 0 [] []
     )
 
 
