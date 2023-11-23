@@ -135,8 +135,8 @@ emptyPad=1
 
 ;;; The `#p` Macro ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= hpBadShape | {Expcted two kids}
-= hpBadType  | {Bar literal expects a text parameter}
+= hpBadShape } Expcted two kids
+= hpBadType  } Bar literal expects a text parameter
 
 ; TODO: {showPadLit} should use bare-words for non-empty pads.
 

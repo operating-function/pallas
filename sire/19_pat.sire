@@ -166,9 +166,10 @@
 : tab <- readWideTabLit parseBinder rex err
 | ok [%t tab]
 
-; @x
-; x@[a b c]
-; TODO: support x@y@z, just for completeness (zero, one, or many)
+;; @x
+;; x@[a b c]
+;; TODO: support x@y@z, just for completeness (zero, one, or many)
+
 = (parseAliasedBinder parseBinder rex err ok)
 : kids <- readNodeWithoutHeirButWithRune {@} rex err
 | if (eql 1 len-kids)
@@ -210,9 +211,12 @@
     | if (isZero heir)
         | ok [%v sym]
     | ifNot (eql {..} | rexRune heir)
-        | err rex (strWeld {expected something like CONSTR(..) ; wrong rune} (rexRune heir))
+        | err rex
+        ^ strWeld _ (rexRune heir) ; wrong rune
+        } expected something like CONSTR(..)
     | ifNot (null | rexKids heir)
-        | err rex {expected something like CONSTR(..); has kids}
+        | err rex ; has kids
+        } expected something like CONSTR(..)
     | ok [%o sym]
 @ rune (rexRune rex)
 | if (eql rune {.})
@@ -595,12 +599,11 @@
 }     (x y...)
 }     x-x-...
 
-;
-; `readDestroyer` parsing something with the same shape as a function
-; signature:
-;
-;     (| Key Pat*)
-;
+;; {readDestroyer} parsing something with the same shape as a function
+;; signature:
+;;
+;;     (| Key Pat*)
+
 > Rex > RexParser2 Key (Row Pat)
 = (readDestroyer rex err ok)
 ;
@@ -636,7 +639,6 @@
 !!= ['[a b] sigExpect]                    | tryRBSS '[a b]
 !!= ['([][]) sigExpect]                   | tryRBSS '([][])
 !!= ['((|)[]) sigNoHeir]                  | tryRBSS '((|)[])
-
 
 
 ;;; Generic Pattern Matching ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -921,7 +923,8 @@
     = [x y]
     , 1 2
 
-; Input must be non-empty
+;; {mkDefsC} input must be non-empty
+
 = (mkDefsC ss defBinds)
 ^ listFoldr _ (ss, 0) defBinds
 & (def [ss acc])
@@ -1032,3 +1035,4 @@
 ^-^ readLet
 ^-^
 ^-^ {@} {?} {&} {=} {:}
+^-^

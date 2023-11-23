@@ -393,17 +393,17 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 
 ;;; Quasi Quotation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; {readQuasiTree} reads a quasi-quoted rex input and returns a Rex
-; node with the quasi-quoted parts stored as embedded values.
-;
-; There are two types of splices, $$(expression splices) and $valueSlices.
-;
-; The details of how that is stored is left up to `readVal` and `readExp`,
-; but the point is this reads a rex tree (without embeded values and with
-; splices) into a rex tree (with embeded values).
-;
-; It's slightly confusing, but works out cleanly.  It's simpler than
-; building our own representation for the same structure.
+;; {readQuasiTree} reads a quasi-quoted rex input and returns a Rex
+;; node with the quasi-quoted parts stored as embedded values.
+;;
+;; There are two types of splices, $$(expression splices) and $valueSlices.
+;;
+;; The details of how that is stored is left up to `readVal` and `readExp`,
+;; but the point is this reads a rex tree (without embeded values and with
+;; splices) into a rex tree (with embeded values).
+;;
+;; It's slightly confusing, but works out cleanly.  It's simpler than
+;; building our own representation for the same structure.
 
 = (readQuasiTree readVal readExp rex err ok)
 @ rune | rexRune rex
@@ -449,15 +449,15 @@ quasiExpected={Expected something like: `rex}
 
 four=(WORD {4} 0)
 
-; {splicedE} takes a rex whose embded values represent splices.
-; Each splice is either a expression that should be interpreted as
-; constant value or an expressions that should be evaluated to a rex tree.
-;
-; We take that rex input, and we produce rex *output* that is a sire
-; expression that *evalutes to* the final rex tree.
-;
-; This is all very confusing, but it can be worked through, and the
-; resulting interface is intuitive.
+;; {splicedE} takes a rex whose embded values represent splices.
+;; Each splice is either a expression that should be interpreted as
+;; constant value or an expressions that should be evaluated to a rex tree.
+;;
+;; We take that rex input, and we produce rex *output* that is a sire
+;; expression that *evalutes to* the final rex tree.
+;;
+;; This is all very confusing, but it can be worked through, and the
+;; resulting interface is intuitive.
 
 > RexEmbed (Either Rex Rex) > Rex
 = (splicedE rex)

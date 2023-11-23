@@ -227,8 +227,7 @@ st
 @ c | if
     * neq b3BlockLen (b3ChunkstGetBlockLen c)
     * c
-  ;;; If the block buffer is full, compress
-  ;;; it and clear it.
+    ; If the block buffer is full, compress it and clear it.
     @ blockWords
         | bytesToWords
         | b3ChunkstGetBlock c

@@ -81,11 +81,11 @@ GT=2
 
 ;;; Comparison ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Nat comparisons are not jetted.  These are just building blocks for
-; the full PLAN comparisons, use those instead.
-;
-; Note that `natCmp` returns an `Ord` value in line with the definitions
-; above.
+;;; Nat comparisons are not jetted.  These are just building blocks for
+;;; the full PLAN comparisons, use those instead.
+;;;
+;;; Note that {natCmp} returns an {Ord} value in line with the definitions
+;;; above.
 
 = (natLte x y) | not (sub x y)
 = (natLth x y) | natLte inc-x y

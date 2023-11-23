@@ -36,13 +36,13 @@
 
 ; TODO: OP1 {_DataTag}
 
-; {_DataTag} either returns a nat, the first element of a row/tab/closure,
-; or 0 (for pins and law).  This is the conventional way to get the
-; "tag" from a tagged union.
-;
-; Note that, while `if` only returns true on non-zero naturals, but
-; (fst 0) evaluates to 0.  Also note that `fst` returns zero for laws
-; and pins.
+;; {_DataTag} either returns a nat, the first element of a row/tab/closure,
+;; or 0 (for pins and law).  This is the conventional way to get the
+;; "tag" from a tagged union.
+;;
+;; Note that, while `if` only returns true on non-zero naturals, but
+;; (fst 0) evaluates to 0.  Also note that `fst` returns zero for laws
+;; and pins.
 
 (_DataTag x)=(if x x fst-x)
 
@@ -507,7 +507,7 @@ ex=(PAIR %a %b)
 : bindKey bindRow <- getBind constr ss rex err
 @ props (getProps ss bindRow)
 ;
-| trk #[=bindKey =bindRow =props =constr]
+; trk #[=bindKey =bindRow =props =constr]
 ;
 | ifNot (tabHas {conTag} props)
     ^ err sigRex (strWeld _ constr)

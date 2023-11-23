@@ -4,12 +4,10 @@
 
 ### datom <- sandbox
 
-;;;;
 ;;;; Datom
 ;;;; =====
 ;;;;
 ;;;; Embeddable Entity/Attribute/Value datastore.
-;;;;
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -146,7 +144,7 @@
     | DB eav aev ave vae maxEid
 @ (baseAdd e a v db)
     | rawAdd e a v TRUE TRUE FALSE db
-; an {empty} db still needs to have some {built-in} tuples to allow for
+; an "empty" db still needs to have some "built-in" tuples to allow for
 ; attribute resolution. each attribute still has an eid.
 ;
 ; :db/ident is the name identity of an attribute. in the eav tuple
@@ -237,7 +235,7 @@ db
 e
 
 ; Given a user level attribute name, translate that to a numeric attribute
-; number and an {indexed} boolean which is whether we can use the ave table to
+; number and an 'indexed' boolean which is whether we can use the ave table to
 ; lookup data related to this attribute.
 ;
 > Str > Db > Either Error [Nat Bit Bit Bit Bit]
@@ -577,10 +575,9 @@ e
 * (LEFT l)  | {datom transaction failed: } [errors=l =db]
 * (RIGHT r) | r
 
-
 ;;; Pull ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; AttrExpr, an {attribute expression}, the parsed version of trying to represent
+; AttrExpr, an "attribute expression", the parsed version of trying to represent
 ; the way of specifying an attribute in a pull, in either direction, subject to
 ; a set of options which controls how the results from the attribute match will
 ; be returned.

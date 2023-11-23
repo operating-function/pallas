@@ -163,7 +163,7 @@
 | ok text
 
 = (rexGetText rex fall ok)
-@ style (rexStyle rex)
+@ style    (rexStyle rex)
 @ expected (eql style {TEXT})
 | ifNot expected fall
 | rexGetLeaf rex fall ok
@@ -233,7 +233,7 @@
 @ sty (rexStyle rex)
 | if (eql {LINE} sty) | TEXT rexText-rex rexHeir-rex
 | if (neq {OPEN} sty) | rex
-| NEST (rexRune rex) (rexSons rex) (rexHeir rex)
+| else                | NEST (rexRune rex) (rexSons rex) (rexHeir rex)
 
 
 ;;; Quoting ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -263,13 +263,11 @@
 wx=(WORD {x} 0)
 w9=(WORD {9} 0)
 hi=(TEXT {hi} 0)
-yo=(TEXT {yo} 0)
 rw=(NEST {,} v0 0)
 e6=(EMBD 6)
 sx=(OPEN {=} (v2 wx w9) 0)
 
 !!= 0 (rexIsNode hi)
-!!= 0 (rexIsNode yo)
 !!= 0 (rexIsNode e6)
 !!= 1 (rexIsNode sx)
 !!= 1 (rexIsNode rw)
@@ -277,7 +275,6 @@ sx=(OPEN {=} (v2 wx w9) 0)
 !!= 0 (rexIsEmbd sx)
 !!= 1 (rexIsEmbd e6)
 !!= 1 (rexIsLeaf hi)
-!!= 1 (rexIsLeaf yo)
 !!= 1 (rexIsLeaf wx)
 !!= 0 (rexIsLeaf e6)
 !!= 0 (rexIsEmbd sx)
@@ -307,9 +304,9 @@ sx=(OPEN {=} (v2 wx w9) 0)
 !!= {NEST} | rexStyle ' []
 !!= {OPEN} | rexStyle ' | x
 !!= {WORD} | rexStyle ' hi
+!!= {TEXT} | rexStyle ' {""}
+!!= {TEXT} | rexStyle ' }"}"
 !!= {LINE} | rexStyle ' }
-!!= {TEXT} | rexStyle ' {}
-!!= {TEXT} | rexStyle ' }__
 
 !!= '{foobar} | rexClose ' } foobar
 

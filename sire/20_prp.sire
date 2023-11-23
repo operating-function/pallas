@@ -4,8 +4,8 @@
 
 ### 20_prp <- 19_pat
 
-;;;; Properties
-;;;; ==========
+;;;; Sire Properties
+;;;; ===============
 ;;;;
 ;;;; Lookup and set properties on syntax objects.
 
@@ -45,7 +45,7 @@
 | if (isZero bind)
     | err rex | strWeld {undefined symbol: } name
 | if (not key)
-    | trk #[=bind]
+    ; trk #[=bind]
     | err rex {bindKey is zero!!}
 | **ok key bRow
 
@@ -54,7 +54,7 @@
 | if (isNat bind)
     | {not a binder} bind
 @ [bindKey _ _ bindMod bindName] bind
-| trk [getProps bindKey bindName bindMod]
+; trk [getProps bindKey bindName bindMod]
 | if (eql curMod bindMod)
     @ curProps (idx 4 ss)
     @ bindProps (tabGet curProps bindKey)
@@ -111,7 +111,7 @@
 : bindKey bind
     < getBind symbol ss rex err
 @ props (getProps ss bind)
-| trk #[=props =bindKey =bind]
+; trk #[=props =bindKey =bind]
 ^ expand ss (cnsE _)
 | tabHas property props
 

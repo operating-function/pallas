@@ -108,13 +108,12 @@
 | if (_Null v) n
 | go (inc n) (car v)
 
-;;;
-;;; {_Put} modifies the closure {r}, returning a new closure where
-;;; the {k}th argument is replaced with {v}.
-;;;
-;;; Remember that the nth element of a closure is counted from the
-;;; right.  For example, (_Put (f a x) 0 y) => (f a y)
-;;;
+;; {_Put} modifies the closure {r}, returning a new closure where
+;; the {k}th argument is replaced with {v}.
+;;
+;; Remember that the nth element of a closure is counted from the
+;; right.  For example, (_Put (f a x) 0 y) => (f a y)
+
 = (_Put r k v)
 | if (_Null r) | r
 | ifNot k      | car r v

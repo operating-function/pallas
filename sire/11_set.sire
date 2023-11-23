@@ -35,8 +35,8 @@
 
 ;;; Sets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; {_MkSet} is an internal routine that expects to be given a
-; "row set" a sorted row with no duplicates.
+;; {_MkSet} is an internal routine that expects to be given a
+;; "row set" a sorted row with no duplicates.
 
 = (_MkSet x)       | 0 1 2 x
 = (_SetToRow set)  | lawBody set
@@ -54,16 +54,16 @@
 = (setMin set)    | idx 0 (_SetToRow set)
 = (setMax set)    | idx (dec | setLen set) (_SetToRow set)
 
-; {setPort} ports a row operation to a set.  For this to work, the row
-; operation must always return a result that is in ascending order and
-; contains no duplicates.
+;; {setPort} ports a row operation to a set.  For this to work, the row
+;; operation must always return a result that is in ascending order and
+;; contains no duplicates.
 
 = (setPort op set) | _MkSet | op | _SetToRow set
 
-; {setPortSplit} ports a row splitting function (Row a > (Row a, Row a))
-; to sets.  Like {setPort}, {setPortSplit} expects both of the rows
-; returned by the splitting function to be in ascending order and contain
-; no duplicates.
+;; {setPortSplit} ports a row splitting function (Row a > (Row a, Row a))
+;; to sets.  Like {setPort}, {setPortSplit} expects both of the rows
+;; returned by the splitting function to be in ascending order and contain
+;; no duplicates.
 
 = (setPortSplit op set)
 @ xy | op (_SetToRow set)
@@ -77,10 +77,10 @@
 = (setCatRow r)     | foldl setWeld emptySet r
 = (setCatRowAsc cs) | _MkSet (catMap _SetToRow cs)
 
-; {setCatRowAsc} expects a row of sets, each strictly ascending (the
-; greatest element of each set is smaller than all elements of the next
-; set in the sequence).  If this invariant is violated, the result will
-; not be a set.
+;; {setCatRowAsc} expects a row of sets, each strictly ascending (the
+;; greatest element of each set is smaller than all elements of the next
+;; set in the sequence).  If this invariant is violated, the result will
+;; not be a set.
 
 = (isOrderedWith chk row)
 @ wid (len row)
@@ -191,7 +191,8 @@
 & set
 | ok st (EMBD set)
 
-= cenExpect } % expects something like %foo or %[...]
+= cenExpect
+} % expects something like %foo or %[...]
 
 = setKeyExpect
 } A set key literal must be one of:

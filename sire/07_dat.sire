@@ -148,7 +148,7 @@
 
 ;;; Maybe ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO Use (0 | [x])
+;; TODO NONE=0 (SOME x)=[x]
 
 = NONE       | 0
 = (**SOME x) | 0 x
@@ -263,8 +263,8 @@
 = NIL           | 0
 = (**CONS x xs) | [x xs]
 
-; TODO: Always inline?
-; TODO: Use isZero?
+;; TODO: should {listCase} always be inlined?
+;; TODO: Should {listCase} use {isZero} or {isNat} as a termination check?
 
 = (listCase xs nil cons)
 | if isNat-xs nil
@@ -403,9 +403,12 @@
 !!= [2 [3 0]]     | listTakeWhile id [2 [3 [0 [4 [5 0]]]]]
 !!= [0 [4 [5 0]]] | listDropWhile id [2 [3 [0 [4 [5 0]]]]]
 
-; TODO This does not belong here
-; Convert a nat into a list of digits.
-; TODO: Use `until`?
+;; {listDigits} converts a nat into a list of digits.
+;;
+;; TODO: {listDigits} does not belong in this module.
+;;
+;; TODO: implement {listDigits} using `until`?
+
 = (listDigits num)
 | ifNot num (CONS {0} 0)
 ^ _ num NIL
@@ -416,7 +419,8 @@
 @ left (div mor 10)
 | loop left (CONS char acc)
 
-; Convert a nat into a row of digits.
+;; {digits} converts a nat into a row of digits.
+
 = (digits num) (listToRow listDigits-num)
 ; TODO This really belongs elsewhere!  Maybe in `sci` or `out`?
 
@@ -448,7 +452,8 @@
     | if (lth f-x f-a) x a
 | xs
 
-; TODO inline this CONS
+;; TODO should {listGen} inline it's call to CONS?
+
 = (listGen n f)
 ^ _ 0
 ? (loop i)
@@ -458,9 +463,9 @@
 
 !!= (listGen 3 id) [0 [1 [2 0]]]
 
-; {listSortBy}, {listSort}, {sortBy}, {sort} etc are simple
-; implementations meant to be used in jets.  If you want a proper
-; quicksort or mergesort, implement them yourself.
+;; {listSortBy}, {listSort}, {sortBy}, {sort} etc are simple
+;; implementations meant to be used in jets.  If you want a proper
+;; quicksort or mergesort, implement them yourself.
 
 = (listInsertBy cmp x lis)
 | **listCase lis (listSing x)
@@ -469,8 +474,8 @@
     | CONS y (listInsertBy cmp x ys)
 | CONS x lis
 
-; {listUniq} removes duplicate values that appear next to each-other.
-; If the input is sorted, then the output will have no duplicates.
+;; {listUniq} removes duplicate values that appear next to each-other.
+;; If the input is sorted, then the output will have no duplicates.
 
 = (listUniq xs)
 | if (isZero xs) NIL
@@ -500,7 +505,7 @@
 | listMap x&(y @ f x)(seq y (y, x))
 | lis
 
-; {rowPort} converts from a list operation to a row operation.
+;; {rowPort} converts from a list operation to a row operation.
 
 = (rowPort op row) | listToRow (op | listFromRow row)
 = (uniq row)       | rowPort listUniq         row
@@ -796,22 +801,22 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
 
 ;;; Binary Search ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; {bsearch} finds the index of an item within a "row set".  The input
-; row is presumed to be in ascending order and without duplciates.
-;
-; {bsearch} finds the index of an item equal to the target, or the
-; index of the smallest item larger than the target, or it returns the
-; length of the array, if no such item exists.
-;
-; The result is tagged to indicate if the result is a match or not.
-; Tagging works by left-shifting the resuilt by one, and then setting the
-; low bit only if there was a match.
-;
-; The index returned in the "not found" case is always the index where
-; this item could be inserted without breaking the "row set" invariants.
-;
-; {lsearch} has the same behavior as {bsearch}, and mostly just exists
-; as a test case.
+;; {bsearch} finds the index of an item within a "row set".  The input
+;; row is presumed to be in ascending order and without duplciates.
+;;
+;; {bsearch} finds the index of an item equal to the target, or the
+;; index of the smallest item larger than the target, or it returns the
+;; length of the array, if no such item exists.
+;;
+;; The result is tagged to indicate if the result is a match or not.
+;; Tagging works by left-shifting the resuilt by one, and then setting the
+;; low bit only if there was a match.
+;;
+;; The index returned in the "not found" case is always the index where
+;; this item could be inserted without breaking the "row set" invariants.
+;;
+;; {lsearch} has the same behavior as {bsearch}, and mostly just exists
+;; as a test case.
 
 (**found ix)=(inc | lsh ix 1)
 (**not_found ix)=(lsh ix 1)
@@ -820,18 +825,18 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
 = (lsearch_ key row low end)
 | if (gte low end) (not_found low)
 | switch (cmp key | get row low) 0
-++ not_found low                   ;;  LT
-++ found low                       ;;  EQ
-++ lsearch_ key row (inc low) end  ;;  GT
+++ not_found low                  ; LT
+++ found low                      ; EQ
+++ lsearch_ key row (inc low) end ; GT
 
 > Any > Row Any > Nat
 = (bsearch_ key row low end)
 | if (gte low end) (not_found low)
 @ index (rsh (add low end) 1)
 | switch (cmp key | get row index) 0
-++ bsearch_ key row low index        ;; LT
-++ found index                       ;; EQ
-++ bsearch_ key row (inc index) end  ;; GT
+++ bsearch_ key row low index       ; LT
+++ found index                      ; EQ
+++ bsearch_ key row (inc index) end ; GT
 
 (lsearch key row)=(lsearch_ key row 0 (len row))
 (bsearch key row)=(bsearch_ key row 0 (len row))
@@ -873,7 +878,6 @@ F=found
 !!= 0         | traverseList (x ret)&(if even-x ret-x 0) [3 [4 0]] id
 !!= 0         | traverseList (x ret)&(if even-x ret-x 0) [4 [5 0]] id
 !!= [4 [6 0]] | traverseList (x ret)&(if even-x ret-x 0) [4 [6 0]] id
-
 
 > st
 > (st > b > r)
@@ -933,7 +937,7 @@ F=found
 ^-^ bopE bapE bowE appE rowE
 ^-^ {,}
 ^-^
-^-^ NONE SOME maybeCase maybe ;; TODO: (optionCase, option)?
+^-^ NONE SOME maybeCase maybe ; TODO: (optionCase, option)?
 ^-^ fromSome unpackSome
 ^-^ isSome isNone fmapMaybe
 ^-^

@@ -52,8 +52,8 @@
 
 (strIsCapitalized str)=(isUpper (mod str 256))
 
-; {loadDecimal} parses a decimal number without validating, instead
-; assuming that each character is in the appropriate range.
+;; {loadDecimal} parses a decimal number without validating, instead
+;; assuming that each character is in the appropriate range.
 
 > Str > Nat
 = (loadDecimal n)
@@ -61,9 +61,9 @@
 & (acc c)
 | add (mul 10 acc) (ord c)
 
-; {loadKeyWord} parses something that is either a decimal literal or
-; a string.  It either parses the decimal number or casts the input string
-; to a number.
+;; {loadKeyWord} parses something that is either a decimal literal or
+;; a string.  It either parses the decimal number or casts the input string
+;; to a number.
 
 > Str > Nat
 = (loadKeyWord str)
@@ -80,8 +80,6 @@
 ; TODO: Why the fuck does this crash?  It makes no sense!  It's doing
 ; the same things as the other things??
 !!= {fdsa} (strWeld {f} {dsa})
-
-;;; 3 4
 
 !!= [{f}]     (explode {f})
 !!= [255]     (explode 255)
