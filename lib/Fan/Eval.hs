@@ -1159,7 +1159,7 @@ optimizeSpine = go
                | haz == switchHash    -> tryMatchSwitch exe r
                | haz == tabSwitchHash -> tryMatchTabSwitch exe r
                | haz == seqHash       -> SEQ (go(r.!0)) (go(r.!1))
-               | haz == trkHash       -> TRK (go(r.!0)) (go(r.!1))
+               | haz == traceHash     -> TRK (go(r.!0)) (go(r.!1))
                | otherwise            -> exe
         LET i v b            -> LET i (goLazy v) (go b)
         exe                  -> goLazy exe
@@ -1202,7 +1202,7 @@ optimizeSpine = go
                    | haz == switchHash    -> shatterIt x s p r
                    | haz == tabSwitchHash -> shatterIt x s p r
                    | haz == seqHash       -> shatterIt x s p r
-                   | haz == trkHash       -> shatterIt x s p r
+                   | haz == traceHash     -> shatterIt x s p r
                    | otherwise            -> EXE x s (PIN p) (goLazy <$> r)
 
             EXE x s f r -> EXE x s f (goLazy <$> r)

@@ -28,6 +28,9 @@ import Fan.FFI                 (c_jet_blake3)
 import Foreign.Marshal.Alloc   (allocaBytes)
 import Foreign.Ptr             (castPtr)
 import GHC.Exts                (Word(..), int2Word#, uncheckedIShiftL#, (+#))
+import Loot.Backend            (loadClosure)
+import Loot.ReplExe            (closureRex)
+import Rex                     (GRex(..), RuneShape(..))
 import Unsafe.Coerce           (unsafeCoerce)
 
 import qualified Data.ByteString        as BS
@@ -48,7 +51,8 @@ installJetImpls = writeIORef vJetImpl jetImpls
 jetImpls :: Map Text Jet
 jetImpls = mapFromList
   [ ( "_PinItem"    , pinItemJet )
-  , ( "_Trk"        , trkJet     )
+  , ( "_Trace"      , traceJet     )
+  , ( "_DeepTrace"  , deepTraceJet )
   , ( "_Seq"        , seqJet     )
   , ( "_If"         , ifJet      )
   , ( "_Bit"        , bitJet     )
@@ -237,9 +241,22 @@ doTrk msg val = unsafePerformIO do
 --
 -- This way the cog-machine can propery re-route this output to the
 -- log-files.
-trkJet :: Jet
-trkJet _ env = doTrk (env.!1) (env.!2)
+traceJet :: Jet
+traceJet _ env = doTrk (env.!1) (env.!2)
 
+deepTraceJet :: Jet
+deepTraceJet _ e = doTrk (REX $ planRexFull (e.!1)) (e.!2)
+
+planRexFull :: Fan -> GRex a
+planRexFull = fmap absurd . itemizeRexes . closureRex Nothing . loadClosure
+  where
+    itemizeRexes :: [GRex a] -> GRex a
+    itemizeRexes [x] = x
+    itemizeRexes rs  = go rs
+      where
+        go []     = N OPEN "*" [] Nothing
+        go [x]    = N OPEN "*" [x] Nothing
+        go (x:xs) = N OPEN "*" [x] (Just $ go xs)
 
 {-# INLINE ordFan #-}
 ordFan :: Ordering -> Nat

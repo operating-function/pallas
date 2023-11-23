@@ -47,12 +47,11 @@
 
 ;;; Primops API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= id (id x ? x)
-
-= (_Force x)    | 0 0 1 (2 x) 0
-= (_Seq x y)    | 2 y (_ & y) x
-= (deepseq x y) | _Seq (_Force x) y
-= (_Trk x y)    | deepseq x y
+= (_Force x)       | 0 0 1 (2 x) 0
+= (_Seq x y)       | 2 y (_ & y) x
+= (deepseq x y)    | _Seq (_Force x) y
+= (_Trace x y)     | deepseq x y
+= (_DeepTrace x y) | deepseq x y
 
 = (_IsPin x)   | 1 (_ & 1) (_ _ _ & 0)     (_ _ & 0) (_ & 0)       x
 = (_IsLaw x)   | 1 (_ & 0) (_ _ _ & 1)     (_ _ & 0) (_ & 0)       x
@@ -73,25 +72,28 @@
 
 ;;; Jet Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; The _JetNaming convention is used for laws that runtime systems are
-; expected to optimize.  It is unsightly, however.
+;; The _JetNaming convention is used for laws that runtime systems are
+;; expected to optimize.  It is unsightly, however.
 
-= force   | _Force
-= seq     | _Seq
-= trk     | _Trk
-= isPin   | _IsPin
-= isLaw   | _IsLaw
-= isApp   | _IsApp
-= isNat   | _IsNat
-= planTag | _PlanTag
-= pinItem | _PinItem
-= lawName | _LawName
-= lawArgs | _LawArgs
-= lawBody | _LawBody
-= car     | _Car
-= cdr     | _Cdr
-= isZero  | _IsZero
-= isOne   | _IsOne
+= force     | _Force
+= seq       | _Seq
+= trk       | _Trace
+= trace     | _Trace
+= dTrk      | _DeepTrace
+= deepTrace | _DeepTrace
+= isPin     | _IsPin
+= isLaw     | _IsLaw
+= isApp     | _IsApp
+= isNat     | _IsNat
+= planTag   | _PlanTag
+= pinItem   | _PinItem
+= lawName   | _LawName
+= lawArgs   | _LawArgs
+= lawBody   | _LawBody
+= car       | _Car
+= cdr       | _Cdr
+= isZero    | _IsZero
+= isOne     | _IsOne
 
 
 ;;; Convenient Lisp-Style Cell Accessors ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -171,7 +173,11 @@
 ^-^
 ^-^ LAW valCase natCase inc PIN die todo
 ^-^
-^-^ force seq deepseq trk
+^-^ force seq deepseq
+^-^
+^-^ trace trk
+^-^ deepTrace dTrk
+^-^
 ^-^ isLaw lawName lawArgs lawBody
 ^-^ isPin pinItem
 ^-^ isApp car cdr

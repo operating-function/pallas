@@ -55,7 +55,7 @@ validate tab = unsafePerformIO do
     runHashes =
         [ ( "_If"       , ifHash        )
         , ( "_Seq"      , seqHash       )
-        , ( "_Trk"      , trkHash       )
+        , ( "_Trace"    , traceHash     )
         , ( "_Add"      , addHash       )
         , ( "_Sub"      , subHash       )
         , ( "_Mul"      , mulHash       )
@@ -74,7 +74,8 @@ jetHashes :: Map Text Hash256
 jetHashes
     = validate $ tabulate
     [ e "_Seq"                "7fPzp1b5QXpDDkvpt2oBGUm3w6eCPVKjDnUQ8i8w8mj5"
-    , e "_Trk"                "E8JiY8Frtjo8hnYb9c1jCQ2DQYVoPDZnNvzzne1XHACj"
+    , e "_Trace"              "DWsz4CYrc3xzUQRxtibBiSXUx8HzR3tRgGNsbAMJLe9w"
+    , e "_DeepTrace"          "7oDjbbsyiM1paMXmzzaR3P3KEit8MHRVSRduAX3qan5V"
     , e "_IsNat"              "UUg4gA355ySzHkLR9uyNbH667o6b4NkAv4rQ3pwJYqj"
     , e "_PinItem"            "7EaNWdf4EqHNCEBCScEuW4CrxbMzbadgkXgQcrbLwS2C"
     , e "_IsZero"             "DFAgjdmrasgLM1P776gpZDU9DVA2gBtyWuaTWb3fvoaZ"

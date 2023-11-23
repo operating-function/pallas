@@ -23,8 +23,8 @@ tabSwitchHash = "HkpccsRudwuik5BHd7vXwcdDG1eQbabk31NheSBDYZ72"
 seqHash :: Hash256
 seqHash = "7fPzp1b5QXpDDkvpt2oBGUm3w6eCPVKjDnUQ8i8w8mj5"
 
-trkHash :: Hash256
-trkHash = "E8JiY8Frtjo8hnYb9c1jCQ2DQYVoPDZnNvzzne1XHACj"
+traceHash :: Hash256
+traceHash = "DWsz4CYrc3xzUQRxtibBiSXUx8HzR3tRgGNsbAMJLe9w"
 
 idxHash :: Hash256
 idxHash = "H4Zc8hKR4nzf2w1FC8mXQmsmMrNvJ86yRh2hLK9GL3ds"
