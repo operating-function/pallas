@@ -53,6 +53,9 @@
 = (_Trace x y)     | deepseq x y
 = (_DeepTrace x y) | deepseq x y
 
+= (traceId x)     | _Trace x x
+= (deepTraceId x) | _DeepTrace x x
+
 = (_IsPin x)   | 1 (_ & 1) (_ _ _ & 0)     (_ _ & 0) (_ & 0)       x
 = (_IsLaw x)   | 1 (_ & 0) (_ _ _ & 1)     (_ _ & 0) (_ & 0)       x
 = (_IsApp x)   | 1 (_ & 0) (_ _ _ & 0)     (_ _ & 1) (_ & 0)       x
@@ -177,6 +180,7 @@
 ^-^
 ^-^ trace trk
 ^-^ deepTrace dTrk
+^-^ traceId deepTraceId
 ^-^
 ^-^ isLaw lawName lawArgs lawBody
 ^-^ isPin pinItem
