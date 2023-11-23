@@ -156,6 +156,7 @@
 # datatype Exp
 * EBED=cns b:Any
 * EREF=ref r:Str
+* EQUA=qua m:Str r:Str
 * ENAT=nat n:Nat
 * EPAD=pad n:Pad
 * EBAR=bar n:Bar
@@ -363,6 +364,27 @@
     ^ PREF dot [_] 0
     | WORD (showNat str) 0
 
+= (showQua dot mod ref)
+@ modBar (natBar mod)
+@ refBar (natBar ref)
+^ SHUT dot _ 0
+++  | if (okIdn modBar)
+        | WORD mod 0
+    | if (not (barIsEmpty modBar) && barAll isPrint modBar)
+        | TEXT mod 0
+    | else
+        | WORD (showNat mod) 0
+++  | if (okIdn refBar)
+        | WORD ref 0
+    | if (not (barIsEmpty refBar) && barAll isPrint refBar)
+        | TEXT ref 0
+    | else
+        | WORD (showNat ref) 0
+
+!!= `foo.bar     | showQua {.} {foo} {bar}
+!!= `{f o}.{b r} | showQua {.} {f o} {b r}
+!!= `1.0         | showQua {.} 1 0
+
 ; TODO: Fix loot printing for {...\{...}.
 ; TODO: Fix vim highlighting for {...\{...}.
 
@@ -370,7 +392,6 @@
 !!= '(.0)     | showRef {.} {}
 !!= '(.1)     | showRef {.} 1
 !!= '(.{a c}) | showRef {.} {a c}
-!!= '(.}_{_)  | showRef {.} }_{_
 
 = (mkApp row)
 | if (null row)
@@ -388,6 +409,7 @@
 # datacase exp
 * (EBED x)       | EMBD x
 * (EREF x)       | showRef {.} x
+* (EQUA m x)     | showQua {.} m x
 * (ENAT n)       | WORD showNat-n 0
 * (EPAD p)       | showPadLit p
 * (EBAR b)       | showBarLit b
@@ -636,6 +658,10 @@
 
 = (readDot rex err ok)
 @ kids (rexKids rex)
+| if (len kids == 2)
+    : mod <- readKey (fst kids) err
+    : ref <- readKey (snd kids) err
+    | ok (EQUA mod ref)
 | if (len kids /= 1)
     | err rex {expected .key}
 : key <- readKey (fst kids) err
@@ -932,6 +958,7 @@
 * EUNT               | f exp ok
 * (EBED _)           | f exp ok
 * (EREF _)           | f exp ok
+* (EQUA _ _)         | f exp ok
 * (ENAT _)           | f exp ok
 * (EPAD _)           | f exp ok
 * (EBAR _)           | f exp ok
@@ -1212,6 +1239,7 @@
 * EUNT             | ok ss (cnsE 0)
 * (EBED b)         | ok ss (cnsE b)
 * (EREF r)         | ok ss (showRef {#.} r)
+* (EQUA m r)       | ok ss (showQua {#.} m r)
 * (ENAT n)         | ok ss (cnsE n)
 * (EPAD n)         | ok ss (cnsE n)
 * (EBAR n)         | ok ss (cnsE n)
