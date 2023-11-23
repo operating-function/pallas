@@ -78,52 +78,7 @@ import qualified Data.Set as S
 import qualified Fan      as F
 
 
--- Inline Application ----------------------------------------------------------
-
-inlineExp
-    :: [Maybe Sire]
-    -> (Sire, [Sire])
-    -> Either Text (Sire, [Sire])
-inlineExp locals (f,xs) = case f of
-    S_LAM l -> (fn 0) l
-    S_GLO b -> maybe who (fn 0) (getLam b.d.code)
-    S_VAR v -> maybe who (fn v) (getLam =<< (locals !! fromIntegral v))
-    _       -> who
-  where
-    who = Left "Not a known function"
-
-    getLam (S_LAM s) = Just s
-    getLam (S_GLO b) = getLam b.d.code
-    getLam (S_LIN b) = getLam b
-    getLam _         = Nothing
-
-    fn :: Nat -> Lam -> Either Text (Sire, [Sire])
-    fn depth func = do
-        let arity     = fromIntegral func.args
-        let argExps   = take arity xs
-        let overflow  = drop arity xs
-        let numParams = length xs
-
-        when (numParams < arity || isRecursive func) do
-            Left "too few params or is recursive"
-
-        pure $ (,overflow)
-             $ bindArgs argExps
-             $ migrateExp depth (fromIntegral $ arity+1) func.body
-
-    -- The (S_VAL 0) is a dummy-binder for self-reference.  It will be
-    -- optimized away by a later pass.  We know that this dummy is never
-    -- referenced referenced because we already checked that the
-    -- function was non-recursive before we inlined it.
-    bindArgs :: [Sire] -> Sire -> Sire
-    bindArgs args body = foldr S_LET body $ renumber 1 (S_VAL 0 : args)
-
-    -- Each argument is bound as a LET, so the self-ref is in scope,
-    -- as is every previous binding.
-    renumber :: Nat -> [Sire] -> [Sire]
-    renumber _ []     = []
-    renumber n (s:ss) = migrateExp n 0 s : renumber (n+1) ss
-
+-- Utils -----------------------------------------------------------------------
 
 {-
     `migrate` copies an expression into an sub expression, and rewrites
@@ -160,8 +115,8 @@ inlineExp locals (f,xs) = case f of
     is.  In this case, `foo3` was at index=1, so we increase the index of
     `three` by one.
 -}
-migrateExp :: Nat -> Nat -> Sire -> Sire
-migrateExp offset alreadyBound topExp =
+migrate :: Nat -> Nat -> Sire -> Sire
+migrate offset alreadyBound topExp =
     if offset==0 then topExp else go alreadyBound topExp
   where
     go :: Nat -> Sire -> Sire
@@ -181,17 +136,65 @@ migrateExp offset alreadyBound topExp =
     self-references cannot be inlined.
 -}
 isRecursive :: Lam -> Bool
-isRecursive topLam =
-    go topLam.args topLam.body -- topLam.args == selfref index
+isRecursive topLam = references topLam.args topLam.body
+
+references :: Nat -> Sire -> Bool
+references d = \case
+    S_VAR v   -> v==d
+    S_VAL{}   -> False
+    S_GLO{}   -> False
+    S_LET v b -> references (d+1) v || references (d+1) b
+    S_APP f x -> references d f     || references d x
+    S_LIN x   -> references d x
+    S_LAM l   -> references (d + 1 + l.args) l.body
+
+
+
+-- Inline Application ----------------------------------------------------------
+
+inlineExp
+    :: [Maybe Sire]
+    -> (Sire, [Sire])
+    -> Either Text (Sire, [Sire])
+inlineExp locals (f,xs) = case f of
+    S_LAM l -> (fn 0) l
+    S_GLO b -> maybe who (fn 0) (getLam b.d.code)
+    S_VAR v -> maybe who (fn v) (getLam =<< (locals !! fromIntegral v))
+    _       -> who
   where
-    go self = \case
-        S_VAR v -> v == self
-        S_GLO{}   -> False
-        S_VAL{}   -> False
-        S_APP f x -> go self f || go self x
-        S_LET v b -> let !s2 = self+1 in go s2 v || go s2 b
-        S_LIN f   -> go self f
-        S_LAM l   -> go (self + 1 + l.args) l.body
+    who = Left "Not a known function"
+
+    getLam (S_LAM s) = Just s
+    getLam (S_GLO b) = getLam b.d.code
+    getLam (S_LIN b) = getLam b
+    getLam _         = Nothing
+
+    fn :: Nat -> Lam -> Either Text (Sire, [Sire])
+    fn depth func = do
+        let arity     = fromIntegral func.args
+        let argExps   = take arity xs
+        let overflow  = drop arity xs
+        let numParams = length xs
+
+        when (numParams < arity || isRecursive func) do
+            Left "too few params or is recursive"
+
+        pure $ (,overflow)
+             $ bindArgs argExps
+             $ migrate depth (fromIntegral $ arity+1) func.body
+
+    -- The (S_VAL 0) is a dummy-binder for self-reference.  It will be
+    -- optimized away by a later pass.  We know that this dummy is never
+    -- referenced referenced because we already checked that the
+    -- function was non-recursive before we inlined it.
+    bindArgs :: [Sire] -> Sire -> Sire
+    bindArgs args body = foldr S_LET body $ renumber 1 (S_VAL 0 : args)
+
+    -- Each argument is bound as a LET, so the self-ref is in scope,
+    -- as is every previous binding.
+    renumber :: Nat -> [Sire] -> [Sire]
+    renumber _ []     = []
+    renumber n (s:ss) = migrate n 0 s : renumber (n+1) ss
 
 
 
@@ -659,7 +662,7 @@ eliminateSingleUseBindings =
 
     rewrite :: Nat -> Sire -> Sire -> Sire
     rewrite z k = \case
-        S_VAR v | v==z -> migrateExp z 0 k
+        S_VAR v | v==z -> migrate z 0 k
         x@S_VAR{}      -> x
         x@S_LAM{}      -> x -- Do not apply to nested lambdas
         x@S_GLO{}      -> x
