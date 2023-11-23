@@ -31,8 +31,7 @@
 /+  01_fan  [seq inc die]
 /+  01_fan  [id compose]
 /+  02_bit  [bit not if else ifNot or and]
-/+  03_nat  [even]
-/+  03_nat  [mod lsh rsh add bex mul sub dec div]
+/+  03_nat
 /+  05_row  [len get idx]
 /+  04_cmp  [eql neq gte lte min isZero]
 /+  05_row  [map foldl foldr gen weld v1 v2 v4]
@@ -42,7 +41,7 @@
 /+  06_rex  [rexGetLeaf]
 /+  07_dat
 /+  08_sci  []
-/+  09_chr  [chr isPrint ord toLower]
+/+  09_chr  [chr isPrint ord toLower newlineChar]
 /+  10_str  [explode strCat strWeld strFromList]
 /+  11_set  [{%}]
 /+  12_tab  []
@@ -91,14 +90,33 @@
 = (barDec n)
 | sub n | bex | mul 8 (dec byteWidth-n)
 
-= (padBar pad)     | 0 1 1 pad
-= (mkBar xtr bits) | padBar (barEnc xtr bits)
+= (_Bar pad)       | 0 1 1 pad
+= (mkBar xtr bits) | _Bar (barEnc xtr bits)
 = (natBar n)       | mkBar 0 n
 = (barSing byt)    | natBar byt
 = (barDuo x y)     | natBar (add x | lsh y 8)
 = (barNat n)       | barDec (lawBody n)
 = (barLen bar)     | div (padLen lawBody-bar) 8
 = (barIsEmpty bar) | eql 1 (lawBody bar)
+
+barNewline=(barSing 10)
+barSpace=(barSing { })
+
+= (padBar pad)
+@ wid      (padLen pad)
+@ overflow (mod wid 8)
+@ newSize  (add wid (sub 8 overflow))
+| _Bar
+| ifNot overflow pad
+| setBit newSize
+| clearBit wid pad
+
+;; TODO: should {_NatToSizedBar} truncate it's input, or should it just
+;; fallback to the legal behavior if given an input that is too large?
+
+= (_NatToSizedBar sz nat)
+@ highBit (bex | mul 8 sz)
+| _Bar (add highBit nat)
 
 = (barIdx i bar)
 ^ _ i (barNat bar)
@@ -409,15 +427,15 @@ hexAlphabet=(b#{0123456789abcdef})
 | if (isApp x) | barCat (map barFlat x)
 | b#{}
 
-newline=(natBar 10)
-
-= (barElemIndexOff byte off bar)
+= (barFindIndexOff pred off bar)
 @ len (barLen bar)
 ^ _ off
 ? (loop ix)
 | if (gte ix len) len
-| if (eql byte (barIdx ix bar)) ix
+| if (pred | barIdx ix bar) ix
 | loop (inc ix)
+
+(barElemIndexOff byte off bar)=(barFindIndexOff (eql byte) off bar)
 
 !!= 0 (barElemIndexOff {c} 0 b#{caca})
 !!= 2 (barElemIndexOff {c} 1 b#{caca})
@@ -433,13 +451,36 @@ newline=(natBar 10)
 !!= 4 (barElemIndexOff {c} 4 b#{acac})
 !!= 4 (barElemIndexOff {c} 5 b#{acac})
 
-= (barUnlines lines)
+= (barLinesList bar)
+@ wid (barLen bar)
+^ (_ 0)
+? (go off)
+| if (gte off wid) NIL
+@ end (barElemIndexOff newlineChar off bar)
+| CONS (barSlice off (sub end off) bar)
+| go (inc end)
+
+(barLines bar)=(listToRow | barLinesList bar)
+
+!!=   | barLinesList
+      # b
+      } hi
+      } how
+      } are
+      } you?
+  | CONS b#hi
+  | CONS b#how
+  | CONS b#are
+  | CONS b#{you?}
+  | NIL
+
+= (barUnlinesList lines)
 | barCatList
-| listFoldr
-        & (x xs)
-        | [x [newline xs]]
-  NIL
-  (listFromRow lines)
+^ listFoldr _ NIL lines
+& (x xs)
+| [x [newlineChar xs]]
+
+(barUnlines lines)=(barUnlinesList | listFromRow lines)
 
 > Bar > Bar > Nat > Bit
 = (barIsPrefixOf needle haystack off)
@@ -537,10 +578,6 @@ newline=(natBar 10)
 !!= b#x  | barSing %x
 !!= b#xy | barDuo  %x %y
 
-barNewline=(barSing 10)
-
-barSpace=(barSing { })
-
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -558,7 +595,8 @@ barSpace=(barSing { })
 ^-^ barBytes barToRow rowFromBar barToList
 ^-^ barFromRow barFromList barFromListRev rowToBar
 ^-^ barMap barFilter
-^-^ barFindIndex barElemIndex barElemIndexOff barElemIndexEnd
+^-^ barFindIndex barFindIndexOff
+^-^ barElemIndex barElemIndexOff barElemIndexEnd
 ^-^ barSplitAt barSplitOne barSplitOneWith barSplitWith barSplit
 ^-^ barCountHeadMatching barDropWhile barTakeWhile
 ^-^
@@ -568,6 +606,7 @@ barSpace=(barSing { })
 ^-^
 ^-^ {#b} {#x} {#}
 ^-^
-^-^ newline barUnlines
+^-^ barLinesList barUnlinesList
+^-^ barLines barUnlines
 ^-^ barIsPrefixOf barSubstringSearch
 ^-^ barNewline barSpace
