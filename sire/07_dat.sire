@@ -301,12 +301,27 @@
 !!= 5          | unpackSome (SOME 5)
 !!= 4          | fromSome 4 NONE
 
+= (listIdxCps i xs not_found found)
+| **listCase xs not_found
+& (x xs)
+| if (isZero i) (found x)
+| listIdxCps (dec i) xs not_found found
+
+(listIdxMb fb i xs)=(listIdxCps i xs NONE SOME)
+(listIdxOr fb i xs)=(listIdxCps i xs fb id)
+(listIdx i xs)=(listIdxCps i xs 0 id)
+
+= (listLastOr fallback xs)
+| **listCase xs fallback
+& (x xs)
+| listLastOr x xs
+
+(listUnsafeLast l)=(listLastOr 0 l)
+
 = (listLast l)
 | **listCase l NONE
 & (h t)
-| **listCase t (SOME h)
-& (_ _)
-| listLast t
+| SOME | listLastOr h t
 
 !!= NONE   | listLast NIL
 !!= SOME-3 | listLast (CONS 3 NIL)
@@ -326,6 +341,12 @@
 | **listCase l z
 & (x xs)
 | f x (listFoldr f z xs)
+
+> (a -> a) > List a > a
+= (listFoldl1 f xs)
+| **listCase xs {listFoldl1}|{empty list}
+& (x xs)
+| listFoldl f x xs
 
 = (listUnfoldr f seed)
 | **maybeCase (f seed) NIL
@@ -358,7 +379,6 @@
 = (sizedListToRow sz l) | listFoldr supply cow-sz l
 = (listAnd v)           | listFoldr and TRUE v
 = (listOr v)            | listFoldr or 0 v
-= (listSum v)           | listFoldr add 0 v
 = (listAll f v)         | listAnd listMap-f-v
 = (listAny f v)         | listOr listMap-f-v
 = (listHas e xs)        | listAny eql-e xs
@@ -462,6 +482,11 @@
 | loop (inc i)
 
 !!= (listGen 3 id) [0 [1 [2 0]]]
+
+(listRep i n)=(listGen n (const i))
+
+!!= (listRep 9 3) [9 [9 [9 0]]]
+!!= (listRep 9 3) (listFromRow | rep 9 3)
 
 ;; {listSortBy}, {listSort}, {sortBy}, {sort} etc are simple
 ;; implementations meant to be used in jets.  If you want a proper
@@ -948,15 +973,19 @@ F=found
 ^-^ listCase
 ^-^ listSing
 ^-^ listMap
-^-^ listHead listSafeHead listUnsafeHead listUnsafeTail listLast
+^-^ listHead listSafeHead listUnsafeHead listUnsafeTail
+^-^ listIdxCps listIdxOr listIdx
+^-^ listLastOr listUnsafeLast listLast
 ^-^
-^-^ listFoldl listFoldr listMap listLen listSum listToRow sizedListToRow
+^-^ listFoldl listFoldl1
+^-^ listFoldr
+^-^ listLen listToRow sizedListToRow
 ^-^ listToRowReversed listFromRow listAnd listOr listSum listAll listAny
 ^-^ listHas listEnumFrom listWeld listCat listTake listDrop listDigits
 ^-^ listTakeWhile listDropWhile
 ^-^ digits listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn
 ^-^ listNub listIterate
-^-^ listGen listFindIndex listElemIndex
+^-^ listGen listRep listFindIndex listElemIndex
 ^-^ listIsPrefixOf listSearch listSubstringSearch
 ^-^ listIndexed
 ^-^ intersperse listIntersperse
