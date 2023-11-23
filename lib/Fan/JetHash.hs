@@ -214,4 +214,5 @@ jetHashes
     , e "_DataTag"            "EDQm1rudzF71qQPiAERwabdVg3drR91iWvZ5wswYBqpP"
     , e "_TypeTag"            "2YxxNn2VPEZY9ZZxyi3Tn7L7SNcXrTrGnWiZzx5ubN1q"
     , e "blake3"              "9mcU2MPVSaizs312TsDjwYSXUrExW3fU4XSGmKWHnfUg"
+    , e "_Try"                "8RNTQGmQ3MbhR4AbuyHeYGGFeE2RK1VwjdtxfNMZmtqX"
     ]

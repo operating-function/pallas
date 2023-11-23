@@ -190,6 +190,7 @@ jetImpls = mapFromList
   , ( "_TabKeysRow"  , tabKeysRowJet )
   , ( "_TabVals"     , tabValsJet )
   , ( "blake3"      , blake3Jet )
+  , ( "_Try",         tryJet )
 
   -- par
   , ( "par"         , parJet )
@@ -810,6 +811,17 @@ blake3Jet f e =
             c_jet_blake3 (castPtr outbuf) (fromIntegral wid) (castPtr byt)
             res <- BS.packCStringLen (outbuf, 32)
             pure (BAR res)
+
+tryJet :: Jet
+tryJet f e =
+    case getRow (e.!1) of
+        Nothing  -> f e
+        Just row -> case deepseq row (toList row) of
+            []   -> f e
+            x:xs -> unsafePerformIO do
+                try (evaluate $ force (foldl' (%%) x xs)) <&> \case
+                    Left (PRIMOP_CRASH err val) -> toNoun (0::Nat, (err, val))
+                    Right vl                    -> toNoun (1::Nat, vl)
 
 setSingletonJet :: Jet
 setSingletonJet _ e = SET $ ssetSingleton (e.!1)
