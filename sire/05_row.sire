@@ -126,6 +126,8 @@
 = (_Idx k r)   | _Get r k
 = (_Mut k v r) | _Put r k v
 
+(_Last xs)=(_Idx dec-(_Len xs) xs)
+
 = (_Switch ix fallback branches)
 | if (gte ix | _Len branches) fallback
 | _Get branches ix
@@ -154,6 +156,7 @@
 ;;; Aliases for Core Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = head    | _Head
+= last    | _Last
 = null    | _Null
 = arity   | _Arity
 = len     | _Len
@@ -357,7 +360,7 @@
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
-^-^ head null arity len
+^-^ head last null arity len
 ^-^ idx get
 ^-^ mut put
 ^-^ switch
