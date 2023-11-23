@@ -572,14 +572,14 @@
 : tab <- readTallTabLit readExp rex err
 | ok (ETAB tab)
 
-= (parseTikTik rex err ok)
+= (parseTik rex err ok)
 @ kids (rexKids rex)
 | ifNot (eql 1 | len kids)
     | err rex {Expected something like '(rex)}
 | ok
 | EREX (idx 0 kids)
 
-= (parseTik readExp rex err ok)
+= (parseBak readExp rex err ok)
 ;
 @ (readValLeft rex err ok)
     : exp < readExp rex err
@@ -701,8 +701,8 @@
 * {::}  | parseColCol readExp rex err ok
 * {==}  | parseTisTis readExp rex err ok
 * {/=}  | parseFasTis readExp rex err ok
-* {'}   | parseTikTik rex err ok
-* {`}   | parseTik readExp rex err ok
+* {'}   | parseTik rex err ok
+* {`}   | parseBak readExp rex err ok
 * {%}   | parseCen rex err ok
 * {%%}  | parseCenCen rex err ok
 * {&&}  | parseAndExp readExp rex err ok
@@ -737,8 +737,8 @@
 @ out      | readExp rex v2 showExp
 | if (expected == out) 1
 | OPEN {/=} []
-| OPEN {*} [out]
-| OPEN {*} [expected]
+| OPEN {*}  [out]
+| OPEN {*}  [expected]
 | 0
 
 !! expRound ' x
@@ -769,7 +769,7 @@
 
 !!= '[x=3 y=4]
   ^ readExp _ v2 showExp
-   ' #[{x}=3 {y}=4]
+  ' #[{x}=3 {y}=4]
 
 !!= ' (@ f (? (f x))[x x])x
   ^ readExp _ v2 showExp
@@ -833,13 +833,13 @@
 
 !! expRound '(3 :: (4 :: (5 :: 6)))
 
-!!= ' (3 :: (4 :: (5 :: 6)))
+!!= '(3 :: (4 :: (5 :: 6)))
   ^ readExp _ v2 showExp
   ' :: 3 4
     :: 5
     :: 6
 
-!!= ' (3 == 4 == 5)
+!!= '(3 == 4 == 5)
   ^ readExp _ v2 showExp
   ' (3 == 4 == 5)
 
@@ -1370,7 +1370,7 @@
   | comp ssEx
   | ECAS EREF-{x} (SOME | ENAT 1)
  ++ CON_CASE {SOME} [(PVAR {x})] EREF-{x}
- ++ CON_CASE {NONE} []             ENAT-0
+ ++ CON_CASE {NONE} []           ENAT-0
 
 !!=  ++ put ssEx 0 7
      ++ rexClose
@@ -1414,7 +1414,7 @@
 ( {::}  #= macaroniStew )
 ( {==}  #= macaroniStew )
 ( {/=}  #= macaroniStew )
-( {'}  #= macaroniStew )
+( {'}   #= macaroniStew )
 ( {%}   #= macaroniStew )
 ( {%%}  #= macaroniStew )
 ( {&&}  #= macaroniStew )
