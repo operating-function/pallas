@@ -364,15 +364,19 @@ exoShiftR :: Exo -> Word -> Exo
 exoShiftR x              0 = x
 exoShiftR (EXO 0 _)      _ = zeroExo
 exoShiftR (EXO xSz xPtr) i = unsafePerformIO do
-    let (w,n) = quotRem i 64
-    if w >= xSz then
+    let (nWords, nBits) = quotRem i 64
+    if nWords >= xSz then
         pure zeroExo
     else
-        let rSz = xSz - w in
+        let rSz = xSz - nWords in
         withForeignPtr xPtr \xBuf ->
         makeExo rSz \buf -> do
-        let src = xBuf `plusPtr` (fromIntegral w * 8) -- ignore `w` words
-        _erased <- mpn_rshift buf src rSz n
+        let src = xBuf `plusPtr` (fromIntegral nWords * 8)
+        if (nBits == 0) then
+            mpn_copyi buf src rSz
+        else do
+            _erased <- mpn_rshift buf src rSz nBits
+            pure ()
         trim rSz buf
 
 exoPopCount :: Exo -> Int
