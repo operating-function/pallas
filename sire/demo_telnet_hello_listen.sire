@@ -27,6 +27,4 @@
 | trk [%got_handle handle]
 | loop [(TELNET 0)]
 
-<telnetHello
-
-main=telnetHello
+main=(deepTrace telnetHello telnetHello)

@@ -448,8 +448,6 @@ execute rex = do
             ( _,        "#^-^" ) -> doFilter rune mempty (Just rex)
             ( _,        "!!="  ) -> doAssert rune rex
             ( _,        "#!!=" ) -> doAssert rune rex
-            ( _,        "<"    ) -> fullPrint rex
-            ( _,        "#<"   ) -> fullPrint rex
             ( _,        "#/+"  ) -> doImport rex rune (Just rex)
             ( _,        "/+"   ) -> doImport rex rune (Just rex)
             _ | expRune rune     -> execExpr rex
@@ -745,18 +743,6 @@ repl s1 mImport = do
     rexes <- readRexStream "REPL" stdin
     _     <- runSire "REPL" True s3 rexes
     pure ()
-
-fullPrint :: InCtx => Rex -> Repl ()
-fullPrint rex = do
-    case rex of
-        N _ _ sons mHeir ->
-            case sons <> toList mHeir of
-                []  -> pure ()
-                [x] -> readExpr [] x                       >>= execDump
-                xs  -> readExpr [] (N OPEN "|" xs Nothing) >>= execDump
-        _ ->
-            error "impossible"
-
 
 doAssert :: InCtx => Text -> Rex -> Repl ()
 doAssert ryn rx = do
@@ -1064,11 +1050,6 @@ readPrimLeaf blockRex e rex =
 readBindBody :: InCtx => Either Nat ((Bool, Nat), [Nat]) -> Rex -> Repl Sire
 readBindBody Left{}                 = readExpr []
 readBindBody (Right((_,self),args)) = readExpr $ reverse $ fmap Just $ self:args
-
-execDump :: Sire -> Repl ()
-execDump exr =
-    let !val = compileSire exr
-    in trkM (REX $ planRexFull val)
 
 planRexFull :: Any -> GRex a
 planRexFull = fmap absurd . itemizeRexes . closureRex Nothing . loadClosure
