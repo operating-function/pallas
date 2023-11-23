@@ -172,7 +172,7 @@
 * EUNT=unt
 * ETAB=tab xs:(Tab Nat Exp)
 * ESWI=swi x:Exp fb:Exp arms:(Tab Any Exp)
-* ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
+* ECAS=cas x:Exp fb:(Maybe Exp) cs:(Row ConCase)
 * EMUT=mut tag:Nat body:Exp arms:(Row (Sym, Row Pat, Exp))
 * EREX=rex r:Rex
 * EQRX=qrx r:(RexWith (Either Exp Exp))
@@ -267,7 +267,7 @@
 | rowCons (varE cn)
 | map showPat pts
 
-> (Exp > Rex) > Opt Exp > Row ConCase > Rex
+> (Exp > Rex) > Maybe Exp > Row ConCase > Rex
 = (showDatacases showExp f xs)
 ^ _ (listFromRow xs)
 ? (go xs)
@@ -290,7 +290,7 @@
 | NEST {#} (varE {datacase}, showExp x)
 | showDatacases showExp f cs
 
-> (Exp > Rex) > Opt Exp > Row ConCase > Rex
+> (Exp > Rex) > Maybe Exp > Row ConCase > Rex
 = (showMutRecArms showExp arms)
 ^ _ (listFromRow arms)
 ? (go arms)
@@ -1200,7 +1200,7 @@
 | ok ss (rexClose exp) ; TODO: no open rune output
 
 ; | CON_CASE con:Sym params:(Row Pat) body:Exp
-; * ECAS=cas x:Exp fb:(Opt Exp) cs:(Row ConCase)
+; * ECAS=cas x:Exp fb:(Maybe Exp) cs:(Row ConCase)
 
 > Tab Sym Nat > Tab Nat Any > Nat > Exp > (Nat, Exp)
 = (compile ss exp)

@@ -27,7 +27,7 @@
 ;
 ;    [%sandbox 0 %response (Request > Response > Response)]
 ;        : IO (Tab Nat Response)
-;    [%sandbox 0 %request (Request > Opt Request)]
+;    [%sandbox 0 %request (Request > Maybe Request)]
 ;        : IO (Row (Either Response Response))
 ;
 ; When there is a `%request` request, it provides a filtering and modification
@@ -58,11 +58,11 @@
     | SOME [i (idx 3 r)]
 | loop (inc i)
 
-> Cog Any > Opt [Nat (Request > Response > Response)]
+> Cog Any > Maybe [Nat (Request > Response > Response)]
 = (getFirstResponseFunc containerFun)
 | getFirstFuncMatching %response containerFun
 
-> Cog Any > Opt [Nat (Request > Opt Request)]
+> Cog Any > Maybe [Nat (Request > Maybe Request)]
 = (getFirstRequestFunc containerFun)
 | getFirstFuncMatching %request containerFun
 
@@ -309,7 +309,7 @@
     | ifNot (isCogReapOrStop req) resp
     ;
     ; Unsandbox the (Maybe CogState).
-    | **maybeCase resp resp
+    | maybeCase resp resp
     & cogstate
     | if | eql 0 | idx 0 cogstate
         | SOME | (put cogstate 1 (idx 1 | idx 1 cogstate))

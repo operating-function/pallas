@@ -47,7 +47,6 @@
 = (strCapitalize str)
 @ hed (mod str 256)
 @ cap (toUpper hed)
-; trk [{hed},hed {cap},cap]
 | add cap (sub str hed)
 
 (strIsCapitalized str)=(isUpper (mod str 256))

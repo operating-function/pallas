@@ -75,7 +75,7 @@
     | {unwrapReqsResp: impossible lack of response value} 0
 * (SOME val)
     | trk [%val val]
-    | **maybeCase val resp
+    | maybeCase val resp
     & cogstate
     | if | eql 0 | idx 0 cogstate
         | trk [%0 (idx 1 | idx 1 cogstate)]

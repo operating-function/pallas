@@ -153,16 +153,16 @@
 = NONE       | 0
 = (**SOME x) | 0 x
 
-= (maybeCase opt non som)
-| if isNat-opt non
-| **som cdr-opt
+= (**maybeCase mb non som)
+| if isNat-mb non
+| **som cdr-mb
 
-(**maybe non som opt)=(maybeCase opt non som)
+(maybe non som mb)=(maybeCase mb non som)
 
 (isNone x)=(isZero x)
 (isSome x)=(neq 0 x)
 
-(fromSome n x)=(**maybeCase x n id)
+(fromSome n x)=(maybeCase x n id)
 
 (unpackSome x)=(**fromSome (die {Unexpected NONE}) x)
 
@@ -172,7 +172,7 @@
 !!= 1 | maybeCase NONE   1 die
 
 = (fmapMaybe myb fun)
-| **maybeCase myb NONE
+| maybeCase myb NONE
 & v
 | SOME | fun v
 
@@ -193,7 +193,7 @@
 = (unfoldr f seed)
 ^ _ 0 seed
 ? (go idx seed)
-| **maybeCase (f seed) (cow idx)
+| maybeCase (f seed) (cow idx)
 & valSeed
 | go (inc idx) (snd valSeed) (fst valSeed)
 
@@ -349,7 +349,7 @@
 | listFoldl f x xs
 
 = (listUnfoldr f seed)
-| **maybeCase (f seed) NIL
+| maybeCase (f seed) NIL
 & valSeed
 | CONS (fst valSeed)
 | listUnfoldr f (snd valSeed)
@@ -740,7 +740,7 @@
 = (listCatMaybes top)
 | **listCase top NIL
 & (mX xs)
-| **maybeCase mX (listCatMaybes xs)
+| maybeCase mX (listCatMaybes xs)
 & x
 | CONS x (listCatMaybes xs)
 
@@ -755,7 +755,7 @@
 | seq acc
 | if (eql i | len row) acc
 | loop (inc i)
-| **maybeCase (law | idx i row) acc
+| maybeCase (law | idx i row) acc
 & item
 | CONS item acc
 
@@ -962,7 +962,7 @@ F=found
 ^-^ bopE bapE bowE appE rowE
 ^-^ {,}
 ^-^
-^-^ NONE SOME maybeCase maybe ; TODO: (optionCase, option)?
+^-^ NONE SOME maybeCase maybe
 ^-^ fromSome unpackSome
 ^-^ isSome isNone fmapMaybe
 ^-^

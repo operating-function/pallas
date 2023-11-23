@@ -197,7 +197,7 @@ emptyBar=(0 1 1 1)
 rowToBar=barFromRow
 
 ; TODO: barElemIndex doesn't have a SOME/NONE interface, but should? There are
-; a lot of methods in the stdlib where the haskell version returns a maybe but
+; a lot of methods in the stdlib where the haskell version returns a Maybe but
 ; the sire version always returns a value.
 = (barElemIndexEnd e b)
 | if (barIsEmpty b) NONE
@@ -208,7 +208,7 @@ rowToBar=barFromRow
 | loop (dec i)
 
 = (barSplitOneWith fun b)
-| **maybeCase (barFindIndex fun b) [b emptyBar]
+| maybeCase (barFindIndex fun b) [b emptyBar]
 & i
 | [(barTake i b) (barDrop (inc i) b)]
 
@@ -216,7 +216,7 @@ rowToBar=barFromRow
 | if (barIsEmpty bar) NIL
 ^ _ bar
 ? (loop bar)
-| **maybeCase (barFindIndex fun bar) (CONS bar NIL)
+| maybeCase (barFindIndex fun bar) (CONS bar NIL)
 & i
 | CONS (barTake i bar)
 | loop (barDrop (inc i) bar)

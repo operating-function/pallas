@@ -136,29 +136,29 @@ hexAlphabet=(natBar {0123456789abcdef})
 !!= (mat 9) | add (bex 9) 72
 
 
-;;; Some Monadic Operations on `Option` ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Some Monadic Operations on `Maybe` ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-> Row (Opt a)
-> Opt (Row a)
-= (optionRowSequence results)
+> Row (Maybe a)
+> Maybe (Row a)
+= (maybeRowSequence results)
 ^ _ NIL listFromRow-results
 ? (loop acc rest)
 : mX more <- **listCase rest SOME-(listToRowReversed acc)
-: x <- **maybeCase mX NONE
+: x <- maybeCase mX NONE
 | loop (CONS x acc) more
 
-(optionRowTraverse f xs)=(optionRowSequence map-f-xs)
+(maybeRowTraverse f xs)=(maybeRowSequence map-f-xs)
 
 !! | eql NONE
-   | optionRowSequence [SOME-3 SOME-4 NONE]
+   | maybeRowSequence [SOME-3 SOME-4 NONE]
 
 !! | eql SOME-[3 4 5]
-   | optionRowSequence [SOME-3 SOME-4 SOME-5]
+   | maybeRowSequence [SOME-3 SOME-4 SOME-5]
 
 
 ;;; Parsing Nat Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-> Char > Opt Nat
+> Char > Maybe Nat
 = (readDigit char)
 | tabSwitch char NONE
 ## ={0} SOME 0
@@ -172,10 +172,10 @@ hexAlphabet=(natBar {0123456789abcdef})
 ## ={8} SOME 8
 ## ={9} SOME 9
 
-> Nat > Opt Nat
+> Nat > Maybe Nat
 = (readNat n)
-@ mDigits (optionRowTraverse readDigit explode-n)
-: nums <- **maybeCase mDigits NONE
+@ mDigits (maybeRowTraverse readDigit explode-n)
+: nums <- maybeCase mDigits NONE
 @ f
     & (elem rest)
     @ [pos acc] rest
@@ -251,7 +251,7 @@ hexAlphabet=(natBar {0123456789abcdef})
     | (p, t, [p#0 hBits tBits])
 * (go p t noun)
     : ref
-       <- **maybeCase (tabLookup noun t)
+       <- maybeCase (tabLookup noun t)
             @ t (tabIns noun p t)
             | if isNat-noun (**nat p t noun)
             | if isApp-noun (**cel p t car-noun cdr-noun)
@@ -264,7 +264,7 @@ hexAlphabet=(natBar {0123456789abcdef})
     (**backref p t ref)
 
 = (jarMemo cache pin)
-| **maybeCase (tabLookup pin cache)
+| maybeCase (tabLookup pin cache)
     @ depz | pinRefs pin
     : cache head
         < ^ rowTraverseState cache _ depz

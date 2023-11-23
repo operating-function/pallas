@@ -38,7 +38,7 @@
 * files      : (Tab Bar (ContentType, Pin Bar))
 * fileBytes  : Nat
 * servThread : ThreadId
-* srvrPort   : Opt PortId
+* srvrPort   : Maybe PortId
 * srvrFiles  : (Set Bar)
 
 > ThreadId > CogState
@@ -97,11 +97,11 @@
 @ bars | barDeserMultiRow recvBars
 @ [fileContentType fileBar] | take 2 bars
 ; trk [{fileContentType:} fileContentType]
-@ optRangeDescr | if (eql 3 (len bars))
+@ mbRangeDescr | if (eql 3 (len bars))
                   | SOME (idx 2 bars)
                 | NONE
-; trk [{optRangeDescr:} optRangeDescr]
-@ rangeHead | maybeCase optRangeDescr
+; trk [{mbRangeDescr:} mbRangeDescr]
+@ rangeHead | maybeCase mbRangeDescr
               | []
             & rD
             | [(b#{Content-Range}, rD)]
@@ -185,7 +185,7 @@
 : ??(p_rqst clientPort) <- syscall (**PORT_RQST usSeed portRqst)
 @ [_cpThem _cpPayload cpMbPortId] | clientPort
 | trk [ourName %got %clientPort clientPort]
-| **maybeCase cpMbPortId
+| maybeCase cpMbPortId
   | trk {no client port, exiting}
   | return ()
 & portId

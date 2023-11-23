@@ -152,7 +152,7 @@ foo=(x e o & o (varE {_}, x))
       | ret [nat exp]
 ^ ok (foldl _ (defaultFallback, #[]) cases)
 & ([wild acc] [mKey exp])
-: key <- **maybeCase mKey [exp acc]
+: key <- maybeCase mKey [exp acc]
 | [wild (tabPut acc key exp)]
 
 = (readSwitchExp readExpr rex err ok)

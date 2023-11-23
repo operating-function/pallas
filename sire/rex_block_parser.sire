@@ -368,7 +368,7 @@ initialBS=(1, NONE)
 = (emit (PB depth ln acc))
 | [(ln, listToRowReversed acc)]
 
-> BlockState > Opt Lexed > (BlockState, Row (Nat, Row Lexed))
+> BlockState > Maybe Lexed > (BlockState, Row (Nat, Row Lexed))
 = (blockStep (ln, mPb) mLine)
 # datacase mLine
 * NONE ; eof

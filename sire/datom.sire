@@ -66,25 +66,25 @@
 ; only usable for tuples which end in [v] (eav, aev)
 @ (alterEndVal c in)
     | SOME
-    : set <- **maybeCase in (setSing c)
+    : set <- maybeCase in (setSing c)
     | if many | setIns c set
     | setSing c
 ; only usable for tuples whose middle is not v (eav, aev)
 @ (alterNotVal b c in)
     | SOME
     : tab
-        < **maybeCase in
+        < maybeCase in
         | tabSing b (setSing c)
     | tabAlter (alterEndVal c) b tab
 ; only usable for tuples whose middle IS v (ave)
 @ (alterEndNonV c in)
     | SOME
-    : set <- **maybeCase in (setSing c)
+    : set <- maybeCase in (setSing c)
     | setIns c set
 ; only usable for tuples whose middle IS v (ave)
 @ (alterMiddleEndNonV b c in)
     | SOME
-    : tab < **maybeCase in
+    : tab < maybeCase in
           | tabSing b (setSing c)
     | tabAlter (alterEndNonV c) b tab
 @ eav | tabAlter (alterNotVal a v) e eav
@@ -102,12 +102,12 @@
 = (rawRm e a v db)
 @ DB(..) db
 @ (alter2 c in)
-    : set <- **maybeCase in NONE
+    : set <- maybeCase in NONE
     @ rmed | setDel c set
     | if (setIsEmpty rmed) NONE
     | SOME rmed
 @ (alter b c in)
-    : tab <- **maybeCase in NONE
+    : tab <- maybeCase in NONE
     @ rmed | tabAlter (alter2 c) b tab
     | if (tabIsEmpty rmed) NONE
     | SOME rmed
@@ -209,29 +209,29 @@ db
 > Nat > Nat > Db > Set Any
 = (lookupByEidAid eid aid db)
 @ DB(..) db
-: av <- **maybeCase (tabLookup eid eav) %[] ; result is set
-: v  <- **maybeCase (tabLookup aid av) %[]  ; result is set
+: av <- maybeCase (tabLookup eid eav) %[] ; result is set
+: v  <- maybeCase (tabLookup aid av) %[]  ; result is set
 | v
 
 > Nat > Nat > Db > Set Any
 = (lookupByAidEid aid eid db)
 @ DB(..) db
-: ev <- **maybeCase (tabLookup aid aev) %[]  ; result is set
-: v  <- **maybeCase (tabLookup eid ev) %[]   ; result is set
+: ev <- maybeCase (tabLookup aid aev) %[]  ; result is set
+: v  <- maybeCase (tabLookup eid ev) %[]   ; result is set
 | v
 
 > Nat > Nat > Db > Set Nat
 = (lookupByAidV aid val db)
 @ DB(..) db
-: ve <- **maybeCase (tabLookup aid ave) %[] ; result is set
-: e  <- **maybeCase (tabLookup val ve) %[]  ; result is set
+: ve <- maybeCase (tabLookup aid ave) %[] ; result is set
+: e  <- maybeCase (tabLookup val ve) %[]  ; result is set
 | e
 
 > Any > Nat > Db > Set Nat
 = (lookupByVAid val aid db)
 @ DB(..) db
-: ae <- **maybeCase (tabLookup val vae) %[] ; result is set
-: e  <- **maybeCase (tabLookup aid ae) %[]  ; result is set
+: ae <- maybeCase (tabLookup val vae) %[] ; result is set
+: e  <- maybeCase (tabLookup aid ae) %[]  ; result is set
 e
 
 ; Given a user level attribute name, translate that to a numeric attribute
@@ -368,13 +368,13 @@ e
 ; TODO: Rewrite and reflow this function to the new 4 space standard. As is, the
 ; deep nesting makes editing most of this hard.
 ;
-> Tab Any Any > Db > (Opt Nat, Row Error, Row TxnAction, Tab Any Any, Db)
+> Tab Any Any > Db > (Maybe Nat, Row Error, Row TxnAction, Tab Any Any, Db)
 = (parseMapForm txnTmpIds db tab)
 ; if there's a :db/id, than use that. But if there's not, we have to assign
 ; a new temporary id.
 @ eitherEident
   : entVal
-      < **maybeCase (tabLookup dbIdStr tab)
+      < maybeCase (tabLookup dbIdStr tab)
       @ [eid db] | allocEntity db
       | RIGHT [eid txnTmpIds db]
   | parseEntityId txnTmpIds db entVal
@@ -411,7 +411,7 @@ e
             | parseMapForm txnTmpIds db i
           ++ | listWeld suberrs errs
           ++ | listWeld subactions actions
-          ++ : eid <- **maybeCase mybEid eids
+          ++ : eid <- maybeCase mybEid eids
              | CONS eid eids
           ++ txnTmpIds
           ++ db
@@ -426,7 +426,7 @@ e
       | if ((isTab vVal) && (not | isSet vVal))
         @ [mybEid suberrs subactions txnTmpIds db]
           | parseMapForm txnTmpIds db vVal
-        : subeid <- **maybeCase mybEid
+        : subeid <- maybeCase mybEid
                    ++ | listWeld suberrs errs
                    ++ | listWeld subactions actions
                    ++ txnTmpIds
@@ -612,7 +612,7 @@ e
 ; last component of the attribute name to start with a {_}. We should find a
 ; better way to represent this, but for now, literally clone.
 ;
-> Nat > Opt Nat
+> Nat > Maybe Nat
 = (isBackwardsAttribute n)
 @ bar | natBar n
 : lastIdx < maybeCase (barElemIndexEnd {/} bar) NONE

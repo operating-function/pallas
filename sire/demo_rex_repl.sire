@@ -55,8 +55,8 @@
 ; Given a subcog that implements a repl that accepts lines (Maybe Bar),
 ; convert that to a repl that accepts arbitrarily-chunked input.
 
-; # typedef LineCog ( Opt Bar -> (Bar, LineCog) )
-; # typedef BarCog  ( Bar     -> (Bar, BarCog)  )
+; # typedef LineCog ( Maybe Bar -> (Bar, LineCog) )
+; # typedef BarCog  ( Bar       -> (Bar, BarCog)  )
 
 ; LineCog
 = (catCog mLine) ; this is jsut for testing lineRepl

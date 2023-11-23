@@ -28,11 +28,11 @@
 
 # typedef (Gen a)    (StdGen > Int > a)
 # typedef (Shrink a) (a > List a)
-# typedef PropResult (Opt Bit)
+# typedef PropResult (Maybe Bit)
 
 # record Args
 | ARGS
-* replay          : Opt (StdGen, Int)
+* replay          : Maybe (StdGen, Int)
 * maxSuccess      : Int
 * maxDiscardRatio : Int
 * maxSize         : Int

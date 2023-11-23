@@ -204,7 +204,7 @@
 = (buildTabSetFrom pairs)
 @ (alt val prev)
   | SOME
-  | **maybeCase prev (setSing val)
+  | maybeCase prev (setSing val)
   & c
   | setIns val c
 ^ _ pairs %[]

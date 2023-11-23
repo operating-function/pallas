@@ -193,7 +193,7 @@ abstype#(Read4 a b c d)
 abstype#(Tab k v)
 abstype#(Set k)
 abstype#(Row a)
-abstype#(Opt a)
+abstype#(Maybe a)
 abstype#(List a)
 abstype#(Either a b)
 
@@ -633,7 +633,7 @@ printType#Fun
 ^-^ Bit Str
 ^-^ Rex Read
 ^-^ Row List Set Tab
-^-^ Opt Either
+^-^ Maybe Either
 ^-^ Bar
 ^-^
 ^-^ Unit Box Pair Trip Quad

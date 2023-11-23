@@ -60,13 +60,13 @@
 ; trk [{handleFileRequests:} ourName %recvd recvBody %at recvWhen]
 @ recvBars (barDeserMultiRow recvBody)
 ; trk [{recvBars:} recvBars]
-@ [optFileName optStart optEnd]
+@ [maybeFileName mbStart mbEnd]
     # switch (len recvBars)
     * 1 [(SOME (idx 0 recvBars)) NONE]
     * 2 [(SOME (idx 0 recvBars)) (SOME (barLoadDecimal (idx 1 recvBars)))]
     * 3 [(SOME (idx 0 recvBars)) (SOME (barLoadDecimal (idx 1 recvBars))) (SOME (barLoadDecimal (idx 2 recvBars)))]
     * _ [NONE NONE]
-| maybeCase optFileName
+| maybeCase maybeFileName
   | trk [{handleFileRequests: bad request} recvBody]
   : ??(p_send now) <- syscall (**PORT_SEND portId x#0)
   | trk [ourName {sent zero len for bad request}]
@@ -80,12 +80,12 @@
   | trk [ourName {sent zero len for invalid file}]
   | loop ()
 & [fileContentType (PIN payload)]
-@ [fileBar optRangeDescr]
-    | maybeCase optStart
+@ [fileBar mbRangeDescr]
+    | maybeCase mbStart
       ; trk {no byteRange}
       | [payload NONE]
     & start
-    | maybeCase optEnd
+    | maybeCase mbEnd
       ; trk [{only start} start]
       @ chunkLen | 8_000_000
       @ fileBar | barTake chunkLen (barDrop start payload)
@@ -96,8 +96,8 @@
     @ fileBar | barTake (sub end start) (barDrop start payload)
     @ rangeDescr | barCat [b#{bytes } (barShowDecimal start) b#{-} (barShowDecimal end) b#{/} (barShowDecimal (sub end start))]
     | [fileBar (SOME rangeDescr)]
-; trk [{optRangeDescr:} optRangeDescr]
-@ bars | weld [fileContentType fileBar] (maybeCase optRangeDescr emptyBar (x&[x]))
+; trk [{mbRangeDescr:} mbRangeDescr]
+@ bars | weld [fileContentType fileBar] (maybeCase mbRangeDescr emptyBar (x&[x]))
 @ payload | barCat (map barSer bars)
 @ bL | barLen payload
 ; trk [{fileBar len} bL]

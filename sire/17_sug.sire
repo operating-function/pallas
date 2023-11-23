@@ -143,7 +143,7 @@
 }     ??(fun arg ...)
 
 ; ?(f x y) | ??(f x y) | (x y) | .*
-> Rex > Read (Bit, Opt Text, Row Rex)
+> Rex > Read (Bit, Maybe Text, Row Rex)
 = (readColSig readPat rex err ok)
 @ fail   (err rex colSigExpect)
 @ rune   (rexRune rex)

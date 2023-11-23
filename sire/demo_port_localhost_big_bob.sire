@@ -40,7 +40,7 @@
 : ??(p_rqst [cpThem (PIN cpPayload) cpMbPortId]) <- syscall (**PORT_RQST usSeed portRqst)
 | trk [%cpThem cpThem %cpMbPortId cpMbPortId]
 | trk [{recvd payload len is} (barLen cpPayload)]
-| **maybeCase cpMbPortId
+| maybeCase cpMbPortId
   | trk {no client port, exiting}
   | return ()
 & portId

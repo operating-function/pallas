@@ -14,11 +14,11 @@
 
 ;;; Lexemes ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-abstype#(Result2 a b) ; type (Result2 a b) = (Or Str (a, b))
-abstype#(Opt2 a b)    ; type (Opt2 a b)    = (Or Zero (a, b))
+abstype#(ResultPair a b) ; type (ResultPair a b) = (Or Str (a, b))
+abstype#(MaybePair a b)  ; type (MaybePair a b)  = (Or Zero (a, b))
 
-typedef#Deci#(Opt2 Nat Nat)
-typedef#Expo#(Opt2 Nat Nat)
+typedef#Deci#(MaybePair Nat Nat)
+typedef#Expo#(MaybePair Nat Nat)
 
 # datatype JLexeme
 * ( TSPACE = space  )
@@ -122,7 +122,7 @@ typedef#Expo#(Opt2 Nat Nat)
 ; in the body of a let-binding, so all of the branches become calls to
 ; `if` instead of being a part of the law's code.
 ;
-> Bar > Nat > Result2 Deci Nat
+> Bar > Nat > ResultPair Deci Nat
 = (lexDecimal input off)
 | ifNot ({.} == barIdx off input) [0 off]
 ;
@@ -159,7 +159,7 @@ typedef#Expo#(Opt2 Nat Nat)
 ; because it's used in the body of a let-binding, so all of the branches
 ; become calls to `if` instead of being a part of the law's code.
 ;
-> Bar > Nat > Result2 Expo Nat
+> Bar > Nat > ResultPair Expo Nat
 = (lexExponent input off)
 ;
 @ chr    (barIdx off input)

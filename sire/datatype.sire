@@ -170,7 +170,7 @@ dataTag=_DataTag
 @ field | (0, sym, typ)
 | go (field :: acc) (rexHeir rex)
 
-> Rex > Parser (Nat, Symbol, Opt Nat)
+> Rex > Parser (Nat, Symbol, Maybe Nat)
 = (readSymbolMaybeWithTag rex err ok)
 | ifNot (rexIsNode rex)
     : sym < readSymbol rex err
@@ -198,7 +198,7 @@ dataTag=_DataTag
 ;;     (CNSTR={tag} (* field : type)(* field : type)
 ;;     (|CNSTR={tag})(* field : type)(* field : type)
 
-> Rex > Parser (Nat, Symbol, Opt Nat, Row Symbol)
+> Rex > Parser (Nat, Symbol, Maybe Nat, Row Symbol)
 = (readConstructorSig r err ok)
 ;
 | ifNot (rexIsNode r)
@@ -235,7 +235,7 @@ dataTag=_DataTag
 ;; {readDatatypeSig} uses an inglorious short-term hack: it simply runs
 ;; the record-signature parser against a fudged input.
 
-> Rex > Parser (Nat, Symbol, Opt Nat, Row Symbol)
+> Rex > Parser (Nat, Symbol, Maybe Nat, Row Symbol)
 = (readDatatypeSig node err ok)
 @ rune (rexRune node)
 | if (neq {*} rune)
@@ -313,7 +313,7 @@ ex=(PAIR %a %b)
 ; TODO: Validate that all tags are implicit or
 ; explicit and that all explicit tags are unique.
 
-> Rex > Parser (Row (Nat, Symbol, Opt Nat, Row Symbol))
+> Rex > Parser (Row (Nat, Symbol, Maybe Nat, Row Symbol))
 = (readDataBranches r err ok)
 ^ _ ~[] r
 ? (go acc r)
@@ -353,7 +353,7 @@ ex=(PAIR %a %b)
 
 ;;; defDataTypeC ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-> Row (Key, Str, Opt Nat, Row Str)
+> Row (Key, Str, Maybe Nat, Row Str)
 > (RexProps, Cmd)
 = (defDataTypeC branches)
 ;
@@ -435,7 +435,7 @@ ex=(PAIR %a %b)
 
 > (Rex -> Parser e)
 > Rex
-> Parser2 (Opt e) (Row (Rex, Symb, Row Pat, e))
+> Parser2 (Maybe e) (Row (Rex, Symb, Row Pat, e))
 = (parseDatacaseBody readExp cases err ok)
 ;;;;;
 : clauses
@@ -471,7 +471,7 @@ ex=(PAIR %a %b)
 
 > (Rex -> Parser e)
 > Rex
-> Parser3 e (Opt e) Row-(Rex, Symb, Row Pat, e)
+> Parser3 e (Maybe e) Row-(Rex, Symb, Row Pat, e)
 = (parseDatacase readExp rex err ok)
 @ sons@[_ valExp] | rexSons rex
 @ heir            | rexHeir rex
@@ -734,7 +734,7 @@ setProp#(FALSE.conTag)#zero
   * FALSE {false}
 
 
-;;; Opt ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Maybe ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 setProp#(NONE.conTag)#zero
 setProp#(NONE.conAri)#zero

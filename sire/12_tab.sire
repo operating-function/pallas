@@ -111,7 +111,7 @@ ex=(_MkTab [1 2 3] [4 5 6])
 = (tabInsWith f key newval tab)
 @ m_oldval (_TabLookup key tab)
 ^ tabIns key _ tab
-| **maybeCase m_oldval newval (f newval)
+| maybeCase m_oldval newval (f newval)
 
 = ex1 (_MkTab [1 5] [5 1])
 
@@ -236,7 +236,7 @@ tab=(tabFromAscPairs par)
 @ valsRow | _TabVals tab
 ;
 @ notFound
-    | **maybeCase (fun NONE) tab
+    | maybeCase (fun NONE) tab
     & val
     | tabFromPairs
     | rowCons [key val]
@@ -245,7 +245,7 @@ tab=(tabFromAscPairs par)
 @ found
     & ix
     @ prev (idx ix valsRow)
-    | **maybeCase (fun | SOME prev)
+    | maybeCase (fun | SOME prev)
         | tabDel key tab
     & newVal
     | keysSet (put valsRow ix newVal)

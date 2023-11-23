@@ -31,7 +31,7 @@
 = (packIndexNode [keys nodes] hh)
 | PIN [keys nodes hh]
 
-> Row a > Opt (a, Row a)
+> Row a > Maybe (a, Row a)
 = (rowUncons r)
 | if (null r) NONE
 | SOME [(idx 0 r) (drop 1 r)]
@@ -39,7 +39,7 @@
 !!= NONE               (rowUncons [])
 !!= (SOME [0 [1 2 3]]) (rowUncons [0 1 2 3])
 
-> Row a > Opt (Row a, a)
+> Row a > Maybe (Row a, a)
 = (rowUnsnoc r)
 @ l | len r
 | if (isZero l) NONE
@@ -100,7 +100,7 @@ abstype#(LazyIndex k v) ; TODO: (???)
 = (singletonIndex val) [[] [val]]
 
 ; Assumption: v is not a Nat. this holds in the current implementation.
-> Index k v > Opt v
+> Index k v > Maybe v
 = (fromSingletonIndex [_ vals])
 | if (eql 1 (len vals)) (get vals 0) 0
 
@@ -158,23 +158,23 @@ abstype#(LazyIndex k v) ; TODO: (???)
 @ [leftKeys rightKeys]       | span a&(lte a key) keys
 @ n                          | len leftKeys
 @ [leftVals valAndRightVals] | splitAt n vals
-| **maybeCase | rowUncons valAndRightVals
+| maybeCase | rowUncons valAndRightVals
     | die {valView: can't split empty index}
 & [val rightVals]
 [[leftKeys leftVals rightKeys rightVals] val]
 
 = (leftView [leftKeys leftVals rightKeys rightVals])
-| **maybeCase (rowUnsnoc leftVals) NONE
+| maybeCase (rowUnsnoc leftVals) NONE
 & [leftVals leftVal]
-| **maybeCase (rowUnsnoc leftKeys) NONE
+| maybeCase (rowUnsnoc leftKeys) NONE
 & [leftKeys leftKey]
 @ newCtx  [leftKeys leftVals rightKeys rightVals]
 | SOME [newCtx leftVal leftKey]
 
 = (rightView [leftKeys leftVals rightKeys rightVals])
-| **maybeCase (rowUncons rightVals) NONE
+| maybeCase (rowUncons rightVals) NONE
 & [rightVal rightVals]
-| **maybeCase (rowUncons rightKeys) NONE
+| maybeCase (rowUncons rightKeys) NONE
 & [rightKey rightKeys]
 @ newCtx  [leftKeys leftVals rightKeys rightVals]
 | SOME [rightKey rightVal newCtx]
@@ -408,7 +408,7 @@ newRootNode
     | die %nodeMismatch
 
 ; backwards maybeCase is easier in some usage patterns.
-(maybeCaseBack opt som non)=(maybeCase opt non som)
+(**maybeCaseBack mb som non)#=(maybeCase mb non som)
 
 = (deleteRec config treeFun key mybV node)
 @ TREE_CONFIG(..) config
@@ -423,12 +423,12 @@ newRootNode
   @ prunedHH        | hhDelete key mybV hitchhikers
   | if | not childNeedsMerge
     | mkNode (putVal ctx newChild) prunedHH
-  | **maybeCaseBack | rightView ctx
+  | maybeCaseBack | rightView ctx
     & [rKey rChild rCtx]
     | mkNode
         | putIdx rCtx | mergeNodes config treeFun newChild rKey rChild
     prunedHH
-  | **maybeCaseBack | leftView ctx
+  | maybeCaseBack | leftView ctx
     & [lCtx lChild lKey]
     | mkNode
         | putIdx lCtx | mergeNodes config treeFun lChild lKey newChild
@@ -532,7 +532,7 @@ abstype#(HSetMap k v)
 ? (lookInNode node)
 # datacase (hmCaseNode node)
 * (INDEXNODE index hitchhikers)
-  : v <- **maybeCase (tabLookup key hitchhikers)
+  : v <- maybeCase (tabLookup key hitchhikers)
              (lookInNode | findSubnodeByKey key index)
   | (SOME v)
 * (LEAFNODE items)
@@ -819,7 +819,7 @@ rest
 = (hsmLeafInsertImpl setConfig leaf hh)
 @ (alt new m)
   | SOME
-  | **maybeCase m | hsRawFromSet setConfig new
+  | maybeCase m | hsRawFromSet setConfig new
   & old
   | hsRawInsertMany new setConfig old
 @ (merge items k vset)
@@ -827,19 +827,19 @@ rest
 | tabFoldlWithKey merge leaf hh
 
 = (hsmLeafDeleteImpl setConfig k mybV hsm)
-| **maybeCase mybV (die %cantDeleteNoValue)
+| maybeCase mybV (die %cantDeleteNoValue)
 & v
 @ (update in)
-  | **maybeCase in NONE
+  | maybeCase in NONE
   & set
   | SOME | hsRawDelete v setConfig set
 | tabAlter update k hsm
 
 = (hsmHHDeleteImpl k mybV sm)
-| **maybeCase mybV (die %cantDeleteNoValue)
+| maybeCase mybV (die %cantDeleteNoValue)
 & v
 @ (update in)
-  | **maybeCase in NONE
+  | maybeCase in NONE
   & set
   | SOME | setDel v set
 | tabAlter update k sm
@@ -929,7 +929,7 @@ rest
   @ matched | fromSome %[] (tabLookup k hitchhikers)
   | lookInNode (setUnion hh matched) | findSubnodeByKey k children
 * (LEAFNODE items)
-  : ret <- **maybeCase (tabLookup k items)
+  : ret <- maybeCase (tabLookup k items)
              [setConfig (hsRawFromSet setConfig hh)]
   [setConfig (hsRawInsertMany hh setConfig ret)]
 

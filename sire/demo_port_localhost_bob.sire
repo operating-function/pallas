@@ -29,7 +29,7 @@
 : ??(p_rqst clientPort) <- syscall (**PORT_RQST usSeed portRqst)
 @ [_cpThem _cpPayload cpMbPortId] | clientPort
 | trk [ourName %got %clientPort clientPort]
-| **maybeCase cpMbPortId
+| maybeCase cpMbPortId
   | trk {no client port, exiting}
   | cogExit ()
 & portId

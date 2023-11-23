@@ -405,7 +405,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 * # backfill RAND_BYTE > Nat > Call Bar
 * # backfill TIME_WHEN > Call TimeStamp
 * # backfill TIME_WAIT > TimeStamp > Call ()
-* # backfill HTTP_SERV > (ServReq > Opt ServResp) > Call Void
+* # backfill HTTP_SERV > (ServReq > Maybe ServResp) > Call Void
 * # backfill HTTP_HEAR > Call HttpReq
 * # backfill HTTP_HOLD > HttpReqId > Call ()
 
