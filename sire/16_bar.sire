@@ -152,9 +152,6 @@
 = (barRep n v)     | barGen n (_ & v)
 = (barGet bar idx) | barIdx idx bar
 = (barBytes b)     | gen (barLen b) (barGet b)
-= (barFoldl f z b) | foldl f z (barBytes b)
-= (barFoldr f z b) | foldr f z (barBytes b)
-= (barAll f b)     | all f (barBytes b)
 
 rowFromBar=barBytes
 barToRow=barBytes
@@ -184,6 +181,10 @@ emptyBar=(0 1 1 1)
 (barTakeWhile f b)=(barTake (barCountHeadMatching f b) b)
 
 = (barToList b)       | listGen (barLen b) (barGet b)
+= (barFoldl f z b)    | listFoldl f z (barToList b)
+= (barFoldr f z b)    | listFoldr f z (barToList b)
+= (barAll f b)        | listAll f (barToList b)
+= (barAny f b)        | listAny f (barToList b)
 = (barFindIndex f b)  | listFindIndex f (barToList b) NONE SOME
 = (barElemIndex e b)  | listElemIndex e (barToList b) NONE SOME
 = (barSplitAt i b)    | [(barTake i b) (barDrop i b)]
@@ -548,7 +549,7 @@ barSpace=(barSing { })
 ^-^ byteWidth barTrail barEnc barDec mkBar natBar barNat barLen barIdx
 ^-^ barSing barDuo
 ^-^ zEnd stripZEnd w8 bytesBar barGen barRep barGet barBytes barFoldl barFoldr
-^-^ barAll
+^-^ barAny barAll
 ^-^ barWeld barCat barCatList barCatMap
 ^-^ barIntercalate barIntercalateList
 ^-^ barFromHex barPad
