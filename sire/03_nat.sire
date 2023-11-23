@@ -135,6 +135,53 @@ GT=2
 = popCount ( _PopCount n ?? natFold add 0 n           )
 = met      ( _Met n      ?? natFold (m _ & inc m) 0 n )
 
+= trunc    ( _Trunc w n      ?? mod n (bex w)                          )
+= bitSlice ( _BitSlice o w n ?? trunc w (rsh n o)                      )
+= setBit   ( _SetBit i nat   ?? dis nat bex-i                          )
+= testBit  ( _TestBit i nat  ?? mod (rsh nat i) 2                      )
+= clearBit ( _ClearBit i nat ?? if (testBit i nat) (mix nat bex-i) nat )
+
+1!!=(setBit 0 0)
+2!!=(setBit 1 0)
+4!!=(setBit 2 0)
+1!!=(setBit 0 1)
+3!!=(setBit 1 1)
+5!!=(setBit 2 1)
+3!!=(setBit 0 3)
+3!!=(setBit 1 3)
+7!!=(setBit 2 3)
+
+0!!=(testBit 0 0)
+1!!=(testBit 0 1)
+1!!=(testBit 0 5)
+0!!=(testBit 1 5)
+1!!=(testBit 2 5)
+0!!=(testBit 3 5)
+
+5!!=(setBit 0 5)
+7!!=(setBit 1 5)
+5!!=(setBit 2 5)
+13!!=(setBit 3 5)
+
+4!!=(clearBit 0 5)
+5!!=(clearBit 1 5)
+1!!=(clearBit 2 5)
+5!!=(clearBit 3 5)
+
+0!!=(trunc 0 5)
+1!!=(trunc 1 5)
+1!!=(trunc 2 5)
+5!!=(trunc 3 5)
+5!!=(trunc 4 5)
+
+(1  !!= bitSlice 0 2 13)
+(5  !!= bitSlice 0 3 13)
+(13 !!= bitSlice 0 4 13)
+(2  !!= bitSlice 1 2 13)
+(6  !!= bitSlice 1 3 13)
+(3  !!= bitSlice 2 2 13)
+(1  !!= bitSlice 3 2 13)
+
 
 ;;; Misc ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -285,6 +332,9 @@ GT=2
 ^-^
 ^-^ bitwise natFold
 ^-^ met popCount
+^-^
+^-^ trunc bitSlice
+^-^ setBit clearBit testBit
 ^-^
 ^-^ roundUp even odd
 ^-^
