@@ -39,14 +39,13 @@ subst x               xs = exec x (x:xs)
 nat (NAT n) = n
 nat _       = 0
 
-exec (LAW n a b) xs            = run a (reverse xs) b
-exec (NAT 0)     [_,n,NAT 0,b] = (nat n,b) `deepseq` r where r = run 0 [r] b
-exec (NAT 0)     [_,n,a,b]     = LAW (nat n) (nat a) (force b)
-exec (NAT 1)     [_,p,l,a,n,x] = pat p l a n x
-exec (NAT 2)     [_,z,p,x]     = case nat x of 0 -> z; n -> p % NAT (n-1)
-exec (NAT 3)     [_,x]         = NAT (nat x + 1)
-exec (NAT 4)     [_,x]         = PIN (force x)
-exec f           e             = error $ show ("crash", (f:e))
+exec (LAW n a b) xs                   = run a (reverse xs) b
+exec (NAT 0)     [_,n,a,b] | nat(a)>0 = LAW (nat n) (nat a) (force b)
+exec (NAT 1)     [_,p,l,a,n,x]        = pat p l a n x
+exec (NAT 2)     [_,z,p,x]            = case nat x of 0 -> z; n -> p % NAT (n-1)
+exec (NAT 3)     [_,x]                = NAT (nat x + 1)
+exec (NAT 4)     [_,x]                = PIN (force x)
+exec f           e                    = error $ show ("crash", (f:e))
 
 
 -- Some Examples ---------------------------------------------------------------
@@ -87,11 +86,8 @@ main = do
     print (1 % 0 % 0 % 1 % 0 % (2%3))
     print (1 % 0 % 0 % 0 % 1 % 2)
 
-    -- zero-argument law
-    print (0 % 0 % 0 % 1)
-
     -- select finite part of infinite value
-    print (appHead % (0 % 0 % 0 % (0 % 1 % 0)))
+    print (appHead % (0 % 0 % 2 % (1 % (0 % 0 % 2) % 2) % 7 % 6))
 
     -- running pins:
     print ( (4%0) % 1 % 2 % 0 )

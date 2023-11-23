@@ -952,11 +952,11 @@ compileSire sire =
     traceSire "compileSire" sire $
     let
         res = transformSire sire
-        rul = RUL (LN 0) 0 $ (.code) $ expBod 1 res
-                --  The 1 argument to expBod is because self-reference is
-                --  bound for this dummy rule.  So, let-bindings start at
-                --  law-var-index 1.
+        rul = RUL (LN 0) 1 $ (.code) $ expBod 2 res
+                --  The `2` argument to `expBod` is because
+                --  self-reference is bound for this dummy rule
+                --  and the rule takes one dummy argument.
     in
         traceSire "comipleSire(input)" sire $
             traceSire "comipleSire(output)" res $
-                ruleFanOpt rul
+                (ruleFanOpt rul F.%% 0)

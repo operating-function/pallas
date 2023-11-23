@@ -117,11 +117,8 @@ main = do
     print (1 % 0 % 0 % 1 % 0 % (2%3))
     print (1 % 0 % 0 % 0 % 1 % 2)
 
-    -- zero-argument law
-    print (0 % 0 % 0 % 1)
-
     -- select finite part of infinite value
-    print (appHead % (0 % 0 % 0 % (0 % 1 % 0)))
+    print (appHead % (0 % 0 % 2 % (1 % (0 % 0 % 2) % 2) % 7 % 6))
 
     -- running pins:
     print ( (4%0) % 1 % 2 % 0 )

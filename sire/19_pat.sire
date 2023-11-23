@@ -809,7 +809,7 @@
 
 !!= 5 | (uncurry f [x y] ? f x y) add [2 3]
 
-!!= ~[0 0 0] | listTake 3 z?(0::z)
+!!= ~[0 0 0] | listTake 3 (z @@ 0::z)z
 
 
 ;;; Anon Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

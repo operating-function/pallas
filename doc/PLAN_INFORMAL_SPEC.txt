@@ -10,7 +10,7 @@ Treat this as a combinator system, and use normal-order evaluation to normalize.
     (2 z p x)            = n=NAT(x); if n=0 then z else p (n-1)
     (3 x)                = NAT(x)+1
     (4 x)                = <force(x)>
-    (f:{n a b} x0..xn)   = EXEC([f x0..xn], b)
+    (f:{n a b}   x0..xn) = EXEC([f x0..xn], b)
     (f:<{n a b}> x0..xn) = EXEC([f x0..xn], b)
     (<i> ..)             = (i ..)
 

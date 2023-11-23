@@ -259,6 +259,9 @@
 ; rejects anything that doesn't match them, prevents talking to cogs which
 ; weren't spun by this cog and propagates itself on %spin.
 
+= (makeRespRequest responseFun)
+| [%sandbox 0 %response responseFun]
+
 # mutual cog_static_filter_sandbox_impl
 = (withRequestContainer rowPrefix)
   @ patterns | buildMatcher rowPrefix
@@ -273,7 +276,7 @@
     # datacase req
     * LEFT|r 0
     * RIGHT|r r
-  | withHandleResponse requests cogids patterns makeRespRequest
+  | withHandleResponse requests cogids patterns (makeRespRequest responseFun)
 ;
 = (withHandleResponse itemRequests cogids patterns containerRequests responses)
   @ responses | fromSome ({impossible: bad responses}) | tabLookup 0 responses
@@ -282,8 +285,6 @@
 ;
 = (makeReqRequest cogids patterns)
   ++ [%sandbox 0 %request (requestFun cogids patterns)]
-= makeRespRequest
-  ++ [%sandbox 0 %response responseFun]
 ;
 = (requestFun cogids patterns req)
   | ifNot | requestMatches patterns req

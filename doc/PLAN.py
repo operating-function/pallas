@@ -166,10 +166,7 @@ def E(o):
     return o
 
 def W(n,a,b):
-    if a.val == 0:
-        o = Hol()
-        o.update(R(0, o, b))
-        return E(o)
+    if a.val == 0: raise Exception("zero-arg-law")
     return Law(n,a,b)
 
 

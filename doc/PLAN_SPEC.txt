@@ -36,5 +36,4 @@ P[p,l,a,n,<x>]     = (p x)              | L[n,e,v,b] =
 P[p,l,a,n,{n a b}] = (l n a b)          |     x := <>
 P[p,l,a,n,x:@]     = (n x)              |     f := (e x)
                                         |     x <- R[n+1,f,v]
-W[_,0,b] = o := <>; o <- R[0,o,b]; E[o] |     R[n+1,f,b]
-W[n,a,b] = {n,a,b}                      |
+W[n,a,b] | a>0 = {n,a,b}                |     R[n+1,f,b]

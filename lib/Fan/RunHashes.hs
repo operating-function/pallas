@@ -24,7 +24,7 @@ seqHash :: Hash256
 seqHash = "7fPzp1b5QXpDDkvpt2oBGUm3w6eCPVKjDnUQ8i8w8mj5"
 
 trkHash :: Hash256
-trkHash = "eWQEfSHjEKocmrBmVkDecBHtkTKPwo88jZ94BS2mPQt"
+trkHash = "E8JiY8Frtjo8hnYb9c1jCQ2DQYVoPDZnNvzzne1XHACj"
 
 idxHash :: Hash256
 idxHash = "H4Zc8hKR4nzf2w1FC8mXQmsmMrNvJ86yRh2hLK9GL3ds"

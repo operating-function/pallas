@@ -61,6 +61,7 @@ import Fan.RunHashes
 import Fan.Types
 import PlunderPrelude  hiding (hash)
 
+import Control.Exception         (throw)
 import Control.Monad.ST          (ST)
 import Control.Monad.Trans.State (State, execState, modify', runState)
 import Data.Char                 (isAlphaNum)
@@ -655,19 +656,11 @@ matchSet vs = do
 -- Constructing Pins and Laws --------------------------------------------------
 
 mkLawPreNormalized :: LawName -> Nat -> Fan -> Fan
-mkLawPreNormalized nam arg bod = sel
-  where
-    prg = compileLaw nam arg bod
-    law = L nam arg bod prg
-    sel =
-        if arg==0
-          then
-            let res = executeLaw res prg prg
-                    $ createSmallArray 1 res \_ -> do
-                          pure ()
-            in res
-          else
-            fromMaybe (FUN law) $ matchData nam arg bod
+mkLawPreNormalized nam arg bod =
+    if arg==0
+    then throw (PRIMOP_CRASH 0 0)
+    else fromMaybe (FUN $ L nam arg bod $ compileLaw nam arg bod)
+           $ matchData nam arg bod
 
 mkLaw :: LawName -> Nat -> Fan -> Fan
 mkLaw nam arg bod = mkLawPreNormalized nam arg (normalize bod)

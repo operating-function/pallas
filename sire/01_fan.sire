@@ -49,7 +49,7 @@
 
 = id (id x ? x)
 
-= (_Force x)    | 0 0 0 (2 x)
+= (_Force x)    | 0 0 1 (2 x) 0
 = (_Seq x y)    | 2 y (_ & y) x
 = (deepseq x y) | _Seq (_Force x) y
 = (_Trk x y)    | deepseq x y
@@ -164,12 +164,6 @@
 !!= 7 | (0 {f} 1 1)     7
 !!= 7 | (0 {f} 2 1)     7 0
 !!= 7 | (0 {f} 2 2)     0 7
-
-; Note that zero-arity laws are possible (they evaluate immediately).
-
-!!= 7 | (0 {f} 0 7)
-!!= 7 | (0 {f} 0 (2 7))
-!!= 7 | (0 {f} 0 (1 7 1))
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
