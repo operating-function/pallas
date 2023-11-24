@@ -430,8 +430,6 @@ bootMachine storeDir pash = do
 -- TODO: Output the result of an expression?  Not just "main"?
 saveSeed :: (Debug, Rex.RexColor) => FilePath -> FilePath -> IO ()
 saveSeed outFile inputFile = do
-    e <- liftIO (doesFileExist inputFile)
-    unless e (error $ unpack ("File does not exist: " <> inputFile))
     val <- liftIO (Sire.loadFile inputFile)
     pin <- F.mkPin' val
     byt <- F.saveSeed pin
