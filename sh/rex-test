@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# This test parses and re-prints all the Sire files using
+# both Haskell's implementation of Rex and rex-in-sire.  If
+# this succeed, we diff the results and error out if any
+# differences are detected.
+
+set -e
+
+plunder save rex_tree.seed rex_tree
+
+for x in sire/*.sire
+do
+        echo plunder repl rex_tree.seed "<$x" ">$x.new"
+        plunder repl rex_tree.seed <$x >$x.new 2>/dev/null
+done
+
+for x in sire/*.sire
+do
+        echo rex "<$x" ">$x.old"
+        rex <$x >$x.old
+done
+
+for x in sire/*.sire
+do
+        echo diff $x.new $x.old
+        diff $x.new $x.old
+done
+
+echo rm -f rex_tree.seed sire/*.sire.new sire/*.sire.old
+rm -f rex_tree.seed sire/*.sire.new sire/*.sire.old

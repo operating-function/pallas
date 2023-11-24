@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -ex
+
+stack install
+
+sh/sire-load-all </dev/null
+
+sh/rex-test

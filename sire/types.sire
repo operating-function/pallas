@@ -183,6 +183,7 @@ abstype#Pad
 abstype#(Pin a)
 abstype#(Fun a b)
 abstype#Bar
+abstype#Char
 abstype#Bit
 abstype#Str
 abstype#Rex
@@ -635,6 +636,7 @@ printType#Fun
 ^-^ Row List Set Tab
 ^-^ Maybe Either
 ^-^ Bar
+^-^ Char
 ^-^
 ^-^ Unit Box Pair Trip Quad
 ^-^
