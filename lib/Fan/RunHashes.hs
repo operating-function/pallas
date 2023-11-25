@@ -18,7 +18,7 @@ switchHash :: Hash256
 switchHash = "EL7kkFVeJ1KYbMmkJ38yTXn2KLnBBZti1vWwQdZ4mFmV"
 
 tabSwitchHash :: Hash256
-tabSwitchHash = "HkpccsRudwuik5BHd7vXwcdDG1eQbabk31NheSBDYZ72"
+tabSwitchHash = "6pLsy7ZCw5ZmZNaCrroA6YMBCttkZ694DSASKqHMRrGQ"
 
 seqHash :: Hash256
 seqHash = "7fPzp1b5QXpDDkvpt2oBGUm3w6eCPVKjDnUQ8i8w8mj5"
