@@ -10,9 +10,9 @@ mkdir -p .ting
 export PLUNDER_DIR=$(realpath .ting)
 rm -r ./.ting
 
-plunder boot ali sire/demo-token-ring-ali.sire
-plunder boot bob sire/demo-token-ring-bob.sire
-plunder boot chr sire/demo-token-ring-chr.sire
+plunder boot ali sire/demo_token_ring_ali.sire
+plunder boot bob sire/demo_token_ring_bob.sire
+plunder boot chr sire/demo_token_ring_chr.sire
 
 plunder status
 
