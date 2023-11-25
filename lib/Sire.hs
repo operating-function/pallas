@@ -542,13 +542,15 @@ withCache act =
                    pure ()
 
 loadFile :: RexColor => FilePath -> IO Any
-loadFile modu = do
+loadFile moduleIndicator = do
     writeIORef F.vShowFan  showFan
     writeIORef F.vTrkFan   trkFan
     writeIORef F.vJetMatch (F.jetMatch)
 
+    modu <- getIndicatedModule moduleIndicator
+
     (ss, _hax) <- withCache \cache ->
-                      doFile cache (pack modu) initialSireStateAny
+                      doFile cache modu initialSireStateAny
     let scope = (getState ss).scope
     case lookup "main" scope of
         Nothing -> error "No `main` defined in this file"
