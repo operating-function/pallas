@@ -1,0 +1,6 @@
+image: alpine/edge
+sources:
+- https://git.sr.ht/~plan/plunder
+tasks:
+  - say-hello-world: |
+      echo hello world
