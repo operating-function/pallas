@@ -1,6 +1,11 @@
-image: alpine/edge
+image: nixos/unstable
 sources:
 - https://git.sr.ht/~plan/plunder
 tasks:
-  - say-hello-world: |
-      echo hello world
+- test: |
+    cd plunder
+    mkdir -p ~/.local/bin
+    export PATH=$PATH:$HOME/.local/bin
+    nix develop                                            \
+        --extra-experimental-features 'flakes nix-command' \
+        --command sh/ci
