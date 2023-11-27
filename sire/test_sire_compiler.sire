@@ -1,0 +1,9 @@
+### test_sire_compiler
+
+;;; Constant Folding Sees Through Lets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+!!=   | 0 0 1
+      | (0 0 3 3) 3 4
+  & _
+  @ f ((x y z & z) 3)
+  | f 4

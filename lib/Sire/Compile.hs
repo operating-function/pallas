@@ -199,8 +199,16 @@ codeGen fn (refcounts, refSeq) =
     (if fn.pin then (4 %%) else id) $
     0 %% NAT fn.tag
       %% NAT (fromIntegral numArgs)
-      %% foldr bind (go fn.bod) usedBinds
+      %% foldr bind (gen $ clean fn.bod) usedBinds
   where
+    clean :: Exp -> Exp -- inlines single-use binds, folds constants apps.
+    clean SUB{}     = error "lift lambdas first (codeGen)"
+    clean (VAL v)   = VAL v
+    clean (APP f x) = app (clean f) (clean x)
+    clean (VAR v)   = case (lookup v refcounts, lookup v fn.bin) of
+                         (Just 1, Just bx) -> clean bx
+                         _                 -> VAR v
+
     keep k = case (lookup k refcounts, lookup k fn.bin) of
                  (_, Nothing) -> False
                  (Nothing, _) -> False
@@ -214,19 +222,14 @@ codeGen fn (refcounts, refSeq) =
     table     = mapFromList (zip scope [0..]) :: Map Int Nat
 
     bind :: Int -> Fan -> Fan
-    bind k rest = 1 %% v %% rest
-      where v = go (fromMaybe (error "impossible") $ lookup k fn.bin)
+    bind k rest = 1 %% gen (clean vx) %% rest
+      where vx = fromMaybe (error "impossible") $ lookup k fn.bin
 
-    go :: Exp -> Fan
-    go = \case
-        SUB{}   -> error "lift lambdas first (codeGen)"
-        VAL v   -> if isFanCodeShaped maxRef v then (2 %% v) else v
-        APP f x -> 0 %% go f %% go x
-        VAR v   ->
-            case (lookup v refcounts, lookup v fn.bin, lookup v table) of
-                ( Just 1, Just bx, _       ) -> go bx
-                ( _,      _,       Just ix ) -> NAT ix
-                ( _,      _,       _       ) -> error "not possible"
+    gen :: Exp -> Fan
+    gen SUB{}     = error "lift lambdas first (codeGen)"
+    gen (VAL k)   = if isFanCodeShaped maxRef k then (2 %% k) else k
+    gen (APP f x) = 0 %% gen f %% gen x
+    gen (VAR v)   = NAT $ fromMaybe (error "impossible") $ lookup v table
 
 compile :: Int -> Fun -> (Fan, [Int])
 compile nex f1 = (codeGen f3 stat3, free)
