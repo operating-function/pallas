@@ -213,6 +213,6 @@ jetHashes
     , e "iDiv64"              "HMUUUr1SDL7qZvE15yTr8xosyHLj4uxiREGW5uDsK2me"
     , e "_DataTag"            "EDQm1rudzF71qQPiAERwabdVg3drR91iWvZ5wswYBqpP"
     , e "_TypeTag"            "BWgwW3xnmiAnA3FPhGCobMp1rkVTjhMTzgeDhAc7RBAU"
-    , e "blake3"              "BWU214pdccgUWgxTRT998qfjEuZ53Cq6pK1AY5H8qqUA"
+    , e "blake3"              "CvphGaBETEpeZzzgZGAjFiPmDPvTQMm8Pr9y8WvgNLya"
     , e "_Try"                "suNq8qtamL6uxbAraiVrZ1KNyzUuV7gCcEkPHWc2qQn"
     ]

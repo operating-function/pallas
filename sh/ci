@@ -4,6 +4,10 @@ set -ex
 
 stack install
 
+if [ "$1" = --no-cache ]
+then rm -f sire.cache
+fi
+
 sh/sire-load-all </dev/null
 
 sh/rex-test
