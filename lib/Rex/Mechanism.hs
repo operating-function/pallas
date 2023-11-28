@@ -92,17 +92,17 @@ lex ln@(LN _ _ b) = many 0 0
     curl i d = maybe i (\c -> curl (i+1) (d + curlStep c)) (b BS.!? i)
                  where curlStep = \case { 123 -> 1; 125 -> (-1); _ -> 0 }
 
-    line i =
-        case fromMaybe 0 (b BS.!? succ i) of
-            0  {- ø -} -> x i wid                (LINE [])
-            32 {-   -} -> x i wid                (LINE [])
-            n  {-   -} -> x i (min wid $ succ $ eat (i+2) (/= n)) (CORD QUOTED)
+    str i   = x i (min wid $ succ $ eat (i+1) (/= 34)) (CORD CURLY)
+    quote i = let c = fromMaybe 0 (b BS.!? succ i) in
+              if c==0 || c==32 then x i wid (LINE[]) else
+              x i (min wid $ succ $ eat (i+2) (/= c)) (CORD QUOTED)
 
     one i ctx = case fromMaybe 0 (b BS.!? i) of
                     40  {- ( -}      -> nest PARA 41  i  {- ) -}
                     91  {- [ -}      -> nest BRAK 93  i  {- ] -}
-                    123 {- { -}      -> x i (curl (i+1) 1)       $ CORD CURLY
-                    125 {- } -}      -> line i
+                    123 {- { -}      -> x i (curl (i+1) 1) (CORD CURLY)
+                    34  {- " -}      -> str i
+                    125 {- } -}      -> quote i
                     0   {- ø -}      -> x i wid                    TERM
                     59  {- ; -}      -> x i wid                    SEMI
                     32  {-   -}      -> x i (eat i (== 32))        WYTE
@@ -113,7 +113,7 @@ lex ln@(LN _ _ b) = many 0 0
 
 runic, wordy :: ByteString
 wordy = encodeUtf8 (pack ("_" <> ['a'..'z'] <> ['A'..'Z'] <> ['0'..'9']))
-runic = "$!#%&*+,-./:<=>?@\\^`'\"|~"
+runic = "$!#%&*+,-./:<=>?@\\^`'|~"
 
 
 -- Merge Multi-Line Strings ----------------------------------------------------

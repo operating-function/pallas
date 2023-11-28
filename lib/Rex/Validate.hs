@@ -46,12 +46,15 @@ colPointer s =
            ]
 
 curlCheck :: Elem -> Writer [Text] ()
-curlCheck e = go (e.off + 1) 1
+curlCheck e =
+    if e.lin.byt BS.!? e.off == Just 34
+    then unless (e.lin.byt BS.!? pred e.end == Just 34) (err e "unterminated")
+    else go (e.off + 1) 1
   where
     go :: Int -> Int -> Writer [Text] ()
     go _ 0 = pure ()
     go i d = case e.lin.byt BS.!? i of
-                 Nothing  -> err e "unterminated string"
+                 Nothing  -> err e "unterminated"
                  Just 123 -> go (i+1) (d+1)
                  Just 125 -> go (i+1) (d-1)
                  Just _   -> go (i+1) d
