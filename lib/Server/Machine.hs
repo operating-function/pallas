@@ -152,7 +152,7 @@ responseToVal :: Response -> Fan
 responseToVal (RespCall f _) = f
 responseToVal (RespWhat w) = toNoun w
 responseToVal (RespRecv PENDING_SEND{..}) =
-  ROW $ arrayFromListN 2 $ [toNoun sender, ROW (V.toArray msgParams)]
+  ROW $ arrayFromListN 2 $ [toNoun sender, msg]
 responseToVal (RespSend SendOK) = NAT 0
 responseToVal (RespSend SendCrash) = NAT 1
 responseToVal (RespSpin (COG_ID id) _) = fromIntegral id
@@ -193,7 +193,7 @@ data SpinRequest = SR
 data SendRequest = SNDR
     { cogDst  :: CogId
     , channel :: Word64
-    , params  :: Vector Fan
+    , msg     :: Fan
     }
   deriving (Show)
 
@@ -248,7 +248,7 @@ valToRequest cogId top = fromMaybe (UNKNOWN top) do
             "send" | length row >= 4 -> do
                 dst <- fromNoun @CogId (row V.! 2)
                 channel <- fromNoun (row V.! 3)
-                pure (ReqSend (SNDR dst channel (V.drop 4 row)))
+                pure (ReqSend (SNDR dst channel (row V.! 4)))
             "recv" | length row == 3 -> ReqRecv <$> fromNoun (row V.! 2)
             "who"  | length row == 2 -> pure ReqWho
             _ -> Nothing
@@ -286,9 +286,9 @@ type MachineSysCalls = Map CogId CogSysCalls
 -- | This is a record that a cog has an active SysCall requesting an
 -- IPC-send to another cog.  See `CogSendPool`
 data PendingSendRequest = PENDING_SEND
-    { sender    :: CogId
-    , reqIdx    :: RequestIdx
-    , msgParams :: Vector Fan
+    { sender :: CogId
+    , reqIdx :: RequestIdx
+    , msg    :: Fan
     }
   deriving (Show)
 
@@ -526,8 +526,8 @@ recomputeEvals m cogId tab =
 
     getSendFunAt :: Moment -> CogId -> CogId -> RequestIdx -> Maybe Fan
     getSendFunAt m sender receiver idx = withRequestAt m sender idx $ \case
-        ReqSend (SNDR cogDst _channel params)
-            | cogDst == receiver     -> Just $ ROW (V.toArray params)
+        ReqSend (SNDR cogDst _channel msg)
+            | cogDst == receiver     -> Just msg
             | otherwise              -> Nothing
         _                            -> Nothing
 
@@ -794,7 +794,7 @@ buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
         pure ([], LiveRecv{lrIdx=reqIdx,lrChannel=channel,lrChannels=channels},
               Nothing)
 
-    ReqSend SNDR{cogDst,channel,params} -> do
+    ReqSend SNDR{cogDst,channel,msg} -> do
         sends <- readTVar runner.vSends
         case M.lookup cogDst sends of
             Nothing -> error $ "Bad cogDst " <> show cogDst
@@ -802,7 +802,7 @@ buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
                 poolId <-
                     channelPoolRegister channel
                                         vChannels
-                                        (PENDING_SEND cogId reqIdx params)
+                                        (PENDING_SEND cogId reqIdx msg)
                 pure ([], LiveSend{lsndChannel=channel,
                                    lsndPoolId=poolId,
                                    lsndChannels=vChannels}, Nothing)
