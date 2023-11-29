@@ -1162,29 +1162,28 @@ runResponse st cogNum rets = do
   withAlwaysTrace "Tick" "cog" do
       let responses = ((.resp) . snd) <$> rets
 
-      (sideEffects, startedFlows, onPersists) <- atomically do
-          modifyTVar' st.vMoment \m ->
-              MOMENT (insertMap cogNum newState m.val) (m.work + runtimeUs)
+      -- 1) Notify hardware about spins which started a cog. We have to do this
+      -- before we record the cog state or do parseRequests because the initial
+      -- state of a newly created cog might try to communicate with the
+      -- hardware.
+      traverse_ performAlertHardwareOnSpin responses
 
-          sideEffects <- case resultReceipt of
-              RECEIPT_OK{..} -> do
-                -- Delete the consumed `LiveRequest`s without formally
-                -- canceling it because it completed.
-                modifyTVar' st.vRequests \tab ->
-                    adjustMap (\kals -> foldl' delReq kals (fst<$>rets))
-                              cogNum tab
-                mapM performSpinEffects responses
-              _ -> do
-                -- If we crashed, do nothing. We'll formally cancel all
-                -- requests when we reparse in the next step, and we have no
-                -- valid responses to process side effects from.
-                pure mempty
+      -- 2) Perform parseRequest and handle all changes that have to be handled
+      -- attomically. This has to happen after we notify the hardware about
+      -- cogs being spun.
+      (sideEffects, startedFlows, onPersists) <- atomically $
+          performStateUpdate newState responses runtimeUs resultReceipt
 
-          (startedFlows, onPersists) <- parseRequests st cogNum
+      -- 3) If this cog shut down for any reason, we have to alert the hardware
+      -- that it has shut down. This has to be done after parsing requests
+      -- because parsing requests will cancel ongoing hardware events.
+      case newState of
+        CG_SPINNING _ -> pure ()
+        _             -> for_ st.ctx.hw.table $ \d -> d.stop cogNum
 
-          pure (sideEffects, startedFlows, onPersists)
-
-      afterResults <- mapM (performAfterEffect resultReceipt) responses
+      -- 4) %cog %send/%recv must execute in pairs. We finally synchronously
+      -- trigger any %send acknowledgments now that the %recv has processed.
+      afterResults <- mapM (performSendAck resultReceipt) responses
 
       let (sideEffectFlows, sideEffectPersists) = concatUnzip sideEffects
           (afterFlows, afterReceipts) = concatUnzip afterResults
@@ -1201,6 +1200,35 @@ runResponse st cogNum rets = do
     delReq :: CogSysCalls -> Int -> CogSysCalls
     delReq acc k = IM.delete k acc
 
+    performAlertHardwareOnSpin :: Response -> IO ()
+    performAlertHardwareOnSpin (RespSpin newCogId _) = do
+        -- If we just spun up another cog, tell all the hardware
+        -- devices that it exists now.
+        for_ st.ctx.hw.table $ \d -> d.spin newCogId
+    performAlertHardwareOnSpin _ = pure ()
+
+    performStateUpdate newState responses runtimeUs resultReceipt = do
+        modifyTVar' st.vMoment \m ->
+            MOMENT (insertMap cogNum newState m.val) (m.work + runtimeUs)
+
+        sideEffects <- case resultReceipt of
+            RECEIPT_OK{..} -> do
+              -- Delete the consumed `LiveRequest`s without formally
+              -- canceling it because it completed.
+              modifyTVar' st.vRequests \tab ->
+                  adjustMap (\kals -> foldl' delReq kals (fst<$>rets))
+                            cogNum tab
+              mapM performSpinEffects responses
+            _ -> do
+              -- If we crashed, do nothing. We'll formally cancel all
+              -- requests when we reparse in the next step, and we have no
+              -- valid responses to process side effects from.
+              pure mempty
+
+        (startedFlows, onPersists) <- parseRequests st cogNum
+
+        pure (sideEffects, startedFlows, onPersists)
+
     performSpinEffects :: Response
                        -> STM ([Flow], [STM OnCommitFlow])
     performSpinEffects (RespSpin newCogId fun) = do
@@ -1214,22 +1242,10 @@ runResponse st cogNum rets = do
     performSpinEffects _ = pure mempty
 
     -- Performed outside the Big Atomically Block
-    performAfterEffect :: Receipt
-                       -> Response
-                       -> IO ([Flow], [(Receipt, [STM OnCommitFlow])])
-    performAfterEffect _ (RespSpin newCogId _) = do
-        -- If we just spun up another cog, tell all the hardware
-        -- devices that it exists now.
-        for_ st.ctx.hw.table $ \d -> d.spin newCogId
-        pure ([], [])
-
-    performAfterEffect _ (RespStop dedCogId _) = do
-        -- If we just stopped another cog, we need to to tell
-        -- all the hardware devices that it no longer exists.
-        for_ st.ctx.hw.table $ \d -> d.stop dedCogId
-        pure ([], [])
-
-    performAfterEffect result (RespRecv PENDING_SEND{..}) = do
+    performSendAck :: Receipt
+                   -> Response
+                   -> IO ([Flow], [(Receipt, [STM OnCommitFlow])])
+    performSendAck result (RespRecv PENDING_SEND{..}) = do
         -- When an IPC message is received, the corresponding
         -- send syscall on the sender cog must also be processed
         -- within the same transaction.
@@ -1252,7 +1268,7 @@ runResponse st cogNum rets = do
                         }
         runResponse st sender [(reqIdx.int, rtup)]
 
-    performAfterEffect _ _ = pure ([], [])
+    performSendAck _ _ = pure ([], [])
 
 
 {-
