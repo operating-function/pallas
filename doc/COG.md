@@ -13,8 +13,8 @@ Cogs interact with the world by making system calls. The set of active
 system calls made by Cogs is a part of its state. When it is reloaded,
 all of the calls will be resumed as well.
 
-There is no hidden state in machine. A machine can shutdown and resumed
-without an visible effect. The formal state of a a full Machine is the
+There is no hidden state in a machine. A machine can shutdown and resume
+without a visible effect. The formal state of a full Machine is the
 plunder value `(Tab Nat Fan)`, where each cog has a process id mapping to
 its formal state.
 
@@ -43,7 +43,7 @@ A CALL to hardware looks like `[%rand 0 %byte 8]`. Breaking it down:
 
 -   The `0` is the "durability" flag that tells the ships that the
     effect should not be executed until the input that lead to the
-    effect has been commited to the log.
+    effect has been committed to the log.
 
 -   `[%byte 8]` is the argument-list that is passed to the `%rand`
     device.
@@ -78,7 +78,7 @@ not slowed down when the Cog needs to perform an expensive computation.
 -   This is important because it means that extremely large values can
     be returned by EVAL without bogging down the log.
 
-Finally, there is the `%cog` requests. A user is likely to have multiple
+Finally, there are the `%cog` requests. A user is likely to have multiple
 processes that they wish to run, and having those processes communicate
 over hardware CALLs would mean that each IPC message must be written into
 the event log. So we have a few special calls for process management and
