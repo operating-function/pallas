@@ -1170,7 +1170,10 @@ size_t seed_save (Seed ctx, size_t width, uint8_t *top) {
         }
 
         if (!num_frags) {
-                return (out - top);
+                size_t width = (out - top);
+                size_t hanging_bytes = width % 8;
+                if (hanging_bytes) width += (8 - hanging_bytes);
+                return width;
         }
 
         struct frag_state st;
