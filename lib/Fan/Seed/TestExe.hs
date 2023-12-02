@@ -140,14 +140,14 @@ guardChk :: Text -> Bool -> Check ()
 guardChk _   True  = pure ()
 guardChk msg False = failChk msg
 
-save_seed_same :: Pin -> Bool
+save_seed_same :: Fan -> Bool
 save_seed_same fan =
     unsafePerformIO do
         packed <- saveSeed fan
         loaded <- loadSeed packed
-        let !ok = (Right fan == (loaded :: Either LoadErr Pin))
+        let !ok = (Right fan == (loaded :: Either LoadErr Fan))
         unless ok do
-            pPrint (Right fan :: Either () Pin, "/="::Text, loaded)
+            pPrint (Right fan :: Either () Fan, "/="::Text, loaded)
         pure ok
 
 save_pod_same :: Pin -> Bool
@@ -176,7 +176,7 @@ fanFast pin = do
     checkHead deps bled
     case loadBody deps blod of
         Left msg -> error (show msg)
-        Right vl -> pure vl
+        Right vl -> F.mkPin' vl
 
 fan_fast_save_round :: Pin -> Bool
 fan_fast_save_round inp =

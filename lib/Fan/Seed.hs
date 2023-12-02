@@ -60,7 +60,7 @@ import qualified GHC.Exts                 as GHC
 
 savePin' :: Seed.Ctx -> Pin -> IO (Vector Pin, ByteString, ByteString)
 savePin' ctx p = do
-    body <- saveGerm' ctx p
+    body <- saveGermPin' ctx p
     head <- saveHead p
     pure (p.refs, head, body)
 
@@ -82,7 +82,7 @@ saveHead pin = do
     size :: Int
     size = 8 + (32*numPins)
 
-loadBody :: Vector Pin -> ByteString -> Either LoadErr Pin
+loadBody :: Vector Pin -> ByteString -> Either LoadErr Fan
 loadBody refs bs = unsafePerformIO (loadGerm refs bs)
 
 loadHead :: ByteString -> Either LoadErr (Vector Hash256)
@@ -134,7 +134,7 @@ data LoadErr
     | NAT_HAS_TRAILING_ZEROS
     | GERM_BAD_HOLE_COUNT { passed :: Nat, required :: Nat }
     | POD_INTEGRITY_CHECK_FAILED Hash256 Pin
-    | POD_MALFORMED Pin
+    | POD_MALFORMED Fan
     | POD_NO_MAGIC
     | POD_MISSING_HASH
     | POD_NO_ROUND
@@ -168,15 +168,15 @@ trkM msg = do
     let !() = doTrk msg ()
     pure ()
 
-loadSeed :: ByteString -> IO (Either LoadErr Pin)
+loadSeed :: ByteString -> IO (Either LoadErr Fan)
 loadSeed = loadGerm mempty
 
-loadGerm :: Vector Pin -> ByteString -> IO (Either LoadErr Pin)
+loadGerm :: Vector Pin -> ByteString -> IO (Either LoadErr Fan)
 loadGerm holes germBar@(BS.BS fp bufByteSz) =
     Prof.withSimpleTracingEvent "loadGerm" "load" $ try do
         -- trkM $ REX $ planRexFull $ toNoun ("LOAD"::Text, (.hash) <$> holes)
         withForeignPtr fp \byteBuf -> do
-            evalStateT (go byteBuf) 0 >>= mkPin'
+            evalStateT (go byteBuf) 0
   where
     holesFan = PIN <$> holes
 
@@ -286,15 +286,15 @@ loadGerm holes germBar@(BS.BS fp bufByteSz) =
 --------------------------------------------------------------------------------
 
 {-# INLINE saveSeed #-}
-saveSeed :: Pin -> IO ByteString
+saveSeed :: Fan -> IO ByteString
 saveSeed top = Seed.withContext \ctx -> saveSeed' ctx top
 
 {-# INLINE saveSeed' #-}
-saveSeed' :: Seed.Ctx -> Pin -> IO ByteString
+saveSeed' :: Seed.Ctx -> Fan -> IO ByteString
 saveSeed' ctx top = do
     vPins <- newIORef mempty
     vZoo  <- newIORef Nothing
-    saveWorker ctx vZoo vPins top.item
+    saveWorker ctx vZoo vPins top
 
 {-
     This is just broken off into a separate function for syntactic reasons
@@ -524,13 +524,22 @@ saveWorker !ctx !vZoo !vPins !top = do
 
 --------------------------------------------------------------------------------
 
-saveGerm :: Pin -> IO ByteString
-saveGerm pin =
+saveGerm :: Fan -> IO ByteString
+saveGerm val = do
+    pin <- mkPin' val -- cheap, just to have a uniform interface.
+                      -- This is only used for Pin.refs, which allows
+                      -- saveGermPin to take advantage of the cache
+                      -- instead of recalculating.
     Seed.withContext \ctx -> do
-        saveGerm' ctx pin
+        saveGermPin' ctx pin
 
-saveGerm' :: Seed.Ctx -> Pin -> IO ByteString
-saveGerm' ctx pin = do
+saveGermPin :: Pin -> IO ByteString
+saveGermPin pin =
+    Seed.withContext \ctx -> do
+        saveGermPin' ctx pin
+
+saveGermPin' :: Seed.Ctx -> Pin -> IO ByteString
+saveGermPin' ctx pin = do
 
     tab <-
         Prof.withSimpleTracingEvent "setup" "save" do
@@ -547,8 +556,7 @@ saveGerm' ctx pin = do
 
     vPins <- newIORef tab
     vZoo  <- newIORef Nothing
-
-    res <- saveWorker ctx vZoo vPins pin.item
+    res   <- saveWorker ctx vZoo vPins pin.item
 
     pure res
 
@@ -587,7 +595,7 @@ savePod pin =
     Prof.withSimpleTracingEvent "savePod" "save" do
     liftIO $ Seed.withContext \ctx -> do
         pod     <- collect ctx pin
-        payload <- mkPin' (toNoun pod) >>= saveSeed' ctx
+        payload <- saveSeed' ctx (toNoun pod)
         pure (magicHeader <> payload)
 
 {-
@@ -612,7 +620,7 @@ collectWorker ctx pin = do
     t1  <- fst <$> get
     unless (member haz t1) do
         traverse_ (collectWorker ctx) pin.refs
-        body <- liftIO (saveGerm' ctx pin)
+        body <- liftIO (saveGermPin' ctx pin)
         refs <- do
             t2   <- fst <$> get
             for (pin.refs <&> (.hash)) \h -> do
@@ -639,7 +647,8 @@ reconstruct pod = try
         let (body, refs) = pod.pinStorage V.! fromIntegral ix
 
         deps <- traverse loop refs
-        pin  <- liftIO $ loadGerm deps body >>= either throwIO pure
+        fan  <- liftIO $ loadGerm deps body >>= either throwIO pure
+        pin  <- liftIO $ mkPin' fan
         modify' (insertMap ix pin)
         pure pin
 
@@ -661,7 +670,7 @@ loadPod bs = try do
 
         val <- loadSeed payload >>= either throwIO pure
 
-        pod <- case fromNoun val.item of
+        pod <- case fromNoun val of
                    Nothing  -> throwIO (POD_MALFORMED val)
                    Just pod -> pure pod
 

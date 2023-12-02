@@ -431,8 +431,7 @@ bootMachine storeDir pash = do
 saveSeed :: (Debug, Rex.RexColor) => FilePath -> FilePath -> IO ()
 saveSeed outFile inputFile = do
     val <- liftIO (Sire.loadFile inputFile)
-    pin <- F.mkPin' val
-    byt <- F.saveSeed pin
+    byt <- F.saveSeed val
     writeFile outFile byt
 
 showSeed :: (Debug, Rex.RexColor) => FilePath -> IO ()
@@ -441,8 +440,8 @@ showSeed seedFileToShow = do
     writeIORef F.vTrkFan  trkFan
     byt <- readFile seedFileToShow
     pin <- F.loadSeed byt >>= either throwIO pure
-    print pin.item
-    fullPrint pin.item
+    print pin
+    fullPrint pin
   where
     fullPrint x = trkM $ F.REX $ Sire.planRexFull $ toNoun x
 
@@ -457,7 +456,7 @@ replSeed seedFileToShow = do
     writeIORef F.vCrashOnJetFallback $! False -- True
     byt <- readFile seedFileToShow
     pin <- F.loadSeed byt >>= either throwIO pure
-    interactive pin.item
+    interactive pin
   where
     fullPrint x = trkM $ F.REX $ Sire.planRexFull $ toNoun x
 

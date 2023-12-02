@@ -211,7 +211,7 @@ loadLogBatches replayFrom mkInitial fun lmdbStore cache = do
           key <- peekMdbVal @Word64 k
           vBS <- peekMdbVal @ByteString v
           val <- loadNoun lmdbStore cache (DECODE_BATCH key) vBS
-          case fromNoun val.item of
+          case fromNoun val of
             Nothing -> error "Couldn't read noun"
             Just lb -> fun prev lb
 
@@ -545,13 +545,13 @@ loadPinByHash lmdbStore cache topStack =
                 let stk  = (pinHash : stack)
                 let deco = DECODE_PIN pinHash
                 (pinz, pin) <- decodeBlob (loop stk) deco (drop 32 blob)
-                F.loadPinFromBlob pinz pinHash pin.item -- HACK
+                F.loadPinFromBlob pinz pinHash pin -- HACK
 
 decodeBlob
     :: (Hash256 -> IO F.Pin)
     -> DecodeCtx
     -> ByteString
-    -> IO (Vector F.Pin, F.Pin)
+    -> IO (Vector F.Pin, Fan)
 decodeBlob loadRefr key blob = do
     withSimpleTracingEvent "decodeBlob" "log" do
         (hed, bod) <- orExn (Seed.splitBlob blob)
@@ -567,7 +567,7 @@ decodeBlob loadRefr key blob = do
 -- | Given a bytestring representing the jar-entry for a noun (which
 -- is a list of hashes of exteriour dependencies and a jam-encoded noun),
 -- load the dependencies from the pin-cushion and reconstruct the value.
-loadNoun :: LmdbStore -> Cushion -> DecodeCtx -> ByteString -> IO F.Pin
+loadNoun :: LmdbStore -> Cushion -> DecodeCtx -> ByteString -> IO Fan
 loadNoun lmdbStore cache deco vBS = do
     (_refs, !valu) <- decodeBlob loadRefr deco vBS
     pure valu
