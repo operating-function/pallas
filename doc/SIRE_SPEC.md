@@ -173,15 +173,6 @@ version inaccessible.
                 yv = EVALUATE(y);
                 assert (xv == yv);
 
-
-            --   < does a deep-print of a value.
-
-            (< x) ==>
-
-                xv = EVALUATE(x);
-                PRINT_RECURSIVE(x);
-
-
             --   /+ pulls in symbols from earlier modules
 
             (/+ args...)(/+ ...).. ==>
