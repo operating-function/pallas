@@ -27,7 +27,7 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan  [lawName lawBody trk]
-/+  02_bit  [if ifNot or else and]
+/+  02_bit  [if ifNot or else and not]
 /+  03_nat  [dec]
 /+  04_cmp  [eql neq isZero]
 /+  05_row  [idx len put switch null mut]
@@ -192,6 +192,9 @@
 | if (isZero heir) sons
 | weld sons (c1 heir)
 
+(rexHasNoHeir rex)=(isZero | rexHeir rex)
+(rexHasHeir rex)=(neq 0 (rexHeir rex))
+
 
 ;;; Equality ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -244,6 +247,10 @@
     | err rex {Expected 1 Parameter}
 | ok st
 | EMBD (idx 0 args)
+
+!!= {TEXT} | rexStyle '{#}
+!!= 0      | rexHasHeir '(0 1 2)
+!!= 1      | rexHasHeir '((0 1 2)9)
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -327,6 +334,8 @@ sx=(OPEN {=} (v2 wx w9) 0)
 ^-^ rexSons rexSetSons
 ^-^ rexEmbd rexSetEmbd
 ^-^ rexKids
+^-^
+^-^ rexHasNoHeir rexHasHeir
 ^-^
 ^-^ rexType rexStyle
 ^-^ rexGetEmbd rexGetLeaf rexGetNode
