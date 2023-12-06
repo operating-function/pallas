@@ -1150,10 +1150,7 @@
 | ok st
 | if (isZero tag)
     | lamE sig bodyRex
-| if pin
-    | wutWutE (rowCons nam sig) bodyRex
-| else
-    | wutE (rowCons nam sig) bodyRex
+| wutE pin 0 nam sig bodyRex
 
 = (cLet go st pat valExp bodExp ok)
 : st valRex < go st valExp
@@ -1307,7 +1304,7 @@
 
 ; TODO Can these single-item switches be compiled to an if expression?
 
-!!= [[5] '((#?? (id x))x)]
+!!= [[5] '((#?? ({id} x))x)]
   | comp [5]
   | ELAM TRUE
   | (%id, %id, [(PVAR %x)], EREF {x})
@@ -1317,7 +1314,7 @@
   | ELAM FALSE
   | (0, 0, [(PVAR %x)], EREF {x})
 
-!!= [[5] '((#? (f x z))z)]
+!!= [[5] '((#? ({f} x z))z)]
   | comp [5]
   | ELAM FALSE
   | ({f}, {f}, (PVAR %x, PVAR %z), EREF {z})

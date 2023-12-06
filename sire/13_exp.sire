@@ -139,8 +139,25 @@
 = (tmpVarE s n)    | varE (tmpName s n)
 = (sigE r)         | if (eql 1 len-r) varE-(idx 0 r) (NEST {|} (map varE r) 0)
 = (lamE rs b)      | OPEN {#&}  [(sigE rs)] b
-= (wutE rs b)      | OPEN {#?}  [(sigE rs)] b
-= (wutWutE rs b)   | OPEN {#??} [(sigE rs)] b
+
+= (wutE pin mark n rs b)
+@ rune (if pin {#??} {#?})
+^ OPEN rune [_] b
+^ NEST {|} _ 0
+| rowCons
+    ^ if mark (PREF {**} [_] 0) _
+    | txtE n
+| map varE rs
+
+!!=   | wutE 1 1 {f} [{x} {y}] ' | x y
+  ;
+  ' #?? (**{f} x y)
+      | x y
+
+!!=   | wutE 0 0 {f} [{x} {y}] ' | x y
+  ;
+  ' #? ({f} x y)
+     | x y
 
 = (**generateUniqueKey st ok)
 @ nex | get st 0
@@ -341,7 +358,7 @@ symTodo={todo: support .foo and .234}
 ^-^
 ^-^ isSymbolChar strIsSymbol rexIsSymbol readSymbol
 ^-^ natE litE varE cnsE barE letE recE
-^-^ sigE lamE wutE wutWutE
+^-^ sigE lamE wutE
 ^-^ inlinedLamE
 ^-^ txtE appE
 ^-^

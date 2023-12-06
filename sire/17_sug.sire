@@ -81,7 +81,7 @@
 /+  12_tab  [{#}]
 /+  13_exp  [readSymbol rexParseKids]
 /+  13_exp  [rowE natE letE cnsE txtE appE varE tmpName]
-/+  13_exp  [lamE wutE wutWutE]
+/+  13_exp  [lamE wutE]
 /+  13_exp  [bloodline]
 /+  14_hax  []
 /+  15_pad  []
@@ -235,12 +235,8 @@
 & nameAndPinned
 @ funName (fst nameAndPinned)
 @ pinned  (snd nameAndPinned)
-| if pinned
-    ^ appE (valRex, _)
-    | wutWutE (rowCons funName argNames) bodyRex
-| else
-    ^ appE (valRex, _)
-    | wutE (rowCons funName argNames) bodyRex
+^ appE (valRex, _)
+| wutE pinned 0 funName argNames bodyRex
 
 = ({:} st rex err ok)
 | readColExp readSymbol readRex rex err

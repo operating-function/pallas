@@ -715,7 +715,7 @@
 @ lawBody (idx 2 nameArgsBody)
 : ss argList lawBody <- makeDestroyer ss argPats lawBody
 | ok ss
-| ([%v lawName], wutE (rowCons lawName argList) lawBody)
+| ([%v lawName], wutE 0 0 lawName argList lawBody)
 
 > Nat > SugaredBinder Rex > Cont2 Nat (Pat, Rex)
 = (desugarMultiBinder ss sweetBinds ok)
@@ -728,7 +728,7 @@
 @ lawBody (idx 2 nameArgsBody)
 : ss argList lawBody <- makeDestroyer ss argPats lawBody
 | ret ss
-| (lawName, wutE (rowCons lawName argList) lawBody)
+| (lawName, wutE 0 0 lawName argList lawBody)
 
 > Nat > Row (SugaredBinder Rex) > Rex > Cont2 Nat Rex
 = (multiLetE ss sugaredBinds bodyExpr ok)
@@ -817,7 +817,7 @@
 : sym _  binds    <- readDestroyer sigRex err
 : ss sig bodyExpr <- makeDestroyer ss binds bodyExpr
 | ok ss
-| wutE (rowCons sym sig)
+| wutE 0 0 sym sig
 | bodyExpr
 
 !!= 5 | (uncurry f [x y] ? f x y) add [2 3]
