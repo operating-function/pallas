@@ -50,8 +50,9 @@
 ^ rowTraverse _ clauses ok
 & (sigBody ret)
 @ [sigRex bodyRex] sigBody
-: sym _ binds <- readDestroyer sigRex err
-: body        <- readExp bodyRex err
+: sym mark binds < readDestroyer sigRex err
+: body           < readExp bodyRex err
+| if mark        | err sigRex {can't inline mutually-recursive functions}
 | ret [sym binds body]
 
 !!= [[%f [[%v %x]] 'x] [%g [[%v %y]] '0]]
@@ -65,6 +66,9 @@
 
 !!= ['(= f) {= node expects two parameters}]
   | readCoreBody {=} readRex '((= f|x x)(= f)) v2 id
+
+!!= ['(**f x) {can't inline mutually-recursive functions}]
+  | readCoreBody {=} readRex '((**f x = x)(g y = 0)) v2 id
 
 = (readMutRecExp readExp rex err ok)
 : _ coreTag letBody coreBody

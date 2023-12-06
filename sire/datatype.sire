@@ -463,7 +463,8 @@ ex=(PAIR %a %b)
           : sym < readKey sigRex err
           | k sym []
       | else
-          : c _ fs < readDestroyer sigRex err
+          : c m fs < readDestroyer sigRex err
+          | if m   | err sigRex {Inline annotation in datacase is nonsense}
           | k c fs
 ;
 @ acc [sigRex constr fields bodyExp]::acc
