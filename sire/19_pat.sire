@@ -794,16 +794,10 @@
 
 ; TODO: This is lacking features from the base syntax (**)/etc.
 
-= (readNamedLambdaSig rex err ok)
-| if rexIsNode-rex
-    | readDestroyer rex err ok
-: sym <- readSymbol rex err
-| ok sym []
-
 ;
 = ({?} ss rex err ok)
 : sigRex bodyExpr <- rexParseKids rex [readRex readRex] err
-: sym    binds    <- readNamedLambdaSig sigRex err
+: sym    binds    <- readDestroyer sigRex err
 : ss sig bodyExpr <- makeDestroyer ss binds bodyExpr
 | ok ss
 | wutE (rowCons sym sig)
