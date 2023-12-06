@@ -147,7 +147,7 @@
 | CON_CASE con:Sym params:(Row Pat) body:Exp
 
 # record StewFun
-| FUN self:Sym tag:Nat args:(Row Pat) body:Exp
+| FUN self:Sym tag:Nat mark:Bit args:(Row Pat) body:Exp
 
 # datatype Cmd
 * CEXP=exp e:Exp
@@ -249,10 +249,11 @@
 | NEST {|} rexes 0
 
 > (Exp > Rex) > Bit > StewFun > Rex
-= (showFun showExp pin (FUN self tag args body))
+= (showFun showExp pin (FUN self tag mark args body))
 | if (self /= tag)
     | todo {show lambdas where name is different from tag}
-@ selfRex  | varE self
+@ selfRex  ^ if mark (PREF {**} [_] 0) (else _)
+           | varE self
 @ argRexes | map showPat args
 | if (isZero tag)
     | NEST {&}  ,(showSig argRexes)                   | showExp body
@@ -463,12 +464,17 @@
 !!= ' (& (x y))x
   | showExp
   | ELAM FALSE
-  | FUN 0 0 (PVAR %x, PVAR %y) (EREF %x)
+  | FUN 0 0 FALSE (PVAR %x, PVAR %y) (EREF %x)
 
 !!= ' (? (const x y))x
   | showExp
   | ELAM FALSE
-  | FUN {const} {const} (PVAR %x, PVAR %y) (EREF %x)
+  | FUN {const} {const} FALSE (PVAR %x, PVAR %y) (EREF %x)
+
+!!= ' (? (**const x y))x
+  | showExp
+  | ELAM FALSE
+  | FUN {const} {const} TRUE (PVAR %x, PVAR %y) (EREF %x)
 
 !!= ' (^ (f _ y))x
   | showExp
@@ -485,10 +491,10 @@
 ^ foldr _ body binds
 & (sweetBind body)
 # datacase sweetBind
-* (LEFT [lawName marker argPats lawBody])
+* (LEFT [lawName mark argPats lawBody])
     ^ ELET (PVAR lawName) _ body
     | ELAM FALSE
-    | FUN lawName lawName argPats lawBody
+    | FUN lawName lawName mark argPats lawBody
 * (RIGHT [bind valExp])
     | ELET bind valExp body
 
@@ -639,14 +645,14 @@
 @ [sigRex bodRex] kids
 : pats <- readBindSig sigRex err
 : body <- readExp bodRex err
-| ok | ELAM FALSE | FUN 0 0 pats body
+| ok | ELAM FALSE | FUN 0 0 FALSE pats body
 
 = (readWut readExp pinned rex err ok)
 @ kids@[sigRex bodRex] (rexKids rex)
 | if (len kids /= 2) (err rex {Bad lambda.})
-: func _ pats <- readDestroyer sigRex err
+: func mark pats <- readDestroyer sigRex err
 : body <- readExp bodRex err
-| ok | ELAM pinned | FUN func func pats body
+| ok | ELAM pinned | FUN func func mark pats body
 
 = (readLin readExp rex err ok)
 @ kids@[expRex]
@@ -675,7 +681,7 @@
 | ok
     | EAPP valExp
     | ELAM pin
-    | FUN nam nam pats bodyExp
+    | FUN nam nam FALSE pats bodyExp
 
 = leafExpect
 } Expected something like
@@ -977,9 +983,9 @@
 * (EEQL xs)          | rowTraverse go xs    & xs    | f (EEQL xs)    ok
 * (ETAB kv)          | traverseTab go kv    & kv    | f (ETAB kv)    ok
 * (ELIN x)           | go x & x | f (ELIN x)           ok
-* (ELAM p (FUN n t a b))
+* (ELAM p (FUN n t m a b))
     : b < go b
-    | f (ELAM p (FUN n t a b)) ok
+    | f (ELAM p (FUN n t m a b)) ok
 * (ECAS x fb cases)
     : x < go x
     : fb
@@ -1073,9 +1079,9 @@
 * (ELET n x b)
     : n <- goPat n
     | ok (ELET n x b)
-* (ELAM p (FUN n t as b))
+* (ELAM p (FUN n t m as b))
     : as <- rowTraverse goPat as
-    | ok | ELAM p (FUN n t as b)
+    | ok | ELAM p (FUN n t m as b)
 * (EMUT tag body arms)
     : arms < ^ rowTraverse _ arms
              & ([sym pats exp] ret)
@@ -1138,7 +1144,7 @@
 : st patRexes <- tabTraverseState st go arms
 | ok st (switchE xRex fbRex patRexes)
 
-= (cLam go st pin (FUN nam tag pats bodyExp) ok)
+= (cLam go st pin (FUN nam tag mark pats bodyExp) ok)
 : st bodyRex     <- go st bodyExp
 : st sig bodyRex <- makeDestroyer st pats bodyRex
 ;
@@ -1153,7 +1159,7 @@
 | ok st
 | if (isZero tag)
     | lamE sig bodyRex
-| wutE pin 0 nam sig bodyRex
+| wutE pin mark nam sig bodyRex
 
 = (cLet go st pat valExp bodExp ok)
 : st valRex < go st valExp
@@ -1310,23 +1316,28 @@
 !!= [[5] '((#?? ({id} x))x)]
   | comp [5]
   | ELAM TRUE
-  | FUN %id %id [(PVAR %x)] (EREF {x})
+  | FUN %id %id FALSE [(PVAR %x)] (EREF {x})
+
+!!= [[5] '((#?? (**{id} x))x)]
+  | comp [5]
+  | ELAM TRUE
+  | FUN %id %id TRUE [(PVAR %x)] (EREF {x})
 
 !!= [[5] '((#& x)x)]
   | comp [5]
   | ELAM FALSE
-  | FUN 0 0 [(PVAR %x)] (EREF {x})
+  | FUN 0 0 FALSE [(PVAR %x)] (EREF {x})
 
 !!= [[5] '((#? ({f} x z))z)]
   | comp [5]
   | ELAM FALSE
-  | FUN {f} {f} (PVAR %x, PVAR %z) (EREF {z})
+  | FUN {f} {f} FALSE (PVAR %x, PVAR %z) (EREF {z})
 
 !!=  ++ [7]
      ++ ` (#& _g5)(#@ _g6 _g5)(#@ x (#| $$(idx 0) _g6))(#@ z (#| $$(idx 1) _g6))z
   | comp [5]
   | ELAM FALSE
-  | FUN 0 0 [(PROW (PVAR %x, PVAR %z))] (EREF {z})
+  | FUN 0 0 FALSE [(PROW (PVAR %x, PVAR %z))] (EREF {z})
 
 !!=  ++ [6]
      ++ ` (#@ _g5 (#| $$(cow 2) $$2 $$1))(#@ x (#| $$(idx 0) _g5))x

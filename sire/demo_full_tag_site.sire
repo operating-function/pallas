@@ -316,7 +316,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
 * STATUSCMD
 * SEARCHCMD offset:Nat tags:Any
 
-(**bindMaybe mVal k)#=(maybeCase mVal NONE k)
+(**bindMaybe mVal k)=(maybeCase mVal NONE k)
 
 ;
 ; the json here being parsed is `{tag: "Search", contents: [array of str]}`.

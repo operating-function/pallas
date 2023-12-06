@@ -8,10 +8,10 @@
 /+ quickcheck
 /+ prelude
 
-(**debug m v)#=v
+(**debug m v)=v
 
 ; uncomment to get debug output
-;(**debug m v)#=(trk m v)
+;(**debug m v)=(trk m v)
 
 > (a > Ord) > Gen a > Gen (Pq a)
 = (genPq cmp gen)

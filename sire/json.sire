@@ -305,13 +305,13 @@ abstype#Json
 @ t (typeTag x)
 | if (t == natTag) x t
 
-#= JNULL       | {null}
-#= JTRUE       | {true}
-#= JFALSE      | {false}
-#= (**JSTR x)  | x
-#= (**JNUM n)  | 0 n
-#= (**JVEC xs) | xs
-#= (**JMAP kv) | kv
+= JNULL       | {null}
+= JTRUE       | {true}
+= JFALSE      | {false}
+= (**JSTR x)  | x
+= (**JNUM n)  | 0 n
+= (**JVEC xs) | xs
+= (**JMAP kv) | kv
 
 zero=0
 one=1

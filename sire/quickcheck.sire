@@ -7,10 +7,10 @@
 /+  splitmix   [mkSMGen nextWord64 splitSMGen]
 /+  prelude
 
-(**debug m v)#=v
+(**debug m v)=v
 
 ; uncomment to get debug output
-;(**debug m v)#=(trk m v)
+;(**debug m v)=(trk m v)
 
 # datatype (Result a)
 * OK

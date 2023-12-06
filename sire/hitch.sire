@@ -408,7 +408,7 @@ newRootNode
     | die %nodeMismatch
 
 ; backwards maybeCase is easier in some usage patterns.
-(**maybeCaseBack mb som non)#=(maybeCase mb non som)
+(**maybeCaseBack mb som non)=(maybeCase mb non som)
 
 = (deleteRec config treeFun key mybV node)
 @ TREE_CONFIG(..) config
