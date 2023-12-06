@@ -463,7 +463,7 @@ ex=(PAIR %a %b)
           : sym < readKey sigRex err
           | k sym []
       | else
-          : c fs < readDestroyer sigRex err
+          : c _ fs < readDestroyer sigRex err
           | k c fs
 ;
 @ acc [sigRex constr fields bodyExp]::acc

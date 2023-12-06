@@ -50,8 +50,8 @@
 ^ rowTraverse _ clauses ok
 & (sigBody ret)
 @ [sigRex bodyRex] sigBody
-: sym binds <- readDestroyer sigRex err
-: body      <- readExp bodyRex err
+: sym _ binds <- readDestroyer sigRex err
+: body        <- readExp bodyRex err
 | ret [sym binds body]
 
 !!= [[%f [[%v %x]] 'x] [%g [[%v %y]] '0]]

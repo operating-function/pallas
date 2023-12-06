@@ -644,7 +644,7 @@
 = (readWut readExp pinned rex err ok)
 @ kids@[sigRex bodRex] (rexKids rex)
 | if (len kids /= 2) (err rex {Bad lambda.})
-: func pats <- readDestroyer sigRex err
+: func _ pats <- readDestroyer sigRex err
 : body <- readExp bodRex err
 | ok (ELAM pinned | FUN func func pats body)
 

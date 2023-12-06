@@ -34,17 +34,12 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan
-/+  02_bit  [if else ifNot not and or FALSE]
+/+  02_bit  [if else ifNot not and or TRUE FALSE]
 /+  03_nat  [add div inc]
 /+  05_row  [len null idx get put fst]
 /+  04_cmp  [eql neq gte lth isZero]
-/+  05_row  [weld map foldl foldr v1 v2 v4]
-/+  06_rex  [rexKids rexRune rexHeir rexSons rexText {'}]
-/+  06_rex  [rexIsNode rexIsLeaf]
-/+  06_rex  [rexGetKidsOfNodeWithRune rexGetWord]
-/+  06_rex  [rexGetNodeWithRune]
-/+  06_rex  [rexSetRune rexSetSons rexSetHeir]
-/+  06_rex  [NEST OPEN WORD]
+/+  05_row  [weld map foldl foldr v1 v2 v3 v4]
+/+  06_rex
 /+  07_dat
 /+  08_sci  []
 /+  09_chr  []
@@ -513,15 +508,27 @@
 
 ;;; Lambda Binders ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+= (isInlineMarkedHead rex)
+@ kids (rexKids rex)
+| and (eql {**} | rexRune rex)
+| and (eql 1    | len kids)
+| rexIsSymbol (fst kids)
+
+(isLambdaHead rex)=(or rexIsSymbol-rex isInlineMarkedHead-rex)
+
 = (isLambdaBinder rex)
 | and (rexIsNode rex)
 | and (eql {|} (rexRune rex))
-| and (isZero (rexHeir rex))
+| and (rexHasNoHeir rex)
 @ sons (rexSons rex)
 | and (gte (len sons) 2)
-| rexIsSymbol (idx 0 sons)
+| isLambdaHead (fst sons)
 
 !!= 1 | isLambdaBinder '(f x)
+!!= 1 | isLambdaBinder '(**f x)
+!!= 1 | isLambdaBinder '((** f) x)
+!!= 1 | isLambdaBinder '((**)f x)
+!!= 0 | isLambdaBinder '((** f x) x)
 !!= 0 | isLambdaBinder 'f
 !!= 0 | isLambdaBinder '(f)
 !!= 0 | isLambdaBinder '(| f)
@@ -597,6 +604,7 @@
 }
 }     x
 }     (x y...)
+}     (**x y...)
 }     x-x-...
 
 ;; {readDestroyer} parsing something with the same shape as a function
@@ -604,41 +612,53 @@
 ;;
 ;;     (| Key Pat*)
 
-> Rex > RexParser2 Key (Row Pat)
+> Rex > RexParser3 Bit Key (Row Pat)
 = (readDestroyer rex err ok)
 ;
 | if (rexIsLeaf rex)
     : sym <- readKey rex err
-    | ok sym []
+    | ok sym FALSE []
 ;
 @ rune (rexRune rex)
 @ sons (rexSons rex)
 @ heir (rexHeir rex)
 ;
 | if (and (neq rune {|}) (neq rune {-}))
-        | err rex sigExpect
+    | err rex sigExpect
 | ifNot (isZero heir)
-        | err rex symSigNoHeir
+    | err rex symSigNoHeir
 | if (null sons)
-        | err rex symSigExpect
-: sym
-        < readKey (idx 0 sons) err
-: binds <- ^ rowTraverse _ (drop 1 sons)
-           ? (step son ret)
-           | parseBinder son err ret
-| ok sym binds
+    | err rex symSigExpect
+: sym marked
+  < & ret
+    @ hed (fst sons)
+    | if (eql {**} | rexRune hed)
+        @ hedKids (rexKids hed)
+        | if (neq 1 | len hedKids)
+            | err rex sigExpect
+        : sym <- readKey (fst hedKids) err
+        | ret sym TRUE
+    | else
+        : sym <- readKey hed err
+        | ret sym FALSE
+: binds
+  < ^ rowTraverse _ (drop 1 sons)
+    ? (step son ret)
+    | parseBinder son err ret
+| ok sym marked binds
 
 
-(tryRBSS x)=(readDestroyer x v2 v2)
+(tryRBSS x)=(readDestroyer x v2 v3)
 
-!!= [%a [[%v %b] [%v %c]]]                | tryRBSS '(a b c)
-!!= [%a [[%v %b] [%r [[%v %c] [%v %d]]]]] | tryRBSS '(a b [c d])
-!!= [%a []]                               | tryRBSS 'a
-!!= [%a []]                               | tryRBSS '(a)
-!!= [%a []]                               | tryRBSS '(| a)
-!!= ['[a b] sigExpect]                    | tryRBSS '[a b]
-!!= ['([][]) sigExpect]                   | tryRBSS '([][])
-!!= ['((|)[]) sigNoHeir]                  | tryRBSS '((|)[])
+!!= [%a 0 [[%v %b] [%v %c]]]                | tryRBSS '(a b c)
+!!= [%a 1 [[%v %b] [%v %c]]]                | tryRBSS '(**a b c)
+!!= [%a 0 [[%v %b] [%r [[%v %c] [%v %d]]]]] | tryRBSS '(a b [c d])
+!!= [%a 0 []]                               | tryRBSS 'a
+!!= [%a 0 []]                               | tryRBSS '(a)
+!!= [%a 0 []]                               | tryRBSS '(| a)
+!!= ['[a b] sigExpect]                      | tryRBSS '[a b]
+!!= ['([][]) sigExpect]                     | tryRBSS '([][])
+!!= ['((|)[]) sigNoHeir]                    | tryRBSS '((|)[])
 
 
 ;;; Generic Pattern Matching ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -674,7 +694,7 @@
     : letBodyExp < readExp                 (idx 1 kids) err
     | ok binds letBodyExp
 | if (isLambdaBinder | idx 0 kids)
-    : sym args   < readDestroyer (idx 0 kids) err
+    : sym _ args < readDestroyer (idx 0 kids) err
     : lamBodyExp < readExp       (idx 1 kids) err
     : letBodyExp < readExp       (idx 2 kids) err
     @ bind       | LEFT (sym, args, lamBodyExp)
@@ -791,13 +811,10 @@
 ;;; Named Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; TODO: Lambda binders should have binder-identities
-
-; TODO: This is lacking features from the base syntax (**)/etc.
-
 ;
 = ({?} ss rex err ok)
 : sigRex bodyExpr <- rexParseKids rex [readRex readRex] err
-: sym    binds    <- readDestroyer sigRex err
+: sym _  binds    <- readDestroyer sigRex err
 : ss sig bodyExpr <- makeDestroyer ss binds bodyExpr
 | ok ss
 | wutE (rowCons sym sig)
@@ -853,7 +870,7 @@
     @ sigRune                | rexRune sigRex
     : key <- readKey keyRex err
     | if (eql {|} sigRune)
-        : sym binds < readDestroyer sigRex err
+        : sym _ binds < readDestroyer sigRex err
         | ok (key, sym, binds, bodRex)
     | else
         : bind <- parseBinder sigRex err
@@ -862,7 +879,7 @@
     @ [sigRex bodRex] | kids
     @ sigRune         | rexRune sigRex
     | if (eql {|} sigRune)
-        : sym binds < readDestroyer sigRex err
+        : sym _ binds < readDestroyer sigRex err
         | ok (0, sym, binds, bodRex)
     | else
         : bind <- parseBinder sigRex err
