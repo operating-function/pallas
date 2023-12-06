@@ -485,7 +485,7 @@
 ^ foldr _ body binds
 & (sweetBind body)
 # datacase sweetBind
-* (LEFT [lawName argPats lawBody])
+* (LEFT [lawName marker argPats lawBody])
     ^ ELET (PVAR lawName) _ body
     | ELAM FALSE
     | FUN lawName lawName argPats lawBody

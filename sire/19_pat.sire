@@ -694,10 +694,10 @@
     : letBodyExp < readExp                 (idx 1 kids) err
     | ok binds letBodyExp
 | if (isLambdaBinder | idx 0 kids)
-    : sym _ args < readDestroyer (idx 0 kids) err
-    : lamBodyExp < readExp       (idx 1 kids) err
-    : letBodyExp < readExp       (idx 2 kids) err
-    @ bind       | LEFT (sym, args, lamBodyExp)
+    : sym mark args < readDestroyer (idx 0 kids) err
+    : lamBodyExp    < readExp       (idx 1 kids) err
+    : letBodyExp    < readExp       (idx 2 kids) err
+    @ bind          | LEFT (sym, mark, args, lamBodyExp)
     | ok [bind] letBodyExp
 | else
     : bind       < parseBinder (idx 0 kids) err
@@ -711,24 +711,12 @@
 ^ eitherCase sweetBind _ (ok ss)
 & nameArgsBody
 @ lawName (idx 0 nameArgsBody)
-@ argPats (idx 1 nameArgsBody)
-@ lawBody (idx 2 nameArgsBody)
+@ marker  (idx 1 nameArgsBody)
+@ argPats (idx 2 nameArgsBody)
+@ lawBody (idx 3 nameArgsBody)
 : ss argList lawBody <- makeDestroyer ss argPats lawBody
 | ok ss
-| ([%v lawName], wutE 0 0 lawName argList lawBody)
-
-> Nat > SugaredBinder Rex > Cont2 Nat (Pat, Rex)
-= (desugarMultiBinder ss sweetBinds ok)
-| rowTraverseState ss desugarBinder sweetBinds ok
-& (ss sweetBind ret)
-^ eitherCase sweetBind _ (ret ss)
-& nameArgsBody
-@ lawName (idx 0 nameArgsBody)
-@ argPats (idx 1 nameArgsBody)
-@ lawBody (idx 2 nameArgsBody)
-: ss argList lawBody <- makeDestroyer ss argPats lawBody
-| ret ss
-| (lawName, wutE 0 0 lawName argList lawBody)
+| ([%v lawName], wutE 0 marker lawName argList lawBody)
 
 > Nat > Row (SugaredBinder Rex) > Rex > Cont2 Nat Rex
 = (multiLetE ss sugaredBinds bodyExpr ok)
@@ -812,17 +800,23 @@
 
 ; TODO: Lambda binders should have binder-identities
 ;
-= ({?} ss rex err ok)
+= (wutMacro ss rex err ok)
 : sigRex bodyExpr <- rexParseKids rex [readRex readRex] err
-: sym _  binds    <- readDestroyer sigRex err
+: sym mark binds  <- readDestroyer sigRex err
 : ss sig bodyExpr <- makeDestroyer ss binds bodyExpr
 | ok ss
-| wutE 0 0 sym sig
+| wutE (rexRune rex == {??}) mark sym sig
 | bodyExpr
 
-!!= 5 | (uncurry f [x y] ? f x y) add [2 3]
+{?}=wutMacro
+{??}=wutMacro
 
-!!= ~[0 0 0] | listTake 3 (z @@ 0::z)z
+k=(**k a b ?? a)
+k9=(a & k 9 a)
+
+!!= 5           | (uncurry f [x y] ? f x y) add [2 3]
+!!= (a & k 9 a) | (a&9)
+!!= ~[0 0 0]    | listTake 3 (z @@ 0::z)z
 
 
 ;;; Anon Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -859,8 +853,12 @@
 = (keyE k)
 | if (strIsSymbol k) (varE k) (txtE k)
 
-= (sogE f rs)
-| (NEST {|} (rowCons (keyE f) (map varE rs)) 0)
+= (sogE f marker rs)
+^ NEST {|} _ 0
+| rowCons
+    ^ if marker (PREF {**} [_] 0) _
+    | keyE f
+| map varE rs
 
 = (parseDefine rex err ok)
 @ kids            | rexKids rex
@@ -870,8 +868,8 @@
     @ sigRune                | rexRune sigRex
     : key <- readKey keyRex err
     | if (eql {|} sigRune)
-        : sym _ binds < readDestroyer sigRex err
-        | ok (key, sym, binds, bodRex)
+        : sym marker binds < readDestroyer sigRex err
+        | ok (key, sym, marker, binds, bodRex)
     | else
         : bind <- parseBinder sigRex err
         | ok (key, bind, bodRex)
@@ -879,8 +877,8 @@
     @ [sigRex bodRex] | kids
     @ sigRune         | rexRune sigRex
     | if (eql {|} sigRune)
-        : sym _ binds < readDestroyer sigRex err
-        | ok (0, sym, binds, bodRex)
+        : sym marker binds < readDestroyer sigRex err
+        | ok (0, sym, marker, binds, bodRex)
     | else
         : bind <- parseBinder sigRex err
         | ok (0, bind, bodRex)
@@ -912,10 +910,19 @@
 
 !!=  ++ 0
      ++ %f
+     ++ FALSE
      ++ ([%v %x], [%r ([%v %y], [%v %z])])
      ++ 'y
   ^ parseDefine _ v2 id
   ' = (f x [y z]) y
+
+!!=  ++ 0
+     ++ %f
+     ++ TRUE
+     ++ ([%v %x], [%r ([%v %y], [%v %z])])
+     ++ 'y
+  ^ parseDefine _ v2 id
+  ' = (**f x [y z]) y
 
 = (unrollTis rex)
 @ heir (rexHeir rex)
@@ -939,14 +946,14 @@
 = (mkDefsC ss defBinds)
 ^ listFoldr _ (ss, 0) defBinds
 & (def [ss acc])
-| if (len def == 4)
-    @ [key sym binds bodRex] def
+| if (len def == 5)
+    @ [key sym marker binds bodRex] def
     : ss sig bod <- makeDestroyer ss binds bodRex
     ^ [ss (OPEN {#=} _ acc)]
     | if key
-        | (natE key, sogE sym sig, bod)
+        | (natE key, sogE sym marker sig, bod)
     | else
-        | (sogE sym sig, bod)
+        | (sogE sym marker sig, bod)
 | else
     @ [key bind bodRex] def
     @ [ss bSeq] (sequenceBinds ss [[bind bodRex]])
@@ -1015,6 +1022,9 @@
     | and (eql x {self})
           (| eql x | lawName | pinItem self)
 
+* = (**k x y) | x
+  = (k9 x)    | k 9 x
+* (9 !!= lawBody (pinItem k9))
 
 ;; TODO: consider removing the law-binding pattern: @ (f x) x ...
 
@@ -1029,6 +1039,13 @@
 !!= [6 5]
         @ @(CELL x y)  [5 6]
         [y x]
+
+= (foo x)
+@ (**k a b)=a
+@ (k9 a)=(k 9 a)
+| **k9 x
+
+!!= foo (foo a ?? 9)
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1045,5 +1062,5 @@
 ^-^
 ^-^ readLet
 ^-^
-^-^ {@} {?} {&} {=} {:}
+^-^ {@} {?} {??} {&} {=} {:}
 ^-^
