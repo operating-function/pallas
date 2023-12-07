@@ -11,4 +11,7 @@ fi
 
 sh/sire-load-all </dev/null
 
+# TODO: sh/sire-load-all should exit with an error code if something
+# failed!
+
 sh/rex-test
