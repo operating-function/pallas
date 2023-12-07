@@ -7,12 +7,12 @@
 
 set -e
 
-plunder save rex_tree.seed rex_tree
+plunder save rex.seed rex
 
 for x in sire/*.sire
 do
-        echo plunder repl rex_tree.seed "<$x" ">$x.new"
-        plunder repl rex_tree.seed <$x >$x.new 2>/dev/null
+        echo plunder repl rex.seed "<$x" ">$x.new"
+        plunder repl rex.seed <$x >$x.new 2>/dev/null
 done
 
 for x in sire/*.sire
@@ -27,5 +27,5 @@ do
         diff $x.new $x.old
 done
 
-echo rm -f rex_tree.seed sire/*.sire.new sire/*.sire.old
-rm -f rex_tree.seed sire/*.sire.new sire/*.sire.old
+echo rm -f rex.seed sire/*.sire.new sire/*.sire.old
+rm -f rex.seed sire/*.sire.new sire/*.sire.old
