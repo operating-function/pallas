@@ -5,7 +5,7 @@
 {-# OPTIONS_GHC -Wall   #-}
 {-# OPTIONS_GHC -Werror #-}
 
-module Sire.Compile (compileSire) where
+module Sire.Backend (compileSire) where
 
 import Loot.Backend
 import PlunderPrelude hiding (to)
