@@ -80,10 +80,11 @@ lex ln@(LN _ _ b) = many 0 0
 
     x off end tok = L (S ln off end tok)
 
-    many i ctx = let l = one i ctx
-                 in l : (guard (l.t.x/=TERM) >> many l.t.end ctx)
+    many i ctx = l : (if l.t.x == TERM then [] else many l.t.end ctx)
+                   where l = one i ctx
 
-    nest cn ctx i = x i (unsafeLast ts).t.end (cn ts) where ts = many (i+1) ctx
+    nest cn ctx i = x i (unsafeLast ts).t.end (cn ts)
+                      where ts = many (i+1) ctx
 
     eat o f = fromMaybe wid $ fmap (+o) $ BS.findIndex (not . f) $ drop o b
 
@@ -92,7 +93,8 @@ lex ln@(LN _ _ b) = many 0 0
     curl i d = maybe i (\c -> curl (i+1) (d + curlStep c)) (b BS.!? i)
                  where curlStep = \case { 123 -> 1; 125 -> (-1); _ -> 0 }
 
-    str i   = x i (min wid $ succ $ eat (i+1) (/= 34)) (CORD CURLY)
+    str i = x i (min wid (succ $ eat (i+1) (/= 34))) (CORD CURLY)
+
     quote i = let c = fromMaybe 0 (b BS.!? succ i) in
               if c==0 || c==32 then x i wid (LINE[]) else
               x i (min wid $ succ $ eat (i+2) (/= c)) (CORD QUOTED)
@@ -100,16 +102,16 @@ lex ln@(LN _ _ b) = many 0 0
     one i ctx = case fromMaybe 0 (b BS.!? i) of
                     40  {- ( -}      -> nest PARA 41  i  {- ) -}
                     91  {- [ -}      -> nest BRAK 93  i  {- ] -}
-                    123 {- { -}      -> x i (curl (i+1) 1) (CORD CURLY)
                     34  {- " -}      -> str i
                     125 {- } -}      -> quote i
+                    123 {- { -}      -> x i (curl (i+1) 1)         (CORD CURLY)
                     0   {- ø -}      -> x i wid                    TERM
                     59  {- ; -}      -> x i wid                    SEMI
                     32  {-   -}      -> x i (eat i (== 32))        WYTE
                     c | elem c wordy -> x i (eat i (`elem` wordy)) WORD
                     c | elem c runic -> x i (eat i (`elem` runic)) RUNE
                     c | ctx==c       -> x i (i+1)                  TERM
-                    _                -> x i (i+1) FAIL
+                    _                -> x i (i+1)                  FAIL
 
 runic, wordy :: ByteString
 wordy = encodeUtf8 (pack ("_" <> ['a'..'z'] <> ['A'..'Z'] <> ['0'..'9']))
