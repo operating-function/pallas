@@ -25,25 +25,25 @@ data Expr = EXPR { sire::Sire, expo::Maybe Expo }
 
 inline :: Int -> [Maybe Expo] -> [XArg] -> Sire -> Expr
 inline d s params syr = case syr of
-    S_VAL _   -> reapply params $ EXPR syr Nothing
-    S_VAR v   -> reapply params $ EXPR syr (s !! fromIntegral v)
-    S_GLO b   -> reapply params $ EXPR syr (inline d [] [] b.d.code).expo
-    S_LIN b   -> reapply params $ EXPR r (me <&> \e -> e{mark=True})
-                   where EXPR r me = inline d s [] b
-    S_LAM lam -> reapply params $ EXPR sire expo
-                   where
-                 need = fromIntegral lam.args
-                 s'   = replicate (1 + need) Nothing <> s
-                 d'   = 1 + need + d
-                 sire = S_LAM lam{ body = (inline d' s' [] lam.body).sire }
-                 expo = do guard (not $ hasRefTo lam.args lam.body)
-                           let mark = lam.inline
-                           Just $ EXPO { lam, mark, deep=d, need, args=[] }
-    S_LET v b -> EXPR (S_LET vr.sire br.sire) Nothing
-                   where vr = inline (d+1) (Nothing  : s) []     v
-                         br = inline (d+1) (noCyc vr : s) params b
-    S_APP f x -> inline d s (XARG d x' : params) f
-                   where x' = (inline d s [] x).sire
+    K _   -> reapply params $ EXPR syr Nothing
+    V v   -> reapply params $ EXPR syr (s !! fromIntegral v)
+    G b   -> reapply params $ EXPR syr (inline d [] [] b.d.code).expo
+    M b   -> reapply params $ EXPR r (me <&> \e -> e{mark=True})
+               where EXPR r me = inline d s [] b
+    F lam -> reapply params $ EXPR sire expo
+               where
+             need = fromIntegral lam.args
+             s'   = replicate (1 + need) Nothing <> s
+             d'   = 1 + need + d
+             sire = F lam{ body = (inline d' s' [] lam.body).sire }
+             expo = do guard (not $ hasRefTo lam.args lam.body)
+                       let mark = lam.inline
+                       Just $ EXPO { lam, mark, deep=d, need, args=[] }
+    L v b -> EXPR (L vr.sire br.sire) Nothing
+               where vr = inline (d+1) (Nothing  : s) []     v
+                     br = inline (d+1) (noCyc vr : s) params b
+    A f x -> inline d s (XARG d x' : params) f
+               where x' = (inline d s [] x).sire
   where
     noCyc x = guard (not $ hasRefTo 0 x.sire) >> x.expo
 
@@ -51,12 +51,12 @@ inline d s params syr = case syr of
         (_, Just e) | e.need==0 && e.mark -> inline d s args (expand e)
         ([], _)                           -> f
         (r@(XARG rd rx) : rs, _)          ->
-            reapply rs $ EXPR (S_APP f.sire $ moveTo rd d 0 rx) do
+            reapply rs $ EXPR (A f.sire $ moveTo rd d 0 rx) do
                 fe <- me
                 guard (fe.need > 0)
                 pure fe { need = fe.need - 1, args = r : fe.args }
 
-    expand fe = foldr S_LET body $ renum 1 (XARG d (S_VAL 0) : reverse fe.args)
+    expand fe = foldr L body $ renum 1 (XARG d (K 0) : reverse fe.args)
                   where body = moveTo fe.deep d (1 + fe.lam.args) fe.lam.body
 
     renum :: Int -> [XArg] -> [Sire]
@@ -69,21 +69,21 @@ moveTo from to alreadyBound topExp =
   where
     go :: Nat -> Sire -> Sire
     go l e = case e of
-       S_VAR v | v>=l -> S_VAR ((v + fromIntegral to) - fromIntegral from)
-       S_LIN x        -> S_LIN (go l x)
-       S_APP f x      -> S_APP (go l f) (go l x)
-       S_LET v b      -> S_LET (go (l+1) v) (go (l+1) b)
-       S_LAM lam      -> S_LAM (lam { body = go (l + 1 + lam.args) lam.body })
-       _              -> e
+       V v | v>=l -> V ((v + fromIntegral to) - fromIntegral from)
+       M x        -> M (go l x)
+       A f x      -> A (go l f) (go l x)
+       L v b      -> L (go (l+1) v) (go (l+1) b)
+       F lam      -> F (lam { body = go (l + 1 + lam.args) lam.body })
+       _          -> e
 
 hasRefTo :: Nat -> Sire -> Bool
 hasRefTo d = \case
-    S_VAR v   -> v==d
-    S_LET v b -> hasRefTo (d+1) v || hasRefTo (d+1) b
-    S_APP f x -> hasRefTo d f     || hasRefTo d x
-    S_LIN x   -> hasRefTo d x
-    S_LAM l   -> hasRefTo (d + 1 + l.args) l.body
-    _         -> False
+    V v   -> v==d
+    L v b -> hasRefTo (d+1) v || hasRefTo (d+1) b
+    A f x -> hasRefTo d f     || hasRefTo d x
+    M x   -> hasRefTo d x
+    F l   -> hasRefTo (d + 1 + l.args) l.body
+    _     -> False
 
 
 -- Compiler --------------------------------------------------------------------
@@ -109,19 +109,19 @@ ingest = \top -> runState (go [] top) (mempty, 0)
     gensym = do { (s,v) <- get; put (s,v+1); pure v }
 
     go s = \case
-        S_VAR i   -> pure $ (s !! fromIntegral i)
-        S_LIN x   -> go s x
-        S_GLO g   -> pure $ VAL g.d.value
-        S_VAL x   -> pure $ VAL x
-        S_APP f x -> app <$> go s f <*> go s x
-        S_LET v b -> do
+        V i   -> pure $ (s !! fromIntegral i)
+        M x   -> go s x
+        G g   -> pure $ VAL g.d.value
+        K x   -> pure $ VAL x
+        A f x -> app <$> go s f <*> go s x
+        L v b -> do
             k  <- gensym
             vr <- go (VAR k : s) v
             let keep = case vr of { VAR w -> w==k; APP{} -> True; _ -> False }
             when keep do modify' (over _1 $ insertMap k vr)
             go ((if keep then VAR k else vr) : s) b
 
-        S_LAM lam@LAM{tag,pin} -> do
+        F lam@LAM{tag,pin} -> do
             slf      <- gensym
             arg      <- replicateM (fromIntegral lam.args) gensym
             (_, nex) <- get

@@ -106,17 +106,17 @@ getLam pinnedBit inlinedBit tagNat argsNat bodyVal =
     badBit cx txt = "bad flag when reading lambda from state: " <> cx <> " " <> txt
 
 getSyr :: Any -> Sire
-getSyr (NAT n) = S_VAR n
+getSyr (NAT n) = V n
 getSyr topVal  = fromMaybe (error $ "bad Sire AST:\n\n" <> unpack (planText topVal)) do
     params <- getRow topVal
     case toList params of
-        [NAT "ref", x]         -> Just $ S_GLO (getBinding x)
-        [NAT "val", x]         -> Just $ S_VAL x
-        [NAT "app", f, x]      -> Just $ S_APP (getSyr f) (getSyr x)
-        [NAT "let", v, b]      -> Just $ S_LET (getSyr v) (getSyr b)
-        [NAT "lam", p,i,t,a,b] -> Just $ S_LAM $ getLam p i t a b
-        [NAT "lin", x]         -> Just $ S_LIN (getSyr x)
-        _                      -> Nothing
+        [NAT "V", x]         -> Just $ G (getBinding x)
+        [NAT "K", x]         -> Just $ K x
+        [NAT "A", f, x]      -> Just $ A (getSyr f) (getSyr x)
+        [NAT "L", v, b]      -> Just $ L (getSyr v) (getSyr b)
+        [NAT "F", p,i,t,a,b] -> Just $ F $ getLam p i t a b
+        [NAT "M", x]         -> Just $ M (getSyr x)
+        _                    -> Nothing
 
 getPin :: Any -> Maybe Any
 getPin (F.PIN p) = Just p.item
@@ -860,14 +860,14 @@ readExpr e rex = do
 
 readMultiLine :: InCtx => [Text] -> Maybe Rex -> Repl Sire
 readMultiLine acc = \case
-    Nothing -> pure $ S_VAL $ NAT $ utf8Nat $ intercalate "\n" $ reverse acc
+    Nothing -> pure $ K $ NAT $ utf8Nat $ intercalate "\n" $ reverse acc
     Just h  -> case h of
         T s t k | s==LINE -> readMultiLine (t:acc) k
         _                 -> parseFail h "Mis-matched node in text block"
 
 readPrimExpr :: InCtx => [Maybe Nat] -> Rex -> Repl Sire
 readPrimExpr e rex = case rex of
-    C v              -> pure (S_VAL v)
+    C v              -> pure (K v)
     T LINE t k       -> readMultiLine [t] k
     T _    _ Just{}  -> parseFail rex "leaves cannot have heirs"
     T _    _ Nothing -> readPrimLeaf rex e rex
@@ -911,7 +911,7 @@ readPrimExpr e rex = case rex of
         let e2   = reverse (Nothing : fmap Just argNames) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bod
-        pure $ S_LAM $ LAM{tag=0,args,body,pin=False,inline=False}
+        pure $ F $ LAM{tag=0,args,body,pin=False,inline=False}
 
     readAnonLam [tagRex, sig, bod] = do
         tag <- readKey tagRex
@@ -919,7 +919,7 @@ readPrimExpr e rex = case rex of
         let e2   = reverse (Nothing : fmap Just argNames) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bod
-        pure $ S_LAM $ LAM{tag,args,body,pin=False,inline=False}
+        pure $ F $ LAM{tag,args,body,pin=False,inline=False}
 
     readAnonLam _ = parseFail rex "Expected two or three parameters"
 
@@ -955,7 +955,7 @@ readPrimExpr e rex = case rex of
         let e2   = reverse (Just <$> (f:argNames)) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bodRex
-        pure $ S_LAM $ LAM{tag=f,args,body,pin,inline}
+        pure $ F $ LAM{tag=f,args,body,pin,inline}
 
     readLam pin [tagRex, sigRex, bodRex] = do
         tag                   <- readKey tagRex
@@ -963,7 +963,7 @@ readPrimExpr e rex = case rex of
         let e2   = reverse (Just <$> (f:argNames)) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bodRex
-        pure $ S_LAM $ LAM{tag,args,body,pin,inline}
+        pure $ F $ LAM{tag,args,body,pin,inline}
 
     readLam _ _ = parseFail rex "Expected two or three parameters"
 
@@ -985,14 +985,14 @@ readPrimExpr e rex = case rex of
             parseFail rex "Needs at least two paramaters"
         v <- readExpr (Nothing : e) (L.last xs)
         b <- traverse (readExpr (Just "_" : e)) (L.init xs)
-        pure (S_LET v $ apple_ b)
+        pure (L v $ apple_ b)
 
     readLet :: [Rex] -> Repl Sire
     readLet [nr, vr, br] = do
         n <- readKey nr
         v <- readExpr (Nothing : e) vr
         b <- readExpr (Just n  : e) br
-        pure (S_LET v b)
+        pure (L v b)
     readLet _ = parseFail rex "Three paramaters are required"
 
     readLetRec :: [Rex] -> Repl Sire
@@ -1000,32 +1000,32 @@ readPrimExpr e rex = case rex of
         n <- readKey nr
         v <- readExpr (Just n : e) vr
         b <- readExpr (Just n : e) br
-        pure (S_LET v b)
+        pure (L v b)
     readLetRec _ = parseFail rex "Three paramaters are required"
 
     readLin :: [Rex] -> Repl Sire
-    readLin [x] = S_LIN <$> readExpr e x
+    readLin [x] = M <$> readExpr e x
     readLin _   = parseFail rex "This needs to have only one parameter"
 
     readApp :: [Rex] -> Repl Sire
     readApp []     = parseFail rex "empty application"
     readApp (r:rx) = do
         (s :| ss) <- traverse (readExpr e) (r :| rx)
-        pure (foldl' S_APP s ss)
+        pure (foldl' A s ss)
 
 resolveUnqualified :: InCtx => Rex -> [Maybe Nat] -> Nat -> Repl Sire
 resolveUnqualified blockRex e sym = do
     st <- getState <$> get
     case (L.elemIndex (Just sym) e, lookup (NAT sym) st.scope) of
-        (Just ng, _) -> pure $ S_VAR (fromIntegral ng)
-        (_, Just bn) -> pure $ S_GLO bn
+        (Just ng, _) -> pure $ V (fromIntegral ng)
+        (_, Just bn) -> pure $ G bn
         (_, _)       -> parseFail blockRex ("Unresolved symbol: " <> showKey sym)
 
 resolveQualified :: InCtx => Rex -> Nat -> Nat -> Repl Sire
 resolveQualified blockRex modu nam = do
     st <- getState <$> get
     case (lookup (NAT modu) >=> (Just . fst) >=> lookup (NAT nam)) st.modules of
-        Just bn -> pure (S_GLO bn)
+        Just bn -> pure (G bn)
         Nothing -> parseFail blockRex $ concat [ "Unresolved symbol: "
                                                , showKey modu
                                                , "."
@@ -1045,7 +1045,7 @@ readPrimLeaf blockRex e rex =
              -- TODO: Anything else?
     of
        Nothing        -> parseFail rex "don't know how to parse this leaf"
-       Just (Left v)  -> pure (S_VAL v)
+       Just (Left v)  -> pure (K v)
        Just (Right n) -> resolveUnqualified blockRex e n
 
 
@@ -1140,7 +1140,7 @@ readBindCmd rex = \case
 
         Right ((inline, name), argNames) ->
             TO_BIND mKey mProp name
-                $ S_LAM
+                $ F
                 $ LAM {pin=True, inline, tag=name, args, body=expr}
           where
             args = fromIntegral (length argNames)

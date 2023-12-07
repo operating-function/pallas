@@ -129,13 +129,13 @@ data Lam = LAM
 -- This is the internal representation that is used for inlining.
 -- All names have been resolved, globals point directly to their bindings.
 data Sire
-    = S_VAR Nat
-    | S_VAL Any
-    | S_GLO Binding
-    | S_APP Sire Sire
-    | S_LET Sire Sire
-    | S_LIN Sire
-    | S_LAM Lam
+    = V Nat
+    | K Any
+    | G Binding
+    | A Sire Sire
+    | L Sire Sire
+    | M Sire
+    | F Lam
   deriving (Eq, Ord, Show)
 
 sireNoun :: Sire -> Any
@@ -151,13 +151,13 @@ sireNoun = go
 
     go :: Sire -> Any
     go = \case
-        S_VAR n   -> NAT n
-        S_VAL n   -> ROW $ arrayFromListN 2 ["val", n]
-        S_GLO b   -> ROW $ arrayFromListN 2 ["ref", b.noun]
-        S_APP f x -> ROW $ arrayFromListN 3 ["app", go f, go x]
-        S_LET v b -> ROW $ arrayFromListN 3 ["let", go v, go b]
-        S_LIN x   -> ROW $ arrayFromListN 2 ["lin", go x]
-        S_LAM l   -> ROW $ arrayFromListN 6 ("lam" : goLam l)
+        V n   -> NAT n
+        K n   -> ROW $ arrayFromListN 2 ["K", n]
+        G b   -> ROW $ arrayFromListN 2 ["V", b.noun]
+        A f x -> ROW $ arrayFromListN 3 ["A", go f, go x]
+        L v b -> ROW $ arrayFromListN 3 ["L", go v, go b]
+        M x   -> ROW $ arrayFromListN 2 ["M", go x]
+        F l   -> ROW $ arrayFromListN 6 ("F" : goLam l)
 
 lamRex :: Lam -> Rex
 lamRex l =
@@ -193,13 +193,13 @@ showName = \case
 
 sireRex :: Sire -> Rex
 sireRex = \case
-    S_VAR v   -> N PREF "$" [word (tshow v)] Nothing
-    S_VAL v   -> C v
-    S_GLO b   -> gloRex b
-    S_APP f x -> appRex f [x]
-    S_LET v x -> N OPEN "@" [sireRex v] (Just $ openApp $ sireRex x)
-    S_LIN sir -> N PREF "**" [sireRex sir] Nothing
-    S_LAM lam -> lamRex lam
+    V v   -> N PREF "$" [word (tshow v)] Nothing
+    K v   -> C v
+    G b   -> gloRex b
+    A f x -> appRex f [x]
+    L v x -> N OPEN "@" [sireRex v] (Just $ openApp $ sireRex x)
+    M sir -> N PREF "**" [sireRex sir] Nothing
+    F lam -> lamRex lam
   where
     gloRex b =
         T WORD (showName b.d.name)
@@ -207,7 +207,7 @@ sireRex = \case
             $ N NEST "," [word (tshow b.d.key)]
             $ Nothing
 
-    appRex (S_APP f x) xs = appRex f (x:xs)
+    appRex (A f x) xs = appRex f (x:xs)
     appRex f xs = niceApp (sireRex <$> (f:xs))
 
     niceApp xs = case (all isSimpleClosed xs, reverse xs) of
@@ -260,7 +260,7 @@ trk = doTrk
 --------------------------------------------------------------------------------
 
 apple :: Sire -> [Sire] -> Sire
-apple = foldl' S_APP
+apple = foldl' A
 
 apple_ :: [Sire] -> Sire
 apple_ []     = error "apple_ given nothing to work with"
