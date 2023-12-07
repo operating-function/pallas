@@ -347,13 +347,11 @@ main = do
             when start $ do
               runMachine d EarliestSnapshot mo
 
-        RTUses d w      -> duMachine d w
-        RTShow fp       -> showSeed fp
-        RTRepl fp _   -> do
-            replSeed fp
-
-        RTOpen d cog    -> void (openBrowser d cog)
-        RTTerm d cog    -> void (openTerminal d cog)
+        RTUses d w   -> duMachine d w
+        RTShow fp    -> showSeed fp
+        RTRepl fp _  -> replSeed fp
+        RTOpen d cog -> void (openBrowser d cog)
+        RTTerm d cog -> void (openTerminal d cog)
 
         RTLoot _ _ fz -> do
             liftIO $ Loot.ReplExe.replMain fz
