@@ -427,8 +427,7 @@ abstype#TyExp
 @ rune (rexRune rex)
 | if (isZero rune)
     | err rex {Expected symbol or rune}
-# switch rune
-* {|}
+@ appCase
     @ kids (rexKids rex)
     @ head (idx 0 kids)
     @ para (drop 1 kids)
@@ -441,6 +440,9 @@ abstype#TyExp
     : bindKey bind <- getBind sym ss rex err
     : params < rowTraverse loop para
     | ok (T_REF sym (idx 1 bind) params)
+# switch rune
+* {|} appCase
+* {-} appCase
 * {>}
     : kidTypes < rowTraverse loop (rexKids rex)
     | ok (bigFun kidTypes)
@@ -619,24 +621,19 @@ printType#Fun
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
-^-^ showType
-^-^
 ^-^ {#typedef} {#abstype} {#printType} {#typeof} {#backfill}
 ^-^
 ^-^ {#record} {#datatype} {#datacase}
 ^-^
 ^-^ {>}
 ^-^
-^-^ SCHEME TVAR TCON
-^-^
 ^-^ Void Any Type
 ^-^ Nat Pin Fun
-^-^ Bit Str
+^-^ Bit Str Char
 ^-^ Rex Read
 ^-^ Row List Set Tab
 ^-^ Maybe Either
 ^-^ Bar
-^-^ Char
 ^-^
 ^-^ Unit Box Pair Trip Quad
 ^-^
