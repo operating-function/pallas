@@ -47,16 +47,16 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan  [die trk pinItem isZero const]
-/+  02_bit  [if ifNot not]
+/+  02_bit  [if ifNot not and]
 /+  03_nat  []
 /+  05_row  [len idx]
 /+  04_cmp  [eql neq]
 /+  05_row  [v1 v2 v4 null weld]
-/+  06_rex  [rexKids rexGetWord {'} rexRune]
+/+  06_rex  [rexKids rexGetWord {'} rexRune EMBD]
 /+  07_dat  [{,}]
 /+  08_sci  []
 /+  09_chr  []
-/+  10_str  [strWeld]
+/+  10_str  [strWeld isDecimalLit loadDecimal isHexLit loadHexLit]
 /+  11_set  [{%}]
 /+  12_tab  [{#}]
 /+  12_tab  [tabGet tabHas tabKeysSet isTab tabIsEmpty]
@@ -89,8 +89,6 @@ oldHax=(.{#})
 @ kids     | rexKids rex
 @ firstKid | idx 0 kids
 @ numKids  | len kids
-;
-; trk [=kids]
 | if (null kids)
     | err rex haxNeedKid
 | if (eql (1,{,}) (numKids, rexRune firstKid))
@@ -98,15 +96,23 @@ oldHax=(.{#})
 | **rexGetWord firstKid
     | err rex haxFstWord
 & (name heir)
+| if (and (eql 1 numKids) isHexLit-name)
+    | ok st (EMBD loadHexLit-name)
+| if (and (eql 1 numKids) isDecimalLit-name)
+    | ok st (EMBD loadDecimal-name)
 @ key     | strWeld {#} name
 @ scope   | idx 2 st
-| getBind st key
-    (const | err rex haxBadSymb-key)
+| getBind st key (const | err rex haxBadSymb-key)
 & funBind
 @ funVal | idx 1 funBind
 | funVal st rex err ok
 
-= ({#foo} st rex err ok) ; envr next kids heir)
+!!= 255    | #0xff
+!!= 123123 | #123_123
+!!= 123123 | 123_123
+!!= 255    | 0xff
+
+= ({#foo} st rex err ok)
 | ok st (cnsE rex)
 
 = ({#quote} st rex err ok)

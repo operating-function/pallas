@@ -16,13 +16,13 @@
 /+  02_bit  [if ifNot and or not]
 /+  03_nat  [add sub lsh roundUp met mul rsh mod div]
 /+  05_row  []
-/+  04_cmp  [eql neq]
+/+  04_cmp  [eql neq gth]
 /+  05_row  [foldl]
 /+  06_rex  []
-/+  07_dat  [CONS NIL listFoldl listToRow listMap listLen listAll]
+/+  07_dat  [CONS NIL listFoldl listToRow listDrop listMap listLen listAll]
 /+  07_dat  [{,} {>}]
 /+  08_sci  []
-/+  09_chr  [isUpper isDigit toUpper toLower ord]
+/+  09_chr  [isDigit isHexDigit isUpper toUpper toLower ord]
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -58,16 +58,56 @@
 = (loadDecimal n)
 ^ listFoldl _ 0 (strToList n)
 & (acc c)
+| if (eql c {_}) acc
 | add (mul 10 acc) (ord c)
+
+;; {loadHexLit} does the same, but for hexidecimal literals (which are
+;; expected to start with {0x}).
+
+> Str > Nat
+= (loadHexLit n)
+^ listFoldl _ 0 (listDrop 2 | strToList n)
+& (acc c)
+| if (eql {_} c) acc
+| add (mul 16 acc)
+| if isDigit-c (sub c {0})
+| add 10
+| sub toLower-c {a}
+
+!!= 255 | loadHexLit {0xff}
+!!= 255 | loadHexLit {0x_f_f_}
+!!= 14  | loadHexLit {0x0e}
+!!= 15  | loadHexLit {0x0f}
+!!= 15  | loadHexLit {0xf}
+!!= 240 | loadHexLit {0xf0}
+!!= 0   | loadHexLit {0x}
 
 ;; {loadKeyWord} parses something that is either a decimal literal or
 ;; a string.  It either parses the decimal number or casts the input string
 ;; to a number.
 
+= (isDecimalLit str)
+| and str
+| listAll x&(or eql-x-{_} isDigit-x)
+| strToList str
+
+= (isHexLit str)
+| and (gth str {0x})
+| and (eql {0x} | mod str 65536)
+| listAll c&(or (eql c {_}) isHexDigit-c)
+| listDrop 2 strToList-str
+
+!!= 1 | isHexLit {0xff}
+!!= 1 | isHexLit {0x0e}
+!!= 1 | isHexLit {0x0f}
+!!= 1 | isHexLit {0xF0}
+!!= 0 | isHexLit {0x}
+!!= 0 | isHexLit {0xg}
+
 > Str > Nat
 = (loadKeyWord str)
-| if (listAll isDigit strToList-str)
-    | loadDecimal str
+| if isDecimalLit-str | loadDecimal str
+| if isHexLit-str     | loadHexLit str
 | str
 
 
@@ -100,5 +140,7 @@
 ^-^  strToUpper strToLower strCapitalize strIsCapitalized
 ^-^  strMap
 ^-^
-^-^  loadDecimal loadKeyWord
+^-^  isDecimalLit loadDecimal
+^-^  isHexLit     loadHexLit
+^-^  loadKeyWord
 ^-^

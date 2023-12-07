@@ -876,8 +876,8 @@ readPrimExpr e rex = case rex of
   where
     readNode :: Text -> [Rex] -> Maybe Rex -> Repl Sire
     readNode r s h =
-        let ks = s <> toList h
-        in case r of
+        let ks = s <> toList h in
+        case r of
             "|"   -> readApp       ks
             "#|"  -> readApp       ks
             "-"   -> readApp       ks
@@ -1037,17 +1037,14 @@ showKey = let ?rexColors = NoColors in rexLine . boxRex . keyBox
 
 readPrimLeaf :: InCtx => Rex -> [Maybe Nat] -> Rex -> Repl Sire
 readPrimLeaf blockRex e rex =
-    case
-        asum [ Left . NAT           <$> tryReadNumb rex
-             , Right . utf8Nat      <$> tryReadIdnt rex
-             , Left . NAT . utf8Nat <$> tryReadCord rex
-             ]
-             -- TODO: Anything else?
-    of
-       Nothing        -> parseFail rex "don't know how to parse this leaf"
-       Just (Left v)  -> pure (K v)
-       Just (Right n) -> resolveUnqualified blockRex e n
-
+    case tryReadLeaf rex of
+       Just (IDNT n) -> resolveUnqualified blockRex e (utf8Nat n)
+       Just (DECI n) -> pure $ K $ NAT n
+       Just (CORD n) -> pure $ K $ NAT (utf8Nat n)
+       Nothing       -> do
+           map (lookupVal "#") get >>= \case
+               Just hex -> expand hex (N PREF "#" [rex] Nothing) >>= readExpr e
+               Nothing  -> parseFail rex "don't know how to parse this leaf"
 
 readBindBody :: InCtx => Either Nat ((Bool, Nat), [Nat]) -> Rex -> Repl Sire
 readBindBody Left{}                 = readExpr []
@@ -1251,41 +1248,25 @@ tryReadModuleName :: Rex -> Maybe Text
 tryReadModuleName (T _ t Nothing) = Just t
 tryReadModuleName _               = Nothing
 
+data Leaf = DECI Nat | IDNT Text | CORD Text
+
+-- TODO: Should `tryReadLeaf` also support embeded constant values?
+
+tryReadLeaf :: Rex -> Maybe Leaf
+tryReadLeaf = \case
+    T TEXT t Nothing -> Just (CORD t)
+    T WORD t Nothing -> tryReadWord t
+    _                -> Nothing
+  where
+    tryReadWord t = do
+        (c, _) <- T.uncons t
+        if C.isDigit c
+        then do guard (all C.isDigit t)
+                DECI <$> readMay t
+        else Just (IDNT t)
+
 tryReadKey :: Rex -> Maybe Nat
-tryReadKey rex = asum
-    [ tryReadNumb rex
-    , utf8Nat <$> tryReadIdnt rex
-    , utf8Nat <$> tryReadCord rex
-    ]
+tryReadKey = fmap leafNat . tryReadLeaf
 
-tryReadNumb :: Rex -> Maybe Nat
-tryReadNumb = \case
-    T WORD t Nothing -> parseNumb t
-    _                -> Nothing
-  where
-    parseNumb :: Text -> Maybe Nat
-    parseNumb txt = do
-        (c, _) <- T.uncons txt
-        guard (c /= '_')
-        readMay (filter (/= '_') txt)
-
-tryReadCord :: Rex -> Maybe Text
-tryReadCord = \case
-    T TEXT t Nothing -> Just t
-    _                -> Nothing
-
-tryReadIdnt :: Rex -> Maybe Text
-tryReadIdnt = \case
-    T WORD t Nothing | okIdn t -> Just t
-    _                          -> Nothing
-  where
-    okIdn :: Text -> Bool
-    okIdn txt =
-        fromMaybe False $ do
-            guard (not $ null txt)
-            (c, _) <- T.uncons txt
-            guard (not $ C.isDigit c)
-            pure (all okIdnChar txt)
-
-    okIdnChar '_' = True
-    okIdnChar c   = C.isAlphaNum c
+leafNat :: Leaf -> Nat
+leafNat = \case { DECI n -> n; IDNT i -> utf8Nat i; CORD s -> utf8Nat s }
