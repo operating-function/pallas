@@ -11,10 +11,10 @@ import Loot.Backend
 import PlunderPrelude hiding (to)
 import Sire.Types
 
-import Control.Monad.State.Strict (get, modify', put, runState)
+import Control.Monad.State.Strict (get, modify', put, runState, State)
 import Data.List                  (foldl1, (!!))
 import Fan                        ((%%), trueArity, Fan(NAT))
-import Optics                     (set)
+import Optics                     (set, _3)
 
 
 -- Inlining --------------------------------------------------------------------
@@ -130,19 +130,24 @@ ingest = \top -> runState (go [] top) (mempty, 0)
             let (cns,free)      = compile key FUN{tag,pin,bod,slf,arg,bin}
             modify' (set _2 key) $> foldl' APP (VAL cns) (VAR <$> free)
 
-stats :: Fun -> (Map Int Int, [Int])
-stats pam = over _2 reverse $ snd $ runState (go pam.slf pam.bod) (mempty, [])
+stats :: Fun -> (Set Int, Map Int Int, [Int])
+stats pam =
+    over _3 reverse $ snd $ runState (go pam.bod) (mempty, mempty, [])
   where
-    go _ VAL{}     = pure ()
-    go e (APP f x) = go e f >> go e x
-    go e (VAR k)   = do
-        unless (k == e) do { maybe (pure()) (go k) (lookup k pam.bin) }
-        modify' \(tab, lis) -> case lookup k tab of
-            Nothing -> ( insertMap k 1 tab,      k:lis )
-            Just cn -> ( insertMap k (cn+1) tab, lis   )
+    go :: Exp -> State (Set Int, Map Int Int, [Int]) ()
+    go VAL{}     = pure ()
+    go (APP f x) = go f >> go x
+    go (VAR k)   = do
+        alreadySeen <- view _1 <$> get
+        unless (k `member` alreadySeen) do
+            modify' (over _1 $ insertSet k)
+            maybe (pure()) go (lookup k pam.bin)
+        modify' \(seen, tab, lis) ->
+            let c = fromMaybe 0 (lookup k tab)
+            in (seen, (insertMap k (c+1) tab), (if c==0 then k:lis else lis))
 
-codeGen :: Fun -> (Map Int Int, [Int]) -> Fan
-codeGen fn (refcounts, refSeq) =
+codeGen :: Fun -> (Set Int, Map Int Int, [Int]) -> Fan
+codeGen fn (_, refcounts, refSeq) =
     (if fn.pin then (4 %%) else id)
     (0 %% NAT fn.tag %% NAT numArgs %% foldr bind (gen fn.bod) binds)
   where
@@ -164,10 +169,10 @@ codeGen fn (refcounts, refSeq) =
 compile :: Int -> Fun -> (Fan, [Int])
 compile nex f1 = (codeGen f3 stat3, free)
   where
-    stat1@(_, !refs1) = stats f1
-    free              = filter (isFree f1) refs1
-    (f3, stat3)       = if null free then (f1, stat1) else (f2, stats f2)
-    isFree FUN{..} k  = not $ or [k == slf, (k `member` bin), (k `elem` arg)]
+    stat1@(_, _, !refs1) = stats f1
+    free                = filter (isFree f1) refs1
+    (f3, stat3)         = if null free then (f1, stat1) else (f2, stats f2)
+    isFree FUN{..} k    = not $ or [k == slf, (k `member` bin), (k `elem` arg)]
     f2 = f1 { slf = nex
             , arg = free <> f1.arg
             , bin = insertMap f1.slf (foldl1 app $ map VAR (nex : free)) f1.bin
