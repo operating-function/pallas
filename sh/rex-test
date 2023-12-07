@@ -13,19 +13,16 @@ for x in sire/*.sire
 do
         echo plunder repl rex.seed "<$x" ">$x.new"
         plunder repl rex.seed <$x >$x.new 2>/dev/null
-done
 
-for x in sire/*.sire
-do
         echo rex "<$x" ">$x.old"
         rex <$x >$x.old
-done
 
-for x in sire/*.sire
-do
-        echo diff $x.new $x.old
+        echo diff "$x.new" "$x.old"
         diff $x.new $x.old
+
+        rm $x.new $x.old
 done
 
-echo rm -f rex.seed sire/*.sire.new sire/*.sire.old
-rm -f rex.seed sire/*.sire.new sire/*.sire.old
+rm -f rex.seed
+
+echo ALL REX TESTS PASSED
