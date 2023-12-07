@@ -5,63 +5,62 @@
 {-# OPTIONS_GHC -Wall   #-}
 {-# OPTIONS_GHC -Werror #-}
 
-module Sire.Backend (compileSire) where
+module Sire.Backend (Bind(..), BindData(..), Sire(..), Lam(..), eval) where
 
-import Loot.Backend
 import PlunderPrelude hiding (to)
-import Sire.Types
 
+import Fan                        (trueArity, (%%), Fan(NAT), kloList)
 import Control.Monad.State.Strict (get, modify', put, runState, State)
 import Data.List                  (foldl1, (!!))
-import Fan                        ((%%), trueArity, Fan(NAT))
-import Optics                     (set, _3)
+import Optics                     (_3)
+
+
+-- Types -----------------------------------------------------------------------
+
+data Sire
+    = V Nat
+    | K Fan
+    | G Bind
+    | A Sire Sire
+    | L Sire Sire
+    | M Sire
+    | F Lam
+
+data Lam = LAM
+    { pin  :: Bool
+    , mark :: Bool
+    , tag  :: Nat
+    , args :: Nat
+    , body :: Sire
+    }
+
+data BindData = BIND_DATA
+    { key      :: Nat
+    , value    :: Fan
+    , code     :: Sire
+    , location :: Fan
+    , name     :: Fan
+    }
+
+-- This indirection is so that the front-end can cheaply reproduce the
+-- PLAN value that this was loaded from.
+data Bind = BIND { d :: BindData, noun :: Fan }
 
 
 -- Inlining --------------------------------------------------------------------
 
-data XArg = XARG { d::Int, x::Sire }
-data Expo = EXPO { lam::Lam, mark::Bool, deep::Int, need::Int, args::[XArg] }
-data Expr = EXPR { sire::Sire, expo::Maybe Expo }
+data Arg = ARG { d::Int, x::Sire }
+data Pot = POT { fn::Lam, marked::Bool, deep::Int, need::Int, args::[Arg] }
+data Res = RES { out::Sire, pot::Maybe Pot }
 
-inline :: Int -> [Maybe Expo] -> [XArg] -> Sire -> Expr
-inline d s params syr = case syr of
-    K _   -> reapply params $ EXPR syr Nothing
-    V v   -> reapply params $ EXPR syr (s !! fromIntegral v)
-    G b   -> reapply params $ EXPR syr (inline d [] [] b.d.code).expo
-    M b   -> reapply params $ EXPR r (me <&> \e -> e{mark=True})
-               where EXPR r me = inline d s [] b
-    F lam -> reapply params $ EXPR sire expo
-               where
-             need = fromIntegral lam.args
-             s'   = replicate (1 + need) Nothing <> s
-             d'   = 1 + need + d
-             sire = F lam{ body = (inline d' s' [] lam.body).sire }
-             expo = do guard (not $ hasRefTo lam.args lam.body)
-                       let mark = lam.inline
-                       Just $ EXPO { lam, mark, deep=d, need, args=[] }
-    L v b -> EXPR (L vr.sire br.sire) Nothing
-               where vr = inline (d+1) (Nothing  : s) []     v
-                     br = inline (d+1) (noCyc vr : s) params b
-    A f x -> inline d s (XARG d x' : params) f
-               where x' = (inline d s [] x).sire
-  where
-    noCyc x = guard (not $ hasRefTo 0 x.sire) >> x.expo
-
-    reapply args f@(EXPR _ me) = case (args, me) of
-        (_, Just e) | e.need==0 && e.mark -> inline d s args (expand e)
-        ([], _)                           -> f
-        (r@(XARG rd rx) : rs, _)          ->
-            reapply rs $ EXPR (A f.sire $ moveTo rd d 0 rx) do
-                fe <- me
-                guard (fe.need > 0)
-                pure fe { need = fe.need - 1, args = r : fe.args }
-
-    expand fe = foldr L body $ renum 1 (XARG d (K 0) : reverse fe.args)
-                  where body = moveTo fe.deep d (1 + fe.lam.args) fe.lam.body
-
-    renum :: Int -> [XArg] -> [Sire]
-    renum _  []     = []
-    renum !n (a:as) = moveTo a.d (d+n) 0 a.x : renum (n+1) as
+hasRefTo :: Nat -> Sire -> Bool
+hasRefTo d = \case
+    V v   -> v==d
+    L v b -> hasRefTo (d+1) v || hasRefTo (d+1) b
+    A f x -> hasRefTo d f     || hasRefTo d x
+    M x   -> hasRefTo d x
+    F l   -> hasRefTo (d + 1 + l.args) l.body
+    _     -> False
 
 moveTo :: Int -> Int -> Nat -> Sire -> Sire
 moveTo from to alreadyBound topExp =
@@ -73,20 +72,49 @@ moveTo from to alreadyBound topExp =
        M x        -> M (go l x)
        A f x      -> A (go l f) (go l x)
        L v b      -> L (go (l+1) v) (go (l+1) b)
-       F lam      -> F (lam { body = go (l + 1 + lam.args) lam.body })
+       F fn       -> F (fn { body = go (l + 1 + fn.args) fn.body })
        _          -> e
 
-hasRefTo :: Nat -> Sire -> Bool
-hasRefTo d = \case
-    V v   -> v==d
-    L v b -> hasRefTo (d+1) v || hasRefTo (d+1) b
-    A f x -> hasRefTo d f     || hasRefTo d x
-    M x   -> hasRefTo d x
-    F l   -> hasRefTo (d + 1 + l.args) l.body
-    _     -> False
+inline :: Int -> [Maybe Pot] -> [Arg] -> Sire -> Res
+inline d env params inp = case inp of
+    K _   -> reapply params $ RES inp Nothing
+    V v   -> reapply params $ RES inp (env !! fromIntegral v)
+    G b   -> reapply params $ RES inp (inline d [] [] b.d.code).pot
+    M b   -> reapply params $ RES r (me <&> \e -> e{marked=True})
+               where RES r me = inline d env [] b
+    F fn  -> reapply params $ RES sire pot
+               where
+             need = fromIntegral fn.args
+             env' = replicate (1 + need) Nothing <> env
+             d'   = 1 + need + d
+             sire = F fn{body=(inline d' env' [] fn.body).out}
+             pot  = do guard (not $ hasRefTo fn.args fn.body)
+                       Just POT{fn, marked=fn.mark, deep=d, need, args=[]}
+    L v b -> RES (L vr.out br.out) Nothing
+               where vr      = inline (d+1) (Nothing  : env) []     v
+                     br      = inline (d+1) (noCyc vr : env) params b
+                     noCyc x = guard (not $ hasRefTo 0 x.out) >> x.pot
+    A f x -> inline d env (ARG d x' : params) f
+               where x' = (inline d env [] x).out
+  where
+    reapply args f@(RES _ me) = case (args, me) of
+        (_, Just e) | e.need==0 && e.marked -> inline d env args (expand e)
+        ([], _)                             -> f
+        (r@(ARG rd rx) : rs, _)             ->
+            reapply rs $ RES (A f.out $ moveTo rd d 0 rx) do
+                fe <- me
+                guard (fe.need > 0)
+                pure fe { need = fe.need - 1, args = r : fe.args }
+
+    expand fe = foldr L body $ renum 1 (ARG d (K 0) : reverse fe.args)
+                  where body = moveTo fe.deep d (1 + fe.fn.args) fe.fn.body
+
+    renum :: Int -> [Arg] -> [Sire]
+    renum _  []     = []
+    renum !n (a:as) = moveTo a.d (d+n) 0 a.x : renum (n+1) as
 
 
--- Compiler --------------------------------------------------------------------
+-- Compiling -------------------------------------------------------------------
 
 data Exp = VAL Fan | VAR Int | APP Exp Exp
 
@@ -99,10 +127,6 @@ data Fun = FUN
     , bod :: Exp
     }
 
-app :: Exp -> Exp -> Exp
-app (VAL f) (VAL x) | trueArity f > 1 = VAL (f %% x)
-app f x                               = APP f x
-
 ingest :: Sire -> (Exp, (IntMap Exp, Int))
 ingest = \top -> runState (go [] top) (mempty, 0)
   where
@@ -113,7 +137,10 @@ ingest = \top -> runState (go [] top) (mempty, 0)
         M x   -> go s x
         G g   -> pure $ VAL g.d.value
         K x   -> pure $ VAL x
-        A f x -> app <$> go s f <*> go s x
+        A f x -> ((,) <$> go s f <*> go s x) <&> \case
+            (VAL fv, VAL xv) | trueArity fv > 1 -> VAL (fv %% xv)
+            (fr, xr)                            -> APP fr xr
+
         L v b -> do
             k  <- gensym
             vr <- go (VAR k : s) v
@@ -121,14 +148,14 @@ ingest = \top -> runState (go [] top) (mempty, 0)
             when keep do modify' (over _1 $ insertMap k vr)
             go ((if keep then VAR k else vr) : s) b
 
-        F lam@LAM{tag,pin} -> do
+        F fn@LAM{tag,pin} -> do
             slf      <- gensym
-            arg      <- replicateM (fromIntegral lam.args) gensym
+            arg      <- replicateM (fromIntegral fn.args) gensym
             (_, nex) <- get
             let env             = (VAR <$> reverse arg) <> [VAR slf] <> s
-            let (bod,(bin,key)) = runState (go env lam.body) (mempty, nex)
+            let (bod,(bin,key)) = runState (go env fn.body) (mempty, nex)
             let (cns,free)      = compile key FUN{tag,pin,bod,slf,arg,bin}
-            modify' (set _2 key) $> foldl' APP (VAL cns) (VAR <$> free)
+            pure $ foldl' APP (VAL cns) (VAR <$> free)
 
 stats :: Fun -> (Set Int, Map Int Int, [Int])
 stats pam =
@@ -146,6 +173,14 @@ stats pam =
             let c = fromMaybe 0 (lookup k tab)
             in (seen, (insertMap k (c+1) tab), (if c==0 then k:lis else lis))
 
+isCodeShaped :: Nat -> Fan -> Bool
+isCodeShaped maxArg f = case kloList f of
+    [NAT n]       -> n <= maxArg
+    [NAT 0, _, _] -> True
+    [NAT 1, _, _] -> True
+    [NAT 2, _]    -> True
+    _             -> False
+
 codeGen :: Fun -> (Set Int, Map Int Int, [Int]) -> Fan
 codeGen fn (_, refcounts, refSeq) =
     (if fn.pin then (4 %%) else id)
@@ -160,7 +195,7 @@ codeGen fn (_, refcounts, refSeq) =
     scope         = fn.slf : (fn.arg <> binds)
     table         = mapFromList (zip scope [0..]) :: Map Int Nat
     bind k rest   = 1 %% gen (look k fn.bin) %% rest
-    gen (VAL k)   = if isFanCodeShaped maxRef k then (2 %% k) else k
+    gen (VAL k)   = if isCodeShaped maxRef k then (2 %% k) else k
     gen (APP f x) = 0 %% gen f %% gen x
     gen (VAR v)   = case (lookup v refcounts, lookup v fn.bin) of
                         (Just 1, Just bx) -> gen bx
@@ -170,15 +205,15 @@ compile :: Int -> Fun -> (Fan, [Int])
 compile nex f1 = (codeGen f3 stat3, free)
   where
     stat1@(_, _, !refs1) = stats f1
-    free                = filter (isFree f1) refs1
-    (f3, stat3)         = if null free then (f1, stat1) else (f2, stats f2)
-    isFree FUN{..} k    = not $ or [k == slf, (k `member` bin), (k `elem` arg)]
+    free                 = filter (isFree f1) refs1
+    (f3, stat3)          = if null free then (f1, stat1) else (f2, stats f2)
+    isFree FUN{..} k     = not $ or [k == slf, (k `member` bin), (k `elem` arg)]
     f2 = f1 { slf = nex
             , arg = free <> f1.arg
-            , bin = insertMap f1.slf (foldl1 app $ map VAR (nex : free)) f1.bin
+            , bin = insertMap f1.slf (foldl1 APP $ map VAR (nex : free)) f1.bin
             }
 
-compileSire :: Sire -> Fan
-compileSire raw = fst (compile (n+2) fun) %% 0
-  where (bod, (bin, n)) = ingest (inline 0 [] [] raw).sire
+eval :: Sire -> Fan
+eval raw = fst (compile (n+2) fun) %% 0
+  where (bod, (bin, n)) = ingest (inline 0 [] [] raw).out
         fun = FUN{pin=False, tag=0, slf=n, arg=[n+1], bin, bod}

@@ -13,9 +13,9 @@
 -}
 module Sire.Types
     ( SireState(..)
-    , Binding(..)
-    , BindingData(..)
-    , mkNewBinding
+    , Bind(..)
+    , BindData(..)
+    , mkNewBind
     , ToBind(..)
     , Lam(..)
     , Sire(..)
@@ -31,11 +31,13 @@ module Sire.Types
     , traceSire
     , traceSire'
     , traceSireId
+    , _traceSireId
     )
 where
 
 import PlunderPrelude
 
+import Sire.Backend
 import Data.Sorted  (Tab)
 import Fan          (Fan(..), mkPin)
 import Fan.Convert  (ToNoun(toNoun))
@@ -63,7 +65,7 @@ type Any = Fan
 
 type Props = Tab Any (Tab Any Any)
 
-type Scope = Tab Any Binding
+type Scope = Tab Any Bind
 
 data SireState = SIRE_STATE
     { nextKey :: Nat                     --  Next unique key.
@@ -87,24 +89,9 @@ data SireState = SIRE_STATE
     Sire-in-sire wont need to deal with this, since there is no separation
     between the binding and the underlying noun.
 -}
-data Binding = BINDING
-    { d    :: BindingData
-    , noun :: Any
-    }
-  deriving (Eq, Ord, Show)
-
-data BindingData = BINDING_DATA
-    { key      :: Nat          --  The binding-key of the binder.
-    , value    :: Any          --  The value of the binder
-    , code     :: Sire         --  Source for inlining (unoptimized, unlifted)
-    , location :: Any          --  What module was this defined in?
-    , name     :: Any          --  What name was this defined under?
-    }
-  deriving (Eq, Ord, Show)
-
-mkNewBinding :: BindingData -> Binding
-mkNewBinding d =
-    BINDING d noun
+mkNewBind :: BindData -> Bind
+mkNewBind d =
+    BIND d noun
   where
     list = [NAT d.key, d.value, sireNoun d.code, d.location, d.name]
     noun = mkPin $ ROW $ arrayFromListN 5 list
@@ -112,38 +99,12 @@ mkNewBinding d =
 
 -- Sire Types ------------------------------------------------------------------
 
--- This lazily loads a state object and crashes if something isn't
--- as expected.  This is intended only for doing queries on specific
--- components of the state, doing a full load in this way is very
--- expensive.
-
-data Lam = LAM
-    { pin    :: Bool
-    , inline :: Bool
-    , tag    :: Nat
-    , args   :: Nat
-    , body   :: Sire
-    }
-  deriving (Eq, Ord, Show)
-
--- This is the internal representation that is used for inlining.
--- All names have been resolved, globals point directly to their bindings.
-data Sire
-    = V Nat
-    | K Any
-    | G Binding
-    | A Sire Sire
-    | L Sire Sire
-    | M Sire
-    | F Lam
-  deriving (Eq, Ord, Show)
-
 sireNoun :: Sire -> Any
 sireNoun = go
   where
     goLam :: Lam -> [Any]
     goLam l = [ toNoun l.pin
-              , toNoun l.inline
+              , toNoun l.mark
               , toNoun l.tag
               , toNoun l.args
               , go l.body
@@ -172,7 +133,7 @@ lamRex l =
 
     rune = if l.pin then "??" else "?"
 
-    inlineMark rex | l.inline  = N PREF "**" [rex] Nothing
+    inlineMark rex | l.mark  = N PREF "**" [rex] Nothing
     inlineMark rex | otherwise = rex
 
 word :: Text -> GRex a
@@ -279,4 +240,7 @@ traceSire _context _sire result = result
 -- traceSire = traceSire'
 
 traceSireId :: Text -> Sire -> Sire
-traceSireId context sire = traceSire context sire sire
+traceSireId context sire = traceSire' context sire sire
+
+_traceSireId :: Text -> Sire -> Sire
+_traceSireId _context sire = sire

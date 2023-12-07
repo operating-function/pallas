@@ -27,7 +27,7 @@ import Loot.ReplExe          (closureRex, dieFan, showFan, trkFan)
 import Loot.Syntax           (boxRex, keyBox)
 import Rex                   (GRex(..), RuneShape(..), TextShape(..), rexLine)
 import Rex.Print             (RexColor, RexColorScheme(NoColors))
-import Sire.Backend          (compileSire)
+import Sire.Backend          (eval)
 import System.Directory      (doesFileExist)
 import System.IO             (hGetContents)
 import System.Exit           (exitWith, ExitCode(ExitFailure))
@@ -90,13 +90,13 @@ getRow _       = Nothing
 getLam :: Any -> Any -> Any -> Any -> Any -> Lam
 getLam pinnedBit inlinedBit tagNat argsNat bodyVal =
     let
-        !pin    = getBit "pinned" pinnedBit
-        !inline = getBit "inline" inlinedBit
-        !body   = getSyr bodyVal
-        !tag    = getNat tagNat    "lambda tag"
-        !args   = getNat argsNat   "lambda args"
+        !pin  = getBit "pinned" pinnedBit
+        !mark = getBit "inline" inlinedBit
+        !body = getSyr bodyVal
+        !tag  = getNat tagNat    "lambda tag"
+        !args = getNat argsNat   "lambda args"
     in
-        LAM{pin,inline,body,args,tag}
+        LAM{pin,mark,body,args,tag}
   where
     getBit _  (NAT 0) = False
     getBit _  (NAT 1) = True
@@ -122,13 +122,13 @@ getPin :: Any -> Maybe Any
 getPin (F.PIN p) = Just p.item
 getPin _         = Nothing
 
-getBinding :: Any -> Binding
+getBinding :: Any -> Bind
 getBinding bindVal = fromMaybe badBinding $ do
     row <- getPin bindVal >>= getRow
 
     guard (length row == 5)
 
-    let datum = BINDING_DATA
+    let datum = BIND_DATA
              { key      = getNat (row!0) "binding key"
              , value    = row!1
              , code     = getSyr (row!2)
@@ -136,7 +136,7 @@ getBinding bindVal = fromMaybe badBinding $ do
              , name     = row!4
              }
 
-    pure (BINDING datum bindVal)
+    pure (BIND datum bindVal)
   where
     badBinding = error ("Malformed binding:\n" <> unpack (planText bindVal))
 
@@ -150,7 +150,7 @@ getTable field ctx getVal = \case
     _        -> error ("invalid `" <> field <> "` field in " <> ctx)
 
 
-getScope :: Any -> Tab Any Binding
+getScope :: Any -> Tab Any Bind
 getScope = getTable "scope" "state" getBinding
 
 getPropsTab :: Any -> Tab Any (Tab Any Any)
@@ -170,7 +170,7 @@ getState stAny = fromMaybe badState $ do
   where
     badState = error "Malformed sire state"
 
-    getModules :: Any -> Tab Any ( Tab Any Binding
+    getModules :: Any -> Tab Any ( Tab Any Bind
                                  , Tab Any (Tab Any Any)
                                  )
     getModules = getTable "modules" "state"
@@ -386,7 +386,7 @@ insertBinding rx (mKey, extraProps, name, val, code) stVal =
 
         Just key ->
             let
-                binding = mkNewBinding $ BINDING_DATA
+                binding = mkNewBind $ BIND_DATA
                     { key      = key
                     , value    = val
                     , code     = code
@@ -911,7 +911,7 @@ readPrimExpr e rex = case rex of
         let e2   = reverse (Nothing : fmap Just argNames) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bod
-        pure $ F $ LAM{tag=0,args,body,pin=False,inline=False}
+        pure $ F $ LAM{tag=0,args,body,pin=False,mark=False}
 
     readAnonLam [tagRex, sig, bod] = do
         tag <- readKey tagRex
@@ -919,7 +919,7 @@ readPrimExpr e rex = case rex of
         let e2   = reverse (Nothing : fmap Just argNames) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bod
-        pure $ F $ LAM{tag,args,body,pin=False,inline=False}
+        pure $ F $ LAM{tag,args,body,pin=False,mark=False}
 
     readAnonLam _ = parseFail rex "Expected two or three parameters"
 
@@ -951,19 +951,19 @@ readPrimExpr e rex = case rex of
 
     readLam :: Bool -> [Rex] -> Repl Sire
     readLam pin [sigRex, bodRex] = do
-        (inline, f, argNames) <- readWutSig sigRex
+        (mark, f, argNames) <- readWutSig sigRex
         let e2   = reverse (Just <$> (f:argNames)) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bodRex
-        pure $ F $ LAM{tag=f,args,body,pin,inline}
+        pure $ F $ LAM{tag=f,args,body,pin,mark}
 
     readLam pin [tagRex, sigRex, bodRex] = do
-        tag                   <- readKey tagRex
-        (inline, f, argNames) <- readWutSig sigRex
+        tag                 <- readKey tagRex
+        (mark, f, argNames) <- readWutSig sigRex
         let e2   = reverse (Just <$> (f:argNames)) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bodRex
-        pure $ F $ LAM{tag,args,body,pin,inline}
+        pure $ F $ LAM{tag,args,body,pin,mark}
 
     readLam _ _ = parseFail rex "Expected two or three parameters"
 
@@ -1055,8 +1055,8 @@ planRexFull = fmap absurd . itemizeRexes . closureRex Nothing . loadClosure
 
 execAssert :: InCtx => (Rex, Sire) -> (Rex, Sire) -> Repl ()
 execAssert (_xRex, xExp) (_yRex, yExp) = do
-    let !xVal = compileSire xExp
-    let !yVal = compileSire yExp
+    let !xVal = eval xExp
+    let !yVal = eval yExp
 
     unless (xVal == yVal) do
         let rx = fmap absurd
@@ -1068,8 +1068,8 @@ execAssert (_xRex, xExp) (_yRex, yExp) = do
 
 execBind :: InCtx => Rex -> ToBind -> Repl ()
 execBind rx (TO_BIND mKey mProp str expr) = do
-    let val = compileSire expr
-    prp <- getProps rx (compileSire <$> mProp)
+    let val = eval expr
+    prp <- getProps rx (eval <$> mProp)
     modify' (insertBinding rx (mKey, prp, str, val, expr))
     trkM $ REX $ fmap absurd $ itemizeRexes
                              $ closureRex (Just str) (loadShallow val)
@@ -1090,7 +1090,7 @@ getProps r _                = parseFail r "Invalid properties value, must be a t
 execExpr :: InCtx => Rex -> Repl ()
 execExpr rex = do
     expr <- readExpr [] rex
-    let val = compileSire expr
+    let val = eval expr
     trkM val
 
 doDefine :: InCtx => Text -> Rex -> Repl ()
@@ -1135,10 +1135,10 @@ readBindCmd rex = \case
         Left var ->
             TO_BIND mKey mProp var expr
 
-        Right ((inline, name), argNames) ->
+        Right ((mark, name), argNames) ->
             TO_BIND mKey mProp name
                 $ F
-                $ LAM {pin=True, inline, tag=name, args, body=expr}
+                $ LAM {pin=True, mark, tag=name, args, body=expr}
           where
             args = fromIntegral (length argNames)
 
