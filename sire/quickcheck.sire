@@ -4,8 +4,14 @@
 
 ### quickcheck <- pq
 
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 /+  splitmix   [mkSMGen nextWord64 splitSMGen]
 /+  prelude
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (**debug m v)=v
 
@@ -187,6 +193,7 @@ getSize=(sized pureGen)
 > Gen W64
 (genU64 r n)=(fst | nextWord64 r)
 
+> Gen W8
 > W64 > W64 > Gen W64
 = (chooseW64 lo hi r n)
 @ val (fst (nextWord64 r))
@@ -218,9 +225,9 @@ getSize=(sized pureGen)
 : k <- bindGen (chooseW64 0 n)
 | genListLen k gen
 
-= (fmapGen f gen)
-& (r n)
-| f (gen r n)
+(genMap f gen r n)=(f | gen r n)
+
+genU8=(genMap w8 genU64)
 
 
 ;;; shrinkers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -238,7 +245,7 @@ getSize=(sized pureGen)
 | listMap (y_ & x,y_) (shrB y)
 
 > Integral a > a > [a]
-= (shrinkU64 x)
+= (shrinkNat x)
 | listNub
 | listTakeWhile (gth x)
 ^ (0 :: _)
@@ -334,8 +341,11 @@ getSize=(sized pureGen)
 @ fun        | uncurry fun
 | qc1_fail seed name fun [genAB shrinkAB]
 
-= arbU64     | (genU64, shrinkU64)
-= arbU64List | (genList genU64, shrinkList shrinkU64)
+= arbU8      | (genU8, shrinkNat)
+= arbU8List  | (genList genU8, shrinkList shrinkNat)
+
+= arbU64     | (genU64, shrinkNat)
+= arbU64List | (genList genU64, shrinkList shrinkNat)
 
 = (isList x)
 ^ (isZero x || _)
@@ -358,12 +368,18 @@ getSize=(sized pureGen)
 !! qc1_pass 42 {sub neg}      (prop2 subNeg)         arbU64
 !! qc1_pass 42 {rev rev}      (prop1 revRev)         arbU64List
 
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ^-^
 ^-^ ARGS
 ^-^ prop1 prop2 discardRes qcEql qcNeq qcIs
 ^-^ quickCheck
 ^-^ bindGen pureGen sized getSize
-^-^ genU64 chooseW64 gen2 genListLen genListLenMax genList fmapGen
-^-^ shrink2 shrinkU64 shrinkBool shrinkList
+^-^ genU64 chooseW64 gen2 genListLen genListLenMax genList genMap
+^-^ shrink2 shrinkNat shrinkBool shrinkList
 ^-^ qc1_pass qc1_fail qc2_pass
+^-^
+^-^ arbU8 arbU8List
+^-^ arbU64 arbU64List
 ^-^
