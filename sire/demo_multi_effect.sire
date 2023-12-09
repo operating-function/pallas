@@ -111,7 +111,7 @@
 | next res
 
 = (sendAllLoop send conns bar next)
-: c cs <- **listCase conns (next 0)
+: c cs <- listCase conns (next 0)
 : _    <- fork (syscall (**send c bar))
 | sendAllLoop send cs bar next
 

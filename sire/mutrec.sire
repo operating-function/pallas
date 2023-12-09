@@ -139,7 +139,7 @@
     & [_ [_ args _]]
     | len args
 @ (bindArms body arms)
-    | **listCase arms body
+    | listCase arms body
     & (item rest)
     @ [key arm] item
     @ [fun args _] arm
@@ -252,7 +252,7 @@
               | len args
 @
     (bindArms body arms)
-        | **listCase arms body
+        | listCase arms body
         & (item rest)
         @ key,arm item
         @ [fun args _] arm

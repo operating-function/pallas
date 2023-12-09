@@ -247,9 +247,9 @@ rowToBar=barFromRow
 = (barIntercalateList sep barList)
 ^ _ emptyBar barList
 ? (go acc res)
-| **listCase res acc
+| listCase res acc
 & (x xs)
-| **listCase xs (barWeld acc x)
+| listCase xs (barWeld acc x)
 & (_ _)
 | go (barCat acc,x,sep) xs
 
@@ -275,9 +275,9 @@ rowToBar=barFromRow
 ^ _ 0 buf 1
 ? (loop acc lis pos)
 | seq acc
-| **listCase lis (0 1 1 acc)
+| listCase lis (0 1 1 acc)
 & (a as)
-| **listCase as (die %impossible)
+| listCase as (die %impossible)
     ; ^ This will always succeed because the input was manipulated to
     ; guarentee an even-length character sequence.
 & (b bs)

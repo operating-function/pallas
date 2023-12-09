@@ -266,7 +266,7 @@
 ;; TODO: should {listCase} always be inlined?
 ;; TODO: Should {listCase} use {isZero} or {isNat} as a termination check?
 
-= (listCase xs nil cons)
+= (**listCase xs nil cons)
 | if isNat-xs nil
 | **cons idx-0-xs idx-1-xs
 
@@ -275,17 +275,17 @@
 (listSing x)=(CONS x 0)
 
 = (listMap f l)
-| **listCase l NIL
+| listCase l NIL
 & (x xs)
 | CONS f-x listMap-f-xs
 
 = (listHead l)
-| **listCase l NONE
+| listCase l NONE
 & (h _)
 | SOME h
 
 = (listSafeHead fb l)
-| **listCase l fb
+| listCase l fb
 & (x _)
 | x
 
@@ -302,7 +302,7 @@
 !!= 4          | fromSome 4 NONE
 
 = (listIdxCps i xs not_found found)
-| **listCase xs not_found
+| listCase xs not_found
 & (x xs)
 | if (isZero i) (found x)
 | listIdxCps (dec i) xs not_found found
@@ -312,14 +312,14 @@
 (listIdx i xs)=(listIdxCps i xs 0 id)
 
 = (listLastOr fallback xs)
-| **listCase xs fallback
+| listCase xs fallback
 & (x xs)
 | listLastOr x xs
 
 (listUnsafeLast l)=(listLastOr 0 l)
 
 = (listLast l)
-| **listCase l NONE
+| listCase l NONE
 & (h t)
 | SOME | listLastOr h t
 
@@ -331,20 +331,20 @@
 ;;; Operations With Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (listFoldl f z l)
-| **listCase l z
+| listCase l z
 & (x xs)
 @ fzx (f z x)
 | seq fzx
 | listFoldl f fzx xs
 
 = (listFoldr f z l)
-| **listCase l z
+| listCase l z
 & (x xs)
 | f x (listFoldr f z xs)
 
 > (a -> a) > List a > a
 = (listFoldl1 f xs)
-| **listCase xs {listFoldl1}|{empty list}
+| listCase xs {listFoldl1}|{empty list}
 & (x xs)
 | listFoldl f x xs
 
@@ -360,7 +360,7 @@
   | if (lte x 5) (SOME [x (inc x)]) NONE
 
 = (listMap f l)
-| **listCase l NIL
+| listCase l NIL
 & (x xs)
 | CONS f-x listMap-f-xs
 
@@ -385,37 +385,37 @@
 = (listEnumFrom n)      | CONS n (listEnumFrom inc-n)
 
 = (listWeld a b)
-| **listCase a b
+| listCase a b
 & (x xs)
 | CONS x (listWeld xs b)
 
 > List (List a) > List a
 = (listCat ls)
-| **listCase ls NIL
+| listCase ls NIL
 & (x xs)
 | listWeld x
 | listCat xs
 
 = (listTake num lis)
 | ifNot num NIL
-| **listCase lis NIL
+| listCase lis NIL
 & (x xs)
 | CONS x
 | listTake dec-num xs
 
 = (listDrop num lis)
 | ifNot num lis
-| **listCase lis NIL
+| listCase lis NIL
 | (x xs & listDrop dec-num xs)
 
 = (listTakeWhile f lis)
-| **listCase lis NIL
+| listCase lis NIL
 & (x xs)
 | if f-x (CONS x | listTakeWhile f xs)
 | NIL
 
 = (listDropWhile f lis)
-| **listCase lis NIL
+| listCase lis NIL
 & (x xs)
 | if f-x listDropWhile-f-xs
 | lis
@@ -424,9 +424,9 @@
 !!= [0 [4 [5 0]]] | listDropWhile id [2 [3 [0 [4 [5 0]]]]]
 
 = (listZipWith f al bl)
-| **listCase al NIL
+| listCase al NIL
 & (a as)
-| **listCase bl NIL
+| listCase bl NIL
 & (b bs)
 | CONS f-a-b
   (listZipWith f as bs)
@@ -437,7 +437,7 @@
   | listZip listFromRow-[3 4] listFromRow-[4 5]
 
 = (listFilter f lis)
-| **listCase lis NIL
+| listCase lis NIL
 & (x xs)
 | if f-x (CONS x | listFilter f xs)
 | listFilter f xs
@@ -445,7 +445,7 @@
 (listIsEmpty xs)=(isNat xs)
 
 = (listMinimumOn f a bs)
-| **listCase bs a
+| listCase bs a
 & (x xs)
 | listMinimumOn f
     | if (lth f-x f-a) x a
@@ -470,7 +470,7 @@
 ;; quicksort or mergesort, implement them yourself.
 
 = (listInsertBy cmp x lis)
-| **listCase lis (listSing x)
+| listCase lis (listSing x)
 & (y ys)
 | if (cmp x y)
     | CONS y (listInsertBy cmp x ys)
@@ -483,13 +483,13 @@
 | if (isZero xs) NIL
 ^ _ (fst xs) (snd xs)
 ? (go x ys)
-| **listCase ys (listSing x)
+| listCase ys (listSing x)
 & (y ys)
 | if (eql x y) (go y ys)
 | CONS x (go y ys)
 
 = (listNub xs)
-| **listCase xs NIL
+| listCase xs NIL
 & (x xs)
 | CONS x (listNub (listFilter neq-x xs))
 
@@ -532,9 +532,9 @@
 (listIndexed l)=(listZip (listEnumFrom 0) l)
 
 = (listIsPrefixOf xs ys)
-| **listCase xs TRUE
+| listCase xs TRUE
 & (x xs)
-| **listCase ys FALSE
+| listCase ys FALSE
 & (y ys)
 | and (eql x y)
 | listIsPrefixOf xs ys
@@ -546,7 +546,7 @@
 ^ (_ 0 xs)
 ? (go off xs)
 | seq off
-@ rest | **listCase xs NIL
+@ rest | listCase xs NIL
        & (_ xs)
        | go (inc off) xs
 | if (f xs) | CONS [off xs] rest
@@ -623,11 +623,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (listIntersperse sep xs)
-| **listCase xs xs
+| listCase xs xs
 & (x xs)
 ^ CONS x (_ xs)
 ? (go xs)
-    | **listCase xs xs
+    | listCase xs xs
     & (x xs)
     | CONS sep
     | CONS x
@@ -646,7 +646,7 @@
 (listRev xs)=(listFoldl (flip CONS) NIL xs)
 
 = (listSnoc xs e)
-| **listCase xs (CONS e NIL)
+| listCase xs (CONS e NIL)
 & (x xs)
 | CONS x
 | listSnoc xs e
@@ -715,7 +715,7 @@
 ;;; Maybe utils that depend on list ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (listCatMaybes top)
-| **listCase top NIL
+| listCase top NIL
 & (mX xs)
 | maybeCase mX (listCatMaybes xs)
 & x
@@ -870,7 +870,7 @@ F=found
 = (traverseList f xs return)
 ^ _ NIL xs
 ? (go acc remain)
-| **listCase remain
+| listCase remain
     (return (listRev acc))
 & (head tail)
 | f head

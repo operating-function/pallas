@@ -365,7 +365,7 @@ ex=(PAIR %a %b)
 | seq ix
 ; trk {loop},[=ix =acc =remain]
 ;
-: kca remain <- **listCase remain (bloodline acc)
+: kca remain <- listCase remain (bloodline acc)
 @ [key cns oTag arg] kca
 ;
 @ ari | len arg
@@ -447,7 +447,7 @@ ex=(PAIR %a %b)
 ? (go oFallback acc remain)
 ;
 : [sigRex bodyRex] remain
-    < **listCase remain
+    < listCase remain
         | ok oFallback (listToRowReversed acc)
 ;
 : bodyExp <- readExp bodyRex err
@@ -502,7 +502,7 @@ ex=(PAIR %a %b)
 ? (go hasTag fun acc remain)
 ;
 : hed@[sigRex constr fields bodyRex] remain
-    < **listCase remain
+    < listCase remain
         | ok hasTag fun fallback (listToRowReversed acc)
 ;
 : bindKey bindRow <- getBind constr ss rex err

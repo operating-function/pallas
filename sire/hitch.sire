@@ -321,7 +321,7 @@ newRootNode
 ; implementation details of insertRec/distributeDownwards
 ;
 = (downSplit treeFun l hh)
-  : key keys <- **listCase l ~[hh]
+  : key keys <- listCase l ~[hh]
   @ TREE_FUN(..) treeFun
   @ [!toAdd !rest] | hhSplit key hh
   | CONS toAdd | downSplit treeFun keys rest
@@ -697,9 +697,9 @@ abstype#(HSetMap k v)
 
 > List (Set k) > List (Set k) > List (Set k)
 = (setlistIntersect ao bo)
-| **listCase ao NIL
+| listCase ao NIL
 & (a as)
-| **listCase bo NIL
+| listCase bo NIL
 & (b bs)
 @ amin | setMin a
 @ amax | setMax a
@@ -757,7 +757,7 @@ rest
 > Nat > List (Set a) > List (Set a)
 = (lsDrop num sets)
 | if (isZero num) sets
-| **listCase sets NIL
+| listCase sets NIL
 & (x xs)
 @ xl | setLen x
 | if | gte num xl
@@ -771,7 +771,7 @@ rest
 > Nat > List (Set k) > List (Set k)
 = (lsTake num sets)
 | if (isZero num) NIL
-| **listCase sets NIL
+| listCase sets NIL
 & (x xs)
 @ xl | setLen x
 | if | lth num xl  ; num < xl

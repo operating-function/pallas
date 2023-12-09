@@ -323,7 +323,7 @@ st
 
 > HashState > [CV HashState]
 = (b3HasherPopStack hSt)
-| **listCase (b3HasherGetCvStack hSt)
+| listCase (b3HasherGetCvStack hSt)
     | die } Trying to pop empty stack
 & (top res)
 | (top, b3HasherPutCvStack hSt res)
@@ -394,7 +394,7 @@ st
 @ out (b3ChunkstOutput | b3HasherGetChunkst h)
 ^ _ out (b3HasherGetCvStack h)
 ? (go output stack)
-| **listCase stack
+| listCase stack
   | b3OutputRootOutputBytes output outHashSize
 & (top res)
 @ output

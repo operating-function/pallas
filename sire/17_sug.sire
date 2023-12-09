@@ -665,8 +665,8 @@ four=(WORD {4} 0)
 ^ | letE tmpVar fstExp
   | _ (listFromRow restExps)
 ? (loop more)
-: x xs <- **listCase more (die {impossible})
-: y ys <- **listCase xs (appE (cnsE eql, tmpRef, x))
+: x xs <- listCase more (die {impossible})
+: y ys <- listCase xs (appE (cnsE eql, tmpRef, x))
 ^ appE (cnsE and, _, loop xs)
 | appE (cnsE eql, tmpRef, x)
 

@@ -64,7 +64,7 @@
 @ tmpVar | if isVar (rexText rowExpr) tmpVar
 @ go
         ? (go binds)
-        : bind binds <- **listCase binds bodyExpr
+        : bind binds <- listCase binds bodyExpr
         @ bindVar (idx 1 bind)
         | if (eql {_} bindVar) (go binds)
         | letE bindVar
@@ -543,7 +543,7 @@
 @ tmp (tmpName {g} nex)
 @ go
         ? (go bind)
-        | **listCase bind
+        | listCase bind
                 | bodyExp
         & (kv more)
         @ key (idx 0 kv)

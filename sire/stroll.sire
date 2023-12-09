@@ -431,7 +431,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
     | loop (add 2 i) bar (CONS (add 2 i) stack) out
 | if | rowAnd ++ | eql (barIdx i bar) {]}
               ++ | eql (barIdx (inc i) bar) {]}
-    : x xs < **listCase stack
+    : x xs < listCase stack
                  ; extra unmatched right close. ignore it
                  | loop (add 2 i) bar stack out
     @ title | barNat | barSlice x (sub i x) bar

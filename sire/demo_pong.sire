@@ -19,7 +19,7 @@
 ; (snoc row e)=(weld row [e])
 ;
 ; = (addEf free fx ef)
-; | **listCase free (len fx, NIL, snoc fx ef )
+; | listCase free (len fx, NIL, snoc fx ef )
 ; & (f fs)
 ; | (f, fs, put fx f ef)
 ;

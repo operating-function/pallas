@@ -135,7 +135,7 @@ padComplement=(padMap not)
 @ lis (listSnoc (strToList str) {1})
 ^ _ 0 lis 1
 ? (loop acc lis pos)
-| **listCase lis (ok acc)
+| listCase lis (ok acc)
 & (b bs)
 @ nextPos (mul 2 pos)
 | seq nextPos
