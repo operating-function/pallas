@@ -59,10 +59,8 @@
 /+  10_str  [strWeld isDecimalLit loadDecimal isHexLit loadHexLit]
 /+  11_set  [{%}]
 /+  12_tab  [{#}]
-/+  12_tab  [tabGet tabHas tabKeysSet isTab tabIsEmpty]
+/+  12_tab  [tabGet tabKeysSet isTab tabIsEmpty]
 /+  13_exp  [cnsE varE]
-
-;; TODO s/tabHas/tabHas/g
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
