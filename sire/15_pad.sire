@@ -32,27 +32,29 @@
 ;;;;
 ;;;; padCat: Concatenate a row of pads
 ;;;;
+;;;; padIdx: Returns the nth bit from a pad
 ;;;;
-;;;; padIdx: TODO
-;;;; padGet: TODO
-;;;; padSet: TODO
-;;;; padMap: TODO
+;;;; padGet: padIdx but flipped
+;;;;
+;;;; padSet: Set the nth bit in a pad using a Bit
+;;;;
+;;;; padMap: Map a function over the bits in a pad, coercing outputs to bits
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  01_fan  [die seq isNat const]
-/+  02_bit  [if ifNot else]
-/+  03_nat  [add mul sub bex dec met lsh rsh mod]
+/+  02_bit  [if ifNot else not or bit]
+/+  03_nat  [inc add mul sub bex dec met lsh rsh mod dis con mix even]
 /+  05_row  [idx len]
 /+  04_cmp  [eql neq lte isZero]
 /+  05_row  [map weld foldl]
-/+  06_rex  [rexKids rexText rexIsLeaf SHUT WORD TEXT {'}]
+/+  06_rex  [rexKids rexHeir rexText rexIsLeaf SHUT WORD TEXT {'}]
 /+  07_dat  [{,} {++}]
-/+  07_dat  [listFromRow listCase listSnoc NIL CONS]
+/+  07_dat  [listCase listSnoc NIL CONS]
 /+  08_sci  []
-/+  09_chr  []
-/+  10_str  [explode strToList strFromList]
+/+  09_chr  [spaceChar tabChar]
+/+  10_str  [explode strToList strFromList strLen strWeld]
 /+  11_set  []
 /+  12_tab  []
 /+  13_exp  [cnsE]
@@ -91,6 +93,33 @@ emptyPad=1
 
 (padLen p)=(dec met-p)
 
+= (padIdx idx pad)
+@ pad toPad-pad
+| if (lte padLen-pad idx) | 0
+| con 1 rsh-pad-idx
+
+(padGet pad idx)=(padIdx idx pad)
+
+= (padSet pad idx val)
+@ pad toPad-pad
+| if (lte padLen-pad idx) | pad
+@ mask | lsh 1 idx
+@ ones | dec | lsh 2 padLen-pad
+| if val | dis pad mask
+| else   | con pad mix-mask-ones
+
+= (padMapWithKey fun pad)
+@ pad | toPad pad
+^ _ pad 0 0
+? (go in out pos)
+| if (eql in emptyPad) | dis out bex-pos
+@ newBit | bit | fun pos con-1-in
+@ newPad | dis out lsh-newBit-pos
+| go rsh-in-1 newPad inc-pos
+
+(padMap f pad)=(padMapWithKey _&f pad)
+
+padComplement=(padMap not)
 
 ;;; Parsing Pad Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -100,9 +129,6 @@ emptyPad=1
 @ looted (add bex-i (mod pad bex-i))
 | ifNot remain [pad emptyPad]
 | [looted remain]
-
-; TODO: {readPadLit} should ignore whitespace (spaces and tabs) so
-; that multi-line bit-strings are possible.
 
 ; Rex > Str > Read Pad
 = (readPadStr rex str err ok)
@@ -119,6 +145,8 @@ emptyPad=1
     @ acc (add pos acc)
     | seq acc
     | loop acc bs nextPos
+| if | or (eql spaceChar b) (eql tabChar b)
+    | loop acc bs pos
 | else
     | err rex {pad literals must contain only zeros and ones}
 
@@ -131,18 +159,17 @@ emptyPad=1
 | CONS (if (mod rem 2) {1} {0})
 | go (rsh rem 1)
 
-
 ;;; The `#p` Macro ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = hpBadShape } Expcted two kids
 = hpBadType  } Bar literal expects a text parameter
 
-; TODO: {showPadLit} should use bare-words for non-empty pads.
-
 = (showPadLit pad)
 ^ SHUT {#} _ 0
 ++ WORD {p} 0
-++ TEXT (showPadStr pad) 0
+++ @ padStr | showPadStr pad
+   | ifNot strLen-padStr | TEXT padStr 0
+   | WORD padStr 0
 
 ; Rex > Read Bar
 = (readPadLit rex err ok)
@@ -150,7 +177,11 @@ emptyPad=1
 @ strRex | idx 1 kids
 | if (neq 2 len-kids)      | err rex hpBadShape
 | ifNot (rexIsLeaf strRex) | err strRex hpBadType
-| readPadStr rex (rexText strRex) err ok
+^ readPadStr rex (_ strRex) err ok
+? (collect strings)
+| strWeld rexText-strings
+| if (isZero rexHeir-strings) rexHeir-strings
+| collect rexHeir-strings
 
 = ({#p} st rex err ok)
 | readPadLit rex err
@@ -166,8 +197,8 @@ emptyPad=1
 !!= {01} (showPadStr p#01)
 !!= {00} (showPadStr p#00)
 
-!!= '(p#{})   | showPadLit p#{}
-!!= '(p#{00}) | showPadLit p#00
+!!= '(p#{}) | showPadLit p#{}
+!!= '(p#00) | showPadLit p#00
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -196,6 +227,17 @@ emptyPad=1
 !!= 27 p#1101
 !!= 29 p#1011
 !!= 30 p#0111
+
+!!= 30 p#{0111 }
+!!= 30 p#{ 0111}
+!!= 30 p#{01 11}
+!!= 30 p#{01	11}
+!!= 30 p#{ 0	1 1	1}
+!!= 30 # p } 01
+           } 11
+!!= 30 # p } 01
+           }
+           } 11
 
 !!= p#101 | padWeld p#101 0
 !!= p#101 | padWeld p#101 const
@@ -245,6 +287,49 @@ emptyPad=1
 !!= p#1011 | padFlat [[p#1 p#0] p#11]
 !!= p#1011 | padFlat [[p#1 [] p#0] p#11 p#{}]
 
+!!= 0 | padIdx 0 p#{}
+!!= 0 | padIdx 1 p#1
+!!= 1 | padIdx 0 p#1
+!!= 0 | padIdx 0 p#0
+!!= 1 | padIdx 3 p#0001000
+!!= 0 | padIdx 4 p#1111011
+!!= 1 | padIdx 6 p#0000001
+!!= 0 | padIdx 6 p#1111110
+!!= 0 | padIdx 9 p#0000000
+!!= 0 | padIdx 9 p#1111111
+
+!!= p#{}   | padSet p#{}   0 1
+!!= p#{}   | padSet p#{}   0 0
+!!= p#1    | padSet p#0    0 1
+!!= p#0    | padSet p#0    0 0
+!!= p#1    | padSet p#1    0 1
+!!= p#0    | padSet p#1    0 0
+!!= p#1000 | padSet p#0000 0 1
+!!= p#0111 | padSet p#1111 0 0
+!!= p#0010 | padSet p#0000 2 1
+!!= p#1101 | padSet p#1111 2 0
+!!= p#0001 | padSet p#0000 3 1
+!!= p#1110 | padSet p#1111 3 0
+!!= p#0000 | padSet p#0000 4 1
+!!= p#1111 | padSet p#1111 4 0
+
+!!= p#{}   | padMapWithKey (k b & if even-k b not-b) p#{}
+!!= p#0    | padMapWithKey (k b & if even-k b not-b) p#0
+!!= p#1    | padMapWithKey (k b & if even-k b not-b) p#1
+!!= p#0101 | padMapWithKey (k b & if even-k b not-b) p#0000
+!!= p#1010 | padMapWithKey (k b & if even-k b not-b) p#1111
+
+!!= p#{}   | padMap not p#{}
+!!= p#{}   | padMap x&x p#{}
+!!= p#0    | padMap not p#1
+!!= p#1    | padMap not p#0
+!!= p#0    | padMap x&x p#0
+!!= p#1    | padMap x&x p#1
+!!= p#1000 | padMap not p#0111
+!!= p#0111 | padMap x&x p#0111
+!!= p#1111 | padMap not p#0000
+!!= p#1111 | padMap inc p#1111
+
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -252,6 +337,9 @@ emptyPad=1
 ^-^ toPad padNat natPad padLen
 ^-^ padWeld padCat padFlat
 ^-^ padSplitAt
+^-^ padIdx padGet padSet
+^-^ padMapWithKey padMap
+^-^ padComplement
 ^-^
 ^-^ readPadStr showPadStr
 ^-^ readPadLit showPadLit

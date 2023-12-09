@@ -438,7 +438,7 @@
 * _              | {showExp: Unknown syntax} exp
 
 
-!!= ' (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#{111} b#{asdf} (2 fanc))
+!!= ' (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#111 b#{asdf} (2 fanc))
   | showExp
   | ELET (PVAR {n}) (ENAT %inc)
   | ELET (PVAR {fanc})
@@ -781,7 +781,7 @@
 !! expRound ' 0
 !! expRound ' (f x y)
 !! expRound ' (**f x y)
-!! expRound ' [p#{101} p#{}]
+!! expRound ' [p#101 p#{}]
 !! expRound ' (& x)x
 !! expRound ' (& (x y))x
 !! expRound ' (? (id x))x
