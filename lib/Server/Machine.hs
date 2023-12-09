@@ -295,11 +295,11 @@ data PendingSendRequest = PENDING_SEND
 -- This is a collection of all {PendingSendRequest}s within all the cogs of a
 -- machine on all channels.  This is part of the top-level Machine STM state,
 -- because these IPC interactions need happen transactionally.
-type CogSendPool = Map CogId (TVar ChannelSendPool)
+type CogChannelPool a = Map CogId (TVar (ChannelPool a))
 
-type ChannelSendPool = Map Word64 (TVar (Pool PendingSendRequest))
+type ChannelPool a = Map Word64 (TVar (Pool a))
 
-channelPoolRegister :: Word64 -> TVar ChannelSendPool -> PendingSendRequest
+channelPoolRegister :: Word64 -> TVar (ChannelPool a) -> a
                     -> STM Int
 channelPoolRegister channel vChannels psr = do
     channels <- readTVar vChannels
@@ -316,8 +316,7 @@ channelPoolRegister channel vChannels psr = do
 --
 -- Unlike `readPool`, this never retries and returns a Maybe instead because
 -- retrying during `receiveResponse` can cause more widespread blockage.
-channelPoolTake :: Word64 -> TVar ChannelSendPool
-                -> STM (Maybe PendingSendRequest)
+channelPoolTake :: Word64 -> TVar (ChannelPool a) -> STM (Maybe a)
 channelPoolTake channel vChannels = do
     channels <- readTVar vChannels
     case lookup channel channels of
@@ -332,7 +331,7 @@ channelPoolTake channel vChannels = do
                         False -> writeTVar vPool (set #tab xs $ pool)
                     pure $ Just x
 
-channelPoolUnregister :: Word64 -> TVar ChannelSendPool -> Int -> STM ()
+channelPoolUnregister :: Word64 -> TVar (ChannelPool a) -> Int -> STM ()
 channelPoolUnregister channel vChannels poolId =
   do
     channels <- readTVar vChannels
@@ -352,7 +351,7 @@ data Runner = RUNNER
     { ctx       :: MachineContext
     , vMoment   :: TVar Moment          -- ^ Current value + cumulative CPU time
     , vRequests :: TVar MachineSysCalls -- ^ Current requests table
-    , vSends    :: TVar CogSendPool
+    , vSends    :: TVar (CogChannelPool PendingSendRequest)
     }
 
 -- -----------------------------------------------------------------------
@@ -396,12 +395,12 @@ data LiveRequest
   | LiveSend {
     lsndChannel  :: Word64,
     lsndPoolId   :: Int,
-    lsndChannels :: TVar ChannelSendPool
+    lsndChannels :: TVar (ChannelPool PendingSendRequest)
     }
   | LiveRecv {
     lrIdx      :: RequestIdx,
     lrChannel  :: Word64,
-    lrChannels :: TVar ChannelSendPool
+    lrChannels :: TVar (ChannelPool PendingSendRequest)
     }
   | LiveSpin {
     lsIdx :: RequestIdx,
