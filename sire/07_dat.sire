@@ -79,7 +79,7 @@
 | slice row start (add start sz)
 
 = (intersperse sep row)
-| gen (| dec | mul 2 | len row)
+| gen | dec | mul 2 | len row
 & ix
 | if odd-ix sep
 | get row (div ix 2)
