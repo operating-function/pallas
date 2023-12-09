@@ -30,7 +30,7 @@ where
 import PlunderPrelude
 
 import Control.Monad.State   (StateT, execStateT, modify', runStateT)
-import Fan                   (Fan(..), PrimopCrash(..), (%%))
+import Fan                   (Fan(..), PrimopCrash(..), fanIdx, (%%))
 import GHC.Conc              (unsafeIOToSTM)
 import GHC.Prim              (reallyUnsafePtrEquality#)
 import Optics                (set)
@@ -136,12 +136,19 @@ data SendOutcome
     | SendOK
   deriving (Show)
 
+data TellOutcome
+    = OutcomeOK Fan TellId
+    | OutcomeCrash
+  deriving (Show)
+
 data Response
     = RespEval EvalOutcome
     | RespCall Fan SysCall
     | RespWhat (Set Nat)
     | RespRecv PendingSendRequest
     | RespSend SendOutcome
+    | RespTell TellPayload
+    | RespAsk TellOutcome
     | RespSpin CogId Fan
     | RespReap CogId (Maybe CogState)
     | RespStop CogId (Maybe CogState)
@@ -155,6 +162,9 @@ responseToVal (RespRecv PENDING_SEND{..}) =
   ROW $ arrayFromListN 2 $ [toNoun sender, msg]
 responseToVal (RespSend SendOK) = NAT 0
 responseToVal (RespSend SendCrash) = NAT 1
+responseToVal (RespTell TELL_PAYLOAD{..}) = tellResp
+responseToVal (RespAsk (OutcomeOK val _)) = (NAT 0) %% val
+responseToVal (RespAsk OutcomeCrash) = (NAT 0)
 responseToVal (RespSpin (COG_ID id) _) = fromIntegral id
 responseToVal (RespReap _ f) = toNoun f
 responseToVal (RespStop _ f) = toNoun f
@@ -167,12 +177,14 @@ responseToVal (RespEval e)   =
 
 responseToReceiptItem :: (Int, ResponseTuple) -> (Int, ReceiptItem)
 responseToReceiptItem (idx, tup) = case tup.resp of
-    RespEval OKAY{}           -> (idx, ReceiptEvalOK)
-    RespRecv PENDING_SEND{..} -> (idx, ReceiptRecv{..})
-    RespSpin cog _            -> (idx, ReceiptSpun cog)
-    RespReap cog _            -> (idx, ReceiptReap cog)
-    RespStop cog _            -> (idx, ReceiptStop cog)
-    resp                      -> (idx, ReceiptVal (responseToVal resp))
+    RespEval OKAY{}              -> (idx, ReceiptEvalOK)
+    RespRecv PENDING_SEND{..}    -> (idx, ReceiptRecv{..})
+    RespSpin cog _               -> (idx, ReceiptSpun cog)
+    RespReap cog _               -> (idx, ReceiptReap cog)
+    RespStop cog _               -> (idx, ReceiptStop cog)
+    RespTell TELL_PAYLOAD{..}    -> (idx, ReceiptTell{..})
+    RespAsk (OutcomeOK _ tellid) -> (idx, ReceiptAsk tellid)
+    resp                         -> (idx, ReceiptVal (responseToVal resp))
 
 makeOKReceipt :: CogId -> [(Int, ResponseTuple)] -> Receipt
 makeOKReceipt cogId =
@@ -197,6 +209,13 @@ data SendRequest = SNDR
     }
   deriving (Show)
 
+data AskRequest = ASKR
+    { cogDst  :: CogId
+    , channel :: Word64
+    , msg     :: Fan
+    }
+  deriving (Show)
+
 -- TODO: We in theory have send done, but recv is the hard part since the recv
 -- also must respond to the recv.
 
@@ -206,6 +225,8 @@ data Request
     | ReqWhat (Set Nat)
     | ReqSend SendRequest
     | ReqRecv Word64
+    | ReqTell Word64 Fan
+    | ReqAsk  AskRequest
     | ReqSpin SpinRequest
     | ReqReap CogId
     | ReqStop CogId
@@ -218,6 +239,8 @@ data Request
   [%cog %spin fun/Fan]
   [%cog %send dst/Nat param/Fan]
   [%cog %recv]
+  [%cog %ask dst/Nat chan/Nat param/Fan]
+  [%cog %tell chan/Nat fun/Fan]
   [$call synced/? param/Fan ...]
 -}
 valToRequest :: CogId -> Fan -> Request
@@ -250,6 +273,13 @@ valToRequest cogId top = fromMaybe (UNKNOWN top) do
                 channel <- fromNoun (row V.! 3)
                 pure (ReqSend (SNDR dst channel (row V.! 4)))
             "recv" | length row == 3 -> ReqRecv <$> fromNoun (row V.! 2)
+            "tell" | length row == 4 -> do
+                channel <- fromNoun (row V.! 2)
+                pure (ReqTell channel (row V.! 3))
+            "ask"  | length row == 5 -> do
+                dst <- fromNoun @CogId (row V.! 2)
+                channel <- fromNoun (row V.! 3)
+                pure (ReqAsk (ASKR dst channel (row V.! 4)))
             "who"  | length row == 2 -> pure ReqWho
             _ -> Nothing
     else do
@@ -291,6 +321,35 @@ data PendingSendRequest = PENDING_SEND
     , msg    :: Fan
     }
   deriving (Show)
+
+-- | The PendingAsk contains a pointer to an %asking request, along with its
+-- value. It exists so we can quickly look up its %msg at execution time from a
+-- pool of open asks.
+data PendingAsk = PENDING_ASK
+    { requestor :: CogId
+    , reqIdx    :: RequestIdx
+    , msg       :: Fan
+    }
+  deriving (Show)
+
+-- | All the information needed for both
+data TellPayload = TELL_PAYLOAD
+    { asker    :: CogId
+    , reqIdx   :: RequestIdx
+
+    -- The locally unique tellId for this apply. Written to the event log.
+    , tellId   :: TellId
+
+    -- These are deliberately left lazy since they have to be created inside an
+    -- STM action in `receiveResponse`, but must be evaluate/forced and
+    -- credited against the tell's timeout. reqResp has to be explicitly forced
+    -- during that timeout because if a tell function dies in anyway, that
+    -- crash has to be credited to the telling cog, not the asking cog.
+    , askResp  :: ~Fan
+    , tellResp :: ~Fan
+    }
+  deriving (Show)
+
 
 -- This is a collection of all {PendingSendRequest}s within all the cogs of a
 -- machine on all channels.  This is part of the top-level Machine STM state,
@@ -352,6 +411,10 @@ data Runner = RUNNER
     , vMoment   :: TVar Moment          -- ^ Current value + cumulative CPU time
     , vRequests :: TVar MachineSysCalls -- ^ Current requests table
     , vSends    :: TVar (CogChannelPool PendingSendRequest)
+
+    , vTellId   :: TVar Int
+
+    , vAsks     :: TVar (CogChannelPool PendingAsk)
     }
 
 -- -----------------------------------------------------------------------
@@ -365,6 +428,13 @@ data CogReplayEffect
       }
     | CStop
       { reCogId :: CogId }
+    | CTell
+      { tellId :: TellId
+      , tell   :: Fan
+      }
+    | CAsk
+      { tellId :: TellId
+      }
     deriving (Show)
 
 data ResponseTuple = RTUP
@@ -402,6 +472,18 @@ data LiveRequest
     lrChannel  :: Word64,
     lrChannels :: TVar (ChannelPool PendingSendRequest)
     }
+  | LiveTell {
+    ltCogId    :: CogId,
+    ltIdx      :: RequestIdx,
+    ltChannel  :: Word64,
+    ltChannels :: TVar (ChannelPool PendingAsk),
+    ltFun      :: Fan
+    }
+  | LiveAsk {
+    lcrChannel  :: Word64,
+    lcrPoolId   :: Int,
+    lcrChannels :: TVar (ChannelPool PendingAsk)
+    }
   | LiveSpin {
     lsIdx :: RequestIdx,
     lsFun :: Fan
@@ -427,6 +509,8 @@ instance Show LiveRequest where
         LiveWhat{}  -> "WHAT"
         LiveSend{}  -> "SEND"
         LiveRecv{}  -> "RECV"
+        LiveTell{}  -> "TELL"
+        LiveAsk{}   -> "ASK"
         LiveSpin{}  -> "SPIN"
         LiveReap{}  -> "REAP"
         LiveStop{}  -> "STOP"
@@ -460,12 +544,15 @@ third (_, _, c) = c
 
 type ReconstructedEvals = [(Fan, Fan, Maybe CogReplayEffect)]
 
+type Tells = Map TellId Fan
+
 recomputeEvals
     :: Moment
+    -> Tells
     -> CogId
     -> IntMap ReceiptItem
     -> StateT NanoTime IO ReconstructedEvals
-recomputeEvals m cogId tab =
+recomputeEvals m tells cogId tab =
     for (mapToList tab) \(idx, rVal) -> do
         let k = toNoun (fromIntegral idx :: Word)
         case rVal of
@@ -495,6 +582,24 @@ recomputeEvals m cogId tab =
                     Just val ->
                       let out = ROW $ arrayFromListN 2 [toNoun sender, val]
                       in pure (k, out, Nothing)
+            ReceiptTell{..} -> do
+                -- We have to retrieve data from both the ask and the tell
+                case (getAskFunAt m asker cogId reqIdx,
+                      getTellFunAt m cogId (RequestIdx idx)) of
+                    (Just ask, Just tellFun) -> do
+                        let ret = tellFun %% (toNoun asker) %% ask
+                            askResp = fanIdx 0 ret
+                            tellResp = fanIdx 1 ret
+                            ef = CTell tellId askResp
+                        pure (k, tellResp, Just ef)
+                    _ ->
+                        throwIO $ INVALID_TELL_RECEIPT_IN_LOGBATCH
+            ReceiptAsk{..} -> do
+                case lookup tellId tells of
+                    Nothing ->
+                        throwIO $ INVALID_ASK_RECEIPT_IN_LOGBATCH
+                    Just askResponse ->
+                        pure (k, NAT 0 %% askResponse, Just $ CAsk tellId)
             ReceiptReap{..} -> do
                 case M.lookup cogNum m.val of
                     Nothing ->
@@ -530,6 +635,18 @@ recomputeEvals m cogId tab =
             | otherwise              -> Nothing
         _                            -> Nothing
 
+    getAskFunAt :: Moment -> CogId -> CogId -> RequestIdx -> Maybe Fan
+    getAskFunAt m sender receiver idx = withRequestAt m sender idx $ \case
+        ReqAsk (ASKR cogDst _channel msg)
+            | cogDst == receiver     -> Just msg
+            | otherwise              -> Nothing
+        _                            -> Nothing
+
+    getTellFunAt :: Moment -> CogId -> RequestIdx -> Maybe Fan
+    getTellFunAt m sender idx = withRequestAt m sender idx $ \case
+        ReqTell _channel fun -> Just fun
+        _                    -> Nothing
+
     withRequestAt :: Moment -> CogId -> RequestIdx -> (Request -> Maybe a)
                   -> Maybe a
     withRequestAt m cogId (RequestIdx idx) fun = do
@@ -556,16 +673,19 @@ performReplay
     -> ReplayFrom
     -> IO (BatchNum, Moment)
 performReplay cache ctx replayFrom = do
-    let mkInitial (a, b) = (b, MOMENT a 0)
-    loadLogBatches replayFrom mkInitial doBatch ctx.lmdb cache
+    let mkInitial (a, b) = (b, (MOMENT a 0, mempty))
+    (bn, (m, _)) <- loadLogBatches replayFrom mkInitial doBatch ctx.lmdb cache
+    pure (bn, m)
   where
-    doBatch :: (BatchNum, Moment) -> LogBatch -> IO (BatchNum, Moment)
-    doBatch (_, moment) LogBatch{batchNum,executed} =
-        loop batchNum moment executed
+    doBatch :: (BatchNum, (Moment, Tells)) -> LogBatch
+            -> IO (BatchNum, (Moment, Tells))
+    doBatch (_, momentTells) LogBatch{batchNum,executed} =
+        loop batchNum momentTells executed
 
-    loop :: BatchNum -> Moment -> [Receipt] -> IO (BatchNum, Moment)
-    loop bn m []     = pure (bn, m)
-    loop bn m (x:xs) =
+    loop :: BatchNum -> (Moment, Tells) -> [Receipt]
+         -> IO (BatchNum, (Moment, Tells))
+    loop bn mt []     = pure (bn, mt)
+    loop bn (m, t) (x:xs) =
         let mybCogFun = case M.lookup x.cogNum m.val of
                 Nothing -> Nothing
                 Just x  -> cogSpinningFun x
@@ -578,7 +698,7 @@ performReplay cache ctx replayFrom = do
                     Nothing -> throwIO INVALID_TIMEOUT_IN_LOGBATCH
                     Just fun -> do
                         let cog = CG_TIMEOUT timeoutAmount fun
-                        pure (bn, m { val = M.insert x.cogNum cog m.val})
+                        pure (bn, (m { val = M.insert x.cogNum cog m.val}, t))
 
             RECEIPT_CRASHED{..} -> do
                 -- While it's deterministic whether a plunder computation
@@ -588,23 +708,28 @@ performReplay cache ctx replayFrom = do
                     Nothing -> throwIO INVALID_CRASHED_IN_LOGBATCH
                     Just final -> do
                         let cog = CG_CRASHED{op,arg,final}
-                        pure (bn, m { val = M.insert x.cogNum cog m.val})
+                        pure (bn, (m { val = M.insert x.cogNum cog m.val}, t))
 
             RECEIPT_OK{..} -> do
                 -- The original run succeeded, rebuild the value from the
                 -- receipt items.
-                (eRes, eWork) <- runStateT (recomputeEvals m cogNum inputs) 0
+                (eRes, eWork) <- runStateT (recomputeEvals m t cogNum inputs) 0
 
                 let arg = TAb $ mapFromList $ map tripleToPair eRes
 
-                let runEffect m = \case
-                        Just CSpin{..} -> pure $ m {
-                            val = M.insert reCogId (CG_SPINNING reFun) m.val }
-                        Just CStop{..} -> pure $ m {
-                            val = M.delete reCogId m.val }
-                        Nothing        -> pure m
+                let runEffect :: (Moment, Tells) -> Maybe CogReplayEffect
+                              -> IO (Moment, Tells)
+                    runEffect (m, t) = \case
+                        Just CSpin{..} -> pure $ (m {
+                            val = M.insert reCogId (CG_SPINNING reFun) m.val },
+                                                  t)
+                        Just CStop{..} -> pure $ (m {
+                            val = M.delete reCogId m.val }, t)
+                        Just CTell{..} -> pure $ (m, M.insert tellId tell t)
+                        Just CAsk{..}  -> pure $ (m, M.delete tellId t)
+                        Nothing        -> pure (m, t)
 
-                m <- foldlM runEffect m (map third eRes)
+                (m, t) <- foldlM runEffect (m, t) (map third eRes)
 
                 fun <- case mybCogFun of
                     Nothing  -> throwIO INVALID_COGID_IN_LOGBATCH
@@ -623,7 +748,7 @@ performReplay cache ctx replayFrom = do
                         , val = insertMap x.cogNum newVal m.val
                         }
 
-                loop bn newMoment xs
+                loop bn (newMoment, t) xs
 
 -- | Main entry point for starting running a Cog.
 replayAndCrankMachine
@@ -669,11 +794,19 @@ replayAndCrankMachine cache ctx replayFrom = do
           vMoment   <- newTVar moment
           vRequests <- newTVar mempty
 
-          channels <- forM (keys moment.val) $ \k -> do
+          sendChannels <- forM (keys moment.val) $ \k -> do
               channelPools <- newTVar mempty
               pure (k, channelPools)
-          vSends     <- newTVar $ mapFromList channels
-          pure RUNNER{vMoment, ctx, vRequests, vSends}
+          vSends      <- newTVar $ mapFromList sendChannels
+
+          reqChannels <- forM (keys moment.val) $ \k -> do
+              channelPools <- newTVar mempty
+              pure (k, channelPools)
+          vAsks     <- newTVar $ mapFromList reqChannels
+
+          vTellId <- newTVar 0
+
+          pure RUNNER{vMoment, ctx, vRequests, vSends, vTellId, vAsks}
 
       -- TODO: Hack because I don't understand how this is supposed
       -- to work.
@@ -806,6 +939,33 @@ buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
                                    lsndPoolId=poolId,
                                    lsndChannels=vChannels}, Nothing)
 
+    ReqAsk ASKR{cogDst,channel,msg} -> do
+        asks <- readTVar runner.vAsks
+        case M.lookup cogDst asks of
+            -- TODO: Pretty sure using `error` here is wrong. Figure out what
+            -- the real error handling should be when a cog requests from a cog
+            -- that doesn't exist.
+            Nothing -> error $ "Bad cogDst " <> show cogDst
+            Just vChannels -> do
+                poolId <-
+                    channelPoolRegister channel
+                                        vChannels
+                                        (PENDING_ASK cogId reqIdx msg)
+                pure ([], LiveAsk{lcrChannel=channel,
+                                  lcrPoolId=poolId,
+                                  lcrChannels=vChannels}, Nothing)
+
+    ReqTell channel function -> do
+        asks <- readTVar runner.vAsks
+        channels <- case M.lookup cogId asks of
+            Nothing   -> error $ "Listening on a nonexistent cog " <> show cogId
+            Just pool -> pure pool
+        pure ([], LiveTell{ltCogId=cogId,
+                           ltIdx=reqIdx,
+                           ltChannel=channel,
+                           ltChannels=channels,
+                           ltFun=function}, Nothing)
+
     ReqSpin (SR func) -> do
         pure ([], LiveSpin{lsIdx=reqIdx, lsFun=func}, Nothing)
 
@@ -828,6 +988,9 @@ cancelRequest LiveWhat{}   = pure ()
 cancelRequest LiveRecv{}   = pure ()
 cancelRequest LiveSend{..} =
     channelPoolUnregister lsndChannel lsndChannels lsndPoolId
+cancelRequest LiveTell{}   = pure ()
+cancelRequest LiveAsk{..} =
+    channelPoolUnregister lcrChannel lcrChannels lcrPoolId
 cancelRequest LiveSpin{}   = pure () -- Not asynchronous
 cancelRequest LiveReap{}   = pure ()
 cancelRequest LiveStop{}   = pure ()
@@ -890,6 +1053,33 @@ receiveResponse st = \case
                                 -- TODO: Hook up send flows here.
                                 flow=FlowDisabled})
 
+    (_, LiveAsk{}) ->
+        -- Asks are never responded to normally, they're responded manually as
+        -- a side effect of a tell so that we maintain atomicity of the
+        -- request/serve pair in the log.
+        retry
+
+    (_, LiveTell{..}) -> do
+        channelPoolTake ltChannel ltChannels >>= \case
+            Nothing -> pure Nothing
+            Just PENDING_ASK{..} -> do
+                tellId <- stateTVar st.vTellId \s -> (TellId s, s + 1)
+
+                let ~ret :: Fan = ltFun %% (toNoun requestor) %% msg
+                let pa = TELL_PAYLOAD {
+                      asker=requestor,
+                      reqIdx,
+                      tellId,
+                      askResp = fanIdx 0 ret,
+                      tellResp = fanIdx 1 ret
+                      }
+
+                pure (Just RTUP{key=ltIdx,
+                                resp=RespTell pa,
+                                work=0,
+                                -- TODO: Hook up send flows here.
+                                flow=FlowDisabled})
+
     (_, LiveSpin{..}) ->
       do
         cogid <- getRandomNonConflictingId =<< readTVar st.vMoment
@@ -942,6 +1132,7 @@ receiveResponse st = \case
                     -> STM (Maybe ResponseTuple)
     performStoplike mkResponse reqIdx cogId cogVal = do
         modifyTVar' st.vSends $ M.delete cogId
+        modifyTVar' st.vAsks $ M.delete cogId
         modifyTVar' st.vMoment
                     \m -> m { val=deleteMap cogId m.val }
 
@@ -1144,7 +1335,8 @@ runResponse st cogNum rets = do
           $ lookup cogNum moment.val
   (runtimeUs, result) <- do
       withAlwaysTrace "Eval" "cog" do
-          evalWithTimeout thirtySecondsInMicroseconds fun arg
+          let preEvaluate = map (ensureResponseEvaluated . (.resp) . snd) rets
+          evalWithTimeout thirtySecondsInMicroseconds preEvaluate fun arg
 
   let resultReceipt = case result of
         TIMEOUT      -> RECEIPT_TIME_OUT{cogNum,timeoutAmount=runtimeUs}
@@ -1199,6 +1391,18 @@ runResponse st cogNum rets = do
     delReq :: CogSysCalls -> Int -> CogSysCalls
     delReq acc k = IM.delete k acc
 
+    ensureResponseEvaluated :: Response -> IO ()
+    ensureResponseEvaluated (RespTell TELL_PAYLOAD{..}) = do
+      -- We must force evaluate both response thunks so that we make sure they
+      -- don't have a crash in them, but must do this while crediting the
+      -- runtime (and possible crash) to the %tell since the %tell provides the
+      -- function.
+      evaluate $ force askResp
+      evaluate $ force tellResp
+      pure ()
+
+    ensureResponseEvaluated _ = pure ()
+
     performAlertHardwareOnSpin :: Response -> IO ()
     performAlertHardwareOnSpin (RespSpin newCogId _) = do
         -- If we just spun up another cog, tell all the hardware
@@ -1231,9 +1435,12 @@ runResponse st cogNum rets = do
     performSpinEffects :: Response
                        -> STM ([Flow], [STM OnCommitFlow])
     performSpinEffects (RespSpin newCogId fun) = do
-        channelPools <- newTVar mempty
+        sendChannelPools <- newTVar mempty
         modifyTVar' st.vSends \sends ->
-            M.insert newCogId channelPools sends
+            M.insert newCogId sendChannelPools sends
+        reqChannelPools <- newTVar mempty
+        modifyTVar' st.vAsks \reqs ->
+            M.insert newCogId reqChannelPools reqs
         modifyTVar' st.vMoment \m ->
             m { val=insertMap newCogId (CG_SPINNING fun) m.val }
         parseRequests st newCogId
@@ -1266,6 +1473,29 @@ runResponse st cogNum rets = do
                         , flow = FlowDisabled
                         }
         runResponse st sender [(reqIdx.int, rtup)]
+
+    performSendAck result (RespTell TELL_PAYLOAD{..}) = do
+        -- When an IPC message is received, the corresponding
+        -- send syscall on the sender cog must also be processed
+        -- within the same transaction.
+        --
+        -- We do this recursively invoking runResponse for that
+        -- syscall as well.
+        --
+        -- We are sure that the `reqIdx` still corresponds to
+        -- an active COG_SEND syscall because of reasons.
+        let outcome = case result of
+              RECEIPT_OK{} -> OutcomeOK askResp tellId
+              _            -> OutcomeCrash
+
+        -- TODO: Enable profiling flows; how do we connect
+        -- the recv completing to this?
+        let rtup = RTUP { key  = reqIdx
+                        , resp = RespAsk outcome
+                        , work = 0
+                        , flow = FlowDisabled
+                        }
+        runResponse st asker [(reqIdx.int, rtup)]
 
     performSendAck _ _ = pure ([], [])
 
@@ -1356,6 +1586,8 @@ parseRequests runner cogId = do
         ReqWhat{}  -> "%what"
         ReqSend{}  -> "%send"
         ReqRecv{}  -> "%recv"
+        ReqTell{}  -> "%tell"
+        ReqAsk{}   -> "%ask"
         ReqSpin{}  -> "%spin"
         ReqReap{}  -> "%reap"
         ReqStop{}  -> "%stop"
@@ -1370,6 +1602,8 @@ parseRequests runner cogId = do
         ReqWhat{}  -> "%what"
         ReqSend{}  -> "%cog"
         ReqRecv{}  -> "%cog"
+        ReqTell{}  -> "%tell"
+        ReqAsk{}   -> "%ask"
         ReqSpin{}  -> "%cog"
         ReqReap{}  -> "%reap"
         ReqStop{}  -> "%cog"
@@ -1401,12 +1635,13 @@ parseRequests runner cogId = do
 evalWithTimeout
     :: Debug
     => Nat
+    -> [IO ()]
     -> Fan
     -> Fan
     -> IO (NanoTime, EvalOutcome)
-evalWithTimeout msTimeout fun arg = do
+evalWithTimeout msTimeout preActions fun arg = do
   (runtime, raw) <- withCalcRuntime $ timeout (fromIntegral msTimeout) $ do
-    try (evaluate $ force (fun %% arg)) >>= \case
+    try doAllEvals >>= \case
       Left (PRIMOP_CRASH op val) -> do debug ("crash"::Text, NAT op, val)
                                        pure (Left (op,val))
       Right f                    -> pure (Right f)
@@ -1414,6 +1649,11 @@ evalWithTimeout msTimeout fun arg = do
     Nothing          -> pure (runtime, TIMEOUT)
     Just (Left(o,e)) -> pure (runtime, CRASH o e)
     Just (Right v)   -> pure (runtime, OKAY runtime v)
+  where
+    doAllEvals = do
+      sequence_ preActions
+      evaluate $ force (fun %% arg)
+
 
 evalCheckingCrash
     :: Debug

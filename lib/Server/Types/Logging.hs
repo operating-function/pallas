@@ -23,6 +23,10 @@ newtype CogId = COG_ID { int :: Word64 }
 newtype RequestIdx = RequestIdx { int :: Int }
   deriving newtype (Eq, Show, Ord)
 
+-- | An identifier for a specific tell instance. Asks need to point back to a
+newtype TellId = TellId { int :: Int }
+  deriving newtype (Eq, Show, Ord)
+
 -- | A record of one call to a Process and its side effects.
 data ReceiptItem
   -- | Receipt of a normal Eval that completed successfully. Since everything
@@ -35,6 +39,14 @@ data ReceiptItem
 
   -- | Receipt of a recv. Points back to the sending cause.
   | ReceiptRecv { sender :: CogId, reqIdx :: RequestIdx }
+
+  -- | Receipt of a serve. {reqIdx} points back to the requesting
+  -- cause. `(sender, serveId)` should form a unique identifier for the return
+  -- value to be consumed in ReceiptRequest.
+  | ReceiptTell { asker :: CogId, reqIdx :: RequestIdx, tellId :: TellId }
+
+  -- | Receipt of a request getting fulfilled from a serve.
+  | ReceiptAsk { tellId :: TellId }
 
   -- | Receipt of a spin. Contains the assigned cog id.
   | ReceiptSpun { cogNum :: CogId }
@@ -60,6 +72,8 @@ data CogFailure
     | INVALID_OK_RECEIPT_IN_LOGBATCH
     | INVALID_SPUN_RECEIPT_IN_LOGBATCH CogId
     | INVALID_RECV_RECEIPT_IN_LOGBATCH
+    | INVALID_TELL_RECEIPT_IN_LOGBATCH
+    | INVALID_ASK_RECEIPT_IN_LOGBATCH
     | INVALID_REAP_RECEIPT_IN_LOGBATCH
     | INVALID_STOP_RECEIPT_IN_LOGBATCH
   deriving (Eq, Ord, Show, Generic, Exception)

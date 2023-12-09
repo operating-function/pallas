@@ -94,18 +94,28 @@ The `%cog` requests are:
 
 -   `[%cog %spin fan] -> IO Pid`: Starts a cog and returns its cog id.
 
--   `[%cog %send pid channel fan] -> IO Nat`: Sends the fan value to pid
-    on a channel, returning afterwards. `%send`/`%recv` operate on word64
-    channels, which allow two different cogs to maintain separate message
-    streams that don't interact with each other. `%recv`/`%send` are
-    special in that they always both execute atomically; you'll never
-    have one without the other in the event log.
+-   `[%cog %ask pid chan fan] -> IO (Maybe Fan)`: Sends the fan value to
+    pid on a channel, returning afterwards. `%ask`/`%tell` operate on
+    Word64 channels which allows a cog to offer more than one port or
+    "service". `%ask` makes a request of a different cog which has an
+    open `%tell` request.
 
-    The returned nat is 0 if the message was sent successfully, and 1 if
-    the cog crashed.
+    Returns `0` on any error (remote cog doesn't exist, remote cog's
+    `%tell` function crashed), or the Just value (`0-result`) on success.
 
--   `[%cog %recv channel] -> IO (Pid, Fan)`: Waits for a message to be
-    sent on to this cog on the given numeric channel.
+-   `[%cog %tell chan fun] -> IO a`: Given a function with a type `>
+    CogId > Any > [Any a]`, waits on the channel `chan` for a
+    corresponding `%ask`. The runtime will atomically match one `%ask`
+    with one `%tell`, will run the tell function with the ask value, and
+    will respond with the first value back to the `%ask` and the second
+    value back to the `%tell`.
+
+    Execution and response is atomic; you'll never have one without the
+    other in the written event log. This operation is used to allow two
+    different threads to act in concert.
+
+    Any crash while evaluating `fun` with the arguments will count as
+    crashing the telling cog.
 
 -   `[%cog %stop pid] -> IO (Maybe CogState)`: If the cog does not exist,
     immediately returns None. Otherwise, stops and removes the cog from

@@ -1,0 +1,47 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+### demo_cog_asktell_basic <- demo_cog_stop
+
+/+  boot
+/+  kern
+/+  demo_timer
+/+  stew
+/+  datatype  [{#record} {#datatype} {#datacase}]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+countCogChannel=28
+
+= (count i sender msg)
+[i [sender i (inc i)]]
+
+= (countCog i return)
+: ??(count_got_new [sender oldi newi])
+    < syscall (COG_TELL countCogChannel count-i)
+| countCog newi return
+
+= (askerCog tid countCogId return)
+^ _ NIL return
+? (go nums return)
+| if | gte listLen-nums 10
+    | trk [%fetched tid (listToRow nums)]
+    | return ()
+: ??(asker_told mybNum) < syscall (COG_ASK countCogId countCogChannel ())
+# datacase mybNum
+* NONE
+    | trk %countCogCrashed
+    | return ()
+* SOME-num
+    | go (CONS num nums) return
+
+= (askDemo return)
+: ??(spin_got_id countCogId) < syscall (COG_SPIN (runCog-(countCog 11)))
+: _ < fork (askerCog 1 countCogId)
+: _ < fork (askerCog 2 countCogId)
+: _ < fork (askerCog 3 countCogId)
+: _ < fork (askerCog 4 countCogId)
+| return ()
+
+main=(runCog askDemo)

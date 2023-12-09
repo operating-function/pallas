@@ -33,6 +33,11 @@ instance ToNoun RequestIdx where
 instance FromNoun RequestIdx where
     fromNoun n = (RequestIdx . fromIntegral) <$> fromNoun @Nat n
 
+instance ToNoun TellId where
+    toNoun (TellId i) = NAT $ fromIntegral i
+instance FromNoun TellId where
+    fromNoun n = (TellId . fromIntegral) <$> fromNoun @Nat n
+
 instance ToNoun BatchNum where
     toNoun (BatchNum n) = toNoun n
 instance FromNoun BatchNum where
@@ -40,12 +45,15 @@ instance FromNoun BatchNum where
 
 instance ToNoun ReceiptItem where
     toNoun re = toNoun $ case re of
-                           ReceiptEvalOK   -> NAT 0
-                           ReceiptVal val  -> toNoun (NAT 1, val)
-                           ReceiptRecv{..} -> toNoun (NAT 2, sender, reqIdx)
-                           ReceiptSpun{..} -> toNoun (NAT 3, cogNum)
-                           ReceiptReap{..} -> toNoun (NAT 4, cogNum)
-                           ReceiptStop{..} -> toNoun (NAT 5, cogNum)
+        ReceiptEvalOK   -> NAT 0
+        ReceiptVal val  -> toNoun (NAT 1, val)
+        ReceiptRecv{..} -> toNoun (NAT 2, sender, reqIdx)
+        {- TODO: Clean up order when removing send/recv -}
+        ReceiptTell{..} -> toNoun (NAT 8, asker, reqIdx, tellId)
+        ReceiptAsk{..}  -> toNoun (NAT 9, tellId)
+        ReceiptSpun{..} -> toNoun (NAT 3, cogNum)
+        ReceiptReap{..} -> toNoun (NAT 4, cogNum)
+        ReceiptStop{..} -> toNoun (NAT 5, cogNum)
 
 instance FromNoun ReceiptItem where
     fromNoun n = case n of
@@ -65,6 +73,14 @@ instance FromNoun ReceiptItem where
             [NAT 5, cogN]         -> do
                 cogNum <- fromNoun cogN
                 Just ReceiptStop{..}
+            [NAT 8, askerN, reqN, tellN] -> do
+                asker <- fromNoun askerN
+                reqIdx <- fromNoun reqN
+                tellId <- fromNoun tellN
+                Just ReceiptTell{..}
+            [NAT 9, tellN] -> do
+                tellId <- fromNoun tellN
+                Just ReceiptAsk{..}
             _                     -> Nothing
         _                         -> Nothing
 
