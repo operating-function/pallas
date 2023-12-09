@@ -24,15 +24,14 @@
 ;;;;
 ;;;; toPad: Coerces a value into a non-zero natural number.
 ;;;;
-;;;; padNat: Convert a pad to a nat (dropping all trailining zeros).
+;;;; padNat: Convert a pad to a nat (dropping all trailing zeros).
 ;;;;
 ;;;; natPad: Convert a nat into a pad with a specific minimum bit-width.
 ;;;;
 ;;;; padWeld: Concatenate two pads
 ;;;;
-;;;; padCat: Concatenate a row of pads (TODO)
+;;;; padCat: Concatenate a row of pads
 ;;;;
-;;;; padCatTree: Concatenate a rose-tree of pads (TODO)
 ;;;;
 ;;;; padIdx: TODO
 ;;;; padGet: TODO
