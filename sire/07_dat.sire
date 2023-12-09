@@ -472,8 +472,6 @@
     | if (lth f-x f-a) x a
 | xs
 
-;; TODO should {listGen} inline it's call to CONS?
-
 = (listGen n f)
 ^ _ 0
 ? (loop i)
