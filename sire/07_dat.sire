@@ -721,20 +721,16 @@
 & x
 | CONS x (listCatMaybes xs)
 
-; TODO: Fold from the left using an accumulator and remember the output length.
-; TODO: Jet fillRowFromAccList:(Nat > List a > Row a), which creates a
-;       row from a list, in reverse order with a-prioiri knowledge of
-;       the size of the resulting row.  This allows the jet to preallocate
-;       an array fill it by walking the list, no need for realloc.
 = (mapMaybe law row)
-^ listToRowReversed (_ 0 NIL)
-? (loop i acc)
-| seq acc
-| if (eql i | len row) acc
-| loop (inc i)
-| maybeCase (law | idx i row) acc
+^ _ NIL 0 len-row
+? (go acc kept remain)
+| if (isZero remain)
+    | sizedListToRow kept acc
+@ ix (dec remain)
+| maybeCase (law | idx ix row)
+    | go acc kept ix
 & item
-| CONS item acc
+| go (CONS item acc) (inc kept) ix
 
 = (catMaybes lis)       | listToRow (listCatMaybes (listFromRow lis))
 = (listMapMaybe f lis)  | listCatMaybes (listMap f lis)
