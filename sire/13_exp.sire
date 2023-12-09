@@ -123,7 +123,7 @@
 !!= %asdf             | readAtomLit '(%asdf) v2 id
 !!= %asdf             | readAtomLit '{asdf}  v2 id
 !!= ['(%) cenOneKid]  | readAtomLit '(%)     v2 id
-!!= ['(%(.)) cenWord] | readAtomLit '(%(.))   v2 id
+!!= ['(%(.)) cenWord] | readAtomLit '(%(.))  v2 id
 
 
 ;;; Expresssions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
