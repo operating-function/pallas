@@ -423,27 +423,6 @@
 !!= [2 [3 0]]     | listTakeWhile id [2 [3 [0 [4 [5 0]]]]]
 !!= [0 [4 [5 0]]] | listDropWhile id [2 [3 [0 [4 [5 0]]]]]
 
-;; {listDigits} converts a nat into a list of digits.
-;;
-;; TODO: {listDigits} does not belong in this module.
-;;
-;; TODO: implement {listDigits} using `until`?
-
-= (listDigits num)
-| ifNot num (CONS {0} 0)
-^ _ num NIL
-? (loop mor acc)
-| seq acc
-| ifNot mor acc
-@ char (add (mod mor 10) {0})
-@ left (div mor 10)
-| loop left (CONS char acc)
-
-;; {digits} converts a nat into a row of digits.
-
-= (digits num) (listToRow listDigits-num)
-; TODO This really belongs elsewhere!  Maybe in `sci` or `out`?
-
 = (listZipWith f al bl)
 | **listCase al NIL
 & (a as)
@@ -979,9 +958,9 @@ F=found
 ^-^ listFoldr
 ^-^ listLen listToRow sizedListToRow
 ^-^ listToRowReversed listFromRow listAnd listOr listSum listAll listAny
-^-^ listHas listEnumFrom listWeld listCat listTake listDrop listDigits
+^-^ listHas listEnumFrom listWeld listCat listTake listDrop
 ^-^ listTakeWhile listDropWhile
-^-^ digits listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn
+^-^ listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn
 ^-^ listNub listIterate
 ^-^ listGen listRep listFindIndex listElemIndex
 ^-^ listIsPrefixOf listSearch listSubstringSearch
