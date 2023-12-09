@@ -131,11 +131,6 @@ snapshotWorkIntervalInNs = oneSecondInNs * 45
 thirtySecondsInMicroseconds :: Nat
 thirtySecondsInMicroseconds = 30 * 10 ^ (6::Int)
 
-data SendOutcome
-    = SendCrash
-    | SendOK
-  deriving (Show)
-
 data TellOutcome
     = OutcomeOK Fan TellId
     | OutcomeCrash
@@ -145,8 +140,6 @@ data Response
     = RespEval EvalOutcome
     | RespCall Fan SysCall
     | RespWhat (Set Nat)
-    | RespRecv PendingSendRequest
-    | RespSend SendOutcome
     | RespTell TellPayload
     | RespAsk TellOutcome
     | RespSpin CogId Fan
@@ -158,10 +151,6 @@ data Response
 responseToVal :: Response -> Fan
 responseToVal (RespCall f _) = f
 responseToVal (RespWhat w) = toNoun w
-responseToVal (RespRecv PENDING_SEND{..}) =
-  ROW $ arrayFromListN 2 $ [toNoun sender, msg]
-responseToVal (RespSend SendOK) = NAT 0
-responseToVal (RespSend SendCrash) = NAT 1
 responseToVal (RespTell TELL_PAYLOAD{..}) = tellResp
 responseToVal (RespAsk (OutcomeOK val _)) = (NAT 0) %% val
 responseToVal (RespAsk OutcomeCrash) = (NAT 0)
@@ -178,7 +167,6 @@ responseToVal (RespEval e)   =
 responseToReceiptItem :: (Int, ResponseTuple) -> (Int, ReceiptItem)
 responseToReceiptItem (idx, tup) = case tup.resp of
     RespEval OKAY{}              -> (idx, ReceiptEvalOK)
-    RespRecv PENDING_SEND{..}    -> (idx, ReceiptRecv{..})
     RespSpin cog _               -> (idx, ReceiptSpun cog)
     RespReap cog _               -> (idx, ReceiptReap cog)
     RespStop cog _               -> (idx, ReceiptStop cog)
@@ -202,13 +190,6 @@ data SpinRequest = SR
     }
   deriving (Show)
 
-data SendRequest = SNDR
-    { cogDst  :: CogId
-    , channel :: Word64
-    , msg     :: Fan
-    }
-  deriving (Show)
-
 data AskRequest = ASKR
     { cogDst  :: CogId
     , channel :: Word64
@@ -216,15 +197,10 @@ data AskRequest = ASKR
     }
   deriving (Show)
 
--- TODO: We in theory have send done, but recv is the hard part since the recv
--- also must respond to the recv.
-
 data Request
     = ReqEval EvalRequest
     | ReqCall CallRequest
     | ReqWhat (Set Nat)
-    | ReqSend SendRequest
-    | ReqRecv Word64
     | ReqTell Word64 Fan
     | ReqAsk  AskRequest
     | ReqSpin SpinRequest
@@ -237,8 +213,6 @@ data Request
 {-
   [%eval timeout/@ fun/fan arg/Fan ...]
   [%cog %spin fun/Fan]
-  [%cog %send dst/Nat param/Fan]
-  [%cog %recv]
   [%cog %ask dst/Nat chan/Nat param/Fan]
   [%cog %tell chan/Nat fun/Fan]
   [$call synced/? param/Fan ...]
@@ -268,11 +242,6 @@ valToRequest cogId top = fromMaybe (UNKNOWN top) do
             "spin" | length row == 3 -> pure (ReqSpin $ SR $ row V.! 2)
             "reap" | length row == 3 -> ReqReap <$> fromNoun @CogId (row V.! 2)
             "stop" | length row == 3 -> ReqStop <$> fromNoun @CogId (row V.! 2)
-            "send" | length row >= 4 -> do
-                dst <- fromNoun @CogId (row V.! 2)
-                channel <- fromNoun (row V.! 3)
-                pure (ReqSend (SNDR dst channel (row V.! 4)))
-            "recv" | length row == 3 -> ReqRecv <$> fromNoun (row V.! 2)
             "tell" | length row == 4 -> do
                 channel <- fromNoun (row V.! 2)
                 pure (ReqTell channel (row V.! 3))
@@ -313,15 +282,6 @@ data EvalCancelledError = EVAL_CANCELLED
 type CogSysCalls = IntMap (Fan, LiveRequest)
 type MachineSysCalls = Map CogId CogSysCalls
 
--- | This is a record that a cog has an active SysCall requesting an
--- IPC-send to another cog.  See `CogSendPool`
-data PendingSendRequest = PENDING_SEND
-    { sender :: CogId
-    , reqIdx :: RequestIdx
-    , msg    :: Fan
-    }
-  deriving (Show)
-
 -- | The PendingAsk contains a pointer to an %asking request, along with its
 -- value. It exists so we can quickly look up its %msg at execution time from a
 -- pool of open asks.
@@ -350,8 +310,7 @@ data TellPayload = TELL_PAYLOAD
     }
   deriving (Show)
 
-
--- This is a collection of all {PendingSendRequest}s within all the cogs of a
+-- This is a collection of all {PendingAsk}s within all the cogs of a
 -- machine on all channels.  This is part of the top-level Machine STM state,
 -- because these IPC interactions need happen transactionally.
 type CogChannelPool a = Map CogId (TVar (ChannelPool a))
@@ -410,7 +369,6 @@ data Runner = RUNNER
     { ctx       :: MachineContext
     , vMoment   :: TVar Moment          -- ^ Current value + cumulative CPU time
     , vRequests :: TVar MachineSysCalls -- ^ Current requests table
-    , vSends    :: TVar (CogChannelPool PendingSendRequest)
 
     , vTellId   :: TVar Int
 
@@ -462,16 +420,6 @@ data LiveRequest
     lwhCog     :: Set Nat,
     lwhRuntime :: Set Nat
     }
-  | LiveSend {
-    lsndChannel  :: Word64,
-    lsndPoolId   :: Int,
-    lsndChannels :: TVar (ChannelPool PendingSendRequest)
-    }
-  | LiveRecv {
-    lrIdx      :: RequestIdx,
-    lrChannel  :: Word64,
-    lrChannels :: TVar (ChannelPool PendingSendRequest)
-    }
   | LiveTell {
     ltCogId    :: CogId,
     ltIdx      :: RequestIdx,
@@ -507,8 +455,6 @@ instance Show LiveRequest where
         LiveEval{}  -> "EVAL"
         LiveCall{}  -> "CALL"
         LiveWhat{}  -> "WHAT"
-        LiveSend{}  -> "SEND"
-        LiveRecv{}  -> "RECV"
         LiveTell{}  -> "TELL"
         LiveAsk{}   -> "ASK"
         LiveSpin{}  -> "SPIN"
@@ -575,13 +521,6 @@ recomputeEvals m tells cogId tab =
                     Just fun -> do
                         let ef = CSpin newCogId fun
                         pure (k, NAT $ fromIntegral newCogId.int, Just ef)
-            ReceiptRecv{..} -> do
-                case getSendFunAt m sender cogId reqIdx of
-                    Nothing ->
-                        throwIO INVALID_RECV_RECEIPT_IN_LOGBATCH
-                    Just val ->
-                      let out = ROW $ arrayFromListN 2 [toNoun sender, val]
-                      in pure (k, out, Nothing)
             ReceiptTell{..} -> do
                 -- We have to retrieve data from both the ask and the tell
                 case (getAskFunAt m asker cogId reqIdx,
@@ -627,13 +566,6 @@ recomputeEvals m tells cogId tab =
     getSpinFunAt m cogId idx = withRequestAt m cogId idx $ \case
         ReqSpin (SR fun) -> Just fun
         _                -> Nothing
-
-    getSendFunAt :: Moment -> CogId -> CogId -> RequestIdx -> Maybe Fan
-    getSendFunAt m sender receiver idx = withRequestAt m sender idx $ \case
-        ReqSend (SNDR cogDst _channel msg)
-            | cogDst == receiver     -> Just msg
-            | otherwise              -> Nothing
-        _                            -> Nothing
 
     getAskFunAt :: Moment -> CogId -> CogId -> RequestIdx -> Maybe Fan
     getAskFunAt m sender receiver idx = withRequestAt m sender idx $ \case
@@ -794,11 +726,6 @@ replayAndCrankMachine cache ctx replayFrom = do
           vMoment   <- newTVar moment
           vRequests <- newTVar mempty
 
-          sendChannels <- forM (keys moment.val) $ \k -> do
-              channelPools <- newTVar mempty
-              pure (k, channelPools)
-          vSends      <- newTVar $ mapFromList sendChannels
-
           reqChannels <- forM (keys moment.val) $ \k -> do
               channelPools <- newTVar mempty
               pure (k, channelPools)
@@ -806,7 +733,7 @@ replayAndCrankMachine cache ctx replayFrom = do
 
           vTellId <- newTVar 0
 
-          pure RUNNER{vMoment, ctx, vRequests, vSends, vTellId, vAsks}
+          pure RUNNER{vMoment, ctx, vRequests, vTellId, vAsks}
 
       -- TODO: Hack because I don't understand how this is supposed
       -- to work.
@@ -917,28 +844,6 @@ buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
         pure ([], LiveWhat{lwhIdx=reqIdx,lwhCog=what,lwhRuntime=runtime},
               Nothing)
 
-    ReqRecv channel -> do
-        sends <- readTVar runner.vSends
-        channels <- case M.lookup cogId sends of
-            Nothing   -> error $ "Listening on a nonexistent cog " <> show cogId
-            Just pool -> pure pool
-        -- pool <- case M.lookup
-        pure ([], LiveRecv{lrIdx=reqIdx,lrChannel=channel,lrChannels=channels},
-              Nothing)
-
-    ReqSend SNDR{cogDst,channel,msg} -> do
-        sends <- readTVar runner.vSends
-        case M.lookup cogDst sends of
-            Nothing -> error $ "Bad cogDst " <> show cogDst
-            Just vChannels -> do
-                poolId <-
-                    channelPoolRegister channel
-                                        vChannels
-                                        (PENDING_SEND cogId reqIdx msg)
-                pure ([], LiveSend{lsndChannel=channel,
-                                   lsndPoolId=poolId,
-                                   lsndChannels=vChannels}, Nothing)
-
     ReqAsk ASKR{cogDst,channel,msg} -> do
         asks <- readTVar runner.vAsks
         case M.lookup cogDst asks of
@@ -985,9 +890,6 @@ cancelRequest :: LiveRequest -> STM ()
 cancelRequest LiveEval{..} = leRecord.cancel.action
 cancelRequest LiveCall{..} = lcCancel.action
 cancelRequest LiveWhat{}   = pure ()
-cancelRequest LiveRecv{}   = pure ()
-cancelRequest LiveSend{..} =
-    channelPoolUnregister lsndChannel lsndChannels lsndPoolId
 cancelRequest LiveTell{}   = pure ()
 cancelRequest LiveAsk{..} =
     channelPoolUnregister lcrChannel lcrChannels lcrPoolId
@@ -1036,22 +938,6 @@ receiveResponse st = \case
         guard (lwhCog /= lwhRuntime)
         let resp = RespWhat lwhRuntime
         pure (Just RTUP{key=lwhIdx,resp,work=0,flow=FlowDisabled})
-
-    (_, LiveSend{}) ->
-        -- Sends are never responded to normally, they're responded manually as
-        -- a side effect of a recv so that we maintain atomicity of the
-        -- send/recv pair in the log.
-        retry
-
-    (_, LiveRecv{..}) -> do
-        channelPoolTake lrChannel lrChannels >>= \case
-            Nothing -> pure Nothing
-            Just send -> do
-                pure (Just RTUP{key=lrIdx,
-                                resp=RespRecv send,
-                                work=0,
-                                -- TODO: Hook up send flows here.
-                                flow=FlowDisabled})
 
     (_, LiveAsk{}) ->
         -- Asks are never responded to normally, they're responded manually as
@@ -1131,7 +1017,6 @@ receiveResponse st = \case
                     -> CogState
                     -> STM (Maybe ResponseTuple)
     performStoplike mkResponse reqIdx cogId cogVal = do
-        modifyTVar' st.vSends $ M.delete cogId
         modifyTVar' st.vAsks $ M.delete cogId
         modifyTVar' st.vMoment
                     \m -> m { val=deleteMap cogId m.val }
@@ -1303,7 +1188,7 @@ runnerFun initialFlows machine processName st =
     -   The cog's requests row is updated to reflect the new set of
         requests.
 
-    -   If we received an IPC message, the corresponding COG_SEND request
+    -   If we received a COG_TELL message, the corresponding COG_ASK request
         is also processed.
 
     -   If we spawned a cog or stopped a cog, we inform every hardware
@@ -1372,9 +1257,9 @@ runResponse st cogNum rets = do
         CG_SPINNING _ -> pure ()
         _             -> for_ st.ctx.hw.table $ \d -> d.stop cogNum
 
-      -- 4) %cog %send/%recv must execute in pairs. We finally synchronously
-      -- trigger any %send acknowledgments now that the %recv has processed.
-      afterResults <- mapM (performSendAck resultReceipt) responses
+      -- 4) %cog %ask/%tell must execute in pairs. We finally synchronously
+      -- trigger any %ask callback now that the %tell has processed.
+      afterResults <- mapM (performAskAck resultReceipt) responses
 
       let (sideEffectFlows, sideEffectPersists) = concatUnzip sideEffects
           (afterFlows, afterReceipts) = concatUnzip afterResults
@@ -1435,9 +1320,6 @@ runResponse st cogNum rets = do
     performSpinEffects :: Response
                        -> STM ([Flow], [STM OnCommitFlow])
     performSpinEffects (RespSpin newCogId fun) = do
-        sendChannelPools <- newTVar mempty
-        modifyTVar' st.vSends \sends ->
-            M.insert newCogId sendChannelPools sends
         reqChannelPools <- newTVar mempty
         modifyTVar' st.vAsks \reqs ->
             M.insert newCogId reqChannelPools reqs
@@ -1448,42 +1330,19 @@ runResponse st cogNum rets = do
     performSpinEffects _ = pure mempty
 
     -- Performed outside the Big Atomically Block
-    performSendAck :: Receipt
+    performAskAck :: Receipt
                    -> Response
                    -> IO ([Flow], [(Receipt, [STM OnCommitFlow])])
-    performSendAck result (RespRecv PENDING_SEND{..}) = do
+    performAskAck result (RespTell TELL_PAYLOAD{..}) = do
         -- When an IPC message is received, the corresponding
-        -- send syscall on the sender cog must also be processed
+        -- ask syscall on the asking cog must also be processed
         -- within the same transaction.
         --
         -- We do this recursively invoking runResponse for that
         -- syscall as well.
         --
         -- We are sure that the `reqIdx` still corresponds to
-        -- an active COG_SEND syscall because of reasons.
-        let outcome = case result of
-              RECEIPT_OK{} -> SendOK
-              _            -> SendCrash
-
-        -- TODO: Enable profiling flows; how do we connect
-        -- the recv completing to this?
-        let rtup = RTUP { key  = reqIdx
-                        , resp = RespSend outcome
-                        , work = 0
-                        , flow = FlowDisabled
-                        }
-        runResponse st sender [(reqIdx.int, rtup)]
-
-    performSendAck result (RespTell TELL_PAYLOAD{..}) = do
-        -- When an IPC message is received, the corresponding
-        -- send syscall on the sender cog must also be processed
-        -- within the same transaction.
-        --
-        -- We do this recursively invoking runResponse for that
-        -- syscall as well.
-        --
-        -- We are sure that the `reqIdx` still corresponds to
-        -- an active COG_SEND syscall because of reasons.
+        -- an active COG_ASK syscall because of reasons.
         let outcome = case result of
               RECEIPT_OK{} -> OutcomeOK askResp tellId
               _            -> OutcomeCrash
@@ -1497,7 +1356,7 @@ runResponse st cogNum rets = do
                         }
         runResponse st asker [(reqIdx.int, rtup)]
 
-    performSendAck _ _ = pure ([], [])
+    performAskAck _ _ = pure ([], [])
 
 
 {-
@@ -1584,8 +1443,6 @@ parseRequests runner cogId = do
         ReqCall rc -> "%call " <> (encodeUtf8 $
                           describeSyscall runner.ctx.hw rc.device rc.params)
         ReqWhat{}  -> "%what"
-        ReqSend{}  -> "%send"
-        ReqRecv{}  -> "%recv"
         ReqTell{}  -> "%tell"
         ReqAsk{}   -> "%ask"
         ReqSpin{}  -> "%spin"
@@ -1600,8 +1457,6 @@ parseRequests runner cogId = do
         ReqCall rc -> "%call " <> (encodeUtf8 $
                           syscallCategory runner.ctx.hw rc.device rc.params)
         ReqWhat{}  -> "%what"
-        ReqSend{}  -> "%cog"
-        ReqRecv{}  -> "%cog"
         ReqTell{}  -> "%tell"
         ReqAsk{}   -> "%ask"
         ReqSpin{}  -> "%cog"

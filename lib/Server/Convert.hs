@@ -47,40 +47,34 @@ instance ToNoun ReceiptItem where
     toNoun re = toNoun $ case re of
         ReceiptEvalOK   -> NAT 0
         ReceiptVal val  -> toNoun (NAT 1, val)
-        ReceiptRecv{..} -> toNoun (NAT 2, sender, reqIdx)
-        {- TODO: Clean up order when removing send/recv -}
-        ReceiptTell{..} -> toNoun (NAT 8, asker, reqIdx, tellId)
-        ReceiptAsk{..}  -> toNoun (NAT 9, tellId)
-        ReceiptSpun{..} -> toNoun (NAT 3, cogNum)
-        ReceiptReap{..} -> toNoun (NAT 4, cogNum)
-        ReceiptStop{..} -> toNoun (NAT 5, cogNum)
+        ReceiptTell{..} -> toNoun (NAT 2, asker, reqIdx, tellId)
+        ReceiptAsk{..}  -> toNoun (NAT 3, tellId)
+        ReceiptSpun{..} -> toNoun (NAT 4, cogNum)
+        ReceiptReap{..} -> toNoun (NAT 5, cogNum)
+        ReceiptStop{..} -> toNoun (NAT 6, cogNum)
 
 instance FromNoun ReceiptItem where
     fromNoun n = case n of
         NAT 0                     -> Just ReceiptEvalOK
         ROW v -> case toList v of
             [NAT 1, val]          -> Just $ ReceiptVal val
-            [NAT 2, cogN, reqN]   -> do
-                sender <- fromNoun cogN
-                reqIdx <- fromNoun reqN
-                Just ReceiptRecv{..}
-            [NAT 3, cogN]         -> do
-                cogNum <- fromNoun cogN
-                Just ReceiptSpun{..}
-            [NAT 4, cogN]         -> do
-                cogNum <- fromNoun cogN
-                Just ReceiptReap{..}
-            [NAT 5, cogN]         -> do
-                cogNum <- fromNoun cogN
-                Just ReceiptStop{..}
-            [NAT 8, askerN, reqN, tellN] -> do
+            [NAT 2, askerN, reqN, tellN] -> do
                 asker <- fromNoun askerN
                 reqIdx <- fromNoun reqN
                 tellId <- fromNoun tellN
                 Just ReceiptTell{..}
-            [NAT 9, tellN] -> do
+            [NAT 3, tellN] -> do
                 tellId <- fromNoun tellN
                 Just ReceiptAsk{..}
+            [NAT 4, cogN]         -> do
+                cogNum <- fromNoun cogN
+                Just ReceiptSpun{..}
+            [NAT 5, cogN]         -> do
+                cogNum <- fromNoun cogN
+                Just ReceiptReap{..}
+            [NAT 6, cogN]         -> do
+                cogNum <- fromNoun cogN
+                Just ReceiptStop{..}
             _                     -> Nothing
         _                         -> Nothing
 

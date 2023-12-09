@@ -37,9 +37,6 @@ data ReceiptItem
   -- | Receipt of anything else.
   | ReceiptVal Fan
 
-  -- | Receipt of a recv. Points back to the sending cause.
-  | ReceiptRecv { sender :: CogId, reqIdx :: RequestIdx }
-
   -- | Receipt of a serve. {reqIdx} points back to the requesting
   -- cause. `(sender, serveId)` should form a unique identifier for the return
   -- value to be consumed in ReceiptRequest.
@@ -71,7 +68,6 @@ data CogFailure
     | INVALID_CRASHED_IN_LOGBATCH
     | INVALID_OK_RECEIPT_IN_LOGBATCH
     | INVALID_SPUN_RECEIPT_IN_LOGBATCH CogId
-    | INVALID_RECV_RECEIPT_IN_LOGBATCH
     | INVALID_TELL_RECEIPT_IN_LOGBATCH
     | INVALID_ASK_RECEIPT_IN_LOGBATCH
     | INVALID_REAP_RECEIPT_IN_LOGBATCH
