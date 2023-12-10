@@ -226,8 +226,8 @@ natAnd :: Nat -> Nat -> Nat
 natAnd = \cases
     (NatS# x) (NatS# y) -> wordNat (W# x .&. W# y) -- will never grow
     (NatJ# x) (NatJ# y) -> exoNat (x .&. y)        -- May shrink
-    (NatS# x) (NatJ# y) -> exoNat (wordExo (W# x) .&. y)
-    (NatJ# x) (NatS# y) -> exoNat (x .&. wordExo (W# y))
+    (NatS# x) (NatJ# y) -> exoNat (wordExo (W# x) .&. y) -- TODO just use LSW
+    (NatJ# x) (NatS# y) -> exoNat (x .&. wordExo (W# y)) -- TODO just use LSW
     -- TODO: Optimize
 
 natIor :: Nat -> Nat -> Nat
