@@ -98,9 +98,8 @@ jetImpls = mapFromList
   , ( "drop"        , vdropJet   )
   , ( "cat"         , vcatJet    )
   , ( "zip"         , vzipJet    )
-  , ( "listToRow"   , listToRowJet )
-  , ( "listToRowRev"   , listToRowRevJet )
-  , ( "sizedListToRow" , sizedListToRowJet )
+  , ( "_SizedListToRow" , sizedListToRowJet )
+  , ( "_SizedListToRowRev" , sizedListToRowRevJet )
   , ( "unfoldr"     , unfoldrJet )
   , ( "bsearch"     , bsearchJet )
 
@@ -390,14 +389,6 @@ vrevJet :: Jet
 vrevJet f env = orExec (f env) do
       (ROW . rowReverse) <$> getRow (env.!1)
 
-listToRow :: Fan -> Maybe (Array Fan)
-listToRow input = V.toArray <$> V.unfoldrM build input
-  where
-    build :: Fan -> Maybe (Maybe (Fan, Fan))
-    build (NAT _)                 = Just $ Nothing
-    build (ROW r) | length r == 2 = Just $ Just (r ! 0, r ! 1)
-    build _                       = Nothing
-
 --
 -- TODO: What to do if given an unreasonable size here?  PLAN code will
 -- do something insane, but wont crash, this will crash.
@@ -406,21 +397,23 @@ listToRow input = V.toArray <$> V.unfoldrM build input
 --
 sizedListToRow :: Int -> Fan -> Maybe (Array Fan)
 sizedListToRow sz input = runST do
-    buf <- newArray sz (error "sizedListToRow: ininitialized")
-    let go _ 0 (NAT 0)                 = Just <$> unsafeFreezeArray buf
-        go _ _ (NAT 0)                 = pure Nothing
-        go _ 0 _                       = pure Nothing
-        go i n (ROW r) | length r == 2 = do writeArray buf i (r!0)
-                                            go (i+1) (n-1) (r!1)
-        go _ _ _                       = pure Nothing
-    go 0 sz input
+    buf <- newArray sz (NAT 0)
+    let go _ (NAT 0)                 = Just <$> unsafeFreezeArray buf
+        go 0 _                       = Just <$> unsafeFreezeArray buf
+        go n (ROW r) | length r == 2 = do writeArray buf (sz-n) (r!0)
+                                          go (n-1) (r!1)
+        go _ _                       = pure Nothing
+    go sz input
 
-listToRowJet :: Jet
-listToRowJet f env = orExec (f env) (ROW <$> listToRow (env.!1))
-
-listToRowRevJet :: Jet
-listToRowRevJet f env = orExec (f env)
-                        ((ROW . rowReverse) <$> listToRow (env.!1))
+sizedListToRowRev :: Int -> Fan -> Maybe (Array Fan)
+sizedListToRowRev sz input = runST do
+    buf <- newArray sz (NAT 0)
+    let go _ (NAT 0)                 = Just <$> unsafeFreezeArray buf
+        go 0 _                       = Just <$> unsafeFreezeArray buf
+        go i (ROW r) | length r == 2 = do writeArray buf (i-1) (r!0)
+                                          go (i-1) (r!1)
+        go _ _                       = pure Nothing
+    go sz input
 
 sizedListToRowJet :: Jet
 sizedListToRowJet f env =
@@ -429,6 +422,15 @@ sizedListToRowJet f env =
                   NAT sz | sz <= maxInt -> pure (fromIntegral sz)
                   _                     -> Nothing
         rw <- sizedListToRow sz (env .! 2)
+        pure (ROW rw)
+
+sizedListToRowRevJet :: Jet
+sizedListToRowRevJet f env =
+    orExec (f env) do
+        sz <- case (env .! 1) of
+            NAT sz | sz <= maxInt -> pure (fromIntegral sz)
+            _                     -> Nothing
+        rw <- sizedListToRowRev sz (env .! 2)
         pure (ROW rw)
 
 unfoldrJet :: Jet

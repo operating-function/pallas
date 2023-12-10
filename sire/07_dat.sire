@@ -364,25 +364,16 @@
 & (x xs)
 | CONS f-x listMap-f-xs
 
-;; TODO: Create a versions of {listToRow} and {listToRowRev}
-;; that work with static lengths:
-;;
-;; -  It always produces a row of a certain size.
-;; -  If the list is too long, only the head is taken.
-;; -  If the list is too short, the rest of the row is zeros.
-
-= (listLen l)           | listFoldr (x acc & inc acc) 0 l
-= (listSum l)           | listFoldr add 0 l
-= (listToRow l)         | listFoldr supply cow-(listLen l) l
-= (listToRowRev l)      | listFoldl apply cow-(listLen l) l
-= (listFromRow v)       | foldr CONS NIL v
-= (sizedListToRow sz l) | listFoldr supply cow-sz l
-= (listAnd v)           | listFoldr and TRUE v
-= (listOr v)            | listFoldr or 0 v
-= (listAll f v)         | listAnd listMap-f-v
-= (listAny f v)         | listOr listMap-f-v
-= (listHas e xs)        | listAny eql-e xs
-= (listEnumFrom n)      | CONS n (listEnumFrom inc-n)
+= (listLen l)      | listFoldr (x acc & inc acc) 0 l
+= (listSum l)      | listFoldr add 0 l
+= (listFromRow v)  | foldr CONS NIL v
+= (listAnd v)      | listFoldr and TRUE v
+= (listOr v)       | listFoldr or 0 v
+= (listAll f v)    | listAnd listMap-f-v
+= (listAny f v)    | listOr listMap-f-v
+= (listHas e xs)   | listAny eql-e xs
+= (listEnumFrom n) | CONS n (listEnumFrom inc-n)
+= (listRepeat n)   | CONS n listRepeat-n
 
 = (listWeld a b)
 | listCase a b
@@ -422,6 +413,32 @@
 
 !!= [2 [3 0]]     | listTakeWhile id [2 [3 [0 [4 [5 0]]]]]
 !!= [0 [4 [5 0]]] | listDropWhile id [2 [3 [0 [4 [5 0]]]]]
+
+= (_SizedListToRow sz l)
+| listFoldr supply cow-sz
+| listTake sz (listWeld l listRepeat-0)
+
+= (_SizedListToRowRev sz l)
+| listFoldl apply cow-sz
+| listTake sz (listWeld l listRepeat-0)
+
+= sizedListToRow    | _SizedListToRow
+= sizedListToRowRev | _SizedListToRowRev
+= (listToRow l)     | sizedListToRow listLen-l l
+= (listToRowRev l)  | sizedListToRowRev listLen-l l
+
+!!= [1 2 3] | sizedListToRow      3 [1 [2 [3 [4 [5 0]]]]]
+!!= [1 2 0] | sizedListToRow      3 [1 [2 0]]
+!!= []      | sizedListToRow      0 [1 [2 [3 0]]]
+!!= [0 0 0] | sizedListToRow      3 NIL
+!!= [3 2 1] | sizedListToRowRev 3 [1 [2 [3 [4 [5 0]]]]]
+!!= [0 2 1] | sizedListToRowRev 3 [1 [2 0]] ; TODO is this behavior good?
+!!= []      | sizedListToRowRev 0 [1 [2 [3 0]]]
+!!= [0 0 0] | sizedListToRowRev 3 NIL
+!!= [1 2 3] | listToRow           [1 [2 [3 0]]]
+!!= []      | listToRow           NIL
+!!= [1 2 3] | listToRowRev        [3 [2 [1 0]]]
+!!= []      | listToRowRev        NIL
 
 = (listZipWith f al bl)
 | listCase al NIL
@@ -952,8 +969,9 @@ F=found
 ^-^
 ^-^ listFoldl listFoldl1
 ^-^ listFoldr
-^-^ listLen listToRow sizedListToRow
-^-^ listToRowRev listFromRow listAnd listOr listSum listAll listAny
+^-^ listLen listToRow sizedListToRow sizedListToRowRev
+^-^ listToRowRev listFromRow
+^-^ listAnd listOr listSum listAll listAny
 ^-^ listHas listEnumFrom listWeld listCat listTake listDrop
 ^-^ listTakeWhile listDropWhile
 ^-^ listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn
