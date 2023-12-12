@@ -113,11 +113,11 @@
 
 ;;; The Col Macro ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= cbExpect | {Expected a <- (or <) node in : binder}
+= cbExpect | {Expected a < node in : binder}
 
 = (readColBinder readExp rex err ok)
 @ rune (rexRune rex)
-| if (and (neq {<-} rune) (neq {<} rune))
+| if (neq {<} rune)
     | err rex cbExpect
 | if (null | rexKids rex)
     | err rex {Empty bind expression}
