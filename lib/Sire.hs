@@ -30,7 +30,7 @@ import Rex.Print             (RexColor, RexColorScheme(NoColors))
 import Sire.Backend          (eval)
 import System.Directory      (doesFileExist)
 import System.IO             (hGetContents)
-import System.Exit           (exitWith, ExitCode(ExitFailure))
+import System.Exit           (exitWith, ExitCode(ExitFailure,ExitSuccess))
 
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Unsafe as BS
@@ -471,7 +471,7 @@ getIndicatedModule pax = do
 {-
     TODO: Caching
 -}
-main :: RexColor => [String] -> IO ()
+main :: RexColor => [String] -> IO ExitCode
 main moduleIndicators = do
 
   modules <- traverse getIndicatedModule moduleIndicators
@@ -479,7 +479,12 @@ main moduleIndicators = do
   writeIORef F.vShowFan  showFan
   writeIORef F.vTrkFan   trkFan
   writeIORef F.vJetMatch (F.jetMatch)
-  handle (\(F.PRIMOP_CRASH op arg) -> dieFan op arg) $
+
+  let onCrash (F.PRIMOP_CRASH op arg) = do
+          dieFan op arg
+          pure (ExitFailure 2)
+
+  handle onCrash $
     Prof.withProcessName "Sire" $
     Prof.withThreadName "Sire" do
     let go preloads modu = do
@@ -492,6 +497,8 @@ main moduleIndicators = do
     case reverse modules of
         []   -> repl initialSireStateAny Nothing
         m:ms -> go (reverse ms) m
+
+    pure ExitSuccess
 
 -- TODO Take file lock.
 withCache :: (IORef (Tab Any Any) -> IO a) -> IO a

@@ -357,7 +357,8 @@ main = do
             liftIO $ Loot.ReplExe.replMain fz
 
         RTSire _ _ _ fz -> do
-            liftIO $ Sire.main fz
+            code <- liftIO (Sire.main fz)
+            exitWith code
 
         RTSave _ _ sd sr -> do
             saveSeed sd sr
