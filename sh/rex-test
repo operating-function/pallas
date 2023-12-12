@@ -11,13 +11,9 @@ plunder save rex.seed rex
 
 for x in sire/*.sire
 do
-        echo plunder repl rex.seed "<$x" ">$x.new"
+        echo rex_test $x
         plunder repl rex.seed <$x >$x.new 2>/dev/null
-
-        echo rex "<$x" ">$x.old"
         rex <$x >$x.old
-
-        echo diff "$x.new" "$x.old"
         diff $x.new $x.old
 
         rm $x.new $x.old
