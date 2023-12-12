@@ -366,7 +366,7 @@ initialBS=(1, NONE)
 
 > PartialBlock > (Row (Nat, Row Lexed))
 = (emit (PB depth ln acc))
-| [(ln, listToRowReversed acc)]
+| [(ln, listToRowRev acc)]
 
 > BlockState > Maybe Lexed > (BlockState, Row (Nat, Row Lexed))
 = (blockStep (ln, mPb) mLine)

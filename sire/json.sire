@@ -446,7 +446,7 @@ setProp#(JMAP.conRaw)#TRUE
    : t ts     < listCase stream complain
    ;
    | if (t == TRBRAK)
-       @ res (JVEC | listToRowReversed acc)
+       @ res (JVEC | listToRowRev acc)
        | ok res ts
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [val]
    : val more <- val stream fail
@@ -457,7 +457,7 @@ setProp#(JMAP.conRaw)#TRUE
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [final]
    | if (TRBRAK == m)
        @ acc (CONS val acc)
-       @ !res (JVEC | listToRowReversed acc) ; TODO: use a sized operation here
+       @ !res (JVEC | listToRowRev acc) ; TODO: use a sized operation here
        | ok res ms
    | if (TCOMMA == m)
        @ acc (CONS val acc)

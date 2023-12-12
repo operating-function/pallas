@@ -155,7 +155,7 @@ dataTag=_DataTag
 ^ _ NIL rex
 ? (go acc rex)
 | if (isZero rex)
-    | ret (listToRowReversed acc)
+    | ret (listToRowRev acc)
 | ifNot (rexRune rex == {*})
     | err rex fieldItemExpect
 @ sons    (rexSons rex)
@@ -322,7 +322,7 @@ ex=(PAIR %a %b)
 : sig < readDatatypeSig this err
 @ !acc sig::acc
 | if (isZero that)
-    | ok (listToRowReversed acc)
+    | ok (listToRowRev acc)
 | else
     | go acc that
 
@@ -448,7 +448,7 @@ ex=(PAIR %a %b)
 ;
 : [sigRex bodyRex] remain
     < listCase remain
-        | ok oFallback (listToRowReversed acc)
+        | ok oFallback (listToRowRev acc)
 ;
 : bodyExp <- readExp bodyRex err
 ;
@@ -503,7 +503,7 @@ ex=(PAIR %a %b)
 ;
 : hed@[sigRex constr fields bodyRex] remain
     < listCase remain
-        | ok hasTag fun fallback (listToRowReversed acc)
+        | ok hasTag fun fallback (listToRowRev acc)
 ;
 : bindKey bindRow <- getBind constr ss rex err
 @ props (getProps ss bindRow)

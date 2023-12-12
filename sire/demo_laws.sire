@@ -68,7 +68,7 @@ hexAlphabet=(natBar {0123456789abcdef})
 
 ; All pins referenced by a val.
 = (refs top)
-| listToRowReversed
+| listToRowRev
 @ ini (if isPin-top pinItem-top top)
 ^ _ NIL ini
 ? (go set non)
@@ -85,7 +85,7 @@ hexAlphabet=(natBar {0123456789abcdef})
 
 ; All the pins reference in the body of a pin.
 = (pinRefs top)
-| listToRowReversed
+| listToRowRev
 ^ _ NIL (pinItem top)
 ? (go set non)
 | if isPin-non
@@ -143,7 +143,7 @@ hexAlphabet=(natBar {0123456789abcdef})
 = (maybeRowSequence results)
 ^ _ NIL listFromRow-results
 ? (loop acc rest)
-: mX more <- listCase rest SOME-(listToRowReversed acc)
+: mX more <- listCase rest SOME-(listToRowRev acc)
 : x <- maybeCase mX NONE
 | loop (CONS x acc) more
 
@@ -327,7 +327,7 @@ hexAlphabet=(natBar {0123456789abcdef})
 ^ _ NIL rex
 ? (loop acc rex)
 | if (isZero rex)
-        | ok | listToRowReversed acc
+        | ok | listToRowRev acc
 | if (neq {=} (rexRune rex))
         | err rex {Knot patterns must be = nodes}
 : sym rhs

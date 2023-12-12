@@ -364,7 +364,7 @@
 & (x xs)
 | CONS f-x listMap-f-xs
 
-;; TODO: Create a versions of {listToRow} and {listToRowReversed}
+;; TODO: Create a versions of {listToRow} and {listToRowRev}
 ;; that work with static lengths:
 ;;
 ;; -  It always produces a row of a certain size.
@@ -374,7 +374,7 @@
 = (listLen l)           | listFoldr (x acc & inc acc) 0 l
 = (listSum l)           | listFoldr add 0 l
 = (listToRow l)         | listFoldr supply cow-(listLen l) l
-= (listToRowReversed l) | listFoldl apply cow-(listLen l) l
+= (listToRowRev l)      | listFoldl apply cow-(listLen l) l
 = (listFromRow v)       | foldr CONS NIL v
 = (sizedListToRow sz l) | listFoldr supply cow-sz l
 = (listAnd v)           | listFoldr and TRUE v
@@ -761,7 +761,7 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
 @ heir (rexHeir rex)
 @ rune (rexRune rex)
 | if (isZero rex)
-    | ok (listToRowReversed acc)
+    | ok (listToRowRev acc)
 | if (neq topRune rune)
     | readExp rex err exp&(go (CONS exp acc) 0)
 | if (null sons)
@@ -953,7 +953,7 @@ F=found
 ^-^ listFoldl listFoldl1
 ^-^ listFoldr
 ^-^ listLen listToRow sizedListToRow
-^-^ listToRowReversed listFromRow listAnd listOr listSum listAll listAny
+^-^ listToRowRev listFromRow listAnd listOr listSum listAll listAny
 ^-^ listHas listEnumFrom listWeld listCat listTake listDrop
 ^-^ listTakeWhile listDropWhile
 ^-^ listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn

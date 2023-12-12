@@ -459,7 +459,7 @@ abstype#TyExp
 
 = (parseTypeAnnotation ss topRex err ok)
 ^ _ FALSE NIL topRex & l
-                     @ ty (bigFun | listToRowReversed l)
+                     @ ty (bigFun | listToRowRev l)
                      | ok ty
 ? (loop fancy acc rex ret)
 | if (isZero rex) (ret acc)

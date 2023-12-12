@@ -251,11 +251,11 @@ spaceToks=(setFromRow [WYTE SEMI TERM])
 : next more
     < listCase remain
         | if acc==NIL NIL
-        | listSing mkClump-(listToRowReversed acc)
+        | listSing mkClump-(listToRowRev acc)
 | if (acc==NIL && elemIsSpace next)
     | clumpLoop acc more
 | if (acc/=NIL && isEndOfCluster remain)
-    | **CONS mkClump-(listToRowReversed acc)
+    | **CONS mkClump-(listToRowRev acc)
     | clumpLoop ~[] remain
 | clumpLoop next::acc more
 
@@ -395,7 +395,7 @@ d=(SPAN x 2 3 [(SPAN x 2 3 RUNE)])
 = (iTree item@(I t x k))
 | if (isZero t) ({invalid item} item)
 ; trk [iTree item]
-| **NODE t (listToRowReversed x) k
+| **NODE t (listToRowRev x) k
 
 > (Nat, Tree) > (Nat, Item) > (Nat, Item)
 = (merge [rp r] [ip i@(I t cs mHeir)])
@@ -826,7 +826,7 @@ typedef#(NonEmpty a)#(a, List a)
     ^ 06_rex.NEST {|} _ 0
     | listToRow (listMap clumpRex all)
 
-(mkInfix rune acc)=(06_rex.INFX (barNat rune) (listToRowReversed acc) NONE)
+(mkInfix rune acc)=(06_rex.INFX (barNat rune) (listToRowRev acc) NONE)
 
 > (Clump -> Rex) > Bar > List (Frag Clump)
 = (paraPrefix clumpRex rune frags)
@@ -834,7 +834,7 @@ typedef#(NonEmpty a)#(a, List a)
 ? (go rune acc frags)
 : f fs
     < listCase frags
-        | 06_rex.NEST (barNat rune) (listToRowReversed acc) NONE
+        | 06_rex.NEST (barNat rune) (listToRowRev acc) NONE
 # datacase f
 * WOLF-rx-_ | go rune (go rx NIL fs :: acc) ~[]
 * LAMB-cl   | go rune (clumpRex cl  :: acc) fs
@@ -898,7 +898,7 @@ typedef#(NonEmpty a)#(a, List a)
 
 > Bar > List Rex > Rex
 = (ifix rune acc)
-| **SHUT (barNat rune) (listToRowReversed acc) NONE
+| **SHUT (barNat rune) (listToRowRev acc) NONE
 
 > Bar > List Rex > SubLayout Elem
 = (eatInfix clumpRex tightPolicy rune acc slay)

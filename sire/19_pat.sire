@@ -323,7 +323,7 @@
 = (sequenceBindPair ss bindSpec exp)
 ^ _ exp bindSpec ss NIL
         & (ss acc)
-        @ row (listToRowReversed acc)
+        @ row (listToRowRev acc)
         | [ss (map (take 3) row) (cat | map idx-3 row)]
 ? (go exp bindSpec ss acc ok)
 @ typ (idx 0 bindSpec)

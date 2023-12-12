@@ -99,7 +99,7 @@ jetImpls = mapFromList
   , ( "cat"         , vcatJet    )
   , ( "zip"         , vzipJet    )
   , ( "listToRow"   , listToRowJet )
-  , ( "listToRowReversed"   , listToRowReversedJet )
+  , ( "listToRowRev"   , listToRowRevJet )
   , ( "sizedListToRow" , sizedListToRowJet )
   , ( "unfoldr"     , unfoldrJet )
   , ( "bsearch"     , bsearchJet )
@@ -418,9 +418,9 @@ sizedListToRow sz input = runST do
 listToRowJet :: Jet
 listToRowJet f env = orExec (f env) (ROW <$> listToRow (env.!1))
 
-listToRowReversedJet :: Jet
-listToRowReversedJet f env = orExec (f env)
-                             ((ROW . rowReverse) <$> listToRow (env.!1))
+listToRowRevJet :: Jet
+listToRowRevJet f env = orExec (f env)
+                        ((ROW . rowReverse) <$> listToRow (env.!1))
 
 sizedListToRowJet :: Jet
 sizedListToRowJet f env =

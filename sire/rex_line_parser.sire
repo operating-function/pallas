@@ -187,11 +187,11 @@ empt=(parserMap (const NIL) (char {]}))
 @ (unravel roon ns fs)
     # datacase fs
     * NIL
-        | PREFX roon (listToRowReversed ns)
+        | PREFX roon (listToRowRev ns)
     * (CONS i is)
         # datacase i
         * (RIGHT w) | unravel roon (w::ns) is
-        * (LEFT r)  ^ PREFX roon (listToRowReversed _::ns)
+        * (LEFT r)  ^ PREFX roon (listToRowRev _::ns)
                     ^ SHIP ,(INEST _)
                     | unravel r NIL is
 : fs <- bind (choice term (frogs form))

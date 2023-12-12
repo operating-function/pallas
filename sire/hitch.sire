@@ -230,7 +230,7 @@ abstype#(LazyIndex k v) ; TODO: (???)
     @ key          | leafFirstKey right
     | loop leafEmpty (CONS key keys) (CONS right (CONS left leafs))
 | if (isZero itemLen)
-    [(listToRowReversed keys) (listToRowReversed leafs)]
+    [(listToRowRev keys) (listToRowRev leafs)]
 | die %leafConstraintViolation
 
 

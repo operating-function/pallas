@@ -70,7 +70,7 @@
 /+  06_rex  [rexSetRune rexSetHeir rexSetSons]
 /+  07_dat  [{,} {++} {>} take drop]
 /+  07_dat  [NONE SOME maybeCase]
-/+  07_dat  [CONS NIL listToRowReversed listCase listFromRow]
+/+  07_dat  [CONS NIL listToRowRev listCase listFromRow]
 /+  07_dat  [LEFT RIGHT eitherCase]
 /+  07_dat  [rowTraverse listMap listFoldr rowCons]
 /+  07_dat  [readRex]
@@ -262,7 +262,7 @@
 ? (loop acc rex)
 @ sons (rexSons rex)
 @ rune (rexRune rex)
-| if (isZero rex)   | ok | listToRowReversed acc
+| if (isZero rex)   | ok | listToRowRev acc
 | if (neq {*} rune) | loop (CONS rex acc) 0
 | if (null sons)
     | err rex {Empty * item (not okay)}

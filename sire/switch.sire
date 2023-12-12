@@ -87,19 +87,19 @@
 : kids heir
         < rexGetNodeWithRune rune form
                 : end <- parseAlien form err
-                | ok (listToRowReversed (CONS end acc))
+                | ok (listToRowRev (CONS end acc))
 @ size (len kids)
 | if (and (eql 1 size) (neq 0 heir))
         ; = foo
         ; body
         @ [kid] kids
-        | ok (listToRowReversed (CONS [kid heir] acc))
+        | ok (listToRowRev (CONS [kid heir] acc))
 | if (neq 2 size)
         | err form (strWeld rune { node expects two parameters})
 ; = foo body
 @ acc (CONS kids acc)
 | if (isZero heir)
-        | ok (listToRowReversed acc)
+        | ok (listToRowRev acc)
 | loop acc heir
 
 unrollSlip2Tis=(unrollSlip2Rune {=})
