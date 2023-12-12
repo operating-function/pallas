@@ -702,7 +702,7 @@
 = (eitherGetRight x k)     (eitherCase x _&x k)
 = (eitherGetLeft x k)      (eitherCase x k _&x)
 = (eitherMap f val)        (eitherCase val 0 (x & 1 f-x))
-= (eitherBind val f)       (eitherCase val val f)
+= (eitherBind val f)       (eitherCase val _&val f)
 
 !!= 1 | eitherCase RIGHT-0 const-0 inc
 !!= 1 | eitherCase RIGHT-1 const-0 id
