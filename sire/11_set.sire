@@ -253,7 +253,7 @@
 = ({%} st rex err ok)
 | readCenLit rex err
 & eRes
-@ val (**eitherCase eRes id id)
+@ val (eitherCase eRes id id)
 | trk [rex val]
 | ok st (EMBD val)
 

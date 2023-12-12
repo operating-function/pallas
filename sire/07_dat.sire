@@ -691,18 +691,18 @@
 = (**LEFT x)  [0 x]
 = (**RIGHT x) [1 x]
 
-= (eitherCase x l r)     (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
-= (fromRight l x)        (**eitherCase x l id)
-= (unpackRight x)        (**fromRight (die {Unexpected LEFT}) x)
-= (eitherCaseLeft x r l) (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
-= (eitherOpen x r)       (**eitherCase x _&x r)
-= (eitherOpenLeft x l)   (**eitherCase x l _&x)
-= (fromLeft r x)         (**eitherCase x id r)
-= (unpackLeft x)         (**fromLeft (die {Unexpected RIGHT}) x)
-= (eitherGetRight x k)   (**eitherCase x _&x k)
-= (eitherGetLeft x k)    (**eitherCase x k _&x)
-= (eitherMap f val)      (**eitherCase val 0 (x & 1 f-x))
-= (eitherBind val f)     (**eitherCase val val f)
+= (**eitherCase x l r)     (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
+= (fromRight l x)          (eitherCase x l id)
+= (unpackRight x)          (**fromRight (die {Unexpected LEFT}) x)
+= (**eitherCaseLeft x r l) (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
+= (eitherOpen x r)         (eitherCase x _&x r)
+= (eitherOpenLeft x l)     (eitherCase x l _&x)
+= (fromLeft r x)           (eitherCase x id r)
+= (unpackLeft x)           (**fromLeft (die {Unexpected RIGHT}) x)
+= (eitherGetRight x k)     (eitherCase x _&x k)
+= (eitherGetLeft x k)      (eitherCase x k _&x)
+= (eitherMap f val)        (eitherCase val 0 (x & 1 f-x))
+= (eitherBind val f)       (eitherCase val val f)
 
 !!= 1 | eitherCase RIGHT-0 const-0 inc
 !!= 1 | eitherCase RIGHT-1 const-0 id
