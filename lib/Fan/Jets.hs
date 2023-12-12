@@ -26,7 +26,8 @@ import Hash256
 import PlunderPrelude            hiding (traceM, (^))
 
 import Control.Exception (throw)
-import Data.Text.IO      (hPutStrLn, hPutStr)
+import Data.Char         (isUpper)
+import Data.Text.IO      (hPutStr, hPutStrLn)
 
 import qualified Data.Vector as V
 
@@ -109,19 +110,22 @@ jetMatch cpin = do
                                        pure (cpin.exec e)
                  (False, False) -> cpin.exec
 
+    let pHash      = cpin.hash
+    let hashText   = hashToBTC pHash
+    let jetLike    = case toList pinName of '_':c:_ -> isUpper c; _ -> False
+    let notMatched = do
+                hPutStrLn stderr (pad20 pinName "NOT MATCHED")
+                dumpHashLine pinName hashText
+
     case lookup pinName jetsByName of
-        Nothing ->
-            pure cpin
+        Nothing -> (when jetLike do notMatched) $> cpin
         Just (jetHash, exe) -> do
-            let pHash = cpin.hash
-            let hashText = hashToBTC pHash
             if jetHash == pHash then do
                 hPutStrLn stderr (pad20 pinName "MATCHED")
                 dumpHashLine pinName hashText
                 pure $ setExec (\env -> exe fallback env) cpin
             else do
-                hPutStrLn stderr (pad20 pinName "NOT MATCHED")
-                dumpHashLine pinName hashText
+                notMatched
                 if False then
                     -- TODO Hax XXX Delete This NOW!  This isn't safe at all!
                     -- What are you doing?  Why?  Stop!
