@@ -17,3 +17,4 @@ sh/sire-load-all </dev/null
 sh/rex-test
 
 sh/testdemo-cog-asktell-basic
+sh/testdemo-cog-asktell-askcrash
