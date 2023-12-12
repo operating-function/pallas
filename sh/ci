@@ -15,3 +15,5 @@ sh/sire-load-all </dev/null
 # failed!
 
 sh/rex-test
+
+sh/testdemo-cog-asktell-basic

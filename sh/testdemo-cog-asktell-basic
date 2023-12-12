@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+set -e
+
+DEMO=demo_cog_asktell_basic
+
+PIER=.test_${DEMO}
+
+OUTPUT=${DEMO}_stdout
+
+rm -rf "$PIER"
+
+plunder boot "$PIER" sire/$DEMO.sire >/dev/null 2>/dev/null
+
+plunder start "$PIER" >/dev/null 2>$OUTPUT
+
+rm -rf "$PIER"
+
+ok=$(grep "ALL TESTS PASSED" <$OUTPUT | wc -l)
+
+if [ "$ok" = 1 ]
+then
+    echo "TEST SUCCESS: $DEMO"
+else
+    echo
+    cat $OUTPUT
+    echo
+    echo "TEST FAILED: $DEMO"
+fi
+
+rm -rf "$OUTPUT"
+
+[ "$ok" = 1 ]
