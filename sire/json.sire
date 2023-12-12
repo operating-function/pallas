@@ -382,7 +382,7 @@ setProp#(JMAP.conRaw)#TRUE
 ;;; Parser ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (eatSpace stream)
-: t ts <- listCase stream stream
+: t ts < listCase stream stream
 | if (TSPACE == t) ts stream
 
 = (parseLexerStream inputStream topFail topOkay)
@@ -390,7 +390,7 @@ setProp#(JMAP.conRaw)#TRUE
    | val inputStream topFail topOkay
 * (val stream fail ok)
    @ stream | eatSpace stream
-   : t ts   <- listCase stream (fail {value} stream)
+   : t ts   < listCase stream (fail {value} stream)
    # switch (dataTag t)
    * null   | ok JNULL ts
    * true   | ok JTRUE ts
@@ -408,7 +408,7 @@ setProp#(JMAP.conRaw)#TRUE
    ;
    @ stream (eatSpace stream)
    ;
-   : t@[k v] ts <- listCase stream (fail }@'}', or key@ stream)
+   : t@[k v] ts < listCase stream (fail }@'}', or key@ stream)
    ;
    | if (t == TRCURL)
        @ !row (sizedListToRow count pairs)
@@ -449,7 +449,7 @@ setProp#(JMAP.conRaw)#TRUE
        @ res (JVEC | listToRowRev acc)
        | ok res ts
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [val]
-   : val more <- val stream fail
+   : val more < val stream fail
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [more]
    @ more     | eatSpace more
    @ complain | fail {space, ']', or value} stream

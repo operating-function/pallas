@@ -9,7 +9,7 @@
 /+  demo_timer
 
 = (whatDemo cur return)
-: ??(what_got_hw hw) <- syscall (WHAT cur)
+: ??(what_got_hw hw) < syscall (WHAT cur)
 | trk [%hardware hw]
 | whatDemo hw return
 

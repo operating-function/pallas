@@ -167,21 +167,21 @@ x=(LN {fil} 5 b#{(+)})
 
 > List Lexeme > List Lexeme
 = (multiLine topLs)
-: a@(SPAN aLin aOff aEnd aTok) ls <- listCase topLs NIL
+: a@(SPAN aLin aOff aEnd aTok) ls < listCase topLs NIL
 @ fb (a :: multiLine ls)
-: b@(SPAN ____ bOff bEnd bTok) ls <- listCase ls    fb
-: aExtra <- **getLine aTok fb
+: b@(SPAN ____ bOff bEnd bTok) ls < listCase ls    fb
+: aExtra < **getLine aTok fb
 | if (bTok /= TERM) fb
 @ (onMatch newTok more)
     @ aTok | LINE (setSpanVal () newTok :: aExtra)
     | multiLine (SPAN aLin aOff aEnd aTok)::more
-: c@(SPAN _ cOff cEnd cTok) ls <- listCase ls fb
+: c@(SPAN _ cOff cEnd cTok) ls < listCase ls fb
 # datacase cTok
 * _        | fb
 * (LINE _) | ifNot (aOff==cOff) fb
            | onMatch c ls
-* WYTE     : d@(SPAN _ dOff dEnd dTok) ls <- listCase ls fb
-           : _ <- **getLine dTok fb
+* WYTE     : d@(SPAN _ dOff dEnd dTok) ls < listCase ls fb
+           : _ < **getLine dTok fb
            | ifNot (aOff==dOff) fb
            | onMatch d ls
 
@@ -240,10 +240,10 @@ spaceToks=(setFromRow [WYTE SEMI TERM])
 > List Elem > Bit
 = (isEndOfCluster ls)
 ; trk [isEndOfCluster listToRow-ls]
-: l ls <- listCase ls FALSE
+: l ls < listCase ls FALSE
 | or (elemIsSpace l)
 | and (**getSpanVal l == RUNE)
-: l ls <- listCase ls TRUE
+: l ls < listCase ls TRUE
 | elemIsSpace l
 
 > List Elem > List Elem > List Clump
@@ -642,7 +642,7 @@ typedef#FilePath#Str
 * TERM   | VOID
 * SEMI   | NOTE
 * LINE-_ | **QUOT lOff
-* RUNE   : (**SPAN _ _ _ yTok) ys <- listCase ls (**SING lOff)
+* RUNE   : (**SPAN _ _ _ yTok) ys < listCase ls (**SING lOff)
          # datacase yTok
          * TERM | **OPEN (dec lEnd)
          * WYTE | **OPEN (dec lEnd)
@@ -750,7 +750,7 @@ x=(LN %REPL 1 b#{ #})
 
 > List (Frag a) > (Maybe (Bar, List (Frag a)), (List a))
 = (lambs fs)
-: f more <- listCase fs (NONE, ~[])
+: f more < listCase fs (NONE, ~[])
 # datacase f
 * LAMB-x   | pairMap (CONS x) (lambs more)
 * WOLF-r-_ | (**SOME [r more], ~[])
@@ -761,7 +761,7 @@ x=(LN %REPL 1 b#{ #})
 > List (Frag a) > SubLayout a
 = (subLayout frags)
 : f fs
-    <- listCase frags (**SEQUE ~[])
+    < listCase frags (**SEQUE ~[])
 # datacase f
 * WOLF-r-_ | **PREFX r fs
 * LAMB-x   @ [rest hed] (lambs fs)
@@ -803,7 +803,7 @@ x=(LN %REPL 1 b#{ #})
 !!= {foo} | spanQuotedStr (SPAN (LN 6 7 b#}# }|foo| #) 1 7 TEXT)
 
 = (lineRex acc spans)
-: span spans <- listCase spans acc
+: span spans < listCase spans acc
 @ str | barNat | barDrop 2 | spanBar span
 | lineRex (06_rex.LINE str acc) spans
 
@@ -959,7 +959,7 @@ typedef#(NonEmpty a)#(a, List a)
 
 > List Tree > Rex
 = (treesRex trees)
-: t ts <- listCase trees (die {treesRex: empty block})
+: t ts < listCase trees (die {treesRex: empty block})
 | if (ts == NIL) | treeRex t
 | else           | treeRex (**NODE b#{|} (listToRow trees) NONE)
 
@@ -993,7 +993,7 @@ main=testRex
 
 > Row Any > b > b
 = (trkEachList xs k)
-: x xs <- listCase xs k
+: x xs < listCase xs k
 | trk x (trkEachList xs k)
 
 (simpleCog f x)=(f x, simpleCog f)

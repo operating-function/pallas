@@ -22,20 +22,20 @@
 | PORT_SR_DYNO 0 emptyBar
 
 = (handleClient return)
-: ??(p_dyno serverPort) <- syscall (**PORT_DYNO usSeed)
+: ??(p_dyno serverPort) < syscall (**PORT_DYNO usSeed)
 | trk [{we got a serverPort:} serverPort]
 @ [_spFrom _spPayload portId] | serverPort
-: _ <- fork handleClient
-: (PIN fileBar) <- recvFileBarU64 portId
+: _ < fork handleClient
+: (PIN fileBar) < recvFileBarU64 portId
 | trk [ourName {recvd fileBar of size} (barLen fileBar)]
 | return ()
 
 > Cog ()
 = (launchDemo return)
-: servThread <- fork
+: servThread < fork
                   & done
                   | trk [ourName {registered SERV}]
-                  : ??(p_serv _) <- syscall (**PORT_SERV usSeed staticHandler)
+                  : ??(p_serv _) < syscall (**PORT_SERV usSeed staticHandler)
                   | done 0
 | handleClient return
 

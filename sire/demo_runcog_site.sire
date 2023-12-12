@@ -209,13 +209,13 @@
   @ barType | **fromSome b#{text/plain}
             | tabLookup b#{content-type}
             | tabFromPairs headers
-  : (PIN st) <- readRef vSt
+  : (PIN st) < readRef vSt
   @ files (**getFiles st)
   @ files | hmInsert (barNat path) [barType pBody] files
-  : _ <- fork (syscall (**HTTP_ECHO rid 201 b#done [] b#{}))
-  : _ <- modifyState vSt & st
-                         | setFiles files
-                         | st
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done [] b#{}))
+  : _ < modifyState vSt & st
+                        | setFiles files
+                        | st
   | return ()
 * _
   : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))

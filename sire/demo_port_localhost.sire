@@ -10,9 +10,9 @@
 
 = (genSeedAddrs cogExit)
 ;
-: ??(p_sire_1 ali_seed_addr) <- syscall PORT_SIRE
-: ??(p_sire_2 bob_seed_addr) <- syscall PORT_SIRE
-: ??(p_sire_3 ali_ul_seed_addr) <- syscall PORT_SIRE
+: ??(p_sire_1 ali_seed_addr) < syscall PORT_SIRE
+: ??(p_sire_2 bob_seed_addr) < syscall PORT_SIRE
+: ??(p_sire_3 ali_ul_seed_addr) < syscall PORT_SIRE
 | trk [{ali_seed_addr} ali_seed_addr]
 | trk [{bob_seed_addr} bob_seed_addr]
 | trk [{ali_ul_seed_addr} ali_ul_seed_addr]
@@ -80,19 +80,19 @@ main=(runCog genSeedAddrs)
 ; [b#hello b#world]
 
 = (recvFileBar portId return)
-: ??(p_recv [recvWhen (PIN recvBody)]) <- syscall (**PORT_RECV portId)
+: ??(p_recv [recvWhen (PIN recvBody)]) < syscall (**PORT_RECV portId)
 @ fileBarBytes | barNat recvBody
 | if (eql 0 fileBarBytes)
   | return emptyBar
 | trk [{fileBarBytes:} fileBarBytes %recvd %at recvWhen]
-: ??(p_recv [recvWhen (PIN fileContents)]) <- syscall (**PORT_RCLL portId fileBarBytes)
+: ??(p_recv [recvWhen (PIN fileContents)]) < syscall (**PORT_RCLL portId fileBarBytes)
 | return fileContents
 
 = (recvFileBarU64 portId return)
-: ??(p_recv [recvWhen (PIN recvBody)]) <- syscall (**PORT_RCLL portId 8)
+: ??(p_recv [recvWhen (PIN recvBody)]) < syscall (**PORT_RCLL portId 8)
 @ fileBarBytes | barNat recvBody
 | if (eql 0 fileBarBytes)
   | return emptyBar
 | trk [{fileBarBytes:} fileBarBytes %recvd %at recvWhen]
-: ??(p_recv [recvWhen pinFileContents]) <- syscall (**PORT_RCLL portId fileBarBytes)
+: ??(p_recv [recvWhen pinFileContents]) < syscall (**PORT_RCLL portId fileBarBytes)
 | return pinFileContents

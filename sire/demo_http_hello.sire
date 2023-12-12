@@ -40,11 +40,11 @@
   ++ [5 201 b#done [] b#{}]
 
 = (httpHello st done)
-: req <- syscall HTTP_HEAR
+: req < syscall HTTP_HEAR
 @ [st resp] (handleReq st req)
 @ effect    (syscall | rowApply HTTP_ECHO resp)
 | trk [=effect]
-: _ <- effect
+: _ < effect
 | httpHello st done
 
 main=(runCog (httpHello #[]))

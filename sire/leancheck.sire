@@ -23,8 +23,8 @@ listToTiers=listCat
 
 > List (List a) > List (List a) > List (List a)
 = (tierSum xss_ yss_)
-: ys yss <- listCase yss_ xss_
-: xs xss <- listCase xss_ yss_
+: ys yss < listCase yss_ xss_
+: xs xss < listCase xss_ yss_
 | (listWeld xs ys :: tierSum xss yss)
 
 !!=   | tierSum ~[~[1]]
@@ -44,8 +44,8 @@ listToTiers=listCat
 
 > List (List a) > List (List b) > List (List (a, b))
 = (tierProd xss yss)
-:  _   _ <- listCase yss ~[]
-: xs xss <- listCase xss ~[]
+:  _   _ < listCase yss ~[]
+: xs xss < listCase xss ~[]
 | tierSum
     | listMap (ys & listProd xs ys) yss
 | debug [{tierProd: xss + yss:} xss yss]

@@ -57,11 +57,11 @@
 ; | listMap barBytes
 ; | randGen seed
 ;
-; ; `<-` is not longer implemented
+; ; `<` is not longer implemented
 ; ;
 ; ; We crash now.
 ;
-; [_ seed]<-[[%rand]]
+; [_ seed]<[[%rand]]
 ; abc=(barBytes seed)
 ;
 ; ; (Nat > Lis Byt > (Bar, Lis Byt))

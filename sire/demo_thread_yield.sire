@@ -15,11 +15,11 @@
 = yieldDemo
 | runCog
 & return
-: bob <- fork & done
-              : val <- block
-              | trk [{BOB GOT} val]
-              | done 0
-: _ <- yield bob {Hey Bob, do your thing first.}
+: bob < fork & done
+             : val < block
+             | trk [{BOB GOT} val]
+             | done 0
+: _ < yield bob {Hey Bob, do your thing first.}
 | trk ({MAIN THREAD SAYS}, {Control is returned to Alice})
 | return ()
 

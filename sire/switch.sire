@@ -86,7 +86,7 @@
 ? (loop acc form)
 : kids heir
         < rexGetNodeWithRune rune form
-                : end <- parseAlien form err
+                : end < parseAlien form err
                 | ok (listToRowRev (CONS end acc))
 @ size (len kids)
 | if (and (eql 1 size) (neq 0 heir))
@@ -152,7 +152,7 @@ foo=(x e o & o (varE {_}, x))
       | ret [nat exp]
 ^ ok (foldl _ (defaultFallback, #[]) cases)
 & ([wild acc] [mKey exp])
-: key <- maybeCase mKey [exp acc]
+: key < maybeCase mKey [exp acc]
 | [wild (tabPut acc key exp)]
 
 = (readSwitchExp readExpr rex err ok)
@@ -187,7 +187,7 @@ foo=(x e o & o (varE {_}, x))
         | bopE (cnsE tabSwitch, expr, wild, tabE pats)
 
 = ({#switch} st rex err ok)
-: exp fallback arms <- readSwitchExp readRex rex err
+: exp fallback arms < readSwitchExp readRex rex err
 | ok st
 | switchE exp fallback arms
 

@@ -137,13 +137,13 @@
     @ varNames (drop 1 names)
     | if (len varNames /= setLen (setFromRow varNames))
         | err rex {type params must be unique}
-    : st key <- generateUniqueKey st
+    : st key < generateUniqueKey st
     | ok st
     | defKPC key #[typeName=sym] [sym]
     | cnsE (SCHEME numVars | TCON key (gen numVars TVAR))
 ;
-: sym    <- readSymbol sigRex err
-: st key <- generateUniqueKey st
+: sym    < readSymbol sigRex err
+: st key < generateUniqueKey st
 | ok st
 | defKPC key #[typeName=sym] [sym]
 | cnsE (SCHEME 0 | TCON key [])
@@ -159,15 +159,15 @@ oldRecord=(.{#record})
 oldDataType=(.{#datatype})
 
 = ({#record} st rex err ok)
-: st tCmd <- .{#abstype} st `(abstype#($(idx 1 | rexKids rex))) err
-: st rCmd <- oldRecord st rex err
+: st tCmd < .{#abstype} st `(abstype#($(idx 1 | rexKids rex))) err
+: st rCmd < oldRecord st rex err
 | ok st
 ` #* $tCmd
   #* $rCmd
 
 = ({#datatype} st rex err ok)
-: st tCmd <- .{#abstype} st `(abstype#($(idx 1 | rexKids rex))) err
-: st dCmd <- oldDataType st rex err
+: st tCmd < .{#abstype} st `(abstype#($(idx 1 | rexKids rex))) err
+: st dCmd < oldDataType st rex err
 | ok st
 ` #* $tCmd
   #* $dCmd
@@ -296,14 +296,14 @@ abstype#TyExp
 * _ ({todo support bigger tuples: } n)
 
 = (compileType vars tExp err ok)
-^ : tree <- _ tExp
+^ : tree < _ tExp
   | ok (SCHEME (len vars) tree)
 ? (go tExp ret)
 # datacase tExp
 * (T_FUN a b)
-    : x <- go a
-    : y <- go b
-    : r <- tyApp {Fun} Fun [x y] err
+    : x < go a
+    : y < go b
+    : r < tyApp {Fun} Fun [x y] err
     | ret r
 * (T_REF nam scheme args)
     : params < rowTraverse go args
@@ -359,7 +359,7 @@ abstype#TyExp
         : key    < readKey (idx 0 kids) err
         | ok ss typeRex key rex
     | if (len kids == 2)
-        : ss key <- generateUniqueKey ss
+        : ss key < generateUniqueKey ss
         @ newRex | rexSetSons (rowCons (natE key) sons) rex
         | ok ss typeRex key newRex
     | else
@@ -414,13 +414,13 @@ abstype#TyExp
 ^ _ rex ok
 ? (loop rex ok)
 | if (isTypeAnn rex)
-    : annRes <- parseTypeAnnotation ss rex err
+    : annRes < parseTypeAnnotation ss rex err
     | ok annRes
 | if (rexIsSymbol rex)
     : sym < readSymbol rex err
     @ fst (mod sym 256)
     | if (isUpper fst)
-        : bindKey bind <- getBind sym ss rex err
+        : bindKey bind < getBind sym ss rex err
         | ok (T_REF sym (idx 1 bind) [])
     | else
         | ok (T_VAR sym)
@@ -437,7 +437,7 @@ abstype#TyExp
     : sym < readSymbol head err
     | ifNot (isUpper | mod sym 256)
         | err head {expected: TypeName}
-    : bindKey bind <- getBind sym ss rex err
+    : bindKey bind < getBind sym ss rex err
     : params < rowTraverse loop para
     | ok (T_REF sym (idx 1 bind) params)
 # switch rune

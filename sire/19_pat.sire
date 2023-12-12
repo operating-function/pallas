@@ -64,7 +64,7 @@
 @ tmpVar | if isVar (rexText rowExpr) tmpVar
 @ go
         ? (go binds)
-        : bind binds <- listCase binds bodyExpr
+        : bind binds < listCase binds bodyExpr
         @ bindVar (idx 1 bind)
         | if (eql {_} bindVar) (go binds)
         | letE bindVar
@@ -144,7 +144,7 @@
 | if (neq (rexRune rex) {!}) | err rex sbBadForm
 | if (neq (len sons) 1)      | err rex sbBadForm
 | if (neq (rexHeir rex) 0)   | err rex sbBadHeir
-: sym <- readSymbol expr err
+: sym < readSymbol expr err
 | ok [%s sym]
 
 = rbBadForm } Row-Patterns must be a row of symbols [x y z]
@@ -154,11 +154,11 @@
 | if (not (rexIsNode rex))   | err rex rbBadForm
 | if (neq (rexRune rex) {,}) | err rex rbBadForm
 | if (neq (rexHeir rex) 0)   | err rex rbBadHeir
-: elems <- rowTraverse (son ret & parseBinder son err ret) (rexSons rex)
+: elems < rowTraverse (son ret & parseBinder son err ret) (rexSons rex)
 | ok [%r elems]
 
 = (parseTabBinder parseBinder rex err ok)
-: tab <- readWideTabLit parseBinder rex err
+: tab < readWideTabLit parseBinder rex err
 | ok [%t tab]
 
 ;; @x
@@ -166,7 +166,7 @@
 ;; TODO: support x@y@z, just for completeness (zero, one, or many)
 
 = (parseAliasedBinder parseBinder rex err ok)
-: kids <- readNodeWithoutHeirButWithRune {@} rex err
+: kids < readNodeWithoutHeirButWithRune {@} rex err
 | if (eql 1 len-kids)
     | parseBinder (idx 0 kids) err ok
 | if (neq 2 len-kids)
@@ -178,7 +178,7 @@
 
 ; =(PIN x)
 = (parsePinBinder parseBinder rex err ok)
-: kids <- readNodeWithoutHeirButWithRune {|} rex err
+: kids < readNodeWithoutHeirButWithRune {|} rex err
 | if (neq 2 len-kids)
     | err rex {Pin-Pattern expects two kids: (PIN x)}
 | ifNot (eql `PIN | idx 0 kids)
@@ -189,7 +189,7 @@
 
 ; @(LAW n a b)
 = (parseLawBinder parseBinder rex err ok)
-: kids <- readNodeWithoutHeirButWithRune {|} rex err
+: kids < readNodeWithoutHeirButWithRune {|} rex err
 | if (neq 4 len-kids)
     | err rex {Law-Pattern expects four kids: (LAW n a b)}
 | ifNot (eql `LAW | idx 0 kids)
@@ -202,7 +202,7 @@
 = (parseBinder rex err ok)
 @ heir (rexHeir rex)
 | if (rexIsLeaf rex)
-    : sym <- readSymbol (rexSetHeir 0 rex) err
+    : sym < readSymbol (rexSetHeir 0 rex) err
     | if (isZero heir)
         | ok [%v sym]
     | ifNot (eql {..} | rexRune heir)
@@ -215,7 +215,7 @@
     | ok [%o sym]
 @ rune (rexRune rex)
 | if (eql rune {.})
-    : sym <- readSymbol rex err
+    : sym < readSymbol rex err
     | ok [%v sym]
 | if (eql rune {!})
     | parseSeqBinder rex err ok
@@ -339,22 +339,22 @@
 | if (eql {s} typ)
         @ var (idx 1 bindSpec)
         | ok ss [0 var exp [var]]::acc
-: ss tmp <- generateTempName {g} ss
+: ss tmp < generateTempName {g} ss
 | if (eql {a} typ)
         @ acc [0 tmp exp []]::acc
-        : ss acc <- go (varE tmp) (idx 1 bindSpec) ss acc
-        : ss acc <- go (varE tmp) (idx 2 bindSpec) ss acc
+        : ss acc < go (varE tmp) (idx 1 bindSpec) ss acc
+        : ss acc < go (varE tmp) (idx 2 bindSpec) ss acc
         | ok ss acc
 | if (eql {pin} typ)
         @ acc [0 tmp exp []]::acc
         @ exp (appE (cnsE pinItem, varE tmp))
-        : ss acc <- go exp (idx 1 bindSpec) ss acc
+        : ss acc < go exp (idx 1 bindSpec) ss acc
         | ok ss acc
 | if (eql {law} typ)
         @ acc [0 tmp exp []]::acc
-        : ss acc <- go appE-(cnsE lawName, varE tmp) (idx 1 bindSpec) ss acc
-        : ss acc <- go appE-(cnsE lawArgs, varE tmp) (idx 2 bindSpec) ss acc
-        : ss acc <- go appE-(cnsE lawBody, varE tmp) (idx 3 bindSpec) ss acc
+        : ss acc < go appE-(cnsE lawName, varE tmp) (idx 1 bindSpec) ss acc
+        : ss acc < go appE-(cnsE lawArgs, varE tmp) (idx 2 bindSpec) ss acc
+        : ss acc < go appE-(cnsE lawBody, varE tmp) (idx 3 bindSpec) ss acc
         | ok ss acc
 @ dat (idx 1 bindSpec)
 @ acc [0 tmp exp []]::acc
@@ -367,7 +367,7 @@
                 @ key (idx 0 elem)
                 @ pat (idx 1 elem)
                 @ exp (appE (cnsE tabIdx-key, varE tmp))
-                : ss acc <- go exp pat ss acc
+                : ss acc < go exp pat ss acc
                 | [ss acc]
         | if (eql {r} typ)
                 ^ listFoldl _ [ss acc] (listIndexed | listFromRow dat)
@@ -377,7 +377,7 @@
                 @ i   (idx 0 elem)
                 @ pat (idx 1 elem)
                 @ exp (appE (cnsE idx-i, varE tmp))
-                : ss acc <- go exp pat ss acc
+                : ss acc < go exp pat ss acc
                 | [ss acc]
         | else
             | die [{bad bind spec} bindSpec]
@@ -494,7 +494,7 @@
 
 = (readMultiBinder readExp rex err ok)
 | if (isZero rex) ok-[]
-: sons heir <- readNodeWithRune {=} rex err
+: sons heir < readNodeWithRune {=} rex err
 | if (lth len-sons 2) (err rex mbNeedsTwo)
 : bind < parseBinder (idx 0 sons) err
 : exp  < readExp (appE | drop 1 sons) err
@@ -587,7 +587,7 @@
     ? (step son ret)
     | parseBinder son err ret
 | else
-    : bin <- parseBinder rex err
+    : bin < parseBinder rex err
     | ok [bin]
 
 !!= ,[[%v %a] [%v %b] [%v %c]]
@@ -616,7 +616,7 @@
 = (readDestroyer rex err ok)
 ;
 | if (rexIsLeaf rex)
-    : sym <- readKey rex err
+    : sym < readKey rex err
     | ok sym FALSE []
 ;
 @ rune (rexRune rex)
@@ -636,10 +636,10 @@
         @ hedKids (rexKids hed)
         | if (neq 1 | len hedKids)
             | err rex sigExpect
-        : sym <- readKey (fst hedKids) err
+        : sym < readKey (fst hedKids) err
         | ret sym TRUE
     | else
-        : sym <- readKey hed err
+        : sym < readKey hed err
         | ret sym FALSE
 : binds
   < ^ rowTraverse _ (drop 1 sons)
@@ -669,7 +669,7 @@
           & (ss bind ret)
           | if (eql %v (idx 0 bind))
                   | ret ss (idx 1 bind)
-          : ss nam <- generateTempName {g} ss
+          : ss nam < generateTempName {g} ss
           | ret ss nam
 ; trk #[=sig]
 @ binder | zip binds (map varE sig)
@@ -714,7 +714,7 @@
 @ marker  (idx 1 nameArgsBody)
 @ argPats (idx 2 nameArgsBody)
 @ lawBody (idx 3 nameArgsBody)
-: ss argList lawBody <- makeDestroyer ss argPats lawBody
+: ss argList lawBody < makeDestroyer ss argPats lawBody
 | ok ss
 | ([%v lawName], wutE 0 marker lawName argList lawBody)
 
@@ -801,9 +801,9 @@
 ; TODO: Lambda binders should have binder-identities
 ;
 = (wutMacro ss rex err ok)
-: sigRex bodyExpr <- rexParseKids rex [readRex readRex] err
-: sym mark binds  <- readDestroyer sigRex err
-: ss sig bodyExpr <- makeDestroyer ss binds bodyExpr
+: sigRex bodyExpr < rexParseKids rex [readRex readRex] err
+: sym mark binds  < readDestroyer sigRex err
+: ss sig bodyExpr < makeDestroyer ss binds bodyExpr
 | ok ss
 | wutE (rexRune rex == {??}) mark sym sig
 | bodyExpr
@@ -822,9 +822,9 @@ k9=(a & k 9 a)
 ;;; Anon Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = ({&} ss rex err ok)
-: sigRex bodyExpr <- rexParseKids rex [readRex readRex] err
-: binds           <- readBindSig sigRex err
-: ss sig bodyExpr <- makeDestroyer ss binds bodyExpr
+: sigRex bodyExpr < rexParseKids rex [readRex readRex] err
+: binds           < readBindSig sigRex err
+: ss sig bodyExpr < makeDestroyer ss binds bodyExpr
 | ok ss
 | lamE sig
 | bodyExpr
@@ -866,12 +866,12 @@ k9=(a & k 9 a)
 | if (eql 3 nKids)
     @ [keyRex sigRex bodRex] | kids
     @ sigRune                | rexRune sigRex
-    : key <- readKey keyRex err
+    : key < readKey keyRex err
     | if (eql {|} sigRune)
         : sym marker binds < readDestroyer sigRex err
         | ok (key, sym, marker, binds, bodRex)
     | else
-        : bind <- parseBinder sigRex err
+        : bind < parseBinder sigRex err
         | ok (key, bind, bodRex)
 | if (eql 2 nKids)
     @ [sigRex bodRex] | kids
@@ -880,7 +880,7 @@ k9=(a & k 9 a)
         : sym marker binds < readDestroyer sigRex err
         | ok (0, sym, marker, binds, bodRex)
     | else
-        : bind <- parseBinder sigRex err
+        : bind < parseBinder sigRex err
         | ok (0, bind, bodRex)
 | else
     | err rex {Expected two kids}
@@ -948,7 +948,7 @@ k9=(a & k 9 a)
 & (def [ss acc])
 | if (len def == 5)
     @ [key sym marker binds bodRex] def
-    : ss sig bod <- makeDestroyer ss binds bodRex
+    : ss sig bod < makeDestroyer ss binds bodRex
     ^ [ss (OPEN {#=} _ acc)]
     | if key
         | (natE key, sogE sym marker sig, bod)
@@ -1013,12 +1013,12 @@ k9=(a & k 9 a)
 !!= [n o w] [9 8 7]
 
 !!= 1
-    : ?(self x) <- (k & k {self})
+    : ?(self x) < (k & k {self})
     | and (eql x {self})
           (eql x lawName-self)
 
 !!= 1
-    : ??(self x) <- (k & k {self})
+    : ??(self x) < (k & k {self})
     | and (eql x {self})
           (| eql x | lawName | pinItem self)
 

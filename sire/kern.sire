@@ -140,12 +140,12 @@ abstype#KernelState ; TODO
 
 > Cog a > Cog ThreadId
 = (fork act k end me fr kl sl rq)
-: tid fr kl sl rq <- allocateSlot fr kl sl rq
+: tid fr kl sl rq < allocateSlot fr kl sl rq
 | act DONE (k tid end me) tid fr kl sl rq
 
 > Cog ThreadId
 = (prepareFork k end me fr kl sl rq)
-: tid fr kl sl rq <- allocateSlot fr kl sl rq
+: tid fr kl sl rq < allocateSlot fr kl sl rq
 | k tid end me fr kl sl rq
 
 > ThreadId > Cog a > Cog ()
@@ -429,19 +429,19 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 : resultMVars
     < ^ rowTraverse _ args
       & (arg stepReturn)
-      : var <- newEmptyMVar
-      : tid <- fork & threadExit
-                    : myTid < myThreadId
-                    : eRes < syscall (EVAL1 ms f arg)
-                    @ !res | forceUnpackEvalResult {pmap} eRes
-                    : _    < putMVar var res
-                    | threadExit ()
+      : var < newEmptyMVar
+      : tid < fork & threadExit
+                   : myTid < myThreadId
+                   : eRes < syscall (EVAL1 ms f arg)
+                   @ !res | forceUnpackEvalResult {pmap} eRes
+                   : _    < putMVar var res
+                   | threadExit ()
       | stepReturn var
 ;
 : results
     < ^ rowTraverse _ resultMVars
       & (var stepReturn)
-      : val <- takeMVar var
+      : val < takeMVar var
       | stepReturn val
 ;
 | return results

@@ -190,7 +190,7 @@ badBlock={Invariant Violation: item indented too little for block}
 # datacase is
 * NIL | LEFT badBlock
 * (CONS j ks)
-    : ij <- eitherBind (merge (overSnd iRex i) j)
+    : ij < eitherBind (merge (overSnd iRex i) j)
     | close p (ij::ks)
 
 = (testClose n es)
@@ -217,7 +217,7 @@ exItem=(I b#{,} [`x] (SOME `y))
 
 > List (Nat, Elem) > (Nat, Frag) > Either Str (List (Nat, Elem))
 = (pushOnto stk (fp,f))
-: stk <- eitherBind (close fp stk)
+: stk < eitherBind (close fp stk)
 # datacase f
 * (RUNE r) | RIGHT (fp, I r [] NONE)::stk
 * (FORM _)
@@ -247,7 +247,7 @@ oneForm={Blocks starting with closed forms may only contain one form.}
 # datacase xs
 * NIL (RIGHT acc)
 * (CONS x xs)
-: acc <- eitherBind (f acc x)
+: acc < eitherBind (f acc x)
 | eitherListFoldlM f acc xs
 
 > (Nat, Elem) > (Nat, Elem) > (Nat, Elem)
@@ -269,10 +269,10 @@ oneForm={Blocks starting with closed forms may only contain one form.}
 * (CONS pf@[p f] fs)
 # datacase f
 * (RUNE r)
-    : x <- eitherBind (pushAll (p, I r [] NONE) fs)
+    : x < eitherBind (pushAll (p, I r [] NONE) fs)
     | RIGHT | iRex | snd | listFoldl1 forceMerge x
 * (LSTR l)
-    : x <- eitherBind (pushAll (p, T l NONE) fs)
+    : x < eitherBind (pushAll (p, T l NONE) fs)
     | RIGHT | iRex | snd | listFoldl1 forceMerge x
 * (FORM _)
     # datacase fs
@@ -325,10 +325,10 @@ oneForm={Blocks starting with closed forms may only contain one form.}
 
 > Row Bar > Either Str Rex
 = (testParseBlock bars)
-: results <- ^ rowTraverse _ bars
-             & (bar ret)
-             : frags <- eitherBind (runParser line bar)
-             | ret frags
+: results < ^ rowTraverse _ bars
+            & (bar ret)
+            : frags < eitherBind (runParser line bar)
+            | ret frags
 # datacase (parseBlock results)
 * (LEFT e)  | e
 * (RIGHT v) | rexClose v

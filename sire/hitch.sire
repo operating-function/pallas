@@ -321,7 +321,7 @@ newRootNode
 ; implementation details of insertRec/distributeDownwards
 ;
 = (downSplit treeFun l hh)
-  : key keys <- listCase l ~[hh]
+  : key keys < listCase l ~[hh]
   @ TREE_FUN(..) treeFun
   @ [!toAdd !rest] | hhSplit key hh
   | CONS toAdd | downSplit treeFun keys rest
@@ -533,7 +533,7 @@ abstype#(HSetMap k v)
 ? (lookInNode node)
 # datacase (hmCaseNode node)
 * (INDEXNODE index hitchhikers)
-  : v <- maybeCase (tabLookup key hitchhikers)
+  : v < maybeCase (tabLookup key hitchhikers)
              (lookInNode | findSubnodeByKey key index)
   | (SOME v)
 * (LEAFNODE items)
@@ -926,7 +926,7 @@ rest
   @ matched | fromSome %[] (tabLookup k hitchhikers)
   | lookInNode (setUnion hh matched) | findSubnodeByKey k children
 * (LEAFNODE items)
-  : ret <- **maybeCase (tabLookup k items)
+  : ret < **maybeCase (tabLookup k items)
              [setConfig (hsRawFromSet setConfig hh)]
   [setConfig (hsRawInsertMany hh setConfig ret)]
 

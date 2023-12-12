@@ -95,14 +95,14 @@
 ;;; Convenience Macros to Query properties of bindings. ;;;;;;;;;;;;;;;;;;;;;;;;
 
 = ({#getKey} ss rex err ok)
-: _ symbol      <- rexParseKids rex [readRex readSymbol] err
-: bindKey _bind <- getBind symbol ss rex err
+: _ symbol      < rexParseKids rex [readRex readSymbol] err
+: bindKey _bind < getBind symbol ss rex err
 | ok ss (cnsE bindKey)
 
 = (readSymbDotProp rex err ret)
 | if (neq {.} rexRune-rex)
   | err rex {Expected a . rune}
-: symbol property <- rexParseKids rex [readSymbol readSymbol] err
+: symbol property < rexParseKids rex [readSymbol readSymbol] err
 | ret [symbol property]
 
 = ({#hasProp} ss rex err expand)
@@ -116,8 +116,8 @@
 | tabHas property props
 
 = ({#getProp} ss rex err expand)
-: _ [symbol property] <- rexParseKids rex [readRex readSymbDotProp] err
-: bindKey bind        <- getBind symbol ss rex err
+: _ [symbol property] < rexParseKids rex [readRex readSymbDotProp] err
+: bindKey bind        < getBind symbol ss rex err
 ^ expand ss (cnsE _)
 | tabGet (getProps ss bind) property
 

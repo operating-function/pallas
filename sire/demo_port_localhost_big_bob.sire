@@ -37,7 +37,7 @@
 @ payload | mkBar 100_000
 | trk [{sent payload len is} (barLen payload)]
 @ portRqst [usAddr themAddr NONE payload]
-: ??(p_rqst [cpThem (PIN cpPayload) cpMbPortId]) <- syscall (**PORT_RQST usSeed portRqst)
+: ??(p_rqst [cpThem (PIN cpPayload) cpMbPortId]) < syscall (**PORT_RQST usSeed portRqst)
 | trk [%cpThem cpThem %cpMbPortId cpMbPortId]
 | trk [{recvd payload len is} (barLen cpPayload)]
 | maybeCase cpMbPortId
@@ -54,11 +54,11 @@
   | trk [{final equality results:} results {for lens:} barLens]
   | return ()
 @ payload | mkBar (idx 0 bLs)
-: ??(p_send now) <- syscall (**PORT_SEND portId (natBar (barLen payload)))
-: ??(p_send now) <- syscall (**PORT_SEND portId payload)
+: ??(p_send now) < syscall (**PORT_SEND portId (natBar (barLen payload)))
+: ??(p_send now) < syscall (**PORT_SEND portId payload)
 | trk [ourName {sent payload w/ blake3 hash} (blake3 payload) {on port} portId %at now]
 ;; receive file choice bytes
-: fileBar <- recvFileBar portId
+: fileBar < recvFileBar portId
 @ tst | eql payload fileBar
 | trk [{roundtrip equality:} tst]
 | loop (drop 1 bLs) (weld results [tst])

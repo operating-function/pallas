@@ -201,28 +201,28 @@ getSize=(sized pureGen)
 
 > Gen a > Gen b > Gen (a, b)
 = (gen2 genA genB)
-: vA <- bindGen genA
-: vB <- bindGen genB
+: vA < bindGen genA
+: vB < bindGen genB
 | pureGen (vA, vB)
 
 > Int > Gen a > Gen (List a)
 = (genListLen len gen)
 | if (lte len 0)
     | pureGen ~[]
-: v  <- bindGen gen
-: vs <- bindGen (genListLen (sub len 1) gen)
+: v  < bindGen gen
+: vs < bindGen (genListLen (sub len 1) gen)
 | pureGen (v :: vs)
 
 > Int > Gen a > Gen (List a)
 = (genListLenMax maxLen gen)
-: len <- bindGen genU64
+: len < bindGen genU64
 @ len | mod len maxLen
 | genListLen len gen
 
 > Gen a > Gen (List a)
 = (genList gen)
-: n <- sized
-: k <- bindGen (chooseW64 0 n)
+: n < sized
+: k < bindGen (chooseW64 0 n)
 | genListLen k gen
 
 (genMap f gen r n)=(f | gen r n)

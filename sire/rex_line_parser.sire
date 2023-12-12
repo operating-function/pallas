@@ -92,7 +92,7 @@ name=(**stringOf1 isNameChar)
 ? (go acc quote depth)
 | if (depth == 0)
     | parserPure (barFromListRev | listUnsafeTail acc)
-: c <- bind anyChar
+: c < bind anyChar
 | if quote
     | go (c::acc) FALSE depth
 # switch c
@@ -137,7 +137,7 @@ empt=(parserMap (const NIL) (char {]}))
 = (brak form)
 | andThen (char {[})
 | andThen spc0
-: items <- bind (choice empt (carl form))
+: items < bind (choice empt (carl form))
 | parserPure (PREFX com | listToRow items)
 
 > Str > (Str, List Str) > Parser r ()
@@ -194,7 +194,7 @@ empt=(parserMap (const NIL) (char {]}))
         * (LEFT r)  ^ PREFX roon (listToRowRev _::ns)
                     ^ SHIP ,(INEST _)
                     | unravel r NIL is
-: fs <- bind (choice term (frogs form))
+: fs < bind (choice term (frogs form))
 | parserPure (unravel initialRune NIL fs)
 
 > Str > List Form > List (Either Str Form) > List (Str, List Form)
@@ -218,8 +218,8 @@ empt=(parserMap (const NIL) (char {]}))
 
 ; In nest-infix, read an infix rune, a space, and an item.
 = (mixy faro)
-: ryn <- bind (try | andThenLeft rune whyt)
-: mor <- bind faro
+: ryn < bind (try | andThenLeft rune whyt)
+: mor < bind faro
 | parserPure (LEFT ryn :: mor)
 
 ; In nest-infix, right after some form, read one of:
@@ -240,12 +240,12 @@ empt=(parserMap (const NIL) (char {]}))
 ; In nest-infix, expect a form and then get more items.
 = (faro form buf off err fail ok)
 ^ (_ buf off err fail ok)
-: i <- bind (parserMap RIGHT form)
+: i < bind (parserMap RIGHT form)
 | fart (faro form) i
 
 > Parser r Form > Form > Parser r Nest
 = (plix form initialForm)
-: items <- bind (fart (faro form) (RIGHT initialForm))
+: items < bind (fart (faro form) (RIGHT initialForm))
 # datacase items
 * NIL | die {plix: impossible (never empty, has hard-coded initial val)}
 * (CONS i moreItems)
@@ -273,7 +273,7 @@ empt=(parserMap (const NIL) (char {]}))
 | andThen spc0
 | choices
 ~~ parserMap const-(PREFX bar []) (char {)})
-~~ : ryn <- bind (try (andThenLeft rune (char {)})))
+~~ : ryn < bind (try (andThenLeft rune (char {)})))
    | parserPure (PREFX ryn [])
 ~~ bind (try | andThenLeft rune whyt) (pree form)
 ~~ bind form (plix form)
@@ -289,8 +289,8 @@ empt=(parserMap (const NIL) (char {]}))
 (itmz form)=(parserMap listToRow (some | item form))
 
 = (shin form)
-: i  <- bind (itmz form)
-: is <- bind | many | try | parserMap2 v2 rune (itmz form)
+: i  < bind (itmz form)
+: is < bind | many | try | parserMap2 v2 rune (itmz form)
 # datacase is
 * NIL
     | parserPure (SHIP i)
@@ -320,11 +320,11 @@ empt=(parserMap (const NIL) (char {]}))
     # datacase s
     * NONE     | RUNE r
     * (SOME x) | FORM (BEFO r x)
-: d <- bind parserGetLineOffset
-: x <- ^ bind (choices _)
-      ~~ parserMap LSTR readLineStr
-      ~~ parserMap2 rinse rune (optional | shin form)
-      ~~ parserMap FORM form
+: d < bind parserGetLineOffset
+: x < ^ bind (choices _)
+     ~~ parserMap LSTR readLineStr
+     ~~ parserMap2 rinse rune (optional | shin form)
+     ~~ parserMap FORM form
 @ o (datacase#x)(FORM _ * 1)(LSTR _ * 3)(RUNE r * barLen r)
 | parserPure (add o d, x)
 
@@ -342,7 +342,7 @@ empt=(parserMap (const NIL) (char {]}))
 
 > Parser r (Row (Nat, Frag))
 = line
-: lis <- bind | andThen spc0
+: lis < bind | andThen spc0
               | choice nada (pcons frag loan)
 | parserPure (listToRow lis)
 

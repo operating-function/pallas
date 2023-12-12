@@ -25,21 +25,21 @@
 | PORT_SR_DYNO 0 (idx 3 portRqst)
 
 = (go cogExit)
-: servThread <- fork
+: servThread < fork
                   & done
                   | trk [ourName {registered SERV}]
-                  : ??(p_serv _) <- syscall (**PORT_SERV usSeed staticHandler)
+                  : ??(p_serv _) < syscall (**PORT_SERV usSeed staticHandler)
                   | done 0
-: ??(p_dyno serverPort) <- syscall (**PORT_DYNO usSeed)
+: ??(p_dyno serverPort) < syscall (**PORT_DYNO usSeed)
 | trk [{we got a serverPort:} serverPort]
 @ [spFrom _spPayload portId] | serverPort
 ^ _ 0
 ? (loop _)
 ;; receive file choice bytes
-: fileBar <- recvFileBar portId
+: fileBar < recvFileBar portId
 | trk [{fileBar len} (barLen fileBar) {, blake3 hash} (blake3 fileBar)]
-: ??(p_send now) <- syscall (**PORT_SEND portId (natBar (barLen fileBar)))
-: ??(p_send now) <- syscall (**PORT_SEND portId fileBar)
+: ??(p_send now) < syscall (**PORT_SEND portId (natBar (barLen fileBar)))
+: ??(p_send now) < syscall (**PORT_SEND portId fileBar)
 | loop 0
 
 main=(runCog go)

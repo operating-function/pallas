@@ -260,7 +260,7 @@
 ; * (EREF r)
 ;     # datacase (tabLookup r ctx)
 ;     * NONE
-;         : _ bind <- getBind r ss (showExp exp)
+;         : _ bind < getBind r ss (showExp exp)
 ;                         (rex msg)&({inference failed}, rex, msg)
 ;         @ props | getProps ss bind
 ;         ; trk [=props =bind]
@@ -268,10 +268,10 @@
 ;         | if (isZero type)
 ;             @ [_ _ _ bindMod bindName] bind
 ;             | {untyped} `($$bindMod).($$bindName)
-;         : st ty <- instantiate (schemeFromType type) st err
+;         : st ty < instantiate (schemeFromType type) st err
 ;         | ok st (#[], ty)
 ;     * (SOME s)
-;         : st ty <- instantiate s st err
+;         : st ty < instantiate s st err
 ;         | ok st (#[], ty)
 ; * (EAPP f x)
 ;     : st rt      < genTyVar st err
@@ -283,8 +283,8 @@
 ;    ++ composeSubst (composeSubst s3 s2) s1
 ;    ++ applySubst s3 rt
 ; * (ELAM _pin (sym, tag, args, body))
-;     : st funType  <- genTyVar st err
-;     : st argTypes <- genTyVars (len args) st err
+;     : st funType  < genTyVar st err
+;     : st argTypes < genTyVars (len args) st err
 ;     ; trk [oldCtx=ctx]
 ;     ; trk [newStuff=(zip args argTypes)]
 ;     @ args | map unsafeToVarName args
@@ -312,7 +312,7 @@
 ;     : st (s1, tVal) < go ctx val st
 ;     @ scheme | generalize ctx | applySubst s1 tVal
 ;     @ bCtx   | tabIns varName scheme ctx
-;     : st (s2, tBod) <- go (applySubstCtx s1 bCtx) bod st
+;     : st (s2, tBod) < go (applySubstCtx s1 bCtx) bod st
 ;     | ok st (composeSubst s2 s1, tBod)
 ; * (EREC pat val bod)
 ;     @ varName (unsafeToVarName pat)
@@ -446,15 +446,15 @@
 ; @ rune | rexRune rex
 ; | if ((nKid == 2) && (rune == {=}))
 ;     @ [sig exp] kids
-;     : s <- readSignature sig err
-;     : e <- readExp exp err
+;     : s < readSignature sig err
+;     : e < readExp exp err
 ;     | ok s e
 ; | if ((nKid == 3) && (rune == {=}))
 ;     ; trk [=kids]
 ;     @ [_key sig exp] kids
-;     : s <- readSignature sig err
+;     : s < readSignature sig err
 ;     ; trk [=s]
-;     : e <- readExp exp err
+;     : e < readExp exp err
 ;     ; trk [=e]
 ;     | ok s e
 ; | else

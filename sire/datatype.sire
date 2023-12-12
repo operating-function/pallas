@@ -66,8 +66,8 @@ dataTag=_DataTag
 | strFromList
 ^ _ ({_} :: strToList (strToLower constr))
 ? (fixUnderscores str)
-: c cs <- listCase str str
-: d ds <- listCase cs  str
+: c cs < listCase str str
+: d ds < listCase cs  str
 | if (c /= {_}) (c :: fixUnderscores cs)
 | fixUnderscores (toUpper d :: ds)
 
@@ -137,7 +137,7 @@ dataTag=_DataTag
 @ sRune (rexRune rex)
 | ifNot ({:} == sRune)   | err rex fieldExpect
 | ifNot (2 == len-sKids) | err rex fieldExpect
-: sym <- readSymbol (idx 0 sKids) err
+: sym < readSymbol (idx 0 sKids) err
 @ typ (idx 1 sKids)
 ; Ignoring the type for now.
 | ret (0, sym, typ)
@@ -161,7 +161,7 @@ dataTag=_DataTag
 @ sons    (rexSons rex)
 @ numSons (len sons)
 | if (numSons == 1)
-    : field <- parseField (idx 0 sons) err
+    : field < parseField (idx 0 sons) err
     | go (field :: acc) (rexHeir rex)
 | ifNot (numSons == 2)
     | err rex fieldItemExpect
@@ -202,7 +202,7 @@ dataTag=_DataTag
 = (readConstructorSig r err ok)
 ;
 | ifNot (rexIsNode r)
-    : cnstr <- readSymbol r err
+    : cnstr < readSymbol r err
     | ok (0, cnstr, NONE, [])
 ;
 @ rune | rexRune r
@@ -227,9 +227,9 @@ dataTag=_DataTag
 @ firstField | idx 0 fields
 ;
 | if (eql 2 numKids && ({*} == rexRune firstField))
-    : fields <- parseItemizedFields (idx 1 kids) err
+    : fields < parseItemizedFields (idx 1 kids) err
     | ok (0, cnstr, oTag, fields)
-: fields <- parseManyFields (drop 1 kids) err
+: fields < parseManyFields (drop 1 kids) err
 | ok (0, cnstr, oTag, fields)
 
 ;; {readDatatypeSig} uses an inglorious short-term hack: it simply runs
@@ -247,7 +247,7 @@ dataTag=_DataTag
 @ bad
     | die [%rexToTrip %badArgument rex]
 : rune sons heir
-   <- **rexGetNode rex bad
+    < **rexGetNode rex bad
 | if (neq 0 heir)
     | bad
 | rowCons rune sons
@@ -267,7 +267,7 @@ dataTag=_DataTag
 | if (oTag /= NONE)
     | err sigRex {Record constructors are never tagged}
 ;
-: ss constrKey <- generateUniqueKey ss
+: ss constrKey < generateUniqueKey ss
 ;
 @ fields  | map snd fields  ;;  (Row (RexId, Symbol, Type)) -> Row Symbol
 @ props   | #[fieldNames=fields]
@@ -347,7 +347,7 @@ ex=(PAIR %a %b)
 = (assignKeysToBranches ss branches ok)
 ^ rowTraverseState ss _ branches ok
 & (ss [_ cns oTag arg] ok)
-: ss nex <- generateUniqueKey ss
+: ss nex < generateUniqueKey ss
 | ok ss [nex cns oTag arg]
 
 
@@ -365,7 +365,7 @@ ex=(PAIR %a %b)
 | seq ix
 ; trk {loop},[=ix =acc =remain]
 ;
-: kca remain <- listCase remain (bloodline acc)
+: kca remain < listCase remain (bloodline acc)
 @ [key cns oTag arg] kca
 ;
 @ ari | len arg
@@ -450,7 +450,7 @@ ex=(PAIR %a %b)
     < listCase remain
         | ok oFallback (listToRowRev acc)
 ;
-: bodyExp <- readExp bodyRex err
+: bodyExp < readExp bodyRex err
 ;
 | if (eql '_ sigRex)
     | ifNot (isZero oFallback)
@@ -505,7 +505,7 @@ ex=(PAIR %a %b)
     < listCase remain
         | ok hasTag fun fallback (listToRowRev acc)
 ;
-: bindKey bindRow <- getBind constr ss rex err
+: bindKey bindRow < getBind constr ss rex err
 @ props (getProps ss bindRow)
 ;
 ; trk #[=bindKey =bindRow =props =constr]
@@ -609,7 +609,7 @@ ex=(PAIR %a %b)
 ;;; makeDatacaseExpr ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (makeDatacaseExpr hasTag fun ss valExp fallback cases return)
-: ss tmpExp <- generateVarE {g} ss
+: ss tmpExp < generateVarE {g} ss
 : ss pairs
     < ^ rowTraverseState ss _ cases
       & (ss [tag ari params body isRaw] continue)

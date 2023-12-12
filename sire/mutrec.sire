@@ -80,7 +80,7 @@
 ^ rowTraverseState st _ arms ok
 & (st [sym binds body] ret)
 | trk #[=sym =binds =body]
-: st sig bod <- makeDestroyer st binds body
+: st sig bod < makeDestroyer st binds body
 | ret st [sym sig bod]
 
 !!=  ++ [5]
@@ -129,8 +129,8 @@
 
 = (genMutRecE st coreTag letBody coreBody ok)
 ;
-: st coreNam     <- generateTempName {core} st
-: st sigExpPairs <- genCoreBody coreBody st
+: st coreNam     < generateTempName {core} st
+: st sigExpPairs < genCoreBody coreBody st
 ;
 @ arms | listZip listEnumFrom-0 listFromRow-sigExpPairs
 @ maxArgs
@@ -154,9 +154,9 @@
 : st coreArgs
     < ^ rowTraverseState st _ (rep 0 maxArgs)
       & (st item pure)
-      : st varExp <- generateVarE {arg} st
+      : st varExp < generateVarE {arg} st
       | pure st varExp
-: st tagArgExp <- generateVarE {tag} st
+: st tagArgExp < generateVarE {tag} st
 @ coreArgs
     | rowCons tagArgExp coreArgs
 @ branches
@@ -267,7 +267,7 @@
 : st coreArgIdns
         < ^ rowTraverseState st _ (gen maxArgs | const 0)
           & (st _item pure)
-          : st idn <- (generateVarE {arg} st)
+          : st idn < (generateVarE {arg} st)
           | pure st idn
 : st armDefuns
         ; TODO: This does not actually need to traverse with state,

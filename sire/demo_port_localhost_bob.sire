@@ -26,7 +26,7 @@
 
 = (chatter cogExit)
 @ portRqst [usAddr themAddr NONE (natBar 100)]
-: ??(p_rqst clientPort) <- syscall (**PORT_RQST usSeed portRqst)
+: ??(p_rqst clientPort) < syscall (**PORT_RQST usSeed portRqst)
 @ [_cpThem _cpPayload cpMbPortId] | clientPort
 | trk [ourName %got %clientPort clientPort]
 | maybeCase cpMbPortId
@@ -35,12 +35,12 @@
 & portId
 ^ _ ()
 ? (loop _)
-: ??(p_recv [recvWhen (PIN recvBody)]) <- syscall (**PORT_RECV portId)
+: ??(p_recv [recvWhen (PIN recvBody)]) < syscall (**PORT_RECV portId)
 | trk [ourName %recvd recvBody %at recvWhen]
 @ count | barNat recvBody
 @ newCount (sub count 1)
 @ payload | natBar newCount
-: ??(p_send now) <- syscall (**PORT_SEND portId payload)
+: ??(p_send now) < syscall (**PORT_SEND portId payload)
 | trk [ourName %sent payload {on port} portId %at now]
 | if (lte newCount 1)
   | cogExit ()

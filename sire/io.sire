@@ -176,14 +176,14 @@
 
 > IO a > IO b > IO b
 = (andThen x y k)
-: xr <- x
-: yr <- y
+: xr < x
+: yr < y
 | k yr
 
 > IO a > (a > IO b) > IO b
 = (bindIO x y k)
-: xr <- x
-: yr <- y xr
+: xr < x
+: yr < y xr
 | k yr
 
 = (foreverCycle act resp tid st)
@@ -293,62 +293,62 @@
 * 1 (**empty (idx 1 var))
 
 = (newMVar val return)
-: var <- newRef (**MVAR_FULL val [])
+: var < newRef (**MVAR_FULL val [])
 | return var
 
 = (newEmptyMVar return)
-: var <- newRef (**MVAR_EMPTY [])
+: var < newRef (**MVAR_EMPTY [])
 | return var
 
 = (putMVar var val return)
-: mvarSt <- readRef var
+: mvarSt < readRef var
 ; trk {putMVar},var,mvarSt
 | **mvarCase mvarSt
     ; full
     & (existingVal writers)
-    : tid <- myThreadId
+    : tid < myThreadId
     @ writers (rowSnoc writers [tid val])
-    : _ <- writeRef var (**MVAR_FULL existingVal writers)
-    : _ <- block
+    : _ < writeRef var (**MVAR_FULL existingVal writers)
+    : _ < block
     | return ()
 ; empty
 & readers
 | ifNot (len readers) ; No readers
-    : _ <- writeRef var (**MVAR_FULL val [])
+    : _ < writeRef var (**MVAR_FULL val [])
     | return ()
 ; Readers waiting
 ; trk {PUT},readers,r,rs
-: _ <- writeRef var (**MVAR_EMPTY (drop 1 readers))
-: _ <- yield (idx 0 readers) val
+: _ < writeRef var (**MVAR_EMPTY (drop 1 readers))
+: _ < yield (idx 0 readers) val
 | return ()
 
 = (takeMVar var return)
-: mvarSt <- readRef var
+: mvarSt < readRef var
 ; trk {takeMVar},var,mvarSt
 | **mvarCase mvarSt
     ; full
     & (filledWith pendingWrites)
     | ifNot (len pendingWrites) ; no writes, make it empty
-        : _ <- writeRef var (**MVAR_EMPTY [])
+        : _ < writeRef var (**MVAR_EMPTY [])
         | return filledWith
     ; writes, pop writter from queue
     @ [tid val] (idx 0 pendingWrites)
-    : _ <- writeRef (**MVAR_FULL val (drop 1 pendingWrites))
-    : _ <- yield tid 0
+    : _ < writeRef (**MVAR_FULL val (drop 1 pendingWrites))
+    : _ < yield tid 0
     | return filledWith
 ; empty, append to readers queue
 & readers
-: me <- myThreadId
-: _  <- writeRef var (**MVAR_EMPTY (rowSnoc readers me))
-: rs <- block
+: me < myThreadId
+: _  < writeRef var (**MVAR_EMPTY (rowSnoc readers me))
+: rs < block
 | return rs
 
 
 ;;; Looping ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (forList_ list f return)
-: x xs <- listCase list (return ())
-: _    <- f x
+: x xs < listCase list (return ())
+: _    < f x
 | forList_ xs f return
 
 (for_ row f return)=(forList_ (listFromRow row) f return)
@@ -358,15 +358,15 @@
 (traverseSet_ f set return)=(**forSet_ set f return)
 
 = (forList list f return)
-: x xs <- listCase list (return ())
-: r    <- f x
-: rs   <- forList xs f
+: x xs < listCase list (return ())
+: r    < f x
+: rs   < forList xs f
 | return (CONS r rs)
 
 (traverseList f set return)=(forList set f return)
 
 = (for row f return)
-: res <- forList (listFromRow row) f
+: res < forList (listFromRow row) f
 | return (listToRow res)
 
 (traverse f set return)=(**for set f return)
@@ -376,34 +376,34 @@
 
 > IO a > IO b > IO (a, b)
 = (concurrently x y return)
-: xMVar   <- newEmptyMVar
-: yMVar   <- newEmptyMVar
-: xThread <- fork & ret
-                  : x <- x
-                  : r <- putMVar xMVar x
-                  | ret r
+: xMVar   < newEmptyMVar
+: yMVar   < newEmptyMVar
+: xThread < fork & ret
+                 : x < x
+                 : r < putMVar xMVar x
+                 | ret r
 ; trk [=xThread]
-: yThread <- fork & ret
-                  : x <- x
-                  : r <- putMVar yMVar x
-                  | ret r
+: yThread < fork & ret
+                 : x < x
+                 : r < putMVar yMVar x
+                 | ret r
 ; trk [=yThread]
-: xVal    <- takeMVar xMVar
+: xVal < takeMVar xMVar
 ; trk [=xVal]
-: yVal    <- takeMVar yMVar
+: yVal < takeMVar yMVar
 ; trk [=yVal]
 | return [xVal yVal]
 
 > (a > IO b) > Row a > IO (Row b)
 = (mapConcurrently f xs return)
-: pending <- for xs & (x return)
-                    : xMVar   <- newEmptyMVar
-                    : xThread <- fork & ret
-                                      : fx <- f x
-                                      : rs <- putMVar xMVar fx
-                                      | ret rs
-                    | return xMVar
-: results <- for pending takeMVar
+: pending < for xs & (x return)
+                   : xMVar   < newEmptyMVar
+                   : xThread < fork & ret
+                                    : fx < f x
+                                    : rs < putMVar xMVar fx
+                                    | ret rs
+                   | return xMVar
+: results < for pending takeMVar
 | return results
 
 > Row a > (a > IO b) > IO (Row b)

@@ -46,8 +46,8 @@ hexAlphabet=(natBar {0123456789abcdef})
 ^ _ 0 buf 1
 ? (loop acc lis pos)
 | seq acc
-: a as <- listCase lis (0 1 1 acc)
-: b bs <- listCase as (die %impossible)
+: a as < listCase lis (0 1 1 acc)
+: b bs < listCase as (die %impossible)
 @ acc (| add acc | add mul-pos-b | mul-pos | mul 16 a)
 | loop acc bs (mul 256 pos)
 
@@ -102,7 +102,7 @@ hexAlphabet=(natBar {0123456789abcdef})
 ; Lookup into a map encoded as a list
 ; of [k v] pairs.
 = (listLookup key l)
-: x xs <- listCase l NONE
+: x xs < listCase l NONE
 @ [k v] x
 | if (eql k key) (SOME v)
 | listLookup key xs
@@ -143,8 +143,8 @@ hexAlphabet=(natBar {0123456789abcdef})
 = (maybeRowSequence results)
 ^ _ NIL listFromRow-results
 ? (loop acc rest)
-: mX more <- listCase rest SOME-(listToRowRev acc)
-: x <- maybeCase mX NONE
+: mX more < listCase rest SOME-(listToRowRev acc)
+: x < maybeCase mX NONE
 | loop (CONS x acc) more
 
 (maybeRowTraverse f xs)=(maybeRowSequence map-f-xs)
@@ -175,7 +175,7 @@ hexAlphabet=(natBar {0123456789abcdef})
 > Nat > Maybe Nat
 = (readNat n)
 @ mDigits (maybeRowTraverse readDigit explode-n)
-: nums <- maybeCase mDigits NONE
+: nums < maybeCase mDigits NONE
 @ f
     & (elem rest)
     @ [pos acc] rest
@@ -251,7 +251,7 @@ hexAlphabet=(natBar {0123456789abcdef})
     | (p, t, [p#0 hBits tBits])
 * (go p t noun)
     : ref
-       <- maybeCase (tabLookup noun t)
+        < maybeCase (tabLookup noun t)
             @ t (tabIns noun p t)
             | if isNat-noun (**nat p t noun)
             | if isApp-noun (**cel p t car-noun cdr-noun)
@@ -331,7 +331,7 @@ hexAlphabet=(natBar {0123456789abcdef})
 | if (neq {=} (rexRune rex))
         | err rex {Knot patterns must be = nodes}
 : sym rhs
-       <- rexParseKids (rexSetHeir 0 rex) [readSymbol readRex] err
+        < rexParseKids (rexSetHeir 0 rex) [readSymbol readRex] err
 @ acc (CONS [sym rhs] acc)
 | loop acc (rexHeir rex)
 

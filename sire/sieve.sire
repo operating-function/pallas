@@ -38,7 +38,7 @@
 ;;; Sieve ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (spin ls n)
-: x xs <- listCase ls NIL
+: x xs < listCase ls NIL
 | CONS n (spin xs (add n x))
 
 = (spinWheel n)

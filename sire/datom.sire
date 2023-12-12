@@ -66,7 +66,7 @@
 ; only usable for tuples which end in [v] (eav, aev)
 @ (alterEndVal c in)
     | SOME
-    : set <- maybeCase in (setSing c)
+    : set < maybeCase in (setSing c)
     | if many | setIns c set
     | setSing c
 ; only usable for tuples whose middle is not v (eav, aev)
@@ -79,7 +79,7 @@
 ; only usable for tuples whose middle IS v (ave)
 @ (alterEndNonV c in)
     | SOME
-    : set <- maybeCase in (setSing c)
+    : set < maybeCase in (setSing c)
     | setIns c set
 ; only usable for tuples whose middle IS v (ave)
 @ (alterMiddleEndNonV b c in)
@@ -102,12 +102,12 @@
 = (rawRm e a v db)
 @ DB(..) db
 @ (alter2 c in)
-    : set <- maybeCase in NONE
+    : set < maybeCase in NONE
     @ rmed | setDel c set
     | if (setIsEmpty rmed) NONE
     | SOME rmed
 @ (alter b c in)
-    : tab <- maybeCase in NONE
+    : tab < maybeCase in NONE
     @ rmed | tabAlter (alter2 c) b tab
     | if (tabIsEmpty rmed) NONE
     | SOME rmed
@@ -209,29 +209,29 @@ db
 > Nat > Nat > Db > Set Any
 = (lookupByEidAid eid aid db)
 @ DB(..) db
-: av <- maybeCase (tabLookup eid eav) %[] ; result is set
-: v  <- maybeCase (tabLookup aid av) %[]  ; result is set
+: av < maybeCase (tabLookup eid eav) %[] ; result is set
+: v  < maybeCase (tabLookup aid av) %[]  ; result is set
 | v
 
 > Nat > Nat > Db > Set Any
 = (lookupByAidEid aid eid db)
 @ DB(..) db
-: ev <- maybeCase (tabLookup aid aev) %[]  ; result is set
-: v  <- maybeCase (tabLookup eid ev) %[]   ; result is set
+: ev < maybeCase (tabLookup aid aev) %[]  ; result is set
+: v  < maybeCase (tabLookup eid ev) %[]   ; result is set
 | v
 
 > Nat > Nat > Db > Set Nat
 = (lookupByAidV aid val db)
 @ DB(..) db
-: ve <- maybeCase (tabLookup aid ave) %[] ; result is set
-: e  <- maybeCase (tabLookup val ve) %[]  ; result is set
+: ve < maybeCase (tabLookup aid ave) %[] ; result is set
+: e  < maybeCase (tabLookup val ve) %[]  ; result is set
 | e
 
 > Any > Nat > Db > Set Nat
 = (lookupByVAid val aid db)
 @ DB(..) db
-: ae <- maybeCase (tabLookup val vae) %[] ; result is set
-: e  <- maybeCase (tabLookup aid ae) %[]  ; result is set
+: ae < maybeCase (tabLookup val vae) %[] ; result is set
+: e  < maybeCase (tabLookup aid ae) %[]  ; result is set
 e
 
 ; Given a user level attribute name, translate that to a numeric attribute
@@ -247,22 +247,22 @@ e
     | LEFT | **LOOKUP_NO_ATTRIBUTE attrName
 @ isIndex
     @ attrIndexed | lookupByAidEid dbIndexedId attrEid db
-    : indexed <- **singletonSetDefault attrIndexed FALSE
+    : indexed < **singletonSetDefault attrIndexed FALSE
     indexed
 @ isUnique
-    @ attrUniq    | lookupByAidEid dbUniqueId attrEid db
-    : uniq    <- **singletonSetDefault attrUniq FALSE
+    @ attrUniq | lookupByAidEid dbUniqueId attrEid db
+    : uniq     < **singletonSetDefault attrUniq FALSE
     uniq
 @ isMany
     @ attrMany | lookupByAidEid dbCardinalityId attrEid db
-    : many <- **singletonSetDefault attrMany {many}
+    : many     < **singletonSetDefault attrMany {many}
     # switch many
     * one  FALSE
     * many TRUE
     * _    | {unknown many value: } many
 @ isRef
     @ attrValType | lookupByAidEid dbValueTypeId attrEid db
-    : t <- **singletonSetDefault attrValType {any}
+    : t           < **singletonSetDefault attrValType {any}
     # switch t
     * ref TRUE
     * _   FALSE
@@ -310,7 +310,7 @@ e
 * (RIGHT [aid _ unique _])
     | ifNot unique | {cannot lookup unindexed attribute } identAttr
     @ eidSet | lookupByAidV aid identVal db
-    : eid <- **fromSingletonSet eidSet | {invalid eid for aid?! } aid
+    : eid < **fromSingletonSet eidSet | {invalid eid for aid?! } aid
     | lookupByEA eid attr db
 
 
@@ -411,7 +411,7 @@ e
             | parseMapForm txnTmpIds db i
           ++ | listWeld suberrs errs
           ++ | listWeld subactions actions
-          ++ : eid <- maybeCase mybEid eids
+          ++ : eid < maybeCase mybEid eids
              | CONS eid eids
           ++ txnTmpIds
           ++ db
@@ -426,7 +426,7 @@ e
       | if ((isTab vVal) && (not | isSet vVal))
         @ [mybEid suberrs subactions txnTmpIds db]
           | parseMapForm txnTmpIds db vVal
-        : subeid <- maybeCase mybEid
+        : subeid < maybeCase mybEid
                    ++ | listWeld suberrs errs
                    ++ | listWeld subactions actions
                    ++ txnTmpIds
@@ -634,10 +634,10 @@ e
         < collectErrors
         ^ map _ | tabToPairs val
         & [k v]
-        : parsed <- doRight | parse db k
+        : parsed < doRight | parse db k
         # datacase parsed
         * (PULL_ATTR keyExpr)
-            : parsedVals <- collectErrors | map (parse db) v
+            : parsedVals < collectErrors | map (parse db) v
             | RIGHT [keyExpr parsedVals]
         * _ | LEFT | **BAD_MAP_VAL parsed
     | RIGHT | PULL_MAP specs
@@ -665,11 +665,11 @@ e
   | RIGHT [outputKey rawSet attrType]
 # datacase expr
 * (ATTR_EXPR name options)
-    : [aid indexed unique isMany isRef] <- doRight | resolveAttrName name db
+    : [aid indexed unique isMany isRef] < doRight | resolveAttrName name db
     @ rawSet | lookupByEidAid eid aid db
     | handleOptions name options [indexed unique isMany isRef] rawSet
 * (ATTR_BACKWARDS name options)
-    : [aid indexed unique isMany isRef] <- doRight | resolveAttrName name db
+    : [aid indexed unique isMany isRef] < doRight | resolveAttrName name db
     @ rawSet | lookupByVAid eid aid db
     | handleOptions name options [indexed unique isMany isRef] rawSet
 * (ATTR_EID options)
@@ -740,7 +740,7 @@ e
     < collectErrors
     ^ map _ rowEidSpec
     & eidSpec
-    : [eid _ _] <- doRight | parseEntityId #[] db eidSpec
+    : [eid _ _] < doRight | parseEntityId #[] db eidSpec
     ;;;;;;;;;;;;;;;;;;;;;;;; parseEntityId takes a tab
     | RIGHT eid
 : specs
@@ -749,7 +749,7 @@ e
     < collectErrors
     ^ map _ eids
     & eid
-    : result <- collectErrors | map (lookupSpec eid db) specs
+    : result < collectErrors | map (lookupSpec eid db) specs
     | RIGHT | tabFromPairs result
 | RIGHT results
 

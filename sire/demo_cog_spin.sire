@@ -13,7 +13,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (spinDemo return)
-: ??(spin_got_id id) <- syscall (COG_SPIN (runCog-(timeDemo 5)))
+: ??(spin_got_id id) < syscall (COG_SPIN (runCog-(timeDemo 5)))
 | trk [%cogId id]
 | return ()
 

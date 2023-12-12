@@ -70,12 +70,12 @@
 | fail msgBar
 
 = (parserMap f p buf off err fail ok)
-: off res <- p buf off err fail
+: off res < p buf off err fail
 | ok off (f res)
 
 = (parserMap2 f p q buf off err fail ok)
-: off pRes <- p buf off err fail
-: off qRes <- q buf off err fail
+: off pRes < p buf off err fail
+: off qRes < q buf off err fail
 | ok off (f pRes qRes)
 
 = (andThenLeft x y buf off err fail ok)
@@ -116,12 +116,12 @@
 
 = (many item)
 | choice
-    : first <- bind (try item)
+    : first < bind (try item)
     | parserMap (CONS first) (many item)
 | parserPure NIL
 
 = (some item)
-: first <- bind item
+: first < bind item
 | parserMap (CONS first) (many item)
 
 = (eof buf off err fail ok)
@@ -144,7 +144,7 @@ xy=(choice (char {x}) (char {y}))
 * OKAY=OKAY _:a
 
 = (runParser parser buffer)
-: off res <- **parser buffer 0 FAIL FAIL
+: off res < **parser buffer 0 FAIL FAIL
 | OKAY res
 
 ; Commits after the first character; this exists just to test backtracing.
@@ -187,7 +187,7 @@ xy=(choice (char {x}) (char {y}))
 
 ; Commits after the first character, just to test backtracing.
 = (stringOf1 chk buf startOff err fail ok)
-: off res <- stringOf chk buf startOff err fail
+: off res < stringOf chk buf startOff err fail
 | if (off == startOff)
     | fail {stringOf1}
 | ok off res

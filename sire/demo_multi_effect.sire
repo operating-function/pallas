@@ -95,50 +95,50 @@
 ++ WOCK_KILL
 
 = (handleSocketInput broadcast class vOpen sock next)
-: stt <- getKernelState
-: bar <- syscall (**sockRecv class sock)
+: stt < getKernelState
+: bar < syscall (**sockRecv class sock)
 | if (eql 0 bar) (next 0)
-: tid <- fork (PIN-handleSocketInput broadcast class vOpen sock)
-: con <- readRef vOpen
+: tid < fork (PIN-handleSocketInput broadcast class vOpen sock)
+: con < readRef vOpen
 @ conns (listFromRow setToRow-con)
 | broadcast bar next
 
 = (runLocalFileServer next)
-: tid <- myThreadId
+: tid < myThreadId
 | trk {serv},[=tid]
-: res <- syscall HTTP_SERV files
+: res < syscall HTTP_SERV files
 | die {Impossible: File Server does not respond}
 | next res
 
 = (sendAllLoop send conns bar next)
-: c cs <- listCase conns (next 0)
-: _    <- fork (syscall (**send c bar))
+: c cs < listCase conns (next 0)
+: _    < fork (syscall (**send c bar))
 | sendAllLoop send cs bar next
 
 = (sendAll vTelnetOpen vWebSocketOpen bar next)
 | trk [{ALL_SEND} bar]
-: tels <- readRef vTelnetOpen
-: webs <- readRef vWebSocketOpen
+: tels < readRef vTelnetOpen
+: webs < readRef vWebSocketOpen
 | trk [{ALL_SEND} bar [=tels =webs]]
-: ____ <- sendAllLoop SOCK_SEND (setToList tels) bar
-: ____ <- sendAllLoop WOCK_SEND (setToList webs) bar
+: ____ < sendAllLoop SOCK_SEND (setToList tels) bar
+: ____ < sendAllLoop WOCK_SEND (setToList webs) bar
 | next 0
 
 = (runSocketLoop broadcast class vOpen next)
 | trk {WAITING_FOR_SOCKET},(**sockOpen class)
-: sock <- syscall (**sockOpen class)
+: sock < syscall (**sockOpen class)
 | trk {NEW_SOCKET},sock
-: _ <- registerSocket vOpen sock
+: _ < registerSocket vOpen sock
 | trk {registered},sock
-: _ <- fork (handleSocketInput broadcast class vOpen sock)
+: _ < fork (handleSocketInput broadcast class vOpen sock)
 | trk {readThread},_
-: _ <- fork
+: _ < fork
         & done
         | trk {loopThread},_
-        : _ <- syscall (**sockWait class sock)
-        : _ <- syscall (**sockKill class sock)
-        : _ <- unregisterSocket vOpen sock
-        : s <- getKernelState
+        : _ < syscall (**sockWait class sock)
+        : _ < syscall (**sockKill class sock)
+        : _ < unregisterSocket vOpen sock
+        : s < getKernelState
         | trk {socked_end},sock
         | done 0
 | runSocketLoop broadcast class vOpen next
@@ -156,20 +156,20 @@
 ;;;
 > Ref Nat > IO ()
 = (randomWait vCount k)
-: tid <- myThreadId
-: bar <- syscall (RAND_BYTE 1)
-: now <- syscall TIME_WHEN
+: tid < myThreadId
+: bar < syscall (RAND_BYTE 1)
+: now < syscall TIME_WHEN
 @ off (mod (barIdx 0 bar) 5)
 @ then (add now off)
-: kd <- : cb <- fork
-        : me <- myThreadId
-        : _  <- syscall (TIME_WAIT then)
-        | trk [%kid_waited_also then [tid=me]]
-        | cb 0
-: x <- syscall (TIME_WAIT then)
-: n <- readRef vCount
-: _ <- (@ x inc-n | seq x | writeRef vCount x)
-: s <- getKernelState
+: kd < : cb < fork
+       : me < myThreadId
+       : _  < syscall (TIME_WAIT then)
+       | trk [%kid_waited_also then [tid=me]]
+       | cb 0
+: x < syscall (TIME_WAIT then)
+: n < readRef vCount
+: _ < (@ x inc-n | seq x | writeRef vCount x)
+: s < getKernelState
 | trk [%STATE s]
 | trk [%waited_until then [tid=tid child=kd count=n]]
 | k x
@@ -178,32 +178,32 @@
 ;;; WebSocket Server ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; = (runWebSocket _next)
-; : vOpen <- newRef %[]
+; : vOpen < newRef %[]
 ; | forever
 ; & loop
-; : sock <- webSocketOpen
-; : ____ <- modifyRef vOpen (setIns sock)
-; : trak <- fork (trackWebSocketSocket vWebSocketConn sock)
-; : hand <- fork (forever (handleWebSocketInput vWebSocketConn sock))
+; : sock < webSocketOpen
+; : ____ < modifyRef vOpen (setIns sock)
+; : trak < fork (trackWebSocketSocket vWebSocketConn sock)
+; : hand < fork (forever (handleWebSocketInput vWebSocketConn sock))
 ; | loop 0
 
 = (randomWaitLoop vCount k)
-: _ <- randomWait vCount
+: _ < randomWait vCount
 | randomWaitLoop vCount k
 
 = (effectDemo done)
-: vCount          <- newRef 0
-: vTelnetOpen     <- newRef %[] ;; set
-: vWebSockOpen    <- newRef %[] ;; set
+: vCount          < newRef 0
+: vTelnetOpen     < newRef %[] ;; set
+: vWebSockOpen    < newRef %[] ;; set
 @ bc (sendAll vTelnetOpen vWebSockOpen)
-: telnetThread    <- fork (runSocketLoop bc Telnet vTelnetOpen)
-: webSocketThread <- fork (runSocketLoop bc WebSocket vWebSockOpen)
-; waitThread      <- fork (randomWaitLoop vCount)
-: st <- getKernelState
+: telnetThread    < fork (runSocketLoop bc Telnet vTelnetOpen)
+: webSocketThread < fork (runSocketLoop bc WebSocket vWebSockOpen)
+; waitThread      < fork (randomWaitLoop vCount)
+: st < getKernelState
 | runLocalFileServer done
 
 = (repeatRequestDemo done)
-: now <- syscall TIME_WHEN
+: now < syscall TIME_WHEN
 ; trk {now},now
 | repeatRequestDemo done
 

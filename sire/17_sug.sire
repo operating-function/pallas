@@ -24,7 +24,7 @@
 ;;;;
 ;;;; You write something like:
 ;;;;
-;;;;     : (x y z) <- foo x y
+;;;;     : (x y z) < foo x y
 ;;;;     | add x
 ;;;;     | add y z
 ;;;;
@@ -244,11 +244,11 @@
 | ok st (colExpE valExp oFunName pats bodyExp)
 
 = (rexGetRune rex fall ok)
-: rune kids heir <- rexGetNode rex fall
+: rune kids heir < rexGetNode rex fall
 | **ok rune
 
 !!=   [{+} {+}]
-  : rune <- **rexGetRune '(3 + 4) 99
+  : rune < **rexGetRune '(3 + 4) 99
   , rune rune
 
 !!= ['(<* f) cbExpect]
@@ -299,7 +299,7 @@
 | ok params
 
 = ({|} st rex err ok)
-: params <- readFancyApp readRex rex err
+: params < readFancyApp readRex rex err
 | ok st
 | if null-params (cnsE 0) (appE params)
 
@@ -375,7 +375,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 | readItemized {~~} readItem readItem rex err ok
 
 = ({~~} st rex err ok)
-: items <- readTallListLit readRex rex err
+: items < readTallListLit readRex rex err
 ; trk {items},items,{->},(listE items)
 | ok st (listE items)
 
@@ -516,7 +516,7 @@ four=(WORD {4} 0)
 | **ok kids nKid
 
 = (readInfixLeft readExp rune rex err ok)
-: kids nKid <- readInfixValidate rune rex err
+: kids nKid < readInfixValidate rune rex err
 ^ _ nKid kids
 ? (go nKid kids)
 : lastItem < readExp (idx (dec nKid) kids) err
@@ -524,11 +524,11 @@ four=(WORD {4} 0)
     | ok (LEAF lastItem)
 | else
     @ nKid (dec nKid)
-    : head <- go nKid (take nKid kids)
+    : head < go nKid (take nKid kids)
     | ok (NODE head (LEAF lastItem))
 
 = (readInfixRight readExp rune rex err ok)
-: kids nKid <- readInfixValidate rune rex err
+: kids nKid < readInfixValidate rune rex err
 ^ _ nKid kids ok
 ? (go nKid kids ok)
 : fstItem < readExp (idx 0 kids) err
@@ -536,7 +536,7 @@ four=(WORD {4} 0)
     | ok (LEAF fstItem)
 | else
     @ nKid (dec nKid)
-    : rest <- go nKid (drop 1 kids)
+    : rest < go nKid (drop 1 kids)
     | ok (NODE (LEAF fstItem) rest)
 
 = (andE x y) | `($$and $x $y)
@@ -597,16 +597,16 @@ four=(WORD {4} 0)
   #!!= 1 (eql 4 (add 3 1))
 
 = ({!!} st rex err ok)
-^ : exps <- _ rex
+^ : exps < _ rex
   | ok st (assertE exps)
 ? (loop rex ret)
 @ heir     | rexHeir rex
 @ heirRune | rexRune heir
 | if (isZero heir || neq {!!} heirRune)
-    : exps <- readAssert NIL rex err
+    : exps < readAssert NIL rex err
     | ret exps
-: more <- loop heir
-: exps <- readAssert more (rexSetHeir 0 rex) err
+: more < loop heir
+: exps < readAssert more (rexSetHeir 0 rex) err
 | ret exps
 
 !! add 0 1
@@ -627,7 +627,7 @@ four=(WORD {4} 0)
 @ nKid | len kids
 | if (neq rune | rexRune rex) fail
 | if (lth kids 2) fail
-: vals <- rowTraverse (flip readExp err) kids
+: vals < rowTraverse (flip readExp err) kids
 | ok vals
 
 > (Rex > Read a) > Rex > Read (Row a)
@@ -642,8 +642,8 @@ four=(WORD {4} 0)
 @ nKid | len kids
 | if (neq nKid 2) fail
 | if (neq {/=} | rexRune rex) fail
-: x <- readExp (fst kids) err
-: y <- readExp (snd kids) err
+: x < readExp (fst kids) err
+: y < readExp (snd kids) err
 | ok x y
 
 (notEqlE x y)=(appE (cnsE neq, x, y))
@@ -665,8 +665,8 @@ four=(WORD {4} 0)
 ^ | letE tmpVar fstExp
   | _ (listFromRow restExps)
 ? (loop more)
-: x xs <- listCase more (die {impossible})
-: y ys <- listCase xs (appE (cnsE eql, tmpRef, x))
+: x xs < listCase more (die {impossible})
+: y ys < listCase xs (appE (cnsE eql, tmpRef, x))
 ^ appE (cnsE and, _, loop xs)
 | appE (cnsE eql, tmpRef, x)
 
@@ -676,7 +676,7 @@ four=(WORD {4} 0)
 | ok (fst stRex) (snd stRex)
 
 = ({/=} st rex err ok)
-: x y <- readNotEqlExp readRex rex err
+: x y < readNotEqlExp readRex rex err
 | ok st (notEqlE x y)
 
 !!= 1 (3 /= 4)

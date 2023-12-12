@@ -162,8 +162,8 @@
 ; Test that the mutual references in value position were resolved:
 !!=    | lookupByAV {:person/name} {Alice} aliceAndBob
      @ bobSet | lookupByAV {:person/name} {Bob} aliceAndBob
-     : bobId <- **fromSingletonSet bobSet ({failed to find Bob} 0)
-     : aid   <- **fromSingletonSet
+     : bobId < **fromSingletonSet bobSet ({failed to find Bob} 0)
+     : aid   < **fromSingletonSet
                   (lookupByAidV dbIdentId {:person/spouse} aliceAndBob)
                 | {unknown attr} 0
      | lookupByVAid bobId aid aliceAndBob

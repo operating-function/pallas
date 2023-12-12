@@ -107,7 +107,7 @@
 * LF [NONE LF]
 * (BR v t1 t2)
     @ [mbW t] (leftRem cmp t1)
-    : w <- maybeCase mbW (SOME v, LF)
+    : w < maybeCase mbW (SOME v, LF)
     | (SOME v, siftDown cmp w t2 t)
 
 = (pqMin t)
@@ -137,7 +137,7 @@
 ^ _ NIL t
 ? (go acc t)
 @ [mbW t1] (pqDelMin cmp t)
-: w <- maybeCase mbW (listRev acc)
+: w < maybeCase mbW (listRev acc)
 | go (w::acc) t1
 
 = (pqSort cmp xs)

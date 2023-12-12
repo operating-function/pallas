@@ -56,7 +56,7 @@
 ^ _ ()
 ? (loop _)
 ;; recv file name choice
-: ??(p_recv [recvWhen (PIN recvBody)]) <- syscall (**PORT_RECV portId)
+: ??(p_recv [recvWhen (PIN recvBody)]) < syscall (**PORT_RECV portId)
 ; trk [{handleFileRequests:} ourName %recvd recvBody %at recvWhen]
 @ recvBars (barDeserMultiRow recvBody)
 ; trk [{recvBars:} recvBars]
@@ -68,15 +68,15 @@
     * _ [NONE NONE]
 | maybeCase maybeFileName
   | trk [{handleFileRequests: bad request} recvBody]
-  : ??(p_send now) <- syscall (**PORT_SEND portId x#0)
+  : ??(p_send now) < syscall (**PORT_SEND portId x#0)
   | trk [ourName {sent zero len for bad request}]
   | loop ()
 & fileName
 ; trk [{valid fileName:} fileName]
 ;; send file payload
-: (PIN st) <- readRef vSt
+: (PIN st) < readRef vSt
 | maybeCase (tabLookup fileName (getFiles st))
-  : ??(p_send now) <- syscall (**PORT_SEND portId x#0)
+  : ??(p_send now) < syscall (**PORT_SEND portId x#0)
   | trk [ourName {sent zero len for invalid file}]
   | loop ()
 & [fileContentType (PIN payload)]
@@ -101,23 +101,23 @@
 @ payload | barCat (map barSer bars)
 @ bL | barLen payload
 ; trk [{fileBar len} bL]
-: ??(p_send now) <- syscall (**PORT_SEND portId (natBar bL))
+: ??(p_send now) < syscall (**PORT_SEND portId (natBar bL))
 ; trk [{sent natBar bL at} now]
-: ??(p_send now) <- syscall (**PORT_SEND portId payload)
+: ??(p_send now) < syscall (**PORT_SEND portId payload)
 ; trk [{sent payload w/ blake3 hash} (blake3 payload)]
 | loop ()
 
 = (handleClient vSt return)
-: ??(p_dyno serverPort) <- syscall (**PORT_DYNO usSeed)
-: _ <- fork
+: ??(p_dyno serverPort) < syscall (**PORT_DYNO usSeed)
+: _ < fork
          & done
          | handleClient vSt done
 @ [spFrom _spPayload portId] | serverPort
-: (PIN st) <- readRef vSt
+: (PIN st) < readRef vSt
 @ tks | tabKeysRow (getFiles st)
 ;; send available files
 @ payload | barCat (map barSer tks)
-: ??(p_send now) <- syscall (**PORT_SEND portId payload)
+: ??(p_send now) < syscall (**PORT_SEND portId payload)
 | trk [ourName %sent payload {on port} portId %at now]
 ;
 | handleFileRequests portId vSt return
@@ -126,43 +126,43 @@
 | barLen bar
 
 = (handleUpload vSt return)
-: ??(p_dyno serverPort) <- syscall (**PORT_DYNO us_ul_seed)
+: ??(p_dyno serverPort) < syscall (**PORT_DYNO us_ul_seed)
 ; fork ourselves so that multiple clients can connect
-: _ <- fork
+: _ < fork
          & done
          | handleUpload vSt done
 @ [spFrom _spPayload portId] | serverPort
-: (PIN st) <- readRef vSt
-: (PIN filePath) <- recvFileBarU64 portId
-: (PIN fileContentType) <- recvFileBarU64 portId
-: pFileBody@(PIN fileBody) <- recvFileBarU64 portId
+: (PIN st) < readRef vSt
+: (PIN filePath) < recvFileBarU64 portId
+: (PIN fileContentType) < recvFileBarU64 portId
+: pFileBody@(PIN fileBody) < recvFileBarU64 portId
 | trk [{fileBody barLen} (barLen fileBody)]
 @ newTotalSize | add (barLen fileBody) | getFileBytes st
 @ files (**getFiles st)
 @ files | tabIns filePath [fileContentType pFileBody] files
-: _ <- modifyState vSt & st
-                       | setFileBytes newTotalSize
-                       | setFiles files
-                       | st
+: _ < modifyState vSt & st
+                      | setFileBytes newTotalSize
+                      | setFiles files
+                      | st
 ; ; printouts to check we got them
-; : (PIN st) <- readRef vSt
+; : (PIN st) < readRef vSt
 ; | trk [ {after setting vSt files: keys:} (tabKeysRow (getFiles st)) {| content types:} (map (idx 0) (tabValsRow (getFiles st))) {| sizes} (map (x&(pinBarLen (idx 1 x))) (tabValsRow (getFiles st))) {| filebytes:} (getFileBytes st) ]
 | return ()
 
 > Cog ()
 = (launchDemo return)
-: vSt         <- newRef (PIN | newState)
-: servThread1 <- fork
+: vSt         < newRef (PIN | newState)
+: servThread1 < fork
                    & done
                    | trk [ourName {registered SERV to handle file uploads}]
-                   : ??(p_serv _) <- syscall (**PORT_SERV us_ul_seed staticHandler)
+                   : ??(p_serv _) < syscall (**PORT_SERV us_ul_seed staticHandler)
                    | done 0
-: servThread2 <- fork
+: servThread2 < fork
                    & done
                    | trk [ourName {registered SERV to handle clients}]
-                   : ??(p_serv _) <- syscall (**PORT_SERV usSeed staticHandler)
+                   : ??(p_serv _) < syscall (**PORT_SERV usSeed staticHandler)
                    | done 0
-: ulThread <- fork
+: ulThread < fork
                 & done
                 | handleUpload vSt done
 | handleClient vSt return

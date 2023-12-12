@@ -13,12 +13,12 @@
 
 = (talker ourName us them white theMsg k)
 ; trk [%talker ourName us them theMsg]
-: sendThread <- fork
+: sendThread < fork
                   & done
-                  : now <- syscall (**PORT_SEND us them theMsg)
+                  : now < syscall (**PORT_SEND us them theMsg)
                   | trk [ourName %sent theMsg] ;;; %at now]
                   | done 0
-: response <- syscall (**PORT_RECV us white)
+: response < syscall (**PORT_RECV us white)
 @ respBody (idx 2 response)
 | trk [ourName %got respBody]
 | talker ourName us them white theMsg k

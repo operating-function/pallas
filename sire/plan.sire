@@ -131,8 +131,8 @@
 * HL-i | die {<<loop>>}
 * RF-i | P p l a n (get st i) st ok
 * AP-i-f-x
-    : st af  <- apply a  f st
-    : st afx <- apply af x st
+    : st af  < apply a  f st
+    : st afx < apply af x st
     | ok st afx
 * VL-x
     | if isNat-x
@@ -140,13 +140,13 @@
     | if isPin-x
         | apply p (VL pinItem-x) st ok
     | if isApp-x
-        : st af  <- apply a  VL-(car x) st
-        : st afx <- apply af VL-(cdr x) st
+        : st af  < apply a  VL-(car x) st
+        : st afx < apply af VL-(cdr x) st
         | ok st afx
     | else
-        : st ln   <- apply l   VL-(lawName x) st
-        : st lna  <- apply ln  VL-(lawArgs x) st
-        : st lnab <- apply lna VL-(lawBody x) st
+        : st ln   < apply l   VL-(lawName x) st
+        : st lna  < apply ln  VL-(lawArgs x) st
+        : st lnab < apply lna VL-(lawBody x) st
         | ok st lnab
 
 ;; {C} does nat pattern-matching, this is the logic for the {2} primop.
@@ -169,27 +169,27 @@
 
 # mutual evaluator
 = (F v st ok)
-    : st v <- E v st
+    : st v < E v st
     # datacase v
     * HL-i     | die {<<loop>>}
     * RF-i     | F (get st i) st ok
     * VL-_     | ok st v
-    * AP-i-f-x : st f <- F f st
-               : st x <- F x st
+    * AP-i-f-x : st f < F f st
+               : st x < F x st
                | ok st v
 = (E v st ok)
     # datacase v
     * HL-i     | die {<<loop>>}
     * RF-i     | E (get st i) st ok
     * VL-_     | ok st v
-    * AP-i-f-x : st f <- E f st
+    * AP-i-f-x : st f < E f st
                | if (A f st /= 1) (ok st v)
-               : st v2 <- X v st
-               : st v  <- update v v2 st
-               : st v  <- E v st
+               : st v2 < X v st
+               : st v  < update v v2 st
+               : st v  < E v st
                | ok st v
 = (N v st ok)
-    : st v <- E v st
+    : st v < E v st
     ^ ok st (_ v)
     ? (go v)
     # datacase v
@@ -209,16 +209,16 @@
     @ hhb (car hb)
     @ thb (cdr hb)
     | if (hhb==0)
-        : st f <- R n env thb st
-        : st x <- R n env tb  st
-        : st res <- apply f x st
+        : st f < R n env thb st
+        : st x < R n env tb  st
+        : st res < apply f x st
         | ok st res
     | if (hhb==1)
-        : st slot <- blackhole st
+        : st slot < blackhole st
         @ env (rowSnoc env slot)
-        : st valu <- R inc-n env thb  st
-        : st slut <- update slot valu st
-        : st resu <- R inc-n env tb   st
+        : st valu < R inc-n env thb  st
+        : st slut < update slot valu st
+        : st resu < R inc-n env tb   st
         | ok st resu
     | else
         | ok st VL-b
@@ -229,33 +229,33 @@
     # switch fun
     * 0
         @ [_ n a b] env
-        : st n <- N n st
-        : st a <- N a st
-        : st b <- F b st
+        : st n < N n st
+        : st a < N a st
+        : st b < F b st
         | if (a == 0) LEFT-(0, 0)
         @ !law (0 n a | plan st b)
         | ok st (VL law)
     * 1
         @ [_ p l a n x] env
-        : st x <- E x st
-        : st r <- P p l a n x st
+        : st x < E x st
+        : st r < P p l a n x st
         | ok st r
     * 2
         @ [_ z p n] env
-        : st n <- N n st
+        : st n < N n st
         | C z p n st ok
     * 3
         @ [_ x] env
-        : st n <- N x st
+        : st n < N x st
         | ok st (VL inc-n)
     * 4
         @ [_ x] env
-        : st x <- F x st
+        : st x < F x st
         @ !v (4 | plan st x)
         | ok st VL-v
     * _
         @ [_ x] env
-        : st x <- F x st ; normalize error arg
+        : st x < F x st ; normalize error arg
         | LEFT (fun, plan st x)
 
 
@@ -294,16 +294,16 @@ ex=[VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)]
     # switch len-xs
     * 0 | ok st (VL 0)
     * 1 | loadExp (idx 0 xs) st ok
-    * 2 : st f <- loadExp fst-xs st
-        : st x <- loadExp snd-xs st
+    * 2 : st f < loadExp fst-xs st
+        : st x < loadExp snd-xs st
         | apply f x st ok
     * _ ^ loadExp _ st ok
         | foldl (x y & APPLY [x y]) fst-xs (drop 1 xs)
 
 = (_TryExp x)
 | deepseq x
-: st top <- loadExp x []
-: st res <- F top st
+: st top < loadExp x []
+: st res < F top st
 | RIGHT (plan st res)
 
 = (_Try row)

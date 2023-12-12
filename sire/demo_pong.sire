@@ -60,12 +60,12 @@
 ; . [[%when]]
 ; | loop
 ;
-; [i r]<-[[%fork (echoEveryMs 500 %wake_up)]]
+; [i r]<[[%fork (echoEveryMs 500 %wake_up)]]
 ;
-; (_,sireResp <- [[%kgen]])
+; (_,sireResp < [[%kgen]])
 ; sirePub=(get sireResp 0)
 ; sireKey=(get sireResp 1)
-; (_,pongResp <- [[%kgen]])
+; (_,pongResp < [[%kgen]])
 ; pongPub=(get pongResp 0)
 ; pongKey=(get pongResp 1)
 ;
@@ -89,30 +89,30 @@
 ; * 0 | die {wait to send me more}
 ; * 1 | listen [[%recv pongKey sirePub]]
 ;
-; [i r]<-[[%fork replyBot]]
-; [i r]<-[[%send sireKey pongPub %hi]]
-; [i r]<-[[%recv sireKey pongPub]]
+; [i r]<[[%fork replyBot]]
+; [i r]<[[%send sireKey pongPub %hi]]
+; [i r]<[[%recv sireKey pongPub]]
 ; hi=(get r 1)
 ; !!(eql %hi hi)
 ;
-; [i r]<-[[%send sireKey pongPub %bye]]
-; [i r]<-[[%recv sireKey pongPub]]
+; [i r]<[[%send sireKey pongPub %bye]]
+; [i r]<[[%recv sireKey pongPub]]
 ; bye=(get r 1)
 ; !!(eql %bye bye)
 ;
-; [i r]<-[[%when]]
+; [i r]<[[%when]]
 ; r=(add r 2_000_000_000)
-; [i r]<-[[%wait r]]
+; [i r]<[[%wait r]]
 ;
 ; ; {what time is it?}
-; ; [i r]<-[[%when]]
+; ; [i r]<[[%when]]
 ; ; _=(%when , i , r)
 ; ; {waiting}
-; ; [i r]<-[[%wait r]]
+; ; [i r]<[[%wait r]]
 ; ; {done waiting}
 ; ; _=(%wait , i , r)
 ; ; {now what time is it?}
-; ; [i r]<-[[%when]]
+; ; [i r]<[[%when]]
 ; ; _=(%when , i , r)
 ;
 ; ;FX=[0=[%fork pong-ADDR]]

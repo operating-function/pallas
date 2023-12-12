@@ -370,16 +370,16 @@ barNewline=(barSing 10)
 | weld header body
 
 = (pamLinePixels width buffer lineOffset)
-: i <- gen width
+: i < gen width
 @ pixelOffset | add lineOffset (mul 3 i)
 @ pixelBytes  | barSlice pixelOffset 3 buffer
-: p <- gen 3
+: p < gen 3
 | barIdx p pixelBytes
 
 = (pamBodyPixels width height [buffer headerWidth])
 @ bytesPerLine (mul width 3)
 | map (pamLinePixels width buffer)
-: i <- gen height
+: i < gen height
 | add headerWidth
 | mul bytesPerLine i
 

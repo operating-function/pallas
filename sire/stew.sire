@@ -296,7 +296,7 @@
 = (showMutRecArms showExp arms)
 ^ _ (listFromRow arms)
 ? (go arms)
-: [sym pats body] arms <- listCase arms 0
+: [sym pats body] arms < listCase arms 0
 @ symRex (varE sym)
 ^ NEST {*} (_, showExp body) (go arms)
 | if (null pats)
@@ -500,38 +500,38 @@
 
 > (Rex > Read Exp) > Rex > Read Exp
 = (parseRec readExp rex err ok)
-: e <- parseLet readExp rex err
+: e < parseLet readExp rex err
 # datacase e
 * (ELET v e b) | ok | EREC v e b
 
 > (Rex > Read Exp) > Rex > Read Rex
 = (parseCen rex err ok)
-: eRes <- readCenLit rex err
+: eRes < readCenLit rex err
 # datacase eRes
 * (LEFT val)  | ok (ENAT val)
 * (RIGHT set) | ok (ESET set)
 
 > (Rex > Read Exp) > Rex > Read Rex
 = (parseCenCen rex err ok)
-: set <- readTallSet rex err
+: set < readTallSet rex err
 | ok (ESET set)
 
 = (parseOrExp readExp rex err ok)
-: tree <- readInfixRight readExp {||} rex err
+: tree < readInfixRight readExp {||} rex err
 | ok (binTreeFold EOR tree)
 
 = (parseAndExp readExp rex err ok)
-: tree <- readInfixRight readExp {&&} rex err
+: tree < readInfixRight readExp {&&} rex err
 | ok (binTreeFold EAND tree)
 
 = (readCom readExp rex err ok)
 @ rune (rexRune rex)
 @ kids (rexKids rex)
 | if (and (not null-kids) (eql {=} (rexRune fst-kids)))
-    : tab <- readWideTabLit readExp rex err
+    : tab < readWideTabLit readExp rex err
     | ok (ETAB tab)
 | else
-    : exps <- rowTraverse (x k & readExp x err k) kids
+    : exps < rowTraverse (x k & readExp x err k) kids
     | ok (EROW exps)
 
 = (readHaxOutline rex err ok)
@@ -539,7 +539,7 @@
 @ params            | drop 1 kids
 | if (null kids)
     | err rex {# with no parameter}
-: sym <- readSymbol keywordRex err
+: sym < readSymbol keywordRex err
 | ok keywordRex sym params
 
 > (Rex > Read Exp) > Rex > Read Exp
@@ -547,7 +547,7 @@
 @ kids (rexKids rex)
 @ rune (rexRune rex)
 | if ((1 == len kids) && ({,} == rexRune fst-kids))
-    : tab <- readWideTabLit readExp fst-kids err
+    : tab < readWideTabLit readExp fst-kids err
     | ok (ETAB tab)
 ;
 : symRex sym params
@@ -572,32 +572,32 @@
 
 > (Rex > Read Exp) > Rex > Read Exp
 = (parseSig readExp rex err ok)
-: items <- readWideListLit readExp rex err
+: items < readWideListLit readExp rex err
 | ok (listFoldr ECON ENIL items)
 
 > (Rex > Read Exp) > Rex > Read Exp
 = (parseSigSig readExp rex err ok)
-: items <- readTallListLit readExp rex err
+: items < readTallListLit readExp rex err
 | ok (listFoldr ECON ENIL items)
 
 > (Rex > Read Exp) > Rex > Read Exp
 = (parseColCol readExp rex err ok)
-: tree <- readInfixRight readExp {::} rex err
+: tree < readInfixRight readExp {::} rex err
 | ok (binTreeFold ECON tree)
 
 > (Rex > Read Exp) > Rex > Read Exp
 = (parseTisTis readExp rex err ok)
-: items <- readEqlExp readExp rex err
+: items < readEqlExp readExp rex err
 | ok (EEQL items)
 
 > (Rex > Read Exp) > Rex > Read Exp
 = (parseFasTis readExp rex err ok)
-: x y <- readNotEqlExp readExp rex err
+: x y < readNotEqlExp readExp rex err
 | ok (ENEQ x y)
 
 > (Rex > Read Exp) > Rex > Read Rex
 = (parseHaxHax readExp rex err ok)
-: tab <- readTallTabLit readExp rex err
+: tab < readTallTabLit readExp rex err
 | ok (ETAB tab)
 
 = (parseTik rex err ok)
@@ -623,7 +623,7 @@
 | ok (EQRX quoted)
 
 = (readApp readExp rex err ok)
-: exps <- readFancyApp readExp rex err
+: exps < readFancyApp readExp rex err
 | ok
 | if (null exps) EUNT
 | foldl EAPP (idx 0 exps) (drop 1 exps)
@@ -643,15 +643,15 @@
 @ kids (rexKids rex)
 | if (len kids /= 2) (err rex {Bad lambda})
 @ [sigRex bodRex] kids
-: pats <- readBindSig sigRex err
-: body <- readExp bodRex err
+: pats < readBindSig sigRex err
+: body < readExp bodRex err
 | ok | ELAM FALSE | FUN 0 0 FALSE pats body
 
 = (readWut readExp pinned rex err ok)
 @ kids@[sigRex bodRex] (rexKids rex)
 | if (len kids /= 2) (err rex {Bad lambda.})
-: func mark pats <- readDestroyer sigRex err
-: body <- readExp bodRex err
+: func mark pats < readDestroyer sigRex err
+: body < readExp bodRex err
 | ok | ELAM pinned | FUN func func mark pats body
 
 = (readLin readExp rex err ok)
@@ -659,18 +659,18 @@
     | rexKids rex
 | if (len kids /= 1)
     | err rex {Expected something like: **x}
-: exp <- readExp expRex err
+: exp < readExp expRex err
 | ok (ELIN exp)
 
 = (readDot rex err ok)
 @ kids (rexKids rex)
 | if (len kids == 2)
-    : mod <- readKey (fst kids) err
-    : ref <- readKey (snd kids) err
+    : mod < readKey (fst kids) err
+    : ref < readKey (snd kids) err
     | ok (EQUA mod ref)
 | if (len kids /= 1)
     | err rex {expected .key}
-: key <- readKey (fst kids) err
+: key < readKey (fst kids) err
 | ok (EREF key)
 
 = (readCol readExp rex err ok)
@@ -744,20 +744,20 @@
 
 > (Rex > Read Cmd) > (Rex > Read Exp) > Rex > Read Cmd
 = (readHaxCmd readCmd rex err ok)
-: symRex sym params <- readHaxOutline rex err
+: symRex sym params < readHaxOutline rex err
 # switch sym
 * {mutual}
-    : cmds <- rowTraverse (flip readCmd err) params
+    : cmds < rowTraverse (flip readCmd err) params
     | ok (CMUT cmds)
 * _
-    : exp <- parseHaxExp readExp err
+    : exp < parseHaxExp readExp err
     | ok (CEXP exp)
 
 > (Rex > Read Cmd) > (Rex > Read Exp) > Rex > Read Cmd
 = (readCmd rex err ok)
 # switch (rexRune rex)
 * _
-    : exp <- readExp rex err
+    : exp < readExp rex err
     | ok (CEXP exp)
 * {#}
     | readHaxCmd readCmd rex err
@@ -901,7 +901,7 @@
 
 !!= '(add 2 (? (Foo x))(add x x))
   ^ readExp _ v2 showExp
-  ' : ?(Foo x) <- add 2
+  ' : ?(Foo x) < add 2
     | add x x
 
 !!= ' (^ (_ 3))(0 0)
@@ -1032,7 +1032,7 @@
 * (PVAR _)   | f pat ok
 * (PSEQ _)   | f pat ok
 * (PALI n p)
-    : p <- traversePat f p
+    : p < traversePat f p
     | f (PALI n p) ok
 * (PROW xs)
     : xs < rowTraverse (traversePat f) xs
@@ -1041,12 +1041,12 @@
     : kv < traverseTab (traversePat f) kv
     | f (PTAB kv) ok
 * (PPIN p)
-    : p <- traversePat f p
+    : p < traversePat f p
     | f (PPIN p) ok
 * (PLAW n a b)
-    : n <- traversePat f n
-    : a <- traversePat f a
-    : b <- traversePat f b
+    : n < traversePat f n
+    : a < traversePat f a
+    : b < traversePat f b
     | f (PLAW n a b) ok
 * _
     | {invalid pattern} pat
@@ -1064,7 +1064,7 @@
     | ok pat
 * (POPN constr)
     @ rex (showPat pat)
-    : _ bind <- getBind constr ss rex err
+    : _ bind < getBind constr ss rex err
     @ fieldNames (getProp ss bind {fieldNames})
     | if (isZero fieldNames)
         | err rex (strWeld {Unknown record constructor: } constr)
@@ -1077,10 +1077,10 @@
 & (exp ok)
 # datacase exp
 * (ELET n x b)
-    : n <- goPat n
+    : n < goPat n
     | ok (ELET n x b)
 * (ELAM p (FUN n t m as b))
-    : as <- rowTraverse goPat as
+    : as < rowTraverse goPat as
     | ok | ELAM p (FUN n t m as b)
 * (EMUT tag body arms)
     : arms < ^ rowTraverse _ arms
@@ -1134,19 +1134,19 @@
 | ok st rex
 
 = (cKet go st bodyExp valExp ok)
-: st bodyRex <- go st bodyExp
-: st valRex  <- go st valExp
+: st bodyRex < go st bodyExp
+: st valRex  < go st valExp
 | ok st (letE {_} valRex bodyRex)
 
 = (cSwi go st x fb arms ok)
-: st xRex     <- go st x
-: st fbRex    <- go st fb
-: st patRexes <- tabTraverseState st go arms
+: st xRex     < go st x
+: st fbRex    < go st fb
+: st patRexes < tabTraverseState st go arms
 | ok st (switchE xRex fbRex patRexes)
 
 = (cLam go st pin (FUN nam tag mark pats bodyExp) ok)
-: st bodyRex     <- go st bodyExp
-: st sig bodyRex <- makeDestroyer st pats bodyRex
+: st bodyRex     < go st bodyExp
+: st sig bodyRex < makeDestroyer st pats bodyRex
 ;
 @ bodyRex bodyRex
 ;
@@ -1209,7 +1209,7 @@
 ; Should the information be included in the datatype and filled in by
 ; another pass?
 ;
-: ss valRex <- go ss valExp
+: ss valRex < go ss valExp
 : ss oWildRex
   < & ret
     # datacase oWildExp
@@ -1221,7 +1221,7 @@
   < & ret
     ^ rowTraverseState ss _ arms ret
     & (ss (CON_CASE constr pats armExp) ret)
-    : ss armRex <- go ss armExp
+    : ss armRex < go ss armExp
     ;
     | ret ss [armRex constr pats armRex]
 ;
@@ -1237,7 +1237,7 @@
 
 > Tab Sym Nat > Tab Nat Any > Nat > Exp > (Nat, Exp)
 = (compile ss exp)
-^   : ss rex <- _ ss exp
+^   : ss rex < _ ss exp
     | (ss, rexClose rex)
 ? (go ss exp ok)
 # datacase exp
