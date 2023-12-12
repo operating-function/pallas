@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-### demo_portcat_file_recv <- demo_port_localhost
+#### demo_portcat_file_recv <- demo_port_localhost
 
 /+  datatype  [{#record} {#datatype} {#datacase}]
 /+  hitch

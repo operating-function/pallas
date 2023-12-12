@@ -2,7 +2,7 @@
 ; Copyright Michael Hueschen
 ;
 
-### sieve <- quickcheck
+#### sieve <- quickcheck
 
 ;;;; Sieve of Eratosthenes
 ;;;; =====================

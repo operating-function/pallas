@@ -2,7 +2,7 @@
 ; Copyright Michael Hueschen
 ;
 
-### splitmix <- prelude
+#### splitmix <- prelude
 
 ;;;; SplitMix
 ;;;; ========

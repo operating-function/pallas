@@ -2,7 +2,7 @@
 ; Copyright: Michael Hueschen
 ;
 
-### pq <- splitmix
+#### pq <- splitmix
 
 ;;;; Priority Queues
 ;;;; ===============

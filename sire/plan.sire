@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-### plan <- types
+#### plan <- types
 
 ;;;; This is an implementation of PLAN in PLAN, implementing lazy
 ;;;; evaluation via explicit graph reduction.  This is mostly useful

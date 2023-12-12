@@ -442,7 +442,6 @@ execute rex = do
             ( _,        "="    ) -> doDefine rune rex
             ( _,        "#*"   ) -> multiCmd rex
             ( _,        "*"    ) -> multiCmd rex
-            ( _,        "###"  ) -> doEnter rex
             ( _,        "####" ) -> doEnter rex
             ( _,        "^-^"  ) -> doFilter rune mempty (Just rex)
             ( _,        "#^-^" ) -> doFilter rune mempty (Just rex)
@@ -632,7 +631,7 @@ doFile vCache modu s1 = do
             inContext file 0 rex $ parseFail_ rex s1 msg
 
         -- No <- part means this is the starting point.
-        rexes@(Right (_ln, N _ "###" [_] Nothing) : _) -> do
+        rexes@(Right (_ln, N _ "####" [_] Nothing) : _) -> do
           Prof.withSimpleTracingEvent (encodeUtf8 modu) "Sire" do
             -- Massive slow hack, stream two inputs separately.
             -- (C interface does not currently support this)
@@ -666,7 +665,7 @@ doFile vCache modu s1 = do
 
         -- There is something before this in the load sequence.
         -- Load that first.
-        rexes@(Right (_ln, N _ "###" [_, N _ "<-" [prior] Nothing] Nothing) : _) -> do
+        rexes@(Right (_ln, N _ "####" [_, N _ "<-" [prior] Nothing] Nothing) : _) -> do
             case tryReadModuleName prior of
                 Nothing -> terror ("Bad module name: " <> rexText prior)
                 Just nm -> do
@@ -703,7 +702,7 @@ doFile vCache modu s1 = do
                             modifyIORef' vCache $ insertMap (toNoun modu) ent
                             pure (s3, hax)
 
-        Right (ln, rex@(N _ "###" _ _)) : _ ->
+        Right (ln, rex@(N _ "####" _ _)) : _ ->
             inContext file ln rex
                 $ parseFail_ rex s1 "Bad module declaration statement"
 
@@ -815,7 +814,7 @@ doEnter topRex =
         N _ _ sons mHeir -> proc (sons <> toList mHeir)
         _                -> error "multiCmd: impossible"
   where
-    expect = "Expected something like (### foo) or (### foo <- bar)"
+    expect = "Expected something like (#### foo) or (#### foo <- bar)"
 
     proc = \case
         [enter, N _ "<-" [from] Nothing] -> do
@@ -832,7 +831,7 @@ doEnter topRex =
             target <- readModuleName enter
             ss <- getState <$> get
             unless (ss.context == 0 && null ss.scope) $
-                parseFail topRex "### without predecessor, but not in initial state"
+                parseFail topRex "#### without predecessor, but not in initial state"
             modify' (switchToContext target)
 
         _ -> do

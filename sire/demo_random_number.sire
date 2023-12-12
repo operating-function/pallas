@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-### demo_random_number <- demo_pong
+#### demo_random_number <- demo_pong
 
 ;;;; This is an example of a raw program.  This runs directly against
 ;;;; the Cog interface without even using the `kern.sire` exokernel.

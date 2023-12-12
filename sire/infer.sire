@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-### infer <- stew
+#### infer <- stew
 
 ;;;; This is a type-inference engine for Stew.  It overwrites the `>`
 ;;;; rune so that the body of the typed-thing is actually checked

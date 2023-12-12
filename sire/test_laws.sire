@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-### test_laws <- test_kern_var
+#### test_laws <- test_kern_var
 
 ;;;; Rethink this now that we don't have a way to get random data in
 ;;;; the REPL.
