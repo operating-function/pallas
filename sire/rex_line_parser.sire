@@ -87,7 +87,7 @@ name=(**stringOf1 isNameChar)
 
 > Parser r Bar
 = curl
-| andThen (char }_{_)
+| andThen (char "{")
 ^ (_ ~[] FALSE 1)
 ? (go acc quote depth)
 | if (depth == 0)
@@ -96,15 +96,15 @@ name=(**stringOf1 isNameChar)
 | if quote
     | go (c::acc) FALSE depth
 # switch c
-* }_{_ | go (c::acc) FALSE (inc depth)
-* }_}_ | go (c::acc) FALSE (dec depth)
-* }_\_ | go acc      TRUE  depth
+* "{" | go (c::acc) FALSE (inc depth)
+* "}" | go (c::acc) FALSE (dec depth)
+* "\" | go acc      TRUE  depth
 * _    | go (c::acc) FALSE depth
 
 > Parser r Bar
 = readLineStr
-| andThen (char }_}_)
-| andThen (choice eof (char { }))
+| andThen (char "}")
+| andThen (choice eof (char " "))
 | parserTakeRest
 
 > Parser r (CordType, Bar)
@@ -151,14 +151,14 @@ empt=(parserMap (const NIL) (char {]}))
 * (CONS _ _)
 ^ parserFail (barFlat [reason _ notAllow])
 | barIntercalateList b#{, }
-| listMap x&(barCat [b#{'} natBar-x b#{'}])
+| listMap x&(barCat [b#"{" natBar-x b#"}"])
 | listNub r::conflicts
 
 !!= OKAY-()
   | runParser (assertUnambiguous {Shut} ({+}, ~[{+} {+}])) b#{}
 
 !!=   | FAIL
-      # b } Shut-form mixes runes: '+', '*'.
+      # b } Shut-form mixes runes: {+}, {*}.
           } This implementation doesn't allow ambiguous infix forms
   | runParser (assertUnambiguous {Shut} ({+}, ~[{+} {*}])) b#{}
 
@@ -350,13 +350,10 @@ empt=(parserMap (const NIL) (char {]}))
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 !!= (OKAY (LTEXT THICK b#foo)) | runParser leaf b#{"foo"}
-
 !!= (OKAY (LTEXT LIGHT b#foo)) | runParser leaf b#{'foo'}
-
 !!= (OKAY (LTEXT CURLY b#foo)) | runParser leaf b#{{foo}}
 
 !!= (OKAY (LNAME b#foo))       | runParser leaf b#{foo}
-
 !!= (FAIL b#more)              | runParser leaf b#{'foo}
 
 !!=   | OKAY (SHIP [ILEAF-(LTEXT THICK b#foo)])

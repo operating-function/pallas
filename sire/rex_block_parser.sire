@@ -4,9 +4,13 @@
 
 #### rex_block_parser <- rex_line_parser
 
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 /+ prelude
 /+ rex_show
 /+ rex_line_parser
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -18,7 +22,7 @@
 = (elemClose elem)
 # datacase elem
 * (I r s h) | I r (map rexClose s) (fmapMaybe h rexClose)
-* (T x h)   | T x                (fmapMaybe h rexClose)
+* (T x h)   | T x                  (fmapMaybe h rexClose)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -155,11 +159,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-badBlock={Invariant Violation: item indented too little for block}
-
-;;
-;; Reduce the stack until the stack has only one item, or until the
-;; topmost item has position <= p.
+;; {close} reduces the stack until the stack has only one item, or
+;; until the topmost item has position <= p.
 ;;
 ;; This code requires that the first `Elem` (the bottom of stack),
 ;; has the smallest poisition of all items in the block.
@@ -179,7 +180,10 @@ badBlock={Invariant Violation: item indented too little for block}
 ;; And:
 ;;
 ;;   + bar
-;;
+
+= badBlock
+} Invariant Violation: item indented too little for block
+
 > Nat > List (Nat, Elem) > Either Str (List (Nat, Elem))
 = (close p elems)
 # datacase elems
@@ -554,14 +558,14 @@ initialBS=(1, NONE)
     ++ `(| bird)
   | map (compose rexClose blockToRex)
   | blox
- ~~ b#}     |   s
- ~~ b#}       | n
- ~~ b#}       | a
- ~~ b#}     |   k
- ~~ b#}     |   e
- ~~ b#}   | die
- ~~ b#}   |die
- ~~ b#}   die
+ ~~ b#}    |   s
+ ~~ b#}      | n
+ ~~ b#}      | a
+ ~~ b#}    |   k
+ ~~ b#}    |   e
+ ~~ b#}  | die
+ ~~ b#}  |die
+ ~~ b#}  die
  ~~ b#}
  ~~ b#} pizza
  ~~ b#} | pie
