@@ -140,6 +140,8 @@ data Run
     | JMP      !Run !Run !(Tab Fan Run)
     | JMP_WORD !Run !Run !(SV.Vector Word) !(SmallArray Run)
 
+    | LETREC !(SmallArray (Int, Run)) !Run
+
     | SEQ !Run !Run
 
     | REC {-# UNPACK #-} !(SmallArray Run)      -- Saturated self-application

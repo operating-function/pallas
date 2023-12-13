@@ -81,6 +81,7 @@ import qualified Data.Foldable          as F
 import qualified Data.Map               as M
 import qualified Data.Vector            as V
 import qualified Data.Vector.Storable   as SV
+import qualified Fan.Eval.LetRec        as LetRec
 import qualified GHC.Exts               as GHC
 import qualified Rex
 
@@ -972,6 +973,8 @@ instance Show Run where
 
     show (MK_TAB vs) = "(MKTAB " <> intercalate " " (show <$> (tabToAscPairsList vs)) <> ")"
 
+    show (LETREC vs v) =
+        "(LETREC [" <> intercalate " " (showBind <$> vs) <> "] " <> show v <> ")"
     show (LET i x v) =
         "(LET " <> showBind (i,x) <> " " <> show v <> ")"
 
@@ -1018,6 +1021,7 @@ matchConstructors = go
         r@ARG{}             -> r
         r@VAR{}             -> r
         LET i v b           -> LET i (go v) (go b)
+        LETREC vs b         -> LETREC (fmap go <$> vs) (go b)
         IF_ c t e           -> IF_ (go c) (go t) (go e)
         SWI c f v           -> SWI (go c) (go f) (go <$> v)
         JMP c f vs          -> JMP (go c) (go f) (go <$> vs)
@@ -1103,8 +1107,9 @@ resaturate selfArgs = go
 
     -- go (EXE f xs)  = EXE f xs
     -- go (PAR i xs)  = PAR i xs
-    go (LET i v b) = LET i (go v) (go b)
-    go (KAL xs)    = kal (toList xs)
+    go (LET i v b)   = LET i (go v) (go b)
+    go (LETREC vs b) = LETREC (fmap go <$> vs) (go b)
+    go (KAL xs)      = kal (toList xs)
 
     kal (KAL ks : xs) = kal (toList ks <> xs)
     kal (CNS c  : xs) = cns c (go <$> xs)
@@ -1147,45 +1152,29 @@ ugly nat =
 -- TODO: Review potential for overflow of `numArgs`
 compileLaw :: LawName -> Nat -> Fan -> Prog
 compileLaw _lawName numArgs lBod =
-    let (maxRef, code) = go numArgs lBod
-        opt = resaturate (natToArity numArgs) code
-        run = optimizeSpine (matchConstructors opt)
+    let lxp    = LetRec.loadLawBody numArgs lBod
+        lxpOpt = LetRec.optimize (fromIntegral numArgs) lxp
+        (code, maxVar) = LetRec.compile (fromIntegral numArgs) lxpOpt
+        opt    = resaturate (natToArity numArgs) code
+        run    = optimizeSpine (matchConstructors opt)
+        prog   = PROG (fromIntegral numArgs)
+                      (fromIntegral (maxVar + 1))
+                      run
     in
     {-
     if True || _lawName == "flushDownwards" then
        trace (ppShow ( ("lawName"::Text, _lawName)
-                     , ("rawCode"::Text, code)
+                     , ("rawLxp"::Text, lxp)
+                     , ("optLxp"::Text, lxpOpt)
+                     , (("rawRun"::Text, code), ("maxVar"::Text, maxVar))
                      , ("semiOptimized"::Text, opt)
-                     , ("optimizedCode"::Text, run)
+                     , ("finalProg"::Text, prog)
                      ))
-       PROG (fromIntegral numArgs)
-            (fromIntegral maxRef + 1)
-            run
+       prog
     else
--}
-       PROG (fromIntegral numArgs)
-            (fromIntegral maxRef + 1)
-            run
+    -}
+       prog
   where
-    go :: Nat -> Fan -> (Nat, Run)
-    go maxRef fan =
-        case (kloList fan) of
-            [NAT n] | n<=maxRef ->
-                if n<=numArgs
-                then (,) maxRef (ARG $ fromIntegral n)
-                else (,) maxRef (VAR $ fromIntegral (n-(numArgs+1)))
-
-            [NAT 0, f, x] ->
-                    (,) (max fMax xMax) (KAL $ a2 fRun xRun)
-                  where (fMax, fRun) = go maxRef f
-                        (xMax, xRun) = go maxRef x
-
-            [NAT 1, v, b] -> (,) (max vMax bMax) (LET idx vRun bRun)
-                                  where (vMax, vRun) = go (maxRef+1) v
-                                        (bMax, bRun) = go (maxRef+1) b
-                                        idx          = fromIntegral ((maxRef+1)-(numArgs+1))
-            [NAT 2, x]    -> (maxRef, CNS x)
-            _             -> (maxRef, CNS fan)
 
 {-
     recPro is different from exePro because, in a shattered-spine, we
@@ -1222,6 +1211,17 @@ executeLaw self recPro exePro args =
             cs <- traverse (go vs) xs
             pure (appN cs)
 
+        LETREC binds b ->
+            if sizeofSmallArray binds == 1 then do
+                let (i, r) = binds .! 0
+                rec res <- (writeSmallArray vs i res >> go vs r)
+                go vs b
+            else do
+                rec for_ (zip [0..] $ toList binds) \(ix,(slot,_)) ->
+                        writeSmallArray vs slot (results .! ix)
+                    results <- for binds \(_,v) -> go vs v
+                go vs b
+
         LET i v b -> mdo
             -- traceM "LET"
             when (i < 0) do
@@ -1234,7 +1234,7 @@ executeLaw self recPro exePro args =
                                 , "\n"
                                 , ppShow exePro
                                 ]
-            vRes <- (writeSmallArray vs i vRes >> go vs v)
+            go vs v >>= writeSmallArray vs i
             go vs b
 
         PAR r xs -> do

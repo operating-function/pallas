@@ -101,6 +101,7 @@ optimizeSpine = go
                | haz == traceHash     -> TRK (go(r.!0)) (go(r.!1))
                | otherwise            -> exe
         LET i v b   -> LET i (goLazy v) (go b)
+        LETREC vs b -> LETREC (fmap goLazy <$> vs) (go b)
         exe         -> goLazy exe
 
     goSwitch exe r =
@@ -147,6 +148,7 @@ optimizeSpine = go
             KAL vs      -> KAL (goLazy <$> vs)
             PAR r vs    -> PAR r (goLazy <$> vs)
             LET i v b   -> LET i (goLazy v) (goLazy b)
+            LETREC vs b -> LETREC (fmap goLazy <$> vs) (goLazy b)
             MK_ROW xs   -> MK_ROW (goLazy <$> xs)
             MK_TAB vs   -> MK_TAB (goLazy <$> vs)
 
@@ -186,6 +188,7 @@ runSize = w
         ARG{}            -> 1
         VAR{}            -> 1
         LET _ x y        -> 1 + w x + w y
+        LETREC vx y      -> 1 + sum (w . snd <$> vx) + w y
         IF_ c t e        -> 1 + w c + w t + w e
         EXE _ _ _ x      -> 1 + sum (w <$> x)
         OP2 _ _ x y      -> 1 + w x + w y
@@ -228,6 +231,9 @@ freeVarsForRun =
         OP2 _ _ a b      -> go z a >> go z b
         IF_ i t e        -> go z i >> go z t >> go z e
         LET i v b        -> go z v >> go (insertSet (Right i) z) b
+        LETREC vs b      -> do let z' = foldr insertSet z (Right . fst <$> vs)
+                               traverse_ (go z' . snd) vs
+                               go z' b
 
     addRef :: Set Refr -> Refr -> State (Set Refr) ()
     addRef z x = unless (x `member` z) (modify' $ insertSet x)
@@ -287,6 +293,13 @@ spineFragment freeTable =
             let z' = (next+1, insertMap i next loc)
             modify' (max next)
             LET next <$> go z v <*> go z' b
+
+        LETREC vs b -> do
+            let step = \((i,_),ix) -> insertMap i (next+ix)
+            let loc' = foldr step loc $ zip (toList vs) [0..]
+            let z'   = (next + length vs, loc')
+            modify' (max next)
+            LETREC <$> for vs (traverse (go z')) <*> go z' b
 
         ARG 0 -> pure (ARG 0)
         ARG x -> pure $ ARG
