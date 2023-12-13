@@ -18,7 +18,7 @@ import Fan.Seed
 import Fan.Types       (Fan, Pin)
 
 import qualified Rex
-import qualified Fan.Types       as F
+import qualified Fan.Util        as F
 import qualified Fan.Eval        as F
 
 

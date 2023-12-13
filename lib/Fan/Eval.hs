@@ -59,6 +59,7 @@ import Data.Sorted
 import Fan.Prof
 import Fan.RunHashes
 import Fan.Types
+import Fan.Util
 import PlunderPrelude  hiding (hash)
 
 import Control.Exception         (throw)
@@ -425,21 +426,6 @@ rexNoun = \case
         Rex.TEXT -> NAT "TEXT"
         Rex.LINE -> NAT "LINE"
 
-a2 :: a -> a -> SmallArray a
-a2 p q = createSmallArray 2 p \a -> do
-    writeSmallArray a 1 q
-
-a3 :: a -> a -> a -> SmallArray a
-a3 p q r = createSmallArray 3 p \a -> do
-    writeSmallArray a 1 q
-    writeSmallArray a 2 r
-
-a4 :: a -> a -> a -> a -> SmallArray a
-a4 p q r s = createSmallArray 4 p \a -> do
-    writeSmallArray a 1 q
-    writeSmallArray a 2 r
-    writeSmallArray a 3 s
-
 valName :: Fan -> Text
 valName = \case
     FUN law -> ugul law.name.nat
@@ -459,30 +445,6 @@ valTag :: Fan -> Nat
 valTag (FUN law) = law.name.nat
 valTag (PIN pin) = valTag pin.item
 valTag _         = 0
-
-kloList :: Fan -> [Fan]
-kloList = reverse . kloWalk
-
---
--- `kloArgs` returns a list of the arguments of a closure in traversal order.
---
--- kloArgs (0 1 2) -> [2,1]
--- kloArgs 0       -> []
--- kloArgs [3 4]   -> [3,4]
---
-kloArgs :: Fan -> [Fan]
-kloArgs = exceptHead . kloWalk
-  where
-    exceptHead []     = error "impossible"
-    exceptHead [_]    = []
-    exceptHead (x:xs) = x : exceptHead xs
-
-kloWalk :: Fan -> [Fan]
-kloWalk (KLO _ xs) = go (sizeofSmallArray xs - 1)
-                       where
-                         go !0 = kloWalk (xs.!0)
-                         go !i = (xs.!i) : go (i-1)
-kloWalk v          = [v]
 
 instance Show Fan where
     show (NAT n)   = ugly n
@@ -523,49 +485,6 @@ lawNameText (LN n) =
 instance IsString LawName where
   fromString = LN . bytesNat . encodeUtf8 . pack
 
-
--- Vector and Table constructors are given an evalArity of one less than
--- there actual arity so that they will be transformed into vectors/tables
--- once saturated.
---
--- Thus, to get the true arity, we need to actually do the scan and see
--- what's at the head.
-trueArity :: Fan -> Nat
-trueArity = \case
-    COw 0          -> error "Should be jet matched as V0"
-    COw n          -> succ $ fromIntegral n
-    SET{}          -> 2
-    KLO _ xs       -> trueArity (xs.!0) - fromIntegral (sizeofSmallArray xs - 1)
-    FUN l          -> l.args
-    NAT n          -> natArity n
-    PIN p          -> p.args
-    ROW _          -> 1
-    TAb _          -> 1
-    BAR _          -> 1
-    REX _          -> 3
-
-{-# INLINE natArity #-}
-natArity :: Nat -> Nat
-natArity (NatS# 0##) = 3 -- FUN
-natArity (NatS# 1##) = 5 -- CAS
-natArity (NatS# 2##) = 3 -- DEC
-natArity _           = 1 -- INC, PIN, etc
-
-evalArity :: Fan -> Int
-evalArity (FUN l) = natToArity l.args
-evalArity (NAT n) = case n of NatS# 0## -> 3
-                              NatS# 1## -> 5
-                              NatS# 2## -> 3
-                              _         -> 1
-evalArity (KLO r _) = r
-evalArity (PIN p)   = natToArity p.args
-evalArity (SET _)   = 1
-evalArity (COw 0)   = error "Should be jet matched as V0"
-evalArity (COw n)   = natToArity n
-evalArity (ROW _)   = 1
-evalArity (TAb _)   = 1
-evalArity (BAR _)   = 1
-evalArity (REX _)   = 3
 
 --------------------------------------------------------------------------------
 
@@ -674,7 +593,7 @@ frameSize v         = 1 + evalArity v
 
 {-
         These are called extremely often, and we don't want to bog down
-        the system by emiting profiling events fror them.
+        the system by emiting profiling events for them.
 -}
 highFreqLaws :: Set Nat
 highFreqLaws = setFromList
@@ -774,13 +693,6 @@ pinExec self = \case
 
 
 -- Evaluation ------------------------------------------------------------------
-
-
-natToArity :: Nat -> Int
-natToArity !n =
-    if n>fromIntegral(maxBound::Int)
-    then maxBound
-    else fromIntegral n
 
 (%%) :: Fan -> Fan -> Fan
 (%%) = app2
@@ -1033,10 +945,13 @@ showCns (NAT n)  = show n
 
 instance Show Prog where
     show p = "(PROG "
-          <> "{ arity="  <> show p.arity
-          <> ", stkSz="  <> show p.stkSz
+          <> "{ arity =" <> show p.arity
+          <> ", varsSz=" <> show p.varsSz
           <> ", prgrm=(" <> show p.prgrm <> ")"
           <> "})"
+
+showBind :: (Int, Run) -> String
+showBind (i,x) = show (VAR i) <> " " <> show x
 
 instance Show Run where
     show (CNS c) = showCns c
@@ -1048,7 +963,7 @@ instance Show Run where
         "(EXE " <> showCns f <> " " <> intercalate " " (show <$> toList xs) <> ")"
 
     show (PAR n xs) =
-         "(PAR arity" <> show n <> intercalate " " (show <$> toList xs) <> ")"
+         "(PAR arity_is_" <> show n <> intercalate " " (show <$> toList xs) <> ")"
 
     show (REC xs) = "(REC " <> intercalate " " (show <$> toList xs) <> ")"
 
@@ -1059,7 +974,7 @@ instance Show Run where
     show (MK_TAB vs) = "(MKTAB " <> intercalate " " (show <$> (tabToAscPairsList vs)) <> ")"
 
     show (LET i x v) =
-        "(LET " <> show (VAR i) <> " " <> show x <> " " <> show v <> ")"
+        "(LET " <> showBind (i,x) <> " " <> show v <> ")"
 
     show (IF_ c t e) =
         "(IF " <> show c <> " " <> show t <> " " <> show e <> ")"
@@ -1312,13 +1227,13 @@ spineFragment freeTable =
 
 shatterSpine :: Run -> (Prog, SmallArray Run)
 shatterSpine top =
-    (PROG{arity,stkSz,prgrm}, args)
+    (PROG{arity,varsSz,prgrm}, args)
   where
     args           = smallArrayFromList (either ARG VAR <$> freeRefs)
     freeRefs       = runFree top
     argsMap        = mapFromList (zip freeRefs [1..]) -- arg 0 is self
     (prgrm, nmVar) = spineFragment argsMap top
-    stkSz          = nmVar + arity + 1
+    varsSz         = nmVar
     arity          = length argsMap
 
 -- Match row/tab constructors: (c2 y x) -> MK_ROW [x,y]
@@ -1460,18 +1375,18 @@ ugly 0 = "0"
 ugly nat =
     let ok '_' = True
         ok c   = C.isAlphaNum c
-    in
-    case natUtf8 nat of
+    in case natUtf8 nat of
         Right t | all ok t -> show t
         _                  -> show nat
 
+-- TODO: Review potential for overflow of `numArgs`
 compileLaw :: LawName -> Nat -> Fan -> Prog
 compileLaw _lawName numArgs lBod =
     let (maxRef, code) = go numArgs lBod
         opt = resaturate (natToArity numArgs) code
         run = optimizeSpine (matchConstructors opt)
     in
-{-
+    {-
     if True || _lawName == "flushDownwards" then
        trace (ppShow ( ("lawName"::Text, _lawName)
                      , ("rawCode"::Text, code)
@@ -1515,12 +1430,11 @@ compileLaw _lawName numArgs lBod =
 executeLaw :: Fan -> Prog -> Prog -> SmallArray Fan -> Fan
 executeLaw self recPro exePro args =
     unsafePerformIO do
-        let numArgs = length args
-        let numVars = exePro.stkSz - numArgs
+        let numVars = exePro.varsSz
 
-        -- traceM ("EXECUTING: " <> show pro <> "\n" <>
-                -- "AGAINST: " <> show(toList args)
-               -- )
+        -- traceM ( "EXECUTING: " <> show pro <> "\n"
+        --       <> "AGAINST: " <> show (toList args)
+        --        )
 
         -- traceM ("EXECUTE LAW: " <> show self)
         -- traceM ("\t" <> show self)
@@ -1550,8 +1464,10 @@ executeLaw self recPro exePro args =
             when (i >= sizeofSmallMutableArray vs) do
                 error $ concat [ "out of bounds: "
                                 , show i
-                                , "<"
+                                , ">="
                                 , show (sizeofSmallMutableArray vs)
+                                , "\n"
+                                , ppShow exePro
                                 ]
             vRes <- (writeSmallArray vs i vRes >> go vs v)
             go vs b
@@ -1698,12 +1614,6 @@ trkName fan = do
 
 -- WHAT EVEN -------------------------------------------------------------------
 
-mkRow :: [Fan] -> Fan
-mkRow = ROW . arrayFromList
-
-tabValsRow :: Tab Fan Fan -> Fan
-tabValsRow tab = ROW (tabElemsArray tab)
-
 fanIdx :: Nat -> Fan -> Fan
 fanIdx idxNat fan =
     if idxNat > fromIntegral (maxBound::Int) then
@@ -1773,9 +1683,3 @@ op2Gte a b = fromBit (a >= b)
 
 op2Gth :: Fan -> Fan -> Fan
 op2Gth a b = fromBit (a > b)
-
--- Where should utility stuff like this go, which isn't directly related to
--- anything?
-fromBit :: Bool -> Fan
-fromBit True  = NAT 1
-fromBit False = NAT 0

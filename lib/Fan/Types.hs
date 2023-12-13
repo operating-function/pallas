@@ -19,7 +19,6 @@ module Fan.Types
     , Rex
     , setExec
     , toNat
-    , mkCow
     , Prog(..)
     , Run(..)
     , Hash256
@@ -104,29 +103,22 @@ instance Num Fan where
     negate _      = NAT 0
     signum x      = case toNat x of { 0 -> NAT 0; _ -> NAT 1 }
 
-instance IsString Fan where
-   fromString = NAT . fromString
-
 toNat :: Fan -> Nat
 toNat (NAT n) = n
 toNat _       = 0
 
+instance IsString Fan where
+   fromString = NAT . fromString
+
 type Rex = GRex Fan
-
--- I want to use pattern synonyms here, but I ran into a GHC bug.
-
-{-# INLINE mkCow #-}
-mkCow :: Nat -> Fan
-mkCow 0 = ROW mempty
-mkCow n = COw n
 
 
 -- Internal DSL used to execute Laws -------------------------------------------
 
 data Prog = PROG
-    { arity :: !Int
-    , stkSz :: !Int
-    , prgrm :: !Run
+    { arity  :: !Int
+    , varsSz :: !Int
+    , prgrm  :: !Run
     }
 
 {-
