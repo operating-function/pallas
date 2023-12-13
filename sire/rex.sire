@@ -78,7 +78,7 @@
 = runeChars
 | setFromRow
 | barBytes
-| b#{!#$%&*+,-./:<=>?@\^`|~'"}
+| b#{!#$%&*+,-./:<=>?@\^`|~'}
 
 > Char > Bit
 (runic c)=(setHas c runeChars)
@@ -87,7 +87,7 @@
 !! barAll wordy b#{abcdefghijklmnopqrstuvwxyz}
 !! barAll wordy b#{0123456789}
 !! barAll wordy b#{_}
-!! barAll runic b#{!#$%&*+,-./:<=>?@\^`|~'"}
+!! barAll runic b#{!#$%&*+,-./:<=>?@\^`|~'}
 
 !! not (barAny wordy b#{!#$%&*+,-./:<=>?@\^`|~})
 
@@ -101,8 +101,13 @@
 * }_}_ | next dec-d
 * _    | next d
 
+> Bar > Nat > Nat > Nat
+= (eatCord bar o)
+^ min (barLen bar) (inc _) ; return barLen if unterminated
+| barElemIndexOff {"} inc-o bar
+
 > Line > Nat > Char > Bar > Bar > Lexeme
-= (lexStr ln off bar)
+= (lexUgly ln off bar)
 @ start   | inc-off
 @ delim   | barIdx start bar
 @ lineStr | [ln off barLen-bar LINE-NIL]
@@ -119,11 +124,12 @@
 # switch c
 * }_(_       | lexNest lexMany lexOne ln PAREN {)} o bar
 * }_[_       | lexNest lexMany lexOne ln BRACK {]} o bar
-* }_{_       | (ln, o, eatCurly bar inc-o 1, TEXT)
-* }_}_       | lexStr ln o bar
-* 0          | (ln, o, barLen bar, TERM)
-* }_;_       | (ln, o, barLen bar, SEMI)
-* }_ _       | (ln, o, eat (neq 32) o bar,        WYTE)
+* }_}_       | lexUgly ln o bar
+* }_{_       | (ln, o, eatCurly bar inc-o 1,      TEXT)
+* 0          | (ln, o, barLen bar,                TERM)
+* }_;_       | (ln, o, barLen bar,                SEMI)
+* }_"_       | (ln, o, eatCord bar o,             TEXT)
+* }_ _       | (ln, o, eat (neq 32)        o bar, WYTE)
 | if wordy-c | (ln, o, eat c&(not wordy-c) o bar, WORD)
 | if runic-c | (ln, o, eat c&(not runic-c) o bar, RUNE)
 | if ctx==c  | (ln, o, inc o,                     TERM)
