@@ -48,7 +48,7 @@ type Jet = (Exe -> Exe)
 vJetHash :: IORef (Map Text Hash256)
 vJetHash = unsafePerformIO (newIORef mempty)
 
-vJetImpl :: IORef (Map Text Jet)
+vJetImpl :: IORef (Map Text (Maybe Jet))
 vJetImpl = unsafePerformIO (newIORef mempty)
 
 
@@ -56,23 +56,20 @@ vJetImpl = unsafePerformIO (newIORef mempty)
 
 matchJetsToHash
     :: Map Text Hash256
-    -> [(Text, Jet)]
-    -> [(Text, Jet, Hash256)]
-matchJetsToHash tab =
-    mapMaybe \(t,x) -> do
-        bs <- case lookup t tab of
-                  Just r  -> Just r
-                  Nothing -> do
-                      _ <- error ("No hash corresponding to jet: " <> unpack t)
-                      Nothing
-        pure (t,x,bs)
+    -> Map Text (Maybe Jet)
+    -> [(Text, Maybe Jet, Hash256)]
+matchJetsToHash hashes jets =
+    mapMaybe f (mapToList jets)
+  where
+    f (t, x) = case lookup t hashes of
+        Nothing -> error ("No hash corresponding to jet: " <> unpack t)
+        Just hx -> Just (t, x, hx)
 
-table :: [(Text, Jet, Hash256)]
+table :: [(Text, Maybe Jet, Hash256)]
 table = unsafePerformIO do
-    matchJetsToHash <$> readIORef vJetHash
-                    <*> (mapToList <$> readIORef vJetImpl)
+    matchJetsToHash <$> readIORef vJetHash <*> readIORef vJetImpl
 
-jetsByName :: Map Text (Hash256, Jet)
+jetsByName :: Map Text (Hash256, Maybe Jet)
 jetsByName = mapFromList (table <&> \(n,f,h) -> (n,(h,f)))
 
 
@@ -123,13 +120,17 @@ jetMatch cpin = do
             if jetHash == pHash then do
                 hPutStrLn stderr (pad20 pinName "MATCHED")
                 dumpHashLine pinName hashText
-                pure $ setExec (\env -> exe fallback env) cpin
+                pure case exe of
+                         Nothing -> cpin
+                         Just ex -> setExec (\env -> ex fallback env) cpin
             else do
                 notMatched
                 if False then
                     -- TODO Hax XXX Delete This NOW!  This isn't safe at all!
-                    -- What are you doing?  Why?  Stop!
-                    pure $ setExec (\env -> exe fallback env) cpin
+                    -- TODO Hax XXX What are you doing?  Why?  Stop!
+                    pure case exe of
+                             Nothing -> cpin
+                             Just ex -> setExec (\env -> ex fallback env) cpin
                 else
                     pure $ cpin
 
