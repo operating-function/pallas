@@ -188,6 +188,8 @@ emptyBar=(0 1 1 1)
 
 (barSlice off wid bar)=(barTake wid (barDrop off bar))
 
+(_BarSliceToNat off wid bar)=(barNat | barSlice off wid bar)
+
 = (barCountHeadMatching match b)
 ^ _ 0
 ? (loop i)
@@ -579,18 +581,42 @@ hexAlphabet=(b#{0123456789abcdef})
 !!= b#xy | barDuo  %x %y
 
 
+;;; Test _BarSliceToNat ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+!!= 0x11 | _BarSliceToNat 0 1 x#11223344
+!!= 0x22 | _BarSliceToNat 1 1 x#11223344
+!!= 0x33 | _BarSliceToNat 2 1 x#11223344
+!!= 0x44 | _BarSliceToNat 3 1 x#11223344
+!!= 0x00 | _BarSliceToNat 4 1 x#11223344
+
+!!= 0x2211 | _BarSliceToNat 0 2 x#11223344
+!!= 0x3322 | _BarSliceToNat 1 2 x#11223344
+!!= 0x4433 | _BarSliceToNat 2 2 x#11223344
+!!= 0x0044 | _BarSliceToNat 3 2 x#11223344
+!!= 0x0000 | _BarSliceToNat 4 2 x#11223344
+
+!!= 0x44332211   | _BarSliceToNat 0 4 x#11223344
+!!= 0x0044332211 | _BarSliceToNat 0 5 x#11223344
+!!= 0x0000443322 | _BarSliceToNat 1 5 x#11223344
+
+
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+natToSizedBar=_NatToSizedBar
+
+barSliceToNat=_BarSliceToNat
 
 ^-^ isBar padBar
 ^-^ emptyBar barIsEmpty
 ^-^ byteWidth barTrail barEnc barDec mkBar natBar barNat barLen barIdx
+^-^ natToSizedBar
 ^-^ barSing barDuo
 ^-^ zEnd stripZEnd w8 bytesBar barGen barRep barGet barBytes barFoldl barFoldr
 ^-^ barAny barAll
 ^-^ barWeld barCat barCatList barCatMap
 ^-^ barIntercalate barIntercalateList
 ^-^ barFromHex barPad
-^-^ barTake barDrop barSlice
+^-^ barTake barDrop barSlice barSliceToNat
 ^-^ barFlat barHas
 ^-^ barBytes barToRow rowFromBar barToList
 ^-^ barFromRow barFromList barFromListRev rowToBar

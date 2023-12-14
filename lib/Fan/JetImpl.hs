@@ -203,6 +203,7 @@ jetImpls = mapFromList
   , ( "barCat"                          , Just barCatJet                      )
   , ( "barTake"                         , Just barTakeJet                     )
   , ( "barDrop"                         , Just barDropJet                     )
+  , ( "_BarSliceToNat"                  , Nothing                             )
   , ( "barElemIndexEnd"                 , Just barElemIndexEndJet             )
   , ( "barFlat"                         , Just barFlatJet                     )
   , ( "barElemIndexOff"                 , Just barElemIndex                   )

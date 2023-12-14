@@ -226,6 +226,7 @@ jetHashes
     , e "barCat"              "2GiCQPqbaH5bt5JqMHBqK86v4VR7goiAq4cCpd7Ndy7P"
     , e "barTake"             "Dx9hYYnVvAJqJkFL7pVBxkNC9TVRgX5MwTwsYSiPG1CU"
     , e "barDrop"             "9dRBXovsw8WyjrNyyNyVhkxi8xfG85Gf6qgJsJoLed7S"
+    , e "_BarSliceToNat"      "GGEmMwd2ubq9iNr6BPNfmKCPifXYxqbwLvqXZwK2C6ww"
     , e "barElemIndexEnd"     "6LRS3exKVrKgDTTWkPrCokXHPEJCbdwDLTASwACw6YW2"
     , e "barFlat"             "6nHtWf5221ZbJ1s3uu9dm9hnZZCUDU81rffxp6DKnS9s"
     , e "barElemIndexOff"     "BCdPrGzUN9TKoi4b9DkiMpgvvP4f5A4iy8Khqqpk3XHW"
