@@ -59,7 +59,9 @@ matchJetsToHash
     -> Map Text (Maybe Jet)
     -> [(Text, Maybe Jet, Hash256)]
 matchJetsToHash hashes jets =
-    mapMaybe f (mapToList jets)
+    if length hashes /= length jets
+    then error "Jets hash/impl tables do no match"
+    else mapMaybe f (mapToList jets)
   where
     f (t, x) = case lookup t hashes of
         Nothing -> error ("No hash corresponding to jet: " <> unpack t)
