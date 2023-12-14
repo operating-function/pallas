@@ -118,6 +118,7 @@ data ProfilingOpts = ProfilingOpts Prof Bool
 data InterpreterOpts
   = InterpreterOpts Bool -- Warn on jet deopt
                     Bool -- Crash on jet deopt
+                    Bool -- Crash on jet mistmatch
 
 data MachineOpts
   = MachineOpts Bool -- snapshots enabled?
@@ -250,7 +251,7 @@ runType defaultDir = subparser
     storeArg = strArgument (metavar "STORE" <> storeHlp)
 
     profilingOpts = ProfilingOpts <$> profOutput <*> profLaw
-    interpreterOpts = InterpreterOpts <$> doptWarn <*> doptCrash
+    interpreterOpts = InterpreterOpts <$> doptWarn <*> doptCrash <*> matchCrash
     machineOpts = MachineOpts <$> doSnap <*> numWorkers
 
     storeOpt =
@@ -287,6 +288,12 @@ runType defaultDir = subparser
                       <> long "law-fallback-crash"
                       <> help "Crash when a jet falls back to raw fan execution."
                        )
+
+    matchCrash :: Parser Bool
+    matchCrash = switch ( short 'M'
+                       <> long "jet-mismatch-crash"
+                       <> help "Crash if a jet-match fails"
+                        )
 
     doSnap :: Parser Bool
     doSnap = fmap not
@@ -391,11 +398,12 @@ withProfileOutput args act = do
 withInterpreterOpts :: RunType -> IO () -> IO ()
 withInterpreterOpts args act = do
     case argsInterpreter args of
-        Just (InterpreterOpts j c) -> do
+        Just (InterpreterOpts j c m) -> do
+            let onJetMismatch = if m then F.CRASH else F.WARN
             let onJetFallback = case (j, c) of (_, True) -> F.CRASH
                                                (True, _) -> F.WARN
                                                _         -> F.IGNORE
-            writeIORef F.vRtsConfig $ F.RTS_CONFIG {onJetFallback}
+            writeIORef F.vRtsConfig $ F.RTS_CONFIG {..}
             act
         _ -> act
   where
@@ -451,10 +459,12 @@ showSeed seedFileToShow = do
 -- just using a seed.
 replSeed :: (Debug, Rex.RexColor) => FilePath -> IO ()
 replSeed seedFileToShow = do
+    let onJetFallback = F.WARN
+    let onJetMismatch = F.WARN
     writeIORef F.vJetMatch           $! F.jetMatch
     writeIORef F.vShowFan            $! showFan
     writeIORef F.vTrkFan             $! trkFan
-    writeIORef F.vRtsConfig          $! F.RTS_CONFIG { onJetFallback = F.WARN }
+    writeIORef F.vRtsConfig          $! F.RTS_CONFIG{..}
     byt <- readFile seedFileToShow
     pin <- F.loadSeed byt >>= either throwIO pure
     interactive pin

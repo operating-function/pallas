@@ -42,6 +42,7 @@ data JetEdgeCase = IGNORE | WARN | CRASH
 
 data RtsConfig = RTS_CONFIG
     { onJetFallback :: !JetEdgeCase
+    , onJetMismatch :: !JetEdgeCase
     }
 
 data PrimopCrash = PRIMOP_CRASH { errCode :: !Nat, errVal :: !Fan }

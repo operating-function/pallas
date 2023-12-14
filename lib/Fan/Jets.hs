@@ -112,8 +112,14 @@ jetMatch cpin = do
     let hashText   = hashToBTC pHash
     let jetLike    = case toList pinName of '_':c:_ -> isUpper c; _ -> False
     let notMatched = do
-                hPutStrLn stderr (pad20 pinName "NOT MATCHED")
-                dumpHashLine pinName hashText
+                config <- readIORef vRtsConfig
+                let doWarn = do
+                        hPutStrLn stderr (pad20 pinName "NOT MATCHED")
+                        dumpHashLine pinName hashText
+                case config.onJetMismatch of
+                    IGNORE -> pure ()
+                    WARN   -> doWarn
+                    CRASH  -> doWarn >> error "Crashing from Jet Mismatch"
 
     case lookup pinName jetsByName of
         Nothing -> (when jetLike do notMatched) $> cpin

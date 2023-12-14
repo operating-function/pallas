@@ -106,8 +106,10 @@ vJetMatch :: IORef (Pin -> IO Pin)
 vJetMatch = unsafePerformIO (newIORef pure)
 
 vRtsConfig :: IORef RtsConfig
-vRtsConfig = unsafePerformIO $ newIORef $ RTS_CONFIG { onJetFallback = WARN }
-
+vRtsConfig = unsafePerformIO $ newIORef $ RTS_CONFIG
+    { onJetFallback = WARN
+    , onJetMismatch = WARN
+    }
 
 -- Types -----------------------------------------------------------------------
 
