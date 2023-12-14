@@ -99,15 +99,14 @@ jetMatch cpin = do
         envRow e = ROW $ arrayFromListN (sizeofSmallArray e) (toList e)
 
     fallback <- do
-        doCrash <- readIORef vCrashOnJetFallback
-        doWarn  <- readIORef vWarnOnJetFallback
-        pure case (doCrash, doWarn) of
-                 (True, _)      -> \e -> throw (PRIMOP_CRASH "deopt" (envRow e))
-                 (_, True)      -> \e -> unsafePerformIO do
+        config <- readIORef vRtsConfig
+        pure case config.onJetFallback of
+                 IGNORE -> cpin.exec
+                 CRASH  -> \e -> throw (PRIMOP_CRASH "deopt" (envRow e))
+                 WARN   -> \e -> unsafePerformIO do
                                        shw <- readIORef vShowFan
                                        putStrLn ("deopt:" <> shw (envRow e))
                                        pure (cpin.exec e)
-                 (False, False) -> cpin.exec
 
     let pHash      = cpin.hash
     let hashText   = hashToBTC pHash

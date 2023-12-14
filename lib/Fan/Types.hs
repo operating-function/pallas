@@ -22,6 +22,8 @@ module Fan.Types
     , Prog(..)
     , Run(..)
     , Hash256
+    , JetEdgeCase(..)
+    , RtsConfig(..)
     )
 where
 
@@ -34,6 +36,13 @@ import Rex         (GRex)
 import qualified Data.Vector.Storable as SV
 
 -- Types -----------------------------------------------------------------------
+
+data JetEdgeCase = IGNORE | WARN | CRASH
+  deriving (Eq, Ord, Read, Show)
+
+data RtsConfig = RTS_CONFIG
+    { onJetFallback :: !JetEdgeCase
+    }
 
 data PrimopCrash = PRIMOP_CRASH { errCode :: !Nat, errVal :: !Fan }
 

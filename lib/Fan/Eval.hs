@@ -42,8 +42,7 @@ module Fan.Eval
     , vTrkFan
     , vShowFan
     , vJetMatch
-    , vCrashOnJetFallback
-    , vWarnOnJetFallback
+    , vRtsConfig
     , normalize
     , trkName
     , loadPinFromBlob
@@ -106,11 +105,8 @@ vShowFan = unsafePerformIO $ newIORef $ const "[PLUN]"
 vJetMatch :: IORef (Pin -> IO Pin)
 vJetMatch = unsafePerformIO (newIORef pure)
 
-vCrashOnJetFallback :: IORef Bool
-vCrashOnJetFallback = unsafePerformIO (newIORef False)
-
-vWarnOnJetFallback :: IORef Bool
-vWarnOnJetFallback = unsafePerformIO (newIORef True)
+vRtsConfig :: IORef RtsConfig
+vRtsConfig = unsafePerformIO $ newIORef $ RTS_CONFIG { onJetFallback = WARN }
 
 
 -- Types -----------------------------------------------------------------------

@@ -53,6 +53,7 @@ import qualified Data.Char        as C
 import qualified Fan              as F
 import qualified Fan.Prof         as Prof
 import qualified Fan.Seed         as F
+import qualified Fan.Types        as F
 import qualified Server.LmdbStore as DB
 
 --------------------------------------------------------------------------------
@@ -391,8 +392,10 @@ withInterpreterOpts :: RunType -> IO () -> IO ()
 withInterpreterOpts args act = do
     case argsInterpreter args of
         Just (InterpreterOpts j c) -> do
-            writeIORef F.vWarnOnJetFallback j
-            writeIORef F.vCrashOnJetFallback c
+            let onJetFallback = case (j, c) of (_, True) -> F.CRASH
+                                               (True, _) -> F.WARN
+                                               _         -> F.IGNORE
+            writeIORef F.vRtsConfig $ F.RTS_CONFIG {onJetFallback}
             act
         _ -> act
   where
@@ -451,8 +454,7 @@ replSeed seedFileToShow = do
     writeIORef F.vJetMatch           $! F.jetMatch
     writeIORef F.vShowFan            $! showFan
     writeIORef F.vTrkFan             $! trkFan
-    writeIORef F.vWarnOnJetFallback  $! False -- True
-    writeIORef F.vCrashOnJetFallback $! False -- True
+    writeIORef F.vRtsConfig          $! F.RTS_CONFIG { onJetFallback = F.WARN }
     byt <- readFile seedFileToShow
     pin <- F.loadSeed byt >>= either throwIO pure
     interactive pin
