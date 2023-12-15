@@ -96,7 +96,8 @@
 ;;;; - [ ] #typedef
 ;;;; - [ ] #typeof
 ;;;; - [ ] #printType
-;;;; - [ ] #getenv
+;;;; - [x] #getenv
+;;;; - [x] #getState
 ;;;; - [ ] #getKey
 ;;;; - [ ] #getProp
 ;;;; - [ ] #setProp
@@ -181,6 +182,8 @@
 * ENIL=nil
 * EEQL=eql xs:(Row Exp)
 * ENEQ=neq x:Exp y:Exp
+* E_GET_STATE=getState
+* E_GETENV=getenv
 
 
 ;;; Printing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -408,7 +411,6 @@
 | INFX "=" (showPat pat, showExp bind) 0
 
 = (showBinds showExp binds)
-| trk [=binds wut=(map (showBind showExp) binds)]
 | foldr (x y & trk [=x =y] (rexSetHeir y x)) 0 (map (showBind showExp) binds)
 
 > Exp > Rex
@@ -442,6 +444,8 @@
 * ENIL           | '(~[])
 * (EEQL xs)      | INFX {==} (map showExp xs) 0
 * (ENEQ x y)     | INFX {/=} (showExp x, showExp y) 0
+* E_GETENV       | `(#getenv)
+* E_GET_STATE    | `(#getstate)
 * _              | {showExp: Unknown syntax} exp
 
 
@@ -555,6 +559,11 @@
 : sym < readSymbol keywordRex err
 | ok keywordRex sym params
 
+= (checkKeyword result rex err ok)
+| if (1 /= len (rexKids rex))
+    | err rex {Unexpected parameters to keyword}
+| ok result
+
 > (Rex > Read Exp) > Rex > Read Exp
 = (parseHaxExp readExp rex err ok)
 @ kids (rexKids rex)
@@ -571,6 +580,8 @@
 * {p} | readPadLit rex err (pad & ok (EPAD pad))
 * {b} | readBarLit rex err (pad & ok (EBAR pad))
 * {x} | readBarLit rex err (pad & ok (EBAR pad))
+* {getstate} | **checkKeyword E_GET_STATE rex err ok
+* {getenv}   | ok E_GETENV ; **checkKeyword E_GETENV    rex err ok
 * {mutrec}
     : tag body arms < readMutRecExp readExp rex err
     | ok (EMUT tag body arms)
@@ -809,6 +820,7 @@
 !! expRound ' (# mutrec 3 (three 5))(* (three _) 3)
 !! expRound ' (# mutrec 3 (three 5))(* (three _) 3)(* (four _ _) (inc 3))
 !! expRound ' (# switch 3)(* 3 3)(* 4 4)(* _ 9)
+!! expRound ' #getenv
 
 !!= '[x=3 y=4]
   ^ readExp _ v2 showExp
@@ -975,6 +987,9 @@
 = (traverseExp f exp ok)
 @ go (traverseExp f)
 # datacase exp
+* _                  | {TODO: add this to traverseExp} exp
+* E_GETENV           | f exp ok
+* E_GET_STATE        | f exp ok
 * ENIL               | f exp ok
 * EUNT               | f exp ok
 * (EBED _)           | f exp ok
@@ -1290,6 +1305,8 @@
 * (ELIN x)
     : ss rex < go ss x
     | ok ss (NEST {#**} [rex] 0)
+* E_GET_STATE | ok ss (cnsE ss)
+* E_GETENV    | ok ss (cnsE | idx 2 ss)
 
 
 ;;; Compiler Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1495,6 +1512,9 @@
 !!= 0 (3 == 4)
 !!= 1 (3 == 3)
 !!= 0 (3 == 3 == 4)
+
+!! tabHas {%}    #getenv
+!! tabHas {boot} (get #getstate 3)  ;;  Modules table
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
