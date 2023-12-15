@@ -19,9 +19,8 @@
 /+  01_fan
 /+  02_bit  [if else or ifNot FALSE and not]
 /+  03_nat  [even add mod sub mul]
-/+  05_row  [len idx get put]
 /+  04_cmp  [eql neq isZero]
-/+  05_row  [v1 v2 v3 foldr map rowApply]
+/+  05_row
 /+  06_rex  [rexHeir rexEmbd rexSons rexText rexRune]
 /+  06_rex  [rexIsLeaf rexIsEmbd rexIsNode]
 /+  06_rex  [WORD EMBD NEST OPEN PREF TEXT]
@@ -133,12 +132,21 @@
 = (cnsE v)         | EMBD v
 = (barE xs)        | NEST {#|} xs 0
 = (letE i x b)     | OPEN {#@}  [varE-i    x] b
-= (recE i x b)     | OPEN {#@@} [varE-i    x] b
 = (txtE t)         | TEXT t 0
 = (tmpName s n)    | strCat [{_} s showNat-n]
 = (tmpVarE s n)    | varE (tmpName s n)
 = (sigE r)         | if (eql 1 len-r) varE-(idx 0 r) (NEST {|} (map varE r) 0)
 = (lamE rs b)      | OPEN {#&}  [(sigE rs)] b
+
+= (recE vs b)
+^ OPEN {#@@} [_] b
+| foldr (flip rexSetHeir) 0
+| map vx&(OPEN {=} [varE-(fst vx) snd-vx] 0) vs
+
+!!=   | recE [[%a 'b] [%b '(a a)]] '(a b)
+  ' #@@ = a b
+        = b (a a)
+      (a b)
 
 = (wutE pin mark n rs b)
 @ rune (if pin {#??} {#?})

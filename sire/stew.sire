@@ -166,7 +166,7 @@
 * EAPP=app x:Exp y:Exp
 * EKET=ket x:Exp b:Exp
 * ELET=let n:Pat x:Exp b:Exp
-* EREC=rec n:Pat x:Exp b:Exp
+* EREC=rec vs:(Row (Pair Pat Exp)) b:Exp
 * ELAM=lam pin:Bit fun:(Str, Nat, Row Pat, Exp)
 * ELIN=lin x:Exp
 * EROW=row xs:(Row Exp)
@@ -404,6 +404,13 @@
 !!= (EAPP (EAPP 1 2) 3)          | mkApp [1 2 3]
 !!= (EAPP (EAPP (EAPP 1 2) 3) 4) | mkApp [1 2 3 4]
 
+= (showBind showExp [pat bind])
+| INFX "=" (showPat pat, showExp bind) 0
+
+= (showBinds showExp binds)
+| trk [=binds wut=(map (showBind showExp) binds)]
+| foldr (x y & trk [=x =y] (rexSetHeir y x)) 0 (map (showBind showExp) binds)
+
 > Exp > Rex
 = (showExp exp)
 @ go showExp
@@ -420,7 +427,7 @@
 * (EAPP x y)     | niceApp go exp
 * (EKET b v)     | NEST {^} [(go b)] (go v)
 * (ELET n x b)   | NEST {@}  (showPat n, go x) (go b)
-* (EREC n x b)   | NEST {@@} (showPat n, go x) (go b)
+* (EREC vs b)    | if null-vs (go b) | NEST {@@} [(showBinds showExp vs)] (go b)
 * (ELAM pin fun) | showFun go pin fun
 * (ELIN x)       | PREF {**} ,(showExp x) 0
 * (EROW xs)      | NEST {,} (map go xs) 0
@@ -500,9 +507,15 @@
 
 > (Rex > Read Exp) > Rex > Read Exp
 = (parseRec readExp rex err ok)
-: e < parseLet readExp rex err
-# datacase e
-* (ELET v e b) | ok | EREC v e b
+: binds body < readLet readExp rex err
+^ ok (EREC (map _ binds) body)
+& sweetBind
+# datacase sweetBind
+* (LEFT [lawName mark argPats lawBody])
+   ++ PVAR lawName
+   ++ ELAM FALSE (FUN lawName lawName mark argPats lawBody)
+* (RIGHT [bind valExp])
+    | [bind valExp]
 
 > (Rex > Read Exp) > Rex > Read Rex
 = (parseCen rex err ok)
@@ -787,7 +800,8 @@
 !! expRound ' (? (id x))x
 !! expRound ' (? (const x y))x
 !! expRound ' (@ x 3)(x x x)
-!! expRound ' (@@ x 3)x
+!! expRound ' (@@ (x = 3))x
+!! expRound ' (@@ (x = 3)(y = 4))x
 !! expRound ' (^ (f _ y))x
 !! expRound ' (@ x [1 2])[x x]
 !! expRound ' (@ [x y] [1 2])[y x]
@@ -976,13 +990,19 @@
 * (EAPP x y)         | rowTraverse go [x y] & [x y] | f (EAPP x y)   ok
 * (EKET x y)         | rowTraverse go [x y] & [x y] | f (EKET x y)   ok
 * (ELET n x b)       | rowTraverse go [x b] & [x b] | f (ELET n x b) ok
-* (EREC n x b)       | rowTraverse go [x b] & [x b] | f (EREC n x b) ok
 * (ENEQ x y)         | rowTraverse go [x y] & [x y] | f (ENEQ x y)   ok
 * (ECON x z)         | rowTraverse go [x z] & [x z] | f (ECON x z)   ok
 * (EROW xs)          | rowTraverse go xs    & xs    | f (EROW xs)    ok
 * (EEQL xs)          | rowTraverse go xs    & xs    | f (EEQL xs)    ok
 * (ETAB kv)          | traverseTab go kv    & kv    | f (ETAB kv)    ok
-* (ELIN x)           | go x & x | f (ELIN x)           ok
+* (ELIN x)           | go x & x                     | f (ELIN x)     ok
+* (EREC vs b)
+    : b  < go b
+    : vs < ^ rowTraverse _ vs
+           & ([pat expr] ret)
+           : expr < go expr
+           | ret [pat expr]
+    | f (EREC vs b) ok
 * (ELAM p (FUN n t m a b))
     : b < go b
     | f (ELAM p (FUN n t m a b)) ok
@@ -1170,16 +1190,16 @@
 | ok st
 | bindSeqE bSeq bodRex deps
 
-= (cRec go st pat valExp bodExp ok)
-: st valRex < go st valExp
+= (cRec go st vs bodExp ok)
 : st bodRex < go st bodExp
-;
-@ var # datacase pat
-      * _          | todo {support pattern matching in letrec bindings}
-      * (PVAR var) | var
-;
-| ok st (recE var valRex bodRex)
-
+: st binds  < ^ rowTraverseState st _ vs
+              & (st [bindPat bindExp] ret)
+              # datacase bindPat
+              * _ | todo {support pattern matching in letrec bindings}
+              * (PVAR bindVar)
+              : st bindRex < go st bindExp
+              | ret st [bindVar bindRex]
+| ok st (recE binds bodRex)
 
 = (cMut go st coreTag bodExp arms ok)
 : st bodRex
@@ -1264,7 +1284,7 @@
 * (ESWI x fb arms) | cSwi go ss x fb arms ok
 * (ELAM p f)       | cLam go ss p f ok
 * (ELET p v b)     | cLet go ss p v b ok
-* (EREC p v b)     | cRec go ss p v b ok
+* (EREC vs b)      | cRec go ss vs b ok
 * (EMUT t b as)    | cMut go ss t b as ok
 * (ECAS v w as)    | cCas go ss v w as ok
 * (ELIN x)
@@ -1353,12 +1373,23 @@
   | EAPP ENAT-0 ENAT-1
 
 !!=  ++ [5]
-     ++ ` (#@@ x (#| $$(cow 2) x $$1))(#| car x)
+     ++ ` (#@@ (= x (#| $$(cow 2) x $$1)))(#| car x)
   | comp [5]
-  | EREC (PVAR {x})
-      | EROW (ENAT 1, EREF {x})
+  | EREC
+     ++ ++ PVAR {x}
+        ++ EROW (ENAT 1, EREF {x})
   | EAPP (EREF {car})
   | EREF {x}
+
+!!=  ++ [5]
+     ++ ` (#@@ (= x (#| $$0 y))(= y (#| $$1 x)))(#| x y)
+  | comp [5]
+  | EREC
+     ++ ++ PVAR {x}
+        ++ EAPP ENAT-0 EREF-{y}
+     ++ ++ PVAR {y}
+        ++ EAPP ENAT-1 EREF-{x}
+  | EAPP EREF-{x} EREF-{y}
 
 ; gross
 !!=  ++ [8] ;; TODO: This is wrong!!!  _tag9 is used, so state should be at 10.
