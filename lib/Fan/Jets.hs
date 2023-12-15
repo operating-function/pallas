@@ -29,6 +29,8 @@ import Control.Exception (throw)
 import Data.Char         (isUpper)
 import Data.Text.IO      (hPutStr, hPutStrLn)
 
+import qualified Data.Map    as M
+import qualified Data.Set    as S
 import qualified Data.Vector as V
 
 
@@ -59,9 +61,21 @@ matchJetsToHash
     -> Map Text (Maybe Jet)
     -> [(Text, Maybe Jet, Hash256)]
 matchJetsToHash hashes jets =
-    if length hashes /= length jets
-    then error "Jets hash/impl tables do no match"
-    else mapMaybe f (mapToList jets)
+    if length hashes == length jets
+    then mapMaybe f (mapToList jets)
+    else
+        let inHashes = S.fromList (M.keys hashes)
+            inJets   = S.fromList (M.keys jets)
+            jetMissing  = inHashes `S.difference` inJets
+            hashMissing = inJets `S.difference` inHashes
+        in error $ ("Just hash/impl tables do no match:\n\n" <>)
+                 $ ppShow ( ( "Missing from jets table" :: Text
+                            , jetMissing
+                            )
+                          , ( "Missing from hashes table" :: Text
+                            , hashMissing
+                            )
+                          )
   where
     f (t, x) = case lookup t hashes of
         Nothing -> error ("No hash corresponding to jet: " <> unpack t)
