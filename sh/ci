@@ -10,11 +10,6 @@ then
 fi
 
 sh/sire-load-all -M </dev/null
-
-# TODO: sh/sire-load-all should exit with an error code if something
-# failed!
-
 sh/rex-test
-
 sh/testdemo-cog-asktell-basic
 sh/testdemo-cog-asktell-askcrash
