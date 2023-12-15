@@ -11,6 +11,8 @@
 /+ switch
 /+ mutrec
 /+ datatype
+/+ plan
+/+ seed
 /+ blake3
 /+ gen
 /+ hitch
@@ -19,4 +21,3 @@
 /+ kern
 /+ stew
 /+ datom
-/+ plan

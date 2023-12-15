@@ -100,7 +100,6 @@ ex=(_MkTab [1 2 3] [4 5 6])
 
 ;;; Basic Quations about Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= (_TabLen tab)     | len (_TabVals tab)
 = (_TabIsEmpty tab) | null (_TabVals tab)
 = (_TabHas k t)     | setHas k (_TabKeys t)
 = (_TabLookup k t)  | if (_TabHas k t) (SOME | tabIdx k t) NONE

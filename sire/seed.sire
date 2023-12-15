@@ -1,0 +1,387 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### seed <- plan
+
+;;;; This file contains an implementation of Plunders universal
+;;;; serialization framework.
+
+
+/+ boot
+/+ datatype
+/+ mutrec
+/+ w64
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; A {Node} is an element of a {DedupTable}.
+;;;
+;;; A {DedupTable} is an array of every unique node of a value in
+;;; depth-first, head-first order.  Laws and Pins are treated as cells
+;;; where the head is defined by {_Car} and the tail by {_Cdr}.
+;;;
+;;; Each {Node} is is either a {ATOM}, a {CELL}, or a hole {HOLE}.
+;;; An atom is represented as normal, a cell is represented by the
+;;; array-index of the head and the tail.
+;;;
+;;; A hole is a reference to some sort of "external value".  An array of
+;;; holes is provided when we serialize, and the same array must be provided
+;;; again when we deserialize.  This "holes" mechanism exists to make
+;;; it possible to serialize each pin individually.
+
+(**ATOM x)=x
+(**HOLE i)=[i]
+(**CELL f x)=[f x]
+
+zero=0
+one=1
+two=2
+
+setProp#(ATOM.conTag)#zero
+setProp#(ATOM.conAri)#one
+setProp#(ATOM.conFun)#len
+setProp#(ATOM.conHas)#FALSE
+setProp#(ATOM.conRaw)#TRUE
+setProp#(HOLE.conTag)#one
+setProp#(HOLE.conAri)#one
+setProp#(HOLE.conFun)#len
+setProp#(HOLE.conHas)#FALSE
+setProp#(HOLE.conRaw)#FALSE
+setProp#(CELL.conTag)#two
+setProp#(CELL.conAri)#two
+setProp#(CELL.conFun)#len
+setProp#(CELL.conHas)#FALSE
+setProp#(CELL.conRaw)#FALSE
+
+
+# typedef DedupTable (Row (Node, Nat))
+
+# typedef DedupIndex (Tab Node Nat)
+
+
+;;; De-duplication and Shatting Fragments ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; {intern} does deduplication and {shatter} determines how to create
+;;; a minimal serialization given the refcount information produced
+;;; by {intern}.
+;;;
+;;; TODO: actually explain this
+
+> Array Any > Any > (DedupTable, DedupIndex)
+= (intern holes top)
+^   @ [tbl seen _] (_ [] #[] top)
+    | [tbl seen]
+? (go tbl seen x)
+@ [tbl seen node]
+    ^ elemIdx x holes _ (i & [tbl seen (HOLE i)])
+    | if isNat-x [tbl seen (ATOM x)]
+    @ [tbl seen h] (go tbl seen car-x)
+    @ [tbl seen t] (go tbl seen cdr-x)
+    | [tbl seen (CELL h t)]
+| if (tabHas node seen)
+    @ key       | tabIdx node seen
+    @ !refcount | inc | snd | get tbl key
+    @ tbl | put tbl key [node refcount]
+    | [tbl seen key]
+@ key len-tbl
+++ rowSnoc tbl [node 1]
+++ tabPut seen node key
+++ key
+
+> DedupTable > Set Nat
+= (shatter tbl)
+^ _ 0 (dec | len tbl)
+? (go parentRefs key)
+@ node,refs (get tbl key)
+# datacase node
+* _        | %[]
+* CELL-h-t ^ setCatRow (go refs h, go refs t, _)
+           | if (gth refs parentRefs) (setSing key) emptySet
+
+
+;;; Nat-Table Layout ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+u8max=255
+u64max=18446744073709551615
+
+= (wordSz nat)
+@ bitSz (met nat)
+; trk [=nat =bitSz]
+; trk [(mod bitSz 64)]
+; trk [(div bitSz 64) bit-(mod bitSz 64)]
+| add (div bitSz 64) bit-(mod bitSz 64)
+
+(0 !!= wordSz 0)
+(1 !!= wordSz u8max)
+(1 !!= wordSz u64max)
+(2 !!= wordSz inc-u64max)
+
+> DedupIndex > (Row Nat, Nat, Nat, Nat, Row Nat)
+= (countAtoms dIdx)
+@ nodes (tabKeysRow dIdx)
+@ nNode (len nodes)
+; trk [=nodes]
+# mutrec %go
+    (byt 0 0)
+* (big nByt nWrd bigSzList key)
+    ; trk [{big} nByt nWrd bigSzList key]
+    @ next
+        @ bigSizes (listToRow bigSzList)
+        @ atoms    (rev | take key nodes) ; key=nAtoms
+        | (atoms, nByt, nWrd, bigSizes)
+    | if (gth key nNode) next
+    # datacase (get nodes key)
+    * _      | next
+    * ATOM-n | if (isZero n) next
+             | big nByt nWrd (wordSz n :: bigSzList) inc-key
+* (wrd nByt nWrd key)
+    ; trk [{wrd} nByt nWrd key]
+    @ next (big nByt nWrd NIL key)
+    | if (gth key nNode) next
+    # datacase (get nodes key)
+    * _      | next
+    * ATOM-n | if (isZero n || gth n u64max) next
+             | wrd nByt inc-nWrd inc-key
+* (byt nByt key)
+    ; trk [{byt} nByt key]
+    @ next (wrd nByt 0 key)
+    | if (gte key nNode) next
+    # datacase (get nodes key)
+    * _      | next
+    * ATOM-n | if (gth n u8max) next (byt inc-nByt inc-key)
+
+(w8Bar nat)=(natToSizedBar 1 nat)
+(w64Bar nat)=(natToSizedBar 8 nat)
+
+= (writeHeader nHol bignatSizes nWords nBytes nFrags atoms)
+| barFlat
+++ w64Bar nHol
+++ w64Bar (len bignatSizes)
+++ w64Bar nWords
+++ w64Bar nBytes
+++ w64Bar nFrags
+++ map w64Bar bignatSizes
+++ ^ map _ atoms
+   & x
+   | if (lte x u8max)  | w8Bar x
+   | if (lte x u64max) | w64Bar x
+   | else              | natToSizedBar (mul 8 | wordSz x) x
+
+; First, we need the bit-width for references, this is just the bit-width
+; ({met}) of the maximum possible reference.
+;
+; We write a reference by writting a zero-bit followed by the refSz bits
+; containing the reference index.  The easiest way to do this is to
+; increase the size of the reference pad by 1, and write {refNum*2}, which
+; implicitly contains the 0 tag.
+;
+;     | mkPad | add (mul 2 ref) | bex | inc refSz
+;
+; if we see a hole, that's a reference, which is just:
+;
+;     REF(hole-id)
+;
+; if we see an atom, then, because atoms are written in reverse order in
+; the output, the atom backref can be calculated with:
+;
+;     REF(nHoles+(nAtoms-atomKey))
+;
+; If we see an cell, and the key is in {frags}, then we just write:
+;
+;     REF(nAtoms+nHoles+fragIx)
+;
+; If we see an cell that is not a frag, we just write:
+;
+;     (p#1, write head, write tail)
+
+(writeRefr refSz ref)=(setBit inc-refSz (mul 2 ref))
+
+= (writeTree frags tbl idx nHoles nAtoms refSz key)
+; trk [writeTree frags tbl nHoles nAtoms refSz key]
+@ [node refcount] (get tbl key)
+# datacase node
+* ATOM-n
+    | writeRefr refSz
+    ^ add nHoles (sub nAtoms | inc _)
+    | tabSearchCase node idx 0 (ix vl & ix)
+* HOLE-n
+    | writeRefr refSz n
+* CELL-h-t
+    @ go (writeTree frags tbl idx nHoles nAtoms refSz)
+    : ix < elemIdx key (setToRow frags) [p#1 go-h go-t]
+    | writeRefr refSz (sum [ix nAtoms nHoles])
+
+= (showPadTree x)
+| if isNat-x | showPadLit x
+| if isRow-x | NEST {,} (map showPadTree x) 0
+| else       | NEST {|} (showPadTree car-x, showPadTree cdr-x) 0
+
+= (writeBody nHoles nAtoms tbl idx frags)
+; trk [writeBody nHoles nAtoms tbl idx frags]
+@ priors (add nHoles nAtoms)
+@ write  (writeTree frags tbl idx nHoles nAtoms)
+^ @ x (_ 0 setToList-frags)
+  ; trk (showPadTree x)
+  ; trk (showPadLit (padFlat x))
+  | padFlat x
+? (go !count fs)
+; trk [{writeBody_go} count fs {->} _] _
+: key fs < listCase fs 1
+@ refSz | met | dec | sum [nHoles nAtoms count]
+; trk [=refSz]
+@ [[h t] refcount] (get tbl key)
+; trk [=h =t]
+| (write refSz h, write refSz t, go inc-count fs)
+
+= (save holes val)
+@ tbl,idx               | intern holes val
+@ frags                 | shatter tbl
+@ nFrags                | setLen frags
+@ nats,nByt,nWrd,bigSzs | countAtoms idx
+@ nBig                  | len bigSzs
+@ nHol                  | len holes
+@ nNat                  | len nats
+; trk [=nHol =bigSzs =nWrd =nByt =nFrags =nats]
+@ head                  | writeHeader nHol bigSzs nWrd nByt nFrags nats
+@ body                  | padBar (writeBody nHol nNat tbl idx frags)
+@ ovFlow                | (mod _ 8)^(add barLen-head barLen-body)
+@ padWid                | if ovFlow (sub 8 ovFlow) 0
+@ padding               | barRep padWid 0
+| barCat [head body padding]
+
+= (loadHeader seed)
+@ nHol | barSliceToNat 0  8 seed
+@ nBig | barSliceToNat 8  8 seed
+@ nWrd | barSliceToNat 16 8 seed
+@ nByt | barSliceToNat 24 8 seed
+@ nFrg | barSliceToNat 32 8 seed
+; trk [=nHol =nBig =nWrd =nByt =nFrg]
+^ _ NIL 0 40
+? (bigSizesLoop acc bigIx off)
+| if bigIx/=nBig
+    ^ bigSizesLoop (_ :: acc) inc-bigIx (add 8 off)
+    | barSliceToNat off 8 seed
+@ bigSizes (listToRowRev acc)
+^ _ NIL (listFromRow bigSizes) off
+? (bigsLoop acc rem off)
+| if (rem /= NIL)
+    @ [sz rem] | rem
+    @ wid      | mul 8 sz
+    @ nat      | barSliceToNat off wid seed
+    | bigsLoop nat::acc rem (add off wid)
+^ _ acc 0 off
+? (wordsLoop acc i off)
+| if (i /= nWrd)
+    ^ wordsLoop (_ :: acc) inc-i (add 8 off)
+    | barSliceToNat off 8 seed
+^ _ acc 0 off
+? (bytesLoop acc i off)
+| if (i /= nByt)
+    ^ bytesLoop (_ :: acc) inc-i (add 1 off)
+    | barSliceToNat off 1 seed
+@ nats (listToRowRev acc)
+| [nHol nFrg nats off]
+
+= (loadTree body table refSz off)
+; trk [{loadTree} [=off =refSz bits=(showPadLit natToPad-(rsh body off))] {->} _] _
+^ _ off
+? (go off)
+; trk [{gogogo} [=off bits=(showPadLit natToPad-(rsh body off))]]
+@ section (setBit inc-refSz | bitSlice off inc-refSz body)
+; trk [{gogogo} [=off bits=(showPadLit section)] {->} _] _
+; trk [loadTree [=table] [=off =refSz =body pad=(showPadLit natToPad-body)]]
+@ flag (testBit off body)
+; trk [=flag =off =body]
+| if flag
+    @ off   | inc off
+    @ off,h | go off
+    @ off,t | go off
+    ; trk [=h =t]
+    | [off h-t]
+| else
+    @ off inc-off
+    @ ref (bitSlice off refSz body)
+    ; trk {LEAF},[off=(dec off) =ref val=(get table ref)]
+    ; trk [=off =ref]
+    ; trk [=body =refSz =off pad=(showPadLit natToPad-body)]
+    ; trk [=table =ref val=(get table ref) off=(add off refSz)]
+    | (add off refSz, get table ref)
+
+= (loadBody body table nFrags)
+; trk [body=(showPadLit natToPad-body)]
+; trk [loadBody body table nFrags [=body pad=(showPadLit natToPad-body)]]
+^ (_ table nFrags 0)
+? (go table rem off)
+; trk [=table]
+; trk [{loadBody_go} table rem off]
+@ maxRef    | dec (len table)
+@ refSz     | met maxRef
+| if rem==0 | (off, get table maxRef)
+@ load      | loadTree body table refSz
+@ [off h]   | load off
+@ [off t]   | load off
+| go (rowSnoc table h-t) dec-rem off
+
+= (load holes seed)
+@ seedSz barLen-seed
+| if (mod seedSz 8) NONE
+@ [nHol nFrg nats off] | loadHeader seed
+; trk [=nHol =nFrg =nats =off]
+| if (nHol /= len holes) NONE
+@ table (weld holes nats)
+; trk [=table]
+@ body barNat-(barDrop off seed)
+; trk [=body]
+@ [bitsRead result] | loadBody body table nFrg
+| result
+
+; All the pins reference in the body of a pin.
+= (pinRefs pin)
+| listToRowRev
+^ _ NIL (pinItem pin)
+? (go set non)
+| if isPin-non
+    | if (listHas non set) set
+    | CONS non set
+| if isApp-non
+    @ set go-set-(car non)
+    @ set go-set-(cdr non)
+    | set
+| if isLaw-non
+    | go-set-(lawBody non)
+| set
+
+(_LoadGerm refs bar)=(load refs bar)
+
+= (_SaveGerm pin)
+| ifNot isPin-pin 0
+^ (_, save _ pin)
+| pinRefs pin
+
+(_LoadSeed bar)=(load [] bar)
+(_SaveSeed fan)=(save [] fan)
+
+; header
+;
+; - {wordBar}
+;
+; nats
+;
+; - {natBarChunkedLE} ; natBarAlignedLE 8 3 -> x#0300000000000000
+; - {wordBar}
+; - {byteBar}
+;
+; frags:
+;
+; - {padFlatBar}
+; - {bitPad}
+; - {natPad}
+; - {natPadSized}
+; - {padBar}
+; - {sizing}
+;
+; combine
+;
+; - {barFlat [header nats frags padding]}

@@ -261,5 +261,9 @@ jetHashes
     , e "_TypeTag"            "BWgwW3xnmiAnA3FPhGCobMp1rkVTjhMTzgeDhAc7RBAU"
     , e "_TryExp"             "31ZEB3kaWgWpa1kV2MAbeQVmbgdzqkWtEKpxnGfwERwP"
     , e "_Try"                "Aa59HEsdP7CKNvL4TwMrQjzLpBtGwECDfHt2dMuxMJWE"
+    , e "_LoadGerm"           "6Ztw64cTNU8YDVgmGwhfsa1z42awyXCNFWkrmaYXRwSM"
+    , e "_SaveGerm"           "12AqvtmGHj8GMjVQ9Bp7S9t7rJpaspeJeNv8SYhuf4w9"
+    , e "_LoadSeed"           "6RP3fUjib3jxhTS3eqokt6JxEnY2ZhaYVV9qJGc8Hp9q"
+    , e "_SaveSeed"           "GmZqVMQhzvRr3r4TWsbuNjv1jQcZCHQFbRJiWjBJf3p6"
     , e "blake3"              "CfoMMsB9VdrWQJ93HgK5DEhun9T293c29Ur9XWf4R8rd"
     ]

@@ -9,7 +9,9 @@ module Fan.Jets
     ( vTrkFan
     , vShowFan
     , jetMatch
+    , getPin
     , getRow
+    , getRowOf
     , getRowVec
     , getByte
     , vJetHash
@@ -166,9 +168,17 @@ dumpHashLine pinName hashText = do
 
 -- Utils -----------------------------------------------------------------------
 
+getPin :: Fan -> Maybe Pin
+getPin (PIN p) = Just p
+getPin _       = Nothing
+
 getRow :: Fan -> Maybe (Array Fan)
 getRow (ROW xs) = Just xs
 getRow _        = Nothing
+
+getRowOf :: (Fan -> Maybe a) -> Fan -> Maybe (Array a)
+getRowOf f (ROW xs) = traverse f xs
+getRowOf _ _        = Nothing
 
 {-# INLINE getRowVec #-}
 getRowVec :: Fan -> Maybe (Vector Fan)

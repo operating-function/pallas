@@ -4,6 +4,7 @@
 
 module Fan.Seed
     ( loadSeed, saveSeed -- seed = everything in one go
+    , saveGermPin, loadGerm
     , loadPod, savePod   -- save each pin, then save table of seeds
     , savePin, savePin'  -- save one pin with header
     , LoadErr(..)
@@ -34,7 +35,7 @@ import Control.Monad.Trans.State.Strict (State(..), StateT(..), evalState,
 
 import Fan.Eval        (boom, evalArity, mkLawPreNormalized, mkPin', mkRow,
                         tabValsRow, (%%))
-import Fan.JetImpl     (doTrk)
+import Fan.Trace       (doTrk)
 import Foreign.C.Types (CBool(..))
 import GHC.Word        (Word(..))
 import Hash256         (Hash256, hashToByteString, toHash256)

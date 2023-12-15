@@ -17,6 +17,7 @@ import Data.Maybe
 import Data.Sorted
 import Data.Sorted.Search
 import Fan.Convert
+import Fan.Seed
 import Fan.Eval
 import Fan.Jets
 import Foreign.ForeignPtr
@@ -239,6 +240,10 @@ jetImpls = mapFromList
   , ( "_TryExp"                         , Nothing                             )
   , ( "_Try"                            , Just tryJet                         )
   , ( "blake3"                          , Just blake3Jet                      )
+  , ( "_LoadGerm"                       , Just loadGermJet                    )
+  , ( "_SaveGerm"                       , Just saveGermJet                    )
+  , ( "_LoadSeed"                       , Just loadSeedJet                    )
+  , ( "_SaveSeed"                       , Just saveSeedJet                    )
   ]
 
 --------------------------------------------------------------------------------
@@ -865,6 +870,40 @@ tryJet f e =
                 try (evaluate $ force (foldl' (%%) x xs)) <&> \case
                     Left (PRIMOP_CRASH err val) -> toNoun (0::Nat, (err, val))
                     Right vl                    -> toNoun (1::Nat, vl)
+
+saveSeedJet :: Jet
+saveSeedJet _ e = BAR $ unsafePerformIO $ saveSeed (e.!1)
+
+loadSeedJet :: Jet
+loadSeedJet f e = case e.!1 of
+    BAR b -> either (const $ f e) id $ unsafePerformIO $ loadSeed b
+    _     -> f e
+
+-- Note that {_SaveGerm} returns 0 if given something besides a pin!
+-- There's no need to fallback to the legal behavior in that case.
+
+saveGermJet :: Jet
+saveGermJet _ e =
+    case e.!1 of { PIN p -> save p; _ -> 0 }
+  where
+    save p =
+        let !bs = unsafePerformIO (saveGermPin p)
+        in toNoun (p.refs, bs)
+
+-- TODO: This is a bad jet, because malformed input will cause fallback
+-- to raw PLAN evaluation, which will be extremely slow.  Need to have
+-- error-behavior match between impl/jet so that the jet can also apply
+-- to bad input.
+
+loadGermJet :: Jet
+loadGermJet f e =
+    fromMaybe (f e) do
+        refs <- getRowOf getPin (e.!1)
+        bytz <- getBar (e.!2)
+        unsafePerformIO do
+            loadGerm (V.fromArray refs) bytz >>= \case
+                Left{}  -> pure Nothing
+                Right x -> Just . PIN <$> mkPin' x
 
 setSingletonJet :: Jet
 setSingletonJet _ e = SET $ ssetSingleton (e.!1)
