@@ -27,7 +27,7 @@ import PlunderPrelude            hiding (traceM, (^))
 
 import Control.Exception (throw)
 import Data.Char         (isUpper)
-import Data.Text.IO      (hPutStr, hPutStrLn)
+import Data.Text.IO      (hPutStrLn)
 
 import qualified Data.Map    as M
 import qualified Data.Set    as S
@@ -157,14 +157,11 @@ jetMatch cpin = do
 
 dumpHashLine :: Text -> Text -> IO ()
 dumpHashLine pinName hashText = do
-    hPutStr stderr "    , e \""
-    hPutStr stderr pinName
-    hPutStr stderr "\""
-    replicateM_ (max 1 (20 - length pinName)) do
-        hPutStr stderr " "
-    hPutStr stderr "\""
-    hPutStr stderr hashText
-    hPutStr stderr "\"\n"
+    hPutStrLn stderr $ concat
+        [ "    , e \"", pinName, "\""
+        , pack (replicate (max 1 (20 - length pinName))  ' ')
+        , "\"", hashText, "\""
+        ]
 
 
 -- Utils -----------------------------------------------------------------------
