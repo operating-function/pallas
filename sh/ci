@@ -9,7 +9,21 @@ then
     rm -f sire.cache
 fi
 
+cleanup () { rm -f errout; }
+trap cleanup EXIT
+
+runtest () {
+    "$@" 2>errout || {
+        echo ERROR OUTPUT
+        echo ============
+        echo
+        cat errout
+        exit 1
+    }
+}
+
 sh/sire-load-all -M </dev/null
 sh/rex-test
+runtest sh/full-tag-site-demo --ci
 sh/testdemo-cog-asktell-basic
 sh/testdemo-cog-asktell-askcrash

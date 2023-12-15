@@ -11,6 +11,8 @@ FIRST_PAGE=1
 
 USE_LOCAL=0
 USE_CDN=0
+RUN_TESTS=0
+CHECK_LIMITS=1
 REQ_LAST_PAGE=0
 MACHINE_DIR=$(realpath .fulltag-demo)
 MACHINE_ARGS=()
@@ -19,6 +21,8 @@ usage ()
 {
     echo "Usage: ./full-tag-site-demo [ -d | --demosrc SRCDIR ]
                             [ --use-local | --use-cdn ]
+                            [ --ci ]
+                            [ --no-check-limits ]
                             [ --last-page NUM ]
                             [ --machine-dir MACHINEDIR ]
                             [ -p | --profile-output PROF_FILE ]
@@ -34,7 +38,12 @@ usage ()
     exit 2
 }
 
-PARSED_ARGUMENTS=$(getopt -a -n alphabet -o d:p:P --long demosrc:,machine-dir:,profile-output:,last-page:,profile-laws,use-local,use-cdn,help -- "$@")
+PARSED_ARGUMENTS=$(
+    getopt -a -n alphabet \
+        -o d:p:P \
+        --long demosrc:,machine-dir:,profile-output:,last-page:,no-check-limits,ci,profile-laws,use-local,use-cdn,help \
+        -- "$@"
+)
 VALID_ARGUMENTS=$?
 if [ "$VALID_ARGUMENTS" != "0" ]; then
   usage
@@ -52,12 +61,21 @@ do
     --machine-dir)         MACHINE_DIR="$2"         ; shift 2 ;;
     -p | --profile-output) MACHINE_ARGS+=("-p" "$2"); shift 2 ;;
     -P | --profile-laws)   MACHINE_ARGS+=("-P")     ; shift   ;;
+    --no-check-limits)     CHECK_LIMITS=0           ; shift   ;;
+
+    --ci)
+        RUN_TESTS=1
+        CHECK_LIMITS=0
+        DEMOSRC=testdata/fulltag
+        shift 1
+        ;;
 
     # Don't "error" on help.
     --help) usage ;;
 
     # -- means the end of the arguments; drop this, and break out of the while loop
     --) shift; break ;;
+
     # If invalid options were passed, then getopt should have reported an error,
     # which we checked as VALID_ARGUMENTS when getopt was called...
     *) echo "Unexpected option: $1 - this should not happen."
@@ -75,7 +93,7 @@ MIN_LIMIT=55555
 # Get the current limit for the number of open files
 current_limit=$(ulimit -n)
 
-if [ "$current_limit" -lt "$MIN_LIMIT" ]; then
+if [ "$current_limit" -lt "$MIN_LIMIT" -a "$CHECK_LIMITS" -eq 1 ]; then
   echo "Error: The current limit for the number of open files is too low ($current_limit)."
   echo "Please increase the limit to at least $MIN_LIMIT by running the following command:"
   echo "ulimit -n $MIN_LIMIT"
@@ -89,7 +107,7 @@ MIN_MAP_COUNT=2621440
 # Get the current value for vm.max_map_count
 current_map_count=$(sysctl -n vm.max_map_count)
 
-if [ "$current_map_count" -lt "$MIN_MAP_COUNT" ]; then
+if [ "$current_map_count" -lt "$MIN_MAP_COUNT" -a "$CHECK_LIMITS" -eq 1 ]; then
   echo "Error: The current value for vm.max_map_count is too low ($current_map_count)."
   echo "Please increase the value to at least $MIN_MAP_COUNT by running the following command:"
   echo "sudo sysctl -w vm.max_map_count=$MIN_MAP_COUNT"
@@ -121,7 +139,6 @@ if [ "${REQ_LAST_PAGE}" -ne 0 ]; then
 else
     LAST_PAGE=$(ls "${DEMOSRC}/json" | grep -o -E '[0-9]+' | sort -n | tail -n 1)
 fi
-
 
 UPLOAD_IMG=0
 
@@ -291,5 +308,36 @@ for i in $(seq 0 $last_thread); do
 done
 
 echo "Running on http://localhost:$PORT/index.html"
+
+if [ $RUN_TESTS -eq 1 ]
+then
+    json='{"tag":"Search","contents":{"offset":0,"tags":["cute"]}}'
+
+    sleep 0.5
+
+    curl -XPOST http://localhost:$PORT/search -d "$json" >out.json
+
+    cleanup () { rm -f out.json; rm -r "$MACHINE_DIR"; }
+    trap cleanup EXIT
+
+    failed=0
+
+    fail () {
+        "TESTS FAILED: json output does not match expectations"
+        jq . < out.json
+        failed=1
+    }
+
+    test 500 -eq $(jq .status.imgs out.json)    || fail
+    test 377 -eq $(jq .contents.total out.json) || fail
+
+    if [ $failed = 0 ]; then
+        echo "TEST SUCCESS: demo_full_tag_site"
+    fi
+
+    kill $RUN_MACHINE
+    wait $RUN_MACHINE
+    exit
+fi
 
 wait $RUN_MACHINE
