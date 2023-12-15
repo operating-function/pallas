@@ -40,6 +40,31 @@ if [ "$VALID_ARGUMENTS" != "0" ]; then
   usage
 fi
 
+#echo "PARSED_ARGUMENTS is $PARSED_ARGUMENTS"
+eval set -- "$PARSED_ARGUMENTS"
+while :
+do
+  case "$1" in
+    -d | --demosrc)        DEMOSRC="$2"             ; shift 2 ;;
+    --use-local)           USE_LOCAL=1              ; shift   ;;
+    --use-cdn)             USE_CDN=1                ; shift   ;;
+    --last-page)           REQ_LAST_PAGE="$2"       ; shift 2 ;;
+    --machine-dir)         MACHINE_DIR="$2"         ; shift 2 ;;
+    -p | --profile-output) MACHINE_ARGS+=("-p" "$2"); shift 2 ;;
+    -P | --profile-laws)   MACHINE_ARGS+=("-P")     ; shift   ;;
+
+    # Don't "error" on help.
+    --help) usage ;;
+
+    # -- means the end of the arguments; drop this, and break out of the while loop
+    --) shift; break ;;
+    # If invalid options were passed, then getopt should have reported an error,
+    # which we checked as VALID_ARGUMENTS when getopt was called...
+    *) echo "Unexpected option: $1 - this should not happen."
+       usage ;;
+  esac
+done
+
 # Both curl and plunder consume a ton of file descriptors and mmap segments, in
 # the current demo design. We must check that we have enough fds for all files,
 # and that we have a high enough max_map_count.
@@ -72,31 +97,6 @@ if [ "$current_map_count" -lt "$MIN_MAP_COUNT" ]; then
   echo "vm.max_map_count=$MIN_MAP_COUNT"
   exit 1
 fi
-
-#echo "PARSED_ARGUMENTS is $PARSED_ARGUMENTS"
-eval set -- "$PARSED_ARGUMENTS"
-while :
-do
-  case "$1" in
-    -d | --demosrc)        DEMOSRC="$2"             ; shift 2 ;;
-    --use-local)           USE_LOCAL=1              ; shift   ;;
-    --use-cdn)             USE_CDN=1                ; shift   ;;
-    --last-page)           REQ_LAST_PAGE="$2"       ; shift 2 ;;
-    --machine-dir)         MACHINE_DIR="$2"         ; shift 2 ;;
-    -p | --profile-output) MACHINE_ARGS+=("-p" "$2"); shift 2 ;;
-    -P | --profile-laws)   MACHINE_ARGS+=("-P")     ; shift   ;;
-
-    # Don't "error" on help.
-    --help) usage ;;
-
-    # -- means the end of the arguments; drop this, and break out of the while loop
-    --) shift; break ;;
-    # If invalid options were passed, then getopt should have reported an error,
-    # which we checked as VALID_ARGUMENTS when getopt was called...
-    *) echo "Unexpected option: $1 - this should not happen."
-       usage ;;
-  esac
-done
 
 if [ -z "${DEMOSRC}" ]; then
     echo "Using default demo..."
