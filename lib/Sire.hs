@@ -539,7 +539,7 @@ withCache act =
 
         unless (c1 == c2) do
             p <- F.mkPin' (TAb c2)
-            print ("cache hash":: Text, p.hash)
+            hPutStrLn stderr $ tshow ("cache hash":: Text, p.hash)
             eByt <- Prof.withSimpleTracingEvent "save"  "cache" $ try $ savePod p
             case eByt of
                Left (POD_INTEGRITY_CHECK_FAILED hax p2) -> do
@@ -667,7 +667,7 @@ doFile vCache modu s1 = do
             case mCached of
                 Just s2 -> do
                     let s3 = revertSwitchToRepl modu s2
-                    print (modu, "LOADED FROM CACHE!"::Text)
+                    hPutStrLn stderr $ tshow (modu, "LOADED FROM CACHE!"::Text)
                     pure (s3, hax)
 
                 Nothing -> do
@@ -706,7 +706,7 @@ doFile vCache modu s1 = do
                     case mCached of
                         Just s3 -> do
                             let s4 = revertSwitchToRepl modu s3
-                            print (modu, "LOADED FROM CACHE!"::Text)
+                            hPutStrLn stderr $ tshow (modu, "LOADED FROM CACHE!"::Text)
                             pure (s4, hax)
 
                         Nothing -> do
@@ -845,7 +845,8 @@ doEnter topRex =
             target <- readModuleName enter
             ss <- getState <$> get
             unless (ss.context == 0 && null ss.scope) $
-                parseFail topRex "#### without predecessor, but not in initial state"
+                parseFail topRex $
+                "#### without predecessor, but not in initial state"
             modify' (switchToContext target)
 
         _ -> do

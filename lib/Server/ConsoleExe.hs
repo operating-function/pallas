@@ -134,7 +134,7 @@ data RunType
              FilePath -- Seed file
              FilePath -- SireFile
     | RTShow FilePath
-    | RTRepl FilePath InterpreterOpts
+    | RTRepl FilePath FilePath InterpreterOpts
     | RTLoot FilePath ProfilingOpts [FilePath]
     | RTBoot ProfilingOpts InterpreterOpts MachineOpts Bool FilePath Text
     | RTUses FilePath Int
@@ -146,7 +146,7 @@ data RunType
               InterpreterOpts
               MachineOpts
               ReplayFrom
-    -- | RTPoke FilePath Text FilePath
+ -- | RTPoke FilePath Text FilePath
 
 cogIdArg :: Parser CogId
 cogIdArg = COG_ID <$> argument auto (metavar "COG" <> help helpTxt)
@@ -215,6 +215,7 @@ runType defaultDir = subparser
 
    <> plunderCmd "repl" "Interact with a seed file."
       (RTRepl <$> seedFile
+              <*> replWriteOpt
               <*> interpreterOpts)
 
    <> plunderCmd "start" "Resume an idle machine."
@@ -312,6 +313,13 @@ runType defaultDir = subparser
                  <> profHelp
                   )
 
+    replWriteOpt =
+        strOption ( long "save"
+                 <> value "/dev/null"
+                 <> metavar "OUTPUT_FILE"
+                 <> help "Where to write the formal output"
+                  )
+
     numWorkers =
         option auto ( long "eval-workers"
                    <> value 8
@@ -355,11 +363,11 @@ main = do
             when start $ do
               runMachine d EarliestSnapshot mo
 
-        RTUses d w   -> duMachine d w
-        RTShow fp    -> showSeed fp
-        RTRepl fp _  -> replSeed fp
-        RTOpen d cog -> void (openBrowser d cog)
-        RTTerm d cog -> void (openTerminal d cog)
+        RTUses d w    -> duMachine d w
+        RTShow fp     -> showSeed fp
+        RTRepl fp o _ -> replSeed fp o
+        RTOpen d cog  -> void (openBrowser d cog)
+        RTTerm d cog  -> void (openTerminal d cog)
 
         RTLoot _ _ fz -> do
             liftIO $ Loot.ReplExe.replMain fz
@@ -387,13 +395,13 @@ withProfileOutput args act = do
         RTSave po _ _ _     -> Just po
         RTLoot _ po _       -> Just po
         RTShow _            -> Nothing
-        RTRepl _ _          -> Nothing
-        RTOpen _ _          -> Nothing
-        RTTerm _ _          -> Nothing
+        RTRepl{}            -> Nothing
+        RTOpen{}            -> Nothing
+        RTTerm{}            -> Nothing
         RTStart _ po _ _ _  -> Just po
-        RTUses _ _          -> Nothing
+        RTUses{}            -> Nothing
         RTBoot po _ _ _ _ _ -> Just po
-        -- RTPoke _ _ _ _       -> Nothing
+     -- RTPoke _ _ _ _      -> Nothing
 
 withInterpreterOpts :: RunType -> IO () -> IO ()
 withInterpreterOpts args act = do
@@ -411,7 +419,7 @@ withInterpreterOpts args act = do
         RTSire _ _ io _     -> Just io
         RTSave _ io _ _     -> Just io
         RTShow _            -> Nothing
-        RTRepl _ io         -> Just io
+        RTRepl _ _ io       -> Just io
         RTLoot _ _ _        -> Nothing
         RTBoot _ io _ _ _ _ -> Just io
         RTUses _ _          -> Nothing
@@ -457,8 +465,8 @@ showSeed seedFileToShow = do
 
 -- TODO: If given something like $path.sire:main, load that instead of
 -- just using a seed.
-replSeed :: (Debug, Rex.RexColor) => FilePath -> IO ()
-replSeed seedFileToShow = do
+replSeed :: (Debug, Rex.RexColor) => FilePath -> FilePath -> IO ()
+replSeed seedFileToShow outputFile = do
     let onJetFallback = F.WARN
     let onJetMismatch = F.WARN
     writeIORef F.vJetMatch           $! F.jetMatch
@@ -467,11 +475,12 @@ replSeed seedFileToShow = do
     writeIORef F.vRtsConfig          $! F.RTS_CONFIG{..}
     byt <- readFile seedFileToShow
     pin <- F.loadSeed byt >>= either throwIO pure
-    interactive pin
+    withFile outputFile WriteMode \h ->
+        interactive h pin
   where
     fullPrint x = trkM $ F.REX $ Sire.planRexFull $ toNoun x
 
-    interactive st0 = do
+    interactive h st0 = do
         input <- (try $ BS.hGetSome stdin 80) >>= \case
                      Left (e :: IOError) | isEOFError e -> pure mempty
                      Left (e :: IOError)                -> throwIO e
@@ -482,9 +491,9 @@ replSeed seedFileToShow = do
                 fullPrint result
                 error ("bad noun")
             Just (output, st1) -> do
-                BS.putStr output
+                BS.hPutStr h output
                 unless (null input) do
-                    interactive st1
+                    interactive h st1
 
 -- pokeCog :: (Debug, Rex.RexColor) => FilePath -> Text -> FilePath
 --         -> IO ()
