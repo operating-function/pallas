@@ -15,7 +15,7 @@
 /+  01_fan  [lawBody trk isLaw inc seq const id]
 /+  01_fan  [car cdr]
 /+  02_bit  [if ifNot and or not nor]
-/+  03_nat  [add toNat]
+/+  03_nat  [add toNat rsh mod]
 /+  04_cmp  [eql neq lth lte gte gth isZero]
 /+  05_row  [len get idx head put isRow]
 /+  05_row  [null map weld rowRepel rowApply rev fst snd]
@@ -57,6 +57,33 @@
 
 
 ;;; Tab Lookup ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(_TabLen tab)=(len | _TabVals tab)
+
+;; {tabSearchCase} is an inline function that finds the "index" of a
+;; key within a tab.  0 is the first key, 1 is the second, etc.
+;;
+;; The continuation is given a the associated value, but since the
+;; continuation is inlined, the code for the associated value will be
+;; eliminated if not used.
+;;
+;; TODO this should likely be implemented in in terms of some
+;; type of primitive jet on tabs or sets.  Using `bsearch_` directly
+;; means that the runtime system cannot take advantage of the knowledge
+;; that the tab is always sorted (and unique).
+
+= (**tabSearchCase key tab not_found found)
+@ keys (_TabKeysRow tab)
+@ vals (_TabVals tab)
+@ size (len keys)
+@ res (bsearch_ key keys 0 size)
+@ ix  (rsh res 1)
+| ifNot (mod res 2) not_found
+| **found ix (get vals ix)
+
+!!= {nf}  (tabSearchCase 0 (tabSing 1 3) {nf} (ix v & [ix v]))
+!!= [0 3] (tabSearchCase 1 (tabSing 1 3) {nf} (ix v & [ix v]))
+!!= {nf}  (tabSearchCase 2 (tabSing 1 3) {nf} (ix v & [ix v]))
 
 = (tabIdx key tab)
 @ keys (_TabKeysRow tab)
@@ -513,6 +540,8 @@ tallExpect={Expected something like (## =key val ...)(...)}
 
 ^-^
 ^-^ tabSing _MkTab isTab
+^-^
+^-^ tabSearchCase
 ^-^
 ^-^ tabLen tabIdx tabKeysSet tabKeysRow tabKeysList tabHas tabGet
 ^-^ tabValsRow tabSwitch
