@@ -27,7 +27,7 @@ import Loot.ReplExe          (closureRex, dieFan, showFan, trkFan)
 import Loot.Syntax           (boxRex, keyBox)
 import Rex                   (GRex(..), RuneShape(..), TextShape(..), rexLine)
 import Rex.Print             (RexColor, RexColorScheme(NoColors))
-import Sire.Backend          (eval)
+import Sire.Backend          (eval, hasRefTo)
 import System.Directory      (doesFileExist)
 import System.IO             (hGetContents)
 import System.Exit           (exitWith, ExitCode(ExitFailure,ExitSuccess))
@@ -87,36 +87,43 @@ getRow :: Any -> Maybe (Array Any)
 getRow (ROW x) = Just x
 getRow _       = Nothing
 
-getLam :: Any -> Any -> Any -> Any -> Any -> Lam
-getLam pinnedBit inlinedBit tagNat argsNat bodyVal =
+getLam :: Any -> Any -> Any -> Any -> Any -> Any -> Lam
+getLam pinnedBit inlinedBit cycBit tagNat argsNat bodyVal =
     let
-        !pin  = getBit "pinned" pinnedBit
-        !mark = getBit "inline" inlinedBit
+        !pin  = getBit pinnedBit  "pinned"
+        !mark = getBit inlinedBit "inline"
         !body = getSyr bodyVal
-        !tag  = getNat tagNat    "lambda tag"
-        !args = getNat argsNat   "lambda args"
+        !recr = getBit cycBit     "is recurisve"
+        !tag  = getNat tagNat     "lambda tag"
+        !args = getNat argsNat    "lambda args"
     in
-        LAM{pin,mark,body,args,tag}
+        LAM{pin,mark,body,args,tag,recr}
   where
-    getBit _  (NAT 0) = False
-    getBit _  (NAT 1) = True
-    getBit cx (NAT n) = error (badBit cx $ show n)
-    getBit cx val     = error (badBit cx $ show val)
+    getBit (NAT 0) _  = False
+    getBit (NAT 1) _  = True
+    getBit (NAT n) cx = error (badBit cx $ show n)
+    getBit val     cx = error (badBit cx $ show val)
 
-    badBit cx txt = "bad flag when reading lambda from state: " <> cx <> " " <> txt
+    badBit cx txt =
+        "bad flag when reading lambda from state: " <> cx <> " " <> txt
 
 getSyr :: Any -> Sire
 getSyr (NAT n) = V n
 getSyr topVal  = fromMaybe (error $ "bad Sire AST:\n\n" <> unpack (planText topVal)) do
     params <- getRow topVal
     case toList params of
-        [NAT "V", x]         -> Just $ G (getBinding x)
-        [NAT "K", x]         -> Just $ K x
-        [NAT "A", f, x]      -> Just $ A (getSyr f) (getSyr x)
-        [NAT "L", v, b]      -> Just $ L (getSyr v) (getSyr b)
-        [NAT "F", p,i,t,a,b] -> Just $ F $ getLam p i t a b
-        [NAT "M", x]         -> Just $ M (getSyr x)
-        _                    -> Nothing
+        [NAT "V", x]           -> Just $ G (getBinding x)
+        [NAT "K", x]           -> Just $ K x
+        [NAT "A", f, x]        -> Just $ A (getSyr f) (getSyr x)
+        [NAT "L", v, b]        -> Just $ L (getSyr v) (getSyr b)
+        [NAT "R", v, b]        -> Just $ R (getBinds v) (getSyr b)
+        [NAT "F", p,i,c,t,a,b] -> Just $ F $ getLam p i c t a b
+        [NAT "M", x]           -> Just $ M (getSyr x)
+        _                      -> Nothing
+  where
+    getBinds :: Fan -> [Sire]
+    getBinds (ROW bs) = toList (getSyr <$> bs)
+    getBinds _        = error "let binder seq is not a row"
 
 getPin :: Any -> Maybe Any
 getPin (F.PIN p) = Just p.item
@@ -192,7 +199,7 @@ getPinned location getItem = \case
 lookupVal :: Text -> Any -> Maybe Any
 lookupVal str stAny = do
     bind <- lookup  (NAT $ utf8Nat str)(getState stAny).scope
-    pure bind.d.value
+    pure bind.bd.value
 
 
 -- Modifying States ------------------------------------------------------------
@@ -560,7 +567,7 @@ loadFile moduleIndicator = do
     let scope = (getState ss).scope
     case lookup "main" scope of
         Nothing -> error "No `main` defined in this file"
-        Just vl -> pure vl.d.value
+        Just vl -> pure vl.bd.value
 
 readRexStream :: FilePath -> Handle -> IO [Either Text (Int, Rex)]
 readRexStream pax = fmap (blox pax . fmap (encodeUtf8 . pack) . lines) . hGetContents
@@ -917,7 +924,7 @@ readPrimExpr e rex = case rex of
         let e2   = reverse (Nothing : fmap Just argNames) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bod
-        pure $ F $ LAM{tag=0,args,body,pin=False,mark=False}
+        pure $ F $ LAM{tag=0,args,body,pin=False,mark=False,recr=False}
 
     readAnonLam [tagRex, sig, bod] = do
         tag <- readKey tagRex
@@ -925,7 +932,7 @@ readPrimExpr e rex = case rex of
         let e2   = reverse (Nothing : fmap Just argNames) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bod
-        pure $ F $ LAM{tag,args,body,pin=False,mark=False}
+        pure $ F $ LAM{tag,args,body,pin=False,mark=False,recr=False}
 
     readAnonLam _ = parseFail rex "Expected two or three parameters"
 
@@ -961,7 +968,7 @@ readPrimExpr e rex = case rex of
         let e2   = reverse (Just <$> (f:argNames)) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bodRex
-        pure $ F $ LAM{tag=f,args,body,pin,mark}
+        pure $ F $ LAM{tag=f,args,body,pin,mark,recr=(hasRefTo args body)}
 
     readLam pin [tagRex, sigRex, bodRex] = do
         tag                 <- readKey tagRex
@@ -969,7 +976,7 @@ readPrimExpr e rex = case rex of
         let e2   = reverse (Just <$> (f:argNames)) <> e
         let args = fromIntegral (length argNames)
         body <- readExpr e2 bodRex
-        pure $ F $ LAM{tag,args,body,pin,mark}
+        pure $ F $ LAM{tag,args,body,pin,mark,recr=(hasRefTo args body)}
 
     readLam _ _ = parseFail rex "Expected two or three parameters"
 
@@ -989,25 +996,35 @@ readPrimExpr e rex = case rex of
     readKet xs = do
         when (length xs < 2) do
             parseFail rex "Needs at least two paramaters"
-        v <- readExpr (Nothing : e) (L.last xs)
+        v <- readExpr e (L.last xs)
         b <- traverse (readExpr (Just "_" : e)) (L.init xs)
         pure (L v $ apple_ b)
 
     readLet :: [Rex] -> Repl Sire
     readLet [nr, vr, br] = do
         n <- readKey nr
-        v <- readExpr (Nothing : e) vr
+        v <- readExpr e vr
         b <- readExpr (Just n  : e) br
         pure (L v b)
     readLet _ = parseFail rex "Three paramaters are required"
 
     readLetRec :: [Rex] -> Repl Sire
-    readLetRec [nr, vr, br] = do
-        n <- readKey nr
-        v <- readExpr (Just n : e) vr
-        b <- readExpr (Just n : e) br
-        pure (L v b)
-    readLetRec _ = parseFail rex "Three paramaters are required"
+    readLetRec [vsr, br] = do
+        bs <- readBindSeq (Just vsr)
+        ks <- pure (fst <$> bs)
+        let e' = ((Just <$> ks) <> e)
+        vs <- traverse (readExpr e' . snd) bs
+        b  <- readExpr e' br
+        pure (R vs b)
+    readLetRec _ = parseFail rex "Two paramaters are required"
+
+    readBindSeq :: Maybe Rex -> Repl [(Nat, Rex)]
+    readBindSeq Nothing = pure []
+    readBindSeq (Just (N _ "=" [kr,br] h)) = do
+        k <- readKey kr
+        ((k,br):) <$> readBindSeq h
+    readBindSeq (Just _) = do
+        parseFail rex "Invalid (=) bind-seq"
 
     readLin :: [Rex] -> Repl Sire
     readLin [x] = M <$> readExpr e x
@@ -1137,14 +1154,14 @@ readBindCmd rex = \case
 
   where
 
-    mkBind mKey mProp expr = \case
+    mkBind mKey mProp body = \case
         Left var ->
-            TO_BIND mKey mProp var expr
+            TO_BIND mKey mProp var body
 
         Right ((mark, name), argNames) ->
+            let recr = hasRefTo args body in
             TO_BIND mKey mProp name
-                $ F
-                $ LAM {pin=True, mark, tag=name, args, body=expr}
+                $ F $ LAM {pin=True, mark, tag=name, args, body, recr}
           where
             args = fromIntegral (length argNames)
 

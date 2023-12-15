@@ -5,7 +5,11 @@
 {-# OPTIONS_GHC -Wall   #-}
 {-# OPTIONS_GHC -Werror #-}
 
-module Sire.Backend (Bind(..), BindData(..), Sire(..), Lam(..), eval) where
+module Sire.Backend
+    ( Bind(..), BindData(..), Sire(..), Lam(..)
+    , eval, hasRefTo
+    )
+where
 
 import PlunderPrelude hiding (to)
 
@@ -23,12 +27,14 @@ data Sire
     | G Bind
     | A Sire Sire
     | L Sire Sire
+    | R [Sire] Sire
     | M Sire
     | F Lam
 
 data Lam = LAM
     { pin  :: Bool
     , mark :: Bool
+    , recr :: Bool
     , tag  :: Nat
     , args :: Nat
     , body :: Sire
@@ -44,7 +50,7 @@ data BindData = BIND_DATA
 
 -- This indirection is so that the front-end can cheaply reproduce the
 -- PLAN value that this was loaded from.
-data Bind = BIND { d :: BindData, noun :: Fan }
+data Bind = BIND { bd :: BindData, noun :: Fan }
 
 
 -- Inlining --------------------------------------------------------------------
@@ -56,7 +62,8 @@ data Res = RES { out::Sire, pot::Maybe Pot }
 hasRefTo :: Nat -> Sire -> Bool
 hasRefTo d = \case
     V v   -> v==d
-    L v b -> hasRefTo (d+1) v || hasRefTo (d+1) b
+    L v b -> hasRefTo d v || hasRefTo (1+d) b
+    R v b -> any (hasRefTo $ d+fromIntegral (length v)) (b:v)
     A f x -> hasRefTo d f     || hasRefTo d x
     M x   -> hasRefTo d x
     F l   -> hasRefTo (d + 1 + l.args) l.body
@@ -71,7 +78,9 @@ moveTo from to alreadyBound topExp =
        V v | v>=l -> V ((v + fromIntegral to) - fromIntegral from)
        M x        -> M (go l x)
        A f x      -> A (go l f) (go l x)
-       L v b      -> L (go (l+1) v) (go (l+1) b)
+       L v b      -> L (go l v) (go (l+1) b)
+       R v b      -> R (go l' <$> v) (go l' b)
+                       where l' = l + fromIntegral (length v)
        F fn       -> F (fn { body = go (l + 1 + fn.args) fn.body })
        _          -> e
 
@@ -79,7 +88,7 @@ inline :: Int -> [Maybe Pot] -> [Arg] -> Sire -> Res
 inline d env params inp = case inp of
     K _   -> reapply params $ RES inp Nothing
     V v   -> reapply params $ RES inp (env !! fromIntegral v)
-    G b   -> reapply params $ RES inp (inline d [] [] b.d.code).pot
+    G b   -> reapply params $ RES inp (inline d [] [] b.bd.code).pot
     M b   -> reapply params $ RES r (me <&> \e -> e{marked=True})
                where RES r me = inline d env [] b
     F fn  -> reapply params $ RES sire pot
@@ -88,12 +97,16 @@ inline d env params inp = case inp of
              env' = replicate (1 + need) Nothing <> env
              d'   = 1 + need + d
              sire = F fn{body=(inline d' env' [] fn.body).out}
-             pot  = do guard (not $ hasRefTo fn.args fn.body)
+             pot  = do guard (not fn.recr)
                        Just POT{fn, marked=fn.mark, deep=d, need, args=[]}
     L v b -> RES (L vr.out br.out) Nothing
-               where vr      = inline (d+1) (Nothing  : env) []     v
-                     br      = inline (d+1) (noCyc vr : env) params b
-                     noCyc x = guard (not $ hasRefTo 0 x.out) >> x.pot
+               where vr = inline d     env             []     v
+                     br = inline (d+1) (vr.pot  : env) params b
+    R v b -> RES (R ((.out) <$> vr) br.out) Nothing
+               where d'   = d + length v
+                     env' = (const Nothing <$> v) <> env
+                     vr   = inline d' env' [] <$> v
+                     br   = inline d' env' params b
     A f x -> inline d env (ARG d x' : params) f
                where x' = (inline d env [] x).out
   where
@@ -106,7 +119,7 @@ inline d env params inp = case inp of
                 guard (fe.need > 0)
                 pure fe { need = fe.need - 1, args = r : fe.args }
 
-    expand fe = foldr L body $ renum 1 (ARG d (K 0) : reverse fe.args)
+    expand fe = foldr L body $ renum 0 (ARG d (K 0) : reverse fe.args)
                   where body = moveTo fe.deep d (1 + fe.fn.args) fe.fn.body
 
     renum :: Int -> [Arg] -> [Sire]
@@ -135,24 +148,31 @@ ingest = \top -> runState (go [] top) (mempty, 0)
     go s = \case
         V i   -> pure $ (s !! fromIntegral i)
         M x   -> go s x
-        G g   -> pure $ VAL g.d.value
+        G g   -> pure $ VAL g.bd.value
         K x   -> pure $ VAL x
         A f x -> ((,) <$> go s f <*> go s x) <&> \case
             (VAL fv, VAL xv) | trueArity fv > 1 -> VAL (fv %% xv)
             (fr, xr)                            -> APP fr xr
 
-        L v b -> do
-            k  <- gensym
-            vr <- go (VAR k : s) v
-            let keep = case vr of { VAR w -> w==k; APP{} -> True; _ -> False }
-            when keep do modify' (over _1 $ insertMap k vr)
-            go ((if keep then VAR k else vr) : s) b
+        L v b -> go s v >>= \case
+            vr@APP{} -> do k <- gensym
+                           modify' (over _1 $ insertMap k vr)
+                           go (VAR k : s) b
+            vr -> go (vr:s) b
+
+        R vs b -> do
+            ks <- replicateM (length vs) gensym
+            let ss = map VAR ks <> s
+            for_ (zip vs ks) \(vx,k) -> do
+                vr <- go ss vx
+                modify' $ over _1 $ insertMap k vr
+            go ss b
 
         F fn@LAM{tag,pin} -> do
-            slf      <- gensym
-            arg      <- replicateM (fromIntegral fn.args) gensym
-            (_, nex) <- get
-            let env             = (VAR <$> reverse arg) <> [VAR slf] <> s
+            slf <- gensym
+            arg <- replicateM (fromIntegral fn.args) gensym
+            nex <- snd <$> get
+            let env             = map VAR (reverse arg) <> [VAR slf] <> s
             let (bod,(bin,key)) = runState (go env fn.body) (mempty, nex)
             let (cns,free)      = compile key FUN{tag,pin,bod,slf,arg,bin}
             pure $ foldl' APP (VAL cns) (VAR <$> free)

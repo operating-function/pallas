@@ -816,7 +816,7 @@ k9=(a & k 9 a)
 
 !!= 5           | (uncurry f [x y] ? f x y) add [2 3]
 !!= (a & k 9 a) | (a&9)
-!!= ~[0 0 0]    | listTake 3 (z @@ 0::z)z
+!!= ~[0 0 0]    | listTake 3 @@ z=(0::z) z
 
 
 ;;; Anon Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

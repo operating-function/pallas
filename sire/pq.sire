@@ -164,8 +164,8 @@
 | cmp idx-0-p1 idx-0-p2
 
 = (repeat n)
-@@ z (n::z)
- z
+#@@ z=(n::z)
+  z
 
 !!= 9
   # datacase

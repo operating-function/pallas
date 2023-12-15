@@ -6,6 +6,11 @@ For documentation on the overall design of the Sire inliner and
 code generator, see [SIRE_INLINE.md](SIRE_INLINE.md) and
 [SIRE_CODEGEN.md](SIRE_CODEGEN.md).
 
+This documents the penultimate version of the Sire backend, and
+doesn't include support for LETREC.
+
+TODO: Update this to include the LETREC changes.
+
 ## External Types
 
 These types are produced by the front-end.

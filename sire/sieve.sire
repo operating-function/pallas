@@ -42,11 +42,11 @@
 | CONS n (spin xs (add n x))
 
 = (spinWheel n)
-@@ wheel2357 ; \/ split up to avoid long line
-    :: 2 4 2 4 6 2 6 4 2 4 6 6 2 6 4 2 6 4 6 8
-    :: 4 2 4 2 4 8 6 4 6 2 4 6 2 6 6 4 2 4 6 2
-    :: 6 4 2 4 2 10 2 10 wheel2357
- | spin wheel2357 n
+#@@   = wheel2357 ; \/ split up to avoid long line
+         :: 2 4 2 4 6 2 6 4 2 4 6 6 2 6 4 2 6 4 6 8
+         :: 4 2 4 2 4 8 6 4 6 2 4 6 2 6 6 4 2 4 6 2
+         :: 6 4 2 4 2 10 2 10 wheel2357
+  | spin wheel2357 n
 
 = (cmpPairNatKey [k1 _] [k2 _])
 | cmp k1 k2

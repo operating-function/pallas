@@ -105,10 +105,14 @@ sireNoun = go
     goLam :: Lam -> [Any]
     goLam l = [ toNoun l.pin
               , toNoun l.mark
+              , toNoun l.recr
               , toNoun l.tag
               , toNoun l.args
               , go l.body
               ]
+
+    goBinds :: [Sire] -> Any
+    goBinds = ROW . fromList . map go
 
     go :: Sire -> Any
     go = \case
@@ -117,8 +121,9 @@ sireNoun = go
         G b   -> ROW $ arrayFromListN 2 ["V", b.noun]
         A f x -> ROW $ arrayFromListN 3 ["A", go f, go x]
         L v b -> ROW $ arrayFromListN 3 ["L", go v, go b]
+        R v b -> ROW $ arrayFromListN 3 ["R", goBinds v, go b]
         M x   -> ROW $ arrayFromListN 2 ["M", go x]
-        F l   -> ROW $ arrayFromListN 6 ("F" : goLam l)
+        F l   -> ROW $ arrayFromListN 7 ("F" : goLam l)
 
 lamRex :: Lam -> Rex
 lamRex l =
@@ -158,14 +163,20 @@ sireRex = \case
     K v   -> C v
     G b   -> gloRex b
     A f x -> appRex f [x]
-    L v x -> N OPEN "@" [sireRex v] (Just $ openApp $ sireRex x)
-    M sir -> N PREF "**" [sireRex sir] Nothing
-    F lam -> lamRex lam
+    L v x -> N OPEN "@" [sireRex v] $ Just $ openApp $ sireRex x
+    R v x -> case v of
+                 []   -> sireRex x
+                 a:as -> N OPEN "@@" [binds a as] $ Just $ openApp $ sireRex x
+    M sir   -> N PREF "**" [sireRex sir] Nothing
+    F lam   -> lamRex lam
   where
+    binds v []     = N OPEN "=" [sireRex v] $ Nothing
+    binds v (x:xs) = N OPEN "=" [sireRex v] $ Just (binds x xs)
+
     gloRex b =
-        T WORD (showName b.d.name)
+        T WORD (showName b.bd.name)
             $ Just
-            $ N NEST "," [word (tshow b.d.key)]
+            $ N NEST "," [word (tshow b.bd.key)]
             $ Nothing
 
     appRex (A f x) xs = appRex f (x:xs)
