@@ -166,6 +166,12 @@
 
 (unpackSome x)=(**fromSome (die {Unexpected NONE}) x)
 
+> Bit > Maybe a > Maybe a
+(**maybeGuardNot check cont)=(if check NONE cont)
+
+> Bit > Maybe a > Maybe a
+(**maybeGuard check cont)=(maybeGuardNot (not check) cont)
+
 !!= 1 | maybeCase SOME-0 0 inc
 !!= 1 | maybeCase SOME-1 0 id
 !!= 1 | maybeCase SOME-2 0 dec
@@ -955,6 +961,7 @@ F=found
 ^-^ NONE SOME maybeCase maybe
 ^-^ fromSome unpackSome
 ^-^ isSome isNone fmapMaybe
+^-^ maybeGuard maybeGuardNot
 ^-^
 ^-^ mapMaybe catMaybes
 ^-^ listMapMaybe listCatMaybes
