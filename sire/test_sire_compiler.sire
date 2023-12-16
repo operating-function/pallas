@@ -319,3 +319,21 @@
     = p (const 1)
     = s p
   | (s s)
+
+
+;;; Inlining Functions that use LETREC ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(const x y)=x
+(ignore y x)=x
+
+= (silly f)
+@@   = x (0 y)
+     = y (1 x)
+ | f (car x) (car y)
+
+= (serious n)
+@ x (**silly ignore)
+@ y (**silly const)
+| 2 x y
+
+(serious 2)!!=(2 1 0)

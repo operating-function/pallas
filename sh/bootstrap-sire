@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+set -e
+
+plunder sire sire_tests <<<""
+
+# TODO: BOOTSEQ=(cat sire/??_*.sire)
+BOOTSEQ=$(
+    echo cat sire/??_*.sire
+    for x in boot w32 w48 w64 switch mutrec datatype types \
+             plan seed stew blake3 gen hitch \
+             io json kern sandbox datom prelude \
+             repl parse rex sire_backend sire \
+             sire_tests
+    do
+        echo sire/$x.sire;
+    done
+)
+
+set -ex
+
+# TODO: plunder save sire.main > sire.seed
+plunder save sire.seed sire/sire.sire
+
+set +x
+
+# TODO: gcc plan.c
+(
+    cat $BOOTSEQ
+    echo; echo; echo;
+    echo '(#### REPL (<- sire))'
+    echo ''
+    cat /dev/stdin
+) | plunder repl sire.seed --save out.seed
+
+echo sha1sum out.seed sire.seed
+sha1sum out.seed sire.seed
+
+echo cmp out.seed sire.seed
+cmp out.seed sire.seed
+
+echo SIRE QUINES
