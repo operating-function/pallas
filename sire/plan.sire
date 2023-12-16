@@ -197,11 +197,24 @@
     * RF-i     | go (get st i)
     * VL-x     | toNat x
     * AP-_-_-_ | 0
-= (R n env b st ok)
+= (L env !nex x st ok)
+    | if (1 /= caar x) (R env x st ok)
+    : st var < R env cdar-x st
+    : st _   < update (get env nex) var st
+    | L env inc-nex cdr-x st ok
+= (B maxArg env body st ok)
+    ^ _ 0 NIL body st ok
+    ? (go !n acc x st ok)
+    | if (1 == caar x)
+        : st slot < blackhole st
+        | go inc-n (slot::acc) cdr-x st ok
+    ^ L _ inc-maxArg body st ok
+    | weld env (sizedListToRowRev n acc)
+= (R env b st ok)
     | ifNot (isApp b)
         | ok st
-        | if (isNat b && lte b n) | get env b
-        | else                    | VL b
+        | if (isNat b && lth b len-env) | get env b
+        | else                          | VL b
     @ hb  (car b)
     @ tb  (cdr b)
     | if (hb==2)     | ok st VL-tb
@@ -209,23 +222,15 @@
     @ hhb (car hb)
     @ thb (cdr hb)
     | if (hhb==0)
-        : st f < R n env thb st
-        : st x < R n env tb  st
+        : st f < R env thb st
+        : st x < R env tb  st
         : st res < apply f x st
         | ok st res
-    | if (hhb==1)
-        : st slot < blackhole st
-        @ env (rowSnoc env slot)
-        : st valu < R inc-n env thb  st
-        : st slut < update slot valu st
-        : st resu < R inc-n env tb   st
-        | ok st resu
-    | else
-        | ok st VL-b
+    | ok st VL-b
 = (X e st ok)
     @ [fun env] | collect e st
     | if isLaw-fun
-        | R lawArgs-fun env lawBody-fun st ok
+        | B lawArgs-fun env lawBody-fun st ok
     # switch fun
     * 0
         @ [_ n a b] env
@@ -346,6 +351,18 @@ V=VALUE
 !!= RIGHT-0               | _Try [eql 3 4]
 !!= RIGHT-1               | _Try [eql 4 4]
 
+
+;;; Test Mutual Recursion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (silly n)
+@@   = x (2 :: y)
+     = y (3 :: x)
+ | (listTake n x, listTake n y)
+
+!!= (_Try [silly 3])
+  | RIGHT
+ ++ ~[2 3 2]
+ ++ ~[3 2 3]
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
