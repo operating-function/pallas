@@ -193,6 +193,9 @@ tab=(tabFromAscPairs par)
 = (tabFromPairs pairs)
 | foldl (t p & tabIns (fst p) (snd p) t) emptyTab pairs
 
+= (tabFromPairsList pairs)
+| listFoldl (t p & tabIns (fst p) (snd p) t) emptyTab pairs
+
 = (tabToPairList tab)
 ^ listMap _ (_TabKeysList tab)
 | (i & (i, tabGet tab i))
@@ -545,6 +548,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 ^-^ tabLen tabIdx tabKeysSet tabKeysRow tabKeysList tabHas tabGet
 ^-^ tabValsRow tabSwitch
 ^-^ tabFromPairs tabFromAscPairs tabToPairs tabToPairList tabToList tabPut
+^-^ tabFromPairsList
 ^-^ tabIns tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter
 ^-^ tabMapWithKey tabMap
 ^-^ tabUnionWith tabUnion tabWeld tabCatRow
