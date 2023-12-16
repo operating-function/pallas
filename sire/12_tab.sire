@@ -15,7 +15,7 @@
 /+  01_fan  [lawBody trk isLaw inc seq const id]
 /+  01_fan  [car cdr]
 /+  02_bit  [if ifNot and or not nor]
-/+  03_nat  [add toNat rsh mod]
+/+  03_nat  [add toNat rsh mod even]
 /+  04_cmp  [eql neq lth lte gte gth isZero]
 /+  05_row  [len get idx head put isRow]
 /+  05_row  [null map weld rowRepel rowApply rev fst snd]
@@ -511,6 +511,14 @@ tallExpect={Expected something like (## =key val ...)(...)}
 
 !!= #[a=(0 1)] | (## =a 0 1)
 
+= (_TabFilterWithKey f tab)
+| tabFromPairsList
+| listFilter (kv & f fst-kv snd-kv)
+| tabToPairList tab
+
+!!= #[=2 =4]
+  | _TabFilterWithKey (k v & even k) #[=1 =2 =3 =4]
+
 ;
 ; TODO Support things like:
 ;
@@ -528,14 +536,15 @@ tallExpect={Expected something like (## =key val ...)(...)}
 
 ;;; Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= tabLookup   | _TabLookup
-= tabKeysSet  | _TabKeys
-= tabKeysRow  | _TabKeysRow
-= tabKeysList | _TabKeysList
-= tabValsRow  | _TabVals
-= tabHas      | _TabHas
-= tabLen      | _TabLen
-= tabIsEmpty  | _TabIsEmpty
+= tabLookup        | _TabLookup
+= tabKeysSet       | _TabKeys
+= tabKeysRow       | _TabKeysRow
+= tabKeysList      | _TabKeysList
+= tabValsRow       | _TabVals
+= tabHas           | _TabHas
+= tabLen           | _TabLen
+= tabIsEmpty       | _TabIsEmpty
+= tabFilterWithKey | _TabFilterWithKey
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -553,6 +562,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 ^-^ tabMapWithKey tabMap
 ^-^ tabUnionWith tabUnion tabWeld tabCatRow
 ^-^ tabLookup tabMinKey tabFoldlWithKey tabElemIdx emptyTab tabInsWith
+^-^ tabFilterWithKey
 ^-^
 ^-^ readRex
 ^-^

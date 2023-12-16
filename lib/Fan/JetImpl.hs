@@ -189,6 +189,7 @@ jetImpls = mapFromList
   , ( "tabWeld"                         , Just tabWeldJet                     )
   , ( "tabMinKey"                       , Just tabMinKeyJet                   )
   , ( "tabFoldlWithKey"                 , Just tabFoldlWithKeyJet             )
+  , ( "_TabFilterWithKey"               , Nothing                             )
   , ( "padWeld"                         , Just padWeldJet                     )
   , ( "padCat"                          , Just padCatJet                      )
   , ( "padFlat"                         , Just padFlatJet                     )
