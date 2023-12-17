@@ -302,9 +302,9 @@ data TellPayload = TELL_PAYLOAD
 
     -- These are deliberately left lazy since they have to be created inside an
     -- STM action in `receiveResponse`, but must be evaluate/forced and
-    -- credited against the tell's timeout. reqResp has to be explicitly forced
-    -- during that timeout because if a tell function dies in anyway, that
-    -- crash has to be credited to the telling cog, not the asking cog.
+    -- credited against the tell's timeout. askResp must be explicitly forced
+    -- during that timeout because if a tell function dies in any way, that
+    -- crash must be credited to the telling cog, not the asking cog.
     , askResp  :: ~Fan
     , tellResp :: ~Fan
     }

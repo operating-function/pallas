@@ -106,9 +106,10 @@ The `%cog` requests are:
 -   `[%cog %tell chan fun] -> IO a`: Given a function with a type `>
     CogId > Any > [Any a]`, waits on the channel `chan` for a
     corresponding `%ask`. The runtime will atomically match one `%ask`
-    with one `%tell`, will run the tell function with the ask value, and
-    will respond with the first value back to the `%ask` and the second
-    value back to the `%tell`.
+    with one `%tell`, and will run the tell function with the ask value.
+    The output must be a row, and the row's index-zero value will be sent
+    back to the `%ask`, and the row's index-one value will be sent back
+    to the `%tell`.
 
     Execution and response is atomic; you'll never have one without the
     other in the written event log. This operation is used to allow two
