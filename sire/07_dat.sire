@@ -41,17 +41,6 @@
 
 ;;; Basic Row Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(rowCons x xs)=(weld (v1 x) xs)
-(rowSnoc xs x)=(weld xs (v1 x))
-
-!!= (rowCons 3 v0)       (v1 3)
-!!= (rowCons 3 (v1 4))   (v2 3 4)
-!!= (rowCons 3 (v2 4 5)) (v3 3 4 5)
-
-!!= (rowSnoc v0 3)       (v1 3)
-!!= (rowSnoc (v1 3) 4)   (v2 3 4)
-!!= (rowSnoc (v2 3 4) 5) (v3 3 4 5)
-
 (rowIndexed row)=(gen len-row i&(v2 i | idx i row))
 
 = (rep i n)         | gen n (const i)

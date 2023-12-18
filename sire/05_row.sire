@@ -244,6 +244,16 @@
 = (rowRepel f xs) | foldr supply f xs
 = (curry f x y)   | f (v2 x y)
 = (uncurry f xy)  | f (fst xy) (snd xy)
+= (rowCons x xs)  | weld (v1 x) xs
+= (rowSnoc xs x)  | weld xs (v1 x)
+
+!!= (rowCons 3 v0)       (v1 3)
+!!= (rowCons 3 (v1 4))   (v2 3 4)
+!!= (rowCons 3 (v2 4 5)) (v3 3 4 5)
+
+!!= (rowSnoc v0 3)       (v1 3)
+!!= (rowSnoc (v1 3) 4)   (v2 3 4)
+!!= (rowSnoc (v2 3 4) 5) (v3 3 4 5)
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -375,5 +385,6 @@
 ^-^ fst snd
 ^-^ map rev
 ^-^ curry uncurry
+^-^ rowCons rowSnoc
 ^-^ rowApply rowRepel
 ^-^
