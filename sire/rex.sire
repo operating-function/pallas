@@ -634,3 +634,26 @@ listMonoid=(NIL, listWeld)
 ^ lineRepl listMonoid _ b#{}
 ^ rexCog _ (blockState {REPL})
 | simpleCog-([lineNum rex] & rex)
+
+^-^
+^-^ Lexi RUNE WORD WYTE SEMI LINE TEXT NEST FAIL TERM
+^-^ NestType PAREN BRACK
+^-^ Span SPAN
+^-^ Frag LAMB WOLF
+^-^ Tree LEAF NODE
+^-^ BlockState BS
+^-^ BlockBuffer WOODS TEXTY BLOCK
+^-^ SubLayout PREFX INFIX SEQUE
+^-^
+^-^ rexAddHeir
+^-^ spanQuotedStr
+^-^ multiLine layout subLayout clump lambs treeStep
+^-^ spanBar spanFrag clumpFrag elemRex clumpRex testRex
+^-^
+^-^ wordy runic
+^-^ LN
+^-^ lexLine
+^-^ simpleCog rexCog listMonoid
+^-^ blockState
+^-^ main
+^-^

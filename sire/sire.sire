@@ -12,6 +12,7 @@
 
 /+ prelude
 /+ rex
+/+ repl
 /+ sire_backend
 /+ types
 
@@ -249,7 +250,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 # switch len-kids
 * _ ^ LEFT (rex, _)
     ` | $(runeLit rune) expressions take on one of these forms
-      * $(PREFX rune [(WORD {sym} 0)] 0)
+      * $(PREF rune [(WORD {sym} 0)] 0)
       * $(INFX rune (WORD {mod} 0, WORD {sym} 0) 0)
 * 1
     : st n < replOpen (readKey fst-kids) st

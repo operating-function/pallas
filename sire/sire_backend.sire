@@ -10,6 +10,8 @@
 
 /+ prelude
 /+ rex
+/+ stew
+/+ types
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -221,7 +223,7 @@ appList=(listFoldl A)
 (**getVal x o k)=(# datacase x)(VAL v * (**k v))(_ * o)
 
 !!= %nah | getVal (APP 3 4) %nah v2
-!!= %nah | getVal (VAR 9)   %nah I
+!!= %nah | getVal (VAR 9)   %nah (I x ?? x)
 !!= 9    | getVal (VAL 9)   %nah id
 
 > Exp > Exp > Exp
