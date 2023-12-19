@@ -11,6 +11,7 @@ module Server.ConsoleExe (main) where
 
 import Data.Acquire
 import Fan.Convert
+import GHC.IO.Encoding
 import Options.Applicative
 import PlunderPrelude       hiding (Handler, handle)
 import Server.Debug
@@ -344,6 +345,9 @@ data BadPortsFile = BAD_PORTS_FILE Text FilePath Text
 -- write one artificial logbatch, and then read it back.
 main :: IO ()
 main = do
+  -- some systems require the following, even if their locale is already UTF-8
+  setLocaleEncoding utf8
+
   Rex.colorsOnlyInTerminal do
     hSetBuffering stdout LineBuffering
     hSetBuffering stderr LineBuffering
