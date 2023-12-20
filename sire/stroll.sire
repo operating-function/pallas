@@ -13,7 +13,6 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+  boot
-/+  switch    [{#switch}]
 /+  datatype  [{#record} {#datatype} {#datacase}]
 /+  datom
 /+  gen

@@ -14,7 +14,6 @@
 
 /+  boot
 /+  parallel
-/+  switch    [{#switch}]
 /+  datatype  [{#record} {#datatype} {#datacase}]
 /+  mutrec
 /+  stew

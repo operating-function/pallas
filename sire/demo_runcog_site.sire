@@ -6,7 +6,6 @@
 
 /+  boot
 /+  kern
-/+  switch
 /+  hitch
 /+  demo_timer
 /+  json

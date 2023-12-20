@@ -5,7 +5,6 @@
 #### json <- io
 
 /+  boot
-/+  switch    [{#switch}]
 /+  mutrec    [{#mutrec}]
 /+  datatype
 /+  stew

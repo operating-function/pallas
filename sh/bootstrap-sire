@@ -7,7 +7,7 @@ plunder sire sire_tests <<<""
 # TODO: BOOTSEQ=(cat sire/??_*.sire)
 BOOTSEQ=$(
     echo cat sire/??_*.sire
-    for x in boot inspect w32 w48 w64 switch mutrec datatype types \
+    for x in boot inspect w32 w48 w64 mutrec datatype types \
              plan seed stew blake3 gen parallel hitch \
              io json kern sandbox datom prelude \
              repl parse rex sire_backend sire \

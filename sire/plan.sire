@@ -42,7 +42,6 @@
 ;;;; state where the value is located, this is used for updates.
 
 /+ boot
-/+ switch
 /+ mutrec
 /+ types
 
