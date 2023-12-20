@@ -22,6 +22,8 @@ runtest () {
     }
 }
 
+ulimit -n 55555 # or else fulltag sometimes fails
+
 sh/sire-load-all -M </dev/null
 runtest sh/full-tag-site-demo --ci
 sh/testdemo-cog-asktell-basic
