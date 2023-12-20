@@ -11,12 +11,9 @@
 ;;;; the overhead of the fully generic version too expensive?
 ;;;;
 ;;;; TODO: Jet {_PinRefs}
-;;;;
-;;;; TODO: Eliminate the dependency on {datatype.sire} by replacing all
-;;;; uses of {#datacase} with inlined {*Case} functions.
 
 /+ boot
-/+ datatype
+/+ switch
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -35,33 +32,28 @@
 ;;; holes is provided when we serialize, and the same array must be provided
 ;;; again when we deserialize.  This "holes" mechanism exists to make
 ;;; it possible to serialize each pin individually.
+;;;
+;;;     data Node
+;;;       = ATOM Nat
+;;;       | HOLE Nat
+;;;       | CELL Node Node
+;;;
+;;;     type DedupTable = Row (Node, Nat)
+;;;
+;;;     type DedupIndex = Tab Node Nat
 
 (**ATOM x)=x
 (**HOLE i)=[i]
 (**CELL f x)=[f x]
 
-zero=0
-one=1
-two=2
+= (**getAtomCase x fallback ok)
+| ifNot (isNat x) fallback
+| **ok x
 
-setProp#(ATOM.conTag)#zero
-setProp#(ATOM.conAri)#one
-setProp#(ATOM.conFun)#len
-setProp#(ATOM.conHas)#FALSE
-setProp#(ATOM.conRaw)#TRUE
-setProp#(HOLE.conTag)#one
-setProp#(HOLE.conAri)#one
-setProp#(HOLE.conFun)#len
-setProp#(HOLE.conHas)#FALSE
-setProp#(HOLE.conRaw)#FALSE
-setProp#(CELL.conTag)#two
-setProp#(CELL.conAri)#two
-setProp#(CELL.conFun)#len
-setProp#(CELL.conHas)#FALSE
-setProp#(CELL.conRaw)#FALSE
+= (**getCellCase x fallback ok)
+| if (neq 2 len-x) fallback
+| **ok (fst x) (snd x)
 
-* # typedef DedupTable (Row (Node, Nat))
-* # typedef DedupIndex (Tab Node Nat)
 
 ;;; De-duplication and Shatting Fragments ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -97,10 +89,9 @@ setProp#(CELL.conRaw)#FALSE
 ^ _ 0 (dec | len tbl)
 ? (go parentRefs key)
 @ node,refs (get tbl key)
-# datacase node
-* _        | %[]
-* CELL-h-t ^ setCatRow (go refs h, go refs t, _)
-           | if (gth refs parentRefs) (setSing key) emptySet
+: h t < getCellCase node %[]
+^ setCatRow (go refs h, go refs t, _)
+| if (gth refs parentRefs) (setSing key) emptySet
 
 
 ;;; Nat-Table Layout ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -117,34 +108,50 @@ u64max=18446744073709551615
 (1 !!= wordSz u64max)
 (2 !!= wordSz inc-u64max)
 
+;; {countAtoms} counts the number of atoms in each each size-class and
+;; returns that along with a row of all the atoms, in decreasing order.
+;;
+;; This takes advantage of the fact that the dedup index is a tab and
+;; therefore has a sorted array of all of the keys.  Also, since we
+;; represent {ATOM} nodes as just the underlying atom, these will always
+;; be at the front of the list.
+;;
+;; So, we can tabulate the sizes by simply traversing the list in order
+;; until we hit the end of the list, or until we hit something that isn't
+;; an atom.  {cBig}, {cWord}, and {cByte} are states within the state
+;; machine that does this tabulation.
+
+= (cBig nByt nWrd bigSizes nodes)
+@ done          | (nByt, nWrd, listToRow bigSizes)
+: node nodes    < listCase nodes done
+: n             < getAtomCase node done
+| cBig nByt nWrd (wordSz n :: bigSizes) nodes
+
+= (cWord nByt !nWrd nodes)
+@ next              | cBig nByt nWrd 0 nodes
+: node nodes        < listCase nodes (nByt, nWrd, 0)
+: n                 < getAtomCase node next
+| if (gth n u64max) | next
+| cWord nByt inc-nWrd nodes
+
+= (cByte !nByt nodes)
+@ next             | cWord nByt 0 nodes
+: node nodes       < listCase nodes (nByt, 0, 0)
+: n                < getAtomCase node next
+| if (gth n u8max) | next
+| cByte inc-nByt nodes
+
+;; TODO: Jet {_SliceRev : Row a > Nat > Nat > Row a} and use that
+;; instead of {rev | take nAtom nodes}. Generally, we're going to need
+;; "Slice" variants of every row operation.
+
 > DedupIndex > (Row Nat, Nat, Nat, Nat, Row Nat)
 = (countAtoms dIdx)
-@ nodes (tabKeysRow dIdx)
-@ nNode (len nodes)
-@ (big nByt nWrd bigSzList key)
-    @ next
-        @ bigSizes (listToRow bigSzList)
-        @ atoms    (rev | take key nodes) ; key=nAtoms
-        | (atoms, nByt, nWrd, bigSizes)
-    | if (gth key nNode) next
-    # datacase (get nodes key)
-    * _      | next
-    * ATOM-n | if (isZero n) next
-             | big nByt nWrd (wordSz n :: bigSzList) inc-key
-@ (wrd nByt nWrd key)
-    @ next (big nByt nWrd NIL key)
-    | if (gth key nNode) next
-    # datacase (get nodes key)
-    * _      | next
-    * ATOM-n | if (isZero n || gth n u64max) next
-             | wrd nByt inc-nWrd inc-key
-@ (byt nByt key)
-    @ next (wrd nByt 0 key)
-    | if (gte key nNode) next
-    # datacase (get nodes key)
-    * _      | next
-    * ATOM-n | if (gth n u8max) next (byt inc-nByt inc-key)
-| (byt 0 0)
+@ nodes                  | tabKeysRow dIdx
+@ (nByt, nWrd, bigSizes) | cByte 0 (listFromRow nodes)
+@ nAtom                  | add len-bigSizes (add nByt nWrd)
+@ atoms                  | rev (take nAtom nodes)
+| (atoms, nByt, nWrd, bigSizes)
 
 (w8Bar nat)=(natToSizedBar 1 nat)
 (w64Bar nat)=(natToSizedBar 8 nat)
@@ -163,45 +170,48 @@ u64max=18446744073709551615
    | if (lte x u64max) | w64Bar x
    | else              | natToSizedBar (mul 8 | wordSz x) x
 
-; First, we need the bit-width for references, this is just the bit-width
-; ({met}) of the maximum possible reference.
-;
-; We write a reference by writting a zero-bit followed by the refSz bits
-; containing the reference index.  The easiest way to do this is to
-; increase the size of the reference pad by 1, and write {refNum*2}, which
-; implicitly contains the 0 tag.
-;
-;     | mkPad | add (mul 2 ref) | bex | inc refSz
-;
-; if we see a hole, that's a reference, which is just:
-;
-;     REF(hole-id)
-;
-; if we see an atom, then, because atoms are written in reverse order in
-; the output, the atom backref can be calculated with:
-;
-;     REF(nHoles+(nAtoms-atomKey))
-;
-; If we see an cell, and the key is in {frags}, then we just write:
-;
-;     REF(nAtoms+nHoles+fragIx)
-;
-; If we see an cell that is not a frag, we just write:
-;
-;     (p#1, write head, write tail)
+;; First, we need the bit-width for references, this is just the bit-width
+;; ({met}) of the maximum possible reference.
+;;
+;; We write a reference by writting a zero-bit followed by the refSz bits
+;; containing the reference index.  The easiest way to do this is to
+;; increase the size of the reference pad by 1, and write {refNum*2}, which
+;; implicitly contains the 0 tag.
+;;
+;;     | mkPad | add (mul 2 ref) | bex | inc refSz
+;;
+;; if we see a hole, that's a reference, which is just:
+;;
+;;     REF(hole-id)
+;;
+;; if we see an atom, then, because atoms are written in reverse order in
+;; the output, the atom backref can be calculated with:
+;;
+;;     REF(nHoles+(nAtoms-atomKey))
+;;
+;; If we see an cell, and the key is in {frags}, then we just write:
+;;
+;;     REF(nAtoms+nHoles+fragIx)
+;;
+;; If we see an cell that is not a frag, we just write:
+;;
+;;     (p#1, write head, write tail)
 
 (writeRefr refSz ref)=(setBit inc-refSz (mul 2 ref))
 
 = (writeTree frags tbl idx nHoles nAtoms refSz key)
 @ [node refcount] (get tbl key)
-# datacase node
-* ATOM-n
+# switch len-node
+* 0 ; (ATOM n)
     | writeRefr refSz
     ^ add nHoles (sub nAtoms | inc _)
     | tabSearchCase node idx 0 (ix vl & ix)
-* HOLE-n
+* 1 ; (HOLE n)
+    @ n (fst node)
     | writeRefr refSz n
-* CELL-h-t
+* 2 ; (CELL h t)
+    @ h (fst node)
+    @ t (snd node)
     @ go (writeTree frags tbl idx nHoles nAtoms refSz)
     : ix < elemIdx key (setToRow frags) [p#1 go-h go-t]
     | writeRefr refSz (sum [ix nAtoms nHoles])
