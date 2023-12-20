@@ -10,7 +10,6 @@
 
 /+ boot
 /+ datatype
-/+ mutrec
 /+ w64
 
 
@@ -123,9 +122,7 @@ u64max=18446744073709551615
 @ nodes (tabKeysRow dIdx)
 @ nNode (len nodes)
 ; trk [=nodes]
-# mutrec %go
-    (byt 0 0)
-* (big nByt nWrd bigSzList key)
+@ (big nByt nWrd bigSzList key)
     ; trk [{big} nByt nWrd bigSzList key]
     @ next
         @ bigSizes (listToRow bigSzList)
@@ -136,7 +133,7 @@ u64max=18446744073709551615
     * _      | next
     * ATOM-n | if (isZero n) next
              | big nByt nWrd (wordSz n :: bigSzList) inc-key
-* (wrd nByt nWrd key)
+@ (wrd nByt nWrd key)
     ; trk [{wrd} nByt nWrd key]
     @ next (big nByt nWrd NIL key)
     | if (gth key nNode) next
@@ -144,13 +141,14 @@ u64max=18446744073709551615
     * _      | next
     * ATOM-n | if (isZero n || gth n u64max) next
              | wrd nByt inc-nWrd inc-key
-* (byt nByt key)
+@ (byt nByt key)
     ; trk [{byt} nByt key]
     @ next (wrd nByt 0 key)
     | if (gte key nNode) next
     # datacase (get nodes key)
     * _      | next
     * ATOM-n | if (gth n u8max) next (byt inc-nByt inc-key)
+| (byt 0 0)
 
 (w8Bar nat)=(natToSizedBar 1 nat)
 (w64Bar nat)=(natToSizedBar 8 nat)
