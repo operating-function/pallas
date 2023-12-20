@@ -357,7 +357,7 @@ u64max=18446744073709551615
 
 = (_SaveGerm pin)
 | ifNot isPin-pin 0
-^ (_, save _ pin)
+^ (_, save _ pinItem-pin)
 | pinRefs pin
 
 (_LoadSeed bar)=(load [] bar)
