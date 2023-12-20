@@ -16,6 +16,7 @@
 /+ seed
 /+ blake3
 /+ gen
+/+ parallel
 /+ hitch
 /+ io
 /+ json
