@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### boot <- 21_switch
+#### boot <- 22_seed
 
 ;;;; Re-export everything in the boot-sequence.
 
@@ -26,3 +26,4 @@
 /+ 19_pat
 /+ 20_prp
 /+ 21_switch
+/+ 22_seed
