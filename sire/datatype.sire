@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### datatype <- mutrec
+#### datatype <- boot
 
 ;;;; {#datatype} and {#datacase} work by setting some properties on the
 ;;;; binders for each constructor:  uses the properties conTag, conAri,
