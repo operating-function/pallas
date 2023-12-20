@@ -40,7 +40,6 @@
 /+  06_rex  [rexKids rexHeir rexText {'}]
 /+  06_rex  [rexGetLeaf]
 /+  07_dat
-/+  08_sci  []
 /+  09_chr  [chr isPrint ord toLower newlineChar]
 /+  10_str  [explode strCat strWeld strFromList]
 /+  11_set  [{%}]

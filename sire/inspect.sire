@@ -2,12 +2,12 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### 08_sci <- 07_dat
+#### inspect <- boot
 
-;;;; Science
-;;;; =======
+;;;; Noun Inspection
+;;;; ===============
 ;;;;
-;;;; Utilities for inspecting Fan values.
+;;;; Utilities for inspecting PLAN values.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

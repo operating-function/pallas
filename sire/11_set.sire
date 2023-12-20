@@ -28,7 +28,6 @@
 /+  05_row  [null weld v2 isRow map foldl foldr fst snd]
 /+  06_rex
 /+  07_dat
-/+  08_sci  []
 /+  09_chr  [isDigit ord chr]
 /+  10_str  [strToList strWeld loadKeyWord loadDecimal]
 

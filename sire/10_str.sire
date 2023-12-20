@@ -21,7 +21,6 @@
 /+  06_rex  []
 /+  07_dat  [CONS NIL listFoldl listToRow listDrop listMap listLen listAll]
 /+  07_dat  [{,} {>}]
-/+  08_sci  []
 /+  09_chr  [isDigit isHexDigit isUpper toUpper toLower ord]
 
 

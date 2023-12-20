@@ -74,7 +74,6 @@
 /+  07_dat  [LEFT RIGHT eitherCase]
 /+  07_dat  [rowTraverse listMap listFoldr rowCons]
 /+  07_dat  [readRex]
-/+  08_sci  []
 /+  09_chr  []
 /+  10_str  [strWeld strIsCapitalized]
 /+  11_set  [{%}]

@@ -54,7 +54,6 @@
 /+  05_row  [v1 v2 v4 null weld]
 /+  06_rex  [rexKids rexGetWord {'} rexRune EMBD]
 /+  07_dat  [{,}]
-/+  08_sci  []
 /+  09_chr  []
 /+  10_str  [strWeld isDecimalLit loadDecimal isHexLit loadHexLit]
 /+  11_set  [{%}]

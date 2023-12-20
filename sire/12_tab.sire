@@ -23,7 +23,6 @@
 /+  06_rex  [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
 /+  06_rex  [OPEN EMBD PREF]
 /+  07_dat
-/+  08_sci  [inspect fullInspection]
 /+  09_chr  []
 /+  10_str  [strWeld]
 /+  11_set  [isSet emptySet setLen setHas setMin setToList]
@@ -488,10 +487,10 @@ tallExpect={Expected something like (## =key val ...)(...)}
 !!= 1 | _TabLen #[x=0]
 !!= 2 | _TabLen #[x=0 y=1]
 
-!!= (inspect #[x=0 y=1])        | [%[x y] [0 1]]
-!!= (inspect %[x y])            | [0 1 2 [%x %y]]
-!!= (inspect [%x %y])           | [(0 0 3 0) %y %x]
-!!= (fullInspection #[x=0 y=1]) | [[0 1 2 [[0 0 3 0] %y %x]] [[0 0 3 0] 1 0]]
+!!= #[x=0 y=1] | (%[x y] [0 1])
+!!= %[x y]     | (0 1 2 [%x %y])
+!!= [%x %y]    | ((0 0 3 0) %y %x)
+!!= #[x=0 y=1] | 0 1 2 (0 0 3 0 %y %x) (0 0 3 0 1 0)
 
 !!= 8 | tabIdx 0 #[0=8]
 !!= 9 | tabIdx %aa #(bb=8, aa=9)

@@ -52,7 +52,6 @@
 /+  06_rex  [rexKids rexHeir rexText rexIsLeaf SHUT WORD TEXT {'}]
 /+  07_dat  [{,} {++}]
 /+  07_dat  [listCase listSnoc NIL CONS]
-/+  08_sci  []
 /+  09_chr  [spaceChar tabChar]
 /+  10_str  [explode strToList strFromList strLen strWeld]
 /+  11_set  []

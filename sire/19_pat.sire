@@ -41,7 +41,6 @@
 /+  05_row  [weld map foldl foldr v1 v2 v3 v4]
 /+  06_rex
 /+  07_dat
-/+  08_sci  []
 /+  09_chr  []
 /+  10_str  [strWeld strCat]
 /+  11_set  [readKey {%}]

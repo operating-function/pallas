@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### 09_chr <- 08_sci
+#### 09_chr <- 07_dat
 
 ;;;; Characters
 ;;;; ==========
@@ -19,7 +19,6 @@
 /+  05_row  []
 /+  06_rex  []
 /+  07_dat  [NIL CONS listToRow all {,}]
-/+  08_sci  []
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

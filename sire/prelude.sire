@@ -5,6 +5,7 @@
 #### prelude <- datom
 
 /+ boot
+/+ inspect
 /+ w32
 /+ w48
 /+ w64

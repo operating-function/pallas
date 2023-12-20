@@ -28,7 +28,6 @@
 /+  06_rex  [rexGetNodeWithRune rexGetKidsOfNodeWithRune]
 /+  06_rex  [rexGetWordNoHeir rexSetHeir]
 /+  07_dat
-/+  08_sci  []
 /+  09_chr  [isAlpha isDigit digits]
 /+  10_str  [strCat explode strWeld]
 /+  11_set  [{%}]

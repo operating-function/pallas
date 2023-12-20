@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### w32 <- boot
+#### w32 <- inspect
 
 ;;;; TODO Use macros to generate identical modules for different words
 ;;;; sizes? (8, 16, 32, 48, 64, 128, 256).
