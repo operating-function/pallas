@@ -4,9 +4,9 @@
 
 #### json <- io
 
-/+  boot
+/+  sire
+/+  24_datatype [natTag barTag appTag rowTag tabTag]
 /+  mutrec    [{#mutrec}]
-/+  datatype
 /+  stew
 /+  types
 

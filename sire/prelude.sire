@@ -4,13 +4,12 @@
 
 #### prelude <- datom
 
-/+ boot
+/+ sire
 /+ inspect
 /+ w32
 /+ w48
 /+ w64
 /+ mutrec
-/+ datatype
 /+ plan
 /+ blake3
 /+ gen

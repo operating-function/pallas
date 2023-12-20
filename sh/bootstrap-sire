@@ -1,35 +1,15 @@
 #!/usr/bin/env bash
 
-set -e
-
-plunder sire sire_tests <<<""
-
-# TODO: BOOTSEQ=(cat sire/??_*.sire)
-BOOTSEQ=$(
-    echo cat sire/??_*.sire
-    echo sire/{boot,repl,datatype,rex,sire_backend,sire,sire_tests}.sire;
-)
-
 set -ex
 
 # TODO: plunder save sire.main > sire.seed
+
 plunder save sire.seed sire/sire.sire
 
-set +x
+cat sire/??_*.sire | plunder repl sire.seed --save out.seed
 
-# TODO: gcc plan.c
-(
-    cat $BOOTSEQ
-    echo; echo; echo;
-    echo '(#### REPL (<- sire))'
-    echo ''
-    cat /dev/stdin
-) | plunder repl sire.seed --save out.seed
-
-echo sha1sum out.seed sire.seed
 sha1sum out.seed sire.seed
 
-echo cmp out.seed sire.seed
 cmp out.seed sire.seed
 
 echo SIRE QUINES

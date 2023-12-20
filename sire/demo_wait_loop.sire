@@ -4,7 +4,7 @@
 
 #### demo_wait_loop <- demo_token_ring
 
-/+  boot
+/+  sire
 /+  io
 /+  stew
 

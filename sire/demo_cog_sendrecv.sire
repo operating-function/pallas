@@ -9,7 +9,7 @@
 ;;;; and COG_TELL, or it might make sense to eliminate this, and just
 ;;;; rely on the existing IPC CI tests.
 
-;/+  boot
+;/+  sire
 ;/+  kern
 ;/+  demo_timer
 ;/+  stew

@@ -4,7 +4,7 @@
 
 #### demo_cog_stop <- demo_cog_spin
 
-/+  boot
+/+  sire
 /+  kern
 /+  demo_timer
 /+  stew

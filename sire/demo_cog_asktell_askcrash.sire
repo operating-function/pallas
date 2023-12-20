@@ -4,11 +4,10 @@
 
 #### demo_cog_asktell_askcrash <- demo_cog_stop
 
-/+  boot
+/+  sire
 /+  kern
 /+  demo_timer
 /+  stew
-/+  datatype  [{#record} {#datatype} {#datacase}]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

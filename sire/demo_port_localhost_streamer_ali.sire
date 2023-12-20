@@ -4,11 +4,9 @@
 
 #### demo_port_localhost_streamer_ali <- demo_port_localhost
 
-/+  datatype  [{#record} {#datatype} {#datacase}]
 /+  hitch
 /+  kern
 /+  prelude
-
 /+  demo_port_localhost
 
 = usSeed

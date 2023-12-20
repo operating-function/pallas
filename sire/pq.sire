@@ -25,7 +25,6 @@
 /+  04_cmp    [eql cmp neq]
 /+  07_dat    [listLen listUnsafeHead listDrop NIL listRev listFoldr]
 /+  07_dat    [SOME NONE maybeCase]
-/+  datatype  [{#datatype} {#datacase}]
 /+  prelude
 /+  stew
 

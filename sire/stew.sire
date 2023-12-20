@@ -121,10 +121,10 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  boot
-/+  datatype
-/+  datatype  [parseDatacase resolveDatacase]
-/+  mutrec    [readMutRecExp genMutRecE]
+/+  sire
+/+  21_switch   [readSwitchExp switchE]
+/+  24_datatype [parseDatacase resolveDatacase makeDatacaseExpr]
+/+  mutrec      [readMutRecExp genMutRecE]
 /+  types
 
 
@@ -1513,7 +1513,7 @@
 !!= 0 (3 == 3 == 4)
 
 !! tabHas {%}    #getenv
-!! tabHas {boot} (get #getstate 3)  ;;  Modules table
+!! tabHas {sire} (get #getstate 3)  ;;  Modules table
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

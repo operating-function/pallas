@@ -4,9 +4,9 @@
 
 #### rex_tests <- rex_show
 
-/+ prelude
+/+ sire
+/+ 25_rex
 /+ rex_show
-/+ rex
 
 
 ;;; Basic Lexing + Nesting ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

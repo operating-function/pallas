@@ -5,7 +5,6 @@
 #### parse <- prelude
 
 /+ prelude
-/+ datatype
 /+ types
 /+ stew
 

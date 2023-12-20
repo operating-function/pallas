@@ -4,8 +4,7 @@
 
 #### demo_smallcheck <- demo_simple_eval_cb
 
-/+  boot
-/+  datatype
+/+  sire
 /+  stew
 
 

@@ -7,7 +7,7 @@
 ;;;; We emulate floating point math with by using signed integers with
 ;;;; a fixed point, so that 10.000.000 is floating 1.0.
 
-/+  boot
+/+  sire
 /+  w64
 /+  kern
 /+  stew

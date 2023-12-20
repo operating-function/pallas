@@ -4,7 +4,7 @@
 
 #### demo_thread_yield <- demo_threads
 
-/+  boot
+/+  sire
 /+  io
 /+  stew
 

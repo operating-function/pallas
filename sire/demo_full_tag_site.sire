@@ -4,11 +4,10 @@
 
 #### demo_full_tag_site <- prelude
 
-/+  boot
+/+  sire
 /+  kern
 /+  hitch
 /+  json
-/+  datatype  [{#record} {#datatype} {#datacase}]
 /+  stew
 /+  types
 

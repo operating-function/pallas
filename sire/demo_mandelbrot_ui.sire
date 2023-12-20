@@ -4,11 +4,10 @@
 
 #### demo_mandelbrot_ui <- demo_parallel_mandelbrot
 
-/+  boot
+/+  sire
 /+  kern
 /+  hitch
 /+  json
-/+  datatype  [{#record} {#datatype} {#datacase}]
 /+  stew
 /+  types
 

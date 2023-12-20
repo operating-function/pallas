@@ -4,9 +4,8 @@
 
 #### types <- mutrec
 
-/+ boot
+/+ sire
 /+ mutrec [bloodline]
-/+ datatype
 
 
 ;;; Utilities ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

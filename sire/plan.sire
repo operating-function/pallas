@@ -41,7 +41,7 @@
 ;;;; The {loc} field in {AP} and {HL} simply refers to the slot in the
 ;;;; state where the value is located, this is used for updates.
 
-/+ boot
+/+ sire
 /+ mutrec
 /+ types
 

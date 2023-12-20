@@ -12,9 +12,8 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  boot
+/+  sire
 /+  hitch
-/+  datatype  [{#record} {#datatype} {#datacase}]
 /+  types
 /+  mutrec
 /+  stew

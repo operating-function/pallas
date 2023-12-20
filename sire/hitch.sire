@@ -12,9 +12,8 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  boot
+/+  sire
 /+  parallel
-/+  datatype  [{#record} {#datatype} {#datacase}]
 /+  mutrec
 /+  stew
 /+  types

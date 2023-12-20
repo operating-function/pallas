@@ -4,11 +4,10 @@
 
 #### two_cog_sandbox <- kern
 
-/+  boot
+/+  sire
 /+  kern
 /+  mutrec
 /+  stew
-/+  datatype  [{#record} {#datatype} {#datacase}]
 
 
 ;;; Sandbox ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

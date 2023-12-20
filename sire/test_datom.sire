@@ -4,8 +4,7 @@
 
 #### test_datom <- stroll
 
-/+  boot
-/+  datatype  [{#record} {#datatype} {#datacase}]
+/+  sire
 /+  stew
 /+  datom
 

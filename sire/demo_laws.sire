@@ -7,7 +7,7 @@
 ;;;; This is just a big pile of stuff that hasn't been moved into other
 ;;;; modules yet.
 
-/+  boot
+/+  sire
 /+  w32
 /+  w48
 /+  blake3

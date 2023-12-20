@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### datatype <- repl
+#### 24_datatype <- 23_repl
 
 ;;;; {#datatype} and {#datacase} work by setting some properties on the
 ;;;; binders for each constructor:  uses the properties conTag, conAri,
@@ -28,7 +28,27 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  boot
+/+ 01_fan
+/+ 02_bit
+/+ 03_nat
+/+ 05_row
+/+ 04_cmp
+/+ 05_row
+/+ 06_rex
+/+ 07_dat
+/+ 09_chr
+/+ 10_str
+/+ 11_set
+/+ 12_tab
+/+ 13_exp
+/+ 14_hax
+/+ 15_pad
+/+ 16_bar
+/+ 17_sug
+/+ 19_pat
+/+ 20_prp
+/+ 21_switch
+/+ 22_seed
 
 
 ;;; Getting that tag from an object ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

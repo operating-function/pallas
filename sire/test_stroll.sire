@@ -4,8 +4,7 @@
 
 #### test_stroll <- test_datom
 
-/+  boot
-/+  datatype  [{#record} {#datatype} {#datacase}]
+/+  sire
 /+  datom
 /+  stroll
 /+  stew

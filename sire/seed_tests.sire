@@ -7,9 +7,10 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+ prelude
-/+ quickcheck
-/+ plan [try]
+/+ sire       ;
+/+ 22_seed    [save load]
+/+ quickcheck [qc1_pass prop1 arbU8 arbU8List arbU64 arbU64List]
+/+ plan       [try]
 
 
 ;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
