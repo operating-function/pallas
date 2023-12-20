@@ -6,11 +6,17 @@
 
 ;;;; This file contains an implementation of Plunders universal
 ;;;; serialization framework.
-
+;;;;
+;;;; TODO: Is it possible to just jet {_Save} and {_Load} instead, or is
+;;;; the overhead of the fully generic version too expensive?
+;;;;
+;;;; TODO: Jet {_PinRefs}
+;;;;
+;;;; TODO: Eliminate the dependency on {datatype.sire} by replacing all
+;;;; uses of {#datacase} with inlined {*Case} functions.
 
 /+ boot
 /+ datatype
-/+ w64
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -54,11 +60,8 @@ setProp#(CELL.conFun)#len
 setProp#(CELL.conHas)#FALSE
 setProp#(CELL.conRaw)#FALSE
 
-
-# typedef DedupTable (Row (Node, Nat))
-
-# typedef DedupIndex (Tab Node Nat)
-
+* # typedef DedupTable (Row (Node, Nat))
+* # typedef DedupIndex (Tab Node Nat)
 
 ;;; De-duplication and Shatting Fragments ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -107,9 +110,6 @@ u64max=18446744073709551615
 
 = (wordSz nat)
 @ bitSz (met nat)
-; trk [=nat =bitSz]
-; trk [(mod bitSz 64)]
-; trk [(div bitSz 64) bit-(mod bitSz 64)]
 | add (div bitSz 64) bit-(mod bitSz 64)
 
 (0 !!= wordSz 0)
@@ -121,9 +121,7 @@ u64max=18446744073709551615
 = (countAtoms dIdx)
 @ nodes (tabKeysRow dIdx)
 @ nNode (len nodes)
-; trk [=nodes]
 @ (big nByt nWrd bigSzList key)
-    ; trk [{big} nByt nWrd bigSzList key]
     @ next
         @ bigSizes (listToRow bigSzList)
         @ atoms    (rev | take key nodes) ; key=nAtoms
@@ -134,7 +132,6 @@ u64max=18446744073709551615
     * ATOM-n | if (isZero n) next
              | big nByt nWrd (wordSz n :: bigSzList) inc-key
 @ (wrd nByt nWrd key)
-    ; trk [{wrd} nByt nWrd key]
     @ next (big nByt nWrd NIL key)
     | if (gth key nNode) next
     # datacase (get nodes key)
@@ -142,7 +139,6 @@ u64max=18446744073709551615
     * ATOM-n | if (isZero n || gth n u64max) next
              | wrd nByt inc-nWrd inc-key
 @ (byt nByt key)
-    ; trk [{byt} nByt key]
     @ next (wrd nByt 0 key)
     | if (gte key nNode) next
     # datacase (get nodes key)
@@ -197,7 +193,6 @@ u64max=18446744073709551615
 (writeRefr refSz ref)=(setBit inc-refSz (mul 2 ref))
 
 = (writeTree frags tbl idx nHoles nAtoms refSz key)
-; trk [writeTree frags tbl nHoles nAtoms refSz key]
 @ [node refcount] (get tbl key)
 # datacase node
 * ATOM-n
@@ -217,20 +212,14 @@ u64max=18446744073709551615
 | else       | NEST {|} (showPadTree car-x, showPadTree cdr-x) 0
 
 = (writeBody nHoles nAtoms tbl idx frags)
-; trk [writeBody nHoles nAtoms tbl idx frags]
 @ priors (add nHoles nAtoms)
 @ write  (writeTree frags tbl idx nHoles nAtoms)
 ^ @ x (_ 0 setToList-frags)
-  ; trk (showPadTree x)
-  ; trk (showPadLit (padFlat x))
   | padFlat x
 ? (go !count fs)
-; trk [{writeBody_go} count fs {->} _] _
 : key fs < listCase fs 1
 @ refSz | met | dec | sum [nHoles nAtoms count]
-; trk [=refSz]
 @ [[h t] refcount] (get tbl key)
-; trk [=h =t]
 | (write refSz h, write refSz t, go inc-count fs)
 
 = (save holes val)
@@ -241,7 +230,6 @@ u64max=18446744073709551615
 @ nBig                  | len bigSzs
 @ nHol                  | len holes
 @ nNat                  | len nats
-; trk [=nHol =bigSzs =nWrd =nByt =nFrags =nats]
 @ head                  | writeHeader nHol bigSzs nWrd nByt nFrags nats
 @ body                  | padBar (writeBody nHol nNat tbl idx frags)
 @ ovFlow                | (mod _ 8)^(add barLen-head barLen-body)
@@ -255,7 +243,6 @@ u64max=18446744073709551615
 @ nWrd | barSliceToNat 16 8 seed
 @ nByt | barSliceToNat 24 8 seed
 @ nFrg | barSliceToNat 32 8 seed
-; trk [=nHol =nBig =nWrd =nByt =nFrg]
 ^ _ NIL 0 40
 ? (bigSizesLoop acc bigIx off)
 | if bigIx/=nBig
@@ -283,37 +270,23 @@ u64max=18446744073709551615
 | [nHol nFrg nats off]
 
 = (loadTree body table refSz off)
-; trk [{loadTree} [=off =refSz bits=(showPadLit natToPad-(rsh body off))] {->} _] _
 ^ _ off
 ? (go off)
-; trk [{gogogo} [=off bits=(showPadLit natToPad-(rsh body off))]]
 @ section (setBit inc-refSz | bitSlice off inc-refSz body)
-; trk [{gogogo} [=off bits=(showPadLit section)] {->} _] _
-; trk [loadTree [=table] [=off =refSz =body pad=(showPadLit natToPad-body)]]
 @ flag (testBit off body)
-; trk [=flag =off =body]
 | if flag
     @ off   | inc off
     @ off,h | go off
     @ off,t | go off
-    ; trk [=h =t]
     | [off h-t]
 | else
     @ off inc-off
     @ ref (bitSlice off refSz body)
-    ; trk {LEAF},[off=(dec off) =ref val=(get table ref)]
-    ; trk [=off =ref]
-    ; trk [=body =refSz =off pad=(showPadLit natToPad-body)]
-    ; trk [=table =ref val=(get table ref) off=(add off refSz)]
     | (add off refSz, get table ref)
 
 = (loadBody body table nFrags)
-; trk [body=(showPadLit natToPad-body)]
-; trk [loadBody body table nFrags [=body pad=(showPadLit natToPad-body)]]
 ^ (_ table nFrags 0)
 ? (go table rem off)
-; trk [=table]
-; trk [{loadBody_go} table rem off]
 @ maxRef    | dec (len table)
 @ refSz     | met maxRef
 | if rem==0 | (off, get table maxRef)
@@ -326,16 +299,25 @@ u64max=18446744073709551615
 @ seedSz barLen-seed
 | if (mod seedSz 8) NONE
 @ [nHol nFrg nats off] | loadHeader seed
-; trk [=nHol =nFrg =nats =off]
 | if (nHol /= len holes) NONE
 @ table (weld holes nats)
-; trk [=table]
 @ body barNat-(barDrop off seed)
-; trk [=body]
 @ [bitsRead result] | loadBody body table nFrg
 | result
 
-; All the pins reference in the body of a pin.
+;; {pinRefs} returns a row of pins referenced by a pin.
+;;
+;; This ordered based on a left-to-right traversal of the tree, with
+;; the left-most pin reference being the first pin in the resulting
+;; row.
+;;
+;; If something besides a pin is given to {pinRefs}, an empty row is
+;; returned.
+;;
+;; The jet for this is expected to cache the result, and this should be
+;; automatically calculated on any long-lived pin.
+
+> Pin > Row Pin
 = (pinRefs pin)
 | listToRowRev
 ^ _ NIL (pinItem pin)
@@ -351,6 +333,8 @@ u64max=18446744073709551615
     | go-set-(lawBody non)
 | set
 
+;; TODO: Document {_LoadGerm} and {_SaveGerm}
+
 (_LoadGerm refs bar)=(load refs bar)
 
 = (_SaveGerm pin)
@@ -358,11 +342,15 @@ u64max=18446744073709551615
 ^ (_, save _ pinItem-pin)
 | pinRefs pin
 
+;; TODO: Document {_LoadSeed} and {_SaveSeed}
+
 (_LoadSeed bar)=(load [] bar)
 (_SaveSeed fan)=(save [] fan)
 
+;; TODO: Implement {loadPod} and {savePod}.
 
-;;; Basic Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Smoke Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (S x y z)=(x z (y z))
 (K x y)=x
@@ -393,25 +381,17 @@ I!!=(uncurry _LoadGerm iGerm)
 iSeed!!=(_SaveSeed I)
 I!!=(_LoadSeed iSeed)
 
-; header
-;
-; - {wordBar}
-;
-; nats
-;
-; - {natBarChunkedLE} ; natBarAlignedLE 8 3 -> x#0300000000000000
-; - {wordBar}
-; - {byteBar}
-;
-; frags:
-;
-; - {padFlatBar}
-; - {bitPad}
-; - {natPad}
-; - {natPadSized}
-; - {padBar}
-; - {sizing}
-;
-; combine
-;
-; - {barFlat [header nats frags padding]}
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ pinRefs
+^-^ _LoadGerm _SaveGerm
+^-^ _LoadSeed _SaveSeed
+^-^
+^-^ ; {save} and {load} are currently exported only for testing.
+^-^ ; Right now, these are not jetted!  If you use these,
+^-^ ; it will be very slow!
+^-^
+^-^ save load
+^-^
