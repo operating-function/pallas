@@ -7,7 +7,7 @@ plunder sire sire_tests <<<""
 # TODO: BOOTSEQ=(cat sire/??_*.sire)
 BOOTSEQ=$(
     echo cat sire/??_*.sire
-    echo sire/{boot,datatype,repl,rex,sire_backend,sire,sire_tests}.sire;
+    echo sire/{boot,repl,datatype,rex,sire_backend,sire,sire_tests}.sire;
 )
 
 set -ex

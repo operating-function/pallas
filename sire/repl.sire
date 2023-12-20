@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### repl <- datatype
+#### repl <- boot
 
 ;;;; REPL Utilities
 ;;;; ==============
@@ -14,7 +14,6 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /+ boot
-/+ datatype
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -63,12 +62,11 @@
 
 ; type Cog i o = (i -> (o, Cog i o))
 
+;; {echoCog} is not actually used for anything real, just for testing
+;; {lineRepl}.
+
 > Cog Bar Bar
-= (echoCog mLine) ; this is just for testing lineRepl
-^ (_, echoCog)
-# datacase mLine
-* NONE      | b#{}
-* SOME-line | line
+(echoCog mLine)=(maybeCase mLine b#{} ln&ln, echoCog)
 
 > Monoid a => Cog Maybe-Bar a > Bar > Cog Bar a
 = (lineRepl a_monoid@(a_mempty, a_mappend) cog buffer rawInput)
