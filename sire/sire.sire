@@ -10,16 +10,16 @@
 ;;;; See sh/bootstrap-sire to see how you can use this code
 ;;;; to compile itself.
 
-/+ prelude
-/+ rex
-/+ repl
+/+ boot
+/+ repl         [lineRepl cogMap]
+/+ rex          [simpleCog rexCog listMonoid blockState]
+/+ datatype
 /+ sire_backend
-/+ types
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-abstype#BarTree
+; abstype#BarTree
 
 # datatype MacroExpansion
 * MAC_OK st:SireState expo:Rex
@@ -232,11 +232,11 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Rex > Str > Str > Repl Sire
 = (resolveQualified rex modu name st)
-@ SIRE_STATE(..) st
-| if (not | tabHas modu sireModules)
+@ modules (**getSireModules st)
+| if (not | tabHas modu modules)
     | LEFT (rex, `[unbound module $(curlRex modu)])
 @ [modScope _props]
-    | pinItem-(tabGet sireModules modu)
+    | pinItem-(tabGet modules modu)
 | if (not | tabHas name modScope)
     | LEFT (rex, `[unbound symbol $(curlRex name) in module $(curlRex modu)])
 | RIGHT (st, G (tabGet modScope name))
@@ -531,7 +531,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 > (Maybe Nat, Tab Any Any, Str, Any, Sire)
 > Repl ()
 = (insertBinding rex [mKey extraProps name val code] st)
-@ SIRE_STATE(..) st
+@ @(SIRE_STATE sireNextKey sireContext sireScope sireModules sireAllProps) st
 # datacase mKey
 * NONE ; If the binding key is not explicitly set, generate a new key
        ; and use that.
@@ -710,9 +710,8 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Set Str > SireState > SireState
 = (filterScope whitelist st)
-@ SIRE_STATE(..) st
 ^ setSireScope _ st
-^ tabFilterWithKey _ sireScope
+^ tabFilterWithKey _ (**getSireScope st)
 | (key _ & setHas key whitelist)
 
 > Rex > Repl Any
@@ -766,30 +765,23 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Rex > Str > Maybe (Set Str) > Repl ()
 = (importModule rex modu mWhite st)
-@ SIRE_STATE(..) st
-;
 : otherScope
     < & ok
-      | ifNot (tabHas modu sireModules)
+      @ modules (**getSireModules st)
+      | ifNot (tabHas modu modules)
           | LEFT (rex, `[{undefined module}])
-      @ modPin (tabGet sireModules modu)
+      @ modPin (tabGet modules modu)
       | ifNot isPin-modPin
           | LEFT (rex, {corrupted sire state; module is not a pin})
       @ [scope props] pinItem-modPin
       | ok scope
-;
-; die [=otherScope =mWhite has=(setHas %x cdr-mWhite)]
 @ newBinds
     # datacase mWhite
     * NONE      | otherScope
     * SOME-syms | tabFilterWithKey (k _ & setHas k syms) otherScope
-;
+@ oldScope (**getSireScope st)
 ^ RIGHT (_, ())
-++ sireNextKey
-++ sireContext
-++ tabUnion newBinds sireScope
-++ sireModules
-++ sireAllProps
+| **setSireScope (tabUnion newBinds oldScope) st
 
 > Rex > Repl (Row Str)
 = (readImportList rex st)

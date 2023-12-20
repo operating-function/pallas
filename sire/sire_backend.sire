@@ -8,10 +8,9 @@
 ;;;; that transforms as Sire AST into a Fan value.  Basically this is
 ;;;; just inlining, lambda lifting, let-optimization, and code generation.
 
-/+ prelude
+/+ boot
+/+ datatype
 /+ rex
-/+ stew
-/+ types
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -396,9 +395,9 @@ three=3
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
-^-^ Lam LAM
-^-^ Sire V K G A L R M F
-^-^ Bind BIND getBindKey getBindValue getBindCode getBindLocation getBindName
+^-^ LAM
+^-^ V K G A L R M F
+^-^ BIND getBindKey getBindValue getBindCode getBindLocation getBindName
 ^-^
 ^-^ evalSire
 ^-^ apple apple_ appList

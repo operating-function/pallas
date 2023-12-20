@@ -11,11 +11,9 @@
 ;;; indicate that every constructor should be created as an
 ;;; "always-inline" law.
 
-/+  prelude
+/+  boot
 /+  datatype
-/+  types
-/+  stew
-/+  repl [lineRepl Cog cogMap]
+/+  repl [lineRepl cogMap]
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -48,9 +46,9 @@
 * FAIL=fail
 * TERM=term
 
-* # abstype Lexeme ; Lexeme = Span (Lexi (List Lexeme))
-* # abstype Elem   ; Elem = Span (Lexi | List Clump)
-* # abstype Clump  ; Clump = Span (List Elem)
+; type Lexeme = Span (Lexi (List Lexeme))
+; type Elem   = Span (Lexi (List Clump))
+; type Clump  = Span (List Elem)
 
 
 ;;; Basic Lexing + Nesting ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -605,7 +603,7 @@ typedef#(NonEmpty a)#(a, List a)
 
 (simpleCog f x)=(f x, simpleCog f)
 
-abstype#(MaybePair a b)
+; data MaybePair a b = NoPair | SomePair a b
 
 > Cog (MaybePair Nat Rex) o > BlockState > Cog (Maybe Bar) (List o)
 = (rexCog cog st mLine)
@@ -636,14 +634,14 @@ listMonoid=(NIL, listWeld)
 | simpleCog-([lineNum rex] & rex)
 
 ^-^
-^-^ Lexi RUNE WORD WYTE SEMI LINE TEXT NEST FAIL TERM
-^-^ NestType PAREN BRACK
-^-^ Span SPAN
-^-^ Frag LAMB WOLF
-^-^ Tree LEAF NODE
-^-^ BlockState BS
-^-^ BlockBuffer WOODS TEXTY BLOCK
-^-^ SubLayout PREFX INFIX SEQUE
+^-^ RUNE WORD WYTE SEMI LINE TEXT NEST FAIL TERM
+^-^ PAREN BRACK
+^-^ SPAN
+^-^ LAMB WOLF
+^-^ LEAF NODE
+^-^ BS
+^-^ WOODS TEXTY BLOCK
+^-^ PREFX INFIX SEQUE
 ^-^
 ^-^ rexAddHeir
 ^-^ spanQuotedStr
