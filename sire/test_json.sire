@@ -54,15 +54,15 @@
 
 %start
 
-!!= 116 (| len | unpackRight | jsonLexAll | barCat | rep example 1)
+=?= 116 (| len | unpackRight | jsonLexAll | barCat | rep example 1)
 
 %did_1
 
-!!= exampleMinified (| printJson | idx 0 | parseJson example)
+=?= exampleMinified (| printJson | idx 0 | parseJson example)
 
 %did_round_trip
 
-!!= 231 (| len | unpackRight | jsonLexAll | barCat | rep example 2)
+=?= 231 (| len | unpackRight | jsonLexAll | barCat | rep example 2)
 
 %did_2
 
@@ -75,7 +75,7 @@
 } ++ (| barLen | barCat | rep example 1817)
 } ++ %bytes
 }
-} !!= 208956 (| len | unpackRight | jsonLexAll | barCat | rep example 1817)
+} =?= 208956 (| len | unpackRight | jsonLexAll | barCat | rep example 1817)
 }
 } %did_3
 }

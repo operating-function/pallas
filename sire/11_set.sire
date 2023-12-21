@@ -44,8 +44,8 @@
 = (setSing x)      | _MkSet [x]
 = (setIsEmpty set) | null (_SetToRow set)
 
-!!= 1 | setIsEmpty emptySet
-!!= 1 | not (setIsEmpty | setSing {a})
+=?= 1 | setIsEmpty emptySet
+=?= 1 | not (setIsEmpty | setSing {a})
 
 = (setLen set)    | len (_SetToRow set)
 = (setToList set) | listFromRow (_SetToRow set)
@@ -90,34 +90,34 @@
 | and (chk las cur)
 | go cur (inc i)
 
-!!= 1 | isOrderedWith lth [0 1 2]
-!!= 1 | isOrderedWith lte [0 0 1]
-!!= 1 | isOrderedWith gth [3 2 1]
-!!= 1 | isOrderedWith gte [3 3 2]
-!!= 1 | isOrderedWith eql [3 3 3]
-!!= 1 | isOrderedWith neq [3 4 2]
+=?= 1 | isOrderedWith lth [0 1 2]
+=?= 1 | isOrderedWith lte [0 0 1]
+=?= 1 | isOrderedWith gth [3 2 1]
+=?= 1 | isOrderedWith gte [3 3 2]
+=?= 1 | isOrderedWith eql [3 3 3]
+=?= 1 | isOrderedWith neq [3 4 2]
 
-!!= 1 | isOrderedWith lth []
-!!= 1 | isOrderedWith lth [0]
-!!= 1 | isOrderedWith lth [0 1]
-!!= 1 | isOrderedWith lth [0 1 [0]]
-!!= 1 | isOrderedWith lth [0 1 2]
-!!= 1 | isOrderedWith lth [1]
-!!= 1 | isOrderedWith lth [1 2]
-!!= 1 | isOrderedWith lth [1 2 3 4 5 999]
-!!= 1 | isOrderedWith lth [1 2 const]
-!!= 1 | isOrderedWith lth [1 2 const (0 0)]
-!!= 1 | isOrderedWith lth [1 const]
-!!= 1 | isOrderedWith lth [2]
+=?= 1 | isOrderedWith lth []
+=?= 1 | isOrderedWith lth [0]
+=?= 1 | isOrderedWith lth [0 1]
+=?= 1 | isOrderedWith lth [0 1 [0]]
+=?= 1 | isOrderedWith lth [0 1 2]
+=?= 1 | isOrderedWith lth [1]
+=?= 1 | isOrderedWith lth [1 2]
+=?= 1 | isOrderedWith lth [1 2 3 4 5 999]
+=?= 1 | isOrderedWith lth [1 2 const]
+=?= 1 | isOrderedWith lth [1 2 const (0 0)]
+=?= 1 | isOrderedWith lth [1 const]
+=?= 1 | isOrderedWith lth [2]
 
-!!= 0 | isOrderedWith lth [0 0]
-!!= 0 | isOrderedWith lth [0 0 [0]]
-!!= 0 | isOrderedWith lth [1 1]
-!!= 0 | isOrderedWith lth [1 2 0]
-!!= 0 | isOrderedWith lth [2 1]
-!!= 0 | isOrderedWith lth [2 1 (die {never evaluated})]
-!!= 0 | isOrderedWith lth [1 1 (die {never evaluated})]
-!!= 1 | isOrderedWith lth []
+=?= 0 | isOrderedWith lth [0 0]
+=?= 0 | isOrderedWith lth [0 0 [0]]
+=?= 0 | isOrderedWith lth [1 1]
+=?= 0 | isOrderedWith lth [1 2 0]
+=?= 0 | isOrderedWith lth [2 1]
+=?= 0 | isOrderedWith lth [2 1 (die {never evaluated})]
+=?= 0 | isOrderedWith lth [1 1 (die {never evaluated})]
+=?= 1 | isOrderedWith lth []
 
 = (isSet set)
 @ head (car set)
@@ -157,10 +157,10 @@
     | ok fan
 | err rex {Invalid Key: Expected a word, text, or an embeded natural}
 
-!!= {a} (readKey '{a}     v2 x&x)
-!!= {a} (readKey 'a       v2 x&x)
-!!= 9   (readKey '9       v2 x&x)
-!!= 9   (readKey (EMBD 9) v2 x&x)
+=?= {a} (readKey '{a}     v2 x&x)
+=?= {a} (readKey 'a       v2 x&x)
+=?= 9   (readKey '9       v2 x&x)
+=?= 9   (readKey (EMBD 9) v2 x&x)
 
 
 ;;; %% Rune: Tall-Form Tabs and Sets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -225,10 +225,10 @@
 & (acc keys)
 | ok acc
 
-!!= (setFromRow [{a} {b} {c}]) | readCenBracket '[a b c] v2 id
-!!= (setFromRow [{a} {b} {c}]) | readCenBracket '[c b a] v2 id
-!!= ['(a b c) cenExpect]       | readCenBracket '(a b c) v2 id
-!!= ['c {duplicate key}]       | readCenBracket '[c b c] v2 id
+=?= (setFromRow [{a} {b} {c}]) | readCenBracket '[a b c] v2 id
+=?= (setFromRow [{a} {b} {c}]) | readCenBracket '[c b a] v2 id
+=?= ['(a b c) cenExpect]       | readCenBracket '(a b c) v2 id
+=?= ['c {duplicate key}]       | readCenBracket '[c b c] v2 id
 
 = (readCenLit rex err ok)
 @ kids (rexKids rex)
@@ -242,12 +242,12 @@
 | readCenBracket kid err
 | set&(ok RIGHT-set)
 
-!!= (LEFT {a})                   | readCenLit '(%a)     v2 id
-!!= (LEFT {1})                   | readCenLit '(%1)     v2 id
-!!= ['1 cenExpect]               | readCenLit '1        v2 id
-!!= (RIGHT emptySet)             | readCenLit '(%[])    v2 id
-!!= (RIGHT setSing-{a})          | readCenLit '(%[a])   v2 id
-!!= (RIGHT setFromRow-[{a} {b}]) | readCenLit '(%[a b]) v2 id
+=?= (LEFT {a})                   | readCenLit '(%a)     v2 id
+=?= (LEFT {1})                   | readCenLit '(%1)     v2 id
+=?= ['1 cenExpect]               | readCenLit '1        v2 id
+=?= (RIGHT emptySet)             | readCenLit '(%[])    v2 id
+=?= (RIGHT setSing-{a})          | readCenLit '(%[a])   v2 id
+=?= (RIGHT setFromRow-[{a} {b}]) | readCenLit '(%[a b]) v2 id
 
 = ({%} st rex err ok)
 | readCenLit rex err
@@ -259,100 +259,100 @@
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= %[a]   | setFromRow [%a %a]
-!!= %[a b] | setFromRow [%a %b]
-!!= %[a b] | setFromRow [%b %a]
-!!= %[a b] | setFromRow [%b %a %b]
+=?= %[a]   | setFromRow [%a %a]
+=?= %[a b] | setFromRow [%a %b]
+=?= %[a b] | setFromRow [%b %a]
+=?= %[a b] | setFromRow [%b %a %b]
 
-!!= 1 | isSet %[]
-!!= 1 | isSet %[1]
-!!= 1 | isSet %[1 a]
-!!= 1 | isSet %[a 9 1]
-!!= 1 | isSet (0 1 2 [])
-!!= 1 | isSet (0 1 2 [1])
-!!= 1 | isSet (0 1 2 [1 2])
-!!= 0 | isSet (0 1 2 [2 1])
-!!= 0 | isSet (0 2 2 [])
-!!= 0 | isSet (0 1 1 [])
+=?= 1 | isSet %[]
+=?= 1 | isSet %[1]
+=?= 1 | isSet %[1 a]
+=?= 1 | isSet %[a 9 1]
+=?= 1 | isSet (0 1 2 [])
+=?= 1 | isSet (0 1 2 [1])
+=?= 1 | isSet (0 1 2 [1 2])
+=?= 0 | isSet (0 1 2 [2 1])
+=?= 0 | isSet (0 2 2 [])
+=?= 0 | isSet (0 1 1 [])
 
-!!= %a   | {a}
-!!= %3   | {3}
-!!= %x_x | {x_x}
+=?= %a   | {a}
+=?= %3   | {3}
+=?= %x_x | {x_x}
 
-!!= %[]    | %[]
-!!= %[a]   | %[97]
-!!= %[a]   | %[{a}]
-!!= %[a b] | %[98 97]
-!!= %[a b] | %[{b} {a}]
+=?= %[]    | %[]
+=?= %[a]   | %[97]
+=?= %[a]   | %[{a}]
+=?= %[a b] | %[98 97]
+=?= %[a b] | %[{b} {a}]
 
-!!= %[]        | emptySet
-!!= %[{x}]     | setIns {x} emptySet
-!!= %[x]       | setIns {x} emptySet
-!!= %[3]       | setIns 3   emptySet
-!!= %[3]       | setSing 3
-!!= %[3]       | setIns 3  %[]
-!!= %[0 1 2 3] | setIns 3  %[0 1 2]
-!!= %[a b c]   | setIns %c %[a b]
-!!= %[0 1 2 3] | setIns 3  %[0 1 2 3]
-!!= %[a b c]   | setIns %c %[a b c]
-!!= %[0 1 2]   | setDel 3 %[0 1 2 3]
-!!= %[0 1 3]   | setDel 2 %[0 1 2 3]
-!!= %[0 2 3]   | setDel 1 %[0 1 2 3]
-!!= %[1 2 3]   | setDel 0 %[0 1 2 3]
-!!= %[0 1 2]   | setDel 3 %[0 1 2]
-!!= %[0 1 2 3] | setWeld %[0 2]   %[1 3]
-!!= %[a b c]   | setWeld %[a c]   %[b]
-!!= %[a b c]   | setWeld %[a c]   %[b c]
-!!= %[a b c]   | setWeld %[a c]   %[a b c]
-!!= %[a b c]   | setWeld %[a b c] %[a b c]
+=?= %[]        | emptySet
+=?= %[{x}]     | setIns {x} emptySet
+=?= %[x]       | setIns {x} emptySet
+=?= %[3]       | setIns 3   emptySet
+=?= %[3]       | setSing 3
+=?= %[3]       | setIns 3  %[]
+=?= %[0 1 2 3] | setIns 3  %[0 1 2]
+=?= %[a b c]   | setIns %c %[a b]
+=?= %[0 1 2 3] | setIns 3  %[0 1 2 3]
+=?= %[a b c]   | setIns %c %[a b c]
+=?= %[0 1 2]   | setDel 3 %[0 1 2 3]
+=?= %[0 1 3]   | setDel 2 %[0 1 2 3]
+=?= %[0 2 3]   | setDel 1 %[0 1 2 3]
+=?= %[1 2 3]   | setDel 0 %[0 1 2 3]
+=?= %[0 1 2]   | setDel 3 %[0 1 2]
+=?= %[0 1 2 3] | setWeld %[0 2]   %[1 3]
+=?= %[a b c]   | setWeld %[a c]   %[b]
+=?= %[a b c]   | setWeld %[a c]   %[b c]
+=?= %[a b c]   | setWeld %[a c]   %[a b c]
+=?= %[a b c]   | setWeld %[a b c] %[a b c]
 
-!!= %[0 2 4]   | setFilter even %[0 1 2 3 4 5]
-!!= %[1 3 5]   | setFilter odd  %[0 1 2 3 4 5]
+=?= %[0 2 4]   | setFilter even %[0 1 2 3 4 5]
+=?= %[1 3 5]   | setFilter odd  %[0 1 2 3 4 5]
 
-!!= %[a]       | setIntersect %[a b c] %[a d]
-!!= %[a b]     | setIntersect %[a b c] %[a b d]
-!!= %[]        | setIntersect %[a b c] %[d e f]
+=?= %[a]       | setIntersect %[a b c] %[a d]
+=?= %[a b]     | setIntersect %[a b c] %[a b d]
+=?= %[]        | setIntersect %[a b c] %[d e f]
 
-!!= %[]        | setCatRowAsc []
-!!= %[a]       | setCatRowAsc [%[a]]
-!!= %[a b c]   | setCatRowAsc [%[a] %[b] %[c]]
-!!= %[a b]     | setCatRowAsc [%[a] %[] %[b]]
+=?= %[]        | setCatRowAsc []
+=?= %[a]       | setCatRowAsc [%[a]]
+=?= %[a b c]   | setCatRowAsc [%[a] %[b] %[c]]
+=?= %[a b]     | setCatRowAsc [%[a] %[] %[b]]
 
-!!= %[3]       | setSub %[3 5] %[5 7]
-!!= %[5]       | setSub %[3 5] %[1 3]
-!!= %[3 5]     | setSub %[3 5] %[4 7]
-!!= %[]        | setSub %[3 5] %[3 5]
-!!= %[]        | setSub %[] %[3 5]
+=?= %[3]       | setSub %[3 5] %[5 7]
+=?= %[5]       | setSub %[3 5] %[1 3]
+=?= %[3 5]     | setSub %[3 5] %[4 7]
+=?= %[]        | setSub %[3 5] %[3 5]
+=?= %[]        | setSub %[] %[3 5]
 
 ; setCatRowAsc deopt behaviour
-!!= (0 1 2 [7 9 8])
+=?= (0 1 2 [7 9 8])
   | setCatRowAsc [%[7 9] %[8]]
 
-!!= %[3]       | %% 3
-!!= %[3 4 {a}] | (%%3)(%%4)(%% {a})
-!!= %[3 4 {a}] | (%%3)(%%4)(%% {a})
+=?= %[3]       | %% 3
+=?= %[3 4 {a}] | (%%3)(%%4)(%% {a})
+=?= %[3 4 {a}] | (%%3)(%%4)(%% {a})
 
-!!= %[3 4 {a}]
+=?= %[3 4 {a}]
  %% 3
  %% 4
  %% a
 
-!!= %[3 4 {a}]
+=?= %[3 4 {a}]
  %% 3
  %% 4
  %% } a
 
-!!= %[3 4 {a}]
+=?= %[3 4 {a}]
  %% 3 4 } a
 
-!!= %[3 4 {a}]
+=?= %[3 4 {a}]
  %% 3
  %% 4 } a
 
-!!= %[a b c] | setCatRow [%[a] %[b] %[c]]
-!!= %[a b c] | setCatList [%[a] [%[b] [%[c] 0]]]
+=?= %[a b c] | setCatRow [%[a] %[b] %[c]]
+=?= %[a b c] | setCatList [%[a] [%[b] [%[c] 0]]]
 
-!!= (%[0 1], %[2 3]) | setSplitLT 2 %[0 1 2 3]
+=?= (%[0 1], %[2 3]) | setSplitLT 2 %[0 1 2 3]
 
 
 ;;; Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

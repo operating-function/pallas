@@ -71,7 +71,7 @@
 ; * (TCON c xs) | TCON c (map applySubst-s xs)
 ; * _           | {bad type node} ty
 
-; !!= | TCON funKey [TVAR-{y} TCON-natKey-[]]
+; =?= | TCON funKey [TVAR-{y} TCON-natKey-[]]
 ;   | applySubst [x={y}] (TCON funKey (TVAR %x, TCON natKey []))
 
 
@@ -79,7 +79,7 @@
 ; = (applySubstScheme s (SCHEME xs t))
 ; | SCHEME xs (applySubst (foldr tabDel s xs) t)
 
-; !!=   | SCHEME [{x}]
+; =?=   | SCHEME [{x}]
 ;       | TCON funKey
 ;      ++ TVAR {x}
 ;      ++ TVAR {b}
@@ -98,10 +98,10 @@
 ; ; trk {bar},(tabMap (trkVal {hi}) y)
 ; | tabUnion (tabMap (applySubst x) y) x
 
-; !!= [x=3 y=4] | composeSubst [x=3 y=4] #[]
-; !!= [x=3 y=4] | composeSubst #[] [x=3 y=4]
-; !!= [x=3 y=4] | composeSubst [x={y}] [x=3 y=4]
-; !!= [x=4 y=4] | composeSubst [x=3 y=4] [x={y}]
+; =?= [x=3 y=4] | composeSubst [x=3 y=4] #[]
+; =?= [x=3 y=4] | composeSubst #[] [x=3 y=4]
+; =?= [x=3 y=4] | composeSubst [x={y}] [x=3 y=4]
+; =?= [x=4 y=4] | composeSubst [x=3 y=4] [x={y}]
 
 ; typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 
@@ -123,7 +123,7 @@
 ; @ !st (inc st)
 ; | ok st (gensymKeyToType key)
 
-; !!= (RIGHT [1 {_g0}]) (runInfer genTyVar)
+; =?= (RIGHT [1 {_g0}]) (runInfer genTyVar)
 
 ; > Ty > Set Str
 ; = (free x)
@@ -132,13 +132,13 @@
 ; * (TCON _ p) | setCatRow (map free p)
 ; * _          | {bad type node} x
 
-; !!= %[a b] (free (TCON funKey [{a} (TCON funKey [{b} {a}])]))
+; =?= %[a b] (free (TCON funKey [{a} (TCON funKey [{b} {a}])]))
 
 ; > Scheme > Set Str
 ; = (schemeFree (SCHEME params t))
 ; | setDifference (free t) (setFromRow params)
 
-; !!= %[b] | schemeFree | SCHEME [{a}] | TCON funKey [{a} {b}]
+; =?= %[b] | schemeFree | SCHEME [{a}] | TCON funKey [{a} {b}]
 
 ; > Str > Ty > Infer Substitution
 ; = (varBind key ty st err ok)
@@ -171,18 +171,18 @@
 
 ; (tryUnify sire x y)=(runInfer | unify sire x y)
 
-; !!= (tryUnify 9 {a} {b})             |  RIGHT [0 [a={b}]]
-; !!= (tryUnify 9 {a} (TCON 0 []))     |  RIGHT [0 [a=(TCON 0 [])]]
-; !!= (tryUnify 9 {a} (TCON 0 [{b}]))  |  RIGHT [0 [a=(TCON 0 [{b}])]]
-; !!= (tryUnify 9 {a} (TCON 0 [{a}]))  |  LEFT | OCCURS_CHECK_FAILED {a}
+; =?= (tryUnify 9 {a} {b})             |  RIGHT [0 [a={b}]]
+; =?= (tryUnify 9 {a} (TCON 0 []))     |  RIGHT [0 [a=(TCON 0 [])]]
+; =?= (tryUnify 9 {a} (TCON 0 [{b}]))  |  RIGHT [0 [a=(TCON 0 [{b}])]]
+; =?= (tryUnify 9 {a} (TCON 0 [{a}]))  |  LEFT | OCCURS_CHECK_FAILED {a}
 ;                                              | TCON 0 [{a}]
 
-; !!=   | LEFT (NO_UNIFY 9 (TCON 1 [{b}]) (TCON 0 [{a}]))
+; =?=   | LEFT (NO_UNIFY 9 (TCON 1 [{b}]) (TCON 0 [{a}]))
 ;   | tryUnify 9
 ;   * TCON 0 ,(TCON 1 [{b}])
 ;   * TCON 0 ,(TCON 0 [{a}])
 
-; !!=   | RIGHT 0,[a={b}]
+; =?=   | RIGHT 0,[a={b}]
 ;   | tryUnify 9
 ;   * TCON 0 ,(TCON 0 [{a}])
 ;   * TCON 0 ,(TCON 0 [{b}])
@@ -200,7 +200,7 @@
 ; ^ SCHEME _ t
 ; | setToRow (setSub (free t) (ctxFree ctx))
 
-; !!=   | SCHEME [%a %c]
+; =?=   | SCHEME [%a %c]
 ;       | TCON 9 (TVAR %a, TVAR %b, TVAR %c)
 ;   | generalize [a=(SCHEME [] {b})] (TCON 9 [%a %b %c])
 
@@ -214,7 +214,7 @@
 ; ^ ok st (applySubst _ ty)
 ; | tabFromPairs (zip vars newVars)
 
-; !!=   | runInfer | instantiate | SCHEME [%a %b] | TCON 9 [%a %b %foo]
+; =?=   | runInfer | instantiate | SCHEME [%a %b] | TCON 9 [%a %b %foo]
 ;   ^ RIGHT [2 _]
 ;   | TCON 9 [{_g0} {_g1} %foo]
 
@@ -227,7 +227,7 @@
 ; | SCHEME names
 ; | mapTNode (get names) tNode
 
-; !!=   | schemeFromType Fun
+; =?=   | schemeFromType Fun
 ;   | [[%a %b] (TCON funKey [%a %b])]
 
 ; = (mkFunType argTypes resultType)
@@ -235,7 +235,7 @@
 ; & (in out)
 ; | TCON funKey [in out]
 
-; !!= (mkFunType [{a} {b} {c}] {d})
+; =?= (mkFunType [{a} {b} {c}] {d})
 ;   ^ TCON funKey [{a} _]
 ;   ^ TCON funKey [{b} _]
 ;   | TCON funKey [{c} {d}]
@@ -337,16 +337,16 @@
 ; = addN | funN natN (funN natN natN)
 ; = addT | SCHEME 0 addN
 
-; !!= (RIGHT (0, (#[], natN)))
+; =?= (RIGHT (0, (#[], natN)))
 ;   | runInfer (infer 0 #[] (ENAT 3))
 
-; !!= (RIGHT (0, (#[], addN)))
+; =?= (RIGHT (0, (#[], addN)))
 ;   | runInfer
 ;   @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add}])] 0 [5=[type=addT]]]
 ;   | infer ss #[]
 ;   | EREF {add}
 
-; !!= (RIGHT (1, ([_g0=incN], incN)))
+; =?= (RIGHT (1, ([_g0=incN], incN)))
 ;   | runInfer
 ;   @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add}])] 0 [5=[type=addT]]]
 ;   | infer ss #[]

@@ -35,7 +35,7 @@
 @ h (rexHeir r)
 | if h==0 c (rexAddCont h c)
 
-!!= `(+3)(+4)(+5) | rexAddCont `(+3)(+4) `(+5)
+=?= `(+3)(+4)(+5) | rexAddCont `(+3)(+4) `(+5)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -86,30 +86,30 @@
 * (FORM wide) | formToRex wide
 * (LSTR t)    | LINE barNat-t NONE
 
-!!= (iRex (I b#{+++} [] NONE)) ` +++
+=?= (iRex (I b#{+++} [] NONE)) ` +++
 
-!!= (iRex (T b#{hi} NONE))  ` } hi
+=?= (iRex (T b#{hi} NONE))  ` } hi
 
 = (go bar)
 # datacase (runParser frag bar)
 * (FAIL e)         | die (FAIL e)
 * (OKAY [col frg]) | fRex frg
 
-!!= (go b#{..})           ` ..
-!!= (go b#{(3 4 5)})      ` (3 4 5)
-!!= (go b#{(3 4)})        ` (3 4)
-!!= (go b#{(3)})          ` 3
-!!= (go b#{()})           ` ()
-!!= (go b#{(+ 3 4)})      ` (+ 3 4)
-!!= (go b#{[3 4]})        ` [3 4]
-!!= (go b#{+3})           ` +3
-!!= (go b#{(3,4)})        ` (3,4)
-!!= (go b#{(3, 4)})       ` (3, 4)
-!!= (go b#{{x}{y}})       ` {x}{y}
-!!= (go b#{{}{}{}})       ` {}{}{}
-!!= (go b#{({})({})({})}) ` {}{}{}
-!!= (go b#{(3)(4)})       ` (3)(4)
-!!= (go b#}_} xyz_)       ` } xyz
+=?= (go b#{..})           ` ..
+=?= (go b#{(3 4 5)})      ` (3 4 5)
+=?= (go b#{(3 4)})        ` (3 4)
+=?= (go b#{(3)})          ` 3
+=?= (go b#{()})           ` ()
+=?= (go b#{(+ 3 4)})      ` (+ 3 4)
+=?= (go b#{[3 4]})        ` [3 4]
+=?= (go b#{+3})           ` +3
+=?= (go b#{(3,4)})        ` (3,4)
+=?= (go b#{(3, 4)})       ` (3, 4)
+=?= (go b#{{x}{y}})       ` {x}{y}
+=?= (go b#{{}{}{}})       ` {}{}{}
+=?= (go b#{({})({})({})}) ` {}{}{}
+=?= (go b#{(3)(4)})       ` (3)(4)
+=?= (go b#}_} xyz_)       ` } xyz
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -145,16 +145,16 @@
 
 (testMerge x y)=(eitherMap (overSnd (compose rexClose iRex)) (merge x y))
 
-!!= RIGHT-(3, `{foo}xxx)
+=?= RIGHT-(3, `{foo}xxx)
   | testMerge (3, `xxx) (3, T b#foo 0)
 
-!!= LEFT-{Line strings may not have child nodes.}
+=?= LEFT-{Line strings may not have child nodes.}
   | testMerge (4, `xxx) (3, T b#foo 0)
 
-!!= LEFT-{Impossible: invalid merge}
+=?= LEFT-{Impossible: invalid merge}
   | testMerge (2, `xxx) (3, T b#foo 0)
 
-!!=   | RIGHT (3, `[x y]xxx)
+=?=   | RIGHT (3, `[x y]xxx)
   | testMerge (3, `xxx) (3, I b#{,} [`x] (SOME `y))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -204,16 +204,16 @@
 
 exItem=(I b#{,} [`x] (SOME `y))
 
-!!=   | RIGHT ~[4,exItem 4,exItem]
+=?=   | RIGHT ~[4,exItem 4,exItem]
   | testClose 4 ~[4,exItem 4,exItem]
 
-!!=   | RIGHT ~[4,exItem 4,exItem]
+=?=   | RIGHT ~[4,exItem 4,exItem]
   | testClose 4 ~[4,exItem 4,exItem]
 
-!!=   | RIGHT ~[4,exItem 3,exItem]
+=?=   | RIGHT ~[4,exItem 3,exItem]
   | testClose 4 ~[4,exItem 3,exItem]
 
-!!=   | RIGHT ~[(3, (I b#{,} [`y `x] (SOME `[x]y))) (2, exItem)]
+=?=   | RIGHT ~[(3, (I b#{,} [`y `x] (SOME `[x]y))) (2, exItem)]
   | testClose 3 ~[4,exItem 3,exItem 2,exItem]
 
 
@@ -244,7 +244,7 @@ oneForm={Blocks starting with closed forms may only contain one form.}
 * (CONS x xs)
 | listFoldl f x xs
 
-!!= 12 (listFoldl1 add ~[3 4 5])
+=?= 12 (listFoldl1 add ~[3 4 5])
 
 > (b > a > Either e b) > b > List a > Either e b
 = (eitherListFoldlM f acc xs)
@@ -292,13 +292,13 @@ oneForm={Blocks starting with closed forms may only contain one form.}
 * (RIGHT v)
 | rexClose v
 
-!!= `(f (x (y (f x y))))
+=?= `(f (x (y (f x y))))
   | testRush b#{| f | x | y (f x y)}
 
-!!= `(f (x (y (| (f x y)))))
+=?= `(f (x (y (| (f x y)))))
   | testRush b#{| f | x | y | (f x y)}
 
-!!= `(f x y (z | z | z))
+=?= `(f x y (z | z | z))
   | testRush b#{| f x y (z | z | z)}
 
 
@@ -337,19 +337,19 @@ oneForm={Blocks starting with closed forms may only contain one form.}
 * (LEFT e)  | e
 * (RIGHT v) | rexClose v
 
-!!= `(f x y)
+=?= `(f x y)
   | testParseBlock [b#{f x y}]
 
-!!= `(f (x y))
+=?= `(f (x y))
   | testParseBlock [b#{f | x y}]
 
-!!= oneForm
+=?= oneForm
   | testParseBlock [b#{f | x y} b#{| a}]
 
-!!= `(f (x y))(| a)
+=?= `(f (x y))(| a)
   | testParseBlock [b#{| f | x y} b#{| a}]
 
-!!= `(f (x y))a
+=?= `(f (x y))a
   | testParseBlock [b#{| f | x y} b#{} b#{a}]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -461,7 +461,7 @@ initialBS=(1, NONE)
 
 (barHi lineNum)=(lexedLn lineNum b#{     | hi  })
 
-!!= ++ 9
+=?= ++ 9
     ++ b#{| | |}
     ++ ++ (1, (%RUNE, b#{|}))
        ++ (3, (%RUNE, b#{|}))
@@ -469,58 +469,58 @@ initialBS=(1, NONE)
   | lexedLn 9 b#{| | |}
 
 ;; EOF with nothing buffered: no change
-!!= ((1,NONE), []) | blockStep (1,NONE) NONE
-!!= ((5,NONE), []) | blockStep (5,NONE) NONE
+=?= ((1,NONE), []) | blockStep (1,NONE) NONE
+=?= ((5,NONE), []) | blockStep (5,NONE) NONE
 
 ;; Blank line on empty state: bumps line count
-!!= ((2,NONE), []) | blockStep (1,NONE) | SOME (lexedLn 1 b#{})
-!!= ((3,NONE), []) | blockStep (2,NONE) | SOME (lexedLn 2 b#{            })
+=?= ((2,NONE), []) | blockStep (1,NONE) | SOME (lexedLn 1 b#{})
+=?= ((3,NONE), []) | blockStep (2,NONE) | SOME (lexedLn 2 b#{            })
 
 
 ;; EOF with one line buffered, outputs buffer, line count does not change.
-!!= ++ (1,NONE)
+=?= ++ (1,NONE)
     ++ [(1, [(justBar 1)])]
   ^ blockStep _ NONE
   | (1, SOME (PB 1 1 ~[(justBar 1)]))
 
 ;; blank line with one line buffered: output lines and bump line count.
-!!= ++ (3,NONE)
+=?= ++ (3,NONE)
     ++ [(1, [(justBar 1)])]
   ^ blockStep _ (SOME | lexedLn 2 b#{})
   | (2, SOME (PB 1 1 ~[(justBar 1)]))
 
 ;; comment line alone (not in a block): ignore and bump line count
-!!= ((2, NONE), [])
+=?= ((2, NONE), [])
   ^ blockStep _ (SOME | lexedLn 2 b#{ ; hi})
   | (1, NONE)
 
 ;; comment line mid-block: incorporate the comment line.
-!!= ((2, SOME (PB 1 1 ~[(lexedLn 2 b#{ ; hi}) (justBar 1)])), [])
+=?= ((2, SOME (PB 1 1 ~[(lexedLn 2 b#{ ; hi}) (justBar 1)])), [])
   ^ blockStep _ (SOME | lexedLn 2 b#{ ; hi})
   | (1, SOME (PB 1 1 ~[(justBar 1)]))
 
 ;; closed form alone (no partial block).  Immediately output
 ;; the single-line as a block.
-!!= ((2, NONE), [(1, ,(lexedLn 2 b#{  hi  }))])
+=?= ((2, NONE), [(1, ,(lexedLn 2 b#{  hi  }))])
   ^ blockStep _ (SOME | lexedLn 2 b#{  hi  })
   | (1, NONE)
 
 ;; Open form alone (no partial block).  Push to buffer.
-!!= ((2, SOME (PB 6 1 ~[(lexedLn 2 b#{     | hi  })])), [])
+=?= ((2, SOME (PB 6 1 ~[(lexedLn 2 b#{     | hi  })])), [])
   ^ blockStep _ (SOME | lexedLn 2 b#{     | hi  })
   | (1, NONE)
 
 ; line added to partial-block with depth less than block depth
 
-!!= ((2, SOME (PB 1 1 ~[(justBar 1)])), [])
+=?= ((2, SOME (PB 1 1 ~[(justBar 1)])), [])
   ^ blockStep _ (SOME | justBar 1)
   | (1, NONE)
 
-!!= ((3, SOME (PB 1 1 ~[(barHi 2) (justBar 1)])), [])
+=?= ((3, SOME (PB 1 1 ~[(barHi 2) (justBar 1)])), [])
   ^ blockStep _ (SOME | barHi 2)
   | (2, SOME (PB 1 1 ~[(justBar 1)]))
 
-!!= ((3, SOME (PB 1 1 ~[(barHi 2) (justBar 1)])), [])
+=?= ((3, SOME (PB 1 1 ~[(barHi 2) (justBar 1)])), [])
   ^ blockStep fst-_ (SOME | barHi 2)
   ^ blockStep fst-_ (SOME | justBar 1)
   | ((1, NONE), [])
@@ -531,17 +531,17 @@ initialBS=(1, NONE)
 ; output and then the line is re-processed with an
 ; empty partial-block
 
-!!= ((3, SOME (PB 1 2 ~[(justBar 2)])), [(1, [(barHi 1)])])
+=?= ((3, SOME (PB 1 2 ~[(justBar 2)])), [(1, [(barHi 1)])])
   ^ blockStep _ (SOME | justBar 2)
   | (2, SOME (PB 6 1 ~[(barHi 1)]))
 
-!!=   ^ ((3, NONE), _)
+=?=   ^ ((3, NONE), _)
      ++ (1, [(barHi 1)])
      ++ (2, [(justHi 2)])
   ^ blockStep _ (SOME | justHi 2)
   | (2, SOME (PB 6 1 ~[(barHi 1)]))
 
-!!=   ^ ((3, NONE), _)
+=?=   ^ ((3, NONE), _)
      ++ (1, [(barHi 1)])
      ++ (2, [(justHi 2)])
   ^ blockStep fst-_ (SOME | justHi 2)
@@ -551,7 +551,7 @@ initialBS=(1, NONE)
 
 ;;; Testing the whole thing: ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= ++ `(s (| n)(| a))(| k)(| e)
+=?= ++ `(s (| n)(| a))(| k)(| e)
     ++ `(die (|die))die
     ++ `pizza
     ++ `(| pie)
@@ -573,7 +573,7 @@ initialBS=(1, NONE)
  ~~ b#} | bird
  ~~ b#}
 
-!!=  ++ b#{(s (| n)((| a)))((| k)((| e)))}
+=?=  ++ b#{(s (| n)((| a)))((| k)((| e)))}
      ++ b#{(die (|die))(die)}
      ++ b#pizza
      ++ b#{(| pie)}

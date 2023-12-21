@@ -19,7 +19,7 @@
 
 
 ; Check that map form and a list form of adds are equivalent.
-!!=     ^ assertTransact _ postDB
+=?=     ^ assertTransact _ postDB
         ++ [%add %[{newpost}] {:b/post} {mai poast}]
         ++ [%add %[{newpost}] {:b/author} {Iceman}]
         ++ [%add %[{other}] {:b/post} {Other post}]
@@ -50,28 +50,28 @@
   ++ #[{:c/name}={Sol} {:c/email}={sol@plunder.tech}]
 
 ; Lookup by nonexistent attributes fail.
-!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE {:d/blah})]
+=?=   | LEFT [(LOOKUP_NO_ATTRIBUTE {:d/blah})]
     ^ transact _ emptyContactsDB
     ++ [%add [{:d/blah} {51}] {:c/email} {blah@plunder.tech}]
 
 ; Lookup by nonexistent values fail.
-!!=   | LEFT [(LOOKUP_NO_MATCH {:c/name} {Bob})]
+=?=   | LEFT [(LOOKUP_NO_MATCH {:c/name} {Bob})]
     ^ transact _ emptyContactsDB
     ++ [%add [{:c/name} {Bob}] {:c/email} {bob@plunder.tech}]
 
 ; NEWENTITY with nonexistent attributes fails.
-!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE {:bad/b}) (LOOKUP_NO_ATTRIBUTE {:bad/a})]
+=?=   | LEFT [(LOOKUP_NO_ATTRIBUTE {:bad/b}) (LOOKUP_NO_ATTRIBUTE {:bad/a})]
     ^ transact _ emptyContactsDB
     ++ #[{:bad/a}={bad} {:bad/b}={bad}]
 
 ; ADD with nonexistent attributes fails.
-!!=   | LEFT [(LOOKUP_NO_ATTRIBUTE {:bad/a})]
+=?=   | LEFT [(LOOKUP_NO_ATTRIBUTE {:bad/a})]
     ^ transact _ emptyContactsDB
     ++ [%add 5 {:bad/a} {bad}]
 
 ; Transaction which tries to duplicate a unique value fail. (Tries to add sol's
 ; email to iceman's entity).
-!!=    @ icemanEid | setMin
+=?=    @ icemanEid | setMin
                    | lookupByAV {:c/email} {iceman@plunder.tech} contactsDB
        @ solEid    | setMin
                    | lookupByAV {:c/email} {sol@plunder.tech} contactsDB
@@ -86,11 +86,11 @@
   ^ assertTransact _ contactsDB
   ++ [%add [{:c/email} {iceman@plunder.tech}] {:c/phone} {(555) 555}]
 
-!!=     %[{(555) 555}]
+=?=     %[{(555) 555}]
     | lookupByIdentA {:c/email} {iceman@plunder.tech} {:c/phone} phoneDB
 
 ; Can't lookup by non-unique attributes:
-!!=    | LEFT [(LOOKUP_ATTRIBUTE_NOT_UNIQUE {:c/phone})]
+=?=    | LEFT [(LOOKUP_ATTRIBUTE_NOT_UNIQUE {:c/phone})]
     ^ transact _ phoneDB
     ++ [%add [{:c/phone} {(555) 555}] {:c/email} {other@plunder.tech}]
 
@@ -100,12 +100,12 @@
   ^ assertTransact _ contactsDB
   ++ [%add [{:c/email} {iceman@plunder.tech}] {:c/phone} {(111) 111}]
 
-!!=     %[{(111) 111}]
+=?=     %[{(111) 111}]
     | lookupByIdentA {:c/email} {iceman@plunder.tech} {:c/phone} changedPhoneDB
 
 ; Cardinality many interacts with the ave table: make sure in cardinality one
 ; scenarios, the old value isn't retrievable from the ave table.
-!!=     %[]
+=?=     %[]
     | lookupByAV {:c/phone} {(555) 555} changedPhoneDB
 
 = changedEmailDB
@@ -114,17 +114,17 @@
 
 ; For cardinality many attributes, setting the attribute twice should add
 ; another value.
-!!=     %[{iceman@plunder.tech} {alias@example.com}]
+=?=     %[{iceman@plunder.tech} {alias@example.com}]
     | lookupByIdentA {:c/email} {iceman@plunder.tech} {:c/email} changedEmailDB
 
 ; Retract removes the data from the tables:
-!!=     %[]
+=?=     %[]
     | lookupByIdentA {:c/email} {iceman@plunder.tech} {:c/phone}
     ^ assertTransact _ phoneDB
     ++ [%rm [{:c/email} {iceman@plunder.tech}] {:c/phone} {(555) 555}]
 
 ; We should be able to lookup an entity by indexed attribute.
-!!=   %[9]
+=?=   %[9]
     | lookupByAV {:c/name} {Iceman} contactsDB
 
 
@@ -158,7 +158,7 @@
      ## ={:person/spouse} %[{bobid}]
 
 ; Test that the mutual references in value position were resolved:
-!!=    | lookupByAV {:person/name} {Alice} aliceAndBob
+=?=    | lookupByAV {:person/name} {Alice} aliceAndBob
      @ bobSet | lookupByAV {:person/name} {Bob} aliceAndBob
      : bobId < **fromSingletonSet bobSet ({failed to find Bob} 0)
      : aid   < **fromSingletonSet
@@ -175,7 +175,7 @@
        ## ={:person/alias} [{Bobby} {Robert}]
 
 ; Both aliases recorded.
-!!=    %[{Bobby} {Robert}]
+=?=    %[{Bobby} {Robert}]
     | lookupByEA 500 {:person/alias} aliasDB
 
 
@@ -200,7 +200,7 @@
      ## ={:order/lineItems} ## ={:item/product} {Hamburger}
 
 ; Who ordered the hamburger?
-!!=     | lookupByAV {:order/name} {Bob} orders
+=?=     | lookupByAV {:order/name} {Bob} orders
     @ tendiesEid | setMin | lookupByAV {:item/product} {Hamburger} orders
     | lookupByVA tendiesEid {:order/lineItems} orders
 
@@ -218,21 +218,21 @@
                                ## ={:item/quantity} 1
 
 ; Who ordered the tendies?
-!!=     | lookupByAV {:order/name} {James} multiOrders
+=?=     | lookupByAV {:order/name} {James} multiOrders
     @ tendiesEid | setMin | lookupByAV {:item/product} {Tendies} multiOrders
     | lookupByVA tendiesEid {:order/lineItems} multiOrders
 
 
 ;;; Pull ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!=    | RIGHT [{:item/product}={Hamburger} {:item/quantity}=1]
+=?=    | RIGHT [{:item/product}={Hamburger} {:item/quantity}=1]
     | pull [{:item/product} {:item/quantity}] 11 multiOrders
 
-!!=    | RIGHT [{:person/alias}=[{Bobby} {Robert}] {:person/name}={Bob}]
+=?=    | RIGHT [{:person/alias}=[{Bobby} {Robert}] {:person/name}={Bob}]
     | pull [{:person/alias} {:person/name}] 500 aliasDB
 
 ; What was Bob's order?
-!!=    | RIGHT ## ={:order/name} {Bob}
+=?=    | RIGHT ## ={:order/name} {Bob}
                ## ={:order/lineItems} ++ ## ={:item/product} {Hamburger}
                                          ## ={:item/quantity} 1
                                       ++ ## ={:item/product} {Guinness}
@@ -244,13 +244,13 @@
                               ++ {:item/quantity}
 
 ; Test backwards lookups, ie whose orders included tendies?
-!!=    | RIGHT ## ={:order/lineItems} ++ ## ={:order/name} {James}
+=?=    | RIGHT ## ={:order/lineItems} ++ ## ={:order/name} {James}
     @ tendiesId | setMin | lookupByAV {:item/product} {Tendies} multiOrders
     ^ pull _ tendiesId multiOrders
     ++ ## ={:order/_lineItems} ++ {:order/name}
 
 ; Test backwards lookup to database entity
-!!=    | RIGHT ## ={:order/lineItems} ++ ## ={:db/id} 13
+=?=    | RIGHT ## ={:order/lineItems} ++ ## ={:db/id} 13
     @ tendiesId | setMin | lookupByAV {:item/product} {Tendies} multiOrders
     ^ pull _ tendiesId multiOrders
     ++ ## ={:order/_lineItems} ++ {:db/id}

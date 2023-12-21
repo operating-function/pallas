@@ -161,13 +161,13 @@ version inaccessible.
                 st.scope = st.scope `intersect {syms..}
 
 
-            --  !!= is a simple "assert equals"
+            --  =?= is a simple "assert equals"
 
-            (!!= x y)(!!= ...).. ==>
+            (=?= x y)(=?= ...).. ==>
 
-                (* (!!= x y) (!!= ...)..)
+                (* (=?= x y) (=?= ...)..)
 
-            (!!= x y) ==>
+            (=?= x y) ==>
 
                 xv = EVALUATE(x);
                 yv = EVALUATE(y);

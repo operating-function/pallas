@@ -40,16 +40,16 @@
 * LF         lf
 * (BR a l r) (**br a l r)
 
-!!= 7 | pqCase (BR 7 LF LF) 3 (x l r & x)
-!!= 3 | pqCase LF 3 (x l r & x)
+=?= 7 | pqCase (BR 7 LF LF) 3 (x l r & x)
+=?= 3 | pqCase LF 3 (x l r & x)
 
 = pqEmpty LF
 
 = (pqNull t)
 | (t == pqEmpty)
 
-!!= 1 | pqNull LF
-!!= 0 | pqNull (BR 7 LF LF)
+=?= 1 | pqNull LF
+=?= 0 | pqNull (BR 7 LF LF)
 
 = (pqInsert cmp w t)
 ^ _ w t
@@ -114,7 +114,7 @@
 * LF NONE
 * (BR w _ _) (SOME w)
 
-!!= (SOME 7) | pqMin (BR 7 LF LF)
+=?= (SOME 7) | pqMin (BR 7 LF LF)
 
 = (heapify cmp ls)
 ^ _ (listLen ls) ls
@@ -149,10 +149,10 @@
 | pqFromList0 cmp
 | xs
 
-!!= ~[0 1 2 3 5 7 9 9]
+=?= ~[0 1 2 3 5 7 9 9]
   | pqSort  cmp ~[1 9 7 5 2 0 9 3]
 
-!!= ~[0 1 2 3 5 7 9 9]
+=?= ~[0 1 2 3 5 7 9 9]
   | pqSort0 cmp ~[1 9 7 5 2 0 9 3]
 
 ;; more sophisticated tests, examining laziness of pq values.
@@ -166,7 +166,7 @@
 @@ z=(n::z)
  z
 
-!!= 9
+=?= 9
   # datacase
       | pqMin
       | pqInsert cmpPairNatKey (9, repeat 3) pqEmpty
@@ -174,14 +174,14 @@
   * (SOME x) (idx 0 x)
 
 ; insert in ascending order of key
-!!= 110
+=?= 110
   @ ls0 (listGen 11 (x&[x (repeat x)]))
   @ pq (pqFromList0 cmpPairNatKey ls0)
   @ ls1 (pqToList cmpPairNatKey pq)
   | listSum (listMap (p&(add idx-0-p (listUnsafeHead idx-1-p))) ls1)
 
 ; insert in descending order of key
-!!= 110
+=?= 110
   @ ls0 (listGen 11 (x&[(sub 10 x) (repeat (sub 10 x))]))
   @ pq (pqFromList0 cmpPairNatKey ls0)
   @ ls1 (pqToList cmpPairNatKey pq)

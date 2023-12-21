@@ -104,10 +104,10 @@ oldHax=(.{#})
 @ funVal | idx 1 funBind
 | funVal st rex err ok
 
-!!= 255    | #0xff
-!!= 123123 | #123_123
-!!= 123123 | 123_123
-!!= 255    | 0xff
+=?= 255    | #0xff
+=?= 123123 | #123_123
+=?= 123123 | 123_123
+=?= 255    | 0xff
 
 = ({#foo} st rex err ok)
 | ok st (cnsE rex)
@@ -126,17 +126,17 @@ oldHax=(.{#})
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-!!= 1 | isTab #[1=2]
+=?= 1 | isTab #[1=2]
 
-!!= 1 | isTab #getenv
+=?= 1 | isTab #getenv
 
-!!= 1 | not (tabIsEmpty #getenv)
+=?= 1 | not (tabIsEmpty #getenv)
 
-!!= '((foo#bar)zaz) (foo#bar)zaz
+=?= '((foo#bar)zaz) (foo#bar)zaz
 
 ^-^ {#} {%} eql {#quote} tabKeysSet {#getenv}
 
-!!= (tabKeysSet #getenv)
+=?= (tabKeysSet #getenv)
   | %[{#} {%} {eql} {#quote} {tabKeysSet} {#getenv}]
 
 

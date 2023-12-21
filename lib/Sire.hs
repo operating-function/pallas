@@ -456,8 +456,8 @@ execute rex = do
             ( _,        "####" ) -> doEnter rex
             ( _,        "^-^"  ) -> doFilter rune mempty (Just rex)
             ( _,        "#^-^" ) -> doFilter rune mempty (Just rex)
-            ( _,        "!!="  ) -> doAssert rune rex
-            ( _,        "#!!=" ) -> doAssert rune rex
+            ( _,        "=?="  ) -> doAssert rune rex
+            ( _,        "#=?=" ) -> doAssert rune rex
             ( _,        "#/+"  ) -> doImport rex rune (Just rex)
             ( _,        "/+"   ) -> doImport rex rune (Just rex)
             _ | expRune rune     -> execExpr rex
@@ -1092,7 +1092,7 @@ execAssert (_xRex, xExp) (_yRex, yExp) = do
     let !yVal = eval yExp
 
     unless (xVal == yVal) do
-        let rx = OPEN "!!=" []
+        let rx = OPEN "=?=" []
                $ Just $ OPEN "*" [rexToPex $ fmap absurd $ planRex xVal]
                $ Just $ OPEN "*" [rexToPex $ fmap absurd $ planRex yVal]
                $ Nothing

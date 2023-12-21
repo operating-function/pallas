@@ -265,24 +265,24 @@
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= 1         | plan [VL-1]                                       RF-0
-!!= 1-1       | plan [VL-1 AP-1-(RF 0)-(RF 0)]                    RF-1
-!!= 1         | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)] RF-0
-!!= 1-1       | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)] RF-1
-!!= (1 1-1)   | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 0)-(RF 1)] RF-2
-!!= (1-1 1-1) | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)] RF-2
+=?= 1         | plan [VL-1]                                       RF-0
+=?= 1-1       | plan [VL-1 AP-1-(RF 0)-(RF 0)]                    RF-1
+=?= 1         | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)] RF-0
+=?= 1-1       | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)] RF-1
+=?= (1 1-1)   | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 0)-(RF 1)] RF-2
+=?= (1-1 1-1) | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)] RF-2
 
 ex=[VL-add AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 0) AP-3-(RF 2)-(RF 0)]
 
-2!!=(A RF-0 ex)
-1!!=(A RF-1 ex)
-0!!=(A RF-2 ex)
-0!!=(A RF-3 ex)
+2=?=(A RF-0 ex)
+1=?=(A RF-1 ex)
+0=?=(A RF-2 ex)
+0=?=(A RF-3 ex)
 
 ex=[VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)]
 
-!!= [1 [VL-1 VL-2 VL-3]] | collect VL-(1 2 3) ex
-!!= [1 [VL-1 RF-0 RF-1]] | collect RF-2       ex
+=?= [1 [VL-1 VL-2 VL-3]] | collect VL-(1 2 3) ex
+=?= [1 [VL-1 RF-0 RF-1]] | collect RF-2       ex
 
 
 ;;; Convenience Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -322,33 +322,33 @@ V=VALUE
 
 (eat x)=eat
 
-!!= 0                     | _Try 99
-!!= RIGHT-99              | _Try [99]
-!!= RIGHT-(0 1 2)         | _Try [0 1 2]
-!!= RIGHT-(0 1 2)         | _Try (1 2 1 0)
-!!= RIGHT-(0 1 2 3)       | _Try [0 1 2 3]
-!!= RIGHT-(PIN 4)         | _TryExp | A (A (V 3, V 3), A (V 3, V 3))
-!!= RIGHT-[]              | _Try [0 0 1 0]
-!!= RIGHT-(0 0)           | _Try [0 0]
-!!= RIGHT-(0 0 0)         | _Try [0 0 0]
-!!= LEFT-[0 0]            | _Try [0 0 0 0]
-!!= LEFT-[0 0]            | _Try [0 0 0 0 0]
-!!= RIGHT-[]              | _Try [[] []]
-!!= RIGHT-3               | _Try [0 0 1 3 0]
-!!= RIGHT-3               | _Try [const 3 4]
-!!= RIGHT-eat             | _Try [eat 3 4 5]
-!!= RIGHT-5               | _Try [1 0 0 0 3 4]
-!!= RIGHT-(1 2 3)         | _Try [1 0 0 1 0 2-3]
-!!= RIGHT-(1 pinItem-add) | _Try [1 1 0 0 0 add]
-!!= RIGHT-(1 0 1 0)       | _Try [1 0 1 0 0 []]
-!!= RIGHT-(1 0 4 0)       | _Try [1 0 1 0 0 (cow 3)]
-!!= RIGHT-6               | _Try [mul 2 3]
-!!= RIGHT-3               | _Try [force 3]
-!!= RIGHT-9               | _Try [seq 8 9]
-!!= RIGHT-1               | _Try [isNat 9]
-!!= RIGHT-1               | _Try [compose not not TRUE]
-!!= RIGHT-0               | _Try [eql 3 4]
-!!= RIGHT-1               | _Try [eql 4 4]
+=?= 0                     | _Try 99
+=?= RIGHT-99              | _Try [99]
+=?= RIGHT-(0 1 2)         | _Try [0 1 2]
+=?= RIGHT-(0 1 2)         | _Try (1 2 1 0)
+=?= RIGHT-(0 1 2 3)       | _Try [0 1 2 3]
+=?= RIGHT-(PIN 4)         | _TryExp | A (A (V 3, V 3), A (V 3, V 3))
+=?= RIGHT-[]              | _Try [0 0 1 0]
+=?= RIGHT-(0 0)           | _Try [0 0]
+=?= RIGHT-(0 0 0)         | _Try [0 0 0]
+=?= LEFT-[0 0]            | _Try [0 0 0 0]
+=?= LEFT-[0 0]            | _Try [0 0 0 0 0]
+=?= RIGHT-[]              | _Try [[] []]
+=?= RIGHT-3               | _Try [0 0 1 3 0]
+=?= RIGHT-3               | _Try [const 3 4]
+=?= RIGHT-eat             | _Try [eat 3 4 5]
+=?= RIGHT-5               | _Try [1 0 0 0 3 4]
+=?= RIGHT-(1 2 3)         | _Try [1 0 0 1 0 2-3]
+=?= RIGHT-(1 pinItem-add) | _Try [1 1 0 0 0 add]
+=?= RIGHT-(1 0 1 0)       | _Try [1 0 1 0 0 []]
+=?= RIGHT-(1 0 4 0)       | _Try [1 0 1 0 0 (cow 3)]
+=?= RIGHT-6               | _Try [mul 2 3]
+=?= RIGHT-3               | _Try [force 3]
+=?= RIGHT-9               | _Try [seq 8 9]
+=?= RIGHT-1               | _Try [isNat 9]
+=?= RIGHT-1               | _Try [compose not not TRUE]
+=?= RIGHT-0               | _Try [eql 3 4]
+=?= RIGHT-1               | _Try [eql 4 4]
 
 
 ;;; Test Mutual Recursion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -358,7 +358,7 @@ V=VALUE
      = y (3 :: x)
  | (listTake n x, listTake n y)
 
-!!= (_Try [silly 3])
+=?= (_Try [silly 3])
   | RIGHT
  ++ ~[2 3 2]
  ++ ~[3 2 3]

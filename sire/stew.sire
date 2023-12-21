@@ -17,7 +17,7 @@
 ;;;;
 ;;;; TODO: Parse all built-in command runes:
 ;;;;
-;;;; - [ ] !!=
+;;;; - [ ] =?=
 ;;;; - [ ] =
 ;;;; - [ ] *
 ;;;; - [ ] <
@@ -196,9 +196,9 @@
     | barAll isAlpha (natBar k)
 | WORD (if isKey k | showNat k) 0
 
-!!= 'a (showKey %a)
-!!= '5 (showKey 5)
-!!= '0 (showKey 0)
+=?= 'a (showKey %a)
+=?= '5 (showKey 5)
+=?= '0 (showKey 0)
 
 > (v > Rex) > Tab Any v > Rex
 = (showTab showVal tab)
@@ -225,19 +225,19 @@
 * (PLAW n a b) | ` @(LAW $(showPat n) $(showPat a) $(showPat b))
 * _            | {invalid pattern} p
 
-!!= (' #[])
+=?= (' #[])
   | showPat
   | PTAB #[]
 
-!!= '[x=x y=(!y)]
+=?= '[x=x y=(!y)]
   | showPat
   | PTAB [x=(PVAR %x) y=(PSEQ %y)]
 
-!!= '[x=(UNIT(..)) y=(!y)]
+=?= '[x=(UNIT(..)) y=(!y)]
   | showPat
   | PTAB [x=(POPN %UNIT) y=(PSEQ %y)]
 
-!!= ' x@[a b@[c !d]]
+=?= ' x@[a b@[c !d]]
   | showPat
   | PALI (PVAR %x)
   | PROW
@@ -384,27 +384,27 @@
     | else
         | WORD (showNat ref) 0
 
-!!= `foo.bar     | showQua {.} {foo} {bar}
-!!= `{f o}.{b r} | showQua {.} {f o} {b r}
-!!= `1.0         | showQua {.} 1 0
+=?= `foo.bar     | showQua {.} {foo} {bar}
+=?= `{f o}.{b r} | showQua {.} {f o} {b r}
+=?= `1.0         | showQua {.} 1 0
 
 ; TODO: Fix loot printing for {...\{...}.
 ; TODO: Fix vim highlighting for {...\{...}.
 
-!!= 'abc      | showRef {.} {abc}
-!!= '(.0)     | showRef {.} {}
-!!= '(.1)     | showRef {.} 1
-!!= '(.{a c}) | showRef {.} {a c}
+=?= 'abc      | showRef {.} {abc}
+=?= '(.0)     | showRef {.} {}
+=?= '(.1)     | showRef {.} 1
+=?= '(.{a c}) | showRef {.} {a c}
 
 = (mkApp row)
 | if (null row)
     | die {mkApp: function application with no function}
 | foldl EAPP (idx 0 row) (drop 1 row)
 
-!!= 1                            | mkApp [1]
-!!= (EAPP 1 2)                   | mkApp [1 2]
-!!= (EAPP (EAPP 1 2) 3)          | mkApp [1 2 3]
-!!= (EAPP (EAPP (EAPP 1 2) 3) 4) | mkApp [1 2 3 4]
+=?= 1                            | mkApp [1]
+=?= (EAPP 1 2)                   | mkApp [1 2]
+=?= (EAPP (EAPP 1 2) 3)          | mkApp [1 2 3]
+=?= (EAPP (EAPP (EAPP 1 2) 3) 4) | mkApp [1 2 3 4]
 
 = (showBind showExp [pat bind])
 | INFX "=" (showPat pat, showExp bind) 0
@@ -448,7 +448,7 @@
 * _              | {showExp: Unknown syntax} exp
 
 
-!!= ' (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#111 b#{asdf} (2 fanc))
+=?= ' (@ n 6516329)(@ fanc (**mkLaw n a b))(0 p#111 b#{asdf} (2 fanc))
   | showExp
   | ELET (PVAR {n}) (ENAT %inc)
   | ELET (PVAR {fanc})
@@ -463,30 +463,30 @@
   | EAPP (ENAT 2)
   | EREF %fanc
 
-!!= ' [%[0 a b] %[0] %[]]
+=?= ' [%[0 a b] %[0] %[]]
   | showExp
   | EROW (map ESET [%[0 a b] %[0] %[]])
 
-!!= ' [#[] [a=3] [us=[() ()]]]
+=?= ' [#[] [a=3] [us=[() ()]]]
   | showExp
   | EROW (map ETAB [#[] [a=(ENAT 3)] [us=(EROW [EUNT EUNT])]])
 
-!!= ' (& (x y))x
+=?= ' (& (x y))x
   | showExp
   | ELAM FALSE
   | FUN 0 0 FALSE (PVAR %x, PVAR %y) (EREF %x)
 
-!!= ' (? (const x y))x
+=?= ' (? (const x y))x
   | showExp
   | ELAM FALSE
   | FUN {const} {const} FALSE (PVAR %x, PVAR %y) (EREF %x)
 
-!!= ' (? (**const x y))x
+=?= ' (? (**const x y))x
   | showExp
   | ELAM FALSE
   | FUN {const} {const} TRUE (PVAR %x, PVAR %y) (EREF %x)
 
-!!= ' (^ (f _ y))x
+=?= ' (^ (f _ y))x
   | showExp
   | EKET (mkApp (EREF %f, EREF %_, EREF %y))
   | EREF %x
@@ -821,27 +821,27 @@
 !! expRound ' (# switch 3)(* 3 3)(* 4 4)(* _ 9)
 !! expRound ' #getenv
 
-!!= '[x=3 y=4]
+=?= '[x=3 y=4]
   ^ readExp _ v2 showExp
   ' #[x=3 y=4]
 
-!!= '[x=3 y=4]
+=?= '[x=3 y=4]
   ^ readExp _ v2 showExp
   ' #[{x}=3 {y}=4]
 
-!!= ' (@ f (? (f x))[x x])x
+=?= ' (@ f (? (f x))[x x])x
   ^ readExp _ v2 showExp
   ' @ (f x) [x x]
     | x
 
-!!= ' (@ x 3)(@ y 4)(@ z 5)[x y z]
+=?= ' (@ x 3)(@ y 4)(@ z 5)[x y z]
   ^ readExp _ v2 showExp
   ' @   = x 3
         = y 4
         = z 5
     | [x y z]
 
-!!= ' (# switch 3)(* 3 3)(* 4 4)(* _ 0)
+=?= ' (# switch 3)(* 3 3)(* 4 4)(* _ 0)
   ^ readExp _ v2 showExp
   ' # switch 3
     * 3 3
@@ -857,33 +857,33 @@
          | loop (inc i)
        | v2 (take i r) (drop i r)
 
-!!= '[x=3 y=4]
+=?= '[x=3 y=4]
   ^ readExp _ v2 showExp
   ' ## =x 3
     ## =y 4
 
-!!= '[300000 (0 57005)]
+=?= '[300000 (0 57005)]
   ^ readExp _ v2 showExp
   ' ++ 300_000
     ++ 0 0xD_E_A_D
 
-!!= '[3 (0 1)]
+=?= '[3 (0 1)]
   ^ readExp _ v2 showExp
   ' ++ 3
      | 0 1
 
 !! expRound '((# datacase a)(* NONE 0)(* (SOME x) x))
 
-!!= ' %[0 1 2 a b c]
+=?= ' %[0 1 2 a b c]
   ^ readExp _ v2 showExp
   ' %% a b c
     %% 0 1 2
 
-!!= ' (3 :: (4 :: (5 :: ~[])))
+=?= ' (3 :: (4 :: (5 :: ~[])))
   ^ readExp _ v2 showExp
   ' ~[3 4 5]
 
-!!= ' (3 :: (4 :: (5 :: ~[])))
+=?= ' (3 :: (4 :: (5 :: ~[])))
   ^ readExp _ v2 showExp
   ' ~~ 3
     ~~ 4
@@ -891,25 +891,25 @@
 
 !! expRound '(3 :: (4 :: (5 :: 6)))
 
-!!= '(3 :: (4 :: (5 :: 6)))
+=?= '(3 :: (4 :: (5 :: 6)))
   ^ readExp _ v2 showExp
   ' :: 3 4
     :: 5
     :: 6
 
-!!= '(3 == 4 == 5)
+=?= '(3 == 4 == 5)
   ^ readExp _ v2 showExp
   ' (3 == 4 == 5)
 
-!!= ' (3 /= 4)
+=?= ' (3 /= 4)
   ^ readExp _ v2 showExp
   ' (3 /= 4)
 
-!!= ' (1 && (2 && 3))
+=?= ' (1 && (2 && 3))
   ^ readExp _ v2 showExp
   ' (1 && 2 && 3)
 
-!!= ' (1 || (2 || 3))
+=?= ' (1 || (2 || 3))
   ^ readExp _ v2 showExp
   ' (1 || 2 || 3)
 
@@ -918,23 +918,23 @@
    * NONE     0
    * _        1
 
-!!= '(add (inc 2) (inc 383))
+=?= '(add (inc 2) (inc 383))
   ^ readExp _ v2 showExp
   ' | add
     * inc 2
     * inc 0x17f
 
-!!= '(add 2 (? (Foo x))(add x x))
+=?= '(add 2 (? (Foo x))(add x x))
   ^ readExp _ v2 showExp
   ' : ?(Foo x) < add 2
     | add x x
 
-!!= ' (^ (_ 3))(0 0)
+=?= ' (^ (_ 3))(0 0)
   ^ readExp _ v2 showExp
   ' ^ _ 3
     | 0 0
 
-!!= 'asdf
+=?= 'asdf
   ^ readExp _ v2 showExp
   ' .{asdf}
 
@@ -1313,82 +1313,82 @@
 = (comp ss exp)
 | compile ss exp
 
-!!= (comp [5] (ENAT 0))
+=?= (comp [5] (ENAT 0))
   | [[5] `($$0)]
 
-!!= (comp [5] (EAPP ENAT-0 ENAT-1))
+=?= (comp [5] (EAPP ENAT-0 ENAT-1))
   | [[5] `(#| $$0 $$1)]
 
-!!= (comp [5] (EEQL (ENAT 0, ENAT 1)))
+=?= (comp [5] (EEQL (ENAT 0, ENAT 1)))
   | [[5] `(#| $$eql $$0 $$1)]
 
-!!=   | comp [5] (EEQL (ENAT 0, ENAT 1, ENAT 2))
+=?=   | comp [5] (EEQL (ENAT 0, ENAT 1, ENAT 2))
  ++ [6]
  ++ `((#@ _g5 $$0)(#| $$and (#| $$eql _g5 $$1) (#| $$eql _g5 $$2)))
 
-!!=   | comp [5] (ELIN (EAPP ELIN-(EREF {id}) (ENAT 1)))
+=?=   | comp [5] (ELIN (EAPP ELIN-(EREF {id}) (ENAT 1)))
  ++ [5]
  ++ ` (#** (#| (#** id) $$1))
 
-!!= [[5] `(#| $$(%[a b c]) (#| $$(cow 3) (#| $$0 $$3) $$2 $$1))]
+=?= [[5] `(#| $$(%[a b c]) (#| $$(cow 3) (#| $$0 $$3) $$2 $$1))]
   | comp [5]
   | ETAB
  ## =a (ENAT 1)
  ## =b (ENAT 2)
  ## =c (EAPP ENAT-0 ENAT-3)
 
-!!=  ++ [5]
+=?=  ++ [5]
      ++ ` (#| $$tabSwitch foo z (#| $$(%[a b]) (#| $$(cow 2) y x)))
   ^ readExp _ (curry die) (comp [5])
   ' (# switch foo)(* {a} x)(* {b} y)z
 
-!!=  ++ [5]
+=?=  ++ [5]
      ++ ` (#| $$tabSwitch foo $$0 (#| $$(%[a]) (#| $$(cow 1) x)))
   ^ readExp _ (curry die) (comp [5])
   ' (# switch foo)(* {a} x)
 
 ; TODO Can these single-item switches be compiled to an if expression?
 
-!!= [[5] '((#?? ({id} x))x)]
+=?= [[5] '((#?? ({id} x))x)]
   | comp [5]
   | ELAM TRUE
   | FUN %id %id FALSE [(PVAR %x)] (EREF {x})
 
-!!= [[5] '((#?? (**{id} x))x)]
+=?= [[5] '((#?? (**{id} x))x)]
   | comp [5]
   | ELAM TRUE
   | FUN %id %id TRUE [(PVAR %x)] (EREF {x})
 
-!!= [[5] '((#& x)x)]
+=?= [[5] '((#& x)x)]
   | comp [5]
   | ELAM FALSE
   | FUN 0 0 FALSE [(PVAR %x)] (EREF {x})
 
-!!= [[5] '((#? ({f} x z))z)]
+=?= [[5] '((#? ({f} x z))z)]
   | comp [5]
   | ELAM FALSE
   | FUN {f} {f} FALSE (PVAR %x, PVAR %z) (EREF {z})
 
-!!=  ++ [7]
+=?=  ++ [7]
      ++ ` (#& _g5)(#@ _g6 _g5)(#@ x (#| $$(idx 0) _g6))(#@ z (#| $$(idx 1) _g6))z
   | comp [5]
   | ELAM FALSE
   | FUN 0 0 FALSE [(PROW (PVAR %x, PVAR %z))] (EREF {z})
 
-!!=  ++ [6]
+=?=  ++ [6]
      ++ ` (#@ _g5 (#| $$(cow 2) $$2 $$1))(#@ x (#| $$(idx 0) _g5))x
   | comp [5]
   | ELET (PROW [(PVAR %x)])
       | EROW (ENAT 1, ENAT 2)
   | EREF {x}
 
-!!=  ++ [5]
+=?=  ++ [5]
      ++ ` (#@ _ (#| $$0 $$1))(#| _ _)
   | comp [5]
   | EKET (EAPP EREF-{_} EREF-{_})
   | EAPP ENAT-0 ENAT-1
 
-!!=  ++ [5]
+=?=  ++ [5]
      ++ ` (#@@ (= x (#| $$(cow 2) x $$1)))(#| car x)
   | comp [5]
   | EREC
@@ -1397,7 +1397,7 @@
   | EAPP (EREF {car})
   | EREF {x}
 
-!!=  ++ [5]
+=?=  ++ [5]
      ++ ` (#@@ (= x (#| $$0 y))(= y (#| $$1 x)))(#| x y)
   | comp [5]
   | EREC
@@ -1408,7 +1408,7 @@
   | EAPP EREF-{x} EREF-{y}
 
 ; gross
-!!=  ++ [8] ;; TODO: This is wrong!!!  _tag9 is used, so state should be at 10.
+=?=  ++ [8] ;; TODO: This is wrong!!!  _tag9 is used, so state should be at 10.
      ++ rexClose
          `  #@ _core5
                 #? {lol} (_core5 _tag7 _arg6)
@@ -1443,7 +1443,7 @@
 = ssEx [5 {REPL} scope #[] props]
 
 ; such a beauty
-!!=  ++ put ssEx 0 8
+=?=  ++ put ssEx 0 8
      ++ rexClose
         ` #@ _g5 x
           #| $$switch (#| $$len _g5) $$1
@@ -1458,7 +1458,7 @@
  ++ CON_CASE {SOME} [(PVAR {x})] EREF-{x}
  ++ CON_CASE {NONE} []           ENAT-0
 
-!!=  ++ put ssEx 0 7
+=?=  ++ put ssEx 0 7
      ++ rexClose
         ` #@ _g5 sx
           #| $$tabSwitch (#| $$len _g5) $$0
@@ -1507,10 +1507,10 @@
 ( {||}  #= macaroniStew )
 ( {`}   #= macaroniStew )
 
-!!= 6 (@ a 3)(add a a)
-!!= 0 (3 == 4)
-!!= 1 (3 == 3)
-!!= 0 (3 == 3 == 4)
+=?= 6 (@ a 3)(add a a)
+=?= 0 (3 == 4)
+=?= 1 (3 == 3)
+=?= 0 (3 == 3 == 4)
 
 !! tabHas {%}    #getenv
 !! tabHas {sire} (get #getstate 3)  ;;  Modules table

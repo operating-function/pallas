@@ -67,15 +67,15 @@
 
 dataTag=_DataTag
 
-(0     !!= dataTag 0)
-(1     !!= dataTag 1)
-(2     !!= dataTag 2)
-({foo} !!= dataTag {foo})
-({bar} !!= dataTag [{bar} 9])
-(0     !!= dataTag [0 1 2 3])
-([3 4] !!= dataTag [a=3 b=4])
-(2     !!= dataTag (0 1 2))
-([]    !!= dataTag #[])
+(0     =?= dataTag 0)
+(1     =?= dataTag 1)
+(2     =?= dataTag 2)
+({foo} =?= dataTag {foo})
+({bar} =?= dataTag [{bar} 9])
+(0     =?= dataTag [0 1 2 3])
+([3 4] =?= dataTag [a=3 b=4])
+(2     =?= dataTag (0 1 2))
+([]    =?= dataTag #[])
 
 
 ;;; Opening Records ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -90,7 +90,7 @@ dataTag=_DataTag
 | if (c /= {_}) (c :: fixUnderscores cs)
 | fixUnderscores (toUpper d :: ds)
 
-!!= {mkTreeConfig} | constrToCamel %mk {TREE_CONFIG}
+=?= {mkTreeConfig} | constrToCamel %mk {TREE_CONFIG}
 
 = (defC sig bodyExp)
 | OPEN {#=} (sigE sig, bodyExp) 0
@@ -308,10 +308,10 @@ record#(Box a)#(BOX boxItem:a)
 
 ex=(PAIR %a %b)
 
-!!= (getFst ex)    | %a
-!!= (getSnd ex)    | %b
-!!= (setFst %x ex) | PAIR %x %b
-!!= (setSnd %x ex) | PAIR %a %x
+=?= (getFst ex)    | %a
+=?= (getSnd ex)    | %b
+=?= (setFst %x ex) | PAIR %x %b
+=?= (setSnd %x ex) | PAIR %a %x
 
 
 ;;; Datatypes ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -346,7 +346,7 @@ ex=(PAIR %a %b)
     | go acc that
 
 
-!!=  ++ [0 %FOO NONE [(0, {x}, 'a)]]
+=?=  ++ [0 %FOO NONE [(0, {x}, 'a)]]
      ++ [0 %BAR NONE [(0, {x}, 'b) (0, {y}, 'c) (0, {z}, 'd)]]
      ++ [0 %LOL NONE []]
   ^ readDataBranches _ v2 id
@@ -354,7 +354,7 @@ ex=(PAIR %a %b)
     * BAR x:b y:c z:d
     * LOL
 
-!!=  ++ [0 %FOO (SOME %f) [(0, {x}, 'a)]]
+=?=  ++ [0 %FOO (SOME %f) [(0, {x}, 'a)]]
      ++ [0 %BAR (SOME %b) [(0, {x}, 'b) (0, {y}, 'c) (0, {z}, 'd)]]
      ++ [0 %LOL (SOME %l) []]
   ^ readDataBranches _ v2 id
@@ -425,12 +425,12 @@ ex=(PAIR %a %b)
 * E_LEFT x:a
 * E_RIGHT x:b
 
-!!= 0        | getProp#(E_LEFT.conTag)
-!!= 1        | getProp#(E_LEFT.conAri)
-!!= _DataTag | getProp#(E_LEFT.conFun)
-!!= 1        | getProp#(E_RIGHT.conTag)
-!!= 1        | getProp#(E_RIGHT.conAri)
-!!= _DataTag | getProp#(E_RIGHT.conFun)
+=?= 0        | getProp#(E_LEFT.conTag)
+=?= 1        | getProp#(E_LEFT.conAri)
+=?= _DataTag | getProp#(E_LEFT.conFun)
+=?= 1        | getProp#(E_RIGHT.conTag)
+=?= 1        | getProp#(E_RIGHT.conAri)
+=?= _DataTag | getProp#(E_RIGHT.conFun)
 
 !! eql [0 9] | E_LEFT 9
 !! eql [1 8] | E_RIGHT 8
@@ -439,12 +439,12 @@ ex=(PAIR %a %b)
 * THIS=l x:a
 * THAT=r x:b
 
-!!= {l}      | getProp#(THIS.conTag)
-!!= 1        | getProp#(THIS.conAri)
-!!= _DataTag | getProp#(THIS.conFun)
-!!= {r}      | getProp#(THAT.conTag)
-!!= 1        | getProp#(THAT.conAri)
-!!= _DataTag | getProp#(THAT.conFun)
+=?= {l}      | getProp#(THIS.conTag)
+=?= 1        | getProp#(THIS.conAri)
+=?= _DataTag | getProp#(THIS.conFun)
+=?= {r}      | getProp#(THAT.conTag)
+=?= 1        | getProp#(THAT.conAri)
+=?= _DataTag | getProp#(THAT.conFun)
 
 !! eql [%l 9] | THIS 9
 !! eql [%r 8] | THAT 8
@@ -572,7 +572,7 @@ ex=(PAIR %a %b)
 : hasTag fun fb cases < resolveDatacase casesRex ss oFallback branches err
 | ok hasTag fun fb cases
 
-!!=  ++ TRUE
+=?=  ++ TRUE
      ++ dataTag
      ++ cnsE 0
      ++  ++ [0 0 []                  '[x {]}]         FALSE]
@@ -595,7 +595,7 @@ ex=(PAIR %a %b)
               ## =conRaw FALSE
   | readDatacaseBody [0 0 scope 0 props] xpr
 
-!!=  ++ TRUE
+=?=  ++ TRUE
      ++ dataTag
      ++ '[x { } (go xs)]
      ++  ++ [0 0 [] '[x {]}] FALSE]
@@ -620,7 +620,7 @@ ex=(PAIR %a %b)
 = xpr ' * _ 0
         * _ 0
 
-!!=  ++ xpr
+=?=  ++ xpr
      ++ {Only one fallback-pattern is allowed}
   | readDatacaseBody 0 xpr v2 v4
 
@@ -686,20 +686,20 @@ ex=(PAIR %a %b)
     * LNULL       [x {]}]
     * (LCONS _ _) [x { } (go xs)]
 
-!!= {[a b c]}
+=?= {[a b c]}
         | showList | LCONS %a | LCONS %b | LCONS %c LNULL
 
-!!= {hi} # datacase (LCONS 3 4)
+=?= {hi} # datacase (LCONS 3 4)
          * LNULL {bye}
          * _     {hi}
 
-!!= {hi} # datacase (LCONS 3 4)
+=?= {hi} # datacase (LCONS 3 4)
          * LNULL {byte}
          * _
          | {hi}
 
 ; TODO
-; !!= {hi} # datacase (LCONS 3 4)
+; =?= {hi} # datacase (LCONS 3 4)
 ;          * LNULL {bye}
 ;          | {hi}
 
@@ -748,7 +748,7 @@ setProp#(FALSE.conHas)#FALSE
 setProp#(FALSE.conRaw)#FALSE
 setProp#(FALSE.conTag)#zero
 
-!!= {true}
+=?= {true}
   # datacase TRUE
   * TRUE  {true}
   * FALSE {false}
@@ -768,7 +768,7 @@ setProp#(SOME.conFun)#len
 setProp#(SOME.conHas)#FALSE
 setProp#(SOME.conRaw)#FALSE
 
-!!= [{some} %x]
+=?= [{some} %x]
   # datacase (SOME %x)
   * NONE     | {none}
   * (SOME x) | [{some} x]
@@ -788,7 +788,7 @@ setProp#(NIL.conFun)#len
 setProp#(NIL.conHas)#FALSE
 setProp#(NIL.conRaw)#FALSE
 
-!!= {xyz abcd}
+=?= {xyz abcd}
   ^ _ ~[{x} {y} {z } {abcd}]
   ? (strCatList lis)
   # datacase lis
@@ -817,8 +817,8 @@ setProp#(RIGHT.conRaw)#FALSE
 * (LEFT x)  [{left} x]
 * (RIGHT x) [{right} x]
 
-!!= [%left  %x] | showEither | LEFT  | {x}
-!!= [%right %y] | showEither | RIGHT | {y}
+=?= [%left  %x] | showEither | LEFT  | {x}
+=?= [%right %y] | showEither | RIGHT | {y}
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

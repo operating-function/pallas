@@ -235,41 +235,41 @@ xy=(choice (char {x}) (char {y}))
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= OKAY-()       | parse_eof b#{}
-!!= FAIL-(b#EOF)  | parse_eof b#{x}
-!!= FAIL-(b#EOF)  | parse_eof b#{xy}
-!!= FAIL-(b#more) | parse_x b#{}
-!!= OKAY-{x}      | parse_x b#{x}
-!!= OKAY-{x}      | parse_x b#{xy}
-!!= FAIL-(b#y)    | parse_y b#{xy}
-!!= OKAY-{y}      | parse_xy b#{xy}
-!!= FAIL-(b#more) | parse_xy b#{x}
-!!= FAIL-(b#x)    | parse_xy b#{y}
-!!= FAIL-(b#x)    | parse_xx b#{xy}
-!!= OKAY-{x}      | parse_xx b#{xx}
+=?= OKAY-()       | parse_eof b#{}
+=?= FAIL-(b#EOF)  | parse_eof b#{x}
+=?= FAIL-(b#EOF)  | parse_eof b#{xy}
+=?= FAIL-(b#more) | parse_x b#{}
+=?= OKAY-{x}      | parse_x b#{x}
+=?= OKAY-{x}      | parse_x b#{xy}
+=?= FAIL-(b#y)    | parse_y b#{xy}
+=?= OKAY-{y}      | parse_xy b#{xy}
+=?= FAIL-(b#more) | parse_xy b#{x}
+=?= FAIL-(b#x)    | parse_xy b#{y}
+=?= FAIL-(b#x)    | parse_xx b#{xy}
+=?= OKAY-{x}      | parse_xx b#{xx}
 
-!!= OKAY-(CONS %x 0)         | parse_xys b#x
-!!= OKAY-NIL                 | parse_xys b#{}
-!!= OKAY-(~[%x %y])          | parse_xys b#xy
-!!= OKAY-(~[%y %x %y])       | parse_xys b#yxy
-!!= OKAY-(~[%y %y])          | parse_xys b#yy
-!!= FAIL-[(b#EOF) [b#x b#y]] | parse_xys b#z
+=?= OKAY-(CONS %x 0)         | parse_xys b#x
+=?= OKAY-NIL                 | parse_xys b#{}
+=?= OKAY-(~[%x %y])          | parse_xys b#xy
+=?= OKAY-(~[%y %x %y])       | parse_xys b#yxy
+=?= OKAY-(~[%y %y])          | parse_xys b#yy
+=?= FAIL-[(b#EOF) [b#x b#y]] | parse_xys b#z
 
-!!= OKAY-(~[%x %y %x]) | parse_many_xy b#xyxz
-!!= OKAY-(~[])         | parse_many_xy b#{}
-!!= OKAY-(~[])         | parse_many_xy b#{a}
-!!= OKAY-(~[%x])       | parse_many_xy b#{xa}
+=?= OKAY-(~[%x %y %x]) | parse_many_xy b#xyxz
+=?= OKAY-(~[])         | parse_many_xy b#{}
+=?= OKAY-(~[])         | parse_many_xy b#{a}
+=?= OKAY-(~[%x])       | parse_many_xy b#{xa}
 
-!!= OKAY-(~[%x %y %x])   | parse_some_xy b#xyxz
-!!= FAIL-[b#more b#more] | parse_some_xy b#{}
-!!= FAIL-[b#x b#y]       | parse_some_xy b#{a}
-!!= OKAY-(~[%x])         | parse_some_xy b#{xa}
+=?= OKAY-(~[%x %y %x])   | parse_some_xy b#xyxz
+=?= FAIL-[b#more b#more] | parse_some_xy b#{}
+=?= FAIL-[b#x b#y]       | parse_some_xy b#{a}
+=?= OKAY-(~[%x])         | parse_some_xy b#{xa}
 
-!!= OKAY-(b#xy) | parse_xy_xx b#{xy_}
-!!= FAIL-(b#y)  | parse_xy_xx b#{xx_}      ;;  LL(1), no back tracking
-!!= OKAY-(b#xy) | parse_xy_yx b#{xy_}
-!!= OKAY-(b#yx) | parse_xy_yx b#{yx_}      ;;  LL(1) is okay
-!!= OKAY-(b#xy) | parse_xy_xx_bt b#{xy_}
-!!= OKAY-(b#xx) | parse_xy_xx_bt b#{xx_}   ;;  explicit back-tracking (try)
-!!= OKAY-(b#xy) | parse_xy_xx_str b#{xy_}
-!!= OKAY-(b#xx) | parse_xy_xx_str b#{xx_}  ;;  LL(k), bar-slice matching
+=?= OKAY-(b#xy) | parse_xy_xx b#{xy_}
+=?= FAIL-(b#y)  | parse_xy_xx b#{xx_}      ;;  LL(1), no back tracking
+=?= OKAY-(b#xy) | parse_xy_yx b#{xy_}
+=?= OKAY-(b#yx) | parse_xy_yx b#{yx_}      ;;  LL(1) is okay
+=?= OKAY-(b#xy) | parse_xy_xx_bt b#{xy_}
+=?= OKAY-(b#xx) | parse_xy_xx_bt b#{xx_}   ;;  explicit back-tracking (try)
+=?= OKAY-(b#xy) | parse_xy_xx_str b#{xy_}
+=?= OKAY-(b#xx) | parse_xy_xx_str b#{xx_}  ;;  LL(k), bar-slice matching

@@ -73,13 +73,13 @@
 | add 10
 | sub toLower-c {a}
 
-!!= 255 | loadHexLit {0xff}
-!!= 255 | loadHexLit {0x_f_f_}
-!!= 14  | loadHexLit {0x0e}
-!!= 15  | loadHexLit {0x0f}
-!!= 15  | loadHexLit {0xf}
-!!= 240 | loadHexLit {0xf0}
-!!= 0   | loadHexLit {0x}
+=?= 255 | loadHexLit {0xff}
+=?= 255 | loadHexLit {0x_f_f_}
+=?= 14  | loadHexLit {0x0e}
+=?= 15  | loadHexLit {0x0f}
+=?= 15  | loadHexLit {0xf}
+=?= 240 | loadHexLit {0xf0}
+=?= 0   | loadHexLit {0x}
 
 ;; {loadKeyWord} parses something that is either a decimal literal or
 ;; a string.  It either parses the decimal number or casts the input string
@@ -96,12 +96,12 @@
 | listAll c&(or (eql c {_}) isHexDigit-c)
 | listDrop 2 strToList-str
 
-!!= 1 | isHexLit {0xff}
-!!= 1 | isHexLit {0x0e}
-!!= 1 | isHexLit {0x0f}
-!!= 1 | isHexLit {0xF0}
-!!= 0 | isHexLit {0x}
-!!= 0 | isHexLit {0xg}
+=?= 1 | isHexLit {0xff}
+=?= 1 | isHexLit {0x0e}
+=?= 1 | isHexLit {0x0f}
+=?= 1 | isHexLit {0xF0}
+=?= 0 | isHexLit {0x}
+=?= 0 | isHexLit {0xg}
 
 > Str > Nat
 = (loadKeyWord str)
@@ -112,21 +112,21 @@
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= {fdsa} (strWeld {} {fdsa})
-!!= {fdsa} (strWeld {f} {dsa})
+=?= {fdsa} (strWeld {} {fdsa})
+=?= {fdsa} (strWeld {f} {dsa})
 
 ; TODO: Why the fuck does this crash?  It makes no sense!  It's doing
 ; the same things as the other things??
-!!= {fdsa} (strWeld {f} {dsa})
+=?= {fdsa} (strWeld {f} {dsa})
 
-!!= [{f}]     (explode {f})
-!!= [255]     (explode 255)
-!!= [{f} {d}] (explode {fd})
+=?= [{f}]     (explode {f})
+=?= [255]     (explode 255)
+=?= [{f} {d}] (explode {fd})
 
-!!= 0 (strLen {})
-!!= 1 (strLen {a})
-!!= 2 (strLen {ab})
-!!= 3 (strLen {abc})
+=?= 0 (strLen {})
+=?= 1 (strLen {a})
+=?= 2 (strLen {ab})
+=?= 3 (strLen {abc})
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

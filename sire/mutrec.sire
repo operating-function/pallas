@@ -55,19 +55,19 @@
 | if mark        | err sigRex {can't inline mutually-recursive functions}
 | ret [sym binds body]
 
-!!= [[%f [[%v %x]] 'x] [%g [[%v %y]] '0]]
+=?= [[%f [[%v %x]] 'x] [%g [[%v %y]] '0]]
   | readCoreBody {=} readRex '((f x = x)(g y = 0)) v2 id
 
-!!= [[%f [[%r [[%v %x] [%v %y]]]] 'x]]
+=?= [[%f [[%r [[%v %x] [%v %y]]]] 'x]]
   | readCoreBody {=} readRex '((f [x y] = x)) v2 id
 
-!!= ['(*) {Not a core arm}]
+=?= ['(*) {Not a core arm}]
   | readCoreBody {=} readRex '((f x = x)(g y = 0)(*)) v2 id
 
-!!= ['(= f) {= node expects two parameters}]
+=?= ['(= f) {= node expects two parameters}]
   | readCoreBody {=} readRex '((= f|x x)(= f)) v2 id
 
-!!= ['(**f x) {can't inline mutually-recursive functions}]
+=?= ['(**f x) {can't inline mutually-recursive functions}]
   | readCoreBody {=} readRex '((**f x = x)(g y = 0)) v2 id
 
 = (readMutRecExp readExp rex err ok)
@@ -83,13 +83,13 @@
 : st sig bod < makeDestroyer st binds body
 | ret st [sym sig bod]
 
-!!=  ++ [5]
+=?=  ++ [5]
      ++ ++ [%f [%x] 'x]
         ++ [%g [%y] '0]
   ^ genCoreBody _ [5] v2
   | [[%f [[%v %x]] 'x] [%g [[%v %y]] '0]]
 
-!!=  ++ [7]
+=?=  ++ [7]
      ++  ++  ++ {f}
              ++ [{_g5}]
              ++ ` #@ _g6 _g5
@@ -104,7 +104,7 @@
 @ sig (NEST {|} (rowCons (varE nam) args) 0)
 | OPEN {#?} [(litE tag) sig] body
 
-!!= (taggedLamE %f 2 ['x 'y 'z] 'x)
+=?= (taggedLamE %f 2 ['x 'y 'z] 'x)
   ' #? 2 (f x y z)
      x
 
@@ -115,17 +115,17 @@
        ++ wildExp
 | bowE patExps
 
-!!= (matchE '[0 1 2] '0 ['1 '2 '3])
+=?= (matchE '[0 1 2] '0 ['1 '2 '3])
   `
  #| $$switch (#| $$(idx 0) [0 1 2]) 0
  #| $$(cow 3) 3 2 1
 
 (maxRow x)=(foldl max (idx 0 x) x)
 
-!!= 3 | maxRow [0 3 2]
-!!= 4 | maxRow [0 3 4]
-!!= 5 | maxRow [5 3 4]
-!!= 0 | maxRow []
+=?= 3 | maxRow [0 3 2]
+=?= 4 | maxRow [0 3 4]
+=?= 5 | maxRow [5 3 4]
+=?= 0 | maxRow []
 
 = (genMutRecE st coreTag letBody coreBody ok)
 ;
@@ -181,7 +181,7 @@
 : st rex                   < genMutRecE st coreTag letBody coreBody
 | ok st rex
 
-; !!= 1
+; =?= 1
 ;         @ e
 ;                 '
 ;                 # mutrec %loop (**loop start)
@@ -190,7 +190,7 @@
 ;         (.{#mutrec} 3 3 3 e v2 v4)
 
 
-; !!= 1
+; =?= 1
 ;         @ e
 ;                 ' (#mutrec %loop (f 3) (f x = x)(g a e = g a e))
 ;         (.{#mutrec} 3 3 3 e v2 v4)
@@ -215,10 +215,10 @@
 | switch b 0
 ++ ifNot x 0 (loop 0 0)
 
-!!= (car looper)     4
-!!= (cdr looper)     loopFun
-!!= (pinItem looper) loopFun
-!!= looper           (PIN loopFun)
+=?= (car looper)     4
+=?= (cdr looper)     loopFun
+=?= (pinItem looper) loopFun
+=?= looper           (PIN loopFun)
 
 = [even odd]
 # mutrec %even_odd [even odd]

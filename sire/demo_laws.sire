@@ -123,16 +123,16 @@ hexAlphabet=(natBar {0123456789abcdef})
 | add (bex sSz)
 | lsh bod (inc sSz)
 
-!!= (mat 0) | p#1
-!!= (mat 1) | p#01
-!!= (mat 2) | p#00100
-!!= (mat 3) | add (bex 5) 20
-!!= (mat 4) | add (bex 6) 12
-!!= (mat 5) | add (bex 6) 28
-!!= (mat 6) | add (bex 6) 44
-!!= (mat 7) | add (bex 6) 60
-!!= (mat 8) | add (bex 9) 8
-!!= (mat 9) | add (bex 9) 72
+=?= (mat 0) | p#1
+=?= (mat 1) | p#01
+=?= (mat 2) | p#00100
+=?= (mat 3) | add (bex 5) 20
+=?= (mat 4) | add (bex 6) 12
+=?= (mat 5) | add (bex 6) 28
+=?= (mat 6) | add (bex 6) 44
+=?= (mat 7) | add (bex 6) 60
+=?= (mat 8) | add (bex 9) 8
+=?= (mat 9) | add (bex 9) 72
 
 
 ;;; Some Monadic Operations on `Maybe` ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -200,9 +200,9 @@ hexAlphabet=(natBar {0123456789abcdef})
 | ok ss
 | appE (cnsE gte, x, y)
 
-!!= 0 (3 >= 4)
-!!= 1 (4 >= 4)
-!!= 1 (4 >= 3)
+=?= 0 (3 >= 4)
+=?= 1 (4 >= 4)
+=?= 1 (4 >= 3)
 
 
 ;;; Scratch Pad: Pronouncing Numbers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -227,9 +227,9 @@ hexAlphabet=(natBar {0123456789abcdef})
 ++ loop (div n 10)
 ++ natWords (mod n 10)
 
-!!= %ThreeFourFive natWords-345
-!!= %Zero          natWords-0
-!!= %OneZero       natWords-10
+=?= %ThreeFourFive natWords-345
+=?= %Zero          natWords-0
+=?= %OneZero       natWords-10
 
 
 ;;; Serialization ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -296,21 +296,21 @@ hexAlphabet=(natBar {0123456789abcdef})
 (pinHash val)=(| idx 0 | jar val)
 (pinBytz val)=(| idx 2 | jar val)
 
-!!= pinBytz-0       | x#0f
-!!= pinBytz-1       | x#1b
-!!= pinBytz-2       | x#93
-!!= pinBytz-3       | x#d3
-!!= pinBytz-(0 0)   | x#fe
-!!= pinBytz-(2 0 3) | x#4c3e0d
-!!= pinBytz-toNat   | x#f8c0f745f5e614462f67f2e906
+=?= pinBytz-0       | x#0f
+=?= pinBytz-1       | x#1b
+=?= pinBytz-2       | x#93
+=?= pinBytz-3       | x#d3
+=?= pinBytz-(0 0)   | x#fe
+=?= pinBytz-(2 0 3) | x#4c3e0d
+=?= pinBytz-toNat   | x#f8c0f745f5e614462f67f2e906
 
-!!= x#{9cfae4b4de9b0ccc3de9b3aa00408bc33f50ca116ed034263b76af95d8736f7f}
+=?= x#{9cfae4b4de9b0ccc3de9b3aa00408bc33f50ca116ed034263b76af95d8736f7f}
   | pinHash add
 
-!!= x#{6d28120be06cf59c81efac6a030495ff7f647985241a66aa2389b58ee9d3a9cf}
+=?= x#{6d28120be06cf59c81efac6a030495ff7f647985241a66aa2389b58ee9d3a9cf}
   | pinHash mul
 
-!!= x#{1cd7dcdd584a6a8944e33b039b5ef04058034db28cac1c2238c044f591bdf83d}
+=?= x#{1cd7dcdd584a6a8944e33b039b5ef04058034db28cac1c2238c044f591bdf83d}
   | pinHash cmp
 
 = (refsTable pin)
@@ -335,7 +335,7 @@ hexAlphabet=(natBar {0123456789abcdef})
 | loop acc (rexHeir rex)
 
 
-!!= [[%hi 'there] [%bye 'here]]
+=?= [[%hi 'there] [%bye 'here]]
   ^ readBindPairs _ v2 id
   ' ((hi=there)(bye=here))
 

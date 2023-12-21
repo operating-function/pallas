@@ -29,7 +29,7 @@
 ;;;;
 ;;;; Anyways, here's how the representation works:
 ;;;;
-;;;;     ('x !!= (WORD {x} 0))
+;;;;     ('x =?= (WORD {x} 0))
 ;;;;
 ;;;; Where WORD is:
 ;;;;
@@ -37,7 +37,7 @@
 ;;;;
 ;;;; So, the whole noun-tree is:
 ;;;;
-;;;;     ('x !!= 4 (0 {##WORD} 3 0) {x} 0)
+;;;;     ('x =?= 4 (0 {##WORD} 3 0) {x} 0)
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -83,12 +83,12 @@ SHUT=(.{##SHUT})
 | if (neq 3 | len rex) rex
 | mut 2 newRune rex
 
-("|" !!= rexRune (OPEN "|" v0 0))
-(0   !!= rexRune (WORD "hi" 0))
+("|" =?= rexRune (OPEN "|" v0 0))
+(0   =?= rexRune (WORD "hi" 0))
 
-(WORD "hi" 0   !!= rexSetRune "," (WORD "hi" 0))
-(EMBD "hi"     !!= rexSetRune "," (EMBD "hi"))
-(OPEN "," v0 0 !!= rexSetRune "," (OPEN "|" v0 0))
+(WORD "hi" 0   =?= rexSetRune "," (WORD "hi" 0))
+(EMBD "hi"     =?= rexSetRune "," (EMBD "hi"))
+(OPEN "," v0 0 =?= rexSetRune "," (OPEN "|" v0 0))
 
 ;;;;;;;;;;
 
@@ -100,13 +100,13 @@ SHUT=(.{##SHUT})
 | if (gte 1 len-rex) rex
 | mut 0 newHeir rex
 
-(5 !!= rexHeir (OPEN "|" v0 5))
-(5 !!= rexHeir (WORD "hi" 5))
-(0 !!= rexHeir (EMBD "hi"))
+(5 =?= rexHeir (OPEN "|" v0 5))
+(5 =?= rexHeir (WORD "hi" 5))
+(0 =?= rexHeir (EMBD "hi"))
 
-(WORD "hi" 5   !!= rexSetHeir 5 (WORD "hi" 0))
-(EMBD "hi"     !!= rexSetHeir 5 (EMBD "hi"))
-(OPEN "|" v0 5 !!= rexSetHeir 5 (OPEN "|" v0 0))
+(WORD "hi" 5   =?= rexSetHeir 5 (WORD "hi" 0))
+(EMBD "hi"     =?= rexSetHeir 5 (EMBD "hi"))
+(OPEN "|" v0 5 =?= rexSetHeir 5 (OPEN "|" v0 0))
 
 ;;;;;;;;;;
 
@@ -118,12 +118,12 @@ SHUT=(.{##SHUT})
 | if (neq 2 | len rex) rex
 | mut 1 newText rex
 
-(0             !!= rexText (OPEN "|" v0 5))
-("hi"          !!= rexText (WORD "hi" 5))
-(0             !!= rexText (EMBD "hi"))
-(WORD "yep" 0  !!= rexSetText "yep" (WORD "hi" 0))
-(EMBD "hi"     !!= rexSetText "yep" (EMBD "hi"))
-(OPEN "|" v0 0 !!= rexSetText "yep" (OPEN "|" v0 0))
+(0             =?= rexText (OPEN "|" v0 5))
+("hi"          =?= rexText (WORD "hi" 5))
+(0             =?= rexText (EMBD "hi"))
+(WORD "yep" 0  =?= rexSetText "yep" (WORD "hi" 0))
+(EMBD "hi"     =?= rexSetText "yep" (EMBD "hi"))
+(OPEN "|" v0 0 =?= rexSetText "yep" (OPEN "|" v0 0))
 
 ;;;;;;;;;;
 
@@ -135,12 +135,12 @@ SHUT=(.{##SHUT})
 | if (neq 3 | len rex) rex
 | mut 1 newSons rex
 
-(v0                !!= rexSons (OPEN "|" v0 5))
-(0                 !!= rexSons (WORD "hi" 5))
-(0                 !!= rexSons (EMBD "hi"))
-(WORD "hi" 0       !!= rexSetSons (v1 5) (WORD "hi" 0))
-(EMBD "hi"         !!= rexSetSons (v1 5) (EMBD "hi"))
-(OPEN "|" (v1 5) 0 !!= rexSetSons (v1 5) (OPEN "|" v0 0))
+(v0                =?= rexSons (OPEN "|" v0 5))
+(0                 =?= rexSons (WORD "hi" 5))
+(0                 =?= rexSons (EMBD "hi"))
+(WORD "hi" 0       =?= rexSetSons (v1 5) (WORD "hi" 0))
+(EMBD "hi"         =?= rexSetSons (v1 5) (EMBD "hi"))
+(OPEN "|" (v1 5) 0 =?= rexSetSons (v1 5) (OPEN "|" v0 0))
 
 ;;;;;;;;;;
 
@@ -152,12 +152,12 @@ SHUT=(.{##SHUT})
 | if (neq 1 | len rex) rex
 | EMBD newVal
 
-(0             !!= rexEmbd (OPEN "|" v0 5))
-(0             !!= rexEmbd (WORD "hi" 5))
-("hi"          !!= rexEmbd (EMBD "hi"))
-(WORD "hi" 0   !!= rexSetEmbd "hoe" (WORD "hi" 0))
-(EMBD "hoe"    !!= rexSetEmbd "hoe" (EMBD "hi"))
-(OPEN "|" v0 0 !!= rexSetEmbd "hoe" (OPEN "|" v0 0))
+(0             =?= rexEmbd (OPEN "|" v0 5))
+(0             =?= rexEmbd (WORD "hi" 5))
+("hi"          =?= rexEmbd (EMBD "hi"))
+(WORD "hi" 0   =?= rexSetEmbd "hoe" (WORD "hi" 0))
+(EMBD "hoe"    =?= rexSetEmbd "hoe" (EMBD "hi"))
+(OPEN "|" v0 0 =?= rexSetEmbd "hoe" (OPEN "|" v0 0))
 
 ;;;;;;;;;;
 
@@ -191,11 +191,11 @@ types=(v3 {EMBD} {LEAF} {NODE})
 ^ rsh _ 16
 | lawName | pinItem (head rex)
 
-({NEST} !!= rexStyle (NEST "," v0 0))
-({OPEN} !!= rexStyle (OPEN "x" (v1 | WORD "x" 0) 0))
-({WORD} !!= rexStyle (WORD {hi} 0))
-({TEXT} !!= rexStyle (TEXT {""} 0))
-({LINE} !!= rexStyle (LINE {} 0))
+({NEST} =?= rexStyle (NEST "," v0 0))
+({OPEN} =?= rexStyle (OPEN "x" (v1 | WORD "x" 0) 0))
+({WORD} =?= rexStyle (WORD {hi} 0))
+({TEXT} =?= rexStyle (TEXT {""} 0))
+({LINE} =?= rexStyle (LINE {} 0))
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -204,7 +204,7 @@ types=(v3 {EMBD} {LEAF} {NODE})
 ^ rsh _ 16
 | lawName | pinItem (head rex)
 
-({WORD} !!= rexStyle (WORD "hi" 0))
+({WORD} =?= rexStyle (WORD "hi" 0))
 
 = (**rexGetWord rex fall ok)
 | if (neq {WORD} rexStyle-rex) fall
@@ -298,22 +298,22 @@ types=(v3 {EMBD} {LEAF} {NODE})
 | ok st
 | EMBD (idx 0 args)
 
-({TEXT} !!= rexStyle '{#})
-(0      !!= rexHasHeir '(0 1 2))
-(1      !!= rexHasHeir '((0 1 2)9))
-('{foo} !!= '"foo")
+({TEXT} =?= rexStyle '{#})
+(0      =?= rexHasHeir '(0 1 2))
+(1      =?= rexHasHeir '((0 1 2)9))
+('{foo} =?= '"foo")
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= | OPEN {&} v0 0
+=?= | OPEN {&} v0 0
   ' &
 
-!!= | OPEN {*} v0 0
+=?= | OPEN {*} v0 0
   | rexSetRune {*}
   ' -
 
-!!= ' (f [x y])[z]
+=?= ' (f [x y])[z]
   | rexClose
   ' | f , x y
     , z
@@ -325,18 +325,18 @@ rw=(NEST {,} v0 0)
 e6=(EMBD 6)
 sx=(OPEN {=} (v2 wx w9) 0)
 
-(0 !!= rexIsNode hi)
-(0 !!= rexIsNode e6)
-(1 !!= rexIsNode sx)
-(1 !!= rexIsNode rw)
-(0 !!= rexIsEmbd hi)
-(0 !!= rexIsEmbd sx)
-(1 !!= rexIsEmbd e6)
-(1 !!= rexIsLeaf hi)
-(1 !!= rexIsLeaf wx)
-(0 !!= rexIsLeaf e6)
-(0 !!= rexIsEmbd sx)
-(0 !!= rexIsEmbd sx)
+(0 =?= rexIsNode hi)
+(0 =?= rexIsNode e6)
+(1 =?= rexIsNode sx)
+(1 =?= rexIsNode rw)
+(0 =?= rexIsEmbd hi)
+(0 =?= rexIsEmbd sx)
+(1 =?= rexIsEmbd e6)
+(1 =?= rexIsLeaf hi)
+(1 =?= rexIsLeaf wx)
+(0 =?= rexIsLeaf e6)
+(0 =?= rexIsEmbd sx)
+(0 =?= rexIsEmbd sx)
 
 (w x)=(WORD x 0)
 
@@ -344,12 +344,12 @@ sx=(OPEN {=} (v2 wx w9) 0)
 = (nestNod rune sons)      | NEST rune sons 0
 
 
-!!= 1 | eql '3        | (w {3})
-!!= 1 | eql '(3 4)    | nestNod {|} (v2 (w {3}) (w {4}))
-!!= 1 | eql '([a][b]) | nestAnd {,} (v1 (w {a}))
+=?= 1 | eql '3        | (w {3})
+=?= 1 | eql '(3 4)    | nestNod {|} (v2 (w {3}) (w {4}))
+=?= 1 | eql '([a][b]) | nestAnd {,} (v1 (w {a}))
                       | nestNod {,} (v1 (w {b}))
 
-!!= 1
+=?= 1
   | eql
       | NEST {*} (v2 (WORD {hi} 0) (WORD {yo} 0))
       | WORD {}
@@ -360,16 +360,16 @@ sx=(OPEN {=} (v2 wx w9) 0)
   | WORD {heh}
   | 0
 
-!!= {NEST} | rexStyle ' []
-!!= {OPEN} | rexStyle ' | x
-!!= {WORD} | rexStyle ' hi
-!!= {TEXT} | rexStyle ' {""}
-!!= {TEXT} | rexStyle ' }"}"
-!!= {LINE} | rexStyle ' }
+=?= {NEST} | rexStyle ' []
+=?= {OPEN} | rexStyle ' | x
+=?= {WORD} | rexStyle ' hi
+=?= {TEXT} | rexStyle ' {""}
+=?= {TEXT} | rexStyle ' }"}"
+=?= {LINE} | rexStyle ' }
 
-!!= (TEXT {foobar} 0) | rexClose (LINE "foobar" 0)
+=?= (TEXT {foobar} 0) | rexClose (LINE "foobar" 0)
 
-!!= '{foobar} | rexClose ' } foobar
+=?= '{foobar} | rexClose ' } foobar
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

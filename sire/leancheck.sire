@@ -18,7 +18,7 @@ listToTiers=listCat
 > List (List a) > List (List a)
 (delay ls)=(~[] :: ls)
 
-!!= (delay ~[~[0]])
+=?= (delay ~[~[0]])
   | ~[~[] ~[0]]
 
 > List (List a) > List (List a) > List (List a)
@@ -27,17 +27,17 @@ listToTiers=listCat
 : xs xss < listCase xss_ yss_
 | (listWeld xs ys :: tierSum xss yss)
 
-!!=   | tierSum ~[~[1]]
+=?=   | tierSum ~[~[1]]
                 ~[~[2] ~[3]]
  ~~ ~[1 2]
  ~~ ~[3]
 
-!!=   | tierSum ~[~[1] ~[2]]
+=?=   | tierSum ~[~[1] ~[2]]
                 ~[~[3]]
  ~~ ~[1 3]
  ~~ ~[2]
 
-!!=   | tierSum ~[~[1 2] ~[3 4]]
+=?=   | tierSum ~[~[1 2] ~[3 4]]
                 ~[~[5 6] ~[7 8]]
  ~~ ~[1 2 5 6]
  ~~ ~[3 4 7 8]
@@ -51,13 +51,13 @@ listToTiers=listCat
 | debug [{tierProd: xss + yss:} xss yss]
 | delay (tierProd xss yss)
 
-!!= (tierProd ~[~[1]] ~[~[2] ~[3]])
+=?= (tierProd ~[~[1]] ~[~[2] ~[3]])
   | ~[~[1,2] ~[1,3]]
 
-!!= (tierProd ~[~[1] ~[2]] ~[~[3]])
+=?= (tierProd ~[~[1] ~[2]] ~[~[3]])
   | ~[~[1,3] ~[2,3]]
 
-!!= (tierProd ~[~[1 2] ~[3 4]] ~[~[5 6] ~[7 8]])
+=?= (tierProd ~[~[1 2] ~[3 4]] ~[~[5 6] ~[7 8]])
   | :: ~[(1,5) (1,6) (2,5) (2,6)]
     :: ~[(1,7) (1,8) (2,7) (2,8) (3,5) (3,6) (4,5) (4,6)]
     :: ~[(3,7) (3,8) (4,7) (4,8)]
@@ -73,19 +73,19 @@ listToTiers=listCat
 | listFoldr f ~[]
 | listMap (listFoldr tierSum ~[]) ls
 
-!!= (concatT ~[~[~[~[1 2] ~[3]] ~[~[4]]]])
+=?= (concatT ~[~[~[~[1 2] ~[3]] ~[~[4]]]])
   | ~[~[1 2 4] ~[3]]
 
-!!= (concatT ~[~[~[~[1 2] ~[3]] ~[~[4] ~[5 6]]]])
+=?= (concatT ~[~[~[~[1 2] ~[3]] ~[~[4] ~[5 6]]]])
   | ~[~[1 2 4] ~[3 5 6]]
 
 > (a > List (List b)) > List (List a) > List (List b)
 (concatMapT f xss)=(concatT | mapT f xss)
 
-!!= (concatMapT (x & (~[~[(x,9)]])) ~[~[1] ~[2]])
+=?= (concatMapT (x & (~[~[(x,9)]])) ~[~[1] ~[2]])
   | ~[~[(1,9)] ~[(2,9)]]
 
-!!= (concatMapT (x & (~[~[(x,9)]])) ~[~[1 2] ~[3]])
+=?= (concatMapT (x & (~[~[(x,9)]])) ~[~[1 2] ~[3]])
   | ~[~[(1,9) (2,9)] ~[(3,9)]]
 
 
@@ -127,7 +127,7 @@ listToTiers=listCat
 | tierSum (cons0 0)
 | cons1 (add 1) (tiersNat 0)
 
-!!= (listTake 5 (tiersNat 0))
+=?= (listTake 5 (tiersNat 0))
   | ~[~[0] ~[1] ~[2] ~[3] ~[4]]
 
 > List (List a) > List (List b) > List (List (a, b))
@@ -148,7 +148,7 @@ tiersPair=tierProd
 | tierSum (cons0 ~[])
 | cons2 CONS (tiersPair tiers (tiersList tiers))
 
-!!= (listTake 4 (tiersList (tiersNat 0)))
+=?= (listTake 4 (tiersList (tiersNat 0)))
   | :: ~[~[]]
     :: ~[~[0]]
     :: ~[~[0 0] ~[1]]
@@ -174,7 +174,7 @@ tiersPair=tierProd
 | listFilter (p & (snd p == FALSE))
 | listTake n rs
 
-!!=   | counterExamples 6
+=?=   | counterExamples 6
       | getResults ([x y] & x==y)
       | tiersPair tiersNat-0 tiersNat-0
  ~~ (0,1)

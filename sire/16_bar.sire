@@ -158,12 +158,12 @@ barSpace=(barSing { })
 @ bit | foldr fun 0 byt
 | mkBar pad bit
 
-!!= (bytesBar [])      | 0 1 1 | 1
-!!= (bytesBar [0])     | 0 1 1 | 256
-!!= (bytesBar [255])   | 0 1 1 | 511
-!!= (bytesBar [0 0])   | 0 1 1 | 65536
-!!= (bytesBar [0 255]) | 0 1 1 | add 65536 (mul 255 256)
-!!= (bytesBar [255 0]) | 0 1 1 | add 65536 255
+=?= (bytesBar [])      | 0 1 1 | 1
+=?= (bytesBar [0])     | 0 1 1 | 256
+=?= (bytesBar [255])   | 0 1 1 | 511
+=?= (bytesBar [0 0])   | 0 1 1 | 65536
+=?= (bytesBar [0 255]) | 0 1 1 | add 65536 (mul 255 256)
+=?= (bytesBar [255 0]) | 0 1 1 | add 65536 255
 
 = (barGen n f)     | bytesBar (gen n f)
 = (barRep n v)     | barGen n (_ & v)
@@ -360,10 +360,10 @@ hexAlphabet=(b#{0123456789abcdef})
 @ place | mul 16 place
 | [place acc]
 
-!!= 0xff  | getHexBar b#{ff} 0 id
-!!= 0xff  | getHexBar b#{FF} 0 id
-!!= 0x123 | getHexBar b#{123} 0 id
-!!= 0     | getHexBar b#{1z3} 0 id
+=?= 0xff  | getHexBar b#{ff} 0 id
+=?= 0xff  | getHexBar b#{FF} 0 id
+=?= 0x123 | getHexBar b#{123} 0 id
+=?= 0     | getHexBar b#{1z3} 0 id
 
 ; {barLoadDecimal} parses a decimal number without validating, instead
 ; assuming that each character is in the appropriate range.
@@ -372,11 +372,11 @@ hexAlphabet=(b#{0123456789abcdef})
 & (acc c)
 | add (mul 10 acc) (ord c)
 
-!!= 2     | barLoadDecimal b#2
-!!= 19    | barLoadDecimal b#19
-!!= 293   | barLoadDecimal b#293
-!!= 4760  | barLoadDecimal b#4760
-!!= 12345 | barLoadDecimal b#12345
+=?= 2     | barLoadDecimal b#2
+=?= 19    | barLoadDecimal b#19
+=?= 293   | barLoadDecimal b#293
+=?= 4760  | barLoadDecimal b#4760
+=?= 12345 | barLoadDecimal b#12345
 
 ; {barShowDecimal} renders a nat to a decimal number.
 = (barShowDecimal n)
@@ -389,11 +389,11 @@ hexAlphabet=(b#{0123456789abcdef})
       | loop q
 | weld rec [(chr r)]
 
-!!= b#2     | barShowDecimal 2
-!!= b#19    | barShowDecimal 19
-!!= b#293   | barShowDecimal 293
-!!= b#4760  | barShowDecimal 4760
-!!= b#12345 | barShowDecimal 12345
+=?= b#2     | barShowDecimal 2
+=?= b#19    | barShowDecimal 19
+=?= b#293   | barShowDecimal 293
+=?= b#4760  | barShowDecimal 4760
+=?= b#12345 | barShowDecimal 12345
 
 ; TODO: {showBarLit} should use bare-words where possible (instead of
 ; always quoting everyting with TEXT)
@@ -408,20 +408,20 @@ hexAlphabet=(b#{0123456789abcdef})
    ++ WORD {x} 0
    ++ TEXT (barNat | barToHex bar) 0
 
-!!= (natBar-{asdf})       | readBarLit '(b#asdf) v2 id
-!!= ['(#b)    blTwoKids]  | readBarLit '(#b)     v2 id
-!!= ['(b#b#b) blTwoKids]  | readBarLit '(b#b#b)  v2 id
-!!= ['[]      blWantText] | readBarLit '(b#[])   v2 id
+=?= (natBar-{asdf})       | readBarLit '(b#asdf) v2 id
+=?= ['(#b)    blTwoKids]  | readBarLit '(#b)     v2 id
+=?= ['(b#b#b) blTwoKids]  | readBarLit '(b#b#b)  v2 id
+=?= ['[]      blWantText] | readBarLit '(b#[])   v2 id
 
-!!= (barFromHex {asdf})   | readBarLit '(x#asdf) v2 id
-!!= ['(#x)    blTwoKids]  | readBarLit '(#x)     v2 id
-!!= ['(x#x#x) blTwoKids]  | readBarLit '(x#x#x)  v2 id
-!!= ['[]      blWantText] | readBarLit '(x#[])   v2 id
+=?= (barFromHex {asdf})   | readBarLit '(x#asdf) v2 id
+=?= ['(#x)    blTwoKids]  | readBarLit '(#x)     v2 id
+=?= ['(x#x#x) blTwoKids]  | readBarLit '(x#x#x)  v2 id
+=?= ['[]      blWantText] | readBarLit '(x#[])   v2 id
 
-!!= b#{deadbeef}    | barToHex x#deadbeef
-!!= '(x#{deadbeef}) | showBarLit x#deadbeef
-!!= '(b#{deadbeef}) | showBarLit b#deadbeef
-!!= '(b#{})         | showBarLit x#{}
+=?= b#{deadbeef}    | barToHex x#deadbeef
+=?= '(x#{deadbeef}) | showBarLit x#deadbeef
+=?= '(b#{deadbeef}) | showBarLit b#deadbeef
+=?= '(b#{})         | showBarLit x#{}
 
 = (barFlat x)
 | if (isBar x) | x
@@ -438,19 +438,19 @@ hexAlphabet=(b#{0123456789abcdef})
 
 (barElemIndexOff byte off bar)=(barFindIndexOff (eql byte) off bar)
 
-!!= 0 (barElemIndexOff {c} 0 b#{caca})
-!!= 2 (barElemIndexOff {c} 1 b#{caca})
-!!= 2 (barElemIndexOff {c} 2 b#{caca})
-!!= 4 (barElemIndexOff {c} 3 b#{caca})
-!!= 4 (barElemIndexOff {c} 4 b#{caca})
-!!= 4 (barElemIndexOff {c} 5 b#{caca})
+=?= 0 (barElemIndexOff {c} 0 b#{caca})
+=?= 2 (barElemIndexOff {c} 1 b#{caca})
+=?= 2 (barElemIndexOff {c} 2 b#{caca})
+=?= 4 (barElemIndexOff {c} 3 b#{caca})
+=?= 4 (barElemIndexOff {c} 4 b#{caca})
+=?= 4 (barElemIndexOff {c} 5 b#{caca})
 
-!!= 1 (barElemIndexOff {c} 0 b#{acac})
-!!= 1 (barElemIndexOff {c} 1 b#{acac})
-!!= 3 (barElemIndexOff {c} 2 b#{acac})
-!!= 3 (barElemIndexOff {c} 3 b#{acac})
-!!= 4 (barElemIndexOff {c} 4 b#{acac})
-!!= 4 (barElemIndexOff {c} 5 b#{acac})
+=?= 1 (barElemIndexOff {c} 0 b#{acac})
+=?= 1 (barElemIndexOff {c} 1 b#{acac})
+=?= 3 (barElemIndexOff {c} 2 b#{acac})
+=?= 3 (barElemIndexOff {c} 3 b#{acac})
+=?= 4 (barElemIndexOff {c} 4 b#{acac})
+=?= 4 (barElemIndexOff {c} 5 b#{acac})
 
 = (barLinesList bar)
 @ wid (barLen bar)
@@ -463,7 +463,7 @@ hexAlphabet=(b#{0123456789abcdef})
 
 (barLines bar)=(listToRow | barLinesList bar)
 
-!!=   | barLinesList
+=?=   | barLinesList
       # b
       } hi
       } how
@@ -504,19 +504,19 @@ hexAlphabet=(b#{0123456789abcdef})
 | if isMatch (CONS found more)
 | else more
 
-!!= [0 [1 [2 0]]] | barSubstringSearch b#{} b#bba
-!!= [2 [6 0]]     | barSubstringSearch b#aa b#bbaabbaa
-!!= [2 [6 0]]     | barSubstringSearch b#aa b#bbaabbaa
-!!= [0 [1 0]]     | barSubstringSearch b#aa b#aaa
-!!= [0 [1 [2 0]]] | barSubstringSearch b#a b#aaa
+=?= [0 [1 [2 0]]] | barSubstringSearch b#{} b#bba
+=?= [2 [6 0]]     | barSubstringSearch b#aa b#bbaabbaa
+=?= [2 [6 0]]     | barSubstringSearch b#aa b#bbaabbaa
+=?= [0 [1 0]]     | barSubstringSearch b#aa b#aaa
+=?= [0 [1 [2 0]]] | barSubstringSearch b#a b#aaa
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= [%a [%b [%c 0]]] (barToList b#abc)
-!!= [%a %b %c]       (barToRow b#abc)
+=?= [%a [%b [%c 0]]] (barToList b#abc)
+=?= [%a %b %c]       (barToRow b#abc)
 
-!!= b#fdsafdsa (barWeld b#fds b#afdsa)
+=?= b#fdsafdsa (barWeld b#fds b#afdsa)
 
 = (checkBar expect pad nat)
 @ actual (barEnc pad nat)
@@ -526,77 +526,77 @@ hexAlphabet=(b#{0123456789abcdef})
 | and eql-pad-actPad
       eql-nat-actNat
 
-!!= 0 (barTrail 0x1ff)
-!!= 1 (barTrail 0x100ff)
-!!= 2 (barTrail 0x10000ff)
-!!= 3 (barTrail 0x1000000ff)
-!!= 0 (barTrail 0x2000000ff)
+=?= 0 (barTrail 0x1ff)
+=?= 1 (barTrail 0x100ff)
+=?= 2 (barTrail 0x10000ff)
+=?= 3 (barTrail 0x1000000ff)
+=?= 0 (barTrail 0x2000000ff)
 
-!!= 1 | bit (barHas %a b#{abc})
-!!= 1 | bit (barHas %b b#{abc})
-!!= 1 | bit (barHas %c b#{abc})
-!!= 1 | not (barHas %d b#{abc})
+=?= 1 | bit (barHas %a b#{abc})
+=?= 1 | bit (barHas %b b#{abc})
+=?= 1 | bit (barHas %c b#{abc})
+=?= 1 | not (barHas %d b#{abc})
 
-!!= 1 | bit (barHas 16 x#{102030})
-!!= 1 | bit (barHas 32 x#{102030})
-!!= 1 | bit (barHas 48 x#{102030})
-!!= 1 | not (barHas 45 x#{102030})
+=?= 1 | bit (barHas 16 x#{102030})
+=?= 1 | bit (barHas 32 x#{102030})
+=?= 1 | bit (barHas 48 x#{102030})
+=?= 1 | not (barHas 45 x#{102030})
 
-!!= 1 | checkBar 1     0 0
-!!= 1 | checkBar 257   0 1
-!!= 1 | checkBar 511   0 255
-!!= 1 | checkBar 65792 0 256
-!!= 1 | checkBar 256   1 0
-!!= 1 | checkBar 65791 1 255
-!!= 1 | checkBar 65536 2 0
+=?= 1 | checkBar 1     0 0
+=?= 1 | checkBar 257   0 1
+=?= 1 | checkBar 511   0 255
+=?= 1 | checkBar 65792 0 256
+=?= 1 | checkBar 256   1 0
+=?= 1 | checkBar 65791 1 255
+=?= 1 | checkBar 65536 2 0
 
-!!= 1 | barIsEmpty b#{}
+=?= 1 | barIsEmpty b#{}
 
-!!= [b#a b#zn]           (barSplitAt 1 b#azn)
-!!= [b#a b#n]            (barSplitOne %z b#azn)
-!!= [b#a b#aba b#n]      (listToRow | barSplit { } b#{a aba n})
-!!= [b#a b#aba b#n b#{}] (listToRow | barSplit { } b#{a aba n })
+=?= [b#a b#zn]           (barSplitAt 1 b#azn)
+=?= [b#a b#n]            (barSplitOne %z b#azn)
+=?= [b#a b#aba b#n]      (listToRow | barSplit { } b#{a aba n})
+=?= [b#a b#aba b#n b#{}] (listToRow | barSplit { } b#{a aba n })
 
-!!= b#{}  (barDropWhile (eql %a) b#{})
-!!= b#bcd (barDropWhile (eql %a) b#bcd)
-!!= b#bcd (barDropWhile (eql %a) b#aaabcd)
+=?= b#{}  (barDropWhile (eql %a) b#{})
+=?= b#bcd (barDropWhile (eql %a) b#bcd)
+=?= b#bcd (barDropWhile (eql %a) b#aaabcd)
 
 
-!!= b#bcd (barSlice 1 3 b#abcde)
-!!= b#bc  (barSlice 1 5 b#abc)
+=?= b#bcd (barSlice 1 3 b#abcde)
+=?= b#bc  (barSlice 1 5 b#abc)
 
-!!= NONE      (barElemIndexEnd {/} b#{})
-!!= (SOME 0)  (barElemIndexEnd {/} b#{/})
-!!= (SOME 1)  (barElemIndexEnd {/} b#{//})
+=?= NONE      (barElemIndexEnd {/} b#{})
+=?= (SOME 0)  (barElemIndexEnd {/} b#{/})
+=?= (SOME 1)  (barElemIndexEnd {/} b#{//})
 
-!!= b#abc | barFromRow [%a %b %c]
-!!= b#bc  | barFilter (neq %a) b#abc
-!!= b#ac  | barFilter (neq %b) b#abc
-!!= b#bcd | barMap inc b#abc
+=?= b#abc | barFromRow [%a %b %c]
+=?= b#bc  | barFilter (neq %a) b#abc
+=?= b#ac  | barFilter (neq %b) b#abc
+=?= b#bcd | barMap inc b#abc
 
-!!= b#aabbcc | barCatMap (x & barFromRow [x x]) b#abc
+=?= b#aabbcc | barCatMap (x & barFromRow [x x]) b#abc
 
-!!= b#x  | barSing %x
-!!= b#xy | barDuo  %x %y
+=?= b#x  | barSing %x
+=?= b#xy | barDuo  %x %y
 
 
 ;;; Test _BarSliceToNat ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= 0x11 | _BarSliceToNat 0 1 x#11223344
-!!= 0x22 | _BarSliceToNat 1 1 x#11223344
-!!= 0x33 | _BarSliceToNat 2 1 x#11223344
-!!= 0x44 | _BarSliceToNat 3 1 x#11223344
-!!= 0x00 | _BarSliceToNat 4 1 x#11223344
+=?= 0x11 | _BarSliceToNat 0 1 x#11223344
+=?= 0x22 | _BarSliceToNat 1 1 x#11223344
+=?= 0x33 | _BarSliceToNat 2 1 x#11223344
+=?= 0x44 | _BarSliceToNat 3 1 x#11223344
+=?= 0x00 | _BarSliceToNat 4 1 x#11223344
 
-!!= 0x2211 | _BarSliceToNat 0 2 x#11223344
-!!= 0x3322 | _BarSliceToNat 1 2 x#11223344
-!!= 0x4433 | _BarSliceToNat 2 2 x#11223344
-!!= 0x0044 | _BarSliceToNat 3 2 x#11223344
-!!= 0x0000 | _BarSliceToNat 4 2 x#11223344
+=?= 0x2211 | _BarSliceToNat 0 2 x#11223344
+=?= 0x3322 | _BarSliceToNat 1 2 x#11223344
+=?= 0x4433 | _BarSliceToNat 2 2 x#11223344
+=?= 0x0044 | _BarSliceToNat 3 2 x#11223344
+=?= 0x0000 | _BarSliceToNat 4 2 x#11223344
 
-!!= 0x44332211   | _BarSliceToNat 0 4 x#11223344
-!!= 0x0044332211 | _BarSliceToNat 0 5 x#11223344
-!!= 0x0000443322 | _BarSliceToNat 1 5 x#11223344
+=?= 0x44332211   | _BarSliceToNat 0 4 x#11223344
+=?= 0x0044332211 | _BarSliceToNat 0 5 x#11223344
+=?= 0x0000443322 | _BarSliceToNat 1 5 x#11223344
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

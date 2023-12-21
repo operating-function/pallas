@@ -27,24 +27,24 @@
 @ acc (barSlice off sid buf :: acc)
 | go acc (inc | add off sid)
 
-!!= (NIL, b#asdf) | consumeLines | b#asdf
+=?= (NIL, b#asdf) | consumeLines | b#asdf
 
-!!= (~[b#foo], b#bar)
+=?= (~[b#foo], b#bar)
   | consumeLines | # b } foo
                        } bar
 
-!!= (~[b#foo b#bar], b#{})
+=?= (~[b#foo b#bar], b#{})
   | consumeLines | # b } foo
                        } bar
                        }
 
-!!= (~[b#foo b#bar b#{}], b#{})
+=?= (~[b#foo b#bar b#{}], b#{})
   | consumeLines | # b } foo
                        } bar
                        }
                        }
 
-!!= (~[b#foo b#bar b#{}], b#{xyz})
+=?= (~[b#foo b#bar b#{}], b#{xyz})
   | consumeLines | # b } foo
                        } bar
                        }
@@ -81,11 +81,11 @@
     | (barWeld output moreOutput, cog)
 | (output, lineRepl cog leftover)
 
-!!= (b#{asdf#hi}, lineRepl catCog b#{'hi'})
+=?= (b#{asdf#hi}, lineRepl catCog b#{'hi'})
   | lineRepl catCog b#{asdf#} # b } hi
                                   } 'hi'
 
-!!= (b#{'hi'}, lineRepl catCog b#{})
+=?= (b#{'hi'}, lineRepl catCog b#{})
   | lineRepl catCog b#{'hi'} b#{}
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -112,7 +112,7 @@ barDoubleNewline=(barDuo newlineChar newlineChar)
 | map (compose rexShow blockToRex)
 | output
 
-!!=   ^ (_, lineRepl (rexRepl 3,NONE) b#{})
+=?=   ^ (_, lineRepl (rexRepl 3,NONE) b#{})
       # b } | asdf
           }
           } asdf

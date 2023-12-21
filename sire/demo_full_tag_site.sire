@@ -152,7 +152,7 @@ typedef#Tag#Str
 
 (mkBarPath path)=(barFlat (b#{/}, listIntersperse b#{/} (listFromRow path)))
 
-!!= (mkBarPath [b#{a} b#{b}])
+=?= (mkBarPath [b#{a} b#{b}])
    b#{/a/b}
 
 = (getFilename path)
@@ -160,7 +160,7 @@ typedef#Tag#Str
 * NONE           | {weird filename} path
 * (SOME lastIdx) | barDrop (inc lastIdx) path
 
-!!= (getFilename b#{http://blah/blah/two.html})
+=?= (getFilename b#{http://blah/blah/two.html})
    b#{two.html}
 
 ; Set of images from derpibooru where there was a proper non-deleted API
@@ -350,24 +350,24 @@ abstype#Image ;; TODO: fix.  What is the real type?
 * Search | parseSearch jsonBS
 * Status | SOME 0 ; STATUSCMD (but #datatype generated [0], not 0)
 
-!!= NONE | parseCmd b#{"}
-!!= NONE | parseCmd b#{{"x":3}}
-!!= NONE | parseCmd b#{[]}
+=?= NONE | parseCmd b#{"}
+=?= NONE | parseCmd b#{{"x":3}}
+=?= NONE | parseCmd b#{[]}
 
-!!= (SOME [1 5 [%x]])
+=?= (SOME [1 5 [%x]])
   | parseCmd b#{{"tag": "Search", "contents": {"offset":5, "tags":["x"]}}}
 
-!!= NONE
+=?= NONE
   | parseCmd b#{{"tag": "bonk",   "contents": {"offset":0, "tags":["x"]}}}
 
-!!= NONE
+=?= NONE
   | parseCmd b#{{"tag": "Search", "contents": [234]}}
 
-!!= SOME-[1 8 [%x %y]]
+=?= SOME-[1 8 [%x %y]]
   | parseCmd
   | b#{{"tag": "Search", "contents": {"offset":8, "tags":["x", "y"]}}}
 
-!!= (SOME 0)
+=?= (SOME 0)
   | parseCmd b#{{"tag": "Status"}}
 
 (tagToStr t)=(JSTR | natBar t)

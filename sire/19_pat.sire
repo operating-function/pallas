@@ -74,7 +74,7 @@
 | if isVar id (letE tmpVar rowExpr)
 | go (listIndexed | listFromRow lhs)
 
-!!= (destructureRowE %_g1 [%x %y %z] '(a b) (appE ['x 'y]))
+=?= (destructureRowE %_g1 [%x %y %z] '(a b) (appE ['x 'y]))
        `
        #@ _g1 (a b)
        #@ x (#| $$(idx 0) _g1)
@@ -82,7 +82,7 @@
        #@ z (#| $$(idx 2) _g1)
         (#| x y)
 
-!!= (destructureRowE %_g1 [%x %y %z] 'yo (appE ['x 'y]))
+=?= (destructureRowE %_g1 [%x %y %z] 'yo (appE ['x 'y]))
        `
        #@ x (#| $$(idx 0) yo)
        #@ y (#| $$(idx 1) yo)
@@ -254,46 +254,46 @@
 | else
     | err rex {Unknown binding pattern}
 
-!!= (parseBinder `[x y z] v2 id)
+=?= (parseBinder `[x y z] v2 id)
  ++ %r
  ++  ++ [%v %x]
      ++ [%v %y]
      ++ [%v %z]
 
-!!= (parseBinder '[x FOO(..)] v2 id)
+=?= (parseBinder '[x FOO(..)] v2 id)
  ++ %r
  ++  ++ [%v %x]
      ++ [%o %FOO]
 
-!!= (parseBinder '[x y !z] v2 id)
+=?= (parseBinder '[x y !z] v2 id)
  ++ %r
  ++  ++ [%v %x]
      ++ [%v %y]
      ++ [%s %z]
 
-!!= (parseBinder '(#[=x y=b]) v2 id)
+=?= (parseBinder '(#[=x y=b]) v2 id)
  ++ %t
  ++  ## =x [%v %x]
      ## =y [%v %b]
 
-!!= (parseBinder '[=x y=b] v2 id)
+=?= (parseBinder '[=x y=b] v2 id)
  ++ %t
  ++  ## =x [%v %x]
      ## =y [%v %b]
 
-!!= (parseBinder '[#[=x] [y]] v2 id)
+=?= (parseBinder '[#[=x] [y]] v2 id)
  ++ %r
  ++  ++ [%t #[x=[%v %x]]]
      ++ [%r [[%v %y]]]
 
-!!= (parseBinder '(foo@[#[=x] [y]]) v2 id)
+=?= (parseBinder '(foo@[#[=x] [y]]) v2 id)
  ++ %a
  ++ [%v {foo}]
  ++  ++ %r
      ++  ++ [%t #[x=[%v {x}]]]
          ++ [%r [[%v {y}]]]
 
-!!= (parseBinder '[x y] v2 id)
+=?= (parseBinder '[x y] v2 id)
  ++ %r
  ++  ++ [%v %x]
      ++ [%v %y]
@@ -407,17 +407,17 @@
 ;
 | [ss (weld soFar extra) (weld deps depend)]
 
-!!=    ++ 5
+=?=    ++ 5
        ++ [[0 %y ('x)]]
        ++ []
     | sequenceBinds 5 [[[%v %y] 'x]]
 
-!!=    ++ 5
+=?=    ++ 5
        ++ [[0 %y ('x)]]
        ++ [{y}]
     | sequenceBinds 5 [[[%s %y] 'x]]
 
-!!=    ++ [8]
+=?=    ++ [8]
        ++  ++ [0 {_g5}  `(foo foo)]
            ++ [0 {_g6}  `(#| $$(idx 0) _g5)]
            ++ [0 %x     `(#| $$(idx 0) _g6)]
@@ -431,7 +431,7 @@
        ++ [%r [[%s %y]]]
    ++ '(foo foo)
 
-!!=
+=?=
        ++ [8]
        ++  ++ [0 {_g5}  `(foo foo)]
            ++ [0 {_g6}  `(#| $$(idx 0) _g5)]
@@ -464,7 +464,7 @@
     | foldr addDep body deps
 | foldr addBind depBody binds
 
-!!=    `
+=?=    `
        #@ _g5  (foo foo)
        #@ _g6  (#| $$(idx 1)     _g5)
        #@ y    (#| $$(idx 0)     _g6)
@@ -501,7 +501,7 @@
 | ok
 | rowCons RIGHT-[bind exp] more
 
-!!= (readMultiBinder readRex '((= x 3)(= y 3 4)) v2 id)
+=?= (readMultiBinder readRex '((= x 3)(= y 3 4)) v2 id)
         [RIGHT-[[%v %x] '3] RIGHT-[[%v %y] '(#| 3 4)]]
 
 
@@ -523,16 +523,16 @@
 | and (gte (len sons) 2)
 | isLambdaHead (fst sons)
 
-!!= 1 | isLambdaBinder '(f x)
-!!= 1 | isLambdaBinder '(**f x)
-!!= 1 | isLambdaBinder '((** f) x)
-!!= 1 | isLambdaBinder '((**)f x)
-!!= 0 | isLambdaBinder '((** f x) x)
-!!= 0 | isLambdaBinder 'f
-!!= 0 | isLambdaBinder '(f)
-!!= 0 | isLambdaBinder '(| f)
-!!= 1 | isLambdaBinder '(f a b c)
-!!= 0 | isLambdaBinder '[]
+=?= 1 | isLambdaBinder '(f x)
+=?= 1 | isLambdaBinder '(**f x)
+=?= 1 | isLambdaBinder '((** f) x)
+=?= 1 | isLambdaBinder '((**)f x)
+=?= 0 | isLambdaBinder '((** f x) x)
+=?= 0 | isLambdaBinder 'f
+=?= 0 | isLambdaBinder '(f)
+=?= 0 | isLambdaBinder '(| f)
+=?= 1 | isLambdaBinder '(f a b c)
+=?= 0 | isLambdaBinder '[]
 
 
 ;;; Pattern Matching on Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -554,7 +554,7 @@
 | letE tmp tabExp
 | (go (tabToList bindings))
 
-!!= (destructureTabE 9 #[x=(%y) p=(%q)] 'tabby '(add y q) v2)
+=?= (destructureTabE 9 #[x=(%y) p=(%q)] 'tabby '(add y q) v2)
         | v2 10
         `
        #@ _g9 tabby
@@ -562,7 +562,7 @@
        #@ y (#| $$tabIdx $(cnsE %x) _g9)
         (add y q)
 
-!!= (destructureTabE 9 #[] 'tabby '(add y q) v2)
+=?= (destructureTabE 9 #[] 'tabby '(add y q) v2)
         | v2 10
         `
        #@ _g9 tabby
@@ -589,10 +589,10 @@
     : bin < parseBinder rex err
     | ok [bin]
 
-!!= ,[[%v %a] [%v %b] [%v %c]]
+=?= ,[[%v %a] [%v %b] [%v %c]]
         | readBindSig '(a b c) v2 v1
 
-!!= [[[%r [[%v %x] [%s %a]]] [%v %y] [%s %z]]]
+=?= [[[%r [[%v %x] [%s %a]]] [%v %y] [%s %z]]]
         | readBindSig '([x !a] y !z) v2 v1
 
 = symSigExpect } Expected `x` or signature `(x y z)`
@@ -649,15 +649,15 @@
 
 (tryRBSS x)=(readDestroyer x v2 v3)
 
-!!= [%a 0 [[%v %b] [%v %c]]]                | tryRBSS '(a b c)
-!!= [%a 1 [[%v %b] [%v %c]]]                | tryRBSS '(**a b c)
-!!= [%a 0 [[%v %b] [%r [[%v %c] [%v %d]]]]] | tryRBSS '(a b [c d])
-!!= [%a 0 []]                               | tryRBSS 'a
-!!= [%a 0 []]                               | tryRBSS '(a)
-!!= [%a 0 []]                               | tryRBSS '(| a)
-!!= ['[a b] sigExpect]                      | tryRBSS '[a b]
-!!= ['([][]) sigExpect]                     | tryRBSS '([][])
-!!= ['((|)[]) sigNoHeir]                    | tryRBSS '((|)[])
+=?= [%a 0 [[%v %b] [%v %c]]]                | tryRBSS '(a b c)
+=?= [%a 1 [[%v %b] [%v %c]]]                | tryRBSS '(**a b c)
+=?= [%a 0 [[%v %b] [%r [[%v %c] [%v %d]]]]] | tryRBSS '(a b [c d])
+=?= [%a 0 []]                               | tryRBSS 'a
+=?= [%a 0 []]                               | tryRBSS '(a)
+=?= [%a 0 []]                               | tryRBSS '(| a)
+=?= ['[a b] sigExpect]                      | tryRBSS '[a b]
+=?= ['([][]) sigExpect]                     | tryRBSS '([][])
+=?= ['((|)[]) sigNoHeir]                    | tryRBSS '((|)[])
 
 
 ;;; Generic Pattern Matching ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -737,49 +737,49 @@
 : ss resultRex < multiLetE ss binds body
 | ok ss resultRex
 
-!!= 7
+=?= 7
        @ [x y z] [3 4]
        | (add x (add y z))
 
-!!= 7
+=?= 7
        @ [!x !y !z] [3 4]
        | (add x (add y z))
 
-!!= 7
+=?= 7
        @ #[=x =y =z] #[y=4 z=3]
        | (add x (add y z))
 
-!!= 7
+=?= 7
        @ #[x=(!x) =y =z] #[y=4 z=3]
        | (add x (add y z))
 
-!!= [5 3 0 3 4 3]
+=?= [5 3 0 3 4 3]
         @ t       | 3
         @ [x y z] | [t 4 5]
         | [z x 0 x y x]
 
-!!= [[0 3 5 4 0] 3 4]
+=?= [[0 3 5 4 0] 3 4]
         @ f 5
         @ [p q r s]  [3 4 f]
         @ #[x=a =y]  #[x=3 y=4]
         | [[s p r q s] a y]
 
-!!= 5
+=?= 5
         @ (addTwo x) (add x 2)
         | addTwo 3
 
-!!= 5
+=?= 5
         @ (uncurry f [x y]) (f x y)
         | uncurry add [2 3]
 
-!!= [4 3]
+=?= [4 3]
         @   = x     | 3
             = y     | x
             = z     | [x (inc y)]
             = [a b] | z
         [b a]
 
-!!= [500 200 1001]
+=?= [500 200 1001]
         @ #[pos=[px py pz] vel=[vx vy vz]]
                ## =pos [500 200 1]
                ## =vel [0 0 1000]
@@ -787,7 +787,7 @@
        ++ add py vy
        ++ add pz vz
 
-!!=  [11 22 33]
+=?=  [11 22 33]
     @ (addV3 [x1 y1 z1] [x2 y2 z2])
         ++ add x1 x2
         ++ add y1 y2
@@ -813,9 +813,9 @@
 k=(**k a b ?? a)
 k9=(a & k 9 a)
 
-!!= 5           | (uncurry f [x y] ? f x y) add [2 3]
-!!= (a & k 9 a) | (a&9)
-!!= ~[0 0 0]    | listTake 3 @@ z=(0::z) z
+=?= 5           | (uncurry f [x y] ? f x y) add [2 3]
+=?= (a & k 9 a) | (a&9)
+=?= ~[0 0 0]    | listTake 3 @@ z=(0::z) z
 
 
 ;;; Anon Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -828,11 +828,11 @@ k9=(a & k 9 a)
 | lamE sig
 | bodyExpr
 
-!!= 5 | [x y]&(add x y) [2 3]
+=?= 5 | [x y]&(add x y) [2 3]
 
-!!= 5 | (f [x y] & f x y) add [2 3]
+=?= 5 | (f [x y] & f x y) add [2 3]
 
-!!= #[x=0 y=1 z=2]
+=?= #[x=0 y=1 z=2]
      | foldr ([k v] t & tabIns k v t) #[] [[%x 0] [%y 1] [%z 2]]
 
 
@@ -884,19 +884,19 @@ k9=(a & k 9 a)
 | else
     | err rex {Expected two kids}
 
-!!=  ++ 0
+=?=  ++ 0
      ++ [%v %x]
      ++ '3
   ^ parseDefine _ v2 id
   ' = x 3
 
-!!=  ++ 99
+=?=  ++ 99
      ++ [%v %x]
      ++ '3
   ^ parseDefine _ v2 id
   ' = 99 x 3
 
-!!=  ++ 0
+=?=  ++ 0
      ++ [%r [%v %x],[%v %y]]
      ++ '3
   ^ parseDefine _ v2 id
@@ -907,7 +907,7 @@ k9=(a & k 9 a)
 ;;     That way these two cases would slot right together, and we must
 ;;     do something like that already with `@ (f x) ...` patterns?
 
-!!=  ++ 0
+=?=  ++ 0
      ++ %f
      ++ FALSE
      ++ ([%v %x], [%r ([%v %y], [%v %z])])
@@ -915,7 +915,7 @@ k9=(a & k 9 a)
   ^ parseDefine _ v2 id
   ' = (f x [y z]) y
 
-!!=  ++ 0
+=?=  ++ 0
      ++ %f
      ++ TRUE
      ++ ([%v %x], [%r ([%v %y], [%v %z])])
@@ -930,7 +930,7 @@ k9=(a & k 9 a)
 | CONS (rexSetHeir 0 rex)
 | unrollTis heir
 
-!!=  ~~ ' = x     3
+=?=  ~~ ' = x     3
      ~~ ' = (f x) 3
      ~~ ' = [x y]
           , 1 2
@@ -975,67 +975,67 @@ k9=(a & k 9 a)
 
 = (weird [[[x]] #[=y a=z]]) [x y z]
 
-!!= [3 9 8] (weird [[[3]] #[y=9 a=8]])
+=?= [3 9 8] (weird [[[3]] #[y=9 a=8]])
 
 [x y]=[3 4]
 [a b]=[3 4]
 
-!!= x 3
-!!= y 4
-!!= a 3
-!!= b 4
+=?= x 3
+=?= y 4
+=?= a 3
+=?= b 4
 
 = [x y] [3 4]
 = [a b] [3 4]
 
-!!= x 3
-!!= y 4
-!!= a 3
-!!= b 4
+=?= x 3
+=?= y 4
+=?= a 3
+=?= b 4
 
 = x@[a b c] [9 8 7]
 
-!!= x [9 8 7]
-!!= a 9
-!!= b 8
-!!= c 7
+=?= x [9 8 7]
+=?= a 9
+=?= b 8
+=?= c 7
 
 = (!p)@[q r s] [9 8 7]
 
-!!= p [9 8 7]
-!!= q 9
-!!= r 8
-!!= s 7
+=?= p [9 8 7]
+=?= q 9
+=?= r 8
+=?= s 7
 
 = [n o _]@[_ _ w] [9 8 7]
 
-!!= [n o w] [9 8 7]
+=?= [n o w] [9 8 7]
 
-!!= 1
+=?= 1
     : ?(self x) < (k & k {self})
     | and (eql x {self})
           (eql x lawName-self)
 
-!!= 1
+=?= 1
     : ??(self x) < (k & k {self})
     | and (eql x {self})
           (| eql x | lawName | pinItem self)
 
 * = (**k x y) | x
   = (k9 x)    | k 9 x
-* (9 !!= lawBody (pinItem k9))
+* (9 =?= lawBody (pinItem k9))
 
 ;; TODO: consider removing the law-binding pattern: @ (f x) x ...
 
-!!= 5
+=?= 5
         @ @(PIN five)  (4 5)
         | five
 
-!!= ({f}, 1, 1)
+=?= ({f}, 1, 1)
         @ @(LAW n a b)  (f x ? x)
         [n a b]
 
-!!= [6 5]
+=?= [6 5]
         @ @(CELL x y)  [5 6]
         [y x]
 
@@ -1044,7 +1044,7 @@ k9=(a & k 9 a)
 @ (k9 a)=(k 9 a)
 | **k9 x
 
-!!= foo (foo a ?? 9)
+=?= foo (foo a ?? 9)
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

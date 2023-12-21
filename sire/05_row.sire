@@ -247,124 +247,124 @@
 = (rowCons x xs)  | weld (v1 x) xs
 = (rowSnoc xs x)  | weld xs (v1 x)
 
-!!= (rowCons 3 v0)       (v1 3)
-!!= (rowCons 3 (v1 4))   (v2 3 4)
-!!= (rowCons 3 (v2 4 5)) (v3 3 4 5)
+=?= (rowCons 3 v0)       (v1 3)
+=?= (rowCons 3 (v1 4))   (v2 3 4)
+=?= (rowCons 3 (v2 4 5)) (v3 3 4 5)
 
-!!= (rowSnoc v0 3)       (v1 3)
-!!= (rowSnoc (v1 3) 4)   (v2 3 4)
-!!= (rowSnoc (v2 3 4) 5) (v3 3 4 5)
+=?= (rowSnoc v0 3)       (v1 3)
+=?= (rowSnoc (v1 3) 4)   (v2 3 4)
+=?= (rowSnoc (v2 3 4) 5) (v3 3 4 5)
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (FOO x y k)=(k x y)
 
-!!= (foldr FOO {z} (v0))       | {z}
-!!= (foldl FOO {z} (v0))       | {z}
-!!= (foldr FOO {z} (v3 1 2 3)) | FOO 1 | FOO 2 | FOO 3 {z}
-!!= (foldl FOO {z} (v3 1 2 3)) | FOO (FOO (FOO {z} 1) 2) 3
-!!= (foldl FOO {z} 1)          | {z}
-!!= (foldl FOO {z} (0 1))      | FOO {z} 1
-!!= (foldl FOO {z} (0 2 1))    | FOO (FOO {z} 1) 2
+=?= (foldr FOO {z} (v0))       | {z}
+=?= (foldl FOO {z} (v0))       | {z}
+=?= (foldr FOO {z} (v3 1 2 3)) | FOO 1 | FOO 2 | FOO 3 {z}
+=?= (foldl FOO {z} (v3 1 2 3)) | FOO (FOO (FOO {z} 1) 2) 3
+=?= (foldl FOO {z} 1)          | {z}
+=?= (foldl FOO {z} (0 1))      | FOO {z} 1
+=?= (foldl FOO {z} (0 2 1))    | FOO (FOO {z} 1) 2
 
-!!= (v3 1 2 3) | weld (v0) (v3 1 2 3)
-!!= (v3 1 2 3) | weld (v1 1) (v2 2 3)
-!!= (v3 1 2 3) | weld (v2 1 2) (v1 3)
-!!= (v3 1 2 3) | weld (v3 1 2 3) (v0)
+=?= (v3 1 2 3) | weld (v0) (v3 1 2 3)
+=?= (v3 1 2 3) | weld (v1 1) (v2 2 3)
+=?= (v3 1 2 3) | weld (v2 1 2) (v1 3)
+=?= (v3 1 2 3) | weld (v3 1 2 3) (v0)
 
-!!= 1 | isRow v0
-!!= 1 | isRow (v1 1)
-!!= 1 | isRow (v2 1 2)
-!!= 1 | not (isRow (0 0 3 (v2 0 1)))
-!!= 1 | not (isRow isRow)
+=?= 1 | isRow v0
+=?= 1 | isRow (v1 1)
+=?= 1 | isRow (v2 1 2)
+=?= 1 | not (isRow (0 0 3 (v2 0 1)))
+=?= 1 | not (isRow isRow)
 
-!!= (v3 3 4 5) | caaar  (v3 3 4 5) 5 4 3
-!!= (v2 3 4)   | caar   (v2 3 4)   4 3
-!!= (v1 3)     | car    (v1 3)     3
-!!= (v0)       | car    (v0)       0
-!!= (v1 3)     | caar   (v1 3)     0 3
-!!= (v2 3 4)   | caaar  (v2 3 4)   0 4 3
-!!= (v3 3 4 5) | caaaar (v3 3 4 5) 0 5 4 3
+=?= (v3 3 4 5) | caaar  (v3 3 4 5) 5 4 3
+=?= (v2 3 4)   | caar   (v2 3 4)   4 3
+=?= (v1 3)     | car    (v1 3)     3
+=?= (v0)       | car    (v0)       0
+=?= (v1 3)     | caar   (v1 3)     0 3
+=?= (v2 3 4)   | caaar  (v2 3 4)   0 4 3
+=?= (v3 3 4 5) | caaaar (v3 3 4 5) 0 5 4 3
 
-!!= 3 | len (v3 0 0 0)
-!!= 2 | len (v2 0 0)
-!!= 1 | len (v1 0)
-!!= 0 | len (v0)
+=?= 3 | len (v3 0 0 0)
+=?= 2 | len (v2 0 0)
+=?= 1 | len (v1 0)
+=?= 0 | len (v0)
 
-!!= 1 | null (v0)
-!!= 0 | null (v1 {x})
+=?= 1 | null (v0)
+=?= 0 | null (v1 {x})
 
-!!= 1 | eql 3 arity-0
-!!= 1 | eql 5 arity-1
-!!= 1 | eql 3 arity-2
-!!= 1 | eql 1 arity-3
-!!= 1 | eql 1 arity-4
-!!= 1 | eql 1 arity-5
+=?= 1 | eql 3 arity-0
+=?= 1 | eql 5 arity-1
+=?= 1 | eql 3 arity-2
+=?= 1 | eql 1 arity-3
+=?= 1 | eql 1 arity-4
+=?= 1 | eql 1 arity-5
 
-!!= 1 | arity arity
-!!= 1 | arity 3
-!!= 1 | arity 4
-!!= 1 | arity 0-1-2
+=?= 1 | arity arity
+=?= 1 | arity 3
+=?= 1 | arity 4
+=?= 1 | arity 0-1-2
 
-!!= 1 | eql 2 arity-(0 0)
-!!= 1 | eql 3 arity-0
+=?= 1 | eql 2 arity-(0 0)
+=?= 1 | eql 3 arity-0
 
-!!= 1 | cdr (0 0 2 0 1)
-!!= 1 | cdr (0 0 3 0 2 1)
-!!= 1 | cdr car-(0 0 3 0 1 2)
+=?= 1 | cdr (0 0 2 0 1)
+=?= 1 | cdr (0 0 3 0 2 1)
+=?= 1 | cdr car-(0 0 3 0 1 2)
 
-!!= 1 | eql 0 | len v0
-!!= 1 | len (v1 0)
-!!= 1 | eql 1 | len (v1 0)
+=?= 1 | eql 0 | len v0
+=?= 1 | len (v1 0)
+=?= 1 | eql 1 | len (v1 0)
 
-!!= 1 | eql 2 | len (v2 0 0)
-!!= 1 | eql 0 | len 0
-!!= 1 | eql 1 | len (0 1)
+=?= 1 | eql 2 | len (v2 0 0)
+=?= 1 | eql 0 | len 0
+=?= 1 | eql 1 | len (0 1)
 
-!!= 1 | eql 0 | idx 0 2
-!!= 1 | eql 3 | idx 0 (2 3)
-!!= 1 | eql 4 | idx 0 (2 3 4)
-!!= 1 | eql 3 | idx 1 (2 3 4)
-!!= 1 | eql 0 | idx 2 (2 3 4)
+=?= 1 | eql 0 | idx 0 2
+=?= 1 | eql 3 | idx 0 (2 3)
+=?= 1 | eql 4 | idx 0 (2 3 4)
+=?= 1 | eql 3 | idx 1 (2 3 4)
+=?= 1 | eql 0 | idx 2 (2 3 4)
 
-!!= 1 | eql 0 | idx 0 1
-!!= 1 | eql 1 | idx 0 (1 0 1)
-!!= 1 | eql 0 | idx 1 (1 0 1)
-!!= 1 | eql 0 | idx 2 (1 0 1)
+=?= 1 | eql 0 | idx 0 1
+=?= 1 | eql 1 | idx 0 (1 0 1)
+=?= 1 | eql 0 | idx 1 (1 0 1)
+=?= 1 | eql 0 | idx 2 (1 0 1)
 
-!!= 1 | eql 0 | get 1 0
-!!= 1 | eql 1 | get (1 0 1) 0
-!!= 1 | eql 0 | get (1 0 1) 1
-!!= 1 | eql 0 | get (1 0 1) 2
+=?= 1 | eql 0 | get 1 0
+=?= 1 | eql 1 | get (1 0 1) 0
+=?= 1 | eql 0 | get (1 0 1) 1
+=?= 1 | eql 0 | get (1 0 1) 2
 
-!!= 1 | null-get
-!!= 1 | null-0
-!!= 1 | not null-(0 {x})
+=?= 1 | null-get
+=?= 1 | null-0
+=?= 1 | not null-(0 {x})
 
-!!= 1        | uncurry sub (v2 4 3)
-!!= (v2 3 4) | curry id 3 4
+=?= 1        | uncurry sub (v2 4 3)
+=?= (v2 3 4) | curry id 3 4
 
-!!= 7 | rowApply add (v2 4 3)
-!!= 1 | rowApply sub (v2 4 3)
-!!= 7 | rowRepel add (v2 3 4)
-!!= 1 | rowRepel sub (v2 3 4)
+=?= 7 | rowApply add (v2 4 3)
+=?= 1 | rowApply sub (v2 4 3)
+=?= 7 | rowRepel add (v2 3 4)
+=?= 1 | rowRepel sub (v2 3 4)
 
-!!= (FOO 0 1) | rowApply FOO (v2 0 1)
-!!= (2 0 1)   | rowApply FOO (v3 0 1 2)
-!!= 1         | rowApply add (v2 0 1)
-!!= (1 1)     | rowApply add (v3 0 1 1)
-!!= (1 1)     | rowApply add (v2 0 1) 1
-!!= (1 1 1)   | rowApply add (v2 0 1) 1 1
+=?= (FOO 0 1) | rowApply FOO (v2 0 1)
+=?= (2 0 1)   | rowApply FOO (v3 0 1 2)
+=?= 1         | rowApply add (v2 0 1)
+=?= (1 1)     | rowApply add (v3 0 1 1)
+=?= (1 1)     | rowApply add (v2 0 1) 1
+=?= (1 1 1)   | rowApply add (v2 0 1) 1 1
 
-!!= (rowRepel FOO (v2 1 0))   | FOO 0 1
-!!= (rowRepel FOO (v3 2 1 0)) | 2 0 1
+=?= (rowRepel FOO (v2 1 0))   | FOO 0 1
+=?= (rowRepel FOO (v3 2 1 0)) | 2 0 1
 
-!!= (v3 5 4 3) | rev | v3 3 4 5
-!!= (v0)       | rev | v0
+=?= (v3 5 4 3) | rev | v3 3 4 5
+=?= (v0)       | rev | v0
 
-!!= 1        | uncurry sub (v2 4 3)
-!!= (v2 3 4) | curry id 3 4
+=?= 1        | uncurry sub (v2 4 3)
+=?= (v2 3 4) | curry id 3 4
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

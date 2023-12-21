@@ -95,17 +95,17 @@
 @ !acc (add (mul 10 acc) (sub c {0}))
 | go acc inc-ix
 
-!!= NONE            | parseNat b#{}
-!!= NONE            | parseNat b#{_}
-!!= NONE            | parseNat b#{a}
-!!= NONE            | parseNat b#{_0}
-!!= NONE            | parseNat b#{a0}
-!!= SOME-5          | parseNat b#{5}
-!!= SOME-5          | parseNat b#{5}
-!!= SOME-55         | parseNat b#{55}
-!!= NONE            | parseNat b#{55_}
-!!= NONE            | parseNat b#{5_5}
-!!= SOME-9876543210 | parseNat b#{9876543210}
+=?= NONE            | parseNat b#{}
+=?= NONE            | parseNat b#{_}
+=?= NONE            | parseNat b#{a}
+=?= NONE            | parseNat b#{_0}
+=?= NONE            | parseNat b#{a0}
+=?= SOME-5          | parseNat b#{5}
+=?= SOME-5          | parseNat b#{5}
+=?= SOME-55         | parseNat b#{55}
+=?= NONE            | parseNat b#{55_}
+=?= NONE            | parseNat b#{5_5}
+=?= SOME-9876543210 | parseNat b#{9876543210}
 
 (datatype#Leaf)(* DECI=DECI _:Nat)(* IDNT=IDNT _:Str)(* CORD=CORD _:Str)
 
@@ -121,23 +121,23 @@
 | ifNot isDigit-c       | SOME (IDNT txt)
 | else                  | fmapMaybe (parseNat natBar-txt) DECI
 
-!!= SOME-(DECI 345)    | tryReadLeaf `345
-!!= NONE               | tryReadLeaf `345(x)
-!!= SOME-(IDNT {_3})   | tryReadLeaf `_3
-!!= NONE               | tryReadLeaf {345}
-!!= SOME-(CORD {345})  | tryReadLeaf `{345}
-!!= SOME-(DECI 0)      | tryReadLeaf `0
-!!= NONE               | tryReadLeaf `0xff
-!!= SOME-(IDNT {foo})  | tryReadLeaf `foo
-!!= SOME-(IDNT {_foo}) | tryReadLeaf `_foo
-!!= NONE               | tryReadLeaf `0foo
-!!= NONE               | tryReadLeaf `foo[]
-!!= SOME-(CORD {foo})  | tryReadLeaf `{foo}
-!!= SOME-(IDNT {_})    | tryReadLeaf `_
-!!= SOME-(CORD {foo})  | tryReadLeaf `{foo}
-!!= SOME-(IDNT {foo})  | tryReadLeaf `foo
-!!= NONE               | tryReadLeaf `{foo}[]
-!!= NONE               | tryReadLeaf `} foo
+=?= SOME-(DECI 345)    | tryReadLeaf `345
+=?= NONE               | tryReadLeaf `345(x)
+=?= SOME-(IDNT {_3})   | tryReadLeaf `_3
+=?= NONE               | tryReadLeaf {345}
+=?= SOME-(CORD {345})  | tryReadLeaf `{345}
+=?= SOME-(DECI 0)      | tryReadLeaf `0
+=?= NONE               | tryReadLeaf `0xff
+=?= SOME-(IDNT {foo})  | tryReadLeaf `foo
+=?= SOME-(IDNT {_foo}) | tryReadLeaf `_foo
+=?= NONE               | tryReadLeaf `0foo
+=?= NONE               | tryReadLeaf `foo[]
+=?= SOME-(CORD {foo})  | tryReadLeaf `{foo}
+=?= SOME-(IDNT {_})    | tryReadLeaf `_
+=?= SOME-(CORD {foo})  | tryReadLeaf `{foo}
+=?= SOME-(IDNT {foo})  | tryReadLeaf `foo
+=?= NONE               | tryReadLeaf `{foo}[]
+=?= NONE               | tryReadLeaf `} foo
 
 > Rex > Maybe Nat
 (tryReadKey rex)=(fmapMaybe (tryReadLeaf rex) snd)
@@ -160,18 +160,18 @@
 
 ss=[0 0 0 0 0]
 
-!!= (ss, V 0)
+=?= (ss, V 0)
   | resolveUnqualified 'foo ~(SOME %foo, NONE, SOME %bar) %foo ss
 
-!!= (ss, V 2)
+=?= (ss, V 2)
   | resolveUnqualified 'bar ~(SOME %foo, NONE, SOME %bar) %bar ss
 
 ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
-!!= (ss, G {ZAZBIND})
+=?= (ss, G {ZAZBIND})
   | resolveUnqualified 'zaz ~(SOME %foo, NONE, SOME %bar) %zaz ss
 
-!!= ({undefined reference}, 'wut)
+=?= ({undefined reference}, 'wut)
   | resolveUnqualified 'wut ~(SOME %foo, NONE, SOME %bar) %wut ss
 
 
@@ -194,14 +194,14 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ !acc (natBar (rexText rex) :: acc)
 | go acc (rexHeir rex)
 
-!!= [{lol} (K {hi})]
+=?= [{lol} (K {hi})]
   ^ (readMultiLine _ %lol) ' } hi
 
 = hiHello
 } hi
 } hello
 
-!!=   | [%lol (K hiHello)]
+=?=   | [%lol (K hiHello)]
   ^ readMultiLine _ %lol
   ' } hi
     } hello
@@ -214,7 +214,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 : newSt vl < replCase (act inp st)
 | yield newSt vl
 
-!!= (%[], [3 4 5]) (replTraverse replPure [3 4 5] %[])
+=?= (%[], [3 4 5]) (replTraverse replPure [3 4 5] %[])
 
 = (readAppExpr readExpr env rex st)
 : st params
@@ -266,7 +266,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st n < replOpen (readKey snd-kids)        st
     | resolveQualified rex m n st
 
-!!= ({malformed reference}, 'x.y.z)
+=?= ({malformed reference}, 'x.y.z)
   | readRefr 999 'x.y.z 9999
 
 = (readLin readExpr env rex st)
@@ -605,7 +605,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 : args          < **maybeCase (maybeTraverse tryReadKey (drop 1 kids)) NONE
 | SOME ((inline, name), args)
 
-!!=   | SOME [[1 %f] [%x %y %z]]
+=?=   | SOME [[1 %f] [%x %y %z]]
   | tryReadLawBinder `(**f x y z)
 
 > Rex > Repl (Either Nat ((Bit, Nat), Row Nat))
@@ -715,7 +715,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 = (doAssert1 rex st)
 @ kids (rexKids rex)
 | if (len kids /= 2)
-* ({#!!= requires two parameters}, rex)
+* ({#=?= requires two parameters}, rex)
 @ [xRex yRex] kids
 : st xExp < replOpen (readExpr ~[] xRex) st
 : st yExp < replOpen (readExpr ~[] yRex) st
@@ -724,7 +724,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ yVal (evalSire yExp)
 ;
 | if (xVal /= yVal)
-    | trace ` !!=
+    | trace ` =?=
                 * $$xVal
                 * $$yVal
     | ({assertion failed}, rex)
@@ -840,8 +840,8 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     * {#*}   | multiCmd executeSire
     * {^-^}  | doFilter rune %[]
     * {#^-^} | doFilter rune %[]
-    * {!!=}  | doAssert
-    * {#!!=} | doAssert
+    * {=?=}  | doAssert
+    * {#=?=} | doAssert
     * {#/+}  | doImport
     * {/+}   | doImport
     * _      | if isExpRune-rune execExpr

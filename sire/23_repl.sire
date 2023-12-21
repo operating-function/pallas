@@ -52,24 +52,24 @@
 @ acc (barSlice off sid buf :: acc)
 | go acc (inc | add off sid)
 
-!!= (NIL, b#asdf) | consumeLines | b#asdf
+=?= (NIL, b#asdf) | consumeLines | b#asdf
 
-!!= (~[b#foo], b#bar)
+=?= (~[b#foo], b#bar)
   | consumeLines | # b } foo
                        } bar
 
-!!= (~[b#foo b#bar], b#{})
+=?= (~[b#foo b#bar], b#{})
   | consumeLines | # b } foo
                        } bar
                        }
 
-!!= (~[b#foo b#bar b#{}], b#{})
+=?= (~[b#foo b#bar b#{}], b#{})
   | consumeLines | # b } foo
                        } bar
                        }
                        }
 
-!!= (~[b#foo b#bar b#{}], b#{xyz})
+=?= (~[b#foo b#bar b#{}], b#{xyz})
   | consumeLines | # b } foo
                        } bar
                        }
@@ -106,11 +106,11 @@
 
 barMonoid=(b#{}, barWeld)
 
-!!= (b#{asdf#hi}, lineRepl barMonoid echoCog b#{'hi'})
+=?= (b#{asdf#hi}, lineRepl barMonoid echoCog b#{'hi'})
   | lineRepl barMonoid echoCog b#{asdf#} b#} hi
                                            } 'hi'
 
-!!= (b#{'hi'}, lineRepl barMonoid echoCog b#{})
+=?= (b#{'hi'}, lineRepl barMonoid echoCog b#{})
   | lineRepl barMonoid echoCog b#{'hi'} b#{}
 
 > Cog i o > Cog i ()

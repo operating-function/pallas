@@ -153,10 +153,10 @@ empt=(parserMap (const NIL) (char {]}))
 | listMap x&(barCat [b#"{" natBar-x b#"}"])
 | listNub r::conflicts
 
-!!= OKAY-()
+=?= OKAY-()
   | runParser (assertUnambiguous {Shut} ({+}, ~[{+} {+}])) b#{}
 
-!!=   | FAIL
+=?=   | FAIL
       # b } Shut-form mixes runes: {+}, {*}.
           } This implementation doesn't allow ambiguous infix forms
   | runParser (assertUnambiguous {Shut} ({+}, ~[{+} {*}])) b#{}
@@ -348,66 +348,66 @@ empt=(parserMap (const NIL) (char {]}))
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= (OKAY (LTEXT THICK b#foo)) | runParser leaf b#{"foo"}
-!!= (OKAY (LTEXT LIGHT b#foo)) | runParser leaf b#{'foo'}
-!!= (OKAY (LTEXT CURLY b#foo)) | runParser leaf b#{{foo}}
+=?= (OKAY (LTEXT THICK b#foo)) | runParser leaf b#{"foo"}
+=?= (OKAY (LTEXT LIGHT b#foo)) | runParser leaf b#{'foo'}
+=?= (OKAY (LTEXT CURLY b#foo)) | runParser leaf b#{{foo}}
 
-!!= (OKAY (LNAME b#foo))       | runParser leaf b#{foo}
-!!= (FAIL b#more)              | runParser leaf b#{'foo}
+=?= (OKAY (LNAME b#foo))       | runParser leaf b#{foo}
+=?= (FAIL b#more)              | runParser leaf b#{'foo}
 
-!!=   | OKAY (SHIP [ILEAF-(LTEXT THICK b#foo)])
+=?=   | OKAY (SHIP [ILEAF-(LTEXT THICK b#foo)])
   | runParser form b#{"foo"}
 
-!!=   | OKAY (SHIP [(INEST | PREFX com [])])
+=?=   | OKAY (SHIP [(INEST | PREFX com [])])
   | runParser form b#{[]}
 
-!!=   ^ OKAY (SHIP [_])
+=?=   ^ OKAY (SHIP [_])
       ^ INEST (PREFX com _)
      ++ SHIP [(ILEAF (LNAME b#foo))]
      ++ SHIP [(ILEAF (LNAME b#bar))]
   | runParser form b#{[foo bar]}
 
-!!=   ^ OKAY (SHIP ,_)
+=?=   ^ OKAY (SHIP ,_)
       ^ INEST (PREFX com _)
      ++ SHIP ,(INEST | PREFX com ,(SHIP ,(ILEAF (LNAME b#foo))))
      ++ SHIP ,(ILEAF (LNAME b#bar))
   | runParser form b#{[[foo] bar]}
 
-!!= OKAY-(b#{%%})          | runParser rune b#{%%}
-!!= OKAY-(1, RUNE b#{%})   | runParser frag b#{%}
-!!= OKAY-(2, RUNE b#{%%})  | runParser frag b#{%%}
-!!= OKAY-(3, RUNE b#{%%%}) | runParser frag b#{%%%}
+=?= OKAY-(b#{%%})          | runParser rune b#{%%}
+=?= OKAY-(1, RUNE b#{%})   | runParser frag b#{%}
+=?= OKAY-(2, RUNE b#{%%})  | runParser frag b#{%%}
+=?= OKAY-(3, RUNE b#{%%%}) | runParser frag b#{%%%}
 
-!!=   | OKAY
+=?=   | OKAY
      ++ ^ (1,_) | FORM | SHIP ,(INEST (PREFX com []))
      ++ ^ (5,_) | RUNE | b#{$$}
      ++ ^ (7,_) | FORM | SHIP ,(INEST (PREFX com ,(SHIP ,(ILEAF LNAME-(b#x)))))
   | runParser line b#{[] $$ [x]}
 
-!!= OKAY-[(5, LSTR b#{ xyz })]  | runParser line b#}   }  xyz 
-!!= OKAY-[(5, LSTR b#{xyz})]    | runParser line b#}   } xyz
-!!= OKAY-[(3, LSTR b#{xyz})]    | runParser line b#} } xyz
-!!= OKAY-[(5, LSTR b#{ xyz })]  | runParser line b#}   }  xyz 
-!!= OKAY-[(5, LSTR b#{xyz})]    | runParser line b#}   } xyz
-!!= OKAY-[(3, LSTR b#{xyz})]    | runParser line b#} } xyz
+=?= OKAY-[(5, LSTR b#{ xyz })]  | runParser line b#}   }  xyz 
+=?= OKAY-[(5, LSTR b#{xyz})]    | runParser line b#}   } xyz
+=?= OKAY-[(3, LSTR b#{xyz})]    | runParser line b#} } xyz
+=?= OKAY-[(5, LSTR b#{ xyz })]  | runParser line b#}   }  xyz 
+=?= OKAY-[(5, LSTR b#{xyz})]    | runParser line b#}   } xyz
+=?= OKAY-[(3, LSTR b#{xyz})]    | runParser line b#} } xyz
 
-!!= OKAY-[(1, FORM (SHIP ,(INEST (PREFX bar []))))]
+=?= OKAY-[(1, FORM (SHIP ,(INEST (PREFX bar []))))]
   | runParser line b#{()}
 
-!!= OKAY-[(1, FORM (SHIP ,(INEST (PREFX lus []))))]
+=?= OKAY-[(1, FORM (SHIP ,(INEST (PREFX lus []))))]
   | runParser line b#{(+)}
 
-!!=   ^ OKAY-[(1, FORM (SHIP ,(INEST (PREFX lus _))))]
+=?=   ^ OKAY-[(1, FORM (SHIP ,(INEST (PREFX lus _))))]
      ++ SHIP ,(ILEAF | LNAME b#3)
      ++ SHIP ,(ILEAF | LNAME b#4)
   | runParser line b#{(+ 3 4)}
 
-!!=   ^ OKAY-[(1, FORM (SHIP ,(INEST (PREFX lus _))))]
+=?=   ^ OKAY-[(1, FORM (SHIP ,(INEST (PREFX lus _))))]
      ++ SHIP ,(ILEAF | LNAME b#3)
      ++ SHIP ,(INEST | PREFX lus [])
   | runParser line b#{(+ 3 +)}
 
-!!=   ^ OKAY [(3, _)]
+=?=   ^ OKAY [(3, _)]
       ^ FORM (SHIP [_])
       ^ INEST | PREFX lus ,(SHIP [_])
       ^ INEST | PREFX lus ,(SHIP [_])
@@ -415,36 +415,36 @@ empt=(parserMap (const NIL) (char {]}))
       | ILEAF | LNAME b#3
   | runParser line b#{  (+ + + 3)  }
 
-!!=   ^ OKAY [(3, FORM _)]
+=?=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST (WRAPD _))
       | SHIP ,(ILEAF | LNAME b#3)
   | runParser line b#{  (3)  }
 
-!!=   ^ OKAY [(3, FORM _)]
+=?=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST (WRAPD _))
       | SHIP ,(ILEAF | LNAME b#3)
   | runParser line b#{  ( 3 )  }
 
-!!=   ^ OKAY [(3, FORM _)]
+=?=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST (PAREN _))
      ++ SHIP ,(ILEAF | LNAME b#3)
      ++ SHIP ,(ILEAF | LNAME b#4)
      ++ SHIP ,(ILEAF | LNAME b#5)
   | runParser line b#{  (3 4 5)  }
 
-!!=   ^ OKAY [(3, FORM _)]
+=?=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST | INFIX com _)
      ++ ,(SHIP ,(ILEAF | LNAME b#3))
      ++ ,(SHIP ,(ILEAF | LNAME b#4))
   | runParser line b#{  (3 , 4)  }
 
-!!=   ^ OKAY [(3, FORM _)]
+=?=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST | WRAPD (SHIN com _))
      ++ ,(ILEAF | LNAME b#3)
      ++ ,(ILEAF | LNAME b#4)
   | runParser line b#{  (3,4)  }
 
-!!=   ^ OKAY [(3, FORM _)]
+=?=   ^ OKAY [(3, FORM _)]
       ^ SHIP ,(INEST | INFIX com _)
      ++ ,(SHIN com [,(ILEAF | LNAME b#3) ,(ILEAF | LNAME b#4)])
      ++ ,(SHIN com [,(ILEAF | LNAME b#5) ,(ILEAF | LNAME b#6)])

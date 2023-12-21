@@ -24,13 +24,13 @@
 
 (**I x)=x
 
-!!= a&a     | a&(I a)
-!!= (a b)&b | (a b)&(I b)
+=?= a&a     | a&(I a)
+=?= (a b)&b | (a b)&(I b)
 
 
 ;;; Basic Codegen Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!=   | 0 {f} 1
+=?=   | 0 {f} 1
       | 0 {h} 1
       | 0 (0 {g} 2 1 1)
       | 1
@@ -43,7 +43,7 @@
 
 ;;; Constant Folding Sees Through Lets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!=   | 0 0 1
+=?=   | 0 0 1
       | (0 0 3 3) 3 4
   & _
   @ f ((x y z & z) 3)
@@ -54,10 +54,10 @@
 
 (const x y)=x
 
-(0 0 1 3)!!=(_ & (**const 3 4))
-(0 0 1 3)!!=(_ & (**(const 3) 4))
-(0 0 1 3)!!=(_ & **(const 3 4))
-(0 0 1 3)!!=(_ & (x @ const 3 4)(**x))
+(0 0 1 3)=?=(_ & (**const 3 4))
+(0 0 1 3)=?=(_ & (**(const 3) 4))
+(0 0 1 3)=?=(_ & **(const 3 4))
+(0 0 1 3)=?=(_ & (x @ const 3 4)(**x))
 
 
 ;;; Argument Ordering ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -69,27 +69,27 @@
 (**i2_3 x y z)=y
 (**i3_3 x y z)=z
 
-!!= (x a b)?a (x a b)?(i1_2 a a)
-!!= (x a b)?b (x a b)?(i1_2 b b)
-!!= (x a b)?a (x a b)?(i1_2 a b)
-!!= (x a b)?b (x a b)?(i1_2 b a)
+=?= (x a b)?a (x a b)?(i1_2 a a)
+=?= (x a b)?b (x a b)?(i1_2 b b)
+=?= (x a b)?a (x a b)?(i1_2 a b)
+=?= (x a b)?b (x a b)?(i1_2 b a)
 
-!!= (x a b)?a (x a b)?(i2_2 a a)
-!!= (x a b)?b (x a b)?(i2_2 b b)
-!!= (x a b)?b (x a b)?(i2_2 a b)
-!!= (x a b)?a (x a b)?(i2_2 b a)
+=?= (x a b)?a (x a b)?(i2_2 a a)
+=?= (x a b)?b (x a b)?(i2_2 b b)
+=?= (x a b)?b (x a b)?(i2_2 a b)
+=?= (x a b)?a (x a b)?(i2_2 b a)
 
-!!= (a b c)&a (a b c)&(i1_3 a b c)
-!!= (a b c)&b (a b c)&(i1_3 b a c)
-!!= (a b c)&c (a b c)&(i1_3 c c b)
+=?= (a b c)&a (a b c)&(i1_3 a b c)
+=?= (a b c)&b (a b c)&(i1_3 b a c)
+=?= (a b c)&c (a b c)&(i1_3 c c b)
 
-!!= (a b c)&a (a b c)&(i2_3 b a c)
-!!= (a b c)&b (a b c)&(i2_3 a b c)
-!!= (a b c)&c (a b c)&(i2_3 a c b)
+=?= (a b c)&a (a b c)&(i2_3 b a c)
+=?= (a b c)&b (a b c)&(i2_3 a b c)
+=?= (a b c)&c (a b c)&(i2_3 a c b)
 
-!!= (a b c)&a (a b c)&(i3_3 a b a)
-!!= (a b c)&b (a b c)&(i3_3 a c b)
-!!= (a b c)&c (a b c)&(i3_3 b a c)
+=?= (a b c)&a (a b c)&(i3_3 a b a)
+=?= (a b c)&b (a b c)&(i3_3 a c b)
+=?= (a b c)&c (a b c)&(i3_3 b a c)
 
 
 ;;; Same, but with explicit inline application ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -100,35 +100,35 @@
 (f2_3 x y z)=y
 (f3_3 x y z)=z
 
-!!= (x a b)?a (x a b)?(**f1_2 a a)
-!!= (x a b)?b (x a b)?(**f1_2 b b)
-!!= (x a b)?a (x a b)?(**f1_2 a b)
-!!= (x a b)?b (x a b)?(**f1_2 b a)
+=?= (x a b)?a (x a b)?(**f1_2 a a)
+=?= (x a b)?b (x a b)?(**f1_2 b b)
+=?= (x a b)?a (x a b)?(**f1_2 a b)
+=?= (x a b)?b (x a b)?(**f1_2 b a)
 
-!!= (x a b)?a (x a b)?(**f2_2 a a)
-!!= (x a b)?b (x a b)?(**f2_2 b b)
-!!= (x a b)?b (x a b)?(**f2_2 a b)
-!!= (x a b)?a (x a b)?(**f2_2 b a)
+=?= (x a b)?a (x a b)?(**f2_2 a a)
+=?= (x a b)?b (x a b)?(**f2_2 b b)
+=?= (x a b)?b (x a b)?(**f2_2 a b)
+=?= (x a b)?a (x a b)?(**f2_2 b a)
 
-!!= (a b c)&a (a b c)&(**f1_3 a b c)
-!!= (a b c)&b (a b c)&(**f1_3 b a c)
-!!= (a b c)&c (a b c)&(**f1_3 c c b)
+=?= (a b c)&a (a b c)&(**f1_3 a b c)
+=?= (a b c)&b (a b c)&(**f1_3 b a c)
+=?= (a b c)&c (a b c)&(**f1_3 c c b)
 
-!!= (a b c)&a (a b c)&(**f2_3 b a c)
-!!= (a b c)&b (a b c)&(**f2_3 a b c)
-!!= (a b c)&c (a b c)&(**f2_3 a c b)
+=?= (a b c)&a (a b c)&(**f2_3 b a c)
+=?= (a b c)&b (a b c)&(**f2_3 a b c)
+=?= (a b c)&c (a b c)&(**f2_3 a c b)
 
-!!= (a b c)&a (a b c)&(**f3_3 a b a)
-!!= (a b c)&b (a b c)&(**f3_3 a c b)
-!!= (a b c)&c (a b c)&(**f3_3 b a c)
+=?= (a b c)&a (a b c)&(**f3_3 a b a)
+=?= (a b c)&b (a b c)&(**f3_3 a c b)
+=?= (a b c)&c (a b c)&(**f3_3 b a c)
 
 
 ;;; Basic Let-Binding Cases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (**K x y)=x
 
-!!= a&9 (a & (x@9)(K x) 8)
-!!= a&a (a & (x@9)(K a) 8)
+=?= a&9 (a & (x@9)(K x) 8)
+=?= a&a (a & (x@9)(K a) 8)
 
 
 ;;; Basic Multi-Inline Cases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -138,9 +138,9 @@
 (k0 x)=(const x)
 (**k1 x)=(const x)
 
-!!= a&3 | a&(**k0 3 a)
-!!= a&3 | a&(**k1 3 a)
-!!= a&3 | a&(k1 3 a)
+=?= a&3 | a&(**k0 3 a)
+=?= a&3 | a&(**k1 3 a)
+=?= a&3 | a&(k1 3 a)
 
 
 ;;; Basic Multi-Inline Cases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -150,7 +150,7 @@
 (k0 x)=(const x)
 (**k1 x)=(const x)
 
-!!= a&(4 3)
+=?= a&(4 3)
   & a
   @ z 3
   @ x z
@@ -158,7 +158,7 @@
   @ y 4
   | fa y
 
-!!= a&(4 3)
+=?= a&(4 3)
   & a
   @ z 3
   @ x z
@@ -166,7 +166,7 @@
   @ y 4
   | **fa y
 
-!!= a&(4 2 3)
+=?= a&(4 2 3)
   & a
   @ z 3
   @ x z
@@ -181,25 +181,25 @@
 ;;; Cannot inline recursive references, and cannot inline through recursive
 ;;; binders.  Without this check, the inliner would enter an infinite loop.
 
-!!= a&3
+=?= a&3
   & _
   @ fa (**f x ? x)
   | fa 3
 
-!!=   & _
+=?=   & _
       | (f x)?(4 | f 3-x) 9
   & _
   | ? (**f x) (4 (f 3-x))
   | 9
 
-!!=   & _
+=?=   & _
      @@ (fa = (f c d ? c d) fa)
       | fa 3
   & _
  @@ (fa = (**f x ? fa x))
   | fa 3
 
-!!=   & _
+=?=   & _
      @@ (f3 = (fa c d e ? c d) f3 3)
       | f3 9
   & _
@@ -212,7 +212,7 @@
 ;;; Inlining letrec bound *arguments* is fine, we just can't inline
 ;;; *through* recursive bindings.
 
-!!=   & a
+=?=   & a
       | 1 0 0 const 0
       | (@@(b = 0 b))b
   & _
@@ -228,7 +228,7 @@
 = (cdr x)  | 1 (i & i) (_ _ b & b)     (_ t & t) (_ & 0) x
 = (cadr x) | car | cdr | x
 
-!!=   | 0 0 1                      ; & $1
+=?=   | 0 0 1                      ; & $1
       | 1 (0 (0 2-0 2) (0 cdr 3))  ; @ $2 (2 $2 (cdr $3))
       | 1 (0 (0 2-0 2) 4)          ; @ $3 (0 $2 $4)
       | 1 (0 (0 2-1 4) 2)          ; @ $4 (1 $4 $2)
@@ -245,7 +245,7 @@
   @ o (cdr zo)
   | (1 z o)
 
-!!=   & a
+=?=   & a
       @ b (a 3)
       @ c (a 4)
       | 1 b b c c
@@ -254,7 +254,7 @@
     = c (a 4)
    | 1 b b c c
 
-!!=   & a
+=?=   & a
      @@ b=(b 3)
       @ c (b 4)
       | 1 b b c c
@@ -262,7 +262,7 @@
   @@ (b = b 3)(c = b 4)
    | 1 b b c c
 
-!!=   | 0 0 1
+=?=   | 0 0 1
       | 1 ( 0 3   2-3 )
       | 1 ( 0 2   4   )
       | 0 ( 0 2-1 2   ) 3
@@ -270,14 +270,14 @@
   @@ (b = c 3)(c = b 4)
    | 1 b c
 
-!!= 3
+=?= 3
   @ b 3
   @ c b
   | b
 
 ;; LETREC bindings don't optimize-out constant bindings.
 
-!!=   | 0 0 1
+=?=   | 0 0 1
       | 1 (0 4 3)
       | 1 (const 1)
       | 1 (0 2 3)
@@ -290,7 +290,7 @@
 
 ;; LETREC bindings don't optimize-out constant bindings.
 
-!!=   | 0 0 1
+=?=   | 0 0 1
       | 1 (0 4 3)
       | 1 (const 1)
       | 1 (0 2 3)
@@ -303,7 +303,7 @@
 
 ;; LETREC bindings don't optimize-out trivial rebindings.
 
-!!=   | 0 0 1
+=?=   | 0 0 1
       | 1 (const 1)
       | 1 2
       | (0 (0 3 3) 2)
@@ -315,7 +315,7 @@
 ;; LETREC bindings *do* optimize out unused bindings and single-use
 ;; bindings.
 
-!!=   | 0 0 1
+=?=   | 0 0 1
       | 1 (const 1)
       | (0 2 2)
   & a
@@ -340,4 +340,4 @@
 @ y (**silly const)
 | 2 x y
 
-(serious 2)!!=(2 1 0)
+(serious 2)=?=(2 1 0)

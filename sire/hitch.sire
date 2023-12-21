@@ -35,8 +35,8 @@
 | if (null r) NONE
 | SOME [(idx 0 r) (drop 1 r)]
 
-!!= NONE               (rowUncons [])
-!!= (SOME [0 [1 2 3]]) (rowUncons [0 1 2 3])
+=?= NONE               (rowUncons [])
+=?= (SOME [0 [1 2 3]]) (rowUncons [0 1 2 3])
 
 > Row a > Maybe (Row a, a)
 = (rowUnsnoc r)
@@ -45,8 +45,8 @@
 @ minusOne | dec l
 | SOME [(take minusOne r) (idx minusOne r)]
 
-!!= NONE               (rowUnsnoc [])
-!!= (SOME [[0 1 2] 3]) (rowUnsnoc [0 1 2 3])
+=?= NONE               (rowUnsnoc [])
+=?= (SOME [[0 1 2] 3]) (rowUnsnoc [0 1 2 3])
 
 
 ;;; TreeFun ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -666,11 +666,11 @@ abstype#(HSetMap k v)
 @ [_ br] bs
 [aconfig (hsRawUnion aconfig ar br)]
 
-!!= 1 | hsNull | hsEmpty twoThreeConfig
-!!= 0 | hsNull | hsSingleton twoThreeConfig 9
-!!= 0 | hsNull | hsInsert 8 | hsSingleton twoThreeConfig 9
-!!= 0 | hsNull | hsInsert 9 | hsSingleton twoThreeConfig 9
-!!= 1 | hsNull | hsDelete 9 | hsSingleton twoThreeConfig 9
+=?= 1 | hsNull | hsEmpty twoThreeConfig
+=?= 0 | hsNull | hsSingleton twoThreeConfig 9
+=?= 0 | hsNull | hsInsert 8 | hsSingleton twoThreeConfig 9
+=?= 0 | hsNull | hsInsert 9 | hsSingleton twoThreeConfig 9
+=?= 1 | hsNull | hsDelete 9 | hsSingleton twoThreeConfig 9
 
 
 ;;; Hitchhiker Set New Intersect ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -715,17 +715,17 @@ abstype#(HSetMap k v)
   | CONS int rest
 rest
 
-!!= ~[]
+=?= ~[]
     | setlistIntersect
     * ~[%[1 2 3] %[4 5 6]]
     * ~[%[7 8 9] %[10 11 12]]
 
-!!= ~[%[6] %[7]]
+=?= ~[%[6] %[7]]
     | setlistIntersect
     * ~[%[4 5 6] %[7 8 9]]
     * ~[%[6 7]]
 
-!!= ~[%[2] %[4] %[9]]
+=?= ~[%[2] %[4] %[9]]
     | setlistIntersect
     * ~[%[2] %[3] %[4 6] %[9]]
     * ~[%[2] %[4 5] %[7 8 9]]
@@ -765,7 +765,7 @@ rest
 * setDrop num x
 * xs
 
-!!= ~[%[5]] | lsDrop 4 ~[%[1 2 3] %[4 5]]
+=?= ~[%[5]] | lsDrop 4 ~[%[1 2 3] %[4 5]]
 
 > Nat > List (Set k) > List (Set k)
 = (lsTake num sets)
@@ -779,14 +779,14 @@ rest
 * x
 * lsTake (sub num xl) xs
 
-!!= ~[%[1 2 3]]      | lsTake 3 ~[%[1 2 3] %[4 5]]
-!!= ~[%[1 2 3] %[4]] | lsTake 4 ~[%[1 2 3] %[4 5]]
+=?= ~[%[1 2 3]]      | lsTake 3 ~[%[1 2 3] %[4 5]]
+=?= ~[%[1 2 3] %[4]] | lsTake 4 ~[%[1 2 3] %[4 5]]
 
 > List (Set k) > Nat
 = (lsLen sets)
 | listFoldl (i s)&(add i | setLen s) 0 sets
 
-!!= 2
+=?= 2
     | lsLen (CONS %[4] (CONS %[5] NIL))
 
 > List (Set k) > List k

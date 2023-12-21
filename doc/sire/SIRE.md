@@ -73,11 +73,11 @@ Table of Runes
     This isn't so much a language features as a REPL feature.
 
 
--   `!!= x y` asserts that `x` equals `y`.
+-   `=?= x y` asserts that `x` equals `y`.
 
     ```
-    !!= 2 (add 1 1)
-    !!= add car-(add 1)
+    =?= 2 (add 1 1)
+    =?= add car-(add 1)
     ```
 
 -   `/+` imports a module
@@ -124,9 +124,9 @@ Table of Runes
     natural numbers via least-significant-byte encoding.
 
     ```
-    !!= 'a'  0x61
-    !!= 'z'  0x7a
-    !!= 'az' 0x7a61
+    =?= 'a'  0x61
+    =?= 'z'  0x7a
+    =?= 'az' 0x7a61
     ```
 
 -   Function Application

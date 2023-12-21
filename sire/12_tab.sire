@@ -78,9 +78,9 @@
 | ifNot (mod res 2) not_found
 | **found ix (get vals ix)
 
-!!= {nf}  (tabSearchCase 0 (tabSing 1 3) {nf} (ix v & [ix v]))
-!!= [0 3] (tabSearchCase 1 (tabSing 1 3) {nf} (ix v & [ix v]))
-!!= {nf}  (tabSearchCase 2 (tabSing 1 3) {nf} (ix v & [ix v]))
+=?= {nf}  (tabSearchCase 0 (tabSing 1 3) {nf} (ix v & [ix v]))
+=?= [0 3] (tabSearchCase 1 (tabSing 1 3) {nf} (ix v & [ix v]))
+=?= {nf}  (tabSearchCase 2 (tabSing 1 3) {nf} (ix v & [ix v]))
 
 = (tabIdx key tab)
 @ keys (_TabKeysRow tab)
@@ -90,9 +90,9 @@
 
 ex=(_MkTab [1 2 3] [4 5 6])
 
-!!= 4 | tabGet ex 1
-!!= 5 | tabGet ex 2
-!!= 6 | tabGet ex 3
+=?= 4 | tabGet ex 1
+=?= 5 | tabGet ex 2
+=?= 6 | tabGet ex 3
 
 
 ;;; Basic Quations about Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -107,11 +107,11 @@ ex=(_MkTab [1 2 3] [4 5 6])
 = (findInsIdx key keysRow)
 | findIdx (lte key) keysRow (len keysRow) id
 
-!!= 0 (findInsIdx 0 [1 2 3])
-!!= 0 (findInsIdx 1 [1 2 3])
-!!= 1 (findInsIdx 2 [1 2 3])
-!!= 2 (findInsIdx 3 [1 2 3])
-!!= 3 (findInsIdx 4 [1 2 3])
+=?= 0 (findInsIdx 0 [1 2 3])
+=?= 0 (findInsIdx 1 [1 2 3])
+=?= 1 (findInsIdx 2 [1 2 3])
+=?= 2 (findInsIdx 3 [1 2 3])
+=?= 3 (findInsIdx 4 [1 2 3])
 
 = (tabIns key val tab)
 @ keysSet | _TabKeys tab
@@ -138,19 +138,19 @@ ex=(_MkTab [1 2 3] [4 5 6])
 
 = ex1 (_MkTab [1 5] [5 1])
 
-!!= ( _MkTab [1 2 5] [5 6 1] ) | tabIns 2 6 | ex1
-!!= ( _MkTab [0 1 5] [6 5 1] ) | tabIns 0 6 | ex1
-!!= ( _MkTab [1 5 9] [5 1 6] ) | tabIns 9 6 | ex1
-!!= ( _MkTab [1 5]   [9 1]   ) | tabIns 1 9 | ex1
-!!= ( _MkTab [1 5]   [5 9]   ) | tabIns 5 9 | ex1
-!!= ( _MkTab [1 5]   [8 9]   ) | tabIns 1 8 | tabIns 5 9 | ex1
-!!= ( _MkTab [1 3 5] [8 7 9] ) | tabIns 3 7 | tabIns 1 8 | tabIns 5 9 | ex1
-!!= ( _MkTab [1 3 5] [8 7 9] ) | tabIns 1 8 | tabIns 3 7 | tabIns 5 9 | ex1
-!!= ( _MkTab [1 3 5] [8 7 9] ) | tabIns 5 9 | tabIns 3 7 | tabIns 1 8 | ex1
-!!= ( _MkTab [1 2 5] [5 6 1] ) | tabInsWith add 2 6 | ex1
-!!= ( _MkTab [1 5]   [11 1]  ) | tabInsWith add 1 6 | ex1
-!!= ( _MkTab [1 5]   [5 7]   ) | tabInsWith add 5 6 | ex1
-!!= ( _MkTab [1 5 9] [5 1 3] ) | tabInsWith add 9 3 | ex1
+=?= ( _MkTab [1 2 5] [5 6 1] ) | tabIns 2 6 | ex1
+=?= ( _MkTab [0 1 5] [6 5 1] ) | tabIns 0 6 | ex1
+=?= ( _MkTab [1 5 9] [5 1 6] ) | tabIns 9 6 | ex1
+=?= ( _MkTab [1 5]   [9 1]   ) | tabIns 1 9 | ex1
+=?= ( _MkTab [1 5]   [5 9]   ) | tabIns 5 9 | ex1
+=?= ( _MkTab [1 5]   [8 9]   ) | tabIns 1 8 | tabIns 5 9 | ex1
+=?= ( _MkTab [1 3 5] [8 7 9] ) | tabIns 3 7 | tabIns 1 8 | tabIns 5 9 | ex1
+=?= ( _MkTab [1 3 5] [8 7 9] ) | tabIns 1 8 | tabIns 3 7 | tabIns 5 9 | ex1
+=?= ( _MkTab [1 3 5] [8 7 9] ) | tabIns 5 9 | tabIns 3 7 | tabIns 1 8 | ex1
+=?= ( _MkTab [1 2 5] [5 6 1] ) | tabInsWith add 2 6 | ex1
+=?= ( _MkTab [1 5]   [11 1]  ) | tabInsWith add 1 6 | ex1
+=?= ( _MkTab [1 5]   [5 7]   ) | tabInsWith add 5 6 | ex1
+=?= ( _MkTab [1 5 9] [5 1 3] ) | tabInsWith add 9 3 | ex1
 
 
 ;;; Switching on Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -175,11 +175,11 @@ ex=(_MkTab [1 2 3] [4 5 6])
 par=[[1 4] [2 5] [3 6]]
 tab=(tabFromAscPairs par)
 
-!!= 4   | tabGet ex 1
-!!= 5   | tabGet ex 2
-!!= 6   | tabGet ex 3
-!!= 6   | tabGet ex 3
-!!= par | tabToPairs tab
+=?= 4   | tabGet ex 1
+=?= 5   | tabGet ex 2
+=?= 6   | tabGet ex 3
+=?= 6   | tabGet ex 3
+=?= par | tabToPairs tab
 
 
 ;;; Table Construction from unique pairs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -199,17 +199,17 @@ tab=(tabFromAscPairs par)
 
 (tabToList tab)=(listFromRow | tabToPairs tab)
 
-!!= (_MkTab [3 5] [8 9]) | tabFromPairs [[3 8] [5 9]]
-!!= (_MkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 8]]
-!!= (_MkTab [3 5] [8 9]) | tabFromPairs [[3 7] [3 8] [5 9]]
-!!= (_MkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 7] [3 8]]
+=?= (_MkTab [3 5] [8 9]) | tabFromPairs [[3 8] [5 9]]
+=?= (_MkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 8]]
+=?= (_MkTab [3 5] [8 9]) | tabFromPairs [[3 7] [3 8] [5 9]]
+=?= (_MkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 7] [3 8]]
 
-!!= 0             | tabToPairList | tabFromPairs []
-!!= [3,8 0]       | tabToPairList | tabFromPairs [[3 8]]
-!!= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 8] [5 9]]
-!!= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 8]]
-!!= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 7] [3 8] [5 9]]
-!!= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 7] [3 8]]
+=?= 0             | tabToPairList | tabFromPairs []
+=?= [3,8 0]       | tabToPairList | tabFromPairs [[3 8]]
+=?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 8] [5 9]]
+=?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 8]]
+=?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 7] [3 8] [5 9]]
+=?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 7] [3 8]]
 
 
 ;;; Treating a Tab like an Array ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -463,57 +463,57 @@ tallExpect={Expected something like (## =key val ...)(...)}
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= 1 | isTab #[]
-!!= 1 | isTab #[0=0]
-!!= 1 | isTab #[x=3]
-!!= 1 | isTab #[x=3 y=4]
-!!= 1 | isTab [x=3 y=4]
-!!= 1 | isTab [=isTab]
+=?= 1 | isTab #[]
+=?= 1 | isTab #[0=0]
+=?= 1 | isTab #[x=3]
+=?= 1 | isTab #[x=3 y=4]
+=?= 1 | isTab [x=3 y=4]
+=?= 1 | isTab [=isTab]
 
-!!= 0 | isTab []
-!!= 0 | isTab %[] ;; sets are not tabs
-!!= 0 | isTab %[x y]
-!!= 0 | isTab (%[x y] 3)
-!!= 1 | isTab (%[x y] [3 4])
+=?= 0 | isTab []
+=?= 0 | isTab %[] ;; sets are not tabs
+=?= 0 | isTab %[x y]
+=?= 0 | isTab (%[x y] 3)
+=?= 1 | isTab (%[x y] [3 4])
 
-!!= [a=0]     | #[97=0]
-!!= [a=0]     | #[{a}=0]
-!!= [a=0 b=1] | #[98=1 97=0]
-!!= [a=0 b=1] | #[{b}=1 {a}=0]
+=?= [a=0]     | #[97=0]
+=?= [a=0]     | #[{a}=0]
+=?= [a=0 b=1] | #[98=1 97=0]
+=?= [a=0 b=1] | #[{b}=1 {a}=0]
 
-!!= 0 | _TabLen #[]
-!!= 1 | _TabLen #[x=0]
-!!= 2 | _TabLen #[x=0 y=1]
+=?= 0 | _TabLen #[]
+=?= 1 | _TabLen #[x=0]
+=?= 2 | _TabLen #[x=0 y=1]
 
-!!= #[x=0 y=1] | (%[x y] [0 1])
-!!= %[x y]     | (0 1 2 [%x %y])
-!!= [%x %y]    | ((0 0 3 0) %y %x)
-!!= #[x=0 y=1] | 0 1 2 (0 0 3 0 %y %x) (0 0 3 0 1 0)
+=?= #[x=0 y=1] | (%[x y] [0 1])
+=?= %[x y]     | (0 1 2 [%x %y])
+=?= [%x %y]    | ((0 0 3 0) %y %x)
+=?= #[x=0 y=1] | 0 1 2 (0 0 3 0 %y %x) (0 0 3 0 1 0)
 
-!!= 8 | tabIdx 0 #[0=8]
-!!= 9 | tabIdx %aa #(bb=8, aa=9)
+=?= 8 | tabIdx 0 #[0=8]
+=?= 9 | tabIdx %aa #(bb=8, aa=9)
 
-!!= 1 | _TabHas %aa #(bb=8, aa=9)
-!!= 1 | not | _TabHas %cc #(bb=8, aa=9)
+=?= 1 | _TabHas %aa #(bb=8, aa=9)
+=?= 1 | not | _TabHas %cc #(bb=8, aa=9)
 
-!!= %[3 4] | _TabKeys #[3=3 4=4]
-!!= %[]    | _TabKeys #[]
-!!= [3 4]  | _TabKeysRow #[3=3 4=4]
-!!= []     | _TabKeysRow #[]
+=?= %[3 4] | _TabKeys #[3=3 4=4]
+=?= %[]    | _TabKeys #[]
+=?= [3 4]  | _TabKeysRow #[3=3 4=4]
+=?= []     | _TabKeysRow #[]
 
-!!= #[3=3]     | tabIns 3 3 #[3=4]
-!!= #[3=4 4=4] | tabIns 4 4 #[3=4]
-!!= #[0=0]     | tabIns 0 0 #[]
-!!= #[0=0]     | tabIns 0 0 #[]
+=?= #[3=3]     | tabIns 3 3 #[3=4]
+=?= #[3=4 4=4] | tabIns 4 4 #[3=4]
+=?= #[0=0]     | tabIns 0 0 #[]
+=?= #[0=0]     | tabIns 0 0 #[]
 
-!!= #[a=(0 1)] | (## =a 0 1)
+=?= #[a=(0 1)] | (## =a 0 1)
 
 = (_TabFilterWithKey f tab)
 | tabFromPairsList
 | listFilter (kv & f fst-kv snd-kv)
 | tabToPairList tab
 
-!!= #[=2 =4]
+=?= #[=2 =4]
   | _TabFilterWithKey (k v & even k) #[=1 =2 =3 =4]
 
 ;
@@ -528,15 +528,15 @@ tallExpect={Expected something like (## =key val ...)(...)}
 ;    | add 3 4
 ;
 
-!!= [{a}=1 b=2 {c}=3] | (## =b 2)(## ={a} 1)(## ={c} 3)
+=?= [{a}=1 b=2 {c}=3] | (## =b 2)(## ={a} 1)(## ={c} 3)
 
-!!= [1]              | idx 0 #[a=1]
-!!= 0                | idx 1 #[a=1]
-!!= #[a=2]           | mut 0 [2]     #[a=1]
-!!= (%[a] 3)         | mut 0 3       #[a=1]
-!!= #[a=1 b=2]       | mut 1 [3 4]   #[a=1 b=2]
-!!= #[a=3 b=4]       | mut 0 [3 4]   #[a=1 b=2]
-!!= (%[a b] [3 4 5]) | mut 0 [3 4 5] #[a=1 b=2]
+=?= [1]              | idx 0 #[a=1]
+=?= 0                | idx 1 #[a=1]
+=?= #[a=2]           | mut 0 [2]     #[a=1]
+=?= (%[a] 3)         | mut 0 3       #[a=1]
+=?= #[a=1 b=2]       | mut 1 [3 4]   #[a=1 b=2]
+=?= #[a=3 b=4]       | mut 0 [3 4]   #[a=1 b=2]
+=?= (%[a b] [3 4 5]) | mut 0 [3 4 5] #[a=1 b=2]
 
 
 ;;; Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

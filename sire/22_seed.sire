@@ -123,10 +123,10 @@ u64max=18446744073709551615
 @ bitSz (met nat)
 | add (div bitSz 64) bit-(mod bitSz 64)
 
-(0 !!= wordSz 0)
-(1 !!= wordSz u8max)
-(1 !!= wordSz u64max)
-(2 !!= wordSz inc-u64max)
+(0 =?= wordSz 0)
+(1 =?= wordSz u8max)
+(1 =?= wordSz u64max)
+(2 =?= wordSz inc-u64max)
 
 ;; {countAtoms} counts the number of atoms in each each size-class and
 ;; returns that along with a row of all the atoms, in decreasing order.
@@ -429,10 +429,10 @@ I=(4 (S K K))
 ++ x#16543a9dc1e6596d
 ++ x#4673070000000000
 
-iGerm!!=(_SaveGerm I)
-I!!=(uncurry _LoadGerm iGerm)
-iSeed!!=(_SaveSeed I)
-I!!=(_LoadSeed iSeed)
+iGerm=?=(_SaveGerm I)
+I=?=(uncurry _LoadGerm iGerm)
+iSeed=?=(_SaveSeed I)
+I=?=(_LoadSeed iSeed)
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -401,11 +401,11 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
    | loop (add i 12) bar (CONS ref out)
 | loop (inc i) bar out
 
-!!=     [%bbCCddEE1 %aaBBccDD9]
+=?=     [%bbCCddEE1 %aaBBccDD9]
     | parseRefs {One ((aaBBccDD9)) Three ((bbCCddEE1))}
 
 ; Parse inside links
-!!=     [%bbCCddEE1]
+=?=     [%bbCCddEE1]
     | parseRefs {Yesterday, [I wrote this](((bbCCddEE1)))}
 
 ; Parses titles out of the data
@@ -437,27 +437,27 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 | loop (inc i) bar stack out
 
 ; Simple case
-!!=     [%Iceman]
+=?=     [%Iceman]
     | parseTitles {[[Iceman]]}
 
 ;; Parse in links
-!!=     [%Iceman]
+=?=     [%Iceman]
     | parseTitles {[This dude]([[Iceman]])}
 
 ;; Simple recursive case
-!!=     [{[[Word]] More} %Word]
+=?=     [{[[Word]] More} %Word]
     | parseTitles {[[[[Word]] More]]}
 
 ;; Extra {[[} on left
-!!=     [{[[Word]] More} %Word]
+=?=     [{[[Word]] More} %Word]
     | parseTitles {[[ [[[[Word]] More]]}
 
 ;; Extra {]]} on right
-!!=     [{[[Word]] More} %Word]
+=?=     [{[[Word]] More} %Word]
     | parseTitles {[[[[Word]] More]] ]]}
 
 ;; Parallel references
-!!=     [{[[One]] and [[Two]]} {Two} {One}]
+=?=     [{[[One]] and [[Two]]} {Two} {One}]
     | parseTitles {[[[[One]] and [[Two]]]]}
 
 

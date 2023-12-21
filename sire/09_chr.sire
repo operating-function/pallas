@@ -64,29 +64,29 @@ spaceChar=32
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!!= 1 | eql 1   (ord {1})
-!!= 1 | eql {3} (chr 3)
-!!= 1 | eql 5   (ord (chr 5))
-!!= 1 | eql {9} (chr (ord {9}))
+=?= 1 | eql 1   (ord {1})
+=?= 1 | eql {3} (chr 3)
+=?= 1 | eql 5   (ord (chr 5))
+=?= 1 | eql {9} (chr (ord {9}))
 
-!!= 1 | isLower {c}
-!!= 1 | isUpper {C}
-!!= 1 | not (isAlpha {0})
-!!= 1 | isDigit {0}
-!!= 1 | not (isDigit {a})
+=?= 1 | isLower {c}
+=?= 1 | isUpper {C}
+=?= 1 | not (isAlpha {0})
+=?= 1 | isDigit {0}
+=?= 1 | not (isDigit {a})
 
-!!= 1 | all isHexDigit [{0} {9} {a} {A} {f} {F}]
-!!= 1 | not (isHexDigit {g})
+=?= 1 | all isHexDigit [{0} {9} {a} {A} {f} {F}]
+=?= 1 | not (isHexDigit {g})
 
-!!= 1 (isPrint {a})
-!!= 0 (isPrint 1)
+=?= 1 (isPrint {a})
+=?= 0 (isPrint 1)
 
-!!= [{0} 0]                   | listDigits 0
-!!= [{0}]                     | digits 0
-!!= [{1} [{2} [{3} [{4} 0]]]] | listDigits 1234
-!!= [{1} {2} {3} {4}]         | digits     1234
-!!= [{1} [{2} [{3} [{4} 0]]]] | listDigits 01234
-!!= [{1} {2} {3} {4}]         | digits     01234
+=?= [{0} 0]                   | listDigits 0
+=?= [{0}]                     | digits 0
+=?= [{1} [{2} [{3} [{4} 0]]]] | listDigits 1234
+=?= [{1} {2} {3} {4}]         | digits     1234
+=?= [{1} [{2} [{3} [{4} 0]]]] | listDigits 01234
+=?= [{1} {2} {3} {4}]         | digits     01234
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

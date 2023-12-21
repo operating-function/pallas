@@ -85,6 +85,6 @@
 | listTake count
 | 2::3::5::7::(sieve (spinWheel 11))
 
-!!=   24133 | listSum (primes_sieve  100)
-!!=  824693 | listSum (primes_sieve  500)
-!!= 3682913 | listSum (primes_sieve 1000)
+=?=   24133 | listSum (primes_sieve  100)
+=?=  824693 | listSum (primes_sieve  500)
+=?= 3682913 | listSum (primes_sieve 1000)

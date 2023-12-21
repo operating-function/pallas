@@ -23,7 +23,7 @@
 
 ss=(SIRE_STATE 5 {repl} [zaz={ZAZBIND}] #[] #[])
 
-!!= (ss, 234) (executeSire `234 ss)
+=?= (ss, 234) (executeSire `234 ss)
 
 = (plusMacro st rex err ok)
 @ kids (rexKids rex)
@@ -38,26 +38,26 @@ ss=(SIRE_STATE 5 {repl} [zaz={ZAZBIND}] #[] #[])
 
 ss=(SIRE_STATE 5 {repl} env #[] #[])
 
-!!= (ss, add) | executeSire `add ss
-!!= (ss, 3)   | executeSire `3 ss
-!!= (ss, 4)   | executeSire `4 ss
+=?= (ss, add) | executeSire `add ss
+=?= (ss, 3)   | executeSire `3 ss
+=?= (ss, 4)   | executeSire `4 ss
 
-!!=   | (ss, A (A (G addBind) K-3) K-4)
+=?=   | (ss, A (A (G addBind) K-3) K-4)
   | readExpr ~[] `(add 3 4) ss
 
-!!=   | (ss, add 3)
+=?=   | (ss, add 3)
   | evalExpr `(add 3) ss
 
-!!=   | (ss, 7)
+=?=   | (ss, 7)
   | evalExpr `(add 3 4) ss
 
-!!=   | (ss, strCat [}'{' newlineChar {z}])
+=?=   | (ss, strCat [}'{' newlineChar {z}])
   ^ (evalExpr _ ss)
   ` | add 1
     } z
     } z
 
-!!=   ^ (ss, _)
+=?=   ^ (ss, _)
       | 0 {x}
       | 0 {x}
       | 0 {x}
@@ -69,7 +69,7 @@ ss=(SIRE_STATE 5 {repl} env #[] #[])
 
 ; This tests macro expansion!
 
-!!= (ss, 7)
+=?= (ss, 7)
   | executeSire `(3+4) ss
 
 = env2
@@ -85,27 +85,27 @@ ss=(SIRE_STATE 5 {repl} env #[] #[])
 
 ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
 
-!!=   | (ss2, [77])
+=?=   | (ss2, [77])
   | executeSire `(seventySeven = (73+4)) ss
 
-!!=   | (ss2, 80)
+=?=   | (ss2, 80)
   | executeSire `(seventySeven+3) ss2
 
-!!= [3 4 999]
+=?= [3 4 999]
   ^ trySire _
   # b } 3
       } 4
       } 2 0 3 999
       }
 
-!!=  ++ ` # {undefined rune} on line $$1
+=?=  ++ ` # {undefined rune} on line $$1
           # ===
   ^ trySire _
   # b } ===
       }
       }
 
-!!= ++ [3]
+=?= ++ [3]
     ++ 4
     ++ ` # {expected two or three params} on line $$3
          # (x=x=x=x=x)
@@ -115,7 +115,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } x=x=x=x=x
       }
 
-!!= [[0 1 2 3 4 {die} {todo}] id]
+=?= [[0 1 2 3 4 {die} {todo}] id]
   ^ trySire _
   # b } = LAW     | 0
       } = valCase | 1
@@ -129,7 +129,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
       }
 
-!!=   ^ [0 [3] 3 0 _]
+=?=   ^ [0 [3] 3 0 _]
       ` # {undefined reference} on line $$8
         # x
   ^ trySire _
@@ -143,7 +143,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
     } x
     }
 
-!!=   | [[[3] [4]] 3 4]
+=?=   | [[[3] [4]] 3 4]
   ^ trySire _
   # b } #* x=3 y=4
       }
@@ -151,7 +151,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } y
       }
 
-!!=   | [[[3] [4]] 3 4 %[]]
+=?=   | [[[3] [4]] 3 4 %[]]
   ^ trySire _
   # b } #* x=3 y=4
       }
@@ -162,7 +162,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
       }
 
-!!= [[[3] [4]] 3 4 %[x]]
+=?= [[[3] [4]] 3 4 %[x]]
   ^ trySire _
   # b } #* x=3 y=4
       }
@@ -173,7 +173,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
       }
 
-!!= [[[3] [4]] 3 4 %[x]]
+=?= [[[3] [4]] 3 4 %[x]]
   ^ trySire _
   # b } #* x=3 y=4
       }
@@ -185,7 +185,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
       }
 
-!!=   | [[[3] [4]] 3 4 %[y] 4]
+=?=   | [[[3] [4]] 3 4 %[y] 4]
   ^ trySire _
   # b } #* x=3 y=4
       }
@@ -197,7 +197,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } y
       }
 
-!!=   ^ [[[3] [4]] 3 4 %[y] _]
+=?=   ^ [[[3] [4]] 3 4 %[y] _]
       ` # {undefined reference} on line $$8
         # x
   ^ trySire _
@@ -211,33 +211,33 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } x
       }
 
-!!=   ^ [_]
+=?=   ^ [_]
       ` # {assertion failed} on line $$1
-        # (!!= 3 4)
+        # (=?= 3 4)
   ^ trySire _
-  # b } (!!= 3 4)
+  # b } (=?= 3 4)
       }
 
-!!=   | [[3]]
+=?=   | [[3]]
   ^ trySire _
-  # b } (!!= 3 3)
+  # b } (=?= 3 3)
       }
 
-!!=   | [[3 4]]
+=?=   | [[3 4]]
   ^ trySire _
-  # b } !!= 3 3
-      } !!= 4 4
+  # b } =?= 3 3
+      } =?= 4 4
       }
       }
 
-!!=   | [[3]]
+=?=   | [[3]]
   ^ trySire _
-  # b } !!= 3
+  # b } =?= 3
       }   | 3 2
       }
       }
 
-!!=   ^ [0 [3] 0 _]
+=?=   ^ [0 [3] 0 _]
       ` # {import list contains duplicates} on line $$4
         # [x x]
   ^ trySire _
@@ -247,7 +247,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } (/+ foo [x x])
       }
 
-!!=   | [0 [3] 0 0 3]
+=?=   | [0 [3] 0 0 3]
   ^ trySire _
   # b } (#### foo)
       } x=3
@@ -256,7 +256,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } x
       }
 
-!!=   ^ [0 [3 4] 0 0 3 4 _]
+=?=   ^ [0 [3 4] 0 0 3 4 _]
       ` # {undefined reference} on line $$7
         # y
   ^ trySire _
@@ -269,7 +269,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } y
       }
 
-!!=   ^ [0 [3 4] 0 0 _ 4]
+=?=   ^ [0 [3 4] 0 0 _ 4]
       ` # {undefined reference} on line $$5
         # x
   ^ trySire _
@@ -281,7 +281,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } y
       }
 
-!!=   | [0 [3 4] 0 0 3 4]
+=?=   | [0 [3 4] 0 0 3 4]
   ^ trySire _
   # b } (#### foo)
       } (x=3)(y=4)
@@ -291,7 +291,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } y
       }
 
-!!=   | [0 [3 4] 0 0 3 4]
+=?=   | [0 [3 4] 0 0 3 4]
   ^ trySire _
   # b } #### foo
       }
@@ -305,7 +305,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } #.{y}
       }
 
-!!=   | [%a %b %c %d %e 10]
+=?=   | [%a %b %c %d %e 10]
   ^ trySire _
   # b } 97
       } {b}
@@ -317,7 +317,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
       }
 
-!!=   ^ [_ 5]
+=?=   ^ [_ 5]
       ` # {only one param was expected} on line $$1
         # 3**4
   ^ trySire _
@@ -327,7 +327,7 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
 
 appHead=(1 0 0 (a b & a) 0)
 
-!!=   ^ [3 [appHead] 2 _] ` # {undefined reference} on line $$10
+=?=   ^ [3 [appHead] 2 _] ` # {undefined reference} on line $$10
                             # x
   ^ trySire _
   # b }
@@ -342,7 +342,7 @@ appHead=(1 0 0 (a b & a) 0)
       } x@x@x
       }
 
-!!=   | [(0-0 0-0) (0-0 0-0)]
+=?=   | [(0-0 0-0) (0-0 0-0)]
   ^ trySire _
   # b }
       } ^ _ _ (0 0)
@@ -352,7 +352,7 @@ appHead=(1 0 0 (a b & a) 0)
       }
       }
 
-!!=  ++ (a & a)
+=?=  ++ (a & a)
      ++ (a b & a)
      ++ (a b & b)
      ++ (const x y ? x)
@@ -363,7 +363,7 @@ appHead=(1 0 0 (a b & a) 0)
       } ({const} & x y & x)
       }
 
-!!=  ++ (f x ? f)
+=?=  ++ (f x ? f)
      ++ (f x ? x)
      ++ (f x ? f)
      ++ (f x ? x)
@@ -388,14 +388,14 @@ appHead=(1 0 0 (a b & a) 0)
 #?? 0 (f x y)
   | f x y
 
-!!=  ++ (lol x y ?? lol x y)
+=?=  ++ (lol x y ?? lol x y)
      ++ anonRecursive
   ^ trySire _
   # b } ({lol} ?? **f x y ?? f x y)
       } (0 ?? **f x y ?? f x y)
       }
 
-!!=  ++ ++ (f x ?? x)
+=?=  ++ ++ (f x ?? x)
         ++ (g x y ?? y)
         ++ (g x y ?? x)
         ++ (g x y ?? g)
@@ -411,7 +411,7 @@ appHead=(1 0 0 (a b & a) 0)
       }
       }
 
-!!=  ++ [0]
+=?=  ++ [0]
      ++ 0 0 1 | 2-(2 (0 1))
      ++ 0 0 1 | 0 3 (0 1)
   ^ trySire _
@@ -421,7 +421,7 @@ appHead=(1 0 0 (a b & a) 0)
       }
       }
 
-!!=  ++ ++ | 0 {f} 1
+=?=  ++ ++ | 0 {f} 1
            ^ 0 _ 1
            | 0 {g} 2
            | 0 1 2
@@ -434,14 +434,14 @@ appHead=(1 0 0 (a b & a) 0)
       } (x 1 2)
       }
 
-!!=  ++ [(f x y ?? x)]
+=?=  ++ [(f x y ?? x)]
      ++ [(g x ?? x)]
   ^ trySire _
   # b } (f x y)=x
       } (g x)=(**f x 999)
       }
 
-!!=  ++ (x & 0 x x)
+=?=  ++ (x & 0 x x)
   ^ trySire _
   # b } & x
       } @ bar (a & 0 a a)
@@ -449,12 +449,12 @@ appHead=(1 0 0 (a b & a) 0)
       }
       }
 
-!!=  ++ [%x]
+=?=  ++ [%x]
   ^ trySire _
-  # b } ({x} !!= }|x|)
+  # b } ({x} =?= }|x|)
       }
 
-!!=  ++ [(g k ? 0 (_ & k 0))]
+=?=  ++ [(g k ? 0 (_ & k 0))]
      ++ (test a ? 0-((b c & b 0) a))
   ^ trySire _
   # b
@@ -463,7 +463,7 @@ appHead=(1 0 0 (a b & a) 0)
   }
   }
 
-!!=  ++ ` # {malformed leaf} on line $$1
+=?=  ++ ` # {malformed leaf} on line $$1
           # 123_123
      ++ [("#" a b c d ?? c b %pizza)]
      ++ ` # {pizza} on line $$3

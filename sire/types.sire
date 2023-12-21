@@ -214,12 +214,12 @@ abstype#TyExp
 = quadKey | getKey#Quad
 = pentKey | getKey#Pent
 
-!!= Any | SCHEME 0 (TCON anyKey [])
-!!= Fun | SCHEME 2 (TCON funKey [0 1])
+=?= Any | SCHEME 0 (TCON anyKey [])
+=?= Fun | SCHEME 2 (TCON funKey [0 1])
 
-!!= getProp#(Any.typeName) {Any}
-!!= getProp#(Nat.typeName) {Nat}
-!!= getProp#(Fun.typeName) {Fun}
+=?= getProp#(Any.typeName) {Any}
+=?= getProp#(Nat.typeName) {Nat}
+=?= getProp#(Fun.typeName) {Fun}
 
 = (lookupOr env key fallback ok)
 | ifNot (tabHas key env) fallback
@@ -367,7 +367,7 @@ abstype#TyExp
 @ acc (rexSetHeir 0 rex)::acc
 | loop acc (rexHeir rex)
 
-!!=  ++ [8]
+=?=  ++ [8]
      ++ ' > Row Nat
           > Row Nat
      ++ 7
@@ -377,7 +377,7 @@ abstype#TyExp
     > Row Nat
     = (id x) x
 
-!!=  ++ [8]
+=?=  ++ [8]
      ++ ' > Row Nat > Row Nat
      ++ 7
      ++ ' = 7 (id x) x
@@ -385,7 +385,7 @@ abstype#TyExp
   ' > Row Nat > Row Nat
     = (id x) x
 
-!!=  ++ [7]
+=?=  ++ [7]
      ++ ' > Row Nat > Row Nat
      ++ 32
      ++ ' = 32 (id x) x
