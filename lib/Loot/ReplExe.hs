@@ -20,7 +20,7 @@ module Loot.ReplExe
     , showClosure
     , closureRex
     , showValue
-    , Pex, rexToPex, pexToRex
+    , Pex, rexToPex, pexRender
     )
 where
 
@@ -275,8 +275,8 @@ trkFan val =
     putStrLn $
     let pex = nounPex val in
     case pex.v of
-        Nothing -> showClosure Nothing $ loadShallow val
-        Just{}  -> rexFile $ joinRex $ showValue . loadShallow <$> pexToRex pex
+        Nothing -> showClosure Nothing (loadShallow val)
+        Just{}  -> rexFile (pexRender plunRex pex)
 
 dieFan :: RexColor => Nat -> Fan -> IO ()
 dieFan op fan = trkFan $ F.ROW $ arrayFromListN 3 ["crash", F.NAT op, fan]
@@ -290,10 +290,17 @@ rexToPex = \case
     T sh t h   -> PR.LEAF sh t (rexToPex <$> h)
     N sh r s h -> PR.NODE sh r (rexToPex <$> s) (rexToPex <$> h)
 
-pexToRex :: Pex -> GRex Fan
-pexToRex PR.PR{n=raw, v} =
+pexRender :: (Fan -> GRex a) -> Pex -> GRex a
+pexRender render PR.PR{n=raw, v} =
     case v of
-    Nothing                  -> C raw -- hack
-    Just (PR.EMBD_ val)      -> C val
-    Just (PR.NODE_ sh r s h) -> N sh r (pexToRex <$> s) (pexToRex <$> h)
-    Just (PR.LEAF_ sh t h)   -> T sh t (pexToRex <$> h)
+    Nothing                  -> wrap "�" (render raw)
+    Just (PR.EMBD_ val)      -> wrap "▣" (render val)
+    Just (PR.NODE_ sh r s h) -> N sh r (pexRender render <$> s) (pexRender render <$> h)
+    Just (PR.LEAF_ sh t h)   -> T sh t (pexRender render <$> h)
+  where
+    isClosed (T LINE _ _)   = False
+    isClosed (N OPEN _ _ _) = False
+    isClosed _              = True
+
+    wrap :: Text -> GRex a -> GRex a
+    wrap ryn x = N (if isClosed x then PREF else OPEN) ryn [x] Nothing

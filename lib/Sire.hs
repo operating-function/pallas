@@ -1093,8 +1093,8 @@ execAssert (_xRex, xExp) (_yRex, yExp) = do
 
     unless (xVal == yVal) do
         let rx = OPEN "!!=" []
-               $ Just $ OPEN "*" [nounPex xVal]
-               $ Just $ OPEN "*" [nounPex yVal]
+               $ Just $ OPEN "*" [rexToPex $ fmap absurd $ planRex xVal]
+               $ Just $ OPEN "*" [rexToPex $ fmap absurd $ planRex yVal]
                $ Nothing
         parseFail rx "ASSERTION FAILURE"
 

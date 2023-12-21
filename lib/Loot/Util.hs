@@ -12,12 +12,18 @@ import qualified Fan.PlanRex as Fan
 
 --------------------------------------------------------------------------------
 
-lootRexToRex :: LootRex a -> GRex a
+lootRexToRex :: LootRex XVal -> GRex XVal
 lootRexToRex = \case
-    EVIL x       -> N OPEN "�" [C x] Nothing
-    EMBD x       -> N OPEN "▣" [C x] Nothing
+    EVIL x       -> wrap "�" x
+    EMBD x       -> wrap "▣" x
     NODE t r s h -> N t r (lootRexToRex <$> s) (lootRexToRex <$> h)
     LEAF t r h   -> T t r (lootRexToRex <$> h)
+  where
+    wrap ryn x@XVNAT{} = N PREF ryn [C x] Nothing
+    wrap ryn x@XVBAR{} = N PREF ryn [C x] Nothing
+    wrap ryn x@XVCOW{} = N PREF ryn [C x] Nothing
+    wrap ryn x@XVREF{} = N PREF ryn [C x] Nothing
+    wrap ryn x         = N OPEN ryn [C x] Nothing
 
 lootRexToPex :: LootRex Fan.Any -> Fan.PlanRex
 lootRexToPex = \case

@@ -45,7 +45,7 @@ import Fan.Convert  (ToNoun(toNoun))
 import Fan.PlanRex  (PlanRex)
 import Fan.JetImpl  (doTrk, doTrkRex)
 import Loot.Backend (loadShallow)
-import Loot.ReplExe (showValue, pexToRex)
+import Loot.ReplExe (showValue, pexRender)
 import Loot.Syntax  (joinRex)
 import Rex          (GRex(..), RexColorScheme(NoColors), RuneShape(..),
                      TextShape(..), rexFile)
@@ -210,10 +210,11 @@ rexText =
             style = if isClosed rex then PREF else OPEN
 
 pexText :: Pex -> Text
-pexText = rexText . pexToRex
+pexText = rexText . pexRender (fmap absurd . planRex)
 
 isClosed :: GRex a -> Bool
 isClosed (N OPEN _ _ _) = False
+isClosed (T LINE _ _)   = False
 isClosed _              = True
 
 isSimpleClosed :: GRex a -> Bool
