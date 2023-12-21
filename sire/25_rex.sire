@@ -235,8 +235,8 @@ spaceToks=(setFromRow [LWYTE LSEMI LTERM])
 ;;; Layout Engine (Understand Structure Implied by Indentation) ;;;;;;;;;;;;;;;;
 
 # datatype Tree
-* LEAF=leaf c:Clump
-* NODE=node rune:Bar sons:(Row Tree) kids:(Maybe Tree)
+* TLEAF=leaf c:Clump
+* TNODE=node rune:Bar sons:(Row Tree) kids:(Maybe Tree)
 
 # datatype (Frag a)
 * WOLF=wolf rune:Bar x:a
@@ -295,13 +295,13 @@ lus=(SPAN (LN {file} 1 b#{ + }) 1 2 LRUNE)
 > Frag Clump > Tree
 = (fTree frag)
 # datacase frag
-* (LAMB c)   | **LEAF c
-* (WOLF b _) | **NODE b [] NONE
+* (LAMB c)   | **TLEAF c
+* (WOLF b _) | **TNODE b [] NONE
 
 > Item > Tree
 = (iTree item@(I t x k))
 | if (isZero t) ({invalid item} item)
-| **NODE t (listToRowRev x) k
+| **TNODE t (listToRowRev x) k
 
 > (Nat, Tree) > (Nat, Item) > (Nat, Item)
 = (merge [rp r] [ip i@(I t cs mHeir)])
@@ -347,8 +347,8 @@ lus=(SPAN (LN {file} 1 b#{ + }) 1 2 LRUNE)
            | pushAll (pos, I r ~[] NONE) fs
 
 # datatype Tree
-* LEAF=leaf c:Clump
-* NODE=node rune:Bar sons:(Row Tree) kids:(Maybe Tree)
+* TLEAF=leaf c:Clump
+* TNODE=node rune:Bar sons:(Row Tree) kids:(Maybe Tree)
 
 
 ;;; Splitting Blocks ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -595,15 +595,15 @@ typedef#(NonEmpty a)#(a, List a)
 
 = (treeRex t)
 # datacase t
-* LEAF-c     | clumpRex c
-* NODE-r-s-h | OPEN (barNat r) (map treeRex s)
-             | (datacase#h)(NONE*0)(SOME x * treeRex x)
+* TLEAF-c     | clumpRex c
+* TNODE-r-s-h | OPEN (barNat r) (map treeRex s)
+              | (datacase#h)(NONE*0)(SOME x * treeRex x)
 
 > List Tree > Rex
 = (treesRex trees)
 : t ts < listCase trees (die {treesRex: empty block})
 | if (ts == NIL) | treeRex t
-| else           | treeRex (**NODE b#{|} (listToRow trees) NONE)
+| else           | treeRex (**TNODE b#{|} (listToRow trees) NONE)
 
 = (testRex input)
 @ toks
@@ -660,7 +660,7 @@ listMonoid=(NIL, listWeld)
 ^-^ PAREN BRACK
 ^-^ SPAN
 ^-^ LAMB WOLF
-^-^ LEAF NODE
+^-^ TLEAF TNODE
 ^-^ BS
 ^-^ WOODS TEXTY BLOCK
 ^-^ PREFX INFIX SEQUE

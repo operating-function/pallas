@@ -189,10 +189,10 @@ d=(SPAN x 2 3 [(SPAN x 2 3 LRUNE)])
 = (renderTree depth t)
 ^ (barRep depth { }, _)
 # datacase t
-* LEAF-c
+* TLEAF-c
    ++ renderClump c
    ++ barNewline
-* NODE-rune-sons-heir
+* TNODE-rune-sons-heir
    ++ rune
    ++ barNewline
    ++ @ nSons (len sons)
@@ -228,9 +228,9 @@ x=(LN {file} 1 b#{ a b c })
   }
   } [c]
   }
- ;++ LEAF | SPAN x 1 2 [(SPAN x 1 2 LWORD)]
- ;++ LEAF | SPAN x 3 4 [(SPAN x 3 4 LWORD)]
- ;++ LEAF | SPAN x 5 6 [(SPAN x 5 6 LWORD)]
+ ;++ TLEAF | SPAN x 1 2 [(SPAN x 1 2 LWORD)]
+ ;++ TLEAF | SPAN x 3 4 [(SPAN x 3 4 LWORD)]
+ ;++ TLEAF | SPAN x 5 6 [(SPAN x 5 6 LWORD)]
 
 !!= (testLayout b#{ a b# c })
   # b
@@ -322,7 +322,7 @@ x=(LN {file} 1 b#{ a b c })
 x=(LN %REPL 1 b#lol)
 !!=  ++ BS %REPL 2 WOODS
      ++ ~~ ++ 1
-           ++ ~~ LEAF (x, 0, 3, [[x 0 3 LWORD]])
+           ++ ~~ TLEAF (x, 0, 3, [[x 0 3 LWORD]])
   | treeStep (blockState {REPL})
   | SOME b#} lol
 

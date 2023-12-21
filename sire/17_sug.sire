@@ -496,8 +496,8 @@ four=(WORD {4} 0)
 !!= `(3 $(cnsE four) 5)
     `(3 $$four 5)
 
-(**NODE x y)=[x y]
-(**LEAF x)=[x]
+(**BNODE x y)=[x y]
+(**BLEAF x)=[x]
 
 > (a > a > a) > BinTree a > a
 = (binTreeFold f node)
@@ -521,11 +521,11 @@ four=(WORD {4} 0)
 ? (go nKid kids)
 : lastItem < readExp (idx (dec nKid) kids) err
 | if (eql nKid 1)
-    | ok (LEAF lastItem)
+    | ok (BLEAF lastItem)
 | else
     @ nKid (dec nKid)
     : head < go nKid (take nKid kids)
-    | ok (NODE head (LEAF lastItem))
+    | ok (BNODE head (BLEAF lastItem))
 
 = (readInfixRight readExp rune rex err ok)
 : kids nKid < readInfixValidate rune rex err
@@ -533,11 +533,11 @@ four=(WORD {4} 0)
 ? (go nKid kids ok)
 : fstItem < readExp (idx 0 kids) err
 | if (eql nKid 1)
-    | ok (LEAF fstItem)
+    | ok (BLEAF fstItem)
 | else
     @ nKid (dec nKid)
     : rest < go nKid (drop 1 kids)
-    | ok (NODE (LEAF fstItem) rest)
+    | ok (BNODE (BLEAF fstItem) rest)
 
 = (andE x y) | `($$and $x $y)
 = (orE x y)  | `($$or $x $y)
@@ -698,7 +698,7 @@ four=(WORD {4} 0)
 ^-^ readTallListLit readWideListLit
 ^-^ readNotEqlExp
 ^-^ readQuasiQuotedRex splicedE
-^-^ NODE LEAF binTreeFold
+^-^ binTreeFold
 ^-^ readInfixRight readInfixLeft
 ^-^
 ^-^ readEqlExp multiEqlE
