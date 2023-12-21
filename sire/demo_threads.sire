@@ -4,14 +4,9 @@
 
 #### demo_threads <- demo_telnet_hello_listen
 
-/+  sire
-/+  io      [forever]
-/+  io      [syscall RAND_BYTE TIME_WHEN TIME_WAIT]
-/+  io      [fork]
-/+  io      [myThreadId getKernelState]
-/+  io      [newRef readRef writeRef]
-/+  io      [runCog]
-/+  stew
+:| sire
+:| io
+:| stew
 
 
 ;;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

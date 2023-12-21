@@ -4,10 +4,10 @@
 
 #### test_stroll <- test_datom
 
-/+  sire
-/+  datom
-/+  stroll
-/+  stew
+:| sire
+:| datom
+:| stroll
+:| stew
 
 
 ;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

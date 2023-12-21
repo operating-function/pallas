@@ -4,11 +4,11 @@
 
 #### json <- io
 
-/+  sire
-/+  24_datatype [natTag barTag appTag rowTag tabTag]
-/+  mutrec    [{#mutrec}]
-/+  stew
-/+  types
+:| sire
+:| 24_datatype [natTag barTag appTag rowTag tabTag]
+:| mutrec      [{#mutrec}]
+:| stew
+:| types
 
 
 ;;; Lexemes ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

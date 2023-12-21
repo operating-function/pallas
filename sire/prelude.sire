@@ -4,19 +4,19 @@
 
 #### prelude <- datom
 
-/+ sire
-/+ inspect
-/+ w32
-/+ w48
-/+ w64
-/+ mutrec
-/+ plan
-/+ blake3
-/+ gen
-/+ parallel
-/+ hitch
-/+ io
-/+ json
-/+ kern
-/+ stew
-/+ datom
+:| sire
+:| inspect
+:| w32
+:| w48
+:| w64
+:| mutrec
+:| plan
+:| blake3
+:| gen
+:| parallel
+:| hitch
+:| io
+:| json
+:| kern
+:| stew
+:| datom

@@ -4,11 +4,11 @@
 
 #### test_hitch <- test_stroll
 
-/+  sire
-/+  hitch
-/+  blake3
-/+  gen
-/+  stew
+:| sire
+:| hitch
+:| blake3
+:| gen
+:| stew
 
 
 ;;; MapTest ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

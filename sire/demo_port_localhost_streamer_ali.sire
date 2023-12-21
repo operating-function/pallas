@@ -4,10 +4,10 @@
 
 #### demo_port_localhost_streamer_ali <- demo_port_localhost
 
-/+  hitch
-/+  kern
-/+  prelude
-/+  demo_port_localhost
+:| hitch
+:| kern
+:| prelude
+:| demo_port_localhost
 
 = usSeed
 | idx-0-ali_seed_addr

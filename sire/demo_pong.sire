@@ -10,11 +10,11 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  stew
+:| stew
 
-; /+ sire
-; /+ blake3
-; /+ switch [{#switch}]
+; :| sire
+; :| blake3
+; :| switch [{#switch}]
 ;
 ; (snoc row e)=(weld row [e])
 ;

@@ -12,21 +12,21 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  01_fan  [lawBody trk isLaw inc seq const id]
-/+  01_fan  [car cdr]
-/+  02_bit  [if ifNot and or not nor]
-/+  03_nat  [add toNat rsh mod even]
-/+  04_cmp  [eql neq lth lte gte gth isZero]
-/+  05_row
-/+  06_rex  [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
-/+  06_rex  [OPEN EMBD PREF]
-/+  07_dat
-/+  09_chr  []
-/+  10_str  [strWeld]
-/+  11_set  [isSet emptySet setLen setHas setMin setToList]
-/+  11_set  [setToRow setFromRowAsc]
-/+  11_set  [setPop]
-/+  11_set  [{%} readKey]
+:| 01_fan [lawBody trk isLaw inc seq const id]
+:| 01_fan [car cdr]
+:| 02_bit [if ifNot and or not nor]
+:| 03_nat [add toNat rsh mod even]
+:| 04_cmp [eql neq lth lte gte gth isZero]
+:| 05_row
+:| 06_rex [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
+:| 06_rex [OPEN EMBD PREF]
+:| 07_dat
+:| 09_chr []
+:| 10_str [strWeld]
+:| 11_set [isSet emptySet setLen setHas setMin setToList]
+:| 11_set [setToRow setFromRowAsc]
+:| 11_set [setPop]
+:| 11_set [{%} readKey]
 
 
 ;;; Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

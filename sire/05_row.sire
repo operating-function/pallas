@@ -79,14 +79,14 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  01_fan  [LAW inc seq]
-/+  01_fan  [car cdr caar caaar caaaar]
-/+  01_fan  [isApp isLaw lawName lawArgs lawBody]
-/+  01_fan  [id const apply supply]
-/+  01_fan  [isOne]
-/+  02_bit  [if ifNot and or not]
-/+  03_nat  [dec sub add]
-/+  04_cmp  [eql isZero lth gte]
+:| 01_fan [LAW inc seq]
+:| 01_fan [car cdr caar caaar caaaar]
+:| 01_fan [isApp isLaw lawName lawArgs lawBody]
+:| 01_fan [id const apply supply]
+:| 01_fan [isOne]
+:| 02_bit [if ifNot and or not]
+:| 03_nat [dec sub add]
+:| 04_cmp [eql isZero lth gte]
 
 
 ;;; Core Jets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -4,9 +4,9 @@
 
 #### demo_wait_loop <- demo_token_ring
 
-/+  sire
-/+  io
-/+  stew
+:| sire
+:| io
+:| stew
 
 
 ;;; Wait Loop ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

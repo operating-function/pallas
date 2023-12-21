@@ -4,9 +4,9 @@
 
 #### demo_token_ring <- demo_token_ring_chr
 
-/+  sire
-/+  kern
-/+  stew
+:| sire
+:| kern
+:| stew
 
 
 ;;; Talker ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

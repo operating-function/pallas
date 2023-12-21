@@ -10,31 +10,31 @@
 ;;;; See sh/bootstrap-sire to see how you can use this code
 ;;;; to compile itself.
 
-/+ 01_fan      ;
-/+ 02_bit      ;
-/+ 03_nat      ;
-/+ 05_row      ;
-/+ 04_cmp      ;
-/+ 05_row      ;
-/+ 06_rex      ;
-/+ 07_dat      ;
-/+ 09_chr      ;
-/+ 10_str      ;
-/+ 11_set      ;
-/+ 12_tab      ;
-/+ 13_exp      ;
-/+ 14_hax      ;
-/+ 15_pad      ;
-/+ 16_bar      ;
-/+ 17_sug      ;
-/+ 19_pat      ;
-/+ 20_prp      ;
-/+ 21_switch   ;
-/+ 22_seed     ;
-/+ 23_repl     [lineRepl cogMap]
-/+ 24_datatype ;
-/+ 25_rex      [simpleCog rexCog listMonoid blockState]
-/+ 26_compile  ;
+:| 01_fan      ;
+:| 02_bit      ;
+:| 03_nat      ;
+:| 05_row      ;
+:| 04_cmp      ;
+:| 05_row      ;
+:| 06_rex      ;
+:| 07_dat      ;
+:| 09_chr      ;
+:| 10_str      ;
+:| 11_set      ;
+:| 12_tab      ;
+:| 13_exp      ;
+:| 14_hax      ;
+:| 15_pad      ;
+:| 16_bar      ;
+:| 17_sug      ;
+:| 19_pat      ;
+:| 20_prp      ;
+:| 21_switch   ;
+:| 22_seed     ;
+:| 23_repl     [lineRepl cogMap]
+:| 24_datatype ;
+:| 25_rex      [simpleCog rexCog listMonoid blockState]
+:| 26_compile  ;
 
 
 
@@ -842,8 +842,8 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     * {#^-^} | doFilter rune %[]
     * {=?=}  | doAssert
     * {#=?=} | doAssert
-    * {#/+}  | doImport
-    * {/+}   | doImport
+    * {#:|}  | doImport
+    * {:|}   | doImport
     * _      | if isExpRune-rune execExpr
              | alwaysError ({undefined rune}, rex)
 

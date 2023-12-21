@@ -4,10 +4,10 @@
 
 #### demo_cog_stop <- demo_cog_spin
 
-/+  sire
-/+  kern
-/+  demo_timer
-/+  stew
+:| sire
+:| kern
+:| demo_timer
+:| stew
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

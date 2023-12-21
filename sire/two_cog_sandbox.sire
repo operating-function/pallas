@@ -4,10 +4,10 @@
 
 #### two_cog_sandbox <- kern
 
-/+  sire
-/+  kern
-/+  mutrec
-/+  stew
+:| sire
+:| kern
+:| mutrec
+:| stew
 
 
 ;;; Sandbox ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -43,21 +43,21 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  01_fan  [die seq isNat const]
-/+  02_bit  [if ifNot else not or bit]
-/+  03_nat  [inc add mul sub bex dec met lsh rsh mod dis con mix even]
-/+  05_row  [idx len]
-/+  04_cmp  [eql neq lte isZero]
-/+  05_row  [map weld foldl]
-/+  06_rex  [rexKids rexHeir rexText rexIsLeaf SHUT WORD TEXT {'}]
-/+  07_dat  [{,} {++}]
-/+  07_dat  [listCase listSnoc NIL CONS]
-/+  09_chr  [spaceChar tabChar]
-/+  10_str  [explode strToList strFromList strLen strWeld]
-/+  11_set  []
-/+  12_tab  []
-/+  13_exp  [cnsE]
-/+  14_hax  [{#}]
+:| 01_fan [die seq isNat const]
+:| 02_bit [if ifNot else not or bit]
+:| 03_nat [inc add mul sub bex dec met lsh rsh mod dis con mix even]
+:| 05_row [idx len]
+:| 04_cmp [eql neq lte isZero]
+:| 05_row [map weld foldl]
+:| 06_rex [rexKids rexHeir rexText rexIsLeaf SHUT WORD TEXT {'}]
+:| 07_dat [{,} {++}]
+:| 07_dat [listCase listSnoc NIL CONS]
+:| 09_chr [spaceChar tabChar]
+:| 10_str [explode strToList strFromList strLen strWeld]
+:| 11_set []
+:| 12_tab []
+:| 13_exp [cnsE]
+:| 14_hax [{#}]
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

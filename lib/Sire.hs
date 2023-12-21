@@ -458,8 +458,8 @@ execute rex = do
             ( _,        "#^-^" ) -> doFilter rune mempty (Just rex)
             ( _,        "=?="  ) -> doAssert rune rex
             ( _,        "#=?=" ) -> doAssert rune rex
-            ( _,        "#/+"  ) -> doImport rex rune (Just rex)
-            ( _,        "/+"   ) -> doImport rex rune (Just rex)
+            ( _,        "#:|"  ) -> doImport rex rune (Just rex)
+            ( _,        ":|"   ) -> doImport rex rune (Just rex)
             _ | expRune rune     -> execExpr rex
             _                    -> parseFail rex ("Unbound rune: " <> rune)
 
@@ -758,7 +758,7 @@ repl s1 mImport = do
     s3 <- case mImport of
               Nothing -> pure s2
               Just ng -> do
-                  let importRex = OPEN "/+" [WORD ng Nothing] Nothing
+                  let importRex = OPEN ":|" [WORD ng Nothing] Nothing
                   inContext "REPL" 0 importRex do
                       evaluate $ importModule importRex (utf8Nat ng) Nothing s2
 

@@ -4,9 +4,9 @@
 
 #### test_pq <- quickcheck
 
-/+ pq
-/+ quickcheck
-/+ prelude
+:| pq
+:| quickcheck
+:| prelude
 
 (**debug m v)=v
 

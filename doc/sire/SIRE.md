@@ -80,11 +80,11 @@ Table of Runes
     =?= add car-(add 1)
     ```
 
--   `/+` imports a module
+-   `:|` imports a module
 
     ```
-    /+  str   [strCat strTake explode]
-    /+  json
+    :| str  [strCat strTake explode]
+    :| json ;
     ```
 
 -   `^-^` filters the environment (all bindings not listed become unbound)

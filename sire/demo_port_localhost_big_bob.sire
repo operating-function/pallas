@@ -4,10 +4,9 @@
 
 #### demo_port_localhost_big_bob <- demo_port_localhost_big_ali
 
-/+  kern
-/+  prelude
-
-/+  demo_port_localhost
+:| kern
+:| prelude
+:| demo_port_localhost
 
 = usSeed
 | idx-0-bob_seed_addr

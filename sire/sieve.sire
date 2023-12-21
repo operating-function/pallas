@@ -30,9 +30,9 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  prelude
-/+  stew
-/+  pq       [pqInsert pqEmpty pqDelMin pqMin]
+:| prelude ;
+:| stew    ;
+:| pq      [pqInsert pqEmpty pqDelMin pqMin]
 
 
 ;;; Sieve ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

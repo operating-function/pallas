@@ -173,17 +173,17 @@ version inaccessible.
                 yv = EVALUATE(y);
                 assert (xv == yv);
 
-            --   /+ pulls in symbols from earlier modules
+            --   :| pulls in symbols from earlier modules
 
-            (/+ args...)(/+ ...).. ==>
+            (:| args...)(:| ...).. ==>
 
-                Sire(* (/+ args...) (/+ ...)..);
+                Sire(* (:| args...) (:| ...)..);
 
-            (/+ foo) ==>
+            (:| foo) ==>
 
                 st.scope = st.scope `union` st.modules["foo"]
 
-            (/+ foo [syms..]) ==>
+            (:| foo [syms..]) ==>
 
                 st.scope = st.scope `union`
                                ( st.modules["foo"] `intersect` {syms..} )

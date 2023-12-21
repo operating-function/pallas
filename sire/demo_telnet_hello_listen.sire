@@ -4,8 +4,8 @@
 
 #### demo_telnet_hello_listen <- demo_smallcheck
 
-/+  sire
-/+  stew
+:| sire
+:| stew
 
 
 ;;; Telnet Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

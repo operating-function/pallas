@@ -4,8 +4,8 @@
 
 #### demo_pmap_eval <- demo_parallel_mandelbrot
 
-/+  sire
-/+  stew
+:| sire
+:| stew
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -4,8 +4,8 @@
 
 #### demo_token_ring_ali <- demo_token_ring_multicog
 
-/+  demo_token_ring_multicog
-/+  stew
+:| demo_token_ring_multicog
+:| stew
 
 
 ;;; ali ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

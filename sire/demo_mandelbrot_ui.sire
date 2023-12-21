@@ -4,14 +4,14 @@
 
 #### demo_mandelbrot_ui <- demo_parallel_mandelbrot
 
-/+  sire
-/+  kern
-/+  hitch
-/+  json
-/+  stew
-/+  types
+:| sire
+:| kern
+:| hitch
+:| json
+:| stew
+:| types
 
-/+ demo_parallel_mandelbrot [mandelbrotLine]
+:| demo_parallel_mandelbrot [mandelbrotLine]
 
 
 ;;; mandelbrot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

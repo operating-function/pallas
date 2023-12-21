@@ -42,11 +42,11 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  01_fan  [pinItem lawName lawBody trk]
-/+  02_bit  [if ifNot or else and not nor]
-/+  03_nat  [dec rsh]
-/+  04_cmp
-/+  05_row
+:| 01_fan [pinItem lawName lawBody trk]
+:| 02_bit [if ifNot or else and not nor]
+:| 03_nat [dec rsh]
+:| 04_cmp
+:| 05_row
 
 
 ;;; Rex Representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

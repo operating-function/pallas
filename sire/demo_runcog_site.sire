@@ -4,13 +4,13 @@
 
 #### demo_runcog_site <- demo_cog_stop
 
-/+  sire
-/+  kern
-/+  hitch
-/+  demo_timer
-/+  json
-/+  stew
-/+  types
+:| sire
+:| kern
+:| hitch
+:| demo_timer
+:| json
+:| stew
+:| types
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

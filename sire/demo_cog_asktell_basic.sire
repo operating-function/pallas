@@ -4,10 +4,10 @@
 
 #### demo_cog_asktell_basic <- demo_cog_stop
 
-/+  sire
-/+  kern
-/+  demo_timer
-/+  stew
+:| sire
+:| kern
+:| demo_timer
+:| stew
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

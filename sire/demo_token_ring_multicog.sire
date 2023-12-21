@@ -4,9 +4,9 @@
 
 #### demo_token_ring_multicog <- demo_timer
 
-/+  sire
-/+  io
-/+  stew
+:| sire
+:| io
+:| stew
 
 
 ;;; Talker ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

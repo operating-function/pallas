@@ -4,9 +4,9 @@
 
 #### test_kern_var <- test_json
 
-/+  sire
-/+  kern
-/+  stew
+:| sire
+:| kern
+:| stew
 
 
 ;;; ThreadIDs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -4,10 +4,10 @@
 
 #### demo_multi_effect <- demo_multi_effect_html
 
-/+  sire
-/+  io
-/+  stew
-/+  demo_multi_effect_html [multi_demo_index_html]
+:| sire
+:| io
+:| stew
+:| demo_multi_effect_html [multi_demo_index_html]
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

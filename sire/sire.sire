@@ -7,29 +7,29 @@
 ;;;; Re-export everything in the boot-sequence, with the exception
 ;;;; of internal routines that are imported by some specific modules.
 
-/+ 01_fan
-/+ 02_bit
-/+ 03_nat
-/+ 05_row
-/+ 04_cmp
-/+ 05_row
-/+ 06_rex
-/+ 07_dat
-/+ 09_chr
-/+ 10_str
-/+ 11_set
-/+ 12_tab
-/+ 13_exp
-/+ 14_hax
-/+ 15_pad
-/+ 16_bar
-/+ 17_sug
-/+ 19_pat
-/+ 20_prp
-/+ 21_switch   [{#switch}]
-/+ 22_seed     [pinRefs _LoadGerm _SaveGerm _LoadSeed _SaveSeed]
-/+ 23_repl     []
-/+ 24_datatype [{#datatype} {#datacase} {#record} typeTag dataTag]
-/+ 25_rex      [simpleCog rexCog listMonoid blockState]
-/+ 26_compile  []
-/+ 27_sire     [main]
+:| 01_fan
+:| 02_bit
+:| 03_nat
+:| 05_row
+:| 04_cmp
+:| 05_row
+:| 06_rex
+:| 07_dat
+:| 09_chr
+:| 10_str
+:| 11_set
+:| 12_tab
+:| 13_exp
+:| 14_hax
+:| 15_pad
+:| 16_bar
+:| 17_sug
+:| 19_pat
+:| 20_prp
+:| 21_switch   [{#switch}]
+:| 22_seed     [pinRefs _LoadGerm _SaveGerm _LoadSeed _SaveSeed]
+:| 23_repl     []
+:| 24_datatype [{#datatype} {#datacase} {#record} typeTag dataTag]
+:| 25_rex      [simpleCog rexCog listMonoid blockState]
+:| 26_compile  []
+:| 27_sire     [main]

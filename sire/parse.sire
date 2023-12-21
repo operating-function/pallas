@@ -4,9 +4,9 @@
 
 #### parse <- prelude
 
-/+ prelude
-/+ types
-/+ stew
+:| prelude
+:| types
+:| stew
 
 
 ;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

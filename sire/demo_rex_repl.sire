@@ -4,10 +4,10 @@
 
 #### demo_rex_repl <- rex_block_parser
 
-/+ prelude
-/+ rex_show
-/+ rex_line_parser
-/+ rex_block_parser
+:| prelude
+:| rex_show
+:| rex_line_parser
+:| rex_block_parser
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

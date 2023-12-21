@@ -10,13 +10,13 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  stew
+:| stew
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; /+  sire
-; /+  blake3
+; :| sire
+; :| blake3
 ;
 ; ; Given an expected result and an expression
 ; ; `[pin args..]`, check that both (pin

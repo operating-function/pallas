@@ -4,9 +4,9 @@
 
 #### demo_port_localhost <- demo_token_ring
 
-/+  sire
-/+  kern
-/+  w64  [w64]
+:| sire
+:| kern
+:| w64 [w64]
 
 = (genSeedAddrs cogExit)
 ;

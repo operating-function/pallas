@@ -7,8 +7,8 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  splitmix   [mkSMGen nextWord64 splitSMGen]
-/+  prelude
+:| splitmix [mkSMGen nextWord64 splitSMGen]
+:| prelude
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

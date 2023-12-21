@@ -7,12 +7,12 @@
 ;;;; This is just a big pile of stuff that hasn't been moved into other
 ;;;; modules yet.
 
-/+  sire
-/+  w32
-/+  w48
-/+  blake3
-/+  mutrec
-/+  stew
+:| sire
+:| w32
+:| w48
+:| blake3
+:| mutrec
+:| stew
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

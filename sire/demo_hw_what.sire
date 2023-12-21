@@ -4,9 +4,9 @@
 
 #### demo_hw_what <- demo_timer
 
-/+  sire
-/+  kern
-/+  demo_timer
+:| sire
+:| kern
+:| demo_timer
 
 = (whatDemo cur return)
 : ??(what_got_hw hw) < syscall (WHAT cur)

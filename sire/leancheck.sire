@@ -4,8 +4,8 @@
 
 #### leancheck <- pq
 
-/+  pq         [pqSort]
-/+  prelude
+:| pq      [pqSort]
+:| prelude ;
 
 (**debug m v)=v
 

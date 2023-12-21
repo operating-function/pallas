@@ -48,10 +48,10 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  01_fan  [seq isNat cdr die id const isZero isOne]
-/+  02_bit  [TRUE FALSE]
-/+  02_bit  [if ifNot else]
-/+  02_bit  [not bit and or xor]
+:| 01_fan [seq isNat cdr die id const isZero isOne]
+:| 02_bit [TRUE FALSE]
+:| 02_bit [if ifNot else]
+:| 02_bit [not bit and or xor]
 
 
 ;;; Basic Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -4,11 +4,11 @@
 
 #### demo_cog_sandbox <- demo_cog_stop
 
-/+  sire
-/+  kern
-/+  sandbox
-/+  stew
-/+  demo_timer
+:| sire
+:| kern
+:| sandbox
+:| stew
+:| demo_timer
 
 ; Same as stopDemo from demo_cog_stop.sire, minus testing erroneous %stop calls.
 = (miniStopDemo return)

@@ -4,8 +4,8 @@
 
 #### types <- mutrec
 
-/+ sire
-/+ mutrec [bloodline]
+:| sire
+:| mutrec [bloodline]
 
 
 ;;; Utilities ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

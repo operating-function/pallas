@@ -4,12 +4,12 @@
 
 #### demo_full_tag_site <- prelude
 
-/+  sire
-/+  kern
-/+  hitch
-/+  json
-/+  stew
-/+  types
+:| sire
+:| kern
+:| hitch
+:| json
+:| stew
+:| types
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

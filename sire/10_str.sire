@@ -12,16 +12,16 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-/+  01_fan
-/+  02_bit  [if ifNot and or not]
-/+  03_nat  [add sub lsh roundUp met mul rsh mod div]
-/+  05_row  []
-/+  04_cmp  [eql neq gth]
-/+  05_row  [foldl]
-/+  06_rex  []
-/+  07_dat  [CONS NIL listFoldl listToRow listDrop listMap listLen listAll]
-/+  07_dat  [{,} {>}]
-/+  09_chr  [isDigit isHexDigit isUpper toUpper toLower ord]
+:| 01_fan
+:| 02_bit [if ifNot and or not]
+:| 03_nat [add sub lsh roundUp met mul rsh mod div]
+:| 05_row []
+:| 04_cmp [eql neq gth]
+:| 05_row [foldl]
+:| 06_rex []
+:| 07_dat [CONS NIL listFoldl listToRow listDrop listMap listLen listAll]
+:| 07_dat [{,} {>}]
+:| 09_chr [isDigit isHexDigit isUpper toUpper toLower ord]
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

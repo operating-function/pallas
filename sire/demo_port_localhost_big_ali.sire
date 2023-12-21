@@ -4,10 +4,9 @@
 
 #### demo_port_localhost_big_ali <- demo_port_localhost
 
-/+  kern
-/+  prelude
-
-/+  demo_port_localhost
+:| kern
+:| prelude
+:| demo_port_localhost
 
 = usSeed
 | idx-0-ali_seed_addr

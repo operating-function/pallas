@@ -4,9 +4,9 @@
 
 #### demo_thread_yield <- demo_threads
 
-/+  sire
-/+  io
-/+  stew
+:| sire
+:| io
+:| stew
 
 
 ;;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
