@@ -33,7 +33,7 @@
 /+  17_sug
 /+  19_pat
 /+  20_prp []
-/+  21_switch
+/+  21_switch []
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -221,15 +221,15 @@ u64max=18446744073709551615
 
 = (writeTree frags tbl idx nHoles nAtoms refSz key)
 @ [node refcount] (get tbl key)
-# switch len-node
-* 0 ; (ATOM n)
+| switch len-node 0
+++  ; (ATOM n)
     | writeRefr refSz
     ^ add nHoles (sub nAtoms | inc _)
     | tabSearchCase node idx 0 (ix vl & ix)
-* 1 ; (HOLE n)
+++  ; (HOLE n)
     @ n (fst node)
     | writeRefr refSz n
-* 2 ; (CELL h t)
+++  ; (CELL h t)
     @ h (fst node)
     @ t (snd node)
     @ go (writeTree frags tbl idx nHoles nAtoms refSz)
