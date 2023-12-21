@@ -6,7 +6,7 @@ set -ex
 
 plunder save sire.seed sire/sire.sire
 
-cat sire/??_*.sire | plunder repl sire.seed --save out.seed
+cat sire/sire_??_*.sire | plunder repl sire.seed --save out.seed
 
 sha1sum out.seed sire.seed
 

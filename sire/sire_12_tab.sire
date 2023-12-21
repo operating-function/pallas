@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### 12_tab <- 11_set
+#### sire_12_tab <- sire_11_set
 
 ;;;; Tabs
 ;;;; ====
@@ -12,21 +12,21 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| 01_fan [lawBody trk isLaw inc seq const id]
-:| 01_fan [car cdr]
-:| 02_bit [if ifNot and or not nor]
-:| 03_nat [add toNat rsh mod even]
-:| 04_cmp [eql neq lth lte gte gth isZero]
-:| 05_row
-:| 06_rex [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
-:| 06_rex [OPEN EMBD PREF]
-:| 07_dat
-:| 09_chr []
-:| 10_str [strWeld]
-:| 11_set [isSet emptySet setLen setHas setMin setToList]
-:| 11_set [setToRow setFromRowAsc]
-:| 11_set [setPop]
-:| 11_set [{%} readKey]
+:| sire_01_fan [lawBody trk isLaw inc seq const id]
+:| sire_01_fan [car cdr]
+:| sire_02_bit [if ifNot and or not nor]
+:| sire_03_nat [add toNat rsh mod even]
+:| sire_04_cmp [eql neq lth lte gte gth isZero]
+:| sire_05_row
+:| sire_06_rex [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
+:| sire_06_rex [OPEN EMBD PREF]
+:| sire_07_dat
+:| sire_09_chr []
+:| sire_10_str [strWeld]
+:| sire_11_set [isSet emptySet setLen setHas setMin setToList]
+:| sire_11_set [setToRow setFromRowAsc]
+:| sire_11_set [setPop]
+:| sire_11_set [{%} readKey]
 
 
 ;;; Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

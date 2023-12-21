@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### 07_dat <- 06_rex
+#### sire_07_dat <- sire_06_rex
 
 ;;;; Data Structures
 ;;;; ===============
@@ -13,15 +13,15 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| 01_fan
-:| 02_bit [if else ifNot and or not bit TRUE FALSE]
-:| 03_nat [dec sub add lsh rsh div roundUp mod mul]
-:| 03_nat [even odd]
-:| 03_nat [LT GT EQ]
-:| 05_row [head arity len idx get mut]
-:| 04_cmp [eql neq cmp lth gth lte gte min isZero]
-:| 05_row
-:| 06_rex
+:| sire_01_fan
+:| sire_02_bit [if else ifNot and or not bit TRUE FALSE]
+:| sire_03_nat [dec sub add lsh rsh div roundUp mod mul]
+:| sire_03_nat [even odd]
+:| sire_03_nat [LT GT EQ]
+:| sire_05_row [head arity len idx get mut]
+:| sire_04_cmp [eql neq cmp lth gth lte gte min isZero]
+:| sire_05_row
+:| sire_06_rex
 
 
 ;;; Fake Typing Syntax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

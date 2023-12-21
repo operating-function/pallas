@@ -122,9 +122,9 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire
-:| 21_switch   [readSwitchExp switchE]
-:| 24_datatype [parseDatacase resolveDatacase makeDatacaseExpr]
-:| mutrec      [readMutRecExp genMutRecE]
+:| sire_21_switch   [readSwitchExp switchE]
+:| sire_24_datatype [parseDatacase resolveDatacase makeDatacaseExpr]
+:| mutrec           [readMutRecExp genMutRecE]
 :| types
 
 

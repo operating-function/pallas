@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### 17_sug <- 16_bar
+#### sire_17_sug <- sire_16_bar
 
 ;;;; Syntactic Sugar
 ;;;; ===============
@@ -54,37 +54,37 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| 01_fan
-:| 02_bit [if ifNot and or not else]
-:| 02_bit [TRUE FALSE]
-:| 03_nat [add div inc dec]
-:| 05_row [idx put len null switch fst snd head]
-:| 05_row [weld map foldr v1 v2 v3 v4]
-:| 04_cmp [eql neq lth isZero]
-:| 06_rex [rexRune rexSons rexHeir rexKids]
-:| 06_rex [rexIsNode rexIsEmbd rexIsLeaf]
-:| 06_rex [rexGetNode rexEmbd {'}]
-:| 06_rex [PREF NEST EMBD OPEN WORD TEXT]
-:| 06_rex [rexGetNodeWithRune]
-:| 06_rex [rexStyle rexText]
-:| 06_rex [rexSetRune rexSetHeir rexSetSons]
-:| 07_dat [{,} {++} {>} take drop]
-:| 07_dat [NONE SOME maybeCase]
-:| 07_dat [CONS NIL listToRowRev listCase listFromRow]
-:| 07_dat [LEFT RIGHT eitherCase]
-:| 07_dat [rowTraverse listMap listFoldr rowCons]
-:| 07_dat [readRex]
-:| 09_chr []
-:| 10_str [strWeld strIsCapitalized]
-:| 11_set [{%}]
-:| 12_tab [{#}]
-:| 13_exp [readSymbol rexParseKids]
-:| 13_exp [rowE natE letE cnsE txtE appE varE tmpName]
-:| 13_exp [lamE wutE]
-:| 13_exp [bloodline]
-:| 14_hax []
-:| 15_pad []
-:| 16_bar []
+:| sire_01_fan
+:| sire_02_bit [if ifNot and or not else]
+:| sire_02_bit [TRUE FALSE]
+:| sire_03_nat [add div inc dec]
+:| sire_05_row [idx put len null switch fst snd head]
+:| sire_05_row [weld map foldr v1 v2 v3 v4]
+:| sire_04_cmp [eql neq lth isZero]
+:| sire_06_rex [rexRune rexSons rexHeir rexKids]
+:| sire_06_rex [rexIsNode rexIsEmbd rexIsLeaf]
+:| sire_06_rex [rexGetNode rexEmbd {'}]
+:| sire_06_rex [PREF NEST EMBD OPEN WORD TEXT]
+:| sire_06_rex [rexGetNodeWithRune]
+:| sire_06_rex [rexStyle rexText]
+:| sire_06_rex [rexSetRune rexSetHeir rexSetSons]
+:| sire_07_dat [{,} {++} {>} take drop]
+:| sire_07_dat [NONE SOME maybeCase]
+:| sire_07_dat [CONS NIL listToRowRev listCase listFromRow]
+:| sire_07_dat [LEFT RIGHT eitherCase]
+:| sire_07_dat [rowTraverse listMap listFoldr rowCons]
+:| sire_07_dat [readRex]
+:| sire_09_chr []
+:| sire_10_str [strWeld strIsCapitalized]
+:| sire_11_set [{%}]
+:| sire_12_tab [{#}]
+:| sire_13_exp [readSymbol rexParseKids]
+:| sire_13_exp [rowE natE letE cnsE txtE appE varE tmpName]
+:| sire_13_exp [lamE wutE]
+:| sire_13_exp [bloodline]
+:| sire_14_hax []
+:| sire_15_pad []
+:| sire_16_bar []
 
 
 ;;; Parsing Signatures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

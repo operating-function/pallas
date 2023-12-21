@@ -12,17 +12,17 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| 01_fan [PIN isPin pinItem]
-:| 01_fan [LAW isLaw lawBody lawArgs lawName]
-:| 01_fan [isApp car cdr]
-:| 01_fan [isNat]
-:| 02_bit [if]
-:| 03_nat []
-:| 05_row [idx]
-:| 04_cmp []
-:| 05_row [map rowApply]
-:| 06_rex []
-:| 07_dat [{,} drop CONS NIL listToRow]
+:| sire_01_fan [PIN isPin pinItem]
+:| sire_01_fan [LAW isLaw lawBody lawArgs lawName]
+:| sire_01_fan [isApp car cdr]
+:| sire_01_fan [isNat]
+:| sire_02_bit [if]
+:| sire_03_nat []
+:| sire_05_row [idx]
+:| sire_04_cmp []
+:| sire_05_row [map rowApply]
+:| sire_06_rex []
+:| sire_07_dat [{,} drop CONS NIL listToRow]
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

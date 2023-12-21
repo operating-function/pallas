@@ -20,13 +20,13 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| 02_bit  [if and TRUE FALSE]
-:| 03_nat  [LT EQ GT div sub]
-:| 04_cmp  [eql cmp neq]
-:| 07_dat  [listLen listUnsafeHead listDrop NIL listRev listFoldr]
-:| 07_dat  [SOME NONE maybeCase]
-:| prelude ;
-:| stew    ;
+:| sire_02_bit [if and TRUE FALSE]
+:| sire_03_nat [LT EQ GT div sub]
+:| sire_04_cmp [eql cmp neq]
+:| sire_07_dat [listLen listUnsafeHead listDrop NIL listRev listFoldr]
+:| sire_07_dat [SOME NONE maybeCase]
+:| prelude     ;
+:| stew        ;
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

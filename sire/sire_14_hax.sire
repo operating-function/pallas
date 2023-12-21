@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### 14_hax <- 13_exp
+#### sire_14_hax <- sire_13_exp
 
 ;;;; The Hax Rune
 ;;;; ============
@@ -46,20 +46,20 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| 01_fan [die trk pinItem isZero const]
-:| 02_bit [if ifNot not and]
-:| 03_nat []
-:| 05_row [len idx]
-:| 04_cmp [eql neq]
-:| 05_row [v1 v2 v4 null weld]
-:| 06_rex [rexKids rexGetWord {'} rexRune EMBD]
-:| 07_dat [{,}]
-:| 09_chr []
-:| 10_str [strWeld isDecimalLit loadDecimal isHexLit loadHexLit]
-:| 11_set [{%}]
-:| 12_tab [{#}]
-:| 12_tab [tabGet tabKeysSet isTab tabIsEmpty]
-:| 13_exp [cnsE varE]
+:| sire_01_fan [die trk pinItem isZero const]
+:| sire_02_bit [if ifNot not and]
+:| sire_03_nat []
+:| sire_05_row [len idx]
+:| sire_04_cmp [eql neq]
+:| sire_05_row [v1 v2 v4 null weld]
+:| sire_06_rex [rexKids rexGetWord {'} rexRune EMBD]
+:| sire_07_dat [{,}]
+:| sire_09_chr []
+:| sire_10_str [strWeld isDecimalLit loadDecimal isHexLit loadHexLit]
+:| sire_11_set [{%}]
+:| sire_12_tab [{#}]
+:| sire_12_tab [tabGet tabKeysSet isTab tabIsEmpty]
+:| sire_13_exp [cnsE varE]
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

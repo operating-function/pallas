@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### 04_cmp <- 03_nat
+#### sire_04_cmp <- sire_03_nat
 
 ;;;; Ordering and Equality
 ;;;; =====================
@@ -101,13 +101,13 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| 01_fan [isPin pinItem isOne isZero]
-:| 01_fan [isLaw lawArgs lawName lawBody]
-:| 01_fan [car cdr]
-:| 01_fan [isNat]
-:| 01_fan [const id]
-:| 02_bit [if ifNot and not]
-:| 03_nat [natCmp LT EQ GT ordWeld]
+:| sire_01_fan [isPin pinItem isOne isZero]
+:| sire_01_fan [isLaw lawArgs lawName lawBody]
+:| sire_01_fan [car cdr]
+:| sire_01_fan [isNat]
+:| sire_01_fan [const id]
+:| sire_02_bit [if ifNot and not]
+:| sire_03_nat [natCmp LT EQ GT ordWeld]
 
 
 ;;; Comparisons ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### 27_sire <- 26_compile
+#### sire_27_sire <- sire_26_compile
 
 ;;;; This file contains a complete implementation of Sire
 ;;;; in Sire.
@@ -10,31 +10,31 @@
 ;;;; See sh/bootstrap-sire to see how you can use this code
 ;;;; to compile itself.
 
-:| 01_fan      ;
-:| 02_bit      ;
-:| 03_nat      ;
-:| 05_row      ;
-:| 04_cmp      ;
-:| 05_row      ;
-:| 06_rex      ;
-:| 07_dat      ;
-:| 09_chr      ;
-:| 10_str      ;
-:| 11_set      ;
-:| 12_tab      ;
-:| 13_exp      ;
-:| 14_hax      ;
-:| 15_pad      ;
-:| 16_bar      ;
-:| 17_sug      ;
-:| 19_pat      ;
-:| 20_prp      ;
-:| 21_switch   ;
-:| 22_seed     ;
-:| 23_repl     [lineRepl cogMap]
-:| 24_datatype ;
-:| 25_rex      [simpleCog rexCog listMonoid blockState]
-:| 26_compile  ;
+:| sire_01_fan      ;
+:| sire_02_bit      ;
+:| sire_03_nat      ;
+:| sire_05_row      ;
+:| sire_04_cmp      ;
+:| sire_05_row      ;
+:| sire_06_rex      ;
+:| sire_07_dat      ;
+:| sire_09_chr      ;
+:| sire_10_str      ;
+:| sire_11_set      ;
+:| sire_12_tab      ;
+:| sire_13_exp      ;
+:| sire_14_hax      ;
+:| sire_15_pad      ;
+:| sire_16_bar      ;
+:| sire_17_sug      ;
+:| sire_19_pat      ;
+:| sire_20_prp      ;
+:| sire_21_switch   ;
+:| sire_22_seed     ;
+:| sire_23_repl     [lineRepl cogMap]
+:| sire_24_datatype ;
+:| sire_25_rex      [simpleCog rexCog listMonoid blockState]
+:| sire_26_compile  ;
 
 
 
@@ -250,7 +250,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     | ({undefined symbol}, rex)
 | (st, G (tabGet modScope name))
 
-(runeLit rune)=(06_rex.NEST rune [] 0)
+(runeLit rune)=(sire_06_rex.NEST rune [] 0)
 
 > List Maybe-Str > Rex > Repl Sire
 = (readRefr env rex st)
@@ -567,7 +567,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ !val       | force | evalSire expr
 @ extraProps | **maybeCase mProp #[] (x & evalSire x)
 : !st ()     < replOpen (insertBinding rx (mKey, extraProps, str, val, expr)) st
-| trk ` = $(06_rex.TEXT str 0) ; $$val
+| trk ` = $(sire_06_rex.TEXT str 0) ; $$val
 | (st, val)
 
 = (mkBind mKey mProp bodyExpr eB)
@@ -867,7 +867,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     @ err ss2
     | ifNot isNat-err
         | die [{Invalid Sire Error} err]
-    @ out ` # $(06_rex.TEXT err 0) on line $$lineNum
+    @ out ` # $(sire_06_rex.TEXT err 0) on line $$lineNum
             # $output
     | trk out
     | ifNot okErr (die {ERROR})

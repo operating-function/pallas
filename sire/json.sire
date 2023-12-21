@@ -5,8 +5,8 @@
 #### json <- io
 
 :| sire
-:| 24_datatype [natTag barTag appTag rowTag tabTag]
-:| mutrec      [{#mutrec}]
+:| sire_24_datatype [natTag barTag appTag rowTag tabTag]
+:| mutrec           [{#mutrec}]
 :| stew
 :| types
 

@@ -7,7 +7,7 @@
 
 set -e
 
-plunder save rex.seed 25_rex
+plunder save rex.seed sire_25_rex
 
 for x in sire/*.sire
 do

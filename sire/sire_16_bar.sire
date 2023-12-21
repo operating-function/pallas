@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### 16_bar <- 15_pad
+#### sire_16_bar <- sire_15_pad
 
 ;;;; Bars
 ;;;; ====
@@ -27,26 +27,26 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| 01_fan [isLaw isApp isNat lawBody lawName lawArgs trk]
-:| 01_fan [seq inc die]
-:| 01_fan [id compose]
-:| 02_bit [bit not if else ifNot or and]
-:| 03_nat
-:| 05_row [len get idx]
-:| 04_cmp [eql neq gte lte min isZero]
-:| 05_row [map foldl foldr gen weld v1 v2 v4]
-:| 05_row [fst snd]
-:| 06_rex [SHUT TEXT WORD]
-:| 06_rex [rexKids rexHeir rexText rexStyle {'}]
-:| 06_rex [rexGetLeaf]
-:| 07_dat
-:| 09_chr [chr isPrint ord toLower newlineChar]
-:| 10_str [explode strCat strWeld strFromList]
-:| 11_set [{%}]
-:| 12_tab []
-:| 13_exp [cnsE]
-:| 14_hax [{#}]
-:| 15_pad [padLen padWeld]
+:| sire_01_fan [isLaw isApp isNat lawBody lawName lawArgs trk]
+:| sire_01_fan [seq inc die]
+:| sire_01_fan [id compose]
+:| sire_02_bit [bit not if else ifNot or and]
+:| sire_03_nat
+:| sire_05_row [len get idx]
+:| sire_04_cmp [eql neq gte lte min isZero]
+:| sire_05_row [map foldl foldr gen weld v1 v2 v4]
+:| sire_05_row [fst snd]
+:| sire_06_rex [SHUT TEXT WORD]
+:| sire_06_rex [rexKids rexHeir rexText rexStyle {'}]
+:| sire_06_rex [rexGetLeaf]
+:| sire_07_dat
+:| sire_09_chr [chr isPrint ord toLower newlineChar]
+:| sire_10_str [explode strCat strWeld strFromList]
+:| sire_11_set [{%}]
+:| sire_12_tab []
+:| sire_13_exp [cnsE]
+:| sire_14_hax [{#}]
+:| sire_15_pad [padLen padWeld]
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### 03_nat <- 02_bit
+#### sire_03_nat <- sire_02_bit
 
 ;;;; Natural Numbers
 ;;;; ===============
@@ -48,10 +48,10 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| 01_fan [seq isNat cdr die id const isZero isOne]
-:| 02_bit [TRUE FALSE]
-:| 02_bit [if ifNot else]
-:| 02_bit [not bit and or xor]
+:| sire_01_fan [seq isNat cdr die id const isZero isOne]
+:| sire_02_bit [TRUE FALSE]
+:| sire_02_bit [if ifNot else]
+:| sire_02_bit [not bit and or xor]
 
 
 ;;; Basic Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
