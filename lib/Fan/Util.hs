@@ -112,7 +112,6 @@ trueArity = \case
     ROW _          -> 1
     TAb _          -> 1
     BAR _          -> 1
-    REX _          -> 3
 
 {-# INLINE natArity #-}
 natArity :: Nat -> Nat
@@ -135,4 +134,3 @@ evalArity (COw n)   = natToArity n
 evalArity (ROW _)   = 1
 evalArity (TAb _)   = 1
 evalArity (BAR _)   = 1
-evalArity (REX _)   = 3

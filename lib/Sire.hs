@@ -16,21 +16,26 @@ import Sire.Types
 import System.FilePath.Posix
 
 import Data.Text.IO          (hPutStrLn)
-import Fan                   (Fan(COw, NAT, NAT, REX, ROW, TAb), (%%))
+import Fan                   (Fan(COw, NAT, NAT, ROW, TAb), (%%))
 import Fan.Convert           (FromNoun(fromNoun), ToNoun(toNoun))
 import Fan.FFI               (c_jet_blake3)
 import Fan.Seed              (LoadErr(..), loadPod, savePod)
 import Foreign.Marshal.Alloc (allocaBytes)
 import Foreign.Ptr           (castPtr)
 import Loot.Backend          (loadClosure, loadShallow)
-import Loot.ReplExe          (closureRex, dieFan, showFan, trkFan)
+import Loot.ReplExe          (closureRex, dieFan, showFan, trkFan, trkRex, rexToPex)
 import Loot.Syntax           (boxRex, keyBox)
-import Rex                   (GRex(..), RuneShape(..), TextShape(..), rexLine)
+import Rex                   (GRex, rexLine)
 import Rex.Print             (RexColor, RexColorScheme(NoColors))
 import Sire.Backend          (eval, hasRefTo)
 import System.Directory      (doesFileExist)
 import System.IO             (hGetContents)
 import System.Exit           (exitWith, ExitCode(ExitFailure,ExitSuccess))
+
+import Fan.PlanRex (PlanRex(..), Pex, nounPex, pexNoun)
+import Fan.PlanRex (pattern EMBD, pattern EVIL, pattern LEAF, pattern NODE)
+import Fan.PlanRex (pattern WORD, pattern TEXT)
+import Fan.PlanRex (pattern OPEN, pattern PREF, pattern SHUT)
 
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Unsafe as BS
@@ -40,6 +45,7 @@ import qualified Data.Set               as S
 import qualified Data.Text              as T
 import qualified Fan                    as F
 import qualified Fan.Prof               as Prof
+import qualified Rex                    as Rx
 import qualified Rex.Policy             as Rex
 import qualified Rex.Mechanism          as Rex
 
@@ -56,7 +62,7 @@ newtype Repl a = REPL (StateT Any IO a)
 data Context = CONTEXT
     { file :: !Text
     , line :: !Int
-    , rex  :: !Rex
+    , rex  :: !Pex
     }
   deriving (Eq, Ord)
 
@@ -281,7 +287,7 @@ getStateFields = \case
 filterScope :: InCtx => Set Str -> Any -> Any
 filterScope whitelist st =
     if not (null bogus)
-    then parseFail_ (word "logic error") st
+    then parseFail_ (WORD "logic error" Nothing) st
            ("filter for non-existing keys: " <> intercalate ", " bogus)
     else ROW $ arrayFromListN 5 [nextKey, context, TAb newScope, modules, binds]
   where
@@ -301,7 +307,7 @@ filterScope whitelist st =
     bogus = fmap showKey
           $ filter (not . (`member` oldScope) . NAT) $ toList whitelist
 
-importModule :: InCtx => Rex -> Str -> Maybe (Set Str) -> Any -> Any
+importModule :: InCtx => Pex -> Str -> Maybe (Set Str) -> Any -> Any
 importModule blockRex modu mWhitelist stVal =
     ROW $ arrayFromListN 5
         $ [nextKey, context, TAb newScope, modulesVal, propsVal]
@@ -362,7 +368,7 @@ mergeProps x y = tabUnionWith tabUnion x y
 
 insertBinding
     :: InCtx
-    => Rex
+    => Pex
     -> (Maybe Nat, Tab Any Any, Str, Any, Sire)
     -> Any
     -> Any
@@ -417,18 +423,18 @@ insertBinding rx (mKey, extraProps, name, val, code) stVal =
                     $ [NAT nextKey, context, scope, modules, toNoun newProps]
 
 
-expand :: InCtx => Any -> Rex -> Repl Rex
+expand :: InCtx => Any -> Pex -> Repl Pex
 expand macro input = do
     st <- get
-    case (macro %% st %% REX input %% onErr %% okOk) of
+    case (macro %% st %% input.n %% onErr %% okOk) of
         x@(ROW ro) ->
             case toList ro of
-                [NAT msg, REX rex, NAT 0]        -> macroError rex msg
-                [REX expansion, newState, NAT 1] -> put newState $> expansion
-                [_, _, NAT _]                    -> badExpo x "bad rex"
-                [_, _, _]                        -> badExpo x "bad tag"
-                _                                -> badExpo x "not arity = 3"
-        x                                        -> badExpo x "not row"
+                [NAT msg, rex, NAT 0]   -> macroError (nounPex rex) msg
+                [expo, newState, NAT 1] -> put newState $> nounPex expo
+                [_, _, NAT _]           -> badExpo x "bad rex"
+                [_, _, _]               -> badExpo x "bad tag"
+                _                       -> badExpo x "not arity = 3"
+        x                               -> badExpo x "not row"
   where
     onErr = COw 3 %% NAT 0
     okOk  = COw 3 %% NAT 1
@@ -437,13 +443,11 @@ expand macro input = do
                   $ (<>) ("Invalid macro expansion result(" <> why <> ")\n")
                          (planText x)
 
-execute :: InCtx => Rex -> Repl ()
+execute :: InCtx => Pex -> Repl ()
 execute rex = do
     stVal <- get
     case rex of
-        T{}          -> execExpr rex
-        C{}          -> execExpr rex
-        N _ rune _ _ -> case (lookupVal rune stVal, rune) of
+        NODE _ rune _ _ -> case (lookupVal rune stVal, rune) of
             ( Just mac, _      ) -> expand mac rex >>= execute
             ( _,        "#="   ) -> doDefine rune rex
             ( _,        "="    ) -> doDefine rune rex
@@ -458,6 +462,8 @@ execute rex = do
             ( _,        "/+"   ) -> doImport rex rune (Just rex)
             _ | expRune rune     -> execExpr rex
             _                    -> parseFail rex ("Unbound rune: " <> rune)
+
+        _ -> execExpr rex
 
 getIndicatedModule :: String -> IO Text
 getIndicatedModule pax = do
@@ -485,6 +491,7 @@ main moduleIndicators = do
 
   writeIORef F.vShowFan  showFan
   writeIORef F.vTrkFan   trkFan
+  writeIORef F.vTrkRex   trkRex
   writeIORef F.vJetMatch (F.jetMatch)
 
   let onCrash (F.PRIMOP_CRASH op arg) = do
@@ -543,11 +550,11 @@ withCache act =
             eByt <- Prof.withSimpleTracingEvent "save"  "cache" $ try $ savePod p
             case eByt of
                Left (POD_INTEGRITY_CHECK_FAILED hax p2) -> do
-                   trkM (REX $ planRexFull $ toNoun p)
-                   trkM (REX $ planRexFull $ toNoun hax)
-                   trkM (REX $ planRexFull $ toNoun p2)
+                   trkRexM (planRexFull $ toNoun p)
+                   trkRexM (planRexFull $ toNoun hax)
+                   trkRexM (planRexFull $ toNoun p2)
                Left (e :: LoadErr) -> do
-                   trkM (REX $ planRexFull $ toNoun e)
+                   trkRexM (planRexFull $ toNoun e)
                    pure ()
                Right byt -> do
                    ()  <- Prof.withSimpleTracingEvent "write" "cache" $
@@ -558,6 +565,7 @@ loadFile :: RexColor => FilePath -> IO Any
 loadFile moduleIndicator = do
     writeIORef F.vShowFan  showFan
     writeIORef F.vTrkFan   trkFan
+    writeIORef F.vTrkRex   trkRex
     writeIORef F.vJetMatch (F.jetMatch)
 
     modu <- getIndicatedModule moduleIndicator
@@ -591,7 +599,7 @@ blox pax = go (Rex.blockState pax)
     go st (b:bs) = let (st2, out) = Rex.rexStep st (Just b)
                    in foo out <> go st2 bs
 
-inContext :: Text -> Int -> Rex -> (InCtx => IO a) -> IO a
+inContext :: Text -> Int -> Pex -> (InCtx => IO a) -> IO a
 inContext file line rex act =
     let ?ctx = CONTEXT{rex, line, file}
     in try act >>= \case
@@ -600,7 +608,7 @@ inContext file line rex act =
                parseFail_ rex ss (planText $ toNoun (op, arg))
                  where ss = initialSireStateAny
 
-runSire :: Text -> Bool -> Any -> [Either Text (Int, Rex)] -> IO Any
+runSire :: Text -> Bool -> Any -> [Either Text (Int, Pex)] -> IO Any
 runSire file inRepl s1 = \case
     []                -> pure s1
     Left msg : rs -> do
@@ -623,7 +631,6 @@ runSire file inRepl s1 = \case
                              $ ["crash", F.NAT pc.errCode, pc.errVal]
                 runSire file inRepl s1 rs
 
-
 doFile :: IORef (Tab Any Any) -> Text -> Any -> IO (Any, ByteString)
 doFile vCache modu s1 = do
     let file = modu <> ".sire"
@@ -637,15 +644,15 @@ doFile vCache modu s1 = do
 
     let moduNoun = NAT (utf8Nat modu)
 
-    case topRexes of
+    case fmap (over _2 rexToPex) <$> topRexes of
 
         [] -> do
             let msg  = "Module declarations are required, but this file is empty"
-            let rex  = (T TEXT "" Nothing)
+            let rex  = TEXT "" Nothing
             inContext file 0 rex $ parseFail_ rex s1 msg
 
         -- No <- part means this is the starting point.
-        rexes@(Right (_ln, N _ "####" [_] Nothing) : _) -> do
+        rexes@(Right (_ln, NODE _ "####" [_] Nothing) : _) -> do
           Prof.withSimpleTracingEvent (encodeUtf8 modu) "Sire" do
             -- Massive slow hack, stream two inputs separately.
             -- (C interface does not currently support this)
@@ -679,9 +686,9 @@ doFile vCache modu s1 = do
 
         -- There is something before this in the load sequence.
         -- Load that first.
-        rexes@(Right (_ln, N _ "####" [_, N _ "<-" [prior] Nothing] Nothing) : _) -> do
+        rexes@(Right (_ln, NODE _ "####" [_, NODE _ "<-" [prior] Nothing] Nothing) : _) -> do
             case tryReadModuleName prior of
-                Nothing -> terror ("Bad module name: " <> rexText prior)
+                Nothing -> terror ("Bad module name: " <> pexText prior)
                 Just nm -> do
                   (s2, predHash) <- doFile vCache nm s1
                   Prof.withSimpleTracingEvent (encodeUtf8 modu) "Sire" do
@@ -716,7 +723,7 @@ doFile vCache modu s1 = do
                             modifyIORef' vCache $ insertMap (toNoun modu) ent
                             pure (s3, hax)
 
-        Right (ln, rex@(N _ "####" _ _)) : _ ->
+        Right (ln, rex@(NODE _ "####" _ _)) : _ ->
             inContext file ln rex
                 $ parseFail_ rex s1 "Bad module declaration statement"
 
@@ -751,24 +758,24 @@ repl s1 mImport = do
     s3 <- case mImport of
               Nothing -> pure s2
               Just ng -> do
-                  let importRex = N OPEN "/+" [T WORD ng Nothing] Nothing
+                  let importRex = OPEN "/+" [WORD ng Nothing] Nothing
                   inContext "REPL" 0 importRex do
                       evaluate $ importModule importRex (utf8Nat ng) Nothing s2
 
     rexes <- readRexStream "REPL" stdin
-    _     <- runSire "REPL" True s3 rexes
+    _     <- runSire "REPL" True s3 (fmap (over _2 rexToPex) <$> rexes)
     pure ()
 
-doAssert :: InCtx => Text -> Rex -> Repl ()
+doAssert :: InCtx => Text -> Pex -> Repl ()
 doAssert ryn rx = do
     case rx of
 
-        N s r ss (Just heir@(N _ sr _ _)) | ryn==sr -> do
-            doAssert ryn (N s r ss Nothing)
+        NODE s r ss (Just heir@(NODE _ sr _ _)) | ryn==sr -> do
+            doAssert ryn (NODE s r ss Nothing)
             doAssert ryn heir
 
-        rex@(N _ _ sons mHeir) -> do
-            trkM (REX rex)
+        rex@(NODE _ _ sons mHeir) -> do
+            trkM (pexNoun rex)
             case sons <> toList mHeir of
                 [xRex, yRex] -> do
                     xExp <- readExpr [] xRex
@@ -780,18 +787,18 @@ doAssert ryn rx = do
             error "impossible"
 
 
-doImport :: InCtx => Rex -> Text -> Maybe (Rex) -> Repl ()
+doImport :: InCtx => Pex -> Text -> Maybe (Pex) -> Repl ()
 doImport blockRex run = \case
 
     Nothing -> do
         pure ()
 
-    Just (N _ r [moduleRex] h) | run==r -> do
+    Just (NODE _ r [moduleRex] h) | run==r -> do
         modu <- readModuleName moduleRex
         modify' (importModule blockRex modu Nothing)
         doImport blockRex run h
 
-    Just (N _ r [moduleRex, (N _ "," symbols Nothing)] h) | run==r -> do
+    Just (NODE _ r [moduleRex, (NODE _ "," symbols Nothing)] h) | run==r -> do
         modu <- readModuleName moduleRex
         syms <- traverse readKey symbols
         modify' (importModule blockRex modu (Just $ setFromList syms))
@@ -801,13 +808,13 @@ doImport blockRex run = \case
         parseFail rex "Bad import syntax"
 
 
-doFilter :: InCtx => Text -> Set Nat -> Maybe (Rex) -> Repl ()
+doFilter :: InCtx => Text -> Set Nat -> Maybe (Pex) -> Repl ()
 doFilter ryn acc = \case
 
     Nothing ->
         modify' (filterScope acc)
 
-    Just node@(N _ rone sons heir) | ryn==rone -> do
+    Just node@(NODE _ rone sons heir) | ryn==rone -> do
         moreKeys <- setFromList <$> traverse readKey sons
         let overlap = S.intersection acc moreKeys
         unless (null overlap || True) do
@@ -818,20 +825,20 @@ doFilter ryn acc = \case
         parseFail wut "Bad export-filter syntax"
 
 
-multiCmd :: InCtx => Rex -> Repl ()
-multiCmd (N _ _ sons mHeir) = traverse_ execute (sons <> toList mHeir)
+multiCmd :: InCtx => Pex -> Repl ()
+multiCmd (NODE _ _ sons mHeir) = traverse_ execute (sons <> toList mHeir)
 multiCmd _                  = error "multiCmd: impossible"
 
-doEnter :: InCtx => Rex -> Repl ()
+doEnter :: InCtx => Pex -> Repl ()
 doEnter topRex =
     case topRex of
-        N _ _ sons mHeir -> proc (sons <> toList mHeir)
+        NODE _ _ sons mHeir -> proc (sons <> toList mHeir)
         _                -> error "multiCmd: impossible"
   where
     expect = "Expected something like (#### foo) or (#### foo <- bar)"
 
     proc = \case
-        [enter, N _ "<-" [from] Nothing] -> do
+        [enter, NODE _ "<-" [from] Nothing] -> do
             target    <- readModuleName enter
             wasJustAt <- readModuleName from
             ss <- getState <$> get
@@ -861,34 +868,36 @@ expRune = (`member` set)
         , "^", "#^", "&", "#&", "?", "#?", "??", "#??", ".",  "#."
         ]
 
-readExpr :: InCtx => [Maybe Nat] -> Rex -> Repl Sire
+readExpr :: InCtx => [Maybe Nat] -> Pex -> Repl Sire
 readExpr e rex = do
     case rex of
-        T{}         -> readPrimExpr e rex
-        C{}         -> readPrimExpr e rex
-        N _ ryn _ _ -> do
+        LEAF{}         -> readPrimExpr e rex
+        EMBD{}         -> readPrimExpr e rex
+        EVIL{}         -> readPrimExpr e rex
+        NODE _ ryn _ _ -> do
             stVal <- get
             case lookupVal ryn stVal of
                 Just macVal -> expand macVal rex >>= readExpr e
                 Nothing     -> readPrimExpr e rex
 
-readMultiLine :: InCtx => [Text] -> Maybe Rex -> Repl Sire
+readMultiLine :: InCtx => [Text] -> Maybe Pex -> Repl Sire
 readMultiLine acc = \case
     Nothing -> pure $ K $ NAT $ utf8Nat $ intercalate "\n" $ reverse acc
     Just h  -> case h of
-        T s t k | s==LINE -> readMultiLine (t:acc) k
-        _                 -> parseFail h "Mis-matched node in text block"
+        LEAF s t k | s==Rx.LINE -> readMultiLine (t:acc) k
+        _                       -> parseFail h "Mis-matched node in text block"
 
-readPrimExpr :: InCtx => [Maybe Nat] -> Rex -> Repl Sire
+readPrimExpr :: InCtx => [Maybe Nat] -> Pex -> Repl Sire
 readPrimExpr e rex = case rex of
-    C v              -> pure (K v)
-    T LINE t k       -> readMultiLine [t] k
-    T _    _ Just{}  -> parseFail rex "leaves cannot have heirs"
-    T _    _ Nothing -> readPrimLeaf rex e rex
-    N _ r s h        -> readNode r s h
+    EMBD v              -> pure (K v)
+    EVIL{}              -> parseFail rex "malformed rex"
+    LEAF Rx.LINE t k    -> readMultiLine [t] k
+    LEAF _    _ Just{}  -> parseFail rex "leaves cannot have heirs"
+    LEAF _    _ Nothing -> readPrimLeaf rex e rex
+    NODE _ r s h        -> readNode r s h
 
   where
-    readNode :: Text -> [Rex] -> Maybe Rex -> Repl Sire
+    readNode :: Text -> [Pex] -> Maybe Pex -> Repl Sire
     readNode r s h =
         let ks = s <> toList h in
         case r of
@@ -914,12 +923,12 @@ readPrimExpr e rex = case rex of
             "#."  -> readRefr      ks
             _     -> parseFail rex ("Undefined rune: " <> r)
 
-    readAnonSig :: Rex -> Repl [Nat]
-    readAnonSig (N _ "|" s h) = traverse readKey (s <> toList h)
-    readAnonSig n@(T{})       = singleton <$> readKey n
-    readAnonSig rx            = parseFail rx "Expected something like: (x y z)"
+    readAnonSig :: Pex -> Repl [Nat]
+    readAnonSig (NODE _ "|" s h) = traverse readKey (s <> toList h)
+    readAnonSig n@(LEAF{})       = singleton <$> readKey n
+    readAnonSig rx               = parseFail rx "Expected something like: (x y z)"
 
-    readAnonLam :: [Rex] -> Repl Sire
+    readAnonLam :: [Pex] -> Repl Sire
     readAnonLam [sig,bod] = do
         argNames <- readAnonSig sig
         let e2   = reverse (Nothing : fmap Just argNames) <> e
@@ -937,8 +946,8 @@ readPrimExpr e rex = case rex of
 
     readAnonLam _ = parseFail rex "Expected two or three parameters"
 
-    readWutSig :: Rex -> Repl (Bool, Nat, [Nat])
-    readWutSig topRex@T{} = do
+    readWutSig :: Pex -> Repl (Bool, Nat, [Nat])
+    readWutSig topRex@LEAF{} = do
         f <- readKey topRex
         pure (False, f, [])
 
@@ -951,8 +960,8 @@ readPrimExpr e rex = case rex of
                 args        <- traverse readKey xs
                 pure (inline, f, args)
       where
-        getFuncHead :: Rex -> Repl (Bool, Nat)
-        getFuncHead hed@(N _ "**" s h) =
+        getFuncHead :: Pex -> Repl (Bool, Nat)
+        getFuncHead hed@(NODE _ "**" s h) =
             case s <> toList h of
                 [x] -> (True,) <$> readKey x
                 _   -> parseFail hed "Expected something like **x"
@@ -960,10 +969,10 @@ readPrimExpr e rex = case rex of
         getFuncHead hed = (False,) <$> readKey hed
 
         getBarNode = \case
-            N _ "|" s h -> pure (s <> toList h)
-            _           -> parseFail topRex "Expecting something like: (f x y)"
+            NODE _ "|" s h -> pure (s <> toList h)
+            _              -> parseFail topRex "Expecting something like: (f x y)"
 
-    readLam :: Bool -> [Rex] -> Repl Sire
+    readLam :: Bool -> [Pex] -> Repl Sire
     readLam pin [sigRex, bodRex] = do
         (mark, f, argNames) <- readWutSig sigRex
         let e2   = reverse (Just <$> (f:argNames)) <> e
@@ -981,7 +990,7 @@ readPrimExpr e rex = case rex of
 
     readLam _ _ = parseFail rex "Expected two or three parameters"
 
-    readRefr :: [Rex] -> Repl Sire
+    readRefr :: [Pex] -> Repl Sire
     readRefr [x] = do
         n <- readKey x
         resolveUnqualified rex e n
@@ -993,7 +1002,7 @@ readPrimExpr e rex = case rex of
 
     readRefr _ = parseFail rex "Needs one or two parameters"
 
-    readKet :: [Rex] -> Repl Sire
+    readKet :: [Pex] -> Repl Sire
     readKet xs = do
         when (length xs < 2) do
             parseFail rex "Needs at least two paramaters"
@@ -1001,7 +1010,7 @@ readPrimExpr e rex = case rex of
         b <- traverse (readExpr (Just "_" : e)) (L.init xs)
         pure (L v $ apple_ b)
 
-    readLet :: [Rex] -> Repl Sire
+    readLet :: [Pex] -> Repl Sire
     readLet [nr, vr, br] = do
         n <- readKey nr
         v <- readExpr e vr
@@ -1009,7 +1018,7 @@ readPrimExpr e rex = case rex of
         pure (L v b)
     readLet _ = parseFail rex "Three paramaters are required"
 
-    readLetRec :: [Rex] -> Repl Sire
+    readLetRec :: [Pex] -> Repl Sire
     readLetRec [vsr, br] = do
         bs <- readBindSeq (Just vsr)
         ks <- pure (fst <$> bs)
@@ -1019,25 +1028,25 @@ readPrimExpr e rex = case rex of
         pure (R vs b)
     readLetRec _ = parseFail rex "Two paramaters are required"
 
-    readBindSeq :: Maybe Rex -> Repl [(Nat, Rex)]
+    readBindSeq :: Maybe Pex -> Repl [(Nat, Pex)]
     readBindSeq Nothing = pure []
-    readBindSeq (Just (N _ "=" [kr,br] h)) = do
+    readBindSeq (Just (NODE _ "=" [kr,br] h)) = do
         k <- readKey kr
         ((k,br):) <$> readBindSeq h
     readBindSeq (Just _) = do
         parseFail rex "Invalid (=) bind-seq"
 
-    readLin :: [Rex] -> Repl Sire
+    readLin :: [Pex] -> Repl Sire
     readLin [x] = M <$> readExpr e x
     readLin _   = parseFail rex "This needs to have only one parameter"
 
-    readApp :: [Rex] -> Repl Sire
+    readApp :: [Pex] -> Repl Sire
     readApp []     = parseFail rex "empty application"
     readApp (r:rx) = do
         (s :| ss) <- traverse (readExpr e) (r :| rx)
         pure (foldl' A s ss)
 
-resolveUnqualified :: InCtx => Rex -> [Maybe Nat] -> Nat -> Repl Sire
+resolveUnqualified :: InCtx => Pex -> [Maybe Nat] -> Nat -> Repl Sire
 resolveUnqualified blockRex e sym = do
     st <- getState <$> get
     case (L.elemIndex (Just sym) e, lookup (NAT sym) st.scope) of
@@ -1045,7 +1054,7 @@ resolveUnqualified blockRex e sym = do
         (_, Just bn) -> pure $ G bn
         (_, _)       -> parseFail blockRex ("Unresolved symbol: " <> showKey sym)
 
-resolveQualified :: InCtx => Rex -> Nat -> Nat -> Repl Sire
+resolveQualified :: InCtx => Pex -> Nat -> Nat -> Repl Sire
 resolveQualified blockRex modu nam = do
     st <- getState <$> get
     case (lookup (NAT modu) >=> (Just . fst) >=> lookup (NAT nam)) st.modules of
@@ -1059,7 +1068,7 @@ resolveQualified blockRex modu nam = do
 showKey :: Nat -> Text
 showKey = let ?rexColors = NoColors in rexLine . boxRex . keyBox
 
-readPrimLeaf :: InCtx => Rex -> [Maybe Nat] -> Rex -> Repl Sire
+readPrimLeaf :: InCtx => Pex -> [Maybe Nat] -> Pex -> Repl Sire
 readPrimLeaf blockRex e rex =
     case tryReadLeaf rex of
        Just (IDNT n) -> resolveUnqualified blockRex e (utf8Nat n)
@@ -1067,69 +1076,69 @@ readPrimLeaf blockRex e rex =
        Just (CORD n) -> pure $ K $ NAT (utf8Nat n)
        Nothing       -> do
            map (lookupVal "#") get >>= \case
-               Just hex -> expand hex (N PREF "#" [rex] Nothing) >>= readExpr e
+               Just hex -> expand hex (PREF "#" [rex] Nothing) >>= readExpr e
                Nothing  -> parseFail rex "don't know how to parse this leaf"
 
-readBindBody :: InCtx => Either Nat ((Bool, Nat), [Nat]) -> Rex -> Repl Sire
+readBindBody :: InCtx => Either Nat ((Bool, Nat), [Nat]) -> Pex -> Repl Sire
 readBindBody Left{}                 = readExpr []
 readBindBody (Right((_,self),args)) = readExpr $ reverse $ fmap Just $ self:args
 
 planRexFull :: Any -> GRex a
 planRexFull = fmap absurd . itemizeRexes . closureRex Nothing . loadClosure
 
-execAssert :: InCtx => (Rex, Sire) -> (Rex, Sire) -> Repl ()
+execAssert :: InCtx => (Pex, Sire) -> (Pex, Sire) -> Repl ()
 execAssert (_xRex, xExp) (_yRex, yExp) = do
     let !xVal = eval xExp
     let !yVal = eval yExp
 
     unless (xVal == yVal) do
-        let rx = fmap absurd
-               $ N OPEN "!!=" []
-               $ Just $ N OPEN "*" [planRex xVal]
-               $ Just $ N OPEN "*" [planRex yVal]
+        let rx = OPEN "!!=" []
+               $ Just $ OPEN "*" [nounPex xVal]
+               $ Just $ OPEN "*" [nounPex yVal]
                $ Nothing
         parseFail rx "ASSERTION FAILURE"
 
-execBind :: InCtx => Rex -> ToBind -> Repl ()
+execBind :: InCtx => Pex -> ToBind -> Repl ()
 execBind rx (TO_BIND mKey mProp str expr) = do
     let val = eval expr
     prp <- getProps rx (eval <$> mProp)
     modify' (insertBinding rx (mKey, prp, str, val, expr))
-    trkM $ REX $ fmap absurd $ itemizeRexes
-                             $ closureRex (Just str) (loadShallow val)
+    trkRexM $ fmap absurd
+            $ itemizeRexes
+            $ closureRex (Just str) (loadShallow val)
 
 itemizeRexes :: [GRex a] -> GRex a
 itemizeRexes [x] = x
 itemizeRexes rs  = go rs
   where
-    go []     = N OPEN "*" [] Nothing
-    go [x]    = N OPEN "*" [x] Nothing
-    go (x:xs) = N OPEN "*" [x] (Just $ go xs)
+    go []     = Rx.N Rx.OPEN "*" [] Nothing
+    go [x]    = Rx.N Rx.OPEN "*" [x] Nothing
+    go (x:xs) = Rx.N Rx.OPEN "*" [x] (Just $ go xs)
 
-getProps :: InCtx => Rex -> Maybe Any -> Repl (Tab Any Any)
+getProps :: InCtx => Pex -> Maybe Any -> Repl (Tab Any Any)
 getProps _ Nothing          = pure mempty
 getProps _ (Just (TAb tab)) = pure tab
 getProps r _                = parseFail r "Invalid properties value, must be a tab"
 
-execExpr :: InCtx => Rex -> Repl ()
+execExpr :: InCtx => Pex -> Repl ()
 execExpr rex = do
     expr <- readExpr [] rex
     let val = eval expr
     trkM val
 
-doDefine :: InCtx => Text -> Rex -> Repl ()
+doDefine :: InCtx => Text -> Pex -> Repl ()
 doDefine ryn rex = do
   case rex of
-    N _ _ sons (Just heir@(N _ sub _ _)) | ryn==sub -> do
+    NODE _ _ sons (Just heir@(NODE _ sub _ _)) | ryn==sub -> do
         readBindCmd rex sons >>= execBind rex
         doDefine ryn heir
 
-    N _ _ sons mHeir -> do
+    NODE _ _ sons mHeir -> do
         readBindCmd rex (sons <> toList mHeir) >>= execBind rex
 
     _ -> error "readDefine: impossible"
 
-readBindCmd :: InCtx => Rex -> [Rex] -> Repl ToBind
+readBindCmd :: InCtx => Pex -> [Pex] -> Repl ToBind
 readBindCmd rex = \case
 
     [keyRex, propsRex, binderRex, exprRex] -> do
@@ -1166,70 +1175,68 @@ readBindCmd rex = \case
           where
             args = fromIntegral (length argNames)
 
+open :: Text -> [Pex] -> Pex -> Pex
+open r s h = OPEN r s (Just h)
 
-word :: Text -> Rex
-word t = T WORD t Nothing
-
-open :: Text -> [Rex] -> Rex -> Rex
-open r s h = N OPEN r s (Just h)
-
-open_ :: Text -> [Rex] -> Rex
-open_ r s  = N OPEN r s Nothing
+open_ :: Text -> [Pex] -> Pex
+open_ r s  = OPEN r s Nothing
 
 data ParseFail = PARSE_FAIL
     { block   :: Context
-    , problem :: Rex
+    , problem :: Pex
     , _state  :: Any
     , reason  :: Text
     }
   deriving (Eq, Ord)
 
-parseFailRex :: ParseFail -> Rex
+parseFailRex :: ParseFail -> Pex
 parseFailRex pf =
-    id $ open  "#" [word "block",   b.rex]
-       $ open  "#" [word "where",   col [word b.file, word (tshow b.line)]]
-       $ open  "#" [word "problem", pf.problem]
-       $ open_ "#" [word "reason",  word pf.reason]
+    id $ open  "#" [wrd "block",   b.rex]
+       $ open  "#" [wrd "where",   col [wrd b.file, wrd (tshow b.line)]]
+       $ open  "#" [wrd "problem", pf.problem]
+       $ open_ "#" [wrd "reason",  wrd pf.reason]
   where
+    wrd x = WORD x Nothing
     b = pf.block
-    col ds = N SHUT ":" ds Nothing
+    col ds = SHUT ":" ds Nothing
 
 data MacroError = MACRO_ERROR
     { block  :: Context
-    , input  :: Rex
+    , input  :: Pex
     , _state :: Any
     , reason :: Text
     }
   deriving (Eq, Ord)
 
-macroErrorRex :: MacroError -> Rex
+macroErrorRex :: MacroError -> Pex
 macroErrorRex me =
-    id $ open  "#" [word "block",   me.block.rex]
-       $ open  "#" [word "where",   col [word b.file, word (tshow b.line)]]
-       $ open  "#" [word "trouble", me.input]
-       $ open_ "#" [word "reason",  word me.reason]
+    id $ open  "#" [wrd "block",   me.block.rex]
+       $ open  "#" [wrd "where",   col [wrd b.file, wrd (tshow b.line)]]
+       $ open  "#" [wrd "trouble", me.input]
+       $ open_ "#" [wrd "reason",  wrd me.reason]
   where
-    col ds = N SHUT ":" ds Nothing
+    wrd x = WORD x Nothing
+    col ds = SHUT ":" ds Nothing
     b = me.block
 
-macroError :: InCtx => Rex -> Nat -> Repl a
+macroError :: InCtx => Pex -> Nat -> Repl a
 macroError ctx msg = do
     st <- get
     let !me  = MACRO_ERROR ?ctx ctx st (showKey msg)
-    let !res = "Macro Failure!" %% REX (macroErrorRex me)
+    let !res = "Macro Failure!" %% pexNoun (macroErrorRex me)
     seq res (error "this should never happen (macroError)")
 
-parseFail :: InCtx => Rex -> Text -> Repl a
+parseFail :: InCtx => Pex -> Text -> Repl a
 parseFail rex msg = do { st <- get; parseFail_ rex st msg }
 
-parseFail_ :: InCtx => Rex -> Any -> Text -> a
+parseFail_ :: InCtx => Pex -> Any -> Text -> a
 parseFail_ rex st msg =
     seq bottom (error "this should never happen (parseFail_)")
   where
-    errRex = F.REX $ parseFailRex $ PARSE_FAIL ?ctx rex st msg
+    errRex = pexNoun $ parseFailRex $ PARSE_FAIL ?ctx rex st msg
     bottom = "Failed to Parse Sire" %% errRex
 
-readBinder :: InCtx => Rex -> Repl (Either Nat ((Bool, Nat), [Nat]))
+readBinder :: InCtx => Pex -> Repl (Either Nat ((Bool, Nat), [Nat]))
 readBinder rex = do
     case (tryReadKey rex, tryReadLawBinder rex) of
         (Just key, _)  -> pure (Left key)
@@ -1238,10 +1245,10 @@ readBinder rex = do
   where
     msg = "Bad binder: expected foo (foo bar), (**foo bar), etc"
 
-tryReadLawBinder :: Rex -> Maybe ((Bool, Nat), [Nat])
+tryReadLawBinder :: Pex -> Maybe ((Bool, Nat), [Nat])
 tryReadLawBinder rex = do
     kids <- case rex of
-                N _ "|" sons heir -> pure (sons <> toList heir)
+                NODE _ "|" sons heir -> pure (sons <> toList heir)
                 _                 -> Nothing
     case kids of
         []                  -> Nothing
@@ -1249,38 +1256,38 @@ tryReadLawBinder rex = do
             (,) <$> tryReadSigHead headRex
                 <*> traverse tryReadKey tailRexes
 
-tryReadSigHead :: Rex -> Maybe (Bool, Nat)
+tryReadSigHead :: Pex -> Maybe (Bool, Nat)
 tryReadSigHead = \case
-    N _ "**" [son] Nothing -> (True,)  <$> tryReadKey son
+    NODE _ "**" [son] Nothing -> (True,)  <$> tryReadKey son
     rex                    -> (False,) <$> tryReadKey rex
 
 
 -- Parsing Leaves --------------------------------------------------------------
 
-readKey :: InCtx => Rex -> Repl Nat
+readKey :: InCtx => Pex -> Repl Nat
 readKey rex = maybe bad pure (tryReadKey rex)
   where
     bad = parseFail rex "Bad key: expected something like: 234, foo, 'foo'"
 
-readModuleName :: InCtx => Rex -> Repl Nat
+readModuleName :: InCtx => Pex -> Repl Nat
 readModuleName rex = maybe bad pure (utf8Nat <$> tryReadModuleName rex)
   where
     bad = parseFail rex "Bad module_name: expected something like foo, 02_foo"
 
 
-tryReadModuleName :: Rex -> Maybe Text
-tryReadModuleName (T _ t Nothing) = Just t
-tryReadModuleName _               = Nothing
+tryReadModuleName :: Pex -> Maybe Text
+tryReadModuleName (LEAF _ t Nothing) = Just t
+tryReadModuleName _                  = Nothing
 
 data Leaf = DECI Nat | IDNT Text | CORD Text
 
 -- TODO: Should `tryReadLeaf` also support embeded constant values?
 
-tryReadLeaf :: Rex -> Maybe Leaf
+tryReadLeaf :: Pex -> Maybe Leaf
 tryReadLeaf = \case
-    T TEXT t Nothing -> Just (CORD t)
-    T WORD t Nothing -> tryReadWord t
-    _                -> Nothing
+    TEXT t Nothing -> Just (CORD t)
+    WORD t Nothing -> tryReadWord t
+    _              -> Nothing
   where
     tryReadWord t = do
         (c, _) <- T.uncons t
@@ -1289,7 +1296,7 @@ tryReadLeaf = \case
                 DECI <$> readMay t
         else Just (IDNT t)
 
-tryReadKey :: Rex -> Maybe Nat
+tryReadKey :: Pex -> Maybe Nat
 tryReadKey = fmap leafNat . tryReadLeaf
 
 leafNat :: Leaf -> Nat

@@ -515,14 +515,6 @@ saveWorker !ctx !vZoo !vPins !top = do
             znab <- Seed.c_cons ctx zna b
             pure znab
 
-        -- This would be complicated to do efficiently, and it's okay
-        -- if it is slow.
-        fan@REX{} -> do
-            let (!x, !y) = boom fan
-            !xv <- loop x
-            !yv <- loop y
-            Seed.c_cons ctx xv yv
-
 --------------------------------------------------------------------------------
 
 saveGerm :: Fan -> IO ByteString

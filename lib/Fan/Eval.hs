@@ -40,6 +40,7 @@ module Fan.Eval
     , mkRow
     , evalArity
     , vTrkFan
+    , vTrkRex
     , vShowFan
     , vJetMatch
     , vRtsConfig
@@ -69,7 +70,6 @@ import Fan.FFI             (c_revmemcmp)
 import Fan.PinRefs         (pinRefs)
 import GHC.Prim            (reallyUnsafePtrEquality#)
 import Hash256             (shortHex)
-import Rex                 (GRex)
 
 import {-# SOURCE #-} Fan.Hash (fanHash)
 
@@ -82,7 +82,6 @@ import qualified Data.Vector            as V
 import qualified Data.Vector.Storable   as SV
 import qualified Fan.Eval.LetRec        as LetRec
 import qualified GHC.Exts               as GHC
-import qualified Rex
 
 
 -- Infix Operators -------------------------------------------------------------
@@ -98,6 +97,9 @@ infixl 5 %%;
 
 vTrkFan :: IORef (Fan -> IO ())
 vTrkFan = unsafePerformIO $ newIORef $ const $ pure ()
+
+vTrkRex :: IORef (Rex -> IO ())
+vTrkRex = unsafePerformIO $ newIORef $ const $ pure ()
 
 vShowFan :: IORef (Fan -> Text)
 vShowFan = unsafePerformIO $ newIORef $ const "[PLUN]"
@@ -154,7 +156,6 @@ normalize top =
         FUN !_ -> tp
         COw !_ -> tp
         SET !_ -> tp
-        REX r  -> REX (go <$> r)
         ROW r  -> ROW (go <$> r)
         TAb t  -> TAb (go <$> t)
         KLO r eRaw ->
@@ -212,7 +213,6 @@ instance Eq Fan where
     COw n   == COw m   = (n==m)
     FUN l   == FUN a   = (l==a)
     v@KLO{} == w@KLO{} = (kloWalk v == kloWalk w)
-    REX x   == REX y   = x==y
     _       == _       = False
 
 instance Ord Pin where
@@ -280,7 +280,6 @@ instance Ord Fan where
             PIN{}   -> [f]
             SET{}   -> [f]
             COw{}   -> [f]
-            REX{}   -> [f]
             ROW r   -> if null r then [f] else COw (nat(length r)) : reverse (toList r) -- COw here is never empty
             KLO _ k -> toList k
             TAb t   -> [SET (tabKeysSet t), ROW (fromList $ toList t)]
@@ -297,7 +296,6 @@ lawName = \case
     TAb{} -> 0
     SET{} -> 1
     COw{} -> 0
-    REX{} -> "_Rex"
 
 {-# INLINE lawArgs #-}
 lawArgs :: Fan -> Nat
@@ -308,7 +306,6 @@ lawArgs = \case
     COw c -> c+1
     ROW r -> if null r then 1 else 0 -- Only a law if empty
     SET{} -> 2
-    REX{} -> 1
     TAb{} -> 0 -- Not a function
     KLO{} -> 0 -- Not a function
     NAT{} -> 0 -- Not a function
@@ -322,7 +319,6 @@ lawBody = \case
     FUN l -> l.body
     BAR b -> NAT (barBody b)
     SET k -> setToRow k
-    REX r -> rexNoun r
     COw{} -> NAT 0 -- Actual law body is 0
     ROW{} -> NAT 0 -- Actual law body is 0
     TAb{} -> NAT 0 -- Not a law
@@ -383,46 +379,12 @@ boom = \case
     SET ks ->
         rul (LN 1) 2 (ROW $ ssetToArray ks)
 
-    REX rex ->
-        rul (LN "_Rex") 1 (rexNoun rex)
-
   where
     rul :: LawName -> Nat -> Fan -> (Fan, Fan)
     rul (LN n) a b =
         ( KLO 1 (a3 (NAT 0) (NAT n) (NAT a))
         , b
         )
-
-rexNoun :: GRex Fan -> Fan
-rexNoun = \case
-    Rex.C val -> ROW (rowSingleton val)
-
-    Rex.T style text heir ->
-        (ROW . arrayFromListN 3)
-        [ textStyleConstr style
-        , NAT (bytesNat $ encodeUtf8 text)
-        , maybe 0 REX heir
-        ]
-
-    Rex.N style ryne sons heir ->
-        (ROW . arrayFromListN 4)
-        [ nodeStyleConstr style
-        , NAT (bytesNat $ encodeUtf8 ryne)
-        , ROW (arrayFromList (REX <$> sons))
-        , maybe 0 REX heir
-        ]
-  where
-    nodeStyleConstr = \case
-        Rex.OPEN -> NAT "OPEN"
-        Rex.NEST -> NAT "NEST"
-        Rex.INFX -> NAT "INFX"
-        Rex.PREF -> NAT "PREF"
-        Rex.SHUT -> NAT "SHUT"
-
-    textStyleConstr = \case
-        Rex.WORD -> NAT "WORD"
-        Rex.TEXT -> NAT "TEXT"
-        Rex.LINE -> NAT "LINE"
 
 valName :: Fan -> Text
 valName = \case
@@ -454,7 +416,6 @@ instance Show Fan where
     show (TAb t)   = "(TAB " <> show (showTab t) <> ")"
     show (SET k)   = "(SET " <> show (toList k) <> ")"
     show (BAR b)   = "(BAR " <> show b <> ")"
-    show (REX _)   = "(REX _)" -- TODO
 
 showTab :: Tab Fan Fan -> [(Fan,Fan)]
 showTab t = tabToAscPairsList t
@@ -494,12 +455,11 @@ barBody bytes =
 --------------------------------------------------------------------------------
 
 matchData :: LawName -> Nat -> Fan -> Maybe Fan
-matchData (LN 0)          1 (NAT 0) = Just $ ROW mempty
-matchData (LN 0)          n (NAT 0) = Just $ COw (n-1) -- n-1 is never zero
-matchData (LN 1)          2 (ROW v) = matchSet v
-matchData (LN 1)          1 (NAT n) = matchBar n
-matchData (LN "_Rex")     1 body    = REX <$> matchRex body
-matchData (LN _)          _ _       = Nothing
+matchData (LN 0) 1 (NAT 0) = Just $ ROW mempty
+matchData (LN 0) n (NAT 0) = Just $ COw (n-1) -- n-1 is never zero
+matchData (LN 1) 2 (ROW v) = matchSet v
+matchData (LN 1) 1 (NAT n) = matchBar n
+matchData (LN _) _ _       = Nothing
 
 matchBar :: Nat -> Maybe Fan
 matchBar n = do
@@ -508,56 +468,6 @@ matchBar n = do
     guard (0 == (bitWidth `mod` 8))
     let bytWidth = fromIntegral (bitWidth `div` 8)
     pure $ BAR $ take bytWidth $ natBytes n
-
-matchRex :: Fan -> Maybe Rex
-matchRex = \case
-    ROW x -> match (toList x)
-    _     -> Nothing
-  where
-    match = \case
-        [x] ->
-            pure (Rex.C x)
-
-        [shape, text, heir] -> do
-            shape' <- matchTextShape shape
-            text'  <- readText text
-            heir'  <- readHeir heir
-            pure (Rex.T shape' text' heir')
-
-        [shape, rune, ROW sons, heir] -> do
-            shape' <- matchNodeShape shape
-            rune'  <- readText rune -- TODO: validate
-            sons'  <- traverse readRex sons
-            heir'  <- readHeir heir
-            pure (Rex.N shape' rune' (toList sons') heir')
-
-        _ -> do
-            Nothing
-
-    readRex (REX x) = Just x
-    readRex _       = Nothing
-
-    readHeir (NAT 0) = Just Nothing
-    readHeir (REX x) = Just (Just x)
-    readHeir _       = Nothing
-
-    matchTextShape = \case
-        NAT "WORD" -> Just Rex.WORD
-        NAT "TEXT" -> Just Rex.TEXT
-        NAT "LINE" -> Just Rex.LINE
-        _          -> Nothing
-
-    matchNodeShape = \case
-        NAT "OPEN" -> Just Rex.OPEN
-        NAT "NEST" -> Just Rex.NEST
-        NAT "INFX" -> Just Rex.INFX
-        NAT "PREF" -> Just Rex.PREF
-        NAT "SHUT" -> Just Rex.SHUT
-        _          -> Nothing
-
-    -- TODO Make sure it's valid text (no decodeLenient nonsense)
-    readText (NAT t) = pure (decodeUtf8 $ natBytes t)
-    readText _       = Nothing
 
 matchSet :: Array Fan -> Maybe Fan
 matchSet vs = do
@@ -750,7 +660,6 @@ execFrame buf =
         KLO{} -> error "Invalid stack frame, closure as head"
         NAT n -> execNat n buf
         BAR b -> if null b then buf.!1 else NAT (barBody b)
-        REX b -> rexNoun b
         TAb t -> ROW (tabKeysArray t) -- tabs return keys row
         COw n ->
             let !las = fromIntegral n in
@@ -884,9 +793,6 @@ wut p l a n = \case
         if null v
         then wutCow 0
         else app3 a h t where (h,t) = boom x
-
-    x@REX{} ->
-        app4 l (NAT $ bytesNat $ encodeUtf8 "R") 3 (snd $ boom x)
   where
     wutCow m = app4 l (NAT 0) (NAT (m+1)) (NAT 0)
 
@@ -938,7 +844,6 @@ showCns COw{}    = "COW"
 showCns TAb{}    = "TAB"
 showCns SET{}    = "SET"
 showCns BAR{}    = "BAR"
-showCns REX{}    = "REX"
 showCns (NAT n)  = show n
 
 instance Show Prog where
@@ -1079,7 +984,6 @@ valCode = \case
     TAb{}     -> execFrame
     COw{}     -> execFrame
     SET{}     -> execFrame
-    REX{}     -> execFrame
 
 -- Saturated calls become EXE nodes, undersaturated calls become KLO nodes.
 resaturate :: Int -> Run -> Run

@@ -43,6 +43,7 @@ main = colorsOnlyInTerminal do
   when False do
     writeIORef F.vShowFan Loot.showFan
     writeIORef F.vTrkFan  Loot.trkFan
+    writeIORef F.vTrkRex  Loot.trkRex
     writeIORef F.vJetMatch (F.jetMatch)
 
     pure ()

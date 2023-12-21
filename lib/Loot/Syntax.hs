@@ -68,6 +68,7 @@ import Rex
 import Data.ByteString.Builder (byteStringHex, toLazyByteString)
 import Data.Text.Encoding      (decodeUtf8')
 import Fan                     (lawNameText)
+import Loot.Util               (lootRexToRex)
 
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.Char              as C
@@ -195,7 +196,7 @@ valBox = \case
     XVCOW n   -> nameBox ("C" <> tshow n)
     XVTAB t   -> tabBox t
     XVSET k   -> setBox k
-    XVREX k   -> rexBox k
+    XVROX k   -> rexBox (lootRexToRex k)
 
 valBoxes :: XVal -> [Box]
 valBoxes = \case

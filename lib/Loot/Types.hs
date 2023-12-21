@@ -33,6 +33,7 @@ module Loot.Types
     , XBod(..)
     , XVal(..)
     , LawName(..)
+    , LootRex(..)
     , Word256
     )
 where
@@ -40,7 +41,7 @@ where
 import PlunderPrelude
 
 import Fan (LawName(..))
-import Rex (GRex)
+import Rex (RuneShape, TextShape)
 
 ----------------------------------------
 -- Identifier with Explicit Tag Value --
@@ -69,11 +70,18 @@ data Val a
     | APP (Val a) (Val a)
     | LAW LawName Nat (Bod a)
     | ROW (Vector (Val a))
-    | REX (GRex (Val a))
+    | ROX (LootRex (Val a))
     | COW Nat
     | TAB [(Val a, Val a)]
     | SET [Val a]
     | BAR ByteString
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
+
+data LootRex a
+    = NODE RuneShape Text [LootRex a] (Maybe (LootRex a))
+    | LEAF TextShape Text (Maybe (LootRex a))
+    | EMBD a
+    | EVIL a
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, NFData)
 
 instance Num (Val a) where
@@ -96,7 +104,7 @@ data XVal
     | XVTAB [(XVal, XVal)]
     | XVSET [XVal]
     | XVBAR ByteString
-    | XVREX (GRex XVal)
+    | XVROX (LootRex XVal)
   deriving (Eq, Ord, Show, Generic, NFData)
 
 -----------

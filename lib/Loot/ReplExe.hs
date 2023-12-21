@@ -10,6 +10,7 @@ module Loot.ReplExe
     , replMain
     , showFan
     , trkFan
+    , trkRex
     , dieFan
     , plunRex
     , runBlock
@@ -19,6 +20,7 @@ module Loot.ReplExe
     , showClosure
     , closureRex
     , showValue
+    , Pex, rexToPex, pexToRex
     )
 where
 
@@ -34,10 +36,12 @@ import qualified Rex.Print.Prim
 
 import Control.Exception (throw)
 import Data.Text.IO      (hPutStr, hPutStrLn)
+import Fan.PlanRex       (PlanRex(..), Pex, nounPex)
 import Loot.Sugar        (desugarCmd, resugarRul, resugarVal)
 
-import qualified Data.Text as T
-import qualified Fan       as F
+import qualified Data.Text   as T
+import qualified Fan         as F
+import qualified Fan.PlanRex as PR
 
 --------------------------------------------------------------------------------
 
@@ -52,6 +56,7 @@ replMain :: RexColor => [String] -> IO ()
 replMain filz = do
     writeIORef F.vShowFan  showFan
     writeIORef F.vTrkFan   trkFan
+    writeIORef F.vTrkRex   trkRex
     writeIORef F.vJetMatch F.jetMatch
 
     vEnv <- newIORef (mempty :: Map Symb Fan)
@@ -262,9 +267,33 @@ showFan =
     let ?rexColors = NoColors
     in showClosure Nothing . loadShallow
 
+trkRex :: RexColor => GRex Fan -> IO ()
+trkRex rex = putStrLn $ rexFile $ joinRex (showValue . loadShallow <$> rex)
+
 trkFan :: RexColor => Fan -> IO ()
-trkFan (F.REX r) = putStrLn $ rexFile $ joinRex $ showValue . loadShallow <$> r
-trkFan val       = putStrLn $ showClosure Nothing $ loadShallow val
+trkFan val =
+    putStrLn $
+    let pex = nounPex val in
+    case pex.v of
+        Nothing -> showClosure Nothing $ loadShallow val
+        Just{}  -> rexFile $ joinRex $ showValue . loadShallow <$> pexToRex pex
 
 dieFan :: RexColor => Nat -> Fan -> IO ()
 dieFan op fan = trkFan $ F.ROW $ arrayFromListN 3 ["crash", F.NAT op, fan]
+
+
+--------------------------------------------------------------------------------
+
+rexToPex :: GRex Fan -> Pex
+rexToPex = \case
+    C c        -> PR.EMBD c
+    T sh t h   -> PR.LEAF sh t (rexToPex <$> h)
+    N sh r s h -> PR.NODE sh r (rexToPex <$> s) (rexToPex <$> h)
+
+pexToRex :: Pex -> GRex Fan
+pexToRex PR.PR{n=raw, v} =
+    case v of
+    Nothing                  -> C raw -- hack
+    Just (PR.EMBD_ val)      -> C val
+    Just (PR.NODE_ sh r s h) -> N sh r (pexToRex <$> s) (pexToRex <$> h)
+    Just (PR.LEAF_ sh t h)   -> T sh t (pexToRex <$> h)

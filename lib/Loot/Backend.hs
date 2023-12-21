@@ -80,11 +80,14 @@ import PlunderPrelude
 
 import Control.Monad.State (State, evalState, get, put, runState)
 import Fan                 (Fan, Pin(..), (%%))
-import Loot                (keyRex)
+import Fan.PlanRex         (PlanRex(..), pexNoun)
+import Loot.Syntax         (keyRex)
+import Loot.Util           (lootRexToPex)
 import Rex.Print           (RexColorScheme(NoColors), rexLine)
 
 import Data.HashMap.Strict ()
 
+import qualified Fan.PlanRex as PR
 import qualified Data.Vector as V
 import qualified Fan         as F
 
@@ -277,7 +280,7 @@ valFan (COW 0)          = F.ROW mempty
 valFan (COW n)          = F.COw n -- Never 0
 valFan (TAB t)          = F.TAb $ mapFromList (pairFan <$> t)
 valFan (SET k)          = F.SET $ setFromList $ valFan <$> k
-valFan (REX x)          = F.REX $ fmap valFan x
+valFan (ROX x)          = pexNoun (lootRexToPex (valFan <$> x))
 
 pairFan :: (Val Fan, Val Fan) -> (Fan, Fan)
 pairFan (k, v) = (valFan k, valFan v)
@@ -293,12 +296,22 @@ plunAlias topNod  = Just (go topNod)
         n@F.PIN{} -> REF n
         F.BAR b   -> BAR b
         F.ROW r   -> ROW (V.fromArray (go <$> r))
-        F.REX r   -> REX (go <$> r)
         F.TAb t   -> TAB (pair <$> mapToList t)
         F.COw n   -> COW n
         F.SET n   -> SET (go <$> toList n)
         v@F.KLO{} -> let (h,t) = F.boom v in APP (go h) (go t)
         F.FUN l   -> LAW l.name l.args (valBod l.args $ go l.body)
+
+goRex :: (Fan -> Load a) -> PR.PlanRex -> Load (LootRex a)
+goRex go PR{n,v=Nothing}  = EVIL <$> go n
+goRex go PR{v=(Just prn)} = goRexNode go prn
+
+goRexNode :: (Fan -> Load a) -> PR.PlanRexNode -> Load (LootRex a)
+goRexNode go = \case
+    PR.EMBD_ val              -> EMBD <$> go val
+    PR.LEAF_ s text heir      -> LEAF s text <$> traverse (goRex go) heir
+    PR.NODE_ s rune sons heir -> NODE s rune <$> traverse (goRex go) sons
+                                             <*> traverse (goRex go) heir
 
 loadShallow :: Fan -> Closure
 loadShallow inVal =
@@ -330,8 +343,10 @@ loadShallow inVal =
         F.TAb t         -> TAB <$> traverse goPair (mapToList t)
         F.COw n         -> pure (COW n)
         F.SET n         -> SET <$> traverse go (toList n)
-        F.REX r         -> REX <$> traverse go r
-        v@F.KLO{}       -> let (h,t) = F.boom v in APP <$> go h <*> go t
+        v@F.KLO{}       ->
+            case (PR.nounPex v).v of
+                Just prn -> ROX <$> goRexNode go prn
+                Nothing  -> let (h,t) = F.boom v in APP <$> go h <*> go t
         F.FUN law -> do
             b <- go law.body
             pure $ LAW law.name law.args (valBod law.args b)
@@ -364,10 +379,13 @@ loadClosure inVal =
         F.BAR b   -> pure (BAR b)
         F.ROW r   -> ROW . V.fromArray <$> traverse go r
         F.TAb t   -> TAB <$> traverse goPair (mapToList t)
-        F.REX r   -> REX <$> traverse go r
         F.COw n   -> pure (COW n)
         F.SET n   -> SET <$> traverse go (toList n)
-        v@F.KLO{} -> let (h,t) = F.boom v in goCel h t
+        v@F.KLO{}       ->
+            case (PR.nounPex v).v of
+                Just prn -> ROX <$> goRexNode go prn
+                Nothing  -> let (h,t) = F.boom v in goCel h t
+
         F.FUN law -> do
             b <- go law.body
             pure $ LAW law.name law.args (valBod law.args b)
@@ -421,4 +439,3 @@ plunVal = go
         F.SET ks  -> SET (go <$> toList ks)
         F.ROW xs  -> ROW (go <$> V.fromArray xs)
         F.TAb t   -> TAB (goPair <$> mapToList t)
-        F.REX x   -> REX (go <$> x)

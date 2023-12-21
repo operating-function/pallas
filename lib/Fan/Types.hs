@@ -100,7 +100,6 @@ data Fan
     | TAb {-# UNPACK #-} !(ArrayMap Fan Fan)
     | SET {-# UNPACK #-} !(ArraySet Fan)
     | COw !Nat
-    | REX !Rex
   deriving (Generic, NFData)
 
 type Any = Fan

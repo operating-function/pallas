@@ -31,7 +31,6 @@ pinRefs top =
         COw{}   -> pure ()
         BAR{}   -> pure ()
         ROW v   -> traverse_ go v
-        REX v   -> traverse_ go v
         KLO _ v -> traverse_ go v
         FUN f   -> go f.body
         SET c   -> traverse_ go (ssetToAscArray c)

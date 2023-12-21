@@ -37,7 +37,7 @@
 /+  05_row  [map foldl foldr gen weld v1 v2 v4]
 /+  05_row  [fst snd]
 /+  06_rex  [SHUT TEXT WORD]
-/+  06_rex  [rexKids rexHeir rexText {'}]
+/+  06_rex  [rexKids rexHeir rexText rexStyle {'}]
 /+  06_rex  [rexGetLeaf]
 /+  07_dat
 /+  09_chr  [chr isPrint ord toLower newlineChar]
@@ -294,14 +294,14 @@ rowToBar=barFromRow
 = blBadMacro } Bar literals must look like b#... or x#...
 
 = (foldMultiLine rex err ok)
-@ topStyle (idx 0 | lawBody rex)
+@ topStyle (rexStyle rex)
 | if (neq {LINE} topStyle)
     | err rex {non-line-string contains heir.  What?}
 ^ (_ NIL rex)
 ? (go acc rex)
 | if (isZero rex)
     | ok | strFromList | listIntersperse 10 | listRev acc
-@ style (idx 0 | lawBody rex)
+@ style (rexStyle rex)
 | if (neq style topStyle)
     | err rex {Each line of a multiline-string must be a leaf of the same style}
 @ acc (CONS (rexText rex) acc)

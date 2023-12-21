@@ -432,15 +432,17 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 | and | isTab (idx 3 st)
 | and | isTab (idx 4 st)
 
-(isRexLike rex)=(lawName rex == {_Rex})
+= (isRexLike rex)
+^ eql {##} (mod _ 65536)
+| lawName | pinItem | head rex
 
 = (validMacroExpansion r)
 | and isRow-r
 | and (eql 3 len-r)
 @ [tag v1 v2] r
 # switch tag
-* 0 | TRUE ; (isStateLike v1 && isRexLike v2)
-* 1 | TRUE ; (isRexLike v1 && isNat v2)
+* 0 | isRexLike v2 ; (&& isStateLike v1)
+* 1 | (isNat v2 && isRexLike v1)
 * _ | FALSE
 
 = (expand macVal rex st)
@@ -891,7 +893,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ expo (executeSire rex ss)
 # datacase expo
 * LEFT-(err@(rex, messages))
-    | ifNot (isLaw messages)
+    | ifNot (isRexLike messages)
         | die {bad error},[=expo],[=err =rex =messages]
     @ erx | if isNat-messages [(06_rex.WORD messages 0)]
           | rexKids messages

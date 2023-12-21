@@ -70,7 +70,6 @@ instance Arbitrary Fan where
         , F.BAR <$> arbitrary
         , F.mkCow <$> arbitrary -- (COW 0) == (ROW [])
         , genFanClosure
-        , F.REX <$> genRex
         , arbitraryLaw
         , F.PIN <$> arbitrary
         , genFanContainer
@@ -204,6 +203,7 @@ main :: IO ()
 main = do
   Rex.colorsOnlyInTerminal do
     writeIORef F.vTrkFan trkFan
+    writeIORef F.vTrkRex trkRex
 
     -- TODO Gross (need to explicitly think about lifetimes + evaluation order)
     getCurrentTime >>= print

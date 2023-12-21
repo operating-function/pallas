@@ -37,8 +37,8 @@ import Control.Monad.State      (State, execState, modify')
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Fan.Hash                 (fanHash)
 import Hash256                  (hashToBTC)
-import Loot.ReplExe             (showFan, trkFan)
-import Sire.Types               (trkM)
+import Loot.ReplExe             (showFan, trkFan, trkRex)
+import Sire.Types               (trkRexM)
 import System.Directory         (createDirectoryIfMissing, doesFileExist,
                                  getHomeDirectory, removeFile)
 import System.Exit              (ExitCode(..), exitWith)
@@ -460,12 +460,13 @@ showSeed :: (Debug, Rex.RexColor) => FilePath -> IO ()
 showSeed seedFileToShow = do
     writeIORef F.vShowFan showFan
     writeIORef F.vTrkFan  trkFan
+    writeIORef F.vTrkRex  trkRex
     byt <- readFile seedFileToShow
     pin <- F.loadSeed byt >>= either throwIO pure
     print pin
     fullPrint pin
   where
-    fullPrint x = trkM $ F.REX $ Sire.planRexFull $ toNoun x
+    fullPrint x = trkRexM $ Sire.planRexFull $ toNoun x
 
 -- TODO: If given something like $path.sire:main, load that instead of
 -- just using a seed.
@@ -476,13 +477,14 @@ replSeed seedFileToShow outputFile = do
     writeIORef F.vJetMatch           $! F.jetMatch
     writeIORef F.vShowFan            $! showFan
     writeIORef F.vTrkFan             $! trkFan
+    writeIORef F.vTrkRex             $! trkRex
     writeIORef F.vRtsConfig          $! F.RTS_CONFIG{..}
     byt <- readFile seedFileToShow
     pin <- F.loadSeed byt >>= either throwIO pure
     withFile outputFile WriteMode \h ->
         interactive h pin
   where
-    fullPrint x = trkM $ F.REX $ Sire.planRexFull $ toNoun x
+    fullPrint x = trkRexM $ Sire.planRexFull $ toNoun x
 
     interactive h st0 = do
         input <- (try $ BS.hGetSome stdin 80) >>= \case

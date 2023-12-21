@@ -131,13 +131,6 @@ fanHash top =
             traverse_ (go h) (tabKeysArray v)
             traverse_ (go h) (tabElemsArray v)
 
-        v@(REX r) -> do -- It's a law
-            c_blake3_hasher_update_byte h 1
-            doNat h (lawName v)
-            doNat h (lawArgs v)
-            go h (lawBody v)
-
-
     doNat :: Hasher -> Nat -> IO ()
     doNat h = \case
         NatS# w# -> do

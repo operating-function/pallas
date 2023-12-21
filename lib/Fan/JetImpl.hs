@@ -8,7 +8,7 @@
 {-# OPTIONS_GHC -Werror  #-}
 {-# LANGUAGE UnboxedTuples #-}
 
-module Fan.JetImpl (installJetImpls, jetImpls, doTrk) where
+module Fan.JetImpl (installJetImpls, jetImpls, doTrk, doTrkRex) where
 
 import Control.Monad.ST
 import Control.Parallel
@@ -271,6 +271,12 @@ isZeroJet _ env = case env.!1 of
   NAT 0 -> NAT 1
   _     -> NAT 0
 
+doTrkRex :: GRex Fan -> a -> a
+doTrkRex rex val = unsafePerformIO do
+    trk <- readIORef vTrkRex
+    trk rex
+    evaluate val
+
 doTrk :: Fan -> a -> a
 doTrk msg val = unsafePerformIO do
     trk <- readIORef vTrkFan
@@ -292,7 +298,7 @@ traceJet :: Jet
 traceJet _ env = doTrk (env.!1) (env.!2)
 
 deepTraceJet :: Jet
-deepTraceJet _ e = doTrk (REX $ planRexFull (e.!1)) (e.!2)
+deepTraceJet _ e = doTrkRex (planRexFull (e.!1)) (e.!2)
 
 planRexFull :: Fan -> GRex a
 planRexFull = fmap absurd . itemizeRexes . closureRex Nothing . loadClosure
@@ -559,7 +565,6 @@ fanLength = \case
     BAR{}   -> 0
     SET{}   -> 0
     FUN{}   -> 0
-    REX{}   -> 0
     PIN{}   -> 0
     COw{}   -> 0
 
@@ -611,7 +616,7 @@ vsumOfJet f env =
     vsumOf :: Fan -> Array Fan -> Fan
     vsumOf fn s = NAT $ foldr (\fan n -> n + toNat (fn %% fan)) 0 s
 
-  -- TODO: vfind
+-- TODO: vfind
 
 -- [hed 3 2 1 0] 0 -> arr[5-(0+1)] -> arr[4] -> 0
 -- [hed 3 2 1 0] 1 -> arr[5-(1+1)] -> arr[3] -> 1
@@ -654,7 +659,6 @@ doMut (toNat -> k) v x = case x of
     BAR{}          -> x
     SET{}          -> x
     COw{}          -> x
-    REX{}          -> x
     KLO a r        -> if ki >= fanLength x then x else mutKlo ki v a r
     TAb t          -> if ki > 0            then x else SET (tabKeysSet t) %% v
     ROW r          -> if ki >= length r    then x else ROW (rowPut ki v r)
@@ -731,7 +735,6 @@ barFlatJet _ env =
     go PIN{}   = mempty                    -- pin
     go COw{}   = mempty                    -- law
     go SET{}   = mempty                    -- law
-    go REX{}   = mempty                    -- law
     go FUN{}   = mempty                    -- law
     go (ROW r) = concat (go <$> r)         -- app
     go (TAb r) = concat (go <$> toList r)  -- app
@@ -1288,7 +1291,6 @@ typeTagJet _ e =
         TAb{} -> 6
         COw{} -> 7
         SET{} -> 8
-        REX{} -> 1 -- law (TODO: update this when repr changes)
 
 {-
     Returns either a nat, the first element of a closure (the last
@@ -1308,7 +1310,6 @@ dataTagJet _ e =
         BAR{} -> 0 -- law
         COw{} -> 0 -- law
         SET{} -> 0 -- law
-        REX{} -> 0 -- law (TODO: update this when repr changes)
         NAT{} -> v
 
 ---------

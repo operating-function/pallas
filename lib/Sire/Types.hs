@@ -19,13 +19,14 @@ module Sire.Types
     , ToBind(..)
     , Lam(..)
     , Sire(..)
-    , rexText
+    , rexText, pexText
     , planRex
     , planText
     , sireRex
     , lamRex
     , trk
     , trkM
+    , trkRexM
     , apple
     , apple_
     , traceSire
@@ -41,16 +42,19 @@ import Sire.Backend
 import Data.Sorted  (Tab)
 import Fan          (Fan(..), mkPin)
 import Fan.Convert  (ToNoun(toNoun))
-import Fan.JetImpl  (doTrk)
+import Fan.PlanRex  (PlanRex)
+import Fan.JetImpl  (doTrk, doTrkRex)
 import Loot.Backend (loadShallow)
-import Loot.ReplExe (showValue)
+import Loot.ReplExe (showValue, pexToRex)
 import Loot.Syntax  (joinRex)
 import Rex          (GRex(..), RexColorScheme(NoColors), RuneShape(..),
                      TextShape(..), rexFile)
 
+
 -- Aliases ---------------------------------------------------------------------
 
-type Rex  = GRex Any
+type Pex = PlanRex
+type Rex = GRex Any
 
 
 -- Types -----------------------------------------------------------------------
@@ -205,6 +209,9 @@ rexText =
       where rex   = planRex x
             style = if isClosed rex then PREF else OPEN
 
+pexText :: Pex -> Text
+pexText = rexText . pexToRex
+
 isClosed :: GRex a -> Bool
 isClosed (N OPEN _ _ _) = False
 isClosed _              = True
@@ -226,6 +233,11 @@ trkM msg = do
     let !() = doTrk msg ()
     pure ()
 
+trkRexM :: Monad m => Rex -> m ()
+trkRexM rex = do
+    let !() = doTrkRex rex ()
+    pure ()
+
 trk :: Any -> a -> a
 trk = doTrk
 
@@ -240,7 +252,7 @@ apple_ (f:xs) = apple f xs
 
 traceSire' :: Text -> Sire -> a -> a
 traceSire' context sire result =
-    trk (REX it) result
+    doTrkRex it result
   where
     it = N OPEN "#" [T WORD context Nothing]
        $ Just

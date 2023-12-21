@@ -6,8 +6,7 @@
 {-# OPTIONS_GHC -Werror #-}
 
 module Fan.Jets
-    ( vTrkFan
-    , vShowFan
+    ( vShowFan
     , jetMatch
     , getPin
     , getRow
@@ -121,7 +120,7 @@ jetMatch cpin = do
                  CRASH  -> \e -> throw (PRIMOP_CRASH "deopt" (envRow e))
                  WARN   -> \e -> unsafePerformIO do
                                        shw <- readIORef vShowFan
-                                       putStrLn ("deopt:" <> shw (envRow e))
+                                       hPutStrLn stderr ("deopt:" <> shw (envRow e))
                                        pure (cpin.exec e)
 
     let pHash      = cpin.hash

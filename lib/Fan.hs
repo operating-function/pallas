@@ -4,8 +4,11 @@
 
 module Fan
     ( module F
+    , Any
     )
 where
 
 import Fan.Eval as F
 import Fan.Jets as F
+
+type Any = Fan

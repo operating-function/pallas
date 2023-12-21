@@ -58,13 +58,13 @@
 /+  02_bit  [if ifNot and or not else]
 /+  02_bit  [TRUE FALSE]
 /+  03_nat  [add div inc dec]
-/+  05_row  [idx put len null switch fst snd]
+/+  05_row  [idx put len null switch fst snd head]
 /+  05_row  [weld map foldr v1 v2 v3 v4]
 /+  04_cmp  [eql neq lth isZero]
 /+  06_rex  [rexRune rexSons rexHeir rexKids]
 /+  06_rex  [rexIsNode rexIsEmbd rexIsLeaf]
 /+  06_rex  [rexGetNode rexEmbd {'}]
-/+  06_rex  [REX PREF NEST EMBD OPEN WORD TEXT]
+/+  06_rex  [PREF NEST EMBD OPEN WORD TEXT]
 /+  06_rex  [rexGetNodeWithRune]
 /+  06_rex  [rexStyle rexText]
 /+  06_rex  [rexSetRune rexSetHeir rexSetSons]
@@ -460,18 +460,19 @@ four=(WORD {4} 0)
 @ heir | rexHeir rex
 @ rune | rexRune rex
 @ text | rexText rex
+@ cnsr | head rex
 | if (rexIsEmbd rex)
     | eitherCase (rexEmbd rex)
         (l & appE (cnsE EMBD, l))
         (r & r)
 | if (rexIsLeaf rex)
-    ^ appE (cnsE REX, rowE _)
-   ++ cnsE (rexStyle rex)
+    | appE
+   ++ cnsE cnsr
    ++ cnsE (rexText rex)
    ++ if (isZero heir) (cnsE 0) (splicedE heir)
 | else
-    ^ appE (cnsE REX, rowE _)
-   ++ cnsE (rexStyle rex)
+    | appE
+   ++ cnsE cnsr
    ++ cnsE (rexRune rex)
    ++ rowE (map splicedE sons)
    ++ if (isZero heir) (cnsE 0) (splicedE heir)
