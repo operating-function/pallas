@@ -154,8 +154,6 @@
 
 (listElemIndexOpt x xs)=(listElemIndex x xs NONE SOME)
 
-(curlRex txt)=(06_rex.TEXT txt 0)
-
 > Rex > List (Maybe Str) > Str > Repl Sire
 = (resolveUnqualified rex env sym st)
 # datacase (listElemIndexOpt (SOME sym) env)
@@ -165,22 +163,21 @@
 @ bn (tabIdx sym getSireScope-st)
 | ifNot (isZero bn)
     | RIGHT (st, G bn)
-^ LEFT (rex, _)
-| `[unbound $(curlRex sym)]
+| LEFT (rex, {undefined reference})
 
 !!= RIGHT-(%fdsa, V 0)
-  | resolveUnqualified `foo ~(SOME %foo, NONE, SOME %bar) %foo %fdsa
+  | resolveUnqualified 'foo ~(SOME %foo, NONE, SOME %bar) %foo %fdsa
 
 !!= RIGHT-(%fdsa, V 2)
-  | resolveUnqualified `bar ~(SOME %foo, NONE, SOME %bar) %bar %fdsa
+  | resolveUnqualified 'bar ~(SOME %foo, NONE, SOME %bar) %bar %fdsa
 
 ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 !!= RIGHT-(ss, G {ZAZBIND})
-  | resolveUnqualified `zaz ~(SOME %foo, NONE, SOME %bar) %zaz ss
+  | resolveUnqualified 'zaz ~(SOME %foo, NONE, SOME %bar) %zaz ss
 
-!!= LEFT-(`wut, `[unbound {wut}])
-  | resolveUnqualified `wut ~(SOME %foo, NONE, SOME %bar) %wut %fdsa
+!!= LEFT-('wut, {undefined reference})
+  | resolveUnqualified 'wut ~(SOME %foo, NONE, SOME %bar) %wut %fdsa
 
 
 ;;; Sire ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -203,7 +200,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 | go acc (rexHeir rex)
 
 !!= RIGHT-[{lol} (K {hi})]
-  ^ (readMultiLine _ %lol) ` } hi
+  ^ (readMultiLine _ %lol) ' } hi
 
 = hiHello
 } hi
@@ -211,7 +208,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 !!=   | RIGHT [%lol (K hiHello)]
   ^ readMultiLine _ %lol
-  ` } hi
+  ' } hi
     } hello
 
 = (replPure x st)
@@ -241,12 +238,12 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 > Rex > Repl Nat
 = (readKey rex st)
 # datacase tryReadLeaf-rex
-* NONE        | LEFT (rex, `[{invalid key}])
+* NONE        | LEFT (rex, {invalid key})
 * SOME-[ty v] | RIGHT (st, v)
 
 > Rex > Repl Nat
 = (readModuleName rex st)
-@ dead | LEFT (rex, `[{Bad module_name: expected something like foo, 02_foo}])
+@ dead | LEFT (rex, {bad module name})
 | ifNot (rexIsLeaf rex) dead
 | ifNot (isZero | rexHeir rex) dead
 | RIGHT (st, rexText rex)
@@ -255,11 +252,11 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 = (resolveQualified rex modu name st)
 @ modules (**getSireModules st)
 | if (not | tabHas modu modules)
-    | LEFT (rex, `[unbound module $(curlRex modu)])
+    | LEFT (rex, {undefined module})
 @ [modScope _props]
     | pinItem-(tabGet modules modu)
 | if (not | tabHas name modScope)
-    | LEFT (rex, `[unbound symbol $(curlRex name) in module $(curlRex modu)])
+    | LEFT (rex, {undefined symbol})
 | RIGHT (st, G (tabGet modScope name))
 
 (runeLit rune)=(06_rex.NEST rune [] 0)
@@ -269,10 +266,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ kids (rexKids rex)
 @ rune (rexRune rex)
 # switch len-kids
-* _ ^ LEFT (rex, _)
-    ` | $(runeLit rune) expressions take on one of these forms
-      * $(PREF rune [(WORD {sym} 0)] 0)
-      * $(INFX rune (WORD {mod} 0, WORD {sym} 0) 0)
+* _ | LEFT (rex, {malformed reference})
 * 1
     : st n < replOpen (readKey fst-kids) st
     | resolveUnqualified rex env n st
@@ -281,11 +275,14 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st n < replOpen (readKey snd-kids)        st
     | resolveQualified rex m n st
 
+!!= LEFT-('x.y.z, {malformed reference})
+  | readRefr 999 'x.y.z 9999
+
 = (readLin readExpr env rex st)
 @ rune (rexRune rex)
 @ kids (rexKids rex)
 | if (len kids /= 1)
-    | LEFT (rex, `[$(runeLit rune) expects exactly one parameter])
+    | LEFT (rex, {only one param was expected})
 : st exp < replOpen (readExpr env fst-kids) st
 | RIGHT (st, M exp)
 
@@ -294,7 +291,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 = (readLet readExpr env rex st)
 @ kids@[nRex vRex bRex] (rexKids rex)
 | if (len-kids /= 3)
-    | LEFT (rex, `[three params are required])
+    | LEFT (rex, {expected three params})
 : st n < replOpen (readKey nRex) st
 : st v < replOpen (readExpr env vRex) st
 : st b < replOpen (readExpr (SOME n :: env) bRex) st
@@ -306,7 +303,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ kids | rexKids rex
 @ nKid | len kids
 | ifNot ((nKid == 2) || (nKid == 3))
-    | LEFT (rex, `[invalid bind])
+    | LEFT (rex, {invalid bind})
 @ [keyRex valRex moreRex] kids
 : st n < replOpen (readKey keyRex) st
 | readLetRecBinds ([n valRex] :: acc) moreRex st ok
@@ -316,9 +313,9 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 = (readLetRec readExpr env rex st)
 @ kids@[vRex bRex moreRex] (rexKids rex)
 | if (len kids /= 2)
-    | LEFT (rex, `[two params are required])
+    | LEFT (rex, {expected two params})
 | if (rexRune vRex /= {=})
-    | LEFT (rex, `[binder must be an {=} rune])
+    | LEFT (rex, {binder must be an (=) rune})
 : st binds
     < readLetRecBinds NIL vRex st
 @ names    | map fst binds
@@ -333,7 +330,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ nKid | len kids
 @ last | get kids dec-nKid
 | if (lth (len kids) 2)
-    | LEFT (rex, `[needs at least two parameters])
+    | LEFT (rex, {expected at least two params})
 : st v
     < replOpen (readExpr env last) st
 : st b
@@ -348,7 +345,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st sym < replOpen (readKey rex) st
     | RIGHT (st, [sym])
 | if (rexRune rex /= {|})
-    | LEFT (rex, `[wanted something like (x) or (x y z)])
+    | LEFT (rex, {invalid lambda signature})
 | replTraverse readKey rexKids-rex st
 
 = (readAnonLam readExpr env rex st)
@@ -372,14 +369,14 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st body                < replOpen (readExpr env2 bodRex) st
     | RIGHT (st, F (LAM FALSE FALSE tag nArgs body))
 * _
-    | LEFT (rex, `[expected two or three parameters])
+    | LEFT (rex, {expected two or three params})
 
 > Rex > Repl (Bit, Nat)
 = (readFuncHead rex st)
 | if (rexRune rex == {**})
     @ kids@[keyRex] (rexKids rex)
     | if (len kids /= 1)
-        | LEFT (rex, `[expected something like (**x)])
+        | LEFT (rex, {invalid lambda name})
     : st key < replOpen (readKey keyRex) st
     | RIGHT (st, [TRUE key])
 | else
@@ -391,7 +388,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 | if rexIsLeaf-rex
     : st sym < replOpen (readKey rex) st
     | RIGHT (st, [FALSE sym []])
-@ fail | LEFT (rex, `[expecting something like (f x y)])
+@ fail | LEFT (rex, {invalid lambda signature})
 @ kids | rexKids rex
 | if (rexRune rex /= {|}) fail
 | if (null kids)          fail
@@ -421,7 +418,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st body < replOpen (readExpr env2 bodRex) st
     | RIGHT (st, F (LAM pinned inline tag nArg body))
 * _
-    | LEFT (rex, `[$(runeLit rune) expects two or three parameters])
+    | LEFT (rex, {expected two or three params})
 
 = (isStateLike st)
 | and | isRow st
@@ -450,21 +447,21 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ result  (macVal st rex MAC_ERR MAC_OK)
 ; trk [=result]
 @ invalid
-    | LEFT (rex, `[invalid macro expansion])
+    | LEFT (rex, {invalid macro expansion})
 | if not-(validMacroExpansion result)
     | trk [=result]
     | invalid
 ; trk {VALID}
 # datacase result
 * (MAC_OK st expo)  | RIGHT (st, expo)
-* (MAC_ERR rex msg) | LEFT (rex, `[$(curlRex msg)])
+* (MAC_ERR rex msg) | LEFT (rex, msg)
 * _                 | invalid
 
 > _ > Rex > List (Maybe Nat) > Rex > Repl Sire
 = (readPrimLeaf readExpr blockRex env rex st)
 # datacase (tryReadLeaf rex)
 * NONE
-    @ invalid | LEFT (rex, `[invalid sire leaf])
+    @ invalid | LEFT (rex, {malformed leaf})
     | if (rexStyle rex /= {WORD}) invalid
     # datacase (lookupVal {#} st)
     * NONE        | invalid
@@ -495,7 +492,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     # switch style
     * LINE | readMultiLine rex st
     # datacase heir
-    * SOME-_ | LEFT (rex, `[sire leaf nodes may not have heirs])
+    * SOME-_ | LEFT (rex, {leaf with heir})
     * NONE   | readPrimLeaf readExpr rex env rex st
 * {NODE}
     ^ _ readExpr env rex st
@@ -520,7 +517,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     * {#??} | readLam TRUE
     * {.}   | const readRefr
     * {#.}  | const readRefr
-    * _     | alwaysError (rex, `[unbound rune $(runeLit rune)])
+    * _     | alwaysError (rex, {undefined rune})
 
 > List (Maybe Nat) > Rex > Repl Sire
 = (readExpr e rex st)
@@ -564,7 +561,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     | insertBinding rex (SOME key, extraProps, name, val, code) st
 * SOME-key
     | if (isZero key)
-        | LEFT (rex, `[{Trying to create a binding with key=0.  Nonsense!}])
+        | LEFT (rex, {binding with zero key})
     ^ RIGHT (_, ())
     @ binding
         | (BIND key val code sireContext name)
@@ -577,14 +574,10 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Rex > ToBind > Repl Any
 = (execBind rx (TO_BIND mKey mProp str expr) st)
-; trk [execBind [=rx] [TO_BIND mKey mProp str expr] [=st]]
 @ !val       | force | evalSire expr
 @ extraProps | **maybeCase mProp #[] (x & evalSire x)
-| trk [=extraProps]
-: !st ()   < replOpen (insertBinding rx (mKey, extraProps, str, val, expr)) st
-| trk ` =($$str)
-| trk val
-; trk [=st]
+: !st ()     < replOpen (insertBinding rx (mKey, extraProps, str, val, expr)) st
+| trk ` = $(06_rex.TEXT str 0) ; $$val
 | RIGHT (st, val)
 
 = (mkBind mKey mProp bodyExpr eB)
@@ -632,8 +625,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 * NONE
 # datacase tryReadLawBinder-rex
 * SOME-bind | RIGHT (st, RIGHT bind)
-* NONE      ^ LEFT (rex, _)
-            ` , binder should look like foo or (foo bar) or (**foo bar)
+* NONE      | LEFT (rex, {malformed binder})
 
 > Either Nat ((Bit, Nat), Row Nat)
 > Rex
@@ -652,7 +644,6 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st props  < replOpen (readExpr NIL propsRex) st
     : st binder < replOpen (readBinder binderRex) st
     : st expr   < replOpen (readBindBody binder exprRex) st
-    | trk [=props =key =rex]
     | RIGHT (st, mkBind (SOME key) (SOME props) expr binder)
 * 3
     @ [keyRex binderRex exprRex] rexes
@@ -666,23 +657,19 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st expr   < replOpen (readBindBody binder exprRex) st
     | RIGHT (st, mkBind NONE NONE expr binder)
 * _
-    | LEFT (rex, `[{Define cmd needs two or three parameters}])
+    | LEFT (rex, {expected two or three params})
 
 > Str > Rex > Repl (List Any) ; (input is expected to be an = or #= node)
 = (doDefine_ rex st)
 @ heir (rexHeir rex)
 | if (rexRune rex == rexRune heir)
     : st tb < replOpen (readBindCmd rex | rexSons rex) st
-    ; trk {<execBind>}
     : st v1 < replOpen (execBind rex tb) st
-    ; trk {</execBind>}
     : st vN < replOpen (doDefine_ heir) st
     | RIGHT (st, v1::vN)
 | else
     : st tb < replOpen (readBindCmd rex | rexKids rex) st
-    ; trk {<execBind>}
     : st v1 < replOpen (execBind rex tb) st
-    ; trk {</execBind>}
     | RIGHT (st, ~[v1])
 
 > Str > Rex > Repl (Row Any) ; (input is expected to be an = or #= node)
@@ -698,10 +685,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 > Str > Rex > Repl () ; (input is expected to be an = or #= node)
 = (doEnter topRex st)
 @ kids | rexKids topRex
-@ dead ^ LEFT (topRex, _)
-       ` , {Expected something like:}
-             * (#### foo)
-             * (#### foo <- bar)
+@ dead | LEFT (topRex, {malformed module header})
 # switch len-kids
 * _ dead
 * 2
@@ -715,13 +699,13 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st target    < replOpen (readModuleName targetRex) st
     : st wasJustAt < replOpen (readModuleName wasJustAtRex) st
     | if (getSireContext st /= wasJustAt)
-        | LEFT (topRex, `[{That's not where we were}])
+        | LEFT (topRex, {broken pre-condition})
     | RIGHT (switchToContext target st, ())
 * 1
     @ [targetRex] kids
     : st target    < replOpen (readModuleName targetRex) st
     | ifNot ((getSireContext st == 0) && tabIsEmpty (getSireScope st))
-        | LEFT (topRex, `[{#### without predecessor, but not in initial state}])
+        | LEFT (topRex, {broken pre-condition})
     | RIGHT (switchToContext target st, ())
 
 = (multiCmd executeSire rex st)
@@ -739,10 +723,9 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Rex > Repl Any
 = (doAssert1 rex st)
-| trk rex
 @ kids (rexKids rex)
 | if (len kids /= 2)
-* LEFT (rex, `[{#!!= requires two parameters}])
+* LEFT (rex, {#!!= requires two parameters})
 @ [xRex yRex] kids
 : st xExp < replOpen (readExpr ~[] xRex) st
 : st yExp < replOpen (readExpr ~[] yRex) st
@@ -751,11 +734,12 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ yVal (evalSire yExp)
 ;
 | if (xVal /= yVal)
-* LEFT ^ (rex, _)
-       ` , assertion failed
-             * =left  $$xVal
-             * =right $$yVal
-| RIGHT (st, xVal)
+    | trace ` !!=
+                * $$xVal
+                * $$yVal
+    | LEFT (rex, {assertion failed})
+| else
+    | RIGHT (st, xVal)
 
 > Rex > Repl (Row Any)
 = (doAssert rex st)
@@ -792,7 +776,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     < & ok
       @ modules (**getSireModules st)
       | ifNot (tabHas modu modules)
-          | LEFT (rex, `[{undefined module}])
+          | LEFT (rex, {undefined module})
       @ modPin (tabGet modules modu)
       | ifNot isPin-modPin
           | LEFT (rex, {corrupted sire state; module is not a pin})
@@ -808,7 +792,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Rex > Repl (Row Str)
 = (readImportList rex st)
-@ bad LEFT-(rex, `[{not an import list}])
+@ bad LEFT-(rex, {not an import list})
 | ifNot && (rexRune rex == {,})
         && (rexHeir rex == 0)
     bad
@@ -817,7 +801,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ symsSet | setFromRow syms
 ;
 | if (setLen symsSet /= len syms)
-* LEFT (rex, `[import list contains duplicates])
+* LEFT (rex, {import list contains duplicates})
 | RIGHT (st, symsSet)
 
 > Rex > Repl ()
@@ -827,7 +811,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 ? (go st rex)
 | if isZero-rex
     | RIGHT-(st, ())
-@ bad  | LEFT (rex, `[{bad import}])
+@ bad  | LEFT (rex, {bad import})
 @ sons | rexSons rex
 | if (rexRune rex /= ryn) bad
 # switch len-sons
@@ -873,7 +857,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     * {#/+}  | doImport
     * {/+}   | doImport
     * _      | if isExpRune-rune execExpr
-             | alwaysError (rex, `[unbound rune $(runeLit rune)])
+             | alwaysError (rex, {undefined rune})
 
 
 ;;; Repl Cog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -892,14 +876,11 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     | ((~[main_seed], ~[]), sireCog okErr cog ss)
 @ expo (executeSire rex ss)
 # datacase expo
-* LEFT-(err@(rex, messages))
-    | ifNot (isRexLike messages)
-        | die {bad error},[=expo],[=err =rex =messages]
-    @ erx | if isNat-messages [(06_rex.WORD messages 0)]
-          | rexKids messages
-    @ out ` # error on line $$lineNum
+* LEFT-(err@(rex, err))
+    | ifNot isNat-err
+        | die [{Invalid Sire Error} err]
+    @ out ` # $(06_rex.TEXT err 0) on line $$lineNum
             # $rex
-            $ (06_rex.OPEN {#} erx 0)
     | trk out
     | ifNot okErr (die {ERROR})
     | ((NIL, ~[out]), sireCog okErr cog ss)

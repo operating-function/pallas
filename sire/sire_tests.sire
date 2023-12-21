@@ -98,9 +98,8 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       } 2 0 3 999
       }
 
-!!=  ++ ` # error on line $$1
+!!=  ++ ` # {undefined rune} on line $$1
           # ===
-          # unbound rune (===)
   ^ trySire _
   # b } ===
       }
@@ -108,9 +107,8 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
 
 !!= ++ [3]
     ++ 4
-    ++ ` # error on line $$3
+    ++ ` # {expected two or three params} on line $$3
          # (x=x=x=x=x)
-         # {Define cmd needs two or three parameters}
   ^ trySire _
   # b } x=3
       } (3 3)
@@ -132,9 +130,8 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
 
 !!=   ^ [0 [3] 3 0 _]
-      ` # error on line $$8
+      ` # {undefined reference} on line $$8
         # x
-        # unbound {x}
   ^ trySire _
   b#} #### 01_rex
     }
@@ -201,9 +198,8 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
 
 !!=   ^ [[[3] [4]] 3 4 %[y] _]
-      ` # error on line $$8
+      ` # {undefined reference} on line $$8
         # x
-        # unbound {x}
   ^ trySire _
   # b } #* x=3 y=4
       }
@@ -216,11 +212,8 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
 
 !!=   ^ [_]
-      ` # error on line $$1
+      ` # {assertion failed} on line $$1
         # (!!= 3 4)
-        # assertion failed
-          * =left  $$3
-          * =right $$4
   ^ trySire _
   # b } (!!= 3 4)
       }
@@ -245,9 +238,8 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
 
 !!=   ^ [0 [3] 0 _]
-      ` # error on line $$4
+      ` # {import list contains duplicates} on line $$4
         # [x x]
-        # import list contains duplicates
   ^ trySire _
   # b } (#### foo)
       } x=3
@@ -265,9 +257,8 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
 
 !!=   ^ [0 [3 4] 0 0 3 4 _]
-      ` # error on line $$7
+      ` # {undefined reference} on line $$7
         # y
-        # unbound {y}
   ^ trySire _
   # b } (#### foo)
       } (x=3)(y=4)
@@ -279,9 +270,8 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
 
 !!=   ^ [0 [3 4] 0 0 _ 4]
-      ` # error on line $$5
+      ` # {undefined reference} on line $$5
         # x
-        # unbound {x}
   ^ trySire _
   # b } (#### foo)
       } (x=3)(y=4)
@@ -328,9 +318,8 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
       }
 
 !!=   ^ [_ 5]
-      ` # error on line $$1
+      ` # {only one param was expected} on line $$1
         # 3**4
-        # (**) expects exactly one parameter
   ^ trySire _
   # b } 3**4
       } (**3 4)
@@ -338,9 +327,8 @@ ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
 
 appHead=(1 0 0 (a b & a) 0)
 
-!!=   ^ [3 [appHead] 2 _] ` # error on line $$10
+!!=   ^ [3 [appHead] 2 _] ` # {undefined reference} on line $$10
                             # x
-                            # unbound {x}
   ^ trySire _
   # b }
       } @ x 3
@@ -475,13 +463,11 @@ appHead=(1 0 0 (a b & a) 0)
   }
   }
 
-!!=  ++ ` # error on line $$1
+!!=  ++ ` # {malformed leaf} on line $$1
           # 123_123
-          # invalid sire leaf
      ++ [("#" a b c d ?? c b %pizza)]
-     ++ ` # error on line $$3
+     ++ ` # {pizza} on line $$3
           # #123_123
-          # {pizza}
   ^ trySire _
   # b
   } 123_123
