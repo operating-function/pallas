@@ -700,9 +700,13 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Set Str > SireState > SireState
 = (filterScope whitelist st)
+^ trk [filterScope [=whitelist] [=st] {->} _] _
 ^ setSireScope _ st
 ^ tabFilterWithKey _ (**getSireScope st)
 | (key _ & setHas key whitelist)
+
+; TODO instead of tabFilterWithKey there should be some kind of tabProject
+; operation?
 
 > Rex > Repl Any
 = (doAssert1 rex st)
@@ -737,20 +741,18 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st val < replOpen (doAssert1 | rexSetHeir 0 rex) st
     | go val::acc heir st
 
-> Str > Set Str > Maybe Rex > Repl (Set Str)
-= (doFilter ryn !acc rex st)
+> Str > List Str > Maybe Rex > Repl (Set Str)
+= (doFilter ryn !count acc rex st)
+| trk [doFilter ryn count acc rex {st}]
 | if isZero-rex
-    | (filterScope acc st, acc)
+    @ symSet (setFromRow | sizedListToRow count acc)
+    | (filterScope symSet st, symSet)
 | if (rexRune rex /= ryn)
     | ({bad export-filter syntax}, rex)
-: st vl
-    < ^ replCase (_ acc (listFromRow | rexSons rex))
-      ? (go !acc sons)
-      : son sons < listCase sons (st, acc)
-      # datacase tryReadLeaf-son
-      * NONE       | ({bad symbol}, son)
-      * SOME-[_ x] | go (setIns x acc) sons
-| doFilter ryn vl (rexHeir rex) st
+: st syms < replOpen (replTraverse readKey rexSons-rex) st
+@ acc     | listWeld listFromRow-syms acc
+@ count   | add len-syms count
+| doFilter ryn count acc (rexHeir rex) st
 
 > Rex > Str > Maybe (Set Str) > Repl ()
 = (importModule rex modu mWhite st)
@@ -831,8 +833,8 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     * {####} | doEnter
     * {*}    | multiCmd executeSire
     * {#*}   | multiCmd executeSire
-    * {^-^}  | doFilter rune %[]
-    * {#^-^} | doFilter rune %[]
+    * {^-^}  | doFilter rune 0 NIL
+    * {#^-^} | doFilter rune 0 NIL
     * {=?=}  | doAssert
     * {#=?=} | doAssert
     * {#:|}  | doImport
