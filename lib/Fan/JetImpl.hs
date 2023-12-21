@@ -613,27 +613,57 @@ vsumOfJet f env =
 
   -- TODO: vfind
 
-vput :: Nat -> Fan -> Array Fan -> Fan
-vput ix vl rw =
-    ROW if ix >= fromIntegral (length rw)
-        then rw
-        else rowPut (fromIntegral ix) vl rw
+-- [hed 3 2 1 0] 0 -> arr[5-(0+1)] -> arr[4] -> 0
+-- [hed 3 2 1 0] 1 -> arr[5-(1+1)] -> arr[3] -> 1
+-- [hed 3 2 1 0] 2 -> arr[5-(2+1)] -> arr[2] -> 2
+-- [hed 3 2 1 0] 3 -> arr[5-(3+1)] -> arr[1] -> 3
 
-vputJet :: Jet
-vputJet f env =
-    orExec (f env) do
-        rw <- getRow (env.!1)
-        let ix = toNat (env.!2)
-        let vl = env.!3
-        pure (vput ix vl rw)
+-- {mutKlo} *ASSUMES* that the input is in bounds.
 
-vmutJet :: Jet
-vmutJet f env =
-    orExec (f env) do
-        let ix = toNat (env.!1)
-            vl = (env.!2)
-        rw <- getRow (env.!3)
-        pure (vput ix vl rw)
+-- TODO: This is complicated because this runtime does not require
+-- closures to be flat!  In a native runtime, closures should just always
+-- be kept flat.
+
+mutKlo :: Int -> Fan -> Int -> SmallArray Fan -> Fan
+mutKlo topKey v = \a xs -> unsafePerformIO (go topKey a xs)
+  where
+    go k a xs = do
+        let len = sizeofSmallArray xs
+        buf <- thawSmallArray xs 0 len
+        let args = len-1
+        if (k+1) < len then do
+            let ix = args - k
+            writeSmallArray buf ix v
+            KLO a <$> freezeSmallArray buf 0 len
+        else case xs.!0 of
+            -- If it's not here, it's in the head.  So update the head,
+            -- and then re-create this node with that head.
+             KLO hedA hedXs -> do
+                 newHead <- go (k - args) hedA hedXs
+                 writeSmallArray buf 0 newHead
+                 KLO a <$> freezeSmallArray buf 0 len
+             _ -> do
+                 error "mutKlo: index out of bounds!"
+
+doMut :: Fan -> Fan -> Fan -> Fan
+doMut (toNat -> k) v x = case x of
+    _ | k > maxInt -> x
+    NAT{}          -> x
+    PIN{}          -> x
+    FUN{}          -> x
+    BAR{}          -> x
+    SET{}          -> x
+    COw{}          -> x
+    REX{}          -> x
+    KLO a r        -> if ki >= fanLength x then x else mutKlo ki v a r
+    TAb t          -> if ki > 0            then x else SET (tabKeysSet t) %% v
+    ROW r          -> if ki >= length r    then x else ROW (rowPut ki v r)
+  where
+    ki = fromIntegral k :: Int
+
+vputJet, vmutJet :: Jet
+vputJet _ env = doMut (env.!2) (env.!3) (env.!1)
+vmutJet _ env = doMut (env.!1) (env.!2) (env.!3)
 
 -- Just jetting this so that it will show up "NOT MATCHED" if the hash
 -- is wrong.
