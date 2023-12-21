@@ -111,7 +111,6 @@
 
 = (tryReadLeaf rex)
 @ style (rexStyle rex)
-; trk [=style]
 @ txt  (rexText rex)
 | if (rexHeir rex /= 0) | NONE
 | if (style == {TEXT})  | SOME (CORD txt)
@@ -152,7 +151,6 @@
 # datacase (listElemIndexOpt (SOME sym) env)
 * SOME-ng | (st, V ng)
 * NONE
-; trk [tabIdx sym getSireScope-st]
 @ bn (tabIdx sym getSireScope-st)
 | ifNot (isZero bn)
     | (st, G bn)
@@ -179,11 +177,9 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Bar > SireState > Maybe Any
 = (lookupVal sym st)
-; trk [lookupVal sym st {->} _] _
 @ bind (tabIdx sym | getSireScope st)
 | maybeGuardNot (isZero bind)
 | ifNot (isPin bind) | die {bad bind!},bind
-; trk [=bind]
 | SOME (**getBindValue | pinItem bind)
 
 = (readMultiLine rex st)
@@ -427,15 +423,12 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 * _ | FALSE
 
 = (expand macVal rex st)
-; trk [expand macVal rex st]
 @ result (macVal st rex MAC_ERR MAC_OK)
-; trk [=result]
 @ invalid
     | ({invalid macro expansion}, rex)
 | if not-(validMacroExpansion result)
     | trk [=result]
     | invalid
-; trk {VALID}
 # datacase result
 * (MAC_OK st expo)  | (st, expo)
 * (MAC_ERR rex msg) | (msg, rex)
@@ -462,7 +455,6 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 > (List (Maybe Nat) -> Rex -> Repl Sire)
 > List (Maybe Nat) > Rex > Repl Sire
 = (readPrimExpr readExpr env rex st)
-; trk [readPrimExpr env rex st]
 @ rune  | rexRune rex
 @ style | rexStyle rex
 @ heir  | rexHeir rex
@@ -505,7 +497,6 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > List (Maybe Nat) > Rex > Repl Sire
 = (readExpr e rex st)
-; trk [readExpr e rex st]
 | ifNot rexIsNode-rex
     | readPrimExpr readExpr e rex st
 @ ryn (rexRune rex)
@@ -513,14 +504,11 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 * NONE        | readPrimExpr readExpr e rex st
 * SOME-macVal
     : st expo < replOpen (expand macVal rex) st
-    ; trk [=st],[=expo]
     | readExpr e expo st
 
 > Rex > Repl Any
 = (evalExpr rex st0)
-; trk [evalExpr rex st0]
 @ whatWasRead (readExpr ~[] rex st0)
-; trk [=whatWasRead]
 : st1 expr < replCase (readExpr ~[] rex st0)
 | (st1, evalSire expr)
 
