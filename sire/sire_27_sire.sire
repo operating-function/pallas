@@ -232,13 +232,6 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 * NONE        | ({invalid key}, rex)
 * SOME-[ty v] | (st, v)
 
-> Rex > Repl Nat
-= (readModuleName rex st)
-@ dead | ({bad module name}, rex)
-| ifNot (rexIsLeaf rex) dead
-| ifNot (isZero | rexHeir rex) dead
-| (st, rexText rex)
-
 > Rex > Str > Str > Repl Sire
 = (resolveQualified rex modu name st)
 @ modules (**getSireModules st)
@@ -262,7 +255,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st n < replOpen (readKey fst-kids) st
     | resolveUnqualified rex env n st
 * 2
-    : st m < replOpen (readModuleName fst-kids) st
+    : st m < replOpen (readKey fst-kids) st
     : st n < replOpen (readKey snd-kids)        st
     | resolveQualified rex m n st
 
@@ -686,14 +679,14 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
          || (len beforeSons /= 1)
     * dead
     @ wasJustAtRex fst-beforeSons
-    : st target    < replOpen (readModuleName targetRex) st
-    : st wasJustAt < replOpen (readModuleName wasJustAtRex) st
+    : st target    < replOpen (readKey targetRex) st
+    : st wasJustAt < replOpen (readKey wasJustAtRex) st
     | if (getSireContext st /= wasJustAt)
         | ({broken pre-condition}, topRex)
     | (switchToContext target st, ())
 * 1
     @ [targetRex] kids
-    : st target    < replOpen (readModuleName targetRex) st
+    : st target    < replOpen (readKey targetRex) st
     | ifNot ((getSireContext st == 0) && tabIsEmpty (getSireScope st))
         | ({broken pre-condition}, topRex)
     | (switchToContext target st, ())
@@ -805,12 +798,12 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 * _ bad
 * 1
     @ [moduleRex] sons
-    : st modu < replOpen (readModuleName moduleRex) st
+    : st modu < replOpen (readKey moduleRex) st
     : st ()   < replOpen (importModule blockRex modu NONE) st
     | go st (rexHeir rex)
 * 2
     @ [moduleRex importListRex] sons
-    : st modu < replOpen (readModuleName moduleRex) st
+    : st modu < replOpen (readKey moduleRex) st
     : st syms < replOpen (readImportList importListRex) st
     : st ()   < replOpen (importModule blockRex modu SOME-syms) st
     | go st (rexHeir rex)

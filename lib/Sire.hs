@@ -687,10 +687,10 @@ doFile vCache modu s1 = do
         -- There is something before this in the load sequence.
         -- Load that first.
         rexes@(Right (_ln, NODE _ "####" [_, NODE _ "<-" [prior] Nothing] Nothing) : _) -> do
-            case tryReadModuleName prior of
+            case tryReadKey prior of
                 Nothing -> terror ("Bad module name: " <> pexText prior)
                 Just nm -> do
-                  (s2, predHash) <- doFile vCache nm s1
+                  (s2, predHash) <- doFile vCache (natUtf8Exn nm) s1
                   Prof.withSimpleTracingEvent (encodeUtf8 modu) "Sire" do
 
                     -- Massive slow hack, stream two inputs separately.
@@ -794,12 +794,12 @@ doImport blockRex run = \case
         pure ()
 
     Just (NODE _ r [moduleRex] h) | run==r -> do
-        modu <- readModuleName moduleRex
+        modu <- readKey moduleRex
         modify' (importModule blockRex modu Nothing)
         doImport blockRex run h
 
     Just (NODE _ r [moduleRex, (NODE _ "," symbols Nothing)] h) | run==r -> do
-        modu <- readModuleName moduleRex
+        modu <- readKey moduleRex
         syms <- traverse readKey symbols
         modify' (importModule blockRex modu (Just $ setFromList syms))
         doImport blockRex run h
@@ -839,8 +839,8 @@ doEnter topRex =
 
     proc = \case
         [enter, NODE _ "<-" [from] Nothing] -> do
-            target    <- readModuleName enter
-            wasJustAt <- readModuleName from
+            target    <- readKey enter
+            wasJustAt <- readKey from
             ss <- getState <$> get
             when (ss.context /= wasJustAt) do
                 parseFail topRex "That's not where we were"
@@ -849,7 +849,7 @@ doEnter topRex =
             put s9
 
         [enter] -> do
-            target <- readModuleName enter
+            target <- readKey enter
             ss <- getState <$> get
             unless (ss.context == 0 && null ss.scope) $
                 parseFail topRex $
@@ -996,7 +996,7 @@ readPrimExpr e rex = case rex of
         resolveUnqualified rex e n
 
     readRefr [x,y] = do
-        m <- readModuleName x
+        m <- readKey x
         n <- readKey y
         resolveQualified rex m n
 
@@ -1268,16 +1268,6 @@ readKey :: InCtx => Pex -> Repl Nat
 readKey rex = maybe bad pure (tryReadKey rex)
   where
     bad = parseFail rex "Bad key: expected something like: 234, foo, 'foo'"
-
-readModuleName :: InCtx => Pex -> Repl Nat
-readModuleName rex = maybe bad pure (utf8Nat <$> tryReadModuleName rex)
-  where
-    bad = parseFail rex "Bad module_name: expected something like foo, 02_foo"
-
-
-tryReadModuleName :: Pex -> Maybe Text
-tryReadModuleName (LEAF _ t Nothing) = Just t
-tryReadModuleName _                  = Nothing
 
 data Leaf = DECI Nat | IDNT Text | CORD Text
 
