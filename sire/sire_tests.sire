@@ -23,7 +23,7 @@
 
 ss=(SIRE_STATE 5 {repl} [zaz={ZAZBIND}] #[] #[])
 
-!!= RIGHT-(ss, 234) (executeSire `234 ss)
+!!= (ss, 234) (executeSire `234 ss)
 
 = (plusMacro st rex err ok)
 @ kids (rexKids rex)
@@ -38,26 +38,26 @@ ss=(SIRE_STATE 5 {repl} [zaz={ZAZBIND}] #[] #[])
 
 ss=(SIRE_STATE 5 {repl} env #[] #[])
 
-!!= RIGHT-(ss, add) | executeSire `add ss
-!!= RIGHT-(ss, 3)   | executeSire `3 ss
-!!= RIGHT-(ss, 4)   | executeSire `4 ss
+!!= (ss, add) | executeSire `add ss
+!!= (ss, 3)   | executeSire `3 ss
+!!= (ss, 4)   | executeSire `4 ss
 
-!!=   | RIGHT (ss, A (A (G addBind) K-3) K-4)
+!!=   | (ss, A (A (G addBind) K-3) K-4)
   | readExpr ~[] `(add 3 4) ss
 
-!!=   | RIGHT (ss, add 3)
+!!=   | (ss, add 3)
   | evalExpr `(add 3) ss
 
-!!=   | RIGHT (ss, 7)
+!!=   | (ss, 7)
   | evalExpr `(add 3 4) ss
 
-!!=   | RIGHT (ss, strCat [}'{' newlineChar {z}])
+!!=   | (ss, strCat [}'{' newlineChar {z}])
   ^ (evalExpr _ ss)
   ` | add 1
     } z
     } z
 
-!!=   ^ RIGHT (ss, _)
+!!=   ^ (ss, _)
       | 0 {x}
       | 0 {x}
       | 0 {x}
@@ -69,7 +69,7 @@ ss=(SIRE_STATE 5 {repl} env #[] #[])
 
 ; This tests macro expansion!
 
-!!= (RIGHT (ss, 7))
+!!= (ss, 7)
   | executeSire `(3+4) ss
 
 = env2
@@ -85,10 +85,10 @@ ss=(SIRE_STATE 5 {repl} env #[] #[])
 
 ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
 
-!!=   | (RIGHT (ss2, [77]))
+!!=   | (ss2, [77])
   | executeSire `(seventySeven = (73+4)) ss
 
-!!=   | (RIGHT (ss2, 80))
+!!=   | (ss2, 80)
   | executeSire `(seventySeven+3) ss2
 
 !!= [3 4 999]
