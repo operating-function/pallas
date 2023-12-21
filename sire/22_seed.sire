@@ -372,12 +372,35 @@ u64max=18446744073709551615
 ^ (_, save _ pinItem-pin)
 | pinRefs pin
 
-;; TODO: Document {_LoadSeed} and {_SaveSeed}
+;; {_SaveSeed} saves an entire PLAN into one bar, doing full
+;; deduplication.  {_LoadSeed} reproduces the PLAN value.
+;;
+;; {_SaveSeed} is the simplest serialization method, but it does *not*
+;; scale to huge highly-duplicated nouns.  It requires a full traversal
+;; and can't avoid re-processing duplicated sub-trees.  For these cases,
+;; it's better to use {_SaveGerm}.
 
 (_LoadSeed bar)=(load [] bar)
 (_SaveSeed fan)=(save [] fan)
 
-;; TODO: Implement {loadPod} and {savePod}.
+;; {_SaveGerm} does a "shallow" save of a pin.  Instead of serializing
+;; sub-pins, it produces a list of them, and serializes a noun that
+;; contains "holes".  {_LoadGerm} performs the inverse operation: given
+;; a bar and a list of refernced pins, reporduce the input pin.
+;;
+;; Unlike {_SaveSeed}, {_SaveGerm} scales extremely well, since we can
+;; rely on the pin-DAG to avoid duplication.  On the other hand,
+;; {_SaveGerm} only save one pin, so some sort of compound structure is
+;; required in order to serialize an entire PLAN.
+
+(_LoadGerm refs bar)=(load refs bar)
+
+= (_SaveGerm pin)
+| ifNot isPin-pin 0
+^ (_, save _ pinItem-pin)
+| pinRefs pin
+
+;; TODO: Implement {loadPod} and {savePod}.  Though maybe not here?
 
 
 ;;; Smoke Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
