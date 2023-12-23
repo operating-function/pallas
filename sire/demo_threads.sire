@@ -4,9 +4,7 @@
 
 #### demo_threads <- demo_telnet_hello_listen
 
-:| sire
-:| io
-:| stew
+:| prelude
 
 
 ;;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -14,7 +12,7 @@
 ;;; This will generate a random byte, get the current time,
 ;;; wait for $byte seconds, and repeat
 ;;;
-> Ref Nat > IO ()
+> Ref Nat > Cog ()
 = (randomWait vCount k)
 : tid < myThreadId
 : bar < syscall (**RAND_BYTE 1)
@@ -36,12 +34,16 @@
 
 = threadDemoTwice
 | runCog
-& k
-: v < newRef 0
-| (forever (randomWait v)) k
+& return
+: vCount < newRef 0
+: ()     < forever (randomWait vCount)
+| return 0
 
 
 ;;; Manual Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: This is probably stale, since this has been ported from io.sire
+;; to kern.sire without updating this.
 
 ; threadDemoTwice %zod ;;; Boot Machine
 ; _ 1 x#11             ;;; Got a random byte.

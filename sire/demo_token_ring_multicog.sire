@@ -2,22 +2,21 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### demo_token_ring_multicog <- demo_timer
+#### demo_token_ring_multicog <- prelude
 
-:| sire
-:| io
-:| stew
+:| prelude
 
 
 ;;; Talker ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (talker ourName us them white theMsg k)
 ; trk [%talker ourName us them theMsg]
-: sendThread < fork
-                  & done
-                  : now < syscall (**PORT_SEND us them theMsg)
-                  | trk [ourName %sent theMsg] ;;; %at now]
-                  | done 0
+: sendThread
+    < fork
+    & done
+    : now < syscall (**PORT_SEND us them theMsg)
+    | trk [ourName %sent theMsg] ;;; %at now]
+    | done 0
 : response < syscall (**PORT_RECV us white)
 @ respBody (idx 2 response)
 | trk [ourName %got respBody]

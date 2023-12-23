@@ -4,19 +4,15 @@
 
 #### demo_wait_loop <- demo_token_ring
 
-:| sire
-:| io
-:| stew
+:| prelude
 
 
 ;;; Wait Loop ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (waitLoop k)
-| trk {waitLoop},k
 : now < syscall TIME_WHEN
-| trk {now},now
+| trk [{the time is}=now]
 : _ < syscall (**TIME_WAIT (add now 1))
-| trk %waited
 | waitLoop k
 
 

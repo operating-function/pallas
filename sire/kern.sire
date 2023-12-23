@@ -311,6 +311,7 @@ cog
 > Void
 = (KERNEL fr kl sl rq event)
 | ifNot (isTab event)
+    ; TODO: Remove this. This is no longer relevant.
     | die [{TODO: Crash handling is not implemented} event]
 @ fr | listWeld kl fr
 @ kl | ~[]
@@ -328,6 +329,11 @@ cog
 @ end | kernel_loop stream
 @ me  | key                                    ; Give the syscall response to
 | exe response end me fr kl sl rq              ; its callback.
+
+> Cog a > Cog b
+= (forever action return)
+: () < action
+| forever action return
 
 > Cog () > PausedCog
 = (runCog startUp)
@@ -450,6 +456,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 = (PORT_SR_RESP tm payload) | [1 tm payload]
 = (PORT_SR_DYNO x y)        | [2 x y]
 
+
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
@@ -459,6 +466,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 ^-^
 ^-^ Cog PausedCog
 ^-^ KERNEL DONE
+^-^ forever
 ^-^ runCog syscall
 ^-^ allocateSlot getKernelState
 ^-^

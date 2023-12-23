@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### demo_port_localhost <- demo_token_ring
+#### demo_port_localhost <- demo_full_tag_site
 
 :| prelude
 
@@ -11,8 +11,8 @@ abstype#Addr
 
 = (genSeedAddrs cogExit)
 ;
-: ??(p_sire_1 ali_seed_addr) < syscall PORT_SIRE
-: ??(p_sire_2 bob_seed_addr) < syscall PORT_SIRE
+: ??(p_sire_1 ali_seed_addr)    < syscall PORT_SIRE
+: ??(p_sire_2 bob_seed_addr)    < syscall PORT_SIRE
 : ??(p_sire_3 ali_ul_seed_addr) < syscall PORT_SIRE
 | trk [{ali_seed_addr} ali_seed_addr]
 | trk [{bob_seed_addr} bob_seed_addr]
