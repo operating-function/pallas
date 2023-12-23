@@ -289,12 +289,11 @@ lus=(SPAN (LN {file} 1 b#{ + }) 1 2 LRUNE)
 
 > (Nat, Tree) > (Nat, Item) > (Nat, Item)
 = (merge [rp r] [ip i@(I t cs mHeir)])
-# datacase mHeir
-* SOME-k
-    | (ip, I t (k::cs) (SOME r))
-* NONE
+@ noneCase
     | if (rp == ip) | ( ip, I t cs    SOME-r )
     | else          | ( ip, I t r::cs NONE   )
+: k < maybeCase mHeir noneCase
+| (ip, I t (k::cs) (SOME r))
 
 (pairMap f [x y])=[x (f y)]
 
@@ -382,39 +381,38 @@ typedef#FilePath#Str
 > Maybe (List Lexeme)
 > (BlockState, (| List | List | List Lexeme))
 = (blockStep bs@(BS fn lno st) mInp)
-# datacase mInp
-* NONE
+@ noneCase
     ^ (BS fn lno WOODS, _)
     # datacase st
     * WOODS        | ~[]
     * (TEXTY ls _) | ~[(listRev ls)]
     * (BLOCK ls _) | ~[(listRev ls)]
-* SOME-l
-    @ c       | lineCat l
-    @ (x s o) | (BS fn (inc lno) s, o)
-    @ (fb ls)
-        @ (st2, out) (blockStep (BS fn lno WOODS) mInp)
-        | (st2, (listRev ls :: out))
-    # datacase st
-    * WOODS
-        # datacase c
-        * (CQUOT d)   | x (**TEXTY ~[l] d) ~[]
-        * (COPEN d)   | x (**BLOCK ~[l] d) ~[]
-        * CVOID       | x WOODS ~[]
-        * CNOTE       | x WOODS ~[]
-        * (CSING _)   | x WOODS ~[~[l]]
-    * (TEXTY ls deep)
-        # datacase c
-        * (CQUOT d) | - ifNot d==deep fb-ls
-                      - x (**TEXTY l::ls deep) ~[]
-        * _         | fb ls
-    * (BLOCK ls deep)
-        # datacase c
-        * CNOTE     | (x (**BLOCK l::ls deep) ~[])
-        * (CQUOT d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
-        * (COPEN d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
-        * (CSING d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
-        * _         | fb-ls
+: l < maybeCase mInp noneCase
+@ c       | lineCat l
+@ (x s o) | (BS fn (inc lno) s, o)
+@ (fb ls)
+    @ (st2, out) (blockStep (BS fn lno WOODS) mInp)
+    | (st2, (listRev ls :: out))
+# datacase st
+* WOODS
+    # datacase c
+    * (CQUOT d)   | x (**TEXTY ~[l] d) ~[]
+    * (COPEN d)   | x (**BLOCK ~[l] d) ~[]
+    * CVOID       | x WOODS ~[]
+    * CNOTE       | x WOODS ~[]
+    * (CSING _)   | x WOODS ~[~[l]]
+* (TEXTY ls deep)
+    # datacase c
+    * (CQUOT d) | - ifNot d==deep fb-ls
+                  - x (**TEXTY l::ls deep) ~[]
+    * _         | fb ls
+* (BLOCK ls deep)
+    # datacase c
+    * CNOTE     | (x (**BLOCK l::ls deep) ~[])
+    * (CQUOT d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
+    * (COPEN d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
+    * (CSING d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
+    * _         | fb-ls
 
 > BlockState > Maybe Bar > (BlockState, List (Nat, List Tree))
 = (treeStep st@(BS fil num _) mInp)
@@ -459,9 +457,8 @@ typedef#FilePath#Str
 @ (onWolf r _) (PREFX r fs)
 @ (onLamb x)
     @ [rest hed] (lambs fs)
-    # datacase rest
-    * NONE             | **SEQUE x::hed
-    * SOME-(ryn, more) | **INFIX [x hed] ryn (subLayout more)
+    : (ryn, more) < maybeCase rest (**SEQUE x::hed)
+    | **INFIX [x hed] ryn (subLayout more)
 | fragCase f onLamb onWolf
 
 > Rex > Rex > Rex
@@ -584,8 +581,7 @@ typedef#(NonEmpty a)#(a, List a)
 = (treeRex t)
 # datacase t
 * TLEAF-c     | clumpRex c
-* TNODE-r-s-h | OPEN (barNat r) (map treeRex s)
-              | (datacase#h)(NONE*0)(SOME x * treeRex x)
+* TNODE-r-s-h | OPEN (barNat r) (map treeRex s) (maybeCase h 0 x&(treeRex x))
 
 > List Tree > Rex
 = (treesRex trees)
