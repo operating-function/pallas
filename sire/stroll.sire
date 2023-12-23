@@ -107,6 +107,10 @@
 = base64hepbar
   b#{ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_}
 
+abstype#Gen
+abstype#Error
+abstype#Uid
+
 > Gen > [Gen Nat]
 = (genUid gen)
 @ [gen l]
@@ -139,7 +143,7 @@
 * (LEFT l) | LEFT l
 * (RIGHT r) | RIGHT | STROLL_DB gen r
 
-> Any StrollDb > StrollDb
+> Any > StrollDb > StrollDb
 = (assertTransactStrollDb txn strollDb)
 # datacase (transactStrollDb txn strollDb)
 * (LEFT l)
@@ -185,7 +189,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 
 ; Given a row of all the child blocks sorted by order, list the data for each
 ; block for display.
-> Row Any > DB > Either [Error] [(Tab Any Any)]
+> Row Any > DB > Either (List Error) (List (Tab Any Any))
 = (findBlocksContent q strollDb)
 @ STROLL_DB(..) strollDb
 | pullMany ++ {:block/uid}
@@ -295,7 +299,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 | map x&(fromSome {} | tabLookup {:block/uid} x)
 | findBlocksChildrenUnsorted uid strollDb
 
-> (Nat > Nat) > String > Nat > StrollDb > StrollDb
+> (Nat -> Nat) > Str > Nat > StrollDb > StrollDb
 = (childrenUpdatesAfter fun parentUid pos strollDb)
 ; all children pulled from the database
 @ children | findBlocksChildrenUnsorted parentUid strollDb
@@ -314,7 +318,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 ; Create entries for a transaction which changes each block to a different page
 ; uid.
 ;
-> String > Nat > StrollDb > [Any]
+> Str > Nat > StrollDb > Row Any
 = (mkPageUpdates uid dstEid strollDb)
 | cat
 | rowCons [[%add [{:block/uid} uid] {:block/page} dstEid]]
@@ -355,7 +359,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 ; Creates a new page with a new single empty bullet on it and returns the uid
 ; of the created page.
 ;
-> String > StrollDb > [Uid StrollDb]
+> Str > StrollDb > [Uid StrollDb]
 = (makeNewPage pageTitle strollDb)
 @ [pointUid strollDb] | generateUniqueID strollDb
 @ [pageUid strollDb]  | generateUniqueID strollDb
@@ -372,7 +376,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 
 ; Given a page title, resolves it to a uid, creating the page if necessary.
 ;
-> String > StrollDb > [Uid StrollDb]
+> Str > StrollDb > [Uid StrollDb]
 = (pageToUid pageTitle strollDb)
 @ STROLL_DB(..) strollDb
 @ eids | lookupByAV {:page/title} pageTitle db
@@ -383,7 +387,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 
 ; Parses a string for things which look like references.
 ;
-> String > [String]
+> Str > List Str
 = (parseRefs txt)
 @ bar | natBar txt
 @ len | barLen bar
@@ -414,7 +418,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 ; titles, and have to deal with malformed ones. (We deal with extra [[ or ]]
 ; on either side of the title.)
 ;
-> String > [String]
+> Str > List Str
 = (parseTitles txt)
 @ bar | natBar txt
 @ len | barLen bar
@@ -464,7 +468,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 ; Sets the text content of a block to a given string, extracting page titles
 ; and block references and then updating the correct ref attributes.
 ;
-> String > String > StrollDb > StrollDb
+> Str > Str > StrollDb > StrollDb
 = (setBlockText textUid text strollDb)
 @ STROLL_DB(..) strollDb
 ; Calculate all the uid references that text refers to.
@@ -494,7 +498,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 ; Moves a bullet point to a new parent, updating all references and page
 ; entries.
 ;
-> String > String > Nat > StrollDb > StrollDb
+> Str > Str > Nat > StrollDb > StrollDb
 = (reparent nodeUid newParentUid newOrder strollDb)
 @ nodeEid      | getEidOf nodeUid strollDb
 @ curParentUid | getParentOf nodeUid strollDb

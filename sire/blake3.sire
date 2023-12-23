@@ -9,6 +9,14 @@
 :| w32
 
 
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+* # abstype CV
+* # abstype Chunk
+* # abstype HashState
+* # abstype Hasher
+
+
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (gulf f t)
@@ -75,7 +83,7 @@ st
 | add32 (lsh32 c 16)
         (lsh32 d 24)
 
-> Row U8 > Row U32
+> Row Word8 > Row Word32
 = (bytesToWords bytes)
 @ numBytes | len bytes
 | if (mod numBytes 4)
@@ -93,11 +101,11 @@ st
 (wordToBytes a)=(gen 4 i&(con 0xff (rsh a (mul 8 i))))
 
 ; Little Endian Byte order
-> Row U32 > Row U8
+> Row Word32 > Row Word8
 (wordsToBytes wv)=(catMap wordToBytes wv)
 
-> (Row8 U32, Row16 U32, U64, U32, U32)
-> Row16 U32
+> (Row8 Word32, Row16 Word32, Word64, Word32, Word32)
+> Row16 Word32
 = (b3Compress [chainingValue blockWords counter blockLen flags])
 @ st ++ get chainingValue 0
      ++ get chainingValue 1
@@ -389,7 +397,7 @@ st
     * b3HasherGetFlags h
 | final h input
 
-> Hasher > Nat > Row U8
+> Hasher > Nat > Row Word8
 = (b3Finalize h outHashSize)
 @ out (b3ChunkstOutput | b3HasherGetChunkst h)
 ^ _ out (b3HasherGetCvStack h)

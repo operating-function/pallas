@@ -18,40 +18,42 @@
 ; uncomment to get debug output
 ;(**debug m v)=(trk m v)
 
+# abstype StdGen
+
 # datatype (Result a)
 * OK
-    * good : Int     ;  {good} is the number successful tests
-    * drop : Int     ;  {drop} is the number discards
+    * good : Nat     ;  {good} is the number successful tests
+    * drop : Nat     ;  {drop} is the number discards
 * FAIL
     * gen  : StdGen  ;  {gen} is the generator (for replay)
-    * size : Int     ;  The {size} (for replay)
-    * good : Int     ;  {good} is the number of successful tests
-    * drop : Int     ;  {drop} is the number discards
+    * size : Nat     ;  The {size} (for replay)
+    * good : Nat     ;  {good} is the number of successful tests
+    * drop : Nat     ;  {drop} is the number discards
     * fail : a       ;  {fail} is the failing value (shrunk)
 * GAVE_UP
-    * good : Int     ;  {good} is the number of successful tests
-    * drop : Int     ;  {drop} is the number discards
+    * good : Nat     ;  {good} is the number of successful tests
+    * drop : Nat     ;  {drop} is the number discards
 
-# typedef (Gen a)    (StdGen > Int > a)
-# typedef (Shrink a) (a > List a)
-# typedef PropResult (Maybe Bit)
+* # typedef (Gen a)    (StdGen > Nat > a)
+* # typedef (Shrink a) (a > List a)
+* # typedef PropResult (Maybe Bit)
 
 # record Args
 | ARGS
-* replay          : Maybe (StdGen, Int)
-* maxSuccess      : Int
-* maxDiscardRatio : Int
-* maxSize         : Int
-* maxShrinks      : Int
+* replay          : Maybe (StdGen, Nat)
+* maxSuccess      : Nat
+* maxDiscardRatio : Nat
+* maxSize         : Nat
+* maxShrinks      : Nat
 
 > Args
 = stdArgs (ARGS NONE 100 100 100 10000)
 
 # record State
 | STATE
-* successCount       : Int
-* totalDiscardCount  : Int
-* recentDiscardCount : Int
+* successCount       : Nat
+* totalDiscardCount  : Nat
+* recentDiscardCount : Nat
 
 ; infix 4 ===
 ; (===) :: Eq a => a -> a -> PropResult
@@ -179,10 +181,10 @@ qcIs=SOME
 > a > Gen a
 (pureGen x r n)=x
 
-> (Int -> Gen a) > Gen a
+> (Nat -> Gen a) > Gen a
 (sized f r n)=(f n r n)
 
-> Gen Int
+> Gen Nat
 getSize=(sized pureGen)
 
 
@@ -190,11 +192,11 @@ getSize=(sized pureGen)
 ;; generators
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-> Gen W64
+> Gen Word64
 (genU64 r n)=(fst | nextWord64 r)
 
-> Gen W8
-> W64 > W64 > Gen W64
+> Gen Word8
+> Word64 > Word64 > Gen Word64
 = (chooseW64 lo hi r n)
 @ val (fst (nextWord64 r))
 | add lo (mod val (sub hi lo))
@@ -205,7 +207,7 @@ getSize=(sized pureGen)
 : vB < bindGen genB
 | pureGen (vA, vB)
 
-> Int > Gen a > Gen (List a)
+> Nat > Gen a > Gen (List a)
 = (genListLen len gen)
 | if (lte len 0)
     | pureGen ~[]
@@ -213,7 +215,7 @@ getSize=(sized pureGen)
 : vs < bindGen (genListLen (sub len 1) gen)
 | pureGen (v :: vs)
 
-> Int > Gen a > Gen (List a)
+> Nat > Gen a > Gen (List a)
 = (genListLenMax maxLen gen)
 : len < bindGen genU64
 @ len | mod len maxLen
@@ -244,7 +246,7 @@ genU8=(genMap w8 genU64)
     | listMap (x_ & x_,y) (shrA x)
 | listMap (y_ & x,y_) (shrB y)
 
-> Integral a > a > [a]
+> Nat > List Nat
 = (shrinkNat x)
 | listNub
 | listTakeWhile (gth x)

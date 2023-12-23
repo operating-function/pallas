@@ -40,24 +40,21 @@
 | mul64 (shiftXor n w) k
 
 ; MurmurHash3Mixer
-> U64
-> U64
+> Word64 > Word64
 = (mix64 z0)
 @ z1 (shiftXorMultiply 33 0xff51afd7ed558ccd z0)
 @ z2 (shiftXorMultiply 33 0xc4ceb9fe1a85ec53 z1)
 @ z3 (shiftXor 33 z2)
 | z3
 
-> U64
-> U64
+> Word64 > Word64
 = (mix64variant13 z0)
 @ z1 (shiftXorMultiply 30 0xbf58476d1ce4e5b9 z0) ; MurmurHash3 mix constants
 @ z2 (shiftXorMultiply 27 0x94d049bb133111eb z1)
 @ z3 (shiftXor 31 z2)
 | z3
 
-> U64
-> U64
+> Word64 > Word64
 = (mixGamma z0)
 @ z1 (or64 (mix64variant13 z0) 1) ; force to be odd
 @ n (popCount (xor64 z1 (rsh64 z1 1)))
@@ -67,13 +64,12 @@
   | z1
 | xor64 z1 0xaaaaaaaaaaaaaaaa
 
-> U64
+> Word64
 = goldenGamma 0x9e3779b97f4a7c15
 
 =?= goldenGamma (w64 goldenGamma)
 
-> U64 > U64
-> (U64, U64)
+> Word64 > Word64 > (Word64, Word64)
 = (seedSMGen seed gamma)
 | [seed (or64 gamma 1)]
 
@@ -84,8 +80,7 @@
 =?= [12 99]
   | seedSMGen 12 98
 
-> U64
-> (U64, U64)
+> Word64 > (Word64, Word64)
 = (mkSMGen s)
 @ sd (mix64 s)
 @ gm (mixGamma (add64 s goldenGamma))
@@ -100,8 +95,8 @@
 =?= [1422812216395489287 1866550240620900529]
   | mkSMGen 103
 
-> (U64, U64)
-> (U64, (U64, U64))
+> (Word64, Word64)
+> (Word64, (Word64, Word64))
 = (nextWord64 [seed gamma])
 @ seed0 (add64 seed gamma)
 @ seed1 (mix64 seed0)
@@ -113,8 +108,8 @@
 =?= 13163465088654347079
   | idx 0 (nextWord64 (mkSMGen 4242))
 
-> (U64, U64)
-> ((U64, U64), (U64, U64))
+> (Word64, Word64)
+> ((Word64, Word64), (Word64, Word64))
 = (splitSMGen [seed gamma])
 @ seed1 (add64 seed  gamma)
 @ seed2 (add64 seed1 gamma)

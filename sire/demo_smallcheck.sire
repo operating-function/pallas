@@ -22,7 +22,7 @@
 * DONE        | NIL
 * (ITEM x g2) | trk [x g2] | CONS x (generate (dec n) g2)
 
-> Nat > GenSteam Nat
+> Nat > GenStream Nat
 = (natsFrom i _)
 | seq i
 | ITEM i (natsFrom (inc i))

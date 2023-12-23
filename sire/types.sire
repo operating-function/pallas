@@ -181,7 +181,13 @@ abstype#Pad
 abstype#(Pin a)
 abstype#(Fun a b)
 abstype#Bar
+abstype#BarTree
 abstype#Char
+abstype#Ordering
+abstype#Word8
+abstype#Word16
+abstype#Word32
+abstype#Word64
 abstype#Bit
 abstype#Str
 abstype#Rex
@@ -192,6 +198,8 @@ abstype#(Read4 a b c d)
 abstype#(Tab k v)
 abstype#(Set k)
 abstype#(Row a)
+abstype#(Row8 a)
+abstype#(Row16 a)
 abstype#(Maybe a)
 abstype#(List a)
 abstype#(Either a b)
@@ -631,7 +639,12 @@ printType#Fun
 ^-^ Rex Read
 ^-^ Row List Set Tab
 ^-^ Maybe Either
-^-^ Bar
+^-^ Bar BarTree
+^-^ Ordering
+^-^
+^-^ Row8 Row16
 ^-^
 ^-^ Unit Box Pair Trip Quad
+^-^
+^-^ Word8 Word16 Word32 Word64
 ^-^

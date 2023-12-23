@@ -13,18 +13,22 @@
 ; uncomment to get debug output
 ;(**debug m v)=(trk m v)
 
-> (a > Ord) > Gen a > Gen (Pq a)
+abstype#(Gen a)
+abstype#(Pq a)
+abstype#PropResult
+
+> (a > Ordering) > Gen a > Gen (Pq a)
 = (genPq cmp gen)
 | genMap (pqFromList cmp)
 | genList gen
 
-> (a > Ord) > (a > List a) > Pq a > List (Pq a)
+> (a > Ordering) > (a > List a) > Pq a > List (Pq a)
 = (shrinkPq cmp shr pq)
 | listMap (pqFromList cmp)
 | shrinkList shr
 | pqToList cmp pq
 
-> (a > Ord) > Pq a > PropResult
+> (a > Ordering) > Pq a > PropResult
 = (prop_delMin_ord cmp pq0)
 | debug [{pq0} pq0]
 @ [mbV1 pq1] | pqDelMin cmp pq0
@@ -35,7 +39,7 @@
 | debug [{v2} v2]
 | qcEql (cmp v1 v2) LT
 
-> (a > Ord) > (a, Pq a) > PropResult
+> (a > Ordering) > (a, Pq a) > PropResult
 = (prop_insert_min cmp (x, pq0))
 @ mbY | pqMin pq0
 @ pq1 | pqInsert cmp x pq0
@@ -45,7 +49,7 @@
 & y
 | qcEql (min x y) z
 
-> (a > Ord) > (a, (a, Pq a)) > PropResult
+> (a > Ordering) > (a, (a, Pq a)) > PropResult
 = (prop_insert_order cmp (x, (y, pq0)))
 @ pqA | pqInsert cmp x (pqInsert cmp y pq0)
 @ pqB | pqInsert cmp y (pqInsert cmp x pq0)
@@ -55,7 +59,7 @@
 | qcEql (pqSort cmp ls)
 | listRev (pqSort flip-cmp ls)
 
-> Ord a > List a > Bit
+> (a -> Ordering) > List a > Bit
 = (isSorted cmp xs)
 # datacase xs
 * NIL | TRUE

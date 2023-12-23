@@ -4,8 +4,7 @@
 
 #### demo_hw_what <- demo_timer
 
-:| sire
-:| kern
+:| prelude
 :| demo_timer
 
 = (whatDemo cur return)

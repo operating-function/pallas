@@ -10,6 +10,12 @@
 :| stew
 
 
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+abstype#Request
+abstype#Response
+
+
 ;;; Sandbox ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; The sandbox takes two cog functions: the container and the item. Both use the

@@ -10,6 +10,12 @@
 
 ;;; Kernel State ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+* # abstype State
+* # abstype ThreadId
+* # abstype (Ref a)
+* # abstype (IO a)
+* # abstype Machine
+
 ;;; State =
 ;;;     ( List Nat      ++  free slots
 ;;;     , Row Any       ++  slots row (vars or threads)
@@ -411,7 +417,10 @@
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-^-^ pure andThen forever
+^-^
+^-^ State ThreadId Ref IO Machine
+^-^
+^-^ forever
 ^-^ exit cancel fork prepareFork finalizeFork cancelFork
 ^-^ myThreadId getKernelState
 ^-^ runCog
