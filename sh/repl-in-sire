@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -ex
+
+# TODO: plunder save sire.main > sire.seed
+
+plunder save sire.seed sire/sire.sire
+
+( cat sire/sire_??_*.sire sire/sire.sire
+  echo; echo; echo;
+  cat /dev/stdin
+) |
+    plunder repl sire.seed
