@@ -13,11 +13,9 @@
 ;;;; macro-extension, instead using the traditional parse, type-check,
 ;;;; compiler flow.
 ;;;;
-;;;; TODO: Kill io.sire
-;;;;
 ;;;; TODO: Parse all built-in command runes:
 ;;;;
-;;;; - [ ] =?=
+;;;; - [x] =?=
 ;;;; - [ ] =
 ;;;; - [ ] *
 ;;;; - [ ] <
@@ -25,7 +23,7 @@
 ;;;;
 ;;;; TODO: Parse all macro-defined commands:
 ;;;;
-;;;; - [ ] !!
+;;;; - [x] !!
 ;;;; - [x] #mutual
 ;;;; - [ ] #record
 ;;;; - [ ] #datatype
@@ -77,7 +75,7 @@
 ;;;; - [x] #switch
 ;;;; - [x] . (non-symbolic references)
 ;;;; - [x] Correctly print non-symbol references.
-;;;; - [ ] Fix inline annotations on function literals.
+;;;; - [x] Fix inline annotations on function literals.
 ;;;; - [ ] Make sure function literals support all details.
 ;;;; - [x] RECORD(..) patterns
 ;;;;
