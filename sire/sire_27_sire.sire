@@ -147,13 +147,13 @@
 
 > Rex > List (Maybe Str) > Str > Repl Sire
 = (resolveUnqualified rex env sym st)
-# datacase (listElemIndexOpt (SOME sym) env)
-* SOME-ng | (st, V ng)
-* NONE
-@ bn (tabIdx sym getSireScope-st)
-| ifNot (isZero bn)
-    | (st, G bn)
-| ({undefined reference}, rex)
+@ notFound
+    @ bn (tabIdx sym getSireScope-st)
+    | ifNot (isZero bn)
+        | (st, G bn)
+    | ({undefined reference}, rex)
+: ng < maybeCase (listElemIndexOpt (SOME sym) env) notFound
+| (st, V ng)
 
 ss=[0 0 0 0 0]
 
@@ -223,9 +223,8 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Rex > Repl Nat
 = (readKey rex st)
-# datacase tryReadLeaf-rex
-* NONE        | ({invalid key}, rex)
-* SOME-[ty v] | (st, v)
+: [_ty v] < maybeCase (tryReadLeaf rex) ({invalid key}, rex)
+| (st, v)
 
 > Rex > Str > Str > Repl Sire
 = (resolveQualified rex modu name st)
@@ -435,19 +434,17 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > _ > Rex > List (Maybe Nat) > Rex > Repl Sire
 = (readPrimLeaf readExpr blockRex env rex st)
-# datacase (tryReadLeaf rex)
-* NONE
-    @ invalid | ({malformed leaf}, rex)
+@ invalid | ({malformed leaf}, rex)
+@ ifNotLeaf
     | if (rexStyle rex /= {WORD}) invalid
-    # datacase (lookupVal {#} st)
-    * NONE        | invalid
-    * SOME-hax    : !st ex < replOpen (expand hax (PREF {#} [rex] 0)) st
-                  | readExpr env ex st
-* SOME-leaf
-    # datacase leaf
-    * DECI-n | (st, K n)
-    * CORD-c | (st, K c)
-    * IDNT-n | resolveUnqualified blockRex env n st
+    : hax    < maybeCase (lookupVal {#} st) invalid
+    : !st ex < replOpen (expand hax (PREF {#} [rex] 0)) st
+    | readExpr env ex st
+: leaf < maybeCase (tryReadLeaf rex) ifNotLeaf
+# datacase leaf
+* DECI-n | (st, K n)
+* CORD-c | (st, K c)
+* IDNT-n | resolveUnqualified blockRex env n st
 
 (alwaysError error readExpr env rex st)=error
 
@@ -466,9 +463,8 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 * {LEAF}
     # switch style
     * LINE | readMultiLine rex st
-    # datacase heir
-    * SOME-_ | ({leaf with heir}, rex)
-    * NONE   | readPrimLeaf readExpr rex env rex st
+    ^ maybeCase heir _ (_ & ({leaf with heir}, rex))
+    | readPrimLeaf readExpr rex env rex st
 * {NODE}
     ^ _ readExpr env rex st
     # switch rune
@@ -499,11 +495,11 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 | ifNot rexIsNode-rex
     | readPrimExpr readExpr e rex st
 @ ryn (rexRune rex)
-# datacase (lookupVal ryn st)
-* NONE        | readPrimExpr readExpr e rex st
-* SOME-macVal
-    : st expo < replOpen (expand macVal rex) st
-    | readExpr e expo st
+@ noMacro
+    | readPrimExpr readExpr e rex st
+: macVal  < maybeCase (lookupVal ryn st) noMacro
+: st expo < replOpen (expand macVal rex) st
+| readExpr e expo st
 
 > Rex > Repl Any
 = (evalExpr rex st0)
@@ -522,25 +518,25 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 > Repl ()
 = (insertBinding rex [mKey extraProps name val code] st)
 @ @(SIRE_STATE sireNextKey sireContext sireScope sireModules sireAllProps) st
-# datacase mKey
-* NONE ; If the binding key is not explicitly set, generate a new key
-       ; and use that.
+@ noKey
+    ; If the binding key is not explicitly set, generate a new key
+    ; and use that.
     @ key sireNextKey
     @ !sireNextKey (inc sireNextKey)
     @ !st | setSireNextKey sireNextKey st
     | insertBinding rex (SOME key, extraProps, name, val, code) st
-* SOME-key
-    | if (isZero key)
-        | ({binding with zero key}, rex)
-    ^ (_, ())
-    @ binding
-        | (BIND key val code sireContext name)
-    @ sireScope
-        | tabPut sireScope name (4 binding)
-    @ sireAllProps
-        | if (tabIsEmpty extraProps) sireAllProps
-        | tabUnion (tabSing key extraProps) sireAllProps
-    | SIRE_STATE sireNextKey sireContext sireScope sireModules sireAllProps
+: key < maybeCase mKey noKey
+| if (isZero key)
+    | ({binding with zero key}, rex)
+@ binding
+    | (BIND key val code sireContext name)
+@ sireScope
+    | tabPut sireScope name (4 binding)
+@ sireAllProps
+    | if (tabIsEmpty extraProps) sireAllProps
+    | tabUnion (tabSing key extraProps) sireAllProps
+^ (_, ())
+| SIRE_STATE sireNextKey sireContext sireScope sireModules sireAllProps
 
 > Rex > ToBind > Repl Any
 = (execBind rx (TO_BIND mKey mProp str expr) st)
@@ -590,12 +586,11 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Rex > Repl (Either Nat ((Bit, Nat), Row Nat))
 = (readBinder rex st)
-# datacase tryReadLeaf-rex
-* SOME-[_ key] | (st, LEFT key)
-* NONE
-# datacase tryReadLawBinder-rex
-* SOME-bind | (st, RIGHT bind)
-* NONE      | ({malformed binder}, rex)
+@ notLeaf
+    : bind < maybeCase (tryReadLawBinder rex) ({malformed binder}, rex)
+    | (st, RIGHT bind)
+: [_ key] < maybeCase (tryReadLeaf rex) notLeaf
+| (st, LEFT key)
 
 > Either Nat ((Bit, Nat), Row Nat)
 > Rex
@@ -754,9 +749,8 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
       @ [scope props] pinItem-modPin
       | ok scope
 @ newBinds
-    # datacase mWhite
-    * NONE      | otherScope
-    * SOME-syms | tabFilterWithKey (k _ & setHas k syms) otherScope
+    : syms < maybeCase mWhite otherScope
+    | tabFilterWithKey (k _ & setHas k syms) otherScope
 @ oldScope (**getSireScope st)
 | (setSireScope (tabUnion newBinds oldScope) st, ())
 
@@ -807,12 +801,8 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ rune (rexRune rex)
 | ifNot rexIsNode-rex
     | execExpr rex st
-# datacase (lookupVal rune st)
-* SOME-mac
-    : st expo < replOpen (expand mac rex) st
-    | executeSire expo st
-* NONE
-    @ (alwaysError err rex st) err
+@ (alwaysError err rex st) err
+@ noMacro
     ^ _ rex st
     # switch rune
     * {#=}   | doDefine
@@ -828,6 +818,9 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     * {:|}   | doImport
     * _      | if isExpRune-rune execExpr
              | alwaysError ({undefined rune}, rex)
+: macro   < maybeCase (lookupVal rune st) noMacro
+: st expo < replOpen (expand macro rex) st
+| executeSire expo st
 
 
 ;;; Repl Cog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -840,10 +833,9 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 = (sireCog okErr cog ss i@[lineNum rex])
 | if (isZero i || isZero rex)
-    @ main_seed # datacase (lookupVal {main} ss)
-                * NONE      | b#{no main routine to save}
-                * SOME-main | _SaveSeed main
-    | ((~[main_seed], ~[]), sireCog okErr cog ss)
+    ^ ((~[_], ~[]), sireCog okErr cog ss)
+    : main < maybeCase (lookupVal {main} ss) b#{no main routine to save}
+    | _SaveSeed main
 @ expo@(ss2, output) (executeSire rex ss)
 | if isNat-ss2
     @ err ss2
