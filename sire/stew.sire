@@ -151,7 +151,10 @@
 
 # datatype Cmd
 * CEXP=exp e:Exp
-* CMUT=mut cs:(Row Cmd)  ;;  Mutually recursive
+* CCHAIN=seq x:Cmd y:Cmd
+* CMUTUAL=mut cs:(Row Cmd)
+* CASSERT_EQL=aql l:Exp r:Exp
+* CASSERT=ass x:Exp
 
 # datatype Exp
 * EBED=cns b:Any
@@ -410,7 +413,7 @@
 | INFX "=" (showPat pat, showExp bind) 0
 
 = (showBinds showExp binds)
-| foldr (x y & trk [=x =y] (rexSetHeir y x)) 0 (map (showBind showExp) binds)
+| foldr (x y & rexSetHeir y x) 0 (map (showBind showExp) binds)
 
 > Exp > Rex
 = (showExp exp)
@@ -771,10 +774,43 @@
 # switch sym
 * {mutual}
     : cmds < rowTraverse (flip readCmd err) params
-    | ok (CMUT cmds)
+    | ok (CMUTUAL cmds)
 * _
-    : exp < parseHaxExp readExp err
+    : exp < parseHaxExp readExp rex err
     | ok (CEXP exp)
+
+= (readAssertEqlCmd rex err ok)
+@ kids (rexKids rex)
+@ nKid (len kids)
+| if (rexRune rex /= "=?=")
+    | err rex {Expected a {=?=} rune}
+| if (nKid == 3)
+    @ [leftRex rightRex moreRex] kids
+    : left  < readExp leftRex err
+    : right < readExp rightRex err
+    : cmd   < readAssertEqlCmd moreRex err
+    | ok (CCHAIN (CASSERT_EQL left right) cmd)
+| if (nKid == 2)
+    @ [leftRex rightRex] kids
+    : left  < readExp leftRex err
+    : right < readExp rightRex err
+    | ok (CASSERT_EQL left right)
+| else
+    | err rex {Expected two or three params}
+
+= (readAssertCmd rex err ok)
+@ sons (rexSons rex)
+@ heir (rexHeir rex)
+| if (rexRune rex /= "!!")
+    | err rex {Expected a {!!} rune}
+| if (null sons)
+    | err rex {Expected at least one expression}
+: exprs
+    < rowTraverse (son ret & readExp son err ret) sons
+@ cmd            | CASSERT (mkApp exprs)
+| if isZero-heir | ok cmd
+: more           < readAssertCmd heir err
+| ok (CCHAIN cmd more)
 
 > (Rex > Read Cmd) > (Rex > Read Exp) > Rex > Read Cmd
 = (readCmd rex err ok)
@@ -782,8 +818,9 @@
 * _
     : exp < readExp rex err
     | ok (CEXP exp)
-* {#}
-    | readHaxCmd readCmd rex err
+* {#}   | readHaxCmd readCmd rex err ok
+* {=?=} | readAssertEqlCmd rex err ok
+* {!!}  | readAssertCmd rex err ok
 
 ; Assumes that the input formatting matches the printers formatting,
 ; except that OPEN-form example inputs will be converted to NEST-form
@@ -1040,7 +1077,7 @@
           & ([sym pats armBody] ok)
           : armBody < go armBody
           | ok [sym pats armBody]
-    | ok (EMUT tab body arms)
+    | f (EMUT tab body arms) ok
 * (ESWI x fb arms)
     : x    < go x
     : fb   < go fb
@@ -1058,7 +1095,6 @@
               : splice < go splice
               | ok (RIGHT splice)
     | f (EQRX rex) ok
-
 
 = (traversePat f pat ok)
 # datacase pat
@@ -1085,6 +1121,18 @@
 * _
     | {invalid pattern} pat
 
+= (traverseCmd f cmd ok)
+@ go (traverseCmd f)
+# datacase cmd
+* (CCHAIN x y)
+    : x < go x
+    : y < go y
+    | f (CCHAIN x y) ok
+* (CASSERT_EQL _ _)  | f cmd ok
+* (CASSERT _)        | f cmd ok
+* (CEXP _)           | f cmd ok
+* (CMUTUAL branches) | {TODO: traverseCmd supports #mutual}
+* _                  | {TODO: missing branch in traverseCmd} cmd
 
 
 ;;; Resolution ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1092,7 +1140,6 @@
 = (resolvePat ss err pat ok)
 ^ traversePat _ pat ok
 & (pat ok)
-; trk {hi},[=pat]
 # datacase pat
 * _
     | ok pat
@@ -1104,8 +1151,7 @@
         | err rex (strWeld {Unknown record constructor: } constr)
     | ok (PROW | map PVAR fieldNames)
 
-= (resolve ss exp err ok)
-; trk {resolve},[=exp]
+= (resolveExp ss exp err ok)
 @ goPat (resolvePat ss err)
 ^ traverseExp _ exp ok
 & (exp ok)
@@ -1131,6 +1177,28 @@
     | ok (ECAS x fb cases)
 * _
     | ok exp
+
+= (resolveCmd ss cmd err ok)
+^ traverseCmd _ cmd ok
+& (cmd ok)
+# datacase cmd
+* CEXP-exp
+    : exp < resolveExp ss exp err
+    | ok (CEXP exp)
+* CCHAIN-_-_
+    | ok cmd ; traverseCmd processed sub-commands first, so this is
+             ; already fully processed.
+* CASSERT-x
+    : x < resolveExp ss x err
+    | ok (CASSERT x)
+* CASSERT_EQL-f-x
+    : f < resolveExp ss f err
+    : x < resolveExp ss x err
+    | ok (CASSERT_EQL f x)
+* CMUTUAL-branches
+    | die {TODO: Resolve references in #mutual commands}
+* _
+    | {TODO: resolveCmd is mising a case} cmd
 
 
 ;;; Compiler ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1270,7 +1338,7 @@
 ; * ECAS=cas x:Exp fb:(Maybe Exp) cs:(Row ConCase)
 
 > Tab Sym Nat > Tab Nat Any > Nat > Exp > (Nat, Exp)
-= (compile ss exp)
+= (compileExp ss exp)
 ^   : ss rex < _ ss exp
     | (ss, rexClose rex)
 ? (go ss exp ok)
@@ -1307,11 +1375,28 @@
 * E_GET_STATE | ok ss (cnsE ss)
 * E_GETENV    | ok ss (cnsE | idx 2 ss)
 
+= (compileCmd ss cmd)
+# datacase cmd
+* _                | {compileCmd: missing branch} cmd
+* CMUTUAL-branches | die {TODO: compileCmd supports #mutual}
+* CEXP-exp         | compileExp ss exp
+* CCHAIN-a-b
+    @ (ss, aRex) | compileCmd ss a
+    @ (ss, bRex) | compileCmd ss b
+    ^ (ss, _)    | OPEN {#*} [aRex] bRex
+* CASSERT_EQL-l-r
+    @ (ss, lRex) | compileExp ss l
+    @ (ss, rRex) | compileExp ss r
+    ^ (ss, _)    | OPEN {#=?=} [lRex rRex] 0
+* CASSERT-x
+    @ (ss, xRex) | compileExp ss x
+    ^ (ss, _)    | OPEN {#=?=} [`1 xRex] 0
+
 
 ;;; Compiler Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = (comp ss exp)
-| compile ss exp
+| compileExp ss exp
 
 =?= (comp [5] (ENAT 0))
   | [[5] `($$0)]
@@ -1476,8 +1561,14 @@
 
 = (macaroniStew ss rex err ok)
 : stewExp  < readExp rex err
-: stewExp  < resolve ss stewExp err
-@ [ss rex] | compile ss stewExp
+: stewExp  < resolveExp ss stewExp err
+@ [ss rex] | compileExp ss stewExp
+| ok ss rex
+
+= (macaroniStewCmd ss rex err ok)
+: stewCmd  < readCmd rex err
+: stewCmd  < resolveCmd ss stewCmd err
+@ [ss rex] | compileCmd ss stewCmd
 | ok ss rex
 
 ( {^}   #= macaroniStew )
@@ -1493,7 +1584,6 @@
 ( {.}   #= macaroniStew )
 ( {@}   #= macaroniStew )
 ( {@@}  #= macaroniStew )
-( {#}   #= macaroniStew )
 ( {##}  #= macaroniStew )
 ( {~}   #= macaroniStew )
 ( {~~}  #= macaroniStew )
@@ -1506,12 +1596,17 @@
 ( {&&}  #= macaroniStew )
 ( {||}  #= macaroniStew )
 ( {`}   #= macaroniStew )
+( {=?=} #= macaroniStewCmd )
+( {!!}  #= macaroniStewCmd )
+( {#}   #= macaroniStewCmd )
 
 =?= 6 (@ a 3)(add a a)
 =?= 0 (3 == 4)
 =?= 1 (3 == 3)
 =?= 0 (3 == 3 == 4)
 
+!! (3==3)
+!! eql 3 3
 !! tabHas {%}    #getenv
 !! tabHas {sire} (get #getstate 3)  ;;  Modules table
 
@@ -1529,7 +1624,7 @@
 ^-^ FUN
 ^-^
 ^-^ Cmd
-^-^ CEXP CMUT
+^-^ CEXP CMUTUAL
 ^-^
 ^-^ Exp
 ^-^ EBED EREF ENAT EPAD EBAR ESET EOR EAND EAPP EKET ELET EREC ELAM
@@ -1538,7 +1633,7 @@
 ^-^ showPat
 ^-^ readExp showExp
 ^-^ readCmd
-^-^ compile
+^-^ compileExp
 ^-^
 ^-^ ; MAKE.  EVERYTHING.  STEW.
 ^-^
