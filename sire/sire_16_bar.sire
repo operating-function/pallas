@@ -40,7 +40,7 @@
 :| sire_06_rex [rexKids rexHeir rexText rexStyle {'}]
 :| sire_06_rex [rexGetLeaf]
 :| sire_07_dat
-:| sire_09_chr [chr isPrint ord toLower newlineChar]
+:| sire_10_str [chr isPrint ord toLower newlineChar]
 :| sire_10_str [explode strCat strWeld strFromList]
 :| sire_11_set [{%}]
 :| sire_12_tab []

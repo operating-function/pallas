@@ -74,7 +74,6 @@
 :| sire_07_dat [LEFT RIGHT eitherCase]
 :| sire_07_dat [rowTraverse listMap listFoldr rowCons]
 :| sire_07_dat [readRex]
-:| sire_09_chr []
 :| sire_10_str [strWeld strIsCapitalized]
 :| sire_11_set [{%}]
 :| sire_12_tab [{#}]

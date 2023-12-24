@@ -28,7 +28,7 @@
 :| sire_05_row [null weld v2 isRow map foldl foldr fst snd]
 :| sire_06_rex
 :| sire_07_dat
-:| sire_09_chr [isDigit ord chr]
+:| sire_10_str [isDigit ord chr]
 :| sire_10_str [strToList strWeld loadKeyWord loadDecimal]
 
 

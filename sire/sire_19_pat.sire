@@ -41,7 +41,6 @@
 :| sire_05_row [weld map foldl foldr v1 v2 v3 v4]
 :| sire_06_rex
 :| sire_07_dat
-:| sire_09_chr []
 :| sire_10_str [strWeld strCat]
 :| sire_11_set [readKey {%}]
 :| sire_12_tab [{##} tabToPairs tabFromPairs tabIdx tabToList tabIns]

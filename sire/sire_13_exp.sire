@@ -28,7 +28,7 @@
 :| sire_06_rex [rexGetNodeWithRune rexGetKidsOfNodeWithRune]
 :| sire_06_rex [rexGetWordNoHeir rexSetHeir]
 :| sire_07_dat
-:| sire_09_chr [isAlpha isDigit digits]
+:| sire_10_str [isAlpha isDigit digits]
 :| sire_10_str [strCat explode strWeld]
 :| sire_11_set [{%}]
 :| sire_12_tab [tabToPairs {#} tabE]

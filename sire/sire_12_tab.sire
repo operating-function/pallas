@@ -21,7 +21,6 @@
 :| sire_06_rex [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
 :| sire_06_rex [OPEN EMBD PREF]
 :| sire_07_dat
-:| sire_09_chr []
 :| sire_10_str [strWeld]
 :| sire_11_set [isSet emptySet setLen setHas setMin setToList]
 :| sire_11_set [setToRow setFromRowAsc]

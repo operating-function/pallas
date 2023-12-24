@@ -52,7 +52,7 @@
 :| sire_06_rex [rexKids rexHeir rexText rexIsLeaf SHUT WORD TEXT {'}]
 :| sire_07_dat [{,} {++}]
 :| sire_07_dat [listCase listSnoc NIL CONS]
-:| sire_09_chr [spaceChar tabChar]
+:| sire_10_str [spaceChar tabChar]
 :| sire_10_str [explode strToList strFromList strLen strWeld]
 :| sire_11_set []
 :| sire_12_tab []
