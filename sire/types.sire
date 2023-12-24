@@ -10,7 +10,7 @@
 
 ;;; Utilities ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; TODO: Move these into 13_exp (or wherever).
+; TODO: Move these into sire_13_exp (or wherever).
 
 = (defC sig bodyExp)
 | OPEN {#=} (sigE sig, bodyExp) 0
@@ -25,12 +25,12 @@
 
 ;;; Type Values ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; {SCHEME} is the constructor for a type.  (SCHEME 3 e) means
+;;; {FORALL} is the constructor for a type.  (FORALL 3 e) means
 ;;; (forall a b c. e).
 ;;;
 ;;; In Hindley-Milner, the forall can only occur on the outside of a type,
 ;;; so there is no forall in the actual TypeExp structure, only at the
-;;; onset, in SCHEME.
+;;; onset, in FORALL.
 ;;;
 ;;; {TCON} and {TVAR} are the constructors for type-expressions.
 ;;;
@@ -45,29 +45,33 @@
 ;;;
 ;;; Is represented as:
 ;;;
-;;;      | SCHEME 1
+;;;      | FORALL 1
 ;;;      | TCON getBinderKey#List
 ;;;      ,   | TCON getBinderKey#Either
 ;;;         ++ TVAR 0
 ;;;         ++ TVAR 0
 
+> Nat > Row (TNode a) > TNode a
 (TCON key params)=[key params]
+
+> a > TNode a
 (TVAR key)=key
 
-(SCHEME vars typ)=[vars typ]
+# record Type
+| FORALL vars:Nat typ:(TNode Nat)
 
 
 ;;; Type Expressions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; {TExp} is a syntactic type expression.  Type expressions are first
+;;; {TyExp} is a syntactic type expression.  Type expressions are first
 ;;; parsed into this, then name-resolved, then compiled into the above
 ;;; structures.
 
-# datatype TExp
-* T_FUN a:TExp b:TExp
-* T_REF nam:Str val:Type params:(Row TExp)
+# datatype TyExp
+* T_FUN a:TyExp b:TyExp
+* T_REF nam:Str val:Type params:(Row TyExp)
 * T_VAR sym:Str
-* T_TUP exps:(Row TExp)
+* T_TUP exps:(Row TyExp)
 
 
 ;;; Parsing Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -108,7 +112,6 @@
 
 ;; TODO: Check that the type name uses the TypeNamingConvention,
 ;; and that the type variables use the variableNamingConvention.
-;;
 
 = absExpected
 } Expected something like one of these:
@@ -138,13 +141,13 @@
     : st key < generateUniqueKey st
     | ok st
     | defKPC key #[typeName=sym] [sym]
-    | cnsE (SCHEME numVars | TCON key (gen numVars TVAR))
+    | cnsE (FORALL numVars | TCON key (gen numVars TVAR))
 ;
 : sym    < readSymbol sigRex err
 : st key < generateUniqueKey st
 | ok st
 | defKPC key #[typeName=sym] [sym]
-| cnsE (SCHEME 0 | TCON key [])
+| cnsE (FORALL 0 | TCON key [])
 
 ;;; This section redefines {#record} and {#datatype} to also generate
 ;;; a new opaque type.
@@ -174,6 +177,7 @@ oldDataType=(.{#datatype})
 ;;; Declare Basic Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 abstype#Type
+abstype#TNode
 abstype#Void
 abstype#Any
 abstype#Nat
@@ -182,14 +186,15 @@ abstype#(Pin a)
 abstype#(Fun a b)
 abstype#Bar
 abstype#BarTree
+abstype#Bit
 abstype#Char
+abstype#Str
 abstype#Ordering
 abstype#Word8
 abstype#Word16
 abstype#Word32
+abstype#Word48
 abstype#Word64
-abstype#Bit
-abstype#Str
 abstype#Rex
 abstype#(Read a)
 abstype#(Read2 a b)
@@ -198,32 +203,40 @@ abstype#(Read4 a b c d)
 abstype#(Tab k v)
 abstype#(Set k)
 abstype#(Row a)
-abstype#(Row8 a)
-abstype#(Row16 a)
 abstype#(Maybe a)
 abstype#(List a)
 abstype#(Either a b)
 
-* # record Unit             | UNIT
-* # record (Box a)          | BOX p:a
-* # record (Pair a b)       | PAIR p:a q:b
-* # record (Trip a b c)     | TRIP p:a q:b r:c
-* # record (Quad a b c d)   | QUAD p:a q:b r:c s:d
-* # record (Pent a b c d e) | PENT p:a q:b r:c s:d t:e
+* # record Unit                   | UNIT
+* # record (Sing a)               | SING p:a
+* # record (Pair a b)             | PAIR p:a q:b
+* # record (Trip a b c)           | TRIP p:a q:b r:c
+* # record (Quad a b c d)         | QUAD p:a q:b r:c s:d
+* # record (Pent a b c d e)       | PENT p:a q:b r:c s:d t:e
+* # record (Octo a b c d e f g h) | OCTO p:a q:b r:c s:d t:e u:f v:g w:h
+
+# record (Row8 a)
+| ROW8 _:a _:a _:a _:a _:a _:a _:a _:a
+
+# record (Row16 a)
+| ROW16 _:a _:a _:a _:a _:a _:a _:a _:a
+        _:a _:a _:a _:a _:a _:a _:a _:a
 
 abstype#TyExp
 
 = anyKey  | getKey#Any
 = funKey  | getKey#Fun
+= natKey  | getKey#Nat
+= bitKey  | getKey#Bit
 = unitKey | getKey#Unit
-= boxKey  | getKey#Box
+= boxKey  | getKey#Sing
 = pairKey | getKey#Pair
 = tripKey | getKey#Trip
 = quadKey | getKey#Quad
 = pentKey | getKey#Pent
 
-=?= Any | SCHEME 0 (TCON anyKey [])
-=?= Fun | SCHEME 2 (TCON funKey [0 1])
+=?= Any | FORALL 0 (TCON anyKey [])
+=?= Fun | FORALL 2 (TCON funKey [0 1])
 
 =?= getProp#(Any.typeName) {Any}
 =?= getProp#(Nat.typeName) {Nat}
@@ -240,6 +253,7 @@ abstype#TyExp
     | varE (idx x vars)
 @ nam (getPropByKey ss con {typeName})
 | if (isZero nam)
+    | trk [=ss]
     | die [{Is not a type} con]
 | if (null par)
     | if (eql con unitKey) '()
@@ -267,16 +281,16 @@ abstype#TyExp
 | showTypeTree ss (gen arity | add {a}) x
 
 = (readDefinedSymbol ss rex err ok)
-: sym          < readSymbol rex err
-: bindKey bind < getBind sym ss rex err
-| ok sym bindKey (idx 1 bind)
+: sym    < readSymbol rex err
+: _ bind < getBind sym ss rex err
+| ok sym bind
 
 = ({#printType} ss rex err ok)
 @ kids (rexKids rex)
 | if (len kids /= 2)
     | die {Usage: printType#Type}
-: symbol key scheme
-    < readDefinedSymbol ss (idx 1 kids) err
+: symbol bind < readDefinedSymbol ss (idx 1 kids) err
+@ scheme      | get bind 1
 | trk
     | OPEN {=} [(varE symbol)]
     | showType ss scheme
@@ -294,16 +308,18 @@ abstype#TyExp
 = (tupleType n)
 # switch n
 * 0 Unit
-* 1 Box
+* 1 Sing
 * 2 Pair
 * 3 Trip
 * 4 Quad
 * 5 Pent
+* 8 Octo
 * _ ({todo support bigger tuples: } n)
 
+> Row Str > TyExp > Read Type
 = (compileType vars tExp err ok)
 ^ : tree < _ tExp
-  | ok (SCHEME (len vars) tree)
+  | ok (FORALL (len vars) tree)
 ? (go tExp ret)
 # datacase tExp
 * (T_FUN a b)
@@ -362,7 +378,7 @@ abstype#TyExp
     @ kids    (rexKids rex)
     @ typeRex (bloodline | listRev acc)
     | if (len kids == 3)
-        : key    < readKey (idx 0 kids) err
+        : key < readKey (idx 0 kids) err
         | ok ss typeRex key rex
     | if (len kids == 2)
         : ss key < generateUniqueKey ss
@@ -426,14 +442,15 @@ abstype#TyExp
     : sym < readSymbol rex err
     @ fst (mod sym 256)
     | if (isUpper fst)
-        : bindKey bind < getBind sym ss rex err
+        : _ bind < getBind sym ss rex err
         | ok (T_REF sym (idx 1 bind) [])
     | else
         | ok (T_VAR sym)
 @ rune (rexRune rex)
 | if (isZero rune)
     | err rex {Expected symbol or rune}
-@ appCase
+# switch rune
+* {|}
     @ kids (rexKids rex)
     @ head (idx 0 kids)
     @ para (drop 1 kids)
@@ -443,12 +460,9 @@ abstype#TyExp
     : sym < readSymbol head err
     | ifNot (isUpper | mod sym 256)
         | err head {expected: TypeName}
-    : bindKey bind < getBind sym ss rex err
+    : _ bind < getBind sym ss rex err
     : params < rowTraverse loop para
     | ok (T_REF sym (idx 1 bind) params)
-# switch rune
-* {|} appCase
-* {-} appCase
 * {>}
     : kidTypes < rowTraverse loop (rexKids rex)
     | ok (bigFun kidTypes)
@@ -506,7 +520,7 @@ abstype#TyExp
 
 ;;; Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; {#typedef} creates a named type based on a type-expression.
+;;; {#typedef} creates a named type based on a type-expression.
 
 = ({#typedef} ss rex err ok)
 @ kids                    | rexKids rex
@@ -549,9 +563,9 @@ printType#Fun
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; {txpFree} returns the set of type variables used in a type-expression,
-;; For example the set of type-variables in {Either a (b, List a)}
-;; is {%[a b]}.
+;;; {txpFree} returns the set of type variables used in a type-expression,
+;;; For example the set of type-variables in {Either a (b, List a)}
+;;; is {%[a b]}.
 
 > TyExp > Set Symbol
 = (txpFree x)
@@ -561,57 +575,56 @@ printType#Fun
 * (T_VAR sym)    | setSing sym
 * (T_TUP xs)     | setCatRow (map txpFree xs)
 
-;; {>} is the type-annotation rune.  It is prefixed directly onto the
-;; same block as the definition it annotates
-;;
-;;     > Nat > Nat
-;;     (add3 x)=(add 3 x)
-;;
-;; TODO: Support separate blocks for annotation and binding.
-;;
-;;     \ add3 : Nat > Nat
-;;
-;;     (add3 x)=(add 3 x)
+;;; {>} is the type-annotation rune.  It is prefixed directly onto the
+;;; same block as the definition it annotates
+;;;
+;;;     > Nat > Nat
+;;;     (add3 x)=(add 3 x)
+;;;
+;;; TODO: Support separate blocks for annotation and binding.
+;;;
+;;;     \ add3 : Nat > Nat
+;;;
+;;;     (add3 x)=(add 3 x)
 
 = ({>} ss rex err ok)
 : ss tExp bindKey binding
     < parseTypeAnnotatedBinding ss rex err
 @ vars | setToRow (txpFree tExp)
 : type < compileType vars tExp err
-@ ss (addProps ss bindKey (tabSing {type} type))
-    ;
-    ; TODO: property, what property?
-    ;
+@ ss (addPropsToLocalBindingByKey ss bindKey (tabSing {type} type))
 | ok ss binding
 
-;; {#backfill} assigns a type to an existing binding without checking it.
-;;
-;; This is intended as a way to retroactively assign types to things
-;; that we defined before the type system was built, and to give types
-;; to things that are defined directly in terms of PLAN primitives.
-;;
-;; (At the moment, nothing is checked at all, so this isn't actually
-;; different from `>`.  In the future it will be, though.
+;;;
+;;; {#backfill} assigns a type to an existing binding without checking it.
+;;;
+;;; This is intended as a way to retroactively assign types to things
+;;; that we defined before the type system was built, and to give types
+;;; to things that are defined directly in terms of PLAN primitives.
+;;;
+;;; (At the moment, nothing is checked at all, so this isn't actually
+;;; different from `>`.  In the future it will be, though.
+;;;
 
 = backfillExpected
 } Expected something like:
 }
 } # backfill main
-} > Int > Ptr Ptr-Char > IO ()
+} > Int > Ptr (Ptr Char) > IO ()
 
 = ({#backfill} ss rex err ok)
 @ kids rexKids-rex
 | if (3 /= len kids) (err rex backfillExpected)
 @ [_ valRex typRex] kids
-: sym valKey _ < readDefinedSymbol ss valRex err
-: typExp       < parseType ss typRex err
-@ tyVars       | setToRow (txpFree typExp)
-: scheme       < compileType tyVars typExp err
-@ ss (addProps ss valKey | tabSing {type} scheme)
+: sym bind < readDefinedSymbol ss valRex err
+: typExp   < parseType ss typRex err
+@ tyVars   | setToRow (txpFree typExp)
+: scheme   < compileType tyVars typExp err
+@ ss (addProps ss bind | tabSing {type} scheme)
 | ok ss '(#*)
 
-;; {#typeof} prints the type of a binding.  It is meant to be used
-;; interactively from the REPL.
+;;; {#typeof} prints the type of a binding.  It is meant to be used
+;;; interactively from the REPL.
 
 = ({#typeof} ss rex err ok)
 @ kids (rexKids rex)
@@ -620,12 +633,28 @@ printType#Fun
 : _ bind < getBind symbol ss rex err
 @ scheme | getProp ss bind {type}
 | if (isZero scheme) | {untyped} symbol
-| trk (NEST {\} [(varE symbol)] | showType ss scheme)
+| trk (NEST {\} ,(varE symbol) (showType ss scheme))
 | ok ss '(#*)
+
+
+;;; Backfill Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+* # backfill TRUE  Bit
+* # backfill FALSE Bit
+* # backfill bit   (a > Bit)
+* # backfill not   (Bit > Bit)
+* # backfill inc   (Nat > Nat)
+* # backfill add   (Nat > Nat > Nat)
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+^-^
+^-^ TNode TCON TVAR
+^-^ Type FORALL
+^-^
+^-^ showType parseType parseTypeAnnotatedBinding compileType
+^-^ txpFree addPropsToLocalBindingByKey
 ^-^
 ^-^ {#typedef} {#abstype} {#printType} {#typeof} {#backfill}
 ^-^
@@ -635,16 +664,14 @@ printType#Fun
 ^-^
 ^-^ Void Any Type
 ^-^ Nat Pin Fun
-^-^ Bit Str Char
-^-^ Rex Read
+^-^ Ordering
+^-^ Bit Pad Char Str
+^-^ Word8 Word16 Word32 Word48 Word64
+^-^ Rex Read Read2 Read3 Read4
 ^-^ Row List Set Tab
 ^-^ Maybe Either
 ^-^ Bar BarTree
-^-^ Ordering
 ^-^
+^-^ Unit Sing Pair Trip Quad Octo
 ^-^ Row8 Row16
-^-^
-^-^ Unit Box Pair Trip Quad
-^-^
-^-^ Word8 Word16 Word32 Word64
 ^-^

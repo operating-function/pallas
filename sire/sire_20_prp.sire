@@ -65,6 +65,14 @@
     @ bindProps  (if (isZero bindProps) #[] bindProps)
     | bindProps
 
+= (addPropsToLocalBindingByKey ss bindKey extraProps)
+@ curProps (get ss 4)
+@ oldProps (tabGet curProps bindKey)
+@ newProps (tabUnion extraProps oldProps)  ;  left-biased
+@ curProps (tabPut curProps bindKey newProps)
+@ ss       (put ss 4 curProps)
+| ss
+
 = (addProps ss bind extraProps)
 @ [_ curMod _ modules curProps]  | ss
 @ [bindKey _ _ bindMod bindName] | bind
@@ -109,7 +117,6 @@
 : bindKey bind
     < getBind symbol ss rex err
 @ props (getProps ss bind)
-; trk #[=props =bindKey =bind]
 ^ expand ss (cnsE _)
 | tabHas property props
 
@@ -122,19 +129,22 @@
 = ({#setProp} ss rex err expand)
 : _ [symbol property] valSym
     < rexParseKids rex [readRex readSymbDotProp readSymbol] err
-;
 : _ symBind < getBind symbol ss rex err
 : _ valBind < getBind valSym ss rex err
-;
 ^ expand _ '(#*)
 | addProps ss symBind
 | tabSing property (idx 1 valBind)
 
 = (getPropsByKey ss key)
+@ [_ _ _ modules props] ss
 @ curProps (idx 4 ss)
 | if (tabHas key curProps)
     | tabGet curProps key
-| {todo} {walk remaining modules and do the lookup in each}
+| tabCatRow
+^ map _ (tabValsRow modules)
+& @(PIN [_ props])
+| ifNot (tabHas key props) #[]
+| tabGet props key
 
 = (getPropByKey ss key property)
 @ props (getPropsByKey ss key)
@@ -156,5 +166,6 @@ why=4
 ^-^ {#getKey} {#hasProp} {#getProp} {#setProp}
 ^-^
 ^-^ getBind getProps getProp addProps
+^-^ addPropsToLocalBindingByKey
 ^-^ getPropsByKey getPropByKey
 ^-^
