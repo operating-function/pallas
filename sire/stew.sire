@@ -13,13 +13,18 @@
 ;;;; macro-extension, instead using the traditional parse, type-check,
 ;;;; compiler flow.
 ;;;;
+;;;; We wont both implementing these command-runes, since they don't
+;;;; need to be type-checked nor extended:
+;;;;
+;;;; - ####
+;;;; - ^-^
+;;;; - :|
+;;;;
 ;;;; TODO: Parse all built-in command runes:
 ;;;;
 ;;;; - [x] =?=
 ;;;; - [ ] =
-;;;; - [ ] *
-;;;; - [ ] <
-;;;; - [ ] ###
+;;;; - [x] *
 ;;;;
 ;;;; TODO: Parse all macro-defined commands:
 ;;;;
@@ -149,6 +154,7 @@
 
 # datatype Cmd
 * CEXP=exp e:Exp
+* CPASS=pass
 * CCHAIN=seq x:Cmd y:Cmd
 * CMUTUAL=mut cs:(Row Cmd)
 * CASSERT_EQL=aql l:Exp r:Exp
@@ -764,7 +770,7 @@
 * {%%}  | parseCenCen rex err ok
 * {&&}  | parseAndExp readExp rex err ok
 * {||}  | parseOrExp readExp rex err ok
-* _     | err rex (strWeld {Unknown Rune: } | rexRune rex)
+* _     | err rex (strWeld {Unknown Stew Rune: } | rexRune rex)
 
 > (Rex > Read Cmd) > (Rex > Read Exp) > Rex > Read Cmd
 = (readHaxCmd readCmd rex err ok)
@@ -810,6 +816,10 @@
 : more           < readAssertCmd heir err
 | ok (CCHAIN cmd more)
 
+= (readChainCmd readCmd rex err ok)
+: cmds < rowTraverse (kid ret & readCmd kid err ret) (rexKids rex)
+| (| ok | foldr CCHAIN CPASS cmds)
+
 > (Rex > Read Cmd) > (Rex > Read Exp) > Rex > Read Cmd
 = (readCmd rex err ok)
 # switch (rexRune rex)
@@ -819,6 +829,7 @@
 * {#}   | readHaxCmd readCmd rex err ok
 * {=?=} | readAssertEqlCmd rex err ok
 * {!!}  | readAssertCmd rex err ok
+* {*}   | readChainCmd readCmd rex err ok
 
 ; Assumes that the input formatting matches the printers formatting,
 ; except that OPEN-form example inputs will be converted to NEST-form
@@ -1126,6 +1137,7 @@
     : x < go x
     : y < go y
     | f (CCHAIN x y) ok
+* CPASS              | f cmd ok
 * (CASSERT_EQL _ _)  | f cmd ok
 * (CASSERT _)        | f cmd ok
 * (CEXP _)           | f cmd ok
@@ -1180,12 +1192,11 @@
 ^ traverseCmd _ cmd ok
 & (cmd ok)
 # datacase cmd
+* CPASS      | ok cmd
+* CCHAIN-_-_ | ok cmd
 * CEXP-exp
     : exp < resolveExp ss exp err
     | ok (CEXP exp)
-* CCHAIN-_-_
-    | ok cmd ; traverseCmd processed sub-commands first, so this is
-             ; already fully processed.
 * CASSERT-x
     : x < resolveExp ss x err
     | ok (CASSERT x)
@@ -1378,6 +1389,7 @@
 * _                | {compileCmd: missing branch} cmd
 * CMUTUAL-branches | die {TODO: compileCmd supports #mutual}
 * CEXP-exp         | compileExp ss exp
+* CPASS            | (ss, OPEN {#*} [] 0)
 * CCHAIN-a-b
     @ (ss, aRex) | compileCmd ss a
     @ (ss, bRex) | compileCmd ss b
@@ -1597,6 +1609,7 @@
 ( {=?=} #= macaroniStewCmd )
 ( {!!}  #= macaroniStewCmd )
 ( {#}   #= macaroniStewCmd )
+( {*}   #= macaroniStewCmd )
 
 =?= 6 (@ a 3)(add a a)
 =?= 0 (3 == 4)
@@ -1607,6 +1620,10 @@
 !! eql 3 3
 !! tabHas {%}    #getenv
 !! tabHas {sire} (get #getstate 3)  ;;  Modules table
+
+#* x=3 y=4 z=9
+
+* x y z 3=?=(dec y)
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1636,7 +1653,7 @@
 ^-^ ; MAKE.  EVERYTHING.  STEW.
 ^-^
 ^-^ {^} {|}  {-}  {&}  {?}  {:} {??} {**} {,}  {++} {.} {@} {@@} {##}
-^-^ {~} {~~} {::} {==} {/=} {'} {%}  {%%} {&&} {||} {`}
+^-^ {~} {~~} {::} {==} {/=} {'} {%}  {%%} {&&} {||} {`} {*}
 ^-^
 
 :| types ; also re-export everything from types.sire

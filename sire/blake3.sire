@@ -11,10 +11,10 @@
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-* # abstype CV
-* # abstype Chunk
-* # abstype HashState
-* # abstype Hasher
+#* # abstype CV
+#* # abstype Chunk
+#* # abstype HashState
+#* # abstype Hasher
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

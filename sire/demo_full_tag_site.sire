@@ -113,9 +113,9 @@
 * {/favicon.ico}
 * [b#{image/x-icon} favicon]
 
-* # typedef Lock  | MVar ()
-* # typedef Url   | Bar
-* # typedef ImgId | Nat
+#* # typedef Lock  | MVar ()
+#* # typedef Url   | Bar
+#* # typedef ImgId | Nat
 
 # record ImgRow
 | IMG_ROW

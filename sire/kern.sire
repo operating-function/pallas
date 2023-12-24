@@ -403,15 +403,15 @@ abstype#HttpReq ; TODO Define using #record
 abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
                        ; length-coding first)
 
-* # backfill EVAL1     > Nat > (a>b) > a > Call (EvalResult b)
-* # backfill EVAL2     > Nat > (a>b>c) > a > b > Call (EvalResult b)
-* # backfill EVAL3     > Nat > (a>b>c>d) > a > b > c > Call (EvalResult b)
-* # backfill RAND_BYTE > Nat > Call Bar
-* # backfill TIME_WHEN > Call TimeStamp
-* # backfill TIME_WAIT > TimeStamp > Call ()
-* # backfill HTTP_SERV > (ServReq > Maybe ServResp) > Call Void
-* # backfill HTTP_HEAR > Call HttpReq
-* # backfill HTTP_HOLD > HttpReqId > Call ()
+#* # backfill EVAL1     > Nat > (a>b) > a > Call (EvalResult b)
+#* # backfill EVAL2     > Nat > (a>b>c) > a > b > Call (EvalResult b)
+#* # backfill EVAL3     > Nat > (a>b>c>d) > a > b > c > Call (EvalResult b)
+#* # backfill RAND_BYTE > Nat > Call Bar
+#* # backfill TIME_WHEN > Call TimeStamp
+#* # backfill TIME_WAIT > TimeStamp > Call ()
+#* # backfill HTTP_SERV > (ServReq > Maybe ServResp) > Call Void
+#* # backfill HTTP_HEAR > Call HttpReq
+#* # backfill HTTP_HOLD > HttpReqId > Call ()
 
 # backfill HTTP_ECHO
 > HttpReqId > HttpStatusCode > HttpStatusMsg > HttpHeader > Bar > Call ()

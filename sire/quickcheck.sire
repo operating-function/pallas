@@ -34,9 +34,9 @@
     * good : Nat     ;  {good} is the number of successful tests
     * drop : Nat     ;  {drop} is the number discards
 
-* # typedef (Gen a)    (StdGen > Nat > a)
-* # typedef (Shrink a) (a > List a)
-* # typedef PropResult (Maybe Bit)
+#* # typedef (Gen a)    (StdGen > Nat > a)
+#* # typedef (Shrink a) (a > List a)
+#* # typedef PropResult (Maybe Bit)
 
 # record Args
 | ARGS
