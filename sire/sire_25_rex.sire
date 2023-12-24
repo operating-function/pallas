@@ -37,22 +37,31 @@
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-# record Line
-| LN
-* lineFil : Str
-* lineNum : Nat
-* lineBar : Bar
+;;; data Line = LN { fil:Str, num:Nat, bar:Bar }
+;;;
+;;; data Span a = SPAN { lin:a, off:Nat, end:Nat, val:a }
+;;;
+;;; data Lexi a
+;;;   = LRUNE
+;;;   | LWORD
+;;;   | LWYTE
+;;;   | LSEMI
+;;;   | LLINE multi:(List (Span ()))
+;;;   | LTEXT
+;;;   | LNEST isBracket:Bit xs:a
+;;;   | LFAIL
+;;;   | LTERM
+;;;
+;;; type Lexeme = Span (Lexi (List Lexeme))
+;;; type Elem   = Span (Lexi (List Clump))
+;;; type Clump  = Span (List Elem)
 
-# record (Span a)
-| SPAN
-* spanLin : a
-* spanOff : Nat
-* spanEnd : Nat
-* spanVal : a
+(**LN fil num bar)=[fil num bar]
+(**SPAN lin off end val)=[lin off end val]
 
-# datatype NestType
-* PAREN=PAREN
-* BRACK=BRACK
+(**getLineBar (LN _ _ bar))=bar
+(**getSpanVal (SPAN _ _ _ val))=val
+(**setSpanVal val (SPAN lin off end _))=(SPAN lin off end val)
 
 # datatype (Lexi a)
 * LRUNE=rune
@@ -61,13 +70,9 @@
 * LSEMI=semi
 * LLINE=line multi:(List (Span ()))
 * LTEXT=text
-* LNEST=para ty:NestType xs:a
+* LNEST=para isBracket:Bit xs:a
 * LFAIL=fail
 * LTERM=term
-
-; type Lexeme = Span (Lexi (List Lexeme))
-; type Elem   = Span (Lexi (List Clump))
-; type Clump  = Span (List Elem)
 
 
 ;;; Basic Lexing + Nesting ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -130,8 +135,8 @@
 @ eat | barFindIndexOff
 @ c   | barIdx o bar
 # switch c
-* }_(_       | lexNest lexMany lexOne ln PAREN {)} o bar
-* }_[_       | lexNest lexMany lexOne ln BRACK {]} o bar
+* }_(_       | lexNest lexMany lexOne ln FALSE {)} o bar
+* }_[_       | lexNest lexMany lexOne ln TRUE  {]} o bar
 * }_}_       | lexUgly ln o bar
 * }_{_       | (ln, o, eatCurly bar inc-o 1,      LTEXT)
 * 0          | (ln, o, barLen bar,                LTERM)
@@ -143,7 +148,7 @@
 | if ctx==c  | (ln, o, inc o,                     LTERM)
 | else       | (ln, o, inc o,                     LFAIL)
 
-(lexLine ln)=(lexMany lexOne ln 0 0 (**getLineBar ln))
+(lexLine ln)=(lexMany lexOne ln 0 0 (getLineBar ln))
 
 
 ;;; Merge Multi-Line Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -201,13 +206,13 @@ spaceToks=(setFromRow [LWYTE LSEMI LTERM])
 (lexiIsSpace tok)=(setHas tok spaceToks)
 
 > Elem > Bit
-(elemIsSpace elem)=(**lexiIsSpace (**getSpanVal elem))
+(elemIsSpace elem)=(**lexiIsSpace (getSpanVal elem))
 
 > List Elem > Bit
 = (isEndOfCluster ls)
 : l ls < listCase ls FALSE
 | or (elemIsSpace l)
-| and (**getSpanVal l == LRUNE)
+| and (getSpanVal l == LRUNE)
 : l ls < listCase ls TRUE
 | elemIsSpace l
 
@@ -231,9 +236,17 @@ spaceToks=(setFromRow [LWYTE LSEMI LTERM])
 
 ;;; Layout Engine (Understand Structure Implied by Indentation) ;;;;;;;;;;;;;;;;
 
-# datatype Tree
-* TLEAF=leaf c:Clump
-* TNODE=node rune:Bar sons:(Row Tree) kids:(Maybe Tree)
+;; data Tree
+;;   = TLEAF Clump
+;;   | TNODE Bar (Row Tree) (Maybe Tree)
+
+(**TLEAF clump)=[clump]
+(**TNODE rune sons heir)=[rune sons heir]
+
+= (**treeCase x onLeaf onNode)
+| if (len x == 1)
+* **onLeaf (fst x)
+* **onNode (idx 0 x) (idx 1 x) (idx 2 x)
 
 ;; data Frag a = WOLF Bar a | LAMB a
 
@@ -248,12 +261,12 @@ spaceToks=(setFromRow [LWYTE LSEMI LTERM])
 (**getWolf frag fallback onWolf)=(fragCase frag _&fallback onWolf)
 (**getLamb frag fallback onLamb)=(fragCase frag onLamb (_ _ & fallback))
 
-# record Item
-| I rune:Bar items:(List Tree) heir:(Maybe Tree)
+;; data Item = I Bar (List Tree) (Maybe Tree)
+(**I rune items heir)=[rune items heir]
 
 > Span a > Bar
 = (spanBar s@(SPAN lin off end _))
-| barSlice off (sub end off) (**getLineBar lin)
+| barSlice off (sub end off) (getLineBar lin)
 
 > Span (Lexi a) > Frag (Span | Lexi a)
 = (spanFrag s@(SPAN lin off end val))
@@ -270,7 +283,7 @@ spaceToks=(setFromRow [LWYTE LSEMI LTERM])
 
 > Span a > Bar
 = (spanBar s@(SPAN lin off end _))
-| barSlice off (sub end off) (**getLineBar lin)
+| barSlice off (sub end off) (getLineBar lin)
 
 lol=(SPAN (LN {file} 1 b#{ lol }) 1 4 LWORD)
 lus=(SPAN (LN {file} 1 b#{ + }) 1 2 LRUNE)
@@ -334,10 +347,6 @@ lus=(SPAN (LN {file} 1 b#{ + }) 1 2 LRUNE)
 : r _             < getWolf frag (fTree frag :: layout fs)
 ^ listSing | iTree | snd | listFoldl1 forceMerge _
 | pushAll (pos, I r ~[] NONE) fs
-
-# datatype Tree
-* TLEAF=leaf c:Clump
-* TNODE=node rune:Bar sons:(Row Tree) kids:(Maybe Tree)
 
 
 ;;; Splitting Blocks ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -532,15 +541,15 @@ typedef#(NonEmpty a)#(a, List a)
 > Elem > Rex
 = (elemRex clumpRex e@(SPAN ln off end l))
 # datacase l
-* LWORD      | WORD (spanStr e) 0
-* LFAIL      | elemRex clumpRex (**SPAN ln off end LRUNE)
-* LRUNE      | NEST (spanStr e) [] 0
-* LTEXT      | TEXT (spanQuotedStr e) 0
-* LLINE-ts   | lineRex 0 (listSnoc ts e)
-* LNEST-t-xs # datacase t
-             * BRACK | NEST {,} (map clumpRex | onlyLambs xs) 0
-             * PAREN ^ parenPolicy clumpRex (subLayout _)
-                     | listMap compose-snd-clumpFrag (listFromRow xs)
+* LWORD          | WORD (spanStr e) 0
+* LFAIL          | elemRex clumpRex (**SPAN ln off end LRUNE)
+* LRUNE          | NEST (spanStr e) [] 0
+* LTEXT          | TEXT (spanQuotedStr e) 0
+* LLINE-ts       | lineRex 0 (listSnoc ts e)
+* LNEST-brack-xs | if brack
+                     | NEST {,} (map clumpRex | onlyLambs xs) 0
+                 ^ parenPolicy clumpRex (subLayout _)
+                 | listMap compose-snd-clumpFrag (listFromRow xs)
 * _          | {elemRex case not handled challenge (impossible)}
              | l
 
@@ -578,9 +587,9 @@ typedef#(NonEmpty a)#(a, List a)
 | tightPolicy clumpRex | subLayout | listMap spanFrag | listFromRow elems
 
 = (treeRex t)
-# datacase t
-* TLEAF-c     | clumpRex c
-* TNODE-r-s-h | OPEN (barNat r) (map treeRex s) (maybeCase h 0 x&(treeRex x))
+@ (onLeaf c)     | clumpRex c
+@ (onNode r s h) | OPEN (barNat r) (map treeRex s) (maybeCase h 0 x&(treeRex x))
+| treeCase t onLeaf onNode
 
 > List Tree > Rex
 = (treesRex trees)
@@ -640,10 +649,9 @@ listMonoid=(NIL, listWeld)
 
 ^-^
 ^-^ LRUNE LWORD LWYTE LSEMI LLINE LTEXT LNEST LFAIL LTERM
-^-^ PAREN BRACK
 ^-^ SPAN
-^-^ LAMB WOLF
-^-^ TLEAF TNODE
+^-^ LAMB WOLF fragCase
+^-^ TLEAF TNODE treeCase
 ^-^ BS
 ^-^ WOODS TEXTY BLOCK
 ^-^ PREFX INFIX SEQUE

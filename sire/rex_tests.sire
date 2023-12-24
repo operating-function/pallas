@@ -38,15 +38,15 @@ x=(LN {fil} 2 b#{a+b})
                 ~~ , x 3 3 | LTERM
 
 x=(LN {fil} 3 b#{()})
-=?= (lexLine x) ~~ , x 0 2 | LNEST PAREN ~[x,1,2,LTERM]
+=?= (lexLine x) ~~ , x 0 2 | LNEST FALSE ~[x,1,2,LTERM]
                 ~~ , x 2 2 | LTERM
 
 x=(LN {fil} 4 b#{(a)})
-=?= (lexLine x) ~~ , x 0 3 | LNEST PAREN ~[x,1,2,LWORD x,2,3,LTERM]
+=?= (lexLine x) ~~ , x 0 3 | LNEST FALSE ~[x,1,2,LWORD x,2,3,LTERM]
                 ~~ , x 3 3 | LTERM
 
 x=(LN {fil} 5 b#{(+)})
-=?= (lexLine x) ~~ , x 0 3 | LNEST PAREN ~[x,1,2,LRUNE x,2,3,LTERM]
+=?= (lexLine x) ~~ , x 0 3 | LNEST FALSE ~[x,1,2,LRUNE x,2,3,LTERM]
                 ~~ , x 3 3 | LTERM
 
 
@@ -172,11 +172,9 @@ d=(SPAN x 2 3 [(SPAN x 2 3 LRUNE)])
    ++ b#{(LINE }
    ++ planRender m
    ++ b#{)}
-* (LNEST t xs)
+* (LNEST bracket xs)
     ^ [b#{(} _ b#{ } renderSub-xs b#{)}]
-    # datacase t
-    * PAREN b#PARA
-    * BRACK b#BRAK
+    | if bracket b#BRAK (else b#PARA)
 
 = (renderElem renderClump elem)
 ^ renderSpan _ elem
@@ -188,11 +186,11 @@ d=(SPAN x 2 3 [(SPAN x 2 3 LRUNE)])
 
 = (renderTree depth t)
 ^ (barRep depth { }, _)
-# datacase t
-* TLEAF-c
+| treeCase t
+*   ? (onLeaf c)
    ++ renderClump c
    ++ barNewline
-* TNODE-rune-sons-heir
+*   ? (onNode rune sons heir)
    ++ rune
    ++ barNewline
    ++ @ nSons (len sons)
