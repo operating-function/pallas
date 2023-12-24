@@ -96,6 +96,16 @@
 | defC [nam {x} {record}]
 | appE (cnsE (mut ix), varE {x}, varE {record})
 
+> (Nat, Str) > Cmd
+= (mkModderC pair)
+@ ix,field | pair
+@ nam      | strWeld {mod} (strCapitalize field)
+| defC [nam {fun} {record}]
+| appE
+++ cnsE (mut ix)
+++ appE (varE {fun}, appE (cnsE (idx ix), varE {record}))
+++ varE {record}
+
 = (mkConstrKC key constr fields)
 | defKC key (rowCons constr fields)
 | rowE (map varE fields)
@@ -280,6 +290,7 @@
 ~~ listSing (mkConstrKPC constrKey props constr fields)
 ~~ listMap mkGetterC (listIndexed | listFromRow fields)
 ~~ listMap mkSetterC (listIndexed | listFromRow fields)
+~~ listMap mkModderC (listIndexed | listFromRow fields)
 
 record#Unit#UNIT
 record#(Box a)#(BOX boxItem:a)
@@ -293,7 +304,8 @@ ex=(PAIR %a %b)
 =?= (getSnd ex)    | %b
 =?= (setFst %x ex) | PAIR %x %b
 =?= (setSnd %x ex) | PAIR %a %x
-
+=?= (modFst inc ex) | PAIR %b %b
+=?= (modSnd inc ex) | PAIR %a %c
 
 ;;; Datatypes ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
