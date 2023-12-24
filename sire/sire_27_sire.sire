@@ -23,15 +23,15 @@
 :| sire_12_tab      ;
 :| sire_13_exp      ;
 :| sire_14_hax      ;
-:| sire_15_pad      ;
+:| sire_15_pad      []
 :| sire_16_bar      ;
 :| sire_17_sug      ;
 :| sire_19_pat      ;
-:| sire_20_prp      ;
-:| sire_21_switch   ;
-:| sire_22_seed     ;
+:| sire_20_prp      []
+:| sire_21_switch   [{#switch}]
+:| sire_22_seed     [_SaveSeed]
 :| sire_23_repl     [lineRepl cogMap]
-:| sire_24_datatype ;
+:| sire_24_datatype [{#record} {#datatype} {#datacase}]
 :| sire_25_rex      [simpleCog rexCog listMonoid blockState]
 :| sire_26_compile  ;
 
