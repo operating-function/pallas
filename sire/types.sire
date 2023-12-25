@@ -334,66 +334,40 @@ abstype#TyExp
 ;;;     | (a, b, c)                ;; Trip a b c
 ;;;     | ...
 
-= annBindExpected
-} Expected something like:
-}
-}     > Type
-}     = Binding ...
-
-= (separateAnnotation ss topRex err ok)
+= (splitAnn topRex err ok)
 ^ _ NONE topRex
 ? (loop acc rex)
-| if (isZero rex)
-    | err topRex annBindExpected
 @ rune (rexRune rex)
-| if ((rune == {=}) || (rune == {#=}))
-    @ sons    (rexSons rex)
-    @ kids    (rexKids rex)
-    @ typeRex (bloodline | listRev acc)
-    | if (len kids == 3)
-        : key < readKey (idx 0 kids) err
-        | ok ss typeRex key rex
-    | if (len kids == 2)
-        : ss key < generateUniqueKey ss
-        @ newRex | rexSetSons (rowCons (natE key) sons) rex
-        | ok ss typeRex key newRex
-    | else
-        | err rex {What is this nonsense = node?}
-| if (rune /= {>})
-    | err topRex annBindExpected
-@ acc (rexSetHeir 0 rex)::acc
-| loop acc (rexHeir rex)
+| if (rune == {=})
+    | ok (bloodline | listRev acc) rex
+| if (neq {>} rune)
+    | err topRex
+    } Expected something like:
+    }
+    }     > Type
+    }     = Binding ...
+| loop (rexSetHeir 0 rex :: acc) (rexHeir rex)
 
-=?=  ++ [8]
-     ++ ' > Row Nat
+(tryAnn x)=(splitAnn x v2 v2)
+
+=?=  ++ ' > Row Nat > Row Nat
+     ++ ' = 32 (id x) x
+  | tryAnn
+  ' > Row Nat > Row Nat
+    = 32 (id x) x
+
+=?=  ++ ' > Row Nat
           > Row Nat
-     ++ 7
-     ++ ' = 7 (id x) x
-  ^ separateAnnotation [7] _ v2 v4
+     ++ ' = (id x) x
+  | tryAnn
   ' > Row Nat
     > Row Nat
     = (id x) x
 
-=?=  ++ [8]
-     ++ ' > Row Nat > Row Nat
-     ++ 7
-     ++ ' = 7 (id x) x
-  ^ separateAnnotation [7] _ v2 v4
-  ' > Row Nat > Row Nat
-    = (id x) x
-
-=?=  ++ [7]
-     ++ ' > Row Nat > Row Nat
-     ++ 32
-     ++ ' = 32 (id x) x
-  ^ separateAnnotation [7] _ v2 v4
-  ' > Row Nat > Row Nat
-    = 32 (id x) x
-
-= (parseTypeAnnotatedBinding ss rex err ok)
-: ss annRex bindKey bindRex < separateAnnotation ss rex err
-: annTy                     < parseType annRex err
-| ok ss annTy bindKey bindRex
+= (parseTypeAnnotatedBinding rex err ok)
+: annRex bindRex < splitAnn rex err
+: annTy          < parseType annRex err
+| ok annTy bindRex
 
 
 ;;; Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -463,13 +437,29 @@ printType#Fun
 ;;;     (add2 x)=(add 2 x)
 ;;;
 
+= (bindKeyHack ss bindRex err ok)
+@ sons (rexSons bindRex)
+@ kids (rexKids bindRex)
+| if (len kids == 3)
+    : key < readKey (fst kids) err
+    | ok ss key bindRex
+| if (len kids == 2)
+    : ss key < generateUniqueKey ss
+    | ok ss key | rexSetSons (rowCons natE-key sons) bindRex
+| else
+    | err bindRex {Wait, this is not a binder??}
+
+= (loadAnnBindWithHack ss rex err ok)
+: tExp bindRex < parseTypeAnnotatedBinding rex err
+@ vars         | setToRow (txpFree tExp)
+: type         < compileType ss vars tExp err
+: ss k bindRex < bindKeyHack ss bindRex err
+| ok ss type vars k bindRex
+
 = ({>} ss rex err ok)
-: ss tExp bindKey binding
-    < parseTypeAnnotatedBinding ss rex err
-@ vars | setToRow (txpFree tExp)
-: type < compileType ss vars tExp err
-@ ss (addPropsToLocalBindingByKey ss bindKey (tabSing {type} type))
-| ok ss binding
+: ss type _ k bRex < loadAnnBindWithHack ss rex err
+@ ss               | addPropsToLocalBindingByKey ss k #[=type]
+| ok ss bRex
 
 ;;;
 ;;; {#backfill} assigns a type to an existing binding without checking it.
@@ -531,6 +521,7 @@ printType#Fun
 ^-^
 ^-^ showType parseType parseTypeAnnotatedBinding compileType
 ^-^ txpFree addPropsToLocalBindingByKey
+^-^ bindKeyHack loadAnnBindWithHack
 ^-^
 ^-^ {#typedef} {#abstype} {#printType} {#typeof} {#backfill}
 ^-^

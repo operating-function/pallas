@@ -465,19 +465,11 @@ abstype#(Read2 a b)
 ; just the rex raw input without the annotation.
 
 = ({>} ss rex err ok)
-: ss tExp bKey bRex
-       < parseTypeAnnotatedBinding ss rex err
-@ vars | setToRow (txpFree tExp)
-; trk [=vars =tExp =err]
-: type      < compileType ss vars tExp err
-; trk [=type =bRex]
-: sig body  < parseBinding bRex err
-; trk [=sig =body]
-@ self,sire | desugaredBindingBody sig body
-; trk [=self =sire]
-: type      < doCheck ss type sire err
-; trk [=type]
-@ ss        | addPropsToLocalBindingByKey ss bKey #[=type]
+: ss type vars k bRex < loadAnnBindWithHack ss rex err
+: sig body            < parseBinding bRex err
+@ self,sire           | desugaredBindingBody sig body
+: type                < doCheck ss type sire err
+@ ss                  | addPropsToLocalBindingByKey ss k #[=type]
 ; trk `($(WORD 0 self 0) :: $(showType p type))
 | ok ss bRex
 
