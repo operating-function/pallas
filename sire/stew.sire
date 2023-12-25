@@ -20,6 +20,12 @@
 ;;;; - ^-^
 ;;;; - :|
 ;;;;
+;;;; Also, these type-system commands should only be used internally,
+;;;; and not available in stew programs:
+;;;;
+;;;; - [ ] #abstype
+;;;; - [ ] #backfill
+;;;;
 ;;;; TODO: Parse all built-in command runes:
 ;;;;
 ;;;; - [x] =?=
@@ -94,8 +100,6 @@
 ;;;;
 ;;;; - [ ] >
 ;;;; - [ ] \
-;;;; - [ ] #abstype
-;;;; - [ ] #backfill
 ;;;; - [ ] #typedef
 ;;;; - [ ] #typeof
 ;;;; - [ ] #printType

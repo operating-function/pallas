@@ -108,38 +108,16 @@
 ;; TODO: Check that the type name uses the TypeNamingConvention,
 ;; and that the type variables use the variableNamingConvention.
 
-= absExpected
-} Expected something like one of these:
-}
-}     abstype#Any
-}     abstype#(Fun a b)
-
 ; = ({#getTypeNames} st rex err ok)
 ; | ok st (cnsE (tabGet p %typeName))
 
-= ({#abstype} st rex err ok)
-@ sons@[_ sigRex] (rexSons rex)
-@ rune (rexRune sigRex)
-| if (len sons /= 2)
-    | err rex absExpected
-| if (rune == {|})
-    : names < readSignature sigRex err
-    | if (lth len 2)
-        | err rex absExpected
-    @ sym      (idx 0 names)
-    @ numVars  (dec | len names)
-    @ varNames (drop 1 names)
-    | if (len varNames /= setLen (setFromRow varNames))
-        | err rex {type params must be unique}
-    : st key < generateUniqueKey st
-    | ok st
-    | defKPC key #[typeName=sym] [sym]
-    | cnsE (FORALL numVars | TCON key (gen numVars TVAR))
-: sym    < readSymbol sigRex err
-: st key < generateUniqueKey st
-| ok st
-| defKPC key #[typeName=sym] [sym]
-| cnsE (FORALL 0 | TCON key [])
+= ({#abstype} ss rex err ok)
+: @(ABSTYPE cnstr args) < parseAbsType rex err
+: ss key < generateUniqueKey ss
+| ok ss
+| defKPC key #[typeName=cnstr] [cnstr]
+@ numVars (len args)
+| cnsE (FORALL numVars | TCON key (gen numVars TVAR))
 
 ;;; This section redefines {#record} and {#datatype} to also generate
 ;;; a new opaque type.
