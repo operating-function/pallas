@@ -240,6 +240,7 @@
 
 = (**fst x)       | idx 0 x
 = (**snd x)       | idx 1 x
+= (**thr x)       | idx 2 x
 = (rowApply f xs) | foldl apply f xs
 = (rowRepel f xs) | foldr supply f xs
 = (curry f x y)   | f (v2 x y)
@@ -382,7 +383,7 @@
 ^-^ isRow
 ^-^ weld
 ^-^ gen foldr foldl
-^-^ fst snd
+^-^ fst snd thr
 ^-^ map rev
 ^-^ curry uncurry
 ^-^ rowCons rowSnoc

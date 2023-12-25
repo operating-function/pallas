@@ -2,9 +2,10 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### types <- mutrec
+#### types <- type_syntax
 
 :| sire
+:| type_syntax
 :| mutrec [bloodline]
 
 
@@ -67,12 +68,6 @@
 ;;; parsed into this, then name-resolved, then compiled into the above
 ;;; structures.
 
-# datatype TyExp
-* T_FUN a:TyExp b:TyExp
-* T_REF nam:Str val:Type params:(Row TyExp)
-* T_VAR sym:Str
-* T_TUP exps:(Row TyExp)
-
 
 ;;; Parsing Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -125,10 +120,8 @@
 = ({#abstype} st rex err ok)
 @ sons@[_ sigRex] (rexSons rex)
 @ rune (rexRune sigRex)
-;
 | if (len sons /= 2)
     | err rex absExpected
-;
 | if (rune == {|})
     : names < readSignature sigRex err
     | if (lth len 2)
@@ -142,7 +135,6 @@
     | ok st
     | defKPC key #[typeName=sym] [sym]
     | cnsE (FORALL numVars | TCON key (gen numVars TVAR))
-;
 : sym    < readSymbol sigRex err
 : st key < generateUniqueKey st
 | ok st
@@ -307,38 +299,41 @@ abstype#TyExp
 
 = (tupleType n)
 # switch n
-* 0 Unit
-* 1 Sing
-* 2 Pair
-* 3 Trip
-* 4 Quad
-* 5 Pent
-* 8 Octo
-* _ ({todo support bigger tuples: } n)
+* 0 | Unit
+* 1 | Sing
+* 2 | Pair
+* 3 | Trip
+* 4 | Quad
+* 5 | Pent
+* 8 | Octo
+* _ | {todo support bigger tuples: } n
 
-> Row Str > TyExp > Read Type
-= (compileType vars tExp err ok)
+> SireState > Row Str > TyExp > Read Type
+= (compileType ss vars tExp err ok)
 ^ : tree < _ tExp
   | ok (FORALL (len vars) tree)
 ? (go tExp ret)
-# datacase tExp
-* (T_FUN a b)
+| tyExpCase tExp
+* ? (onVAR sym)
+    # datacase (elemIdx sym vars NONE SOME)
+    * NONE     | err varE-sym {unbound type variable}
+    * (SOME i) | ret (TVAR i)
+* ? (onTUP exps)
+    : params < rowTraverse go exps
+    @ scheme | tupleType (len exps)
+    : result < tyApp {TUP} scheme params err
+    | ret result
+* ? (onFUN a b)
     : x < go a
     : y < go b
     : r < tyApp {Fun} Fun [x y] err
     | ret r
-* (T_REF nam scheme args)
+* ? (onREF cnstr args)
     : params < rowTraverse go args
-    : result < tyApp nam scheme params err
-    | ret result
-* (T_VAR sym)
-    # datacase (elemIdx sym vars NONE SOME)
-    * NONE     | err varE-sym {unbound type variable}
-    * (SOME i) | ret (TVAR i)
-* (T_TUP exps)
-    : params < rowTraverse go exps
-    @ scheme | tupleType (len exps)
-    : result < tyApp {TUP} scheme params err
+    : _ bind < getBind cnstr ss (WORD cnstr 0) err
+    @ scheme (idx 1 bind)
+    | if isZero-scheme (die "no scheme??")
+    : result < tyApp cnstr scheme params err
     | ret result
 
 
@@ -417,104 +412,9 @@ abstype#TyExp
   ' > Row Nat > Row Nat
     = 32 (id x) x
 
-
-= (isTypeAnn rex)
-@ style (rexStyle rex)
-| and (rexIsNode rex)
-| and (rexRune rex == {>})
-      (style == {OPEN})
-
-= (foldr1 f xs)
-| if (null xs)
-    | {fold1} {empty row}
-@ las (dec len-xs)
-| foldr f (idx las xs) (take las xs)
-
-(bigFun args)=(**foldr1 T_FUN args)
-
-= (parseType_ parseTypeAnnotation ss rex err ok)
-^ _ rex ok
-? (loop rex ok)
-| if (isTypeAnn rex)
-    : annRes < parseTypeAnnotation ss rex err
-    | ok annRes
-| if (rexIsSymbol rex)
-    : sym < readSymbol rex err
-    @ fst (mod sym 256)
-    | if (isUpper fst)
-        : _ bind < getBind sym ss rex err
-        | ok (T_REF sym (idx 1 bind) [])
-    | else
-        | ok (T_VAR sym)
-@ rune (rexRune rex)
-| if (isZero rune)
-    | err rex {Expected symbol or rune}
-# switch rune
-* {|}
-    @ kids (rexKids rex)
-    @ head (idx 0 kids)
-    @ para (drop 1 kids)
-    @ nKid (len kids)
-    | if (isZero nKid) ; UNIT
-        | ok | T_TUP []
-    : sym < readSymbol head err
-    | ifNot (isUpper | mod sym 256)
-        | err head {expected: TypeName}
-    : _ bind < getBind sym ss rex err
-    : params < rowTraverse loop para
-    | ok (T_REF sym (idx 1 bind) params)
-* {>}
-    : kidTypes < rowTraverse loop (rexKids rex)
-    | ok (bigFun kidTypes)
-* {->}
-    : kidTypes < rowTraverse loop (rexKids rex)
-    | ok (bigFun kidTypes)
-* {,}
-    : kidTypes < rowTraverse loop (rexKids rex)
-    | if (len kidTypes == 1)
-        | err rex {Write (Row x), not [x]}
-    | ok (T_TUP kidTypes)
-* _
-    | err rex (strWeld {invalid type rune: } rune)
-
-= (parseTypeAnnotation ss topRex err ok)
-^ _ FALSE NIL topRex & l
-                     @ ty (bigFun | listToRowRev l)
-                     | ok ty
-? (loop fancy acc rex ret)
-| if (isZero rex) (ret acc)
-| ifNot (isTypeAnn rex) (err rex {bad annotation})
-@ heir      | rexHeir rex
-@ sons      | rexSons rex
-@ numSons   | len sons
-@ lastSonIx | dec numSons
-@ lastSon   | idx lastSonIx sons
-| if (fancy && not (isZero heir))
-    | err rex {Don't try to get fancy}
-| if ((numSons /= 0) && isTypeAnn lastSon)
-    @ sons | take lastSonIx sons
-    | if (any isTypeAnn sons)
-        | err rex {bad annotation (don't be weird)}
-    @ iRex | if (len sons == 1) (idx 0 sons) (NEST {|} sons 0)
-    : item < parseType_ parseTypeAnnotation ss iRex err
-    @ acc  | item::acc
-    : acc  < loop TRUE acc lastSon
-    : acc  < loop fancy acc heir
-    | ret acc
-@ sons (rexSons rex)
-| if (any isTypeAnn sons)
-    | err rex {bad annotation (don't be weird)}
-@ iRex | if (len sons == 1) (idx 0 sons) (NEST {|} sons 0)
-: item < parseType_ parseTypeAnnotation ss iRex err
-@ acc | item::acc
-| loop fancy acc heir ret
-
-= (parseType ss rex err ok)
-| parseType_ parseTypeAnnotation ss rex err ok
-
 = (parseTypeAnnotatedBinding ss rex err ok)
 : ss annRex bindKey bindRex < separateAnnotation ss rex err
-: annTy                     < parseType ss annRex err
+: annTy                     < parseType annRex err
 | ok ss annTy bindKey bindRex
 
 
@@ -523,15 +423,8 @@ abstype#TyExp
 ;;; {#typedef} creates a named type based on a type-expression.
 
 = ({#typedef} ss rex err ok)
-@ kids                    | rexKids rex
-@ [_typedef sigRex tyRex] | kids
-;
-| if (len kids /= 3)
-    | err rex {Usage: # typedef Type (a > b)}
-;
-: sym vars < parseSchemeSig sigRex err
-: expr     < parseType ss tyRex err
-: scheme   < compileType vars expr err
+: @(TYPEDEF sym vars expr) < parseTypeDef rex err
+: scheme   < compileType ss vars expr err
 : ss key   < generateUniqueKey ss
 | ok ss
 | defKPC key #[typeName=sym] [sym] (cnsE scheme)
@@ -569,11 +462,11 @@ printType#Fun
 
 > TyExp > Set Symbol
 = (txpFree x)
-# datacase x
-* (T_FUN a b)    | setUnion (txpFree a) (txpFree b)
-* (T_REF _ _ xs) | setCatRow (map txpFree xs)
-* (T_VAR sym)    | setSing sym
-* (T_TUP xs)     | setCatRow (map txpFree xs)
+| tyExpCase x
+* ? (onVAR sym)  | setSing sym
+* ? (onTUP xs)   | setCatRow (map txpFree xs)
+* ? (onFUN a b)  | setUnion (txpFree a) (txpFree b)
+* ? (onREF _ xs) | setCatRow (map txpFree xs)
 
 ;;; {>} is the type-annotation rune.  It is prefixed directly onto the
 ;;; same block as the definition it annotates
@@ -585,13 +478,18 @@ printType#Fun
 ;;;
 ;;;     \ add3 : Nat > Nat
 ;;;
+;;;     add2:(Nat > Nat)
+;;;
 ;;;     (add3 x)=(add 3 x)
+;;;
+;;;     (add2 x)=(add 2 x)
+;;;
 
 = ({>} ss rex err ok)
 : ss tExp bindKey binding
     < parseTypeAnnotatedBinding ss rex err
 @ vars | setToRow (txpFree tExp)
-: type < compileType vars tExp err
+: type < compileType ss vars tExp err
 @ ss (addPropsToLocalBindingByKey ss bindKey (tabSing {type} type))
 | ok ss binding
 
@@ -617,9 +515,9 @@ printType#Fun
 | if (3 /= len kids) (err rex backfillExpected)
 @ [_ valRex typRex] kids
 : sym bind < readDefinedSymbol ss valRex err
-: typExp   < parseType ss typRex err
+: typExp   < parseType typRex err
 @ tyVars   | setToRow (txpFree typExp)
-: scheme   < compileType tyVars typExp err
+: scheme   < compileType ss tyVars typExp err
 @ ss (addProps ss bind | tabSing {type} scheme)
 | ok ss '(#*)
 

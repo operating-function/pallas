@@ -469,7 +469,7 @@ abstype#(Read2 a b)
        < parseTypeAnnotatedBinding ss rex err
 @ vars | setToRow (txpFree tExp)
 ; trk [=vars =tExp =err]
-: type      < compileType vars tExp err
+: type      < compileType ss vars tExp err
 ; trk [=type =bRex]
 : sig body  < parseBinding bRex err
 ; trk [=sig =body]
