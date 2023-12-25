@@ -62,34 +62,7 @@
 | FORALL vars:Nat typ:(TNode Nat)
 
 
-;;; Type Expressions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; {TyExp} is a syntactic type expression.  Type expressions are first
-;;; parsed into this, then name-resolved, then compiled into the above
-;;; structures.
-
-
 ;;; Parsing Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-= schemeExpected
-} Scheme signatures look like:
-}
-}     Any
-}     (Fun a b)
-
-= (parseSchemeSig rex err ok)
-@ rune (rexRune rex)
-| ifNot (rune == {|})
-    : lawName < readSymbol rex err
-    | ok lawName []
-: names < readSignature rex err
-| if (lth len 2)
-    | err rex schemeExpected
-@ lawName  (idx 0 names)
-@ varNames (drop 1 names)
-| if (len varNames /= setLen (setFromRow varNames))
-    | err rex {type params must be unique}
-| ok lawName varNames
 
 ;; {#abstype} is used to backfill things that were earlier in the
 ;; bootstrapping process than the type system, and things that are
@@ -104,12 +77,6 @@
 ;;
 ;; {#abstype} is also used internally by the versions of {#record},
 ;; and {#datatype} that are exported by this modules.
-
-;; TODO: Check that the type name uses the TypeNamingConvention,
-;; and that the type variables use the variableNamingConvention.
-
-; = ({#getTypeNames} st rex err ok)
-; | ok st (cnsE (tabGet p %typeName))
 
 = ({#abstype} ss rex err ok)
 : @(ABSTYPE cnstr args) < parseAbsType rex err
@@ -205,12 +172,11 @@ abstype#TyExp
 = quadKey | getKey#Quad
 = pentKey | getKey#Pent
 
-=?= Any | FORALL 0 (TCON anyKey [])
-=?= Fun | FORALL 2 (TCON funKey [0 1])
-
-=?= getProp#(Any.typeName) {Any}
-=?= getProp#(Nat.typeName) {Nat}
-=?= getProp#(Fun.typeName) {Fun}
+=?= Any   | FORALL 0 (TCON anyKey [])
+=?= Fun   | FORALL 2 (TCON funKey [0 1])
+=?= {Any} | getProp#(Any.typeName)
+=?= {Nat} | getProp#(Nat.typeName)
+=?= {Fun} | getProp#(Fun.typeName)
 
 = (lookupOr env key fallback ok)
 | ifNot (tabHas key env) fallback
@@ -334,41 +300,6 @@ abstype#TyExp
 ;;;     | (a, b, c)                ;; Trip a b c
 ;;;     | ...
 
-= (splitAnn topRex err ok)
-^ _ NONE topRex
-? (loop acc rex)
-@ rune (rexRune rex)
-| if (rune == {=})
-    | ok (bloodline | listRev acc) rex
-| if (neq {>} rune)
-    | err topRex
-    } Expected something like:
-    }
-    }     > Type
-    }     = Binding ...
-| loop (rexSetHeir 0 rex :: acc) (rexHeir rex)
-
-(tryAnn x)=(splitAnn x v2 v2)
-
-=?=  ++ ' > Row Nat > Row Nat
-     ++ ' = 32 (id x) x
-  | tryAnn
-  ' > Row Nat > Row Nat
-    = 32 (id x) x
-
-=?=  ++ ' > Row Nat
-          > Row Nat
-     ++ ' = (id x) x
-  | tryAnn
-  ' > Row Nat
-    > Row Nat
-    = (id x) x
-
-= (parseTypeAnnotatedBinding rex err ok)
-: annRex bindRex < splitAnn rex err
-: annTy          < parseType annRex err
-| ok annTy bindRex
-
 
 ;;; Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -407,18 +338,6 @@ printType#Fun
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; {txpFree} returns the set of type variables used in a type-expression,
-;;; For example the set of type-variables in {Either a (b, List a)}
-;;; is {%[a b]}.
-
-> TyExp > Set Symbol
-= (txpFree x)
-| tyExpCase x
-* ? (onVAR sym)  | setSing sym
-* ? (onTUP xs)   | setCatRow (map txpFree xs)
-* ? (onFUN a b)  | setUnion (txpFree a) (txpFree b)
-* ? (onREF _ xs) | setCatRow (map txpFree xs)
 
 ;;; {>} is the type-annotation rune.  It is prefixed directly onto the
 ;;; same block as the definition it annotates
