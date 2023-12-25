@@ -29,7 +29,7 @@
 ;;;; TODO: Parse all built-in command runes:
 ;;;;
 ;;;; - [x] =?=
-;;;; - [ ] =
+;;;; - [x] =
 ;;;; - [x] *
 ;;;;
 ;;;; TODO: Parse all macro-defined commands:
@@ -98,7 +98,7 @@
 ;;;;
 ;;;; Parse other commands:
 ;;;;
-;;;; - [ ] >
+;;;; - [x] >
 ;;;; - [ ] \
 ;;;; - [ ] #typedef
 ;;;; - [ ] #typeof
@@ -163,6 +163,8 @@
 * CMUTUAL=mut cs:(Row Cmd)
 * CASSERT_EQL=aql l:Exp r:Exp
 * CASSERT=ass x:Exp
+* CANN=ann ty:TExp p:Pat v:Exp
+* CBIND=bind p:Pat v:Exp
 
 # datatype Exp
 * EBED=cns b:Any
@@ -824,16 +826,51 @@
 : cmds < rowTraverse (kid ret & readCmd kid err ret) (rexKids rex)
 | (| ok | foldr CCHAIN CPASS cmds)
 
+= (readBindCmd rex err ok)
+@ heir      | rexHeir rex
+@ kids      | rexKids rex
+@ badParams | err rex {expected two parameters (and maybe another bind)}
+| if (len kids == 3)
+    | if (isZero heir) badParams
+    : c1 < readBindCmd (rexSetHeir 0 rex) err
+    : c2 < readBindCmd heir err
+    | trk {chain},c1,c2
+    | ok (CCHAIN c1 c2)
+| if (len kids /= 2)
+    | badParams
+@ [sigRex bodyRex] kids
+@ sigRune          rexRune-sigRex
+| if ((sigRune == {|}) || (sigRune == {-}))
+    : func mark pats < readDestroyer sigRex err
+    : body           < readExp bodyRex err
+    ^ trk [res=_] (ok _)
+    | CBIND (PVAR func)
+    | ELAM TRUE
+    | FUN func func mark pats body
+| else
+    : pat  < parseBinder sigRex err
+    : body < readExp bodyRex err
+    | trk [out=(CBIND pat body)]
+    | ok (CBIND pat body)
+
+= (readTypedCmd rex err ok)
+: annTy bRex < parseTypeAnnotatedBinding rex err
+: cmd        < readBindCmd bRex err
+# datacase cmd
+* _         | err bRex {can only annotate single bind}
+* CBIND-p-x | ok (CANN annTy p x)
+
 > (Rex > Read Cmd) > (Rex > Read Exp) > Rex > Read Cmd
 = (readCmd rex err ok)
 # switch (rexRune rex)
-* _
-    : exp < readExp rex err
+* _ : exp < readExp rex err
     | ok (CEXP exp)
 * {#}   | readHaxCmd readCmd rex err ok
 * {=?=} | readAssertEqlCmd rex err ok
 * {!!}  | readAssertCmd rex err ok
 * {*}   | readChainCmd readCmd rex err ok
+* {=}   | readBindCmd rex err ok
+* {>}   | readTypedCmd rex err ok
 
 ; Assumes that the input formatting matches the printers formatting,
 ; except that OPEN-form example inputs will be converted to NEST-form
@@ -1141,6 +1178,8 @@
     : x < go x
     : y < go y
     | f (CCHAIN x y) ok
+* (CANN t p x)       | f cmd ok
+* (CBIND _ _)        | f cmd ok
 * CPASS              | f cmd ok
 * (CASSERT_EQL _ _)  | f cmd ok
 * (CASSERT _)        | f cmd ok
@@ -1197,7 +1236,13 @@
 & (cmd ok)
 # datacase cmd
 * CPASS      | ok cmd
-* CCHAIN-_-_ | ok cmd
+* CCHAIN-_-_ | ok cmd ; nested commands already processed
+* CANN-t-p-x
+    : x < resolveExp ss x err
+    | ok (CANN t p x)
+* CBIND-p-x
+    : x < resolveExp ss x err
+    | ok (CBIND p x)
 * CEXP-exp
     : exp < resolveExp ss exp err
     | ok (CEXP exp)
@@ -1394,6 +1439,16 @@
 * CMUTUAL-branches | die {TODO: compileCmd supports #mutual}
 * CEXP-exp         | compileExp ss exp
 * CPASS            | (ss, OPEN {#*} [] 0)
+* CBIND-p-x
+    @ (ss, xRex) | compileExp ss x
+    | mkDefsC ss [[0 p xRex]]
+* CANN-txp-p-x
+    @ free | setToRow (txpFree txp)
+    ; TODO: No crash!  Validate input during parsing!
+    : type < compileType ss free txp (rex msg & die [{lol} rex msg])
+    ; TODO type inference
+    ; TODO record binding type
+    | compileCmd ss (CBIND p x)
 * CCHAIN-a-b
     @ (ss, aRex) | compileCmd ss a
     @ (ss, bRex) | compileCmd ss b
@@ -1614,6 +1669,8 @@
 ( {!!}  #= macaroniStewCmd )
 ( {#}   #= macaroniStewCmd )
 ( {*}   #= macaroniStewCmd )
+( {>}   #= macaroniStewCmd )
+( {=}   #= macaroniStewCmd )
 
 =?= 6 (@ a 3)(add a a)
 =?= 0 (3 == 4)
@@ -1657,7 +1714,21 @@
 ^-^ ; MAKE.  EVERYTHING.  STEW.
 ^-^
 ^-^ {^} {|}  {-}  {&}  {?}  {:} {??} {**} {,}  {++} {.} {@} {@@} {##}
-^-^ {~} {~~} {::} {==} {/=} {'} {%}  {%%} {&&} {||} {`} {*}
+^-^ {~} {~~} {::} {==} {/=} {'} {%}  {%%} {&&} {||} {`} {*} {>}  {=}
 ^-^
 
-:| types ; also re-export everything from types.sire
+;; also re-export from types.sire
+:| types
+    , {#typedef} {#abstype} {#printType} {#typeof} {#backfill}
+      {#record} {#datatype} {#datacase}
+      Void Any Type
+      Nat Pin Fun
+      Ordering
+      Bit Pad Char Str
+      Word8 Word16 Word32 Word48 Word64
+      Rex Read Read2 Read3 Read4
+      Row List Set Tab
+      Maybe Either
+      Bar BarTree
+      Unit Sing Pair Trip Quad Octo
+      Row8 Row16

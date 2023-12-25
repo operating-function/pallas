@@ -8,7 +8,6 @@
 :| sire_24_datatype [natTag barTag appTag rowTag tabTag]
 :| mutrec           [{#mutrec}]
 :| stew
-:| types
 
 
 ;;; Lexemes ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -159,7 +159,7 @@ abstype#(Either a b)
 | ROW16 _:a _:a _:a _:a _:a _:a _:a _:a
         _:a _:a _:a _:a _:a _:a _:a _:a
 
-abstype#TyExp
+abstype#Txp
 
 = anyKey  | getKey#Any
 = funKey  | getKey#Fun
@@ -252,7 +252,7 @@ abstype#TyExp
 * 8 | Octo
 * _ | {todo support bigger tuples: } n
 
-> SireState > Row Str > TyExp > Read Type
+> SireState > Row Str > Txp > Read Type
 = (compileType ss vars tExp err ok)
 ^ : tree < _ tExp
   | ok (FORALL (len vars) tree)

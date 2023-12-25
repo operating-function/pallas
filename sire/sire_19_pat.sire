@@ -1054,6 +1054,7 @@ k9=(a & k 9 a)
 ^-^
 ^-^ sequenceBinds bindSeqE
 ^-^
+^-^ mkDefsC
 ^-^ destructureRowE
 ^-^ destructureTabE  ;;  TODO: Don't export these, export a more general
 ^-^                  ;;  API instead.

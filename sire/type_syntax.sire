@@ -35,15 +35,15 @@
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; {TyExp} is a syntactic type expression.  Code downstream from this
+;;; {Txp} is a syntactic type expression.  Code downstream from this
 ;;; will do name-resolution on this, and then compile that into a
 ;;; lower-level representation.
 ;;;
-;;; data TyExp
-;;;   = T_Var Str              --  All chars {isLower}
-;;;   | T_Tup (Row TyExp)
-;;;   | T_REF Str (Row TyExp)  --  Name is capitalized, all chars {alphaNum}
-;;;   | T_FUN TyExp TyExp
+;;; data Txp
+;;;   = T_Var Str            --  All chars {isLower}
+;;;   | T_Tup (Row Txp)
+;;;   | T_REF Str (Row Txp)  --  Name is capitalized, all chars {alphaNum}
+;;;   | T_FUN Txp Txp
 
 (**T_VAR sym)=sym
 (**T_TUP xs)=[{TUP} xs]
@@ -62,7 +62,7 @@
 ;;; For example the set of type-variables in {Either a (b, List a)}
 ;;; is {%[a b]}.
 
-> TyExp > Set Symbol
+> Txp > Set Symbol
 = (txpFree x)
 | tyExpCase x
 * ? (onVAR sym)  | setSing sym

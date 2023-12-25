@@ -16,10 +16,13 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| sire
+:| sire   ;
 :| mutrec [bloodline]
-:| types
-:| stew
+:| types  [TVAR TCON showType loadAnnBindWithHack]
+:| stew   ;
+:| sire   [{=}] ; don't use the STEW version, since we want to manually
+                ; assign binder keys.  This is a short-term hack, eventually
+                ; all of this stuff will be moved into stew-proper.
 
 
 ;;; Inference ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

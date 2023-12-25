@@ -9,7 +9,6 @@
 :| hitch
 :| json
 :| stew
-:| types
 
 :| demo_parallel_mandelbrot [mandelbrotLine]
 
