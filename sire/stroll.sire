@@ -128,7 +128,7 @@ abstype#Uid
 ;;; Database Record ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 # record StrollDb
-| STROLL_DB gen:Rand db:DB
+| STROLL_DB gen:Rand db:Db
 
 > Nat > StrollDb
 = (emptyStrollDb seed)
@@ -189,7 +189,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 
 ; Given a row of all the child blocks sorted by order, list the data for each
 ; block for display.
-> Row Any > DB > Either (List Error) (List (Tab Any Any))
+> Row Any > Db > Either (List Error) (List (Tab Any Any))
 = (findBlocksContent q strollDb)
 @ STROLL_DB(..) strollDb
 | pullMany ++ {:block/uid}

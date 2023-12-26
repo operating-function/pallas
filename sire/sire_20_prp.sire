@@ -47,7 +47,6 @@
     | err rex {bindKey is zero!!}
 | **ok key bRow
 
-;; TODO support inline annotations in = macro
 = (getProps ss@[_ curMod _ modules _curProps] bind)
 | if (isNat bind)
     | {not a binder} bind

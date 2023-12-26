@@ -2,11 +2,11 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### types <- type_syntax
+#### types <- type_machinery
 
 :| sire
 :| type_syntax
-:| mutrec [bloodline]
+:| type_machinery
 
 
 ;;; Utilities ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -23,46 +23,7 @@
 | OPEN {#=} (natE key, cnsE props, sigE sig, bodyExp) 0
 
 
-
-;;; Type Values ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; {FORALL} is the constructor for a type.  (FORALL 3 e) means
-;;; (forall a b c. e).
-;;;
-;;; In Hindley-Milner, the forall can only occur on the outside of a type,
-;;; so there is no forall in the actual TypeExp structure, only at the
-;;; onset, in FORALL.
-;;;
-;;; {TCON} and {TVAR} are the constructors for type-expressions.
-;;;
-;;; TVAR references a type-variable (by index).
-;;;
-;;; TCON references a abstract type by binding-key, along with 0-or-more
-;;; type parameters.
-;;;
-;;; For example:
-;;;
-;;;     forall a. List (Either a a)
-;;;
-;;; Is represented as:
-;;;
-;;;      | FORALL 1
-;;;      | TCON getBinderKey#List
-;;;      ,   | TCON getBinderKey#Either
-;;;         ++ TVAR 0
-;;;         ++ TVAR 0
-
-> Nat > Row (TNode a) > TNode a
-(TCON key params)=[key params]
-
-> a > TNode a
-(TVAR key)=key
-
-# record Type
-| FORALL vars:Nat typ:(TNode Nat)
-
-
-;;; Parsing Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; #abstype ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; {#abstype} is used to backfill things that were earlier in the
 ;; bootstrapping process than the type system, and things that are
@@ -80,11 +41,8 @@
 
 = ({#abstype} ss rex err ok)
 : @(ABSTYPE cnstr args) < parseAbsType rex err
-: ss key < generateUniqueKey ss
-| ok ss
-| defKPC key #[typeName=cnstr] [cnstr]
-@ numVars (len args)
-| cnsE (FORALL numVars | TCON key (gen numVars TVAR))
+@ ss                    | mkNewType cnstr (len args) ss
+| ok ss `(#*)
 
 ;;; This section redefines {#record} and {#datatype} to also generate
 ;;; a new opaque type.
@@ -221,12 +179,20 @@ abstype#Txp
 : _ bind < getBind sym ss rex err
 | ok sym bind
 
+= ({#showType} ss rex err ok)
+@ kids (rexKids rex)
+| if (len kids /= 2)
+    | err rex {Usage: printType#Type}
+: symbol < readSymbol (snd kids) err
+: scheme < lookupType symbol ss err
+| ok ss | cnsE | OPEN {=} [(varE symbol)] (showType ss scheme)
+
 = ({#printType} ss rex err ok)
 @ kids (rexKids rex)
 | if (len kids /= 2)
     | die {Usage: printType#Type}
-: symbol bind < readDefinedSymbol ss (idx 1 kids) err
-@ scheme      | get bind 1
+: symbol < readSymbol (snd kids) err
+: scheme < lookupType symbol ss err
 | trk
     | OPEN {=} [(varE symbol)]
     | showType ss scheme
@@ -274,9 +240,7 @@ abstype#Txp
     | ret r
 * ? (onREF cnstr args)
     : params < rowTraverse go args
-    : _ bind < getBind cnstr ss (WORD cnstr 0) err
-    @ scheme (idx 1 bind)
-    | if isZero-scheme (die "no scheme??")
+    : scheme < lookupType cnstr ss err
     : result < tyApp cnstr scheme params err
     | ret result
 
@@ -306,11 +270,11 @@ abstype#Txp
 ;;; {#typedef} creates a named type based on a type-expression.
 
 = ({#typedef} ss rex err ok)
-: @(TYPEDEF sym vars expr) < parseTypeDef rex err
-: scheme   < compileType ss vars expr err
-: ss key   < generateUniqueKey ss
-| ok ss
-| defKPC key #[typeName=sym] [sym] (cnsE scheme)
+: @(TYPEDEF name vars expr) < parseTypeDef rex err
+: scheme                    < compileType ss vars expr err
+: ss key                    < generateUniqueKey ss
+@ ss                        | bindType key name scheme ss
+| ok ss `(#*)
 
 typedef#Symbol#Nat
 typedef#RexKey#Nat
@@ -412,14 +376,23 @@ printType#Fun
 ;;; interactively from the REPL.
 
 = ({#typeof} ss rex err ok)
-@ kids (rexKids rex)
-| if (len kids /= 2) | die {Usage: typeof#var}
-: symbol < readSymbol (idx 1 kids) err
-: _ bind < getBind symbol ss rex err
-@ scheme | getProp ss bind {type}
-| if (isZero scheme) | {untyped} symbol
-| trk (NEST {\} ,(varE symbol) (showType ss scheme))
+@ kids@[_ nameRex] (rexKids rex)
+| if (len kids /= 2) | err rex {Usage: typeof#var}
+: name < readSymbol nameRex err
+: type < lookupTypeOf ss name rex err
+| trk ` \ $(varE name)
+        $(showType ss type)
 | ok ss '(#*)
+
+= ({#showTypeOf} ss rex err ok)
+@ kids@[_ nameRex] (rexKids rex)
+| if (len kids /= 2) | err rex {Usage: typeof#var}
+: name < readSymbol nameRex err
+: type < lookupTypeOf ss name rex err
+| ok ss
+| cnsE
+` \ $(varE name)
+  $(showType ss type)
 
 
 ;;; Backfill Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -430,6 +403,17 @@ printType#Fun
 * # backfill not   (Bit > Bit)
 * # backfill inc   (Nat > Nat)
 * # backfill add   (Nat > Nat > Nat)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= showType#NatOp2
+  ` = NatOp2
+    (Nat > Nat > Nat)
+
+=?= showTypeOf#add
+  ` \ add
+    (Nat > Nat > Nat)
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -759,7 +759,7 @@ e
 ^-^ UNIQUE_VIOLATION LOOKUP_NO_ATTRIBUTE LOOKUP_ATTRIBUTE_NOT_UNIQUE
 ^-^ LOOKUP_NO_MATCH INVALID_ROW INVALID_ROW_OP BAD_MAP_VAL BAD_PULL_TERM
 ^-^
-^-^ DB emptyDB
+^-^ Db DB emptyDB
 ^-^
 ^-^ lookupByEA lookupByAE lookupByAV lookupByVA transact assertTransact
 ^-^ pull pullMany

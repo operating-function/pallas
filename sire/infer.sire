@@ -17,7 +17,6 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire   ;
-:| mutrec [bloodline]
 :| types  [TVAR TCON showType loadAnnBindWithHack]
 :| stew   ;
 :| sire   [{=}] ; don't use the STEW version, since we want to manually
