@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### sire_26_compile <- sire_25_rex
+#### sire_26_compile <- sire_25_datatype
 
 ;;;; This file contains the "backend" of the Sire compiler.  The code
 ;;;; that transforms as Sire AST into a Fan value.  Basically this is
@@ -29,7 +29,7 @@
 :| sire_21_switch
 :| sire_22_seed
 :| sire_23_repl [lineRepl cogMap]
-:| sire_24_datatype
+:| sire_25_datatype
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

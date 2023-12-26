@@ -31,8 +31,8 @@
 :| sire_21_switch   [{#switch}]
 :| sire_22_seed     [_SaveSeed]
 :| sire_23_repl     [lineRepl cogMap]
-:| sire_24_datatype [{#record} {#datatype} {#datacase}]
-:| sire_25_rex      [simpleCog rexCog listMonoid blockState]
+:| sire_24_rex      [simpleCog rexCog listMonoid blockState]
+:| sire_25_datatype [{#record} {#datatype} {#datacase}]
 :| sire_26_compile  ;
 
 

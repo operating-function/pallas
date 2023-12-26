@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### sire_25_rex <- sire_24_datatype
+#### sire_24_rex <- sire_23_repl
 
 :| sire_01_fan
 :| sire_02_bit
@@ -25,7 +25,6 @@
 :| sire_21_switch   [_DataTag {#switch}]
 :| sire_22_seed
 :| sire_23_repl     [lineRepl cogMap]
-:| sire_24_datatype []
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

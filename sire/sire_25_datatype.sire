@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### sire_24_datatype <- sire_23_repl
+#### sire_25_datatype <- sire_24_rex
 
 ;;;; {#datatype} and {#datacase} work by setting some properties on the
 ;;;; binders for each constructor:  uses the properties conTag, conAri,

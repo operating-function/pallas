@@ -5,7 +5,7 @@
 #### json <- hitch
 
 :| sire
-:| sire_24_datatype [natTag barTag appTag rowTag tabTag]
+:| sire_25_datatype [natTag barTag appTag rowTag tabTag]
 :| mutrec           [{#mutrec}]
 :| stew
 
