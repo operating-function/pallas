@@ -4,13 +4,6 @@
 
 #### sire_25_rex <- sire_24_datatype
 
-;;; TODO: #datacase should accept any three kids, the cases shouldn't
-;;; be required to be an heir.
-
-;;; TODO: #datacase should support **annotation on constructers to
-;;; indicate that every constructor should be created as an
-;;; "always-inline" law.
-
 :| sire_01_fan
 :| sire_02_bit
 :| sire_03_nat
@@ -63,16 +56,25 @@
 (**getSpanVal (SPAN _ _ _ val))=val
 (**setSpanVal val (SPAN lin off end _))=(SPAN lin off end val)
 
-# datatype (Lexi a)
-* LRUNE=rune
-* LWORD=word
-* LWYTE=wyte
-* LSEMI=semi
-* LLINE=line multi:(List (Span ()))
-* LTEXT=text
-* LNEST=para isBracket:Bit xs:a
-* LFAIL=fail
-* LTERM=term
+LRUNE={rune}
+LWORD={word}
+LWYTE={wyte}
+LSEMI={semi}
+LTEXT={text}
+LFAIL={fail}
+LTERM={term}
+(**LLINE multi)=[{line} multi]
+(**LNEST isBracket xs)=[{nest} isBracket xs]
+
+= (**getLexiLine x fallback ok)
+| if (fst x /= {line}) fallback
+| **ok (snd x)
+
+= (**getLexiNest x fallback ok)
+| if (fst x /= {nest}) fallback
+| **ok (snd x) (thr x)
+
+(lexiType x)=(_DataTag x)
 
 
 ;;; Basic Lexing + Nesting ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -153,32 +155,25 @@
 
 ;;; Merge Multi-Line Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: {#datacase} should optimize the single-branch case to an if.
-
-= (getLine tok fb k)
-# datacase tok
-* (LLINE extra) | **k extra
-* _             | fb
-
 > List Lexeme > List Lexeme
 = (multiLine topLs)
 : a@(SPAN aLin aOff aEnd aTok) ls < listCase topLs NIL
 @ fb (a :: multiLine ls)
 : b@(SPAN ____ bOff bEnd bTok) ls < listCase ls    fb
-: aExtra < **getLine aTok fb
+: aExtra < **getLexiLine aTok fb
 | if (bTok /= LTERM) fb
 @ (onMatch newTok more)
     @ aTok | LLINE (setSpanVal () newTok :: aExtra)
     | multiLine (SPAN aLin aOff aEnd aTok)::more
 : c@(SPAN _ cOff cEnd cTok) ls < listCase ls fb
-# datacase cTok
-* _       | fb
-* LLINE-_ | ifNot (aOff==cOff) fb
-          | onMatch c ls
-* LWYTE   : d@(SPAN _ dOff dEnd dTok) ls < listCase ls fb
-          : _ < **getLine dTok fb
-          | ifNot (aOff==dOff) fb
-          | onMatch d ls
+# switch (lexiType cTok)
+* _      | fb
+* {line} | ifNot (aOff==cOff) fb
+         | onMatch c ls
+* {wyte} : d@(SPAN _ dOff dEnd dTok) ls < listCase ls fb
+         : _ < **getLexiLine dTok fb
+         | ifNot (aOff==dOff) fb
+         | onMatch d ls
 
 
 ;;; Clump Juxtaposed Tokens ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -190,10 +185,9 @@
 | (**SPAN lin off end xs)
 
 > (a -> b) > Lexi a > Lexi b
-= (lexiMap f lexi)
-# datacase lexi
-* LNEST-t-xs | **LNEST t (f xs)
-* _          | lexi
+= (lexiMap f lx)
+: t xs < getLexiNest lx lx
+| **LNEST t (f xs)
 
 > Lexeme > Elem
 = (lexemeToElem clump span@(SPAN l o e x))
@@ -370,20 +364,17 @@ typedef#FilePath#Str
 
 > List Lexeme > LineCat
 = (lineCat lexemes)
-: (SPAN _ lOff lEnd x) ls
-    < listCase lexemes CVOID
-# datacase x
-* LTERM   | CVOID
-* LSEMI   | CNOTE
-* LLINE-_ | **CQUOT lOff
-* LRUNE   : (**SPAN _ _ _ yTok) ys < listCase ls (**CSING lOff)
-          # datacase yTok
-          * LTERM | **COPEN (dec lEnd)
-          * LWYTE | **COPEN (dec lEnd)
-          * LSEMI | **COPEN (dec lEnd)
-          * _     | **CSING lOff
-* LWYTE   | lineCat ls
-* _       | **CSING lOff
+: @(SPAN _ lOff lEnd x) ls < listCase lexemes CVOID
+# switch (lexiType x)
+* {term} | CVOID
+* {semi} | CNOTE
+* {line} | **CQUOT lOff
+* {rune} : (**SPAN _ _ _ yTok) ys < listCase ls (**CSING lOff)
+         | if (setHas yTok spaceToks)
+             | **COPEN (dec lEnd)
+         | **CSING lOff
+* {wyte} | lineCat ls
+* _      | **CSING lOff
 
 > BlockState
 > Maybe (List Lexeme)
@@ -540,18 +531,20 @@ typedef#(NonEmpty a)#(a, List a)
 
 > Elem > Rex
 = (elemRex clumpRex e@(SPAN ln off end l))
-# datacase l
-* LWORD          | WORD (spanStr e) 0
-* LFAIL          | elemRex clumpRex (**SPAN ln off end LRUNE)
-* LRUNE          | NEST (spanStr e) [] 0
-* LTEXT          | TEXT (spanQuotedStr e) 0
-* LLINE-ts       | lineRex 0 (listSnoc ts e)
-* LNEST-brack-xs | if brack
-                     | NEST {,} (map clumpRex | onlyLambs xs) 0
-                 ^ parenPolicy clumpRex (subLayout _)
-                 | listMap compose-snd-clumpFrag (listFromRow xs)
-* _          | {elemRex case not handled challenge (impossible)}
-             | l
+# switch (lexiType l)
+* {word} | WORD (spanStr e) 0
+* {fail} | elemRex clumpRex (**SPAN ln off end LRUNE)
+* {rune} | NEST (spanStr e) [] 0
+* {text} | TEXT (spanQuotedStr e) 0
+* {line} @ [_ ts] l
+         | lineRex 0 (listSnoc ts e)
+* {nest} @ [_ brack xs] l
+         | if brack
+             | NEST {,} (map clumpRex | onlyLambs xs) 0
+         ^ parenPolicy clumpRex (subLayout _)
+         | listMap compose-snd-clumpFrag (listFromRow xs)
+* _      | {elemRex case not handled challenge (impossible)}
+         | l
 
 > Any > (Elem, List Elem) > Rex
 = (heirSeq clumpRex wut@[x xs])
@@ -649,6 +642,8 @@ listMonoid=(NIL, listWeld)
 
 ^-^
 ^-^ LRUNE LWORD LWYTE LSEMI LLINE LTEXT LNEST LFAIL LTERM
+^-^ lexiType
+^-^
 ^-^ SPAN
 ^-^ LAMB WOLF fragCase
 ^-^ TLEAF TNODE treeCase

@@ -159,22 +159,22 @@ d=(SPAN x 2 3 [(SPAN x 2 3 LRUNE)])
 =?= b#{[a b c]} | barFlat | renderRowOf natBar [%a %b %c]
 
 = (renderLexi renderSub lexi)
-# datacase lexi
-* _ ({bad lexi} lexi)
-* LRUNE b#RUNE
-* LWORD b#{}
-* LWYTE b#WYTE
-* LSEMI b#SEMI
-* LFAIL b#FAIL
-* LTERM b#TERM
-* LTEXT b#TEXT
-* (LLINE m)
-   ++ b#{(LINE }
-   ++ planRender m
-   ++ b#{)}
-* (LNEST bracket xs)
-    ^ [b#{(} _ b#{ } renderSub-xs b#{)}]
-    | if bracket b#BRAK (else b#PARA)
+# switch (lexiType lexi)
+* _      | {bad lexi} lexi
+* {rune} | b#RUNE
+* {word} | b#{}
+* {wyte} | b#WYTE
+* {semi} | b#SEMI
+* {fail} | b#FAIL
+* {term} | b#TERM
+* {text} | b#TEXT
+* {line} @ [_ m] lexi
+        ++ b#{(LINE }
+        ++ planRender m
+        ++ b#{)}
+* {nest} @ [_ bracket xs] lexi
+         ^ [b#{(} _ b#{ } renderSub-xs b#{)}]
+         | if bracket b#BRAK (else b#PARA)
 
 = (renderElem renderClump elem)
 ^ renderSpan _ elem

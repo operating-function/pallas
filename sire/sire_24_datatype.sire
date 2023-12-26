@@ -24,6 +24,15 @@
 ;;;; `maybeCase`, `listCase`, etc.  #datacase  currently outputs a
 ;;;; switch call in all cases.  Still unclear how best to resolve this
 ;;;; issues.
+;;;;
+;;;; TODO: {#datacase} should accept any three kids, the cases shouldn't
+;;;; be required to be an heir.
+;;;;
+;;;; TODO: {#datacase} should support {**annotation} on constructers to
+;;;; indicate that every constructor should be created as an
+;;;; "always-inline" law.
+;;;;
+;;;; TODO: {#datacase} should optimize the single-branch case to an if.
 
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
