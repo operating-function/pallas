@@ -261,6 +261,33 @@ foo=(x e o & o (varE {_}, x))
 !! eql %Fallback | switchTest3 8
 
 
+;;; Getting that tag from an object ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: OP1 {_DataTag}
+
+;; {_DataTag} either returns a nat, the first element of a row/tab/closure,
+;; or 0 (for pins and law).  This is the conventional way to get the
+;; "tag" from a tagged union.
+;;
+;; Note that, while `if` only returns true on non-zero naturals, but
+;; (fst 0) evaluates to 0.  Also note that `fst` returns zero for laws
+;; and pins.
+
+(_DataTag x)=(if x x fst-x)
+
+dataTag=_DataTag
+
+(0     =?= dataTag 0)
+(1     =?= dataTag 1)
+(2     =?= dataTag 2)
+({foo} =?= dataTag {foo})
+({bar} =?= dataTag [{bar} 9])
+(0     =?= dataTag [0 1 2 3])
+([3 4] =?= dataTag [a=3 b=4])
+(2     =?= dataTag (0 1 2))
+([]    =?= dataTag #[])
+
+
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
@@ -270,4 +297,5 @@ foo=(x e o & o (varE {_}, x))
 ^-^ readSwitchExp
 ^-^ switchE
 ^-^ {#switch}
+^-^ {_DataTag} {dataTag}
 ^-^

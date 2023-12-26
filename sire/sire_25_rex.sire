@@ -22,10 +22,10 @@
 :| sire_17_sug
 :| sire_19_pat
 :| sire_20_prp
-:| sire_21_switch
+:| sire_21_switch   [_DataTag {#switch}]
 :| sire_22_seed
 :| sire_23_repl     [lineRepl cogMap]
-:| sire_24_datatype [_DataTag]
+:| sire_24_datatype []
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
