@@ -117,6 +117,9 @@
 ;;;; - [x] Redefine all runes to invoke TheBigStewMacro.
 ;;;;
 ;;;; - [ ] Name resolution
+;;;; - [ ] Compile Sire into sire backend code.
+;;;; - [ ] Manually implement command instead of expanding to low-level
+;;;;       Sire code.
 ;;;;
 ;;;; - [ ] Merge switch.sire and datatype.sire
 ;;;; - [ ] Implement #openrecord (#datacase on records)

@@ -347,17 +347,41 @@ lus=(SPAN (LN {file} 1 b#{ + }) 1 2 LRUNE)
 
 ;;; Splitting Blocks ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; A {BlockBuffer} represents the state of the block reader.  It's a list
+;; of pending lines, pre-lexed, and the type of block that is being read.
+;;
+;;     data BlockBuffer
+;;         = WOODS
+;;         | TEXTY (List (List Lexeme)) depth:Nat
+;;         | BLOCK (List (List Lexeme)) depth:Nat
+;;
+;; - {WOODS} means that we have not yet started to read a block.
+;; - {TEXTY} means that this block is a multi-line strings.
+;; - {BLOCK} means that this is a runic block.
+
+WOODS=0
+(**TEXTY lines depth)=[1 lines depth]
+(**BLOCK lines depth)=[2 lines depth]
+
+= (**blockBufferCase x onWoods onTexty onBlock)
+@ _1 (snd x)
+@ _2 (thr x)
+# switch (_DataTag x)
+* 0 | onWoods
+* 1 | **onTexty _1 _2
+* 2 | **onBlock _1 _2
+
+> BlockBuffer > List (List (List Lexeme))
+= (blockBufferOutput x)
+| if (isZero x) NIL
+| ~[(listRev | idx 1 x)]
+
 # datatype LineCat
 * CVOID=VOID
 * CNOTE=NOTE
 * COPEN=OPEN deep:Nat
 * CQUOT=QUOT deep:Nat
 * CSING=SING deep:Nat
-
-# datatype BlockBuffer
-* WOODS=WOODS
-* TEXTY=TEXTY ls:(List (List Lexeme)) deep:Nat
-* BLOCK=BLOCK ls:(List (List Lexeme)) deep:Nat
 
 typedef#FilePath#Str
 
@@ -383,32 +407,26 @@ typedef#FilePath#Str
 > Maybe (List Lexeme)
 > (BlockState, (| List | List | List Lexeme))
 = (blockStep bs@(BS fn lno st) mInp)
-@ noneCase
-    ^ (BS fn lno WOODS, _)
-    # datacase st
-    * WOODS        | ~[]
-    * (TEXTY ls _) | ~[(listRev ls)]
-    * (BLOCK ls _) | ~[(listRev ls)]
-: l < maybeCase mInp noneCase
+: l < maybeCase mInp (BS fn lno WOODS, blockBufferOutput st)
 @ c       | lineCat l
 @ (x s o) | (BS fn (inc lno) s, o)
 @ (fb ls)
     @ (st2, out) (blockStep (BS fn lno WOODS) mInp)
     | (st2, (listRev ls :: out))
-# datacase st
-* WOODS
+| blockBufferCase st
+* ; WOODS
     # datacase c
     * (CQUOT d)   | x (**TEXTY ~[l] d) ~[]
     * (COPEN d)   | x (**BLOCK ~[l] d) ~[]
     * CVOID       | x WOODS ~[]
     * CNOTE       | x WOODS ~[]
     * (CSING _)   | x WOODS ~[~[l]]
-* (TEXTY ls deep)
+* ? (onTexty ls deep) ; TEXT
     # datacase c
     * (CQUOT d) | - ifNot d==deep fb-ls
                   - x (**TEXTY l::ls deep) ~[]
     * _         | fb ls
-* (BLOCK ls deep)
+* ? (onBlock ls deep)
     # datacase c
     * CNOTE     | (x (**BLOCK l::ls deep) ~[])
     * (CQUOT d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])

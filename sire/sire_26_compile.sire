@@ -219,7 +219,7 @@ appList=(listFoldl A)
 * K-x | k x
 * G-b | k (**getBindValue | pinItem b)
 * M-x | getSVal x fallback k
-* _       | fallback
+* _   | fallback
 
 
 ;;; New Compiler ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
