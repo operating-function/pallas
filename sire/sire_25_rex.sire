@@ -24,8 +24,8 @@
 :| sire_20_prp
 :| sire_21_switch
 :| sire_22_seed
-:| sire_23_repl [lineRepl cogMap]
-:| sire_24_datatype
+:| sire_23_repl     [lineRepl cogMap]
+:| sire_24_datatype [_DataTag]
 
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -376,12 +376,39 @@ WOODS=0
 | if (isZero x) NIL
 | ~[(listRev | idx 1 x)]
 
-# datatype LineCat
-* CVOID=VOID
-* CNOTE=NOTE
-* COPEN=OPEN deep:Nat
-* CQUOT=QUOT deep:Nat
-* CSING=SING deep:Nat
+;; A {LineCat} is a categorization of a line, an empty line is {CVOID},
+;; a line containin only a comment is {CNOTE}, a line starting with an
+;; open-form rune is {COPEN}, a line containing just a line-string
+;; is {CQUOT}, and a line that begins with a closed form is a {CSING}.
+;;
+;; For closed-forms, open-form runes, and line-strings, we record
+;; the depth that the first form occured.
+;;
+;;     data LineCat
+;;         = CVOID
+;;         | CNOTE
+;;         | COPEN offset:Nat
+;;         | CQUOT offset:Nat
+;;         | CSING offset:Nat
+
+CVOID={void}
+CNOTE={note}
+(**COPEN depth)=[{open} depth]
+(**CQUOT depth)=[{quot} depth]
+(**CSING depth)=[{sing} depth]
+
+= (**lineCatCase x onVoid onNote onOpen onQuot onSing)
+@ depth (snd x)
+# switch (_DataTag x)
+* {void} | onVoid
+* {note} | onNote
+* {open} | onOpen **depth
+* {quot} | onQuot **depth
+* {sing} | onSing **depth
+
+= (**getLineCatQuot x fallback onQuot)
+| if ({quot} /= fst x) fallback
+| **onQuot (snd x)
 
 typedef#FilePath#Str
 
@@ -415,24 +442,23 @@ typedef#FilePath#Str
     | (st2, (listRev ls :: out))
 | blockBufferCase st
 * ; WOODS
-    # datacase c
-    * (CQUOT d)   | x (**TEXTY ~[l] d) ~[]
-    * (COPEN d)   | x (**BLOCK ~[l] d) ~[]
-    * CVOID       | x WOODS ~[]
-    * CNOTE       | x WOODS ~[]
-    * (CSING _)   | x WOODS ~[~[l]]
+    | lineCatCase c
+    *                | x WOODS ~[] ; void
+    *                | x WOODS ~[] ; note
+    * ? (onOpen d)   | x (**BLOCK ~[l] d) ~[]
+    * ? (onQuot d)   | x (**TEXTY ~[l] d) ~[]
+    * ? (onSing _)   | x WOODS ~[~[l]]
 * ? (onTexty ls deep) ; TEXT
-    # datacase c
-    * (CQUOT d) | - ifNot d==deep fb-ls
-                  - x (**TEXTY l::ls deep) ~[]
-    * _         | fb ls
+    : d < getLineCatQuot c (fb ls)
+    | ifNot d==deep fb-ls
+    | x (**TEXTY l::ls deep) ~[]
 * ? (onBlock ls deep)
-    # datacase c
-    * CNOTE     | (x (**BLOCK l::ls deep) ~[])
-    * (CQUOT d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
-    * (COPEN d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
-    * (CSING d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
-    * _         | fb-ls
+    | lineCatCase c
+    *             | fb ls                        ; CVOID
+    *             | (x (**BLOCK l::ls deep) ~[]) ; CNOTE
+    * ? (COPEN d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
+    * ? (CQUOT d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
+    * ? (CSING d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
 
 > BlockState > Maybe Bar > (BlockState, List (Nat, List Tree))
 = (treeStep st@(BS fil num _) mInp)
