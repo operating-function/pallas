@@ -552,32 +552,32 @@ hexAlphabet=(b#{0123456789abcdef})
 
 =?= 1 | barIsEmpty b#{}
 
-=?= [b#a b#zn]           (barSplitAt 1 b#azn)
-=?= [b#a b#n]            (barSplitOne %z b#azn)
-=?= [b#a b#aba b#n]      (listToRow | barSplit { } b#{a aba n})
-=?= [b#a b#aba b#n b#{}] (listToRow | barSplit { } b#{a aba n })
+=?= [b#a b#zn]           | barSplitAt 1 b#azn
+=?= [b#a b#n]            | barSplitOne %z b#azn
+=?= [b#a b#aba b#n]      | listToRow | barSplit { } b#{a aba n}
+=?= [b#a b#aba b#n b#{}] | listToRow | barSplit { } b#{a aba n }
 
-=?= b#{}  (barDropWhile (eql %a) b#{})
-=?= b#bcd (barDropWhile (eql %a) b#bcd)
-=?= b#bcd (barDropWhile (eql %a) b#aaabcd)
-
-
-=?= b#bcd (barSlice 1 3 b#abcde)
-=?= b#bc  (barSlice 1 5 b#abc)
-
-=?= NONE      (barElemIndexEnd {/} b#{})
-=?= (SOME 0)  (barElemIndexEnd {/} b#{/})
-=?= (SOME 1)  (barElemIndexEnd {/} b#{//})
-
-=?= b#abc | barFromRow [%a %b %c]
-=?= b#bc  | barFilter (neq %a) b#abc
-=?= b#ac  | barFilter (neq %b) b#abc
-=?= b#bcd | barMap inc b#abc
-
+=?= b#{}     | barDropWhile (eql %a) b#{}
+=?= b#bcd    | barDropWhile (eql %a) b#bcd
+=?= b#bcd    | barDropWhile (eql %a) b#aaabcd
+=?= b#bcd    | barSlice 1 3 b#abcde
+=?= b#bc     | barSlice 1 5 b#abc
+=?= NONE     | barElemIndexEnd {/} b#{}
+=?= (SOME 0) | barElemIndexEnd {/} b#{/}
+=?= (SOME 1) | barElemIndexEnd {/} b#{//}
+=?= b#abc    | barFromRow [%a %b %c]
+=?= b#bc     | barFilter (neq %a) b#abc
+=?= b#ac     | barFilter (neq %b) b#abc
+=?= b#bcd    | barMap inc b#abc
 =?= b#aabbcc | barCatMap (x & barFromRow [x x]) b#abc
+=?= b#x      | barSing %x
+=?= b#xy     | barDuo  %x %y
 
-=?= b#x  | barSing %x
-=?= b#xy | barDuo  %x %y
+
+;;; Testing Juxtaposition AutoHax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= x{11223344} x#11223344
+=?= b{hi}       b#hi
 
 
 ;;; Test _BarSliceToNat ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

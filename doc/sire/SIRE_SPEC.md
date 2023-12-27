@@ -237,6 +237,15 @@ version inaccessible.
 
         else if IS_LEAF(exp) then
 
+            if exp has an heir and the {#} symbol is bound:
+
+                macro-expand the result by passing this expression to
+                that macro:
+
+                    # $(exp without heir) heir
+
+                For example, b{} is treated as the macro-input b#{}
+
             try each of these in order
 
                 READ_DECIMAL(exp)
@@ -244,6 +253,13 @@ version inaccessible.
                 READ_IDENTIFIER(exp)
                 READ_QUOTED_STRING(exp)
                 READ_MULTI_LINE_STRING(exp)
+
+            if an expression is a word, but fails to parse, and the {#}
+            symbols is bound then:
+
+                Pass (# exp) as the macro-input to that macro.
+
+                For example, 0xcafe is treated as the macro-input `#0xcafe`.
 
             otherwise fail
 

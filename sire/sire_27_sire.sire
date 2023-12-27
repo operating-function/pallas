@@ -434,12 +434,15 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > _ > Rex > List (Maybe Nat) > Rex > Repl Sire
 = (readPrimLeaf readExpr blockRex env rex st)
+@ heir    | rexHeir rex
 @ invalid | ({malformed leaf}, rex)
 @ ifNotLeaf
     | if (rexStyle rex /= {WORD}) invalid
     : hax    < maybeCase (lookupVal {#} st) invalid
     : !st ex < replOpen (expand hax (PREF {#} [rex] 0)) st
     | readExpr env ex st
+| ifNot (isZero heir)
+    | readExpr env (OPEN {#} (rexSetHeir 0 rex, heir) 0) st
 : leaf < maybeCase (tryReadLeaf rex) ifNotLeaf
 # datacase leaf
 * DECI-n | (st, K n)
@@ -461,9 +464,8 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 * {EMBD}
     | (st, K rexEmbd-rex)
 * {LEAF}
-    # switch style
-    * LINE | readMultiLine rex st
-    ^ maybeCase heir _ (_ & ({leaf with heir}, rex))
+    | if (style == {LINE})
+        | readMultiLine rex st
     | readPrimLeaf readExpr rex env rex st
 * {NODE}
     ^ _ readExpr env rex st

@@ -733,10 +733,16 @@
 | if (neq b#0x | barTake 2 bar) fall
 | getHexBar (barDrop 2 bar) fall ret
 
-= (readLeaf rex err ok)
-@ txt | rexText rex
-@ bar | natBar txt
-;
+= (readLeaf readExp rex err ok)
+@ txt  | rexText rex
+@ bar  | natBar txt
+@ heir | rexHeir rex
+| ifNot (isZero heir)
+    ; TODO: handle this case manually instead of re-entering the parser
+    ; on a fake input.  Eventually, we'll want nice error messages and
+    ; always working directly with the actual input is needed for that.
+    ^ readExp _ err ok
+    | OPEN {#} (rexSetHeir 0 rex, heir) 0
 # switch (rexStyle rex)
 * {TEXT} | ok | ENAT txt
 * {LINE} | ok | ENAT txt
@@ -750,7 +756,7 @@
 = (readExp rex err ok)
 # switch (rexType rex)
 * {EMBD} | ok EBED-(rexGetEmbd rex)
-* {LEAF} | readLeaf rex err ok
+* {LEAF} | readLeaf readExp rex err ok
 * {NODE}
 # switch (rexRune rex)
 * {^}   | readKet readExp rex err ok

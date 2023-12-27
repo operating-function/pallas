@@ -44,7 +44,7 @@ typedef#Expo#(MaybePair Nat Nat)
 * 13 | chomp input (inc off)
 * _  | off
 
-=?= 7 (chomp b#{	  	   xyz} 0)
+=?= 7 (chomp b{	  	   xyz} 0)
 
 
 ;;; Lexing Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -66,17 +66,17 @@ typedef#Expo#(MaybePair Nat Nat)
 
 (lexString input off)=(lexStringLoop input off off)
 
-=?= (TSTR b#{fdsafdsa}, 10)
-  | lexString b#{"fdsafdsa"} 1
+=?= (TSTR b{fdsafdsa}, 10)
+  | lexString b{"fdsafdsa"} 1
 
-=?= (TSTR b#{fdsafdsa\"more}, 16)
-  | lexString b#{"fdsafdsa\"more"} 1
+=?= (TSTR b{fdsafdsa\"more}, 16)
+  | lexString b{"fdsafdsa\"more"} 1
 
-=?= (TSTR b#{fdsafdsa\\}, 12)
-  | lexString b#{"fdsafdsa\\"} 1
+=?= (TSTR b{fdsafdsa\\}, 12)
+  | lexString b{"fdsafdsa\\"} 1
 
 =?= {Unexpected EOF (string)}
-  | lexString b#{"fdsafdsa\"more} 1
+  | lexString b{"fdsafdsa\"more} 1
 
 
 ;;; Lexing Digits ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -89,8 +89,8 @@ typedef#Expo#(MaybePair Nat Nat)
 @ !acc (add (sub chr 48) (mul 10 acc))
 | loop acc (inc off)
 
-=?= [1234 5] (consumeDigits b#{+1234+} 1)
-=?= [0 0]    (consumeDigits b#{+1234+} 0)
+=?= [1234 5] (consumeDigits b{+1234+} 1)
+=?= [0 0]    (consumeDigits b{+1234+} 0)
 
 
 ;;; Lexing Strings of Zeros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -102,9 +102,9 @@ typedef#Expo#(MaybePair Nat Nat)
     | go (inc count) (inc off)
 | [count off]
 
-=?= [0 0] | consumeZeros b#{+0000+} 0
-=?= [4 5] | consumeZeros b#{+0000+} 1
-=?= [3 5] | consumeZeros b#{+0000+} 2
+=?= [0 0] | consumeZeros b{+0000+} 0
+=?= [4 5] | consumeZeros b{+0000+} 1
+=?= [3 5] | consumeZeros b{+0000+} 2
 
 
 ;;; Lexing Decimal Sections ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -131,12 +131,12 @@ typedef#Expo#(MaybePair Nat Nat)
 | if (dof == off) noDig
 | [[numZeros nat] dof]
 
-=?= [[2 33] 6] | lexDecimal b#{#.0033#} 1
-=?= [[1 0 ] 3] | lexDecimal b#{#.0#}    1
-=?= [[0 1 ] 3] | lexDecimal b#{#.1#}    1
-=?= [0      1] | lexDecimal b#{##}      1
-=?= [0      1] | lexDecimal b#{#e2#}    1
-=?= noDig      | lexDecimal b#{#.#}     1
+=?= [[2 33] 6] | lexDecimal b{#.0033#} 1
+=?= [[1 0 ] 3] | lexDecimal b{#.0#}    1
+=?= [[0 1 ] 3] | lexDecimal b{#.1#}    1
+=?= [0      1] | lexDecimal b{##}      1
+=?= [0      1] | lexDecimal b{#e2#}    1
+=?= noDig      | lexDecimal b{#.#}     1
 
 
 ;;; Lexing Exponent Sections ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -178,18 +178,18 @@ typedef#Expo#(MaybePair Nat Nat)
 ;
 | [[nega nat] dof]
 
-=?= [[0  0] 3] | lexExponent b#{#e0#}   1
-=?= [[0  0] 4] | lexExponent b#{#e00#}  1
-=?= [[0  0] 5] | lexExponent b#{#e+00#} 1
-=?= [[1  0] 5] | lexExponent b#{#e-00#} 1
-=?= [[1  1] 5] | lexExponent b#{#e-01#} 1
-=?= [[1 10] 5] | lexExponent b#{#e-10#} 1
-=?= [[1 11] 5] | lexExponent b#{#e-11#} 1
-=?= noDig      | lexExponent b#{#e-#}   1
-=?= noDig      | lexExponent b#{#e+#}   1
-=?= noDig      | lexExponent b#{#e#}    1
-=?= [0 0]      | lexExponent b#{#e00#}  0
-=?= [0 1]      | lexExponent b#{#g00#}  1
+=?= [[0  0] 3] | lexExponent b{#e0#}   1
+=?= [[0  0] 4] | lexExponent b{#e00#}  1
+=?= [[0  0] 5] | lexExponent b{#e+00#} 1
+=?= [[1  0] 5] | lexExponent b{#e-00#} 1
+=?= [[1  1] 5] | lexExponent b{#e-01#} 1
+=?= [[1 10] 5] | lexExponent b{#e-10#} 1
+=?= [[1 11] 5] | lexExponent b{#e-11#} 1
+=?= noDig      | lexExponent b{#e-#}   1
+=?= noDig      | lexExponent b{#e+#}   1
+=?= noDig      | lexExponent b{#e#}    1
+=?= [0 0]      | lexExponent b{#e00#}  0
+=?= [0 1]      | lexExponent b{#g00#}  1
 
 
 ;;; Lexing Json ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -245,42 +245,42 @@ typedef#Expo#(MaybePair Nat Nat)
     ;
     | (**TNUM neg nat deci expi, loop off)
 
-=?= (listToRow | lexJson b#{{"x":999}})
+=?= (listToRow | lexJson b{{"x":999}})
  ++ TLCURL
  ++ TSTR b#x
  ++ TCOLON
  ++ TNUM FALSE 999 0 0
  ++ TRCURL
 
-=?= (listToRow | lexJson b#{{"x":-999}})
+=?= (listToRow | lexJson b{{"x":-999}})
  ++ TLCURL
  ++ TSTR b#x
  ++ TCOLON
  ++ TNUM TRUE 999 0 0
  ++ TRCURL
 
-=?= (listToRow | lexJson b#{{"x":9.9}})
+=?= (listToRow | lexJson b{{"x":9.9}})
  ++ TLCURL
  ++ TSTR b#x
  ++ TCOLON
  ++ TNUM FALSE 9 [0 9] 0
  ++ TRCURL
 
-=?= (listToRow | lexJson b#{{"x":9e9}})
+=?= (listToRow | lexJson b{{"x":9e9}})
  ++ TLCURL
  ++ TSTR b#x
  ++ TCOLON
  ++ TNUM FALSE 9 0 [0 9]
  ++ TRCURL
 
-=?= (listToRow | lexJson b#{{"x":09.09e9}})
+=?= (listToRow | lexJson b{{"x":09.09e9}})
  ++ TLCURL
  ++ TSTR b#x
  ++ TCOLON
  ++ TNUM FALSE 9 [1 9] [0 9]
  ++ TRCURL
 
-=?= (listToRow | lexJson b#{ { "x" : 999 } })
+=?= (listToRow | lexJson b{ { "x" : 999 } })
  ++ TSPACE
  ++ TLCURL
  ++ TSPACE
@@ -367,7 +367,7 @@ setProp#(JMAP.conRaw)#TRUE
 * JMAP|kv [{m} kv]
 
 =?=   | map jsonWithType
-      | [ {null} {true} {false} b#{lol} 0-9 [0-3 0-4 0-5] #[foo={null}] ]
+      | [ {null} {true} {false} b{lol} 0-9 [0-3 0-4 0-5] #[foo={null}] ]
  ++ [%n %null]
  ++ [%t %true]
  ++ [%f %false]
@@ -468,42 +468,42 @@ setProp#(JMAP.conRaw)#TRUE
 @ (okay v extra)  | [v extra]
 | parseLexerStream tokStream fail okay
 
-=?= (parseJson b#{"})
+=?= (parseJson b{"})
   | {lex error @0: Unexpected EOF (string)}
 
-=?= (parseJson b#{[null]})
+=?= (parseJson b{[null]})
   ^ (JVEC [_], NIL)
   | JNULL
 
-=?= (parseJson b#{ [null,null,true,false] })
+=?= (parseJson b{ [null,null,true,false] })
   ^ (JVEC _, [TSPACE 0])
  ++ JNULL
  ++ JNULL
  ++ JTRUE
  ++ JFALSE
 
-=?= (parseJson b#{[[]]})
+=?= (parseJson b{[[]]})
   ^ (JVEC [_], NIL)
   | JVEC []
 
-=?= (parseJson b#{[[null,null]]})
+=?= (parseJson b{[[null,null]]})
   ^ (JVEC [_], NIL)
   | (JVEC (JNULL, JNULL))
 
-=?= (parseJson b#{[[0,0],[0, 0],[0 ,0],[0 , 0]]})
+=?= (parseJson b{[[0,0],[0, 0],[0 ,0],[0 , 0]]})
   ^ (JVEC _, NIL)
  ++ JVEC (JNUM 0, JNUM 0)
  ++ JVEC (JNUM 0, JNUM 0)
  ++ JVEC (JNUM 0, JNUM 0)
  ++ JVEC (JNUM 0, JNUM 0)
 
-=?= (parseJson b#{[0, ",", 1]})
+=?= (parseJson b{[0, ",", 1]})
   ^ (JVEC _, NIL)
-  | (JNUM 0, JSTR b#{,}, JNUM 1)
+  | (JNUM 0, JSTR b{,}, JNUM 1)
 
-=?= (parseJson b#{{}})   (JMAP #[], NIL)
-=?= (parseJson b#{ { }}) (JMAP #[], NIL)
-=?= (parseJson b#{ {"str":"x", "null":null}})
+=?= (parseJson b{{}})   (JMAP #[], NIL)
+=?= (parseJson b{ { }}) (JMAP #[], NIL)
+=?= (parseJson b{ {"str":"x", "null":null}})
   ^ (JMAP _, NIL)
  ## =str  | JSTR b#x
  ## =null | JNULL
@@ -515,16 +515,16 @@ setProp#(JMAP.conRaw)#TRUE
 ;;; TODO: Handle edge-cases with "\u1234" escapes.
 
 = (printVec go vec)
-^ [b#{[} _ b#{]}]
-| listIntersperse b#{,}
+^ [b{[} _ b{]}]
+| listIntersperse b{,}
 | listFromRow
 | map go vec
 
 = (printMap go map)
 ^ [b#}_{_ _ b#}_}_]
-| listIntersperse b#{,}
+| listIntersperse b{,}
 : [k v] < listForEach (tabToPairList map)
-| (go (JSTR | natBar k), b#{:}, go v)
+| (go (JSTR | natBar k), b{:}, go v)
 
 = (printJson input)
 ^ barFlat (_ input)
@@ -533,13 +533,13 @@ setProp#(JMAP.conRaw)#TRUE
 * JNULL  | b#null
 * JTRUE  | b#true
 * JFALSE | b#false
-* JSTR|s | [b#{"} s b#{"}]
+* JSTR|s | [b{"} s b{"}]
 * JNUM|n | natBar (showNat n)
 * JVEC|v | printVec go v
 * JMAP|t | printMap go t
 * _      | {bad json} [json [tag=(jsonTag json)]]
 
-=?= b#{["hi",null,true,false,99]}
+=?= b{["hi",null,true,false,99]}
   ^ printJson (JVEC _)
  ++ JSTR b#hi
  ++ JNULL
@@ -547,17 +547,17 @@ setProp#(JMAP.conRaw)#TRUE
  ++ JFALSE
  ++ JNUM 99
 
-=?= b#{{"null":null,"bools":[true,false]}}
+=?= b{{"null":null,"bools":[true,false]}}
   ^ printJson (JMAP _)
  ## =null  | JNULL
  ## =bools | JVEC [JTRUE JFALSE]
 
-=?=  ++ b#{{}}
-     ++ b#{{}}
-     ++ b#{{"str":"x","null":null}}
- ++ printJson | idx 0 | parseJson b#{{}}
- ++ printJson | idx 0 | parseJson b#{ { }}
- ++ printJson | idx 0 | parseJson b#{ {"str":"x", "null":null}}
+=?=  ++ b{{}}
+     ++ b{{}}
+     ++ b{{"str":"x","null":null}}
+ ++ printJson | idx 0 | parseJson b{{}}
+ ++ printJson | idx 0 | parseJson b{ { }}
+ ++ printJson | idx 0 | parseJson b{ {"str":"x", "null":null}}
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
