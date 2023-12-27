@@ -1301,11 +1301,13 @@
 : st valRex  < go st valExp
 | ok st (letE {_} valRex bodyRex)
 
-= (cSwi go st x fb arms ok)
-: st xRex     < go st x
-: st fbRex    < go st fb
-: st patRexes < tabTraverseState st go arms
-| ok st (switchE xRex fbRex patRexes)
+= (cSwi go st x wild arms ok)
+@ isRowSwi
+    | listAnd
+    | listZipWith eql (listEnumFrom 0) (tabKeysList arms)
+^ go st (mkApp _) ok
+| if isRowSwi | (EBED switch, x, wild, EROW (tabValsRow arms))
+| else        | (EBED tabSwitch, x, wild, ETAB arms)
 
 = (cLam go st pin (FUN nam tag mark pats bodyExp) ok)
 : st bodyRex     < go st bodyExp
@@ -1495,12 +1497,12 @@
  ## =c (EAPP ENAT-0 ENAT-3)
 
 =?=  ++ [5]
-     ++ ` (#| $$tabSwitch foo z (#| $$(%[a b]) (#| $$(cow 2) y x)))
+     ++ ` (#| (#| (#| $$tabSwitch foo) z) (#| $$(%[a b]) (#| $$(cow 2) y x)))
   ^ readExp _ (curry die) (comp [5])
   ' (# switch foo)(* {a} x)(* {b} y)z
 
 =?=  ++ [5]
-     ++ ` (#| $$tabSwitch foo $$0 (#| $$(%[a]) (#| $$(cow 1) x)))
+     ++ ` (#| (#| (#| $$tabSwitch foo) $$0) (#| $$(%[a]) (#| $$(cow 1) x)))
   ^ readExp _ (curry die) (comp [5])
   ' (# switch foo)(* {a} x)
 
