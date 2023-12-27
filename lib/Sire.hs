@@ -35,7 +35,7 @@ import System.Exit           (exitWith, ExitCode(ExitFailure,ExitSuccess))
 import Fan.PlanRex (PlanRex(..), Pex, nounPex, pexNoun)
 import Fan.PlanRex (pattern EMBD, pattern EVIL, pattern LEAF, pattern NODE)
 import Fan.PlanRex (pattern WORD, pattern TEXT)
-import Fan.PlanRex (pattern OPEN, pattern PREF, pattern SHUT)
+import Fan.PlanRex (pattern OPEN, pattern PREF, pattern SHUT, pattern INFX)
 
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Unsafe as BS
@@ -871,10 +871,10 @@ expRune = (`member` set)
 readExpr :: InCtx => [Maybe Nat] -> Pex -> Repl Sire
 readExpr e rex = do
     case rex of
-        LEAF{}         -> readPrimExpr e rex
-        EMBD{}         -> readPrimExpr e rex
-        EVIL{}         -> readPrimExpr e rex
-        NODE _ ryn _ _ -> do
+        LEAF{}          -> readPrimExpr e rex
+        EMBD{}          -> readPrimExpr e rex
+        EVIL{}          -> readPrimExpr e rex
+        NODE _ ryn _ _  -> do
             stVal <- get
             case lookupVal ryn stVal of
                 Just macVal -> expand macVal rex >>= readExpr e
@@ -892,8 +892,7 @@ readPrimExpr e rex = case rex of
     EMBD v              -> pure (K v)
     EVIL{}              -> parseFail rex "malformed rex"
     LEAF Rx.LINE t k    -> readMultiLine [t] k
-    LEAF _    _ Just{}  -> parseFail rex "leaves cannot have heirs"
-    LEAF _    _ Nothing -> readPrimLeaf rex e rex
+    LEAF _       _ _    -> readPrimLeaf rex e rex
     NODE _ r s h        -> readNode r s h
 
   where
@@ -1069,6 +1068,13 @@ showKey :: Nat -> Text
 showKey = let ?rexColors = NoColors in rexLine . boxRex . keyBox
 
 readPrimLeaf :: InCtx => Pex -> [Maybe Nat] -> Pex -> Repl Sire
+readPrimLeaf _ e rex@(LEAF s ss (Just heir)) =
+   map (lookupVal "#") get >>= \case
+       Nothing  -> parseFail rex "leaf-juxtaposition, but no # macro"
+       Just hex -> do
+           x <- expand hex $ INFX "#" [LEAF s ss Nothing, heir] Nothing
+           readExpr e x
+
 readPrimLeaf blockRex e rex =
     case tryReadLeaf rex of
        Just (IDNT n) -> resolveUnqualified blockRex e (utf8Nat n)
