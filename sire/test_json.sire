@@ -99,10 +99,10 @@
 | CONS (JVEC [])
 | CONS (JMAP #[])
 | listAlternate
-    | listMap (x & JVEC [x])
-    | allJSON _
-| listMap (x & JMAP [=x])
-| allJSON _
+    : x < listForEach (allJSON _)
+    | JVEC [x]
+: x < listForEach (allJSON _)
+| JMAP [=x]
 
 = (chk x)
 @ val   | parseJson x

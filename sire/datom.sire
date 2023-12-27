@@ -413,8 +413,7 @@ e
           ++ txnTmpIds
           ++ db
         @ newActions
-          ^ listMap _ subeids
-          & subeid
+          : subeid < listForEach subeids
           (ACTADD eid aid aVal subeid writeAve unique isMany isRef)
         ++ (listWeld suberrs errs)
         ++ (listWeld newActions | listWeld subactions actions)
@@ -451,8 +450,8 @@ e
       ; value, otherwise
       @ adds
         | if | isRow vVal
-          | listMap v&(ACTADD eid aid aVal v writeAve unique isMany isRef)
-          | listFromRow vVal
+          : v < listForEach (listFromRow vVal)
+          | ACTADD eid aid aVal v writeAve unique isMany isRef
         | CONS | ACTADD eid aid aVal vVal writeAve unique isMany isRef
           NIL
       ++ errs
@@ -629,8 +628,7 @@ e
 | if | isTab val
     : specs
         < collectErrors
-        ^ map _ | tabToPairs val
-        & [k v]
+        : [k v]  < foreach (tabToPairs val)
         : parsed < doRight | parse db k
         # datacase parsed
         * (PULL_ATTR keyExpr)
@@ -697,14 +695,12 @@ e
     ; values which match it.
     : result
         < collectErrors
-        ^ map _ spec
-        & ([k v])
+        : [k v] < foreach spec
         : [outputKey set [indexed unique isMany isRef]]
             < doRight | lookupAttr db eid k
         : result
             < collectErrors
-            ^ map _ | setToRow set
-            ? (lookupSubEid subeid)
+            : ?(lookupSubEid subeid) < foreach (setToRow set)
             : result
                 < collectErrors
                 | map (lookupSpec subeid db) v
@@ -735,8 +731,7 @@ e
 = (pullMany pullSpec rowEidSpec db)
 : eids
     < collectErrors
-    ^ map _ rowEidSpec
-    & eidSpec
+    : eidSpec   < foreach rowEidSpec
     : [eid _ _] < doRight | parseEntityId #[] db eidSpec
     ;;;;;;;;;;;;;;;;;;;;;;;; parseEntityId takes a tab
     | RIGHT eid
@@ -744,8 +739,7 @@ e
     < collectErrors | map (parse db) pullSpec
 : results
     < collectErrors
-    ^ map _ eids
-    & eid
+    : eid    < foreach eids
     : result < collectErrors | map (lookupSpec eid db) specs
     | RIGHT | tabFromPairs result
 | RIGHT results

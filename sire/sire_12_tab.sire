@@ -193,8 +193,9 @@ tab=(tabFromAscPairs par)
 | listFoldl (t p & tabIns (fst p) (snd p) t) emptyTab pairs
 
 = (tabToPairList tab)
-^ listMap _ (_TabKeysList tab)
-| (i & (i, tabGet tab i))
+| listForEach (_TabKeysList tab)
+& i
+| (i, tabGet tab i)
 
 (tabToList tab)=(listFromRow | tabToPairs tab)
 

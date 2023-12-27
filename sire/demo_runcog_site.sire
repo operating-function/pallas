@@ -173,8 +173,7 @@
     @ kvs | tabToPairs | **getCogStatus st
     @ jval
         | JVEC
-        ^ map _ kvs
-        & [cogid status]
+        : [cogid status] < foreach kvs
         | JMAP
         ## =cogid (JSTR | natBar | showNat cogid)
         ## =status

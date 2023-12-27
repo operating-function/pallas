@@ -194,8 +194,7 @@ d=(SPAN x 2 3 [(SPAN x 2 3 LRUNE)])
    ++ rune
    ++ barNewline
    ++ @ nSons (len sons)
-      ^ map _ rowIndexed-sons
-      & [ix s]
+      : [ix s] < foreach (rowIndexed sons)
       ^ renderTree _ s
       | add depth (mul 2 (sub nSons ix))
    ++ # datacase heir
@@ -207,8 +206,8 @@ d=(SPAN x 2 3 [(SPAN x 2 3 LRUNE)])
 = (testLayout input)
 @ toks
     | listCat
-    | listMap ([ln bar] & lexLine (**LN {file} ln bar))
-    | listIndexed (barLinesList input)
+    : [ln bar] < listForEach (listIndexed | barLinesList input)
+    | lexLine (**LN {file} ln bar)
 @ toks | multiLine toks
 @ clmp | clump toks
 | barFlat

@@ -72,7 +72,7 @@
 :| sire_07_dat [NONE SOME maybeCase]
 :| sire_07_dat [CONS NIL listToRowRev listCase listFromRow]
 :| sire_07_dat [LEFT RIGHT eitherCase]
-:| sire_07_dat [rowTraverse listMap listFoldr rowCons]
+:| sire_07_dat [rowTraverse listForEach listFoldr rowCons]
 :| sire_07_dat [readRex]
 :| sire_10_str [strWeld strIsCapitalized]
 :| sire_11_set [{%}]
@@ -585,8 +585,8 @@ four=(WORD {4} 0)
 = (assertE exps)
 | if (isZero exps) '(#*)
 | bloodline
-^ listMap _ exps
-& exp (OPEN {#=?=} (natE 1, exp) 0)
+: exp < listForEach exps
+| OPEN {#=?=} (natE 1, exp) 0
 
 =?=   | assertE
      ~~ '(eql 3 (add 1 2))

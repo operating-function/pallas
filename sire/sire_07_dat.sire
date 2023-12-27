@@ -274,6 +274,8 @@
 & (x xs)
 | CONS f-x listMap-f-xs
 
+(**listForEach l f)=(listMap f l)
+
 = (listHead l)
 | listCase l NONE
 & (h _)
@@ -958,7 +960,7 @@ F=found
 ^-^ NIL CONS
 ^-^ listCase
 ^-^ listSing
-^-^ listMap
+^-^ listMap listForEach
 ^-^ listHead listSafeHead listUnsafeHead listUnsafeTail
 ^-^ listIdxCps listIdxOr listIdx
 ^-^ listLastOr listUnsafeLast listLast

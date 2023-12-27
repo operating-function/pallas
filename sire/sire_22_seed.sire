@@ -183,8 +183,7 @@ u64max=18446744073709551615
 ++ w64Bar nBytes
 ++ w64Bar nFrags
 ++ map w64Bar bignatSizes
-++ ^ map _ atoms
-   & x
+++ : x < foreach atoms
    | if (lte x u8max)  | w8Bar x
    | if (lte x u64max) | w64Bar x
    | else              | natToSizedBar (mul 8 | wordSz x) x

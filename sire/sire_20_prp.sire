@@ -140,8 +140,7 @@
 | if (tabHas key curProps)
     | tabGet curProps key
 | tabCatRow
-^ map _ (tabValsRow modules)
-& @(PIN [_ props])
+: @(PIN [_ props]) < foreach (tabValsRow modules)
 | ifNot (tabHas key props) #[]
 | tabGet props key
 

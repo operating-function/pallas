@@ -465,8 +465,7 @@ typedef#FilePath#Str
     | blockStep st
     | fmapMaybe mInp (byt & lexLine (**LN fil num byt))
 @ treeOut
-    ^ listMap _ out
-    & blockLines
+    : blockLines < listForEach out
     @ blockLexes (listCat blockLines)
     @ [(SPAN (LN _ firstLineNumber _) _ _ _) _] blockLexes
    ++ firstLineNumber
@@ -548,8 +547,8 @@ typedef#FilePath#Str
 
 > Row Clump > Row Clump
 = (onlyLambs clumps)
-^ catMaybes (map _ clumps)
-& clump
+| catMaybes
+: clump < foreach clumps
 @ (depth, frag) (clumpFrag clump)
 : x < getLamb frag NONE
 | **SOME x
@@ -660,8 +659,8 @@ typedef#(NonEmpty a)#(a, List a)
 = (testRex input)
 @ toks
     | listCat
-    | listMap ([ln bar] & lexLine (**LN {file} ln bar))
-    | listIndexed (barLinesList input)
+    : [ln bar] < listForEach (listIndexed | barLinesList input)
+    | lexLine (**LN {file} ln bar)
 @ toks | multiLine toks
 @ clmp | clump toks
 | treesRex

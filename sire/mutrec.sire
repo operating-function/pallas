@@ -135,8 +135,7 @@
 @ arms | listZip listEnumFrom-0 listFromRow-sigExpPairs
 @ maxArgs
     | maxRow
-    ^ map _ (listToRow arms)
-    & [_ [_ args _]]
+    : [_ [_ args _]] < foreach (listToRow arms)
     | len args
 @ (bindArms body arms)
     | listCase arms body
@@ -160,8 +159,7 @@
 @ coreArgs
     | rowCons tagArgExp coreArgs
 @ branches
-    ^ map _ (listToRow arms)
-    & foo
+    : foo < foreach (listToRow arms)
     @ [key [fun args body]] foo
     ^ listFoldr _ body
         | listDrop 1 | listIndexed | CONS fun | listFromRow args
@@ -247,8 +245,7 @@
     = coreIdn | varE coreName
     = arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
     = maxArgs | maxRow
-              ^ map _ (listToRow arms)
-              & [_ [fun args _]]
+              : [_ [fun args _]] < foreach (listToRow arms)
               | len args
 @
     (bindArms body arms)
@@ -291,8 +288,7 @@
     = coreSig
         | rowCons tagIdn coreArgIdns
     = branches
-        ^ map _ (listToRow arms)
-        & foo
+        : foo < foreach (listToRow arms)
         @ [key [branchArm branchArgs body]] foo
         ^ listFoldr _ body
             | listDrop 1

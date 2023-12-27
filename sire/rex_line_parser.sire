@@ -149,8 +149,8 @@ empt=(parserMap (const NIL) (char {]}))
 * (CONS _ _)
 ^ parserFail (barFlat [reason _ notAllow])
 | barIntercalateList b#{, }
-| listMap x&(barCat [b#"{" natBar-x b#"}"])
-| listNub r::conflicts
+: x < listForEach (listNub r::conflicts)
+| barCat [b#"{" natBar-x b#"}"]
 
 =?= OKAY-()
   | runParser (assertUnambiguous {Shut} ({+}, ~[{+} {+}])) b#{}

@@ -175,17 +175,21 @@
 
 ; insert in ascending order of key
 =?= 110
-  @ ls0 (listGen 11 (x&[x (repeat x)]))
+  @ ls0 : x < listGen 11
+        | (x, repeat x)
   @ pq (pqFromList0 cmpPairNatKey ls0)
   @ ls1 (pqToList cmpPairNatKey pq)
-  | listSum (listMap (p&(add idx-0-p (listUnsafeHead idx-1-p))) ls1)
+  | listSum : p < listForEach ls1
+            | add idx-0-p (listUnsafeHead idx-1-p)
 
 ; insert in descending order of key
 =?= 110
-  @ ls0 (listGen 11 (x&[(sub 10 x) (repeat (sub 10 x))]))
+  @ ls0 : x < listGen 11
+        | (sub 10 x, repeat (sub 10 x))
   @ pq (pqFromList0 cmpPairNatKey ls0)
   @ ls1 (pqToList cmpPairNatKey pq)
-  | listSum (listMap (p&(add idx-0-p (listUnsafeHead idx-1-p))) ls1)
+  | listSum : p < listForEach ls1
+            | add idx-0-p (listUnsafeHead idx-1-p)
 
 ^-^
 ^-^ pqCase pqEmpty pqInsert pqDelMin pqMin pqNull

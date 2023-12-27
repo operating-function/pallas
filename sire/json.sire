@@ -522,8 +522,8 @@ setProp#(JMAP.conRaw)#TRUE
 
 = (printMap go map)
 ^ [b#}_{_ _ b#}_}_]
-^ (| listIntersperse b#{,} | listMap _ | tabToPairList map)
-& [k v]
+| listIntersperse b#{,}
+: [k v] < listForEach (tabToPairList map)
 | (go (JSTR | natBar k), b#{:}, go v)
 
 = (printJson input)

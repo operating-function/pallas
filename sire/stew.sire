@@ -219,8 +219,8 @@
 > (v > Rex) > Tab Any v > Rex
 = (showTab showVal tab)
 | if (tabIsEmpty tab) '(#[])
-^ NEST {,} (map _ tabToPairs-tab) 0
-& [key val]
+^ NEST {,} _ 0
+: [key val] < foreach (tabToPairs tab)
 | SHUT {=} (showKey key, showVal val) 0
 
 = (showSet set)
@@ -527,8 +527,8 @@
 > (Rex > Read Exp) > Rex > Read Exp
 = (parseRec readExp rex err ok)
 : binds body < readLet readExp rex err
-^ ok (EREC (map _ binds) body)
-& sweetBind
+^ ok (EREC _ body)
+: sweetBind < foreach binds
 # datacase sweetBind
 * (LEFT [lawName mark argPats lawBody])
    ++ PVAR lawName
@@ -605,8 +605,8 @@
     | ok (ESWI exp fallback arms)
 * {datacase}
     : val fb cases < parseDatacase readExp rex err
-    | ok ^ ECAS val fb (map _ cases)
-         & [_ constr pats body]
+    | ok | ECAS val fb
+         : [_ constr pats body] < foreach cases
          | CON_CASE constr pats body
 
 > (Rex > Read Exp) > Rex > Read Exp

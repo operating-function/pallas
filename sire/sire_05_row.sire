@@ -235,6 +235,8 @@
 = map  | _Map
 = rev  | _Rev
 
+(**foreach x f)=(map f x)
+
 
 ;;; Convenience Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -384,7 +386,8 @@
 ^-^ weld
 ^-^ gen foldr foldl
 ^-^ fst snd thr
-^-^ map rev
+^-^ map foreach
+^-^ rev
 ^-^ curry uncurry
 ^-^ rowCons rowSnoc
 ^-^ rowApply rowRepel

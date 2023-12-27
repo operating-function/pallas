@@ -108,8 +108,7 @@ abstype#Response
     [containerFun reqRow]
 * (SOME [i reqFun])
     @ pairs
-        ^ map _ reqRow
-        & req
+        : req < foreach reqRow
         # datacase | reqFun req
         * NONE     [(LEFT req) 0]
         * SOME|req [(RIGHT req) req]
@@ -178,8 +177,7 @@ abstype#Response
     @ requests
         ; filter out the %sandbox requests, and censors the %sandbox from
         ; outbound `%what`s.
-        ^ map _ requests
-        & req
+        : req < foreach requests
         | if | eql %what | idx 0 req
             [%what (setDel %sandbox)]
         | if | eql %sandbox | idx 0 req
@@ -276,8 +274,7 @@ abstype#Response
   @ rawRequests | fromSome ({impossible: bad response}) | tabLookup 0 responses
   ; we have to perform the
   @ requests
-    ^ map _ rawRequests
-    & req
+    : req < foreach rawRequests
     # datacase req
     * LEFT|r 0
     * RIGHT|r r
@@ -335,14 +332,12 @@ abstype#Response
     | setFromRow
     | listToRow
     | listCatMaybes
-    | listMap
-        & k
-        # datacase | tabLookup k resp
-        * NONE NONE
-        * (SOME _)
-            ; x is data in the response
-            | SOME | idx 2 | idx k reqs
-    | findIdxMany isCogReapOrStop reqs
+    : k < listForEach (findIdxMany isCogReapOrStop reqs)
+    # datacase | tabLookup k resp
+    * NONE NONE
+    * (SOME _)
+        ; x is data in the response
+        | SOME | idx 2 | idx k reqs
 ;
 = (updateOwnedCogs cogids reqs resp)
     @ add | findNewCogids reqs resp

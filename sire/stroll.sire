@@ -207,8 +207,7 @@ childrenQuery=[{:block/children}=[{:block/uid} {:block/order}]]
 ; of uids to lookup sorted on order.
 = (makeOrderedChildrenQuery s)
 @ rowOfTab | fromSome [] | tabLookup {:block/children} s
-^ map _ | sortRowTabByOrder rowOfTab
-& r
+: r < foreach (sortRowTabByOrder rowOfTab)
 [{:block/uid} (fromSome ({missing uid} 0) | tabLookup {:block/uid} r)]
 
 = (findBlocksChildrenUnsorted uid strollDb)

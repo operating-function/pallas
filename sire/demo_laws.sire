@@ -315,9 +315,9 @@ hexAlphabet=(natBar {0123456789abcdef})
 
 = (refsTable pin)
 | tabFromPairs
-^ map _ refs-pin
-& r ++ lawName pinItem-r
-    ++ pinHash r
+: r < foreach (refs pin)
+| ++ lawName pinItem-r
+  ++ pinHash r
 
 
 ;;; Macro: Value Recursion (Knots) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -39,21 +39,19 @@
 | setFromRow
 | listToRow
 | listCatMaybes
-| listMap k&(tabLookup k resp)
-| findIdxMany isCogSpin reqs
+: k < listForEach (findIdxMany isCogSpin reqs)
+| tabLookup k resp
 
 = (findDeadCogids reqs resp)
 | setFromRow
 | listToRow
 | listCatMaybes
-| listMap
-    & k
-    # datacase | tabLookup k resp
-    * NONE NONE
-    * (SOME _)
-        ; x is data in the response
-        | SOME | idx 2 | idx k reqs
-| findIdxMany isCogReapOrStop reqs
+: k < listForEach (findIdxMany isCogReapOrStop reqs)
+# datacase | tabLookup k resp
+* NONE NONE
+* (SOME _)
+    ; x is data in the response
+    | SOME | idx 2 | idx k reqs
 
 = (updateOwnedCogs cogids reqs resp)
 @ add | findNewCogids reqs resp
@@ -160,8 +158,7 @@
 ; Return reqs with every instance of a %stop or %reap call to a cogid not in
 ; cogids with a 0.
 = (filterCogReqs patterns cogids reqs)
-    ^ map _ reqs
-    & r
+    : r < foreach reqs
     | ifNot | matches patterns r
         0
     | if | isCogSpin r

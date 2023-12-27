@@ -243,8 +243,8 @@ genU8=(genMap w8 genU64)
 > List (a, b)
 = (shrink2 shrA shrB (x, y))
 | listWeld
-    | listMap (x_ & x_,y) (shrA x)
-| listMap (y_ & x,y_) (shrB y)
+    | listMap xx&[xx y] (shrA x)
+| listMap yy&[x yy] (shrB y)
 
 > Nat > List Nat
 = (shrinkNat x)

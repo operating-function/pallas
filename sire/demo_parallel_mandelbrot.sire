@@ -139,8 +139,10 @@ NL=10
 : ??(pmapDone barLns)
     < pmap 5000 (mandelbrotLine width height) rowIds
 @ bodStr
-    ^ cat (map _ barLns)
-    | ln&(weld (catMap renderColor (chunks 3 (barBytes ln))) [NL])
+    | cat
+    : ln < foreach barLns
+    ^ weld _ [NL]
+    | catMap renderColor (chunks 3 | barBytes ln)
 | trk [ppm=(implode | weld header bodStr)]
 | cogExit ()
 
