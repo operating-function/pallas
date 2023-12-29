@@ -151,7 +151,7 @@ data Response
 responseToVal :: Response -> Fan
 responseToVal (RespCall f _) = f
 responseToVal (RespWhat w) = toNoun w
-responseToVal (RespTell TELL_PAYLOAD{..}) = tellResp
+responseToVal (RespTell TELL_PAYLOAD{..}) = fanIdx 1 ret
 responseToVal (RespAsk (OutcomeOK val _)) = (NAT 0) %% val
 responseToVal (RespAsk OutcomeCrash) = (NAT 0)
 responseToVal (RespSpin (COG_ID id) _) = fromIntegral id
@@ -294,19 +294,20 @@ data PendingAsk = PENDING_ASK
 
 -- | All the information needed for both
 data TellPayload = TELL_PAYLOAD
-    { asker    :: CogId
-    , reqIdx   :: RequestIdx
+    { asker  :: CogId
+    , reqIdx :: RequestIdx
 
     -- The locally unique tellId for this apply. Written to the event log.
-    , tellId   :: TellId
+    , tellId :: TellId
 
-    -- These are deliberately left lazy since they have to be created inside an
-    -- STM action in `receiveResponse`, but must be evaluate/forced and
-    -- credited against the tell's timeout. askResp must be explicitly forced
-    -- during that timeout because if a tell function dies in any way, that
-    -- crash must be credited to the telling cog, not the asking cog.
-    , askResp  :: ~Fan
-    , tellResp :: ~Fan
+    -- The value produced by running the tell function against its input. It is
+    -- deliberately left lazy since they have to be created inside an STM
+    -- action in `receiveResponse`, but must be evaluate/forced and credited
+    -- against the tell's timeout. (We previously also separated the value here
+    -- into its head and tail with `fanIdx` instead of just storing the full
+    -- result, but that causes some partial evaluation and can crash the
+    -- interpreter if the first statement is a `trk`.)
+    , ret    :: ~Fan
     }
   deriving (Show)
 
@@ -951,13 +952,11 @@ receiveResponse st = \case
             Just PENDING_ASK{..} -> do
                 tellId <- stateTVar st.vTellId \s -> (TellId s, s + 1)
 
-                let ~ret :: Fan = ltFun %% (toNoun requestor) %% msg
                 let pa = TELL_PAYLOAD {
                       asker=requestor,
                       reqIdx,
                       tellId,
-                      askResp = fanIdx 0 ret,
-                      tellResp = fanIdx 1 ret
+                      ret = ltFun %% (toNoun requestor) %% msg
                       }
 
                 pure (Just RTUP{key=ltIdx,
@@ -1278,12 +1277,11 @@ runResponse st cogNum rets = do
 
     ensureResponseEvaluated :: Response -> IO ()
     ensureResponseEvaluated (RespTell TELL_PAYLOAD{..}) = do
-      -- We must force evaluate both response thunks so that we make sure they
-      -- don't have a crash in them, but must do this while crediting the
-      -- runtime (and possible crash) to the %tell since the %tell provides the
+      -- We must force evaluate the response thunk so that we make sure it
+      -- doesn't have a crash, but must do this while crediting the runtime
+      -- (and possible crash) to the %tell since the %tell provides the
       -- function.
-      evaluate $ force askResp
-      evaluate $ force tellResp
+      evaluate $ force ret
       pure ()
 
     ensureResponseEvaluated _ = pure ()
@@ -1344,7 +1342,7 @@ runResponse st cogNum rets = do
         -- We are sure that the `reqIdx` still corresponds to
         -- an active COG_ASK syscall because of reasons.
         let outcome = case result of
-              RECEIPT_OK{} -> OutcomeOK askResp tellId
+              RECEIPT_OK{} -> OutcomeOK (fanIdx 0 ret) tellId
               _            -> OutcomeCrash
 
         -- TODO: Enable profiling flows; how do we connect
