@@ -1082,6 +1082,22 @@ runnerFun initialFlows machine processName st =
             writeTVar machine.logImmediately True
         writeTBQueue machine.logReceiptQueue (receipt, onCommit)
 
+    -- When a "tell" gets a response, it must be the only response in the
+    -- response bundle, so make sure they're handled separately.
+    separateTells :: [(CogId, CogSysCalls)] -> [(CogId, CogSysCalls)]
+    separateTells = loop
+      where
+        loop [] = []
+        loop ((id,calls):xs) = tellList ++ (id, rest) : loop xs
+          where
+            (tells, rest) = IM.partition isTell calls
+
+            isTell (_, LiveTell{}) = True
+            isTell (_, _)          = False
+
+            tellList = map mkEachTell $ IM.toList tells
+            mkEachTell (k, v) = (id, IM.singleton k v)
+
     -- TODO: Optimize
     collectResponses :: IntMap (Maybe a) -> [(Int, a)]
     collectResponses imap =
@@ -1111,7 +1127,8 @@ runnerFun initialFlows machine processName st =
         withAlwaysTrace "WaitForResponse" "cog" do
             -- This is in a separate atomically block because it doesn't
             -- change and we want to minimize contention.
-            machineSysCalls <- mapToList <$> atomically (readTVar st.vRequests)
+            machineSysCalls <-
+              (separateTells . mapToList) <$> atomically (readTVar st.vRequests)
 
             -- We now have a mapping from cog ids to the CogSysCalls map. We
             -- need to verify if waiting on this will ever complete.

@@ -115,6 +115,11 @@ The `%cog` requests are:
     other in the written event log. This operation is used to allow two
     different threads to act in concert.
 
+    Execution and response are atomic; each response map that contains an
+    %ask or %tell will *only* contain an %ask or %tell. Unlike all other
+    responses, the runtime will not put as many responses as possible in
+    the event which delivers an %ask or a %tell response.
+
     Any crash while evaluating `fun` with the arguments will count as
     crashing the telling cog.
 
