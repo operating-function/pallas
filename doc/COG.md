@@ -136,6 +136,14 @@ The `%cog` requests are:
     `%stop` takes precedent and receives the cog value, and the `%reap`
     receives None.)
 
+-   `[%cog %wait pid] -> IO ()`: If the cog is not running (non-existent,
+    finished, crashed or timed out), immediately return 0. Otherwise,
+    wait for the cog to no longer be in the running state and return 0.
+
+    Separate from %reap and %stop, cogs need a way to detect that cogs do
+    not exist even when they aren't responsible for stopping or cleaning
+    up after a crash.
+
 -   `[%cog %who] -> IO Pid`: Tells the cog who it is. Any other way of
     implementing this would end up with changes to the type of the cog
     function taking an extra `Pid ->`.

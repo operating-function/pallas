@@ -145,6 +145,7 @@ data Response
     | RespSpin CogId Fan
     | RespReap CogId (Maybe CogState)
     | RespStop CogId (Maybe CogState)
+    | RespWait CogId
     | RespWho CogId
   deriving (Show)
 
@@ -157,6 +158,7 @@ responseToVal (RespAsk OutcomeCrash) = (NAT 0)
 responseToVal (RespSpin (COG_ID id) _) = fromIntegral id
 responseToVal (RespReap _ f) = toNoun f
 responseToVal (RespStop _ f) = toNoun f
+responseToVal (RespWait _) = (NAT 0)
 responseToVal (RespWho (COG_ID id)) = fromIntegral id
 responseToVal (RespEval e)   =
     ROW case e of
@@ -206,6 +208,7 @@ data Request
     | ReqSpin SpinRequest
     | ReqReap CogId
     | ReqStop CogId
+    | ReqWait CogId
     | ReqWho
     | UNKNOWN Fan
   deriving (Show)
@@ -215,6 +218,7 @@ data Request
   [%cog %spin fun/Fan]
   [%cog %ask dst/Nat chan/Nat param/Fan]
   [%cog %tell chan/Nat fun/Fan]
+  [%cog %wait dst/Nat]
   [$call synced/? param/Fan ...]
 -}
 valToRequest :: CogId -> Fan -> Request
@@ -242,6 +246,7 @@ valToRequest cogId top = fromMaybe (UNKNOWN top) do
             "spin" | length row == 3 -> pure (ReqSpin $ SR $ row V.! 2)
             "reap" | length row == 3 -> ReqReap <$> fromNoun @CogId (row V.! 2)
             "stop" | length row == 3 -> ReqStop <$> fromNoun @CogId (row V.! 2)
+            "wait" | length row == 3 -> ReqWait <$> fromNoun @CogId (row V.! 2)
             "tell" | length row == 4 -> do
                 channel <- fromNoun (row V.! 2)
                 pure (ReqTell channel (row V.! 3))
@@ -445,6 +450,10 @@ data LiveRequest
     lstIdx   :: RequestIdx,
     lstCogId :: CogId
     }
+  | LiveWait {
+    lwaIdx   :: RequestIdx,
+    lwaCogId :: CogId
+    }
   | LiveWho {
     lwIdx   :: RequestIdx,
     lwCogId :: CogId
@@ -461,6 +470,7 @@ instance Show LiveRequest where
         LiveSpin{}  -> "SPIN"
         LiveReap{}  -> "REAP"
         LiveStop{}  -> "STOP"
+        LiveWait{}  -> "WAIT"
         LiveWho{}   -> "WHO"
         LiveUnknown -> "UNKNOWN"
 
@@ -881,6 +891,9 @@ buildLiveRequest causeFlow runner ctx cogId reqIdx = \case
     ReqStop cogid -> do
         pure ([], LiveStop{lstIdx=reqIdx, lstCogId=cogid}, Nothing)
 
+    ReqWait cogid -> do
+        pure ([], LiveWait{lwaIdx=reqIdx, lwaCogId=cogid}, Nothing)
+
     ReqWho -> do
         pure ([], LiveWho{lwIdx=reqIdx, lwCogId=cogId}, Nothing)
 
@@ -897,6 +910,7 @@ cancelRequest LiveAsk{..} =
 cancelRequest LiveSpin{}   = pure () -- Not asynchronous
 cancelRequest LiveReap{}   = pure ()
 cancelRequest LiveStop{}   = pure ()
+cancelRequest LiveWait{}   = pure ()
 cancelRequest LiveWho{}    = pure ()
 cancelRequest LiveUnknown  = pure ()
 
@@ -999,6 +1013,14 @@ receiveResponse st = \case
               pure (Just RTUP{key=lstIdx, resp=RespStop lstCogId Nothing,
                               work=0, flow=FlowDisabled})
             Just cogval -> performStoplike RespStop lstIdx lstCogId cogval
+
+    (_, LiveWait{..}) -> do
+        myb <- (lookup lwaCogId . (.val)) <$> readTVar st.vMoment
+        case myb of
+          Nothing ->
+            pure (Just RTUP{key=lwaIdx, resp=RespWait lwaCogId,
+                            work=0, flow=FlowDisabled})
+          Just _ -> pure Nothing
 
     (_, LiveWho{..}) -> do
         pure (Just RTUP{key=lwIdx, resp=RespWho lwCogId, work=0,
@@ -1463,6 +1485,7 @@ parseRequests runner cogId = do
         ReqSpin{}  -> "%spin"
         ReqReap{}  -> "%reap"
         ReqStop{}  -> "%stop"
+        ReqWait{}  -> "%wait"
         ReqWho{}   -> "%who"
         UNKNOWN{}  -> "UNKNOWN"
 
@@ -1477,6 +1500,7 @@ parseRequests runner cogId = do
         ReqSpin{}  -> "%cog"
         ReqReap{}  -> "%reap"
         ReqStop{}  -> "%cog"
+        ReqWait{}  -> "%wait"
         ReqWho{}   -> "%cog"
         UNKNOWN{}  -> "UNKNOWN"
 

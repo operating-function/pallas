@@ -28,5 +28,6 @@ sh/sire-load-all -M </dev/null
 runtest sh/full-tag-site-demo --ci
 sh/testdemo-cog-asktell-basic
 sh/testdemo-cog-asktell-askcrash
+sh/testdemo-cog-wait
 sh/rex-test
 sh/bootstrap-sire
