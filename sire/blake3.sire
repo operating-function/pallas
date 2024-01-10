@@ -258,8 +258,11 @@ st
 @ want | sub b3BlockLen (b3ChunkstGetBlockLen c)
 @ need | min want (len input)
 @ c | b3ChunkstPutBlock c
-    | weld (take need input)
-    | drop need (b3ChunkstGetBlock c)
+    : i < gen (len | b3ChunkstGetBlock c)
+    @ blockLen | b3ChunkstGetBlockLen c
+    | if (lth i blockLen || gte i (add need blockLen))
+    * get (b3ChunkstGetBlock c) i
+    * get input (sub i blockLen)
 @ c | b3ChunkstPutBlockLen c
     | add (b3ChunkstGetBlockLen c) need
 | b3ChunkstUpdate c (drop need input)
@@ -419,6 +422,9 @@ st
 = (blake3_row byt)
 | b3Finalize (b3HasherUpdate b3HasherNew byt) 32
 
+= (blake3_chunks chunks)
+| b3Finalize (foldl b3HasherUpdate b3HasherNew chunks) 32
+
 = (blake3 bar) | bytesBar | blake3_row | barBytes bar
 
 
@@ -429,8 +435,18 @@ st
        ++ x#90227162dc0faaa14f9627d8f5c718f7
     | blake3 b#fdsafdsa
 
+testData=(barBytes | barGen 4096 id)
+
+=?= | blake3_row testData
+  | blake3_chunks [testData]
+
+=?= | blake3_row testData
+  | blake3_chunks (chunks 78 testData)
+
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^ blake3
 ^-^ blake3_row
+^-^ blake3_chunks
+^-^ b3HasherNew b3HasherUpdate b3Finalize
