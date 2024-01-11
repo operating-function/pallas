@@ -371,6 +371,7 @@
 = (listHas e xs)   | listAny eql-e xs
 = (listEnumFrom n) | CONS n (listEnumFrom inc-n)
 = (listRepeat n)   | CONS n listRepeat-n
+= (listAllEql xs)  | listCase xs TRUE (x xs)&(listAll (eql x) xs)
 
 = (listWeld a b)
 | listCase a b
@@ -969,7 +970,7 @@ F=found
 ^-^ listFoldr
 ^-^ listLen listToRow sizedListToRow sizedListToRowRev
 ^-^ listToRowRev listFromRow
-^-^ listAnd listOr listSum listAll listAny
+^-^ listAnd listOr listSum listAll listAllEql listAny
 ^-^ listHas listEnumFrom listWeld listCat listTake listDrop
 ^-^ listTakeWhile listDropWhile
 ^-^ listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn
