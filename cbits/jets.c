@@ -27,6 +27,16 @@ void blake3_hasher_update_word (blake3_hasher *h, uint64_t word)
         blake3_hasher_update(h, &word, 8);
 }
 
+void jet_blake3_hasher_update (blake3_hasher *h, uint64_t* word, size_t input_len)
+{
+        blake3_hasher_update(h, word, input_len);
+}
+
+void jet_blake3_hasher_finalize (blake3_hasher *h, uint8_t* out)
+{
+        blake3_hasher_finalize(h, out, 32);
+}
+
 int jet_revmemcmp(const void *s1, const void *s2, size_t n)
 {
     if (n == 0) {

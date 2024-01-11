@@ -422,31 +422,44 @@ st
 = (blake3_row byt)
 | b3Finalize (b3HasherUpdate b3HasherNew byt) 32
 
-= (blake3_chunks chunks)
-| b3Finalize (foldl b3HasherUpdate b3HasherNew chunks) 32
+= (_Blake3 x)
+^ bytesBar | b3Finalize (_ b3HasherNew x) 32
+? (hashTree h x)
+| if isBar-x | b3HasherUpdate h barBytes-x
+| if isRow-x | foldl hashTree h x
+| h
 
-= (blake3 bar) | bytesBar | blake3_row | barBytes bar
+blake3=_Blake3
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!! eql  | barCat
-       ++ x#7470ea5654831e01ffc04ee0e43a32fb
-       ++ x#90227162dc0faaa14f9627d8f5c718f7
-    | blake3 b#fdsafdsa
+=?= | barCat
+   ++ x#7470ea5654831e01ffc04ee0e43a32fb
+   ++ x#90227162dc0faaa14f9627d8f5c718f7
+  | blake3 b#fdsafdsa
 
-testData=(barBytes | barGen 4096 id)
+= testData
+^ _ (barGen 4096 id) 3
+? (loop remaining size)
+| if (barIsEmpty remaining) NIL
+| CONS (barTake size remaining)
+| loop (barDrop size remaining) (mul 2 size)
 
-=?= | blake3_row testData
-  | blake3_chunks [testData]
+=?= | blake3 testData
+  | blake3 (barFlat testData)
 
-=?= | blake3_row testData
-  | blake3_chunks (chunks 78 testData)
+=?= | blake3 b#foobarbaz
+  | blake3 ~[b#foo b#bar b#baz]
+
+=?= | blake3 [testData b#foo]
+  | blake3 (barFlat [testData b#foo])
+
+=?= | blake3 [[b#foo testData b#bar] b#baz]
+  | blake3 (barFlat [[b#foo testData b#bar] b#baz])
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^ blake3
 ^-^ blake3_row
-^-^ blake3_chunks
-^-^ b3HasherNew b3HasherUpdate b3Finalize

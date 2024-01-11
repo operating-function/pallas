@@ -266,5 +266,5 @@ jetHashes
     , e "_SaveGerm"           "13ToYhDihiGtEtozeKzztDzsNqMfatpMFsz7FRAqScpE"
     , e "_LoadSeed"           "6RP3fUjib3jxhTS3eqokt6JxEnY2ZhaYVV9qJGc8Hp9q"
     , e "_SaveSeed"           "C91Wd6Rz2TXqt8xMc5xc5iZxJYoB1z5LLHgFHZNpetBy"
-    , e "blake3"              "DcyFBJsnvJyNzWmrqNMTB8qXemQtT1A1wGiiD37iqxCp"
+    , e "_Blake3"             "9mGa2jfNYv5PDs4pqPLtdtawHN6Ws6dAqjTUJCieEg3v"
     ]

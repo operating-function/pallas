@@ -25,7 +25,7 @@ import Foreign.Storable
 import PlunderPrelude
 
 import Data.ByteString.Builder (byteString, toLazyByteString)
-import Fan.FFI                 (c_jet_blake3)
+import Fan.FFI                 hiding (c_revmemcmp)
 import Foreign.Marshal.Alloc   (allocaBytes)
 import Foreign.Ptr             (castPtr)
 import GHC.Exts                (Word(..), int2Word#, uncheckedIShiftL#, (+#))
@@ -240,7 +240,7 @@ jetImpls = mapFromList
   , ( "_TypeTag"                        , Just typeTagJet                     )
   , ( "_TryExp"                         , Nothing                             )
   , ( "_Try"                            , Just tryJet                         )
-  , ( "blake3"                          , Just blake3Jet                      )
+  , ( "_Blake3"                         , Just blake3Jet                      )
   , ( "_LoadGerm"                       , Just loadGermJet                    )
   , ( "_SaveGerm"                       , Just saveGermJet                    )
   , ( "_LoadSeed"                       , Just loadSeedJet                    )
@@ -882,17 +882,19 @@ barWeldJet f e =
     bweld a b = BAR (a <> b)
 
 blake3Jet :: Jet
-blake3Jet f e =
-    orExecTrace "blake3" (f e) do
-        blake3 <$> getBar (e.!1)
+blake3Jet _ e = unsafePerformIO do
+    h <- c_jet_blake3_hasher_new
+    hashTree h (e.!1)
+    allocaBytes 32 $ \outbuf -> do
+      c_jet_blake3_hasher_finalize h (castPtr outbuf)
+      BAR <$> BS.packCStringLen (outbuf, 32)
   where
-    blake3 bar =
-        unsafePerformIO $
-        allocaBytes 32 \outbuf ->
-        BS.unsafeUseAsCStringLen bar \(byt, wid) -> do
-            c_jet_blake3 (castPtr outbuf) (fromIntegral wid) (castPtr byt)
-            res <- BS.packCStringLen (outbuf, 32)
-            pure (BAR res)
+    hashTree h = \case
+      ROW row -> mapM_ (hashTree h) row
+      BAR bar ->
+        BS.unsafeUseAsCStringLen bar \(byt, wid) ->
+        c_jet_blake3_hasher_update h (castPtr byt) (fromIntegral wid)
+      _ -> pure ()
 
 tryJet :: Jet
 tryJet f e =
