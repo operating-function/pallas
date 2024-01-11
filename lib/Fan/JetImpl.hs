@@ -727,6 +727,17 @@ isBarJet _ env =
         BAR _ -> NAT 1
         _     -> NAT 0
 
+{-
+    TODO: Evaluate using `barTreeToList` for this.  The algoritm isn't
+    exactly the same, but unclear if it's worse or better.  Likely
+    consuming barTreeToList and using that explicitly fill a buffer would
+    be better than using Bytestring Builders, since we get none of the
+    usual advantages of that here.
+
+    If the approach indicated above is better, then this could probably
+    be simplified to something like (barCat . barTreeToList) with an
+    imperative implementation of barCat.
+-}
 barFlatJet :: Jet
 barFlatJet _ env =
     BAR $ toStrict $ toLazyByteString $ go $ (env.!1)
@@ -740,6 +751,18 @@ barFlatJet _ env =
     go (TAb r) = concat (go <$> toList r)  -- app
     go k@KLO{} = concat (go <$> kloArgs k) -- app
     go NAT{}   = mempty                    -- nat
+
+barTreeToList :: Fan -> [ByteString]
+barTreeToList = \case
+    BAR b   -> [b]                                  -- law (but is a bar)
+    PIN{}   -> []                                   -- pin (not an app)
+    COw{}   -> []                                   -- law (not an app)
+    SET{}   -> []                                   -- law (not an app)
+    FUN{}   -> []                                   -- law (not an app)
+    ROW r   -> concat (barTreeToList <$> toList r)  -- app
+    TAb r   -> concat (barTreeToList <$> toList r)  -- app
+    k@KLO{} -> concat (barTreeToList <$> kloArgs k) -- app
+    NAT{}   -> mempty                               -- nat
 
 getInt :: Fan -> Maybe Int
 getInt (NAT n) | n < maxInt = Just (fromIntegral n)
@@ -884,17 +907,14 @@ barWeldJet f e =
 blake3Jet :: Jet
 blake3Jet _ e = unsafePerformIO do
     h <- c_jet_blake3_hasher_new
-    hashTree h (e.!1)
-    allocaBytes 32 $ \outbuf -> do
-      c_jet_blake3_hasher_finalize h (castPtr outbuf)
-      BAR <$> BS.packCStringLen (outbuf, 32)
-  where
-    hashTree h = \case
-      ROW row -> mapM_ (hashTree h) row
-      BAR bar ->
+
+    for_ (barTreeToList (e.!1)) \bar ->
         BS.unsafeUseAsCStringLen bar \(byt, wid) ->
         c_jet_blake3_hasher_update h (castPtr byt) (fromIntegral wid)
-      _ -> pure ()
+
+    allocaBytes 32 $ \outbuf -> do
+        c_jet_blake3_hasher_finalize h (castPtr outbuf)
+        BAR <$> BS.packCStringLen (outbuf, 32)
 
 tryJet :: Jet
 tryJet f e =

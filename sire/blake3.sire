@@ -423,11 +423,9 @@ st
 | b3Finalize (b3HasherUpdate b3HasherNew byt) 32
 
 = (_Blake3 x)
-^ bytesBar | b3Finalize (_ b3HasherNew x) 32
-? (hashTree h x)
-| if isBar-x | b3HasherUpdate h barBytes-x
-| if isRow-x | foldl hashTree h x
-| h
+^ bytesBar (b3Finalize _ 32)
+^ listFoldl _ b3HasherNew (barTreeToList x)
+| (h x)&(b3HasherUpdate h barBytes-x)
 
 blake3=_Blake3
 
@@ -449,8 +447,15 @@ blake3=_Blake3
 =?= | blake3 testData
   | blake3 (barFlat testData)
 
-=?= | blake3 b#foobarbaz
-  | blake3 ~[b#foo b#bar b#baz]
+!! | listAllEql
+  ~~ pinItem blake3 b#foobarbaz
+  ~~ pinItem blake3 ~[b#foo b#bar b#baz]
+  ~~ pinItem blake3 (1 b#baz b#bar b#foo)
+  ~~ pinItem blake3 (add (1 2 b#baz b#bar (0 b#foo)))
+  ~~ blake3 b#foobarbaz
+  ~~ blake3 ~[b#foo b#bar b#baz]
+  ~~ blake3 (1 b#baz b#bar b#foo)
+  ~~ blake3 (add (1 2 b#baz b#bar (0 b#foo)))
 
 =?= | blake3 [testData b#foo]
   | blake3 (barFlat [testData b#foo])
