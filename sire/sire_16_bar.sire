@@ -423,10 +423,16 @@ hexAlphabet=(b#{0123456789abcdef})
 =?= '(b#{deadbeef}) | showBarLit b#deadbeef
 =?= '(b#{})         | showBarLit x#{}
 
-= (barFlat x)
-| if (isBar x) | x
-| if (isApp x) | barCat (map barFlat x)
-| b#{}
+= (barTreeToList x)
+| if isBar-x | CONS x 0
+| if isApp-x | listCatMap barTreeToList (listFromRow x)
+| NIL
+
+=?= NIL                       | barTreeToList barTreeToList
+=?= [b#foo [b#bar [b#zaz 0]]] | barTreeToList (0 [[b#foo] b#bar b#zaz])
+=?= [b#foo [b#bar [b#zaz 0]]] | barTreeToList [b#foo b#bar b#zaz]
+
+(barFlat x)=(barCatList | barTreeToList x)
 
 = (barFindIndexOff pred off bar)
 @ len (barLen bar)
@@ -616,7 +622,7 @@ barSliceToNat=_BarSliceToNat
 ^-^ barIntercalate barIntercalateList
 ^-^ barFromHex barPad
 ^-^ barTake barDrop barSlice barSliceToNat
-^-^ barFlat barHas
+^-^ barTreeToList barFlat barHas
 ^-^ barBytes barToRow rowFromBar barToList
 ^-^ barFromRow barFromList barFromListRev rowToBar
 ^-^ barMap barFilter

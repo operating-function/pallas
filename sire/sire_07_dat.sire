@@ -385,6 +385,8 @@
 | listWeld x
 | listCat xs
 
+(listCatMap f r)=(listCat | listMap f r)
+
 = (listTake num lis)
 | ifNot num NIL
 | listCase lis NIL
@@ -971,7 +973,7 @@ F=found
 ^-^ listLen listToRow sizedListToRow sizedListToRowRev
 ^-^ listToRowRev listFromRow
 ^-^ listAnd listOr listSum listAll listAllEql listAny
-^-^ listHas listEnumFrom listWeld listCat listTake listDrop
+^-^ listHas listEnumFrom listWeld listCat listCatMap listTake listDrop
 ^-^ listTakeWhile listDropWhile
 ^-^ listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn
 ^-^ listNub listIterate
