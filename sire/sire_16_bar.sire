@@ -92,7 +92,7 @@
 = (_Bar pad)       | 0 1 1 pad
 = (mkBar xtr bits) | _Bar (barEnc xtr bits)
 = (natBar n)       | mkBar 0 n
-= (barSing byt)    | natBar byt
+= (barSing byt)    | mkBar not-byt byt
 = (barDuo x y)     | natBar (add x | lsh y 8)
 = (barNat n)       | barDec (lawBody n)
 = (barLen bar)     | div (padLen lawBody-bar) 8
@@ -512,7 +512,7 @@ hexAlphabet=(b#{0123456789abcdef})
 
 =?= [0 [1 [2 0]]] | barSubstringSearch b#{} b#bba
 =?= [2 [6 0]]     | barSubstringSearch b#aa b#bbaabbaa
-=?= [2 [6 0]]     | barSubstringSearch b#aa b#bbaabbaa
+=?= [0 [4 0]]     | barSubstringSearch b#aa b#aabbaabb
 =?= [0 [1 0]]     | barSubstringSearch b#aa b#aaa
 =?= [0 [1 [2 0]]] | barSubstringSearch b#a b#aaa
 
@@ -577,6 +577,7 @@ hexAlphabet=(b#{0123456789abcdef})
 =?= b#bcd    | barMap inc b#abc
 =?= b#aabbcc | barCatMap (x & barFromRow [x x]) b#abc
 =?= b#x      | barSing %x
+=?= x#00     | barSing 0
 =?= b#xy     | barDuo  %x %y
 
 
