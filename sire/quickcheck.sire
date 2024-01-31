@@ -81,6 +81,8 @@ discardRes=NONE
 > Bit > PropResult
 qcIs=SOME
 
+> (a > b) > a > Bit
+(propJet f x)=(eql f-x pinItem-f-x)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; quickCheck
@@ -195,11 +197,15 @@ getSize=(sized pureGen)
 > Gen Word64
 (genU64 r n)=(fst | nextWord64 r)
 
-> Gen Word8
 > Word64 > Word64 > Gen Word64
 = (chooseW64 lo hi r n)
 @ val (fst (nextWord64 r))
 | add lo (mod val (sub hi lo))
+
+> Row (Gen a) > Gen a
+= (oneof gs)
+| bindGen | chooseW64 0 (dec len-gs)
+| get gs
 
 > Gen a > Gen b > Gen (a, b)
 = (gen2 genA genB)
@@ -230,6 +236,26 @@ getSize=(sized pureGen)
 (genMap f gen r n)=(f | gen r n)
 
 genU8=(genMap w8 genU64)
+
+= (genPlan r n)
+^ _ r n
+| oneof
+++ genMap PIN genPlan
+++ : n < bindGen genU64
+   : a < bindGen | genMap inc genU64
+   : b < bindGen genPlan
+   | pureGen | LAW n a b
+++ : a < bindGen genPlan
+   | if (lte arity-a 1) | pureGen a
+   : b < bindGen genPlan
+   | pureGen (a b)
+++ genU64
+++ genList genU64
+++ oneof [c0 c1 c2 c3 c4 c5 c6 c7 c8 c9]
+++ genMap listToRow (genListLenMax 5 genPlan)
+++ genMap (compose setFromRow listToRow) (genListLenMax 5 genPlan)
+++ genMap tabFromPairsList (genListLenMax 5 | gen2 genU64 genPlan)
+; ++ genMap natBar genU8 ; TODO why does this perform so poorly?
 
 
 ;;; shrinkers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -282,6 +308,15 @@ genU8=(genMap w8 genU64)
     | listIterate (v&(div v 2)) n
 | shrinkOne xs
 
+; TODO shrink tabs, sets, rows, cows and bars separately
+> Any > List Any
+= (shrinkPlan plan)
+| if isPin-plan | ~[pinItem-plan]
+| if isLaw-plan | ~[lawName-plan lawArgs-plan lawBody-plan]
+| if isApp-plan | ~[car-plan cdr-plan]
+| if isNat-plan | shrinkNat plan
+| else          | die {shrinkPlan impossible case}
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test helpers / pretty-printers
@@ -328,6 +363,12 @@ genU8=(genMap w8 genU64)
 * (FAIL _ _ _ _ _) | TRUE
 * _                | FALSE
 
+= (qc_jet seed f arb)
+@ name | strWeld {Fuzzing jet }
+       | if isPin-f | lawName pinItem-f
+       | lawName f
+| qc_exec1 seed name x&(SOME | propJet f x) arb resultIsOk
+
 (qc1_pass seed name prop arb)=(qc_exec1 seed name prop arb resultIsOk)
 (qc1_fail seed name prop arb)=(qc_exec1 seed name prop arb resultIsFail)
 
@@ -348,6 +389,8 @@ genU8=(genMap w8 genU64)
 
 = arbU64     | (genU64, shrinkNat)
 = arbU64List | (genList genU64, shrinkList shrinkNat)
+
+= arbPlan    | (genPlan, shrinkPlan)
 
 = (isList x)
 ^ (isZero x || _)
@@ -375,13 +418,13 @@ genU8=(genMap w8 genU64)
 
 ^-^
 ^-^ ARGS
-^-^ prop1 prop2 discardRes qcEql qcNeq qcIs
+^-^ prop1 prop2 discardRes qcEql qcNeq qcIs propJet
 ^-^ quickCheck
 ^-^ bindGen pureGen sized getSize
 ^-^ genU64 chooseW64 gen2 genListLen genListLenMax genList genMap
 ^-^ shrink2 shrinkNat shrinkBool shrinkList
-^-^ qc1_pass qc1_fail qc2_pass
+^-^ qc1_pass qc1_fail qc2_pass qc_jet
 ^-^
 ^-^ arbU8 arbU8List
 ^-^ arbU64 arbU64List
-^-^
+^-^ arbPlan

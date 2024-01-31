@@ -48,8 +48,9 @@
 (_TabKeys tab)=(car tab)
 (_TabVals tab)=(cdr tab)
 
-= (_TabKeysRow tab)  | setToRow  | _TabKeys tab
-= (_TabKeysList tab) | setToList | _TabKeys tab
+= (_TabKeysRow tab)  | setToRow    | _TabKeys tab
+= (_TabKeysList tab) | setToList   | _TabKeys tab
+= (tabValsList tab)  | listFromRow | _TabVals tab
 
 
 ;;; Tab Lookup ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -560,7 +561,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 ^-^ tabSearchCase
 ^-^
 ^-^ tabLen tabIdx tabKeysSet tabKeysRow tabKeysList tabHas tabGet
-^-^ tabValsRow tabSwitch
+^-^ tabValsRow tabValsList tabSwitch
 ^-^ tabFromPairs tabFromAscPairs tabToPairs tabToPairList tabToList tabPut
 ^-^ tabFromPairsList
 ^-^ tabIns tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter
