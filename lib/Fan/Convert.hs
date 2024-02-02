@@ -94,16 +94,24 @@ wordFromNoun n = do
     pure (fromIntegral w)
 
 instance (ToNoun a,ToNoun b) => ToNoun (a,b)
-  where toNoun(x,y) = mkRow[toNoun x, toNoun y]
+  where
+    toNoun (x,y) =
+        ROW $ arrayFromListN 2 [toNoun x, toNoun y]
 
 instance (ToNoun a,ToNoun b,ToNoun c) => ToNoun (a,b,c)
-  where toNoun(x,y,z) = mkRow[toNoun x, toNoun y, toNoun z]
+  where
+    toNoun (x,y,z) =
+        ROW $ arrayFromListN 3 [toNoun x, toNoun y, toNoun z]
 
 instance (ToNoun a,ToNoun b,ToNoun c,ToNoun d) => ToNoun (a,b,c,d)
-  where toNoun(p,q,r,s) = mkRow[toNoun p,toNoun q,toNoun r,toNoun s]
+  where
+    toNoun (p,q,r,s) =
+        ROW $ arrayFromListN 4 [toNoun p,toNoun q,toNoun r,toNoun s]
 
 instance (ToNoun a,ToNoun b,ToNoun c,ToNoun d,ToNoun e) => ToNoun (a,b,c,d,e)
-  where toNoun(p,q,r,s,t) = mkRow[toNoun p,toNoun q,toNoun r,toNoun s,toNoun t]
+  where
+    toNoun (p,q,r,s,t) =
+        ROW $ arrayFromListN 5 [toNoun p,toNoun q,toNoun r,toNoun s,toNoun t]
 
 instance (FromNoun a,FromNoun b)
     => FromNoun (a,b)
