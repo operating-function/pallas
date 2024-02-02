@@ -40,7 +40,7 @@ Hopefully that made sense, but it probably didn't. Oh well.
 
 Uh.. okay fine.  I guess we can talk about this here.
 
-The thing that replaces JSON+Pythong is PLAN.
+The thing that replaces JSON+Python is PLAN.
 
 It's really simple.  In Haskell you would write the type like this:
 
@@ -177,6 +177,145 @@ Again, it's not complicated, but it's very unintuitive.
 
 People always get hung up on this, and the only real way to explain this
 is to sit down and work through some examples until it clicks.
+
+### Why are you being weird about this?  Just explain it.
+
+Uh, okay.
+
+Well first of all, the built-in operations are these:
+
+Incrementing natural numbers:
+
+    INCREMENT(x) = x+1
+
+Inspecting natural numbers:
+
+    INSPECT_NAT(zeroCase, positiveCase, x) =>
+
+        case x of
+            0   -> zeroCase
+            n+1 -> positiveCase(n)
+
+Constructing pins:
+
+    MAKE_PIN(x) -> PIN(x)
+
+Constructing laws:
+
+    MAKE_LAW(n,a,b) -> LAW(n,a,b)
+
+Inspecting PLAN values:
+
+    INSPECT_PLAN(pinCase, lawCase, appCase, natCase, x) =>
+
+        case x of
+            PIN(x)     -> pinCase(x)
+            LAW(n,a,b) -> lawCase(n,a,b)
+            APP(f,x)   -> appCase(f,x)
+            NAT(n)     -> natCase(x)
+
+That's the full set.
+
+
+### Okay, but what does that have to do with what we were talking about?
+
+The way this works, is that the natural numbers 0, 1, 2, 3, and 4 can
+be used as functions:
+
+    (0 n a b)     -> MAKE_LAW(n,a,b)
+    (1 p l a n x) -> INSPECT_PLAN(p,l,a,n,x)
+    (2 z p x)     -> INSPECT_NAT(z,p,x)
+    (3 x)         -> INCREMENT(x)
+    (4 x)         -> MAKE_PIN(x)
+
+If you *partially apply* these functions, you just get APP nodes.
+
+    (0 1)   -> APP(0,1)
+    (0 1 2) -> APP(APP(0,1),2)
+
+Remember how I said you can use this to build data structures?
+
+This is maybe a little bit weird to think about, but, for example,
+you could use 0 partially-applied in order to build a linked list:
+
+     []        = 0
+     [3]       = (0 3 0)
+     [3, 4]    = (0 3 (0 4 0))
+     [3, 4, 5] = (0 3 (0 4 (0 5 0)))
+
+And, using `PLAN_INSPECT`(1), you can traverse this list.  For example:
+
+    sumList (APP (APP _ x) xs) = add x (sumList xs)
+    sumList _                  = 0
+
+Here's a taste of how something like that is encoded in PLAN, don't
+worry about trying to understand this in any detail.
+
+    sumList x =
+        case x of
+            APP head xs ->
+                case head of
+                    APP _ x -> add x (sumList xs)
+                    _       -> 0
+            _  -> 0
+
+    sumList x =
+        let
+            lawCase _ _ _   = 0
+            pinCase _       = 0
+            natCase _       = 0
+            consCase x xs   = add x (sumList xs)
+            appCase head xs =
+                (1 pinCase lawCase (\_ x -> consCase x xs) pinCase)
+        in
+            (1 pinCase lawCase appCase natCase x)
+
+
+### Interesting.  What does that have to do with that law stuff, tho?
+
+Laws have a very simple "super combinator" AST, which is basically
+something like:
+
+    data Law = LAW { name:Nat, arity:Nat, body:LawBody }
+
+    data LawBody
+        = BIND LawExpr LawBody
+        | BODY LawExpr
+
+    data LawExpr
+        = REFER Nat              --  reference an argument or local binding.
+        | CONST Plan             --  embeded constant value
+        | APPLY LawExpr LawExpr  --  function call
+
+And that data structure is encoded in a way very similar to how we built
+lists earlier.
+
+That's the general idea, but let's back out of this for now.  This is
+more than enough detail for now.
+
+This is very "weird", and most people *really* struggle to understand this
+"double use" of partially applied functions.
+
+The reason for this *weirdness* is that plan ASTs need to be made out of
+"the same stuff" as everything else, because this allows them to be
+constructed by normal code.
+
+Unlike functions in Haskell, Scheme, or Python, PLAN is a JSON-like
+thing, so functions need to be "normal data structures" that can be
+constructed like any other data strcture, serialized, written to disk,
+read back from disk, sent of the network, etc.
+
+PLAN code can dynamically build new code.
+
+1)  Unlike in Scheme and Javascript, you don't need special runtime
+    system functions like `eval` in order to dynamically introduce code.
+
+2)  Also unlike Scheme/Javascript, code don't contain "symbols" and
+    isn't defined in any sort of "namespace".
+
+3)  Unlike in languages like Haskell and ML, you can actually introduce
+    new "native" functions, not just introduce a DSL and write an
+    interpreter for it.
 
 
 ## Building Blunder
