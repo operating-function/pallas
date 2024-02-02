@@ -1,0 +1,47 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_cog_upgrade <- demo_full_tag_site
+
+:| prelude
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Note that {runHttpServer} uses an inefficient HTTP-server pattern,
+;; because it doesn't accept another request until it finishes handling
+;; the last one.
+
+= (sleep seconds return)
+: now  < TIME_WHEN
+@ then | add seconds now
+: _    < syscall (TIME_WAIT then)
+| return then
+
+= (runHttpServer return)
+: req@[rid method path headers (PIN body)]
+    < syscall HTTP_HEAR
+| trk [=req]
+@ (fallback code why)
+     | trk ["nonsense request" why]
+     : _ < syscall (HTTP_ECHO rid code b#bad [] why)
+     | runHttpServer return
+| if (path /= b{/become}) | fallback 404 b{Not Found}
+| if (method /= %POST)    | fallback 400 b{Not a POST request}
+: result < syscall (EVAL1 5 _LoadSeed body)
+| trk [hash=(blake3 body)]
+| trk [=result]
+# switch (len result)
+* 0 | fallback 500 {decoder timeout}
+* 1 | fullyReplaceCog (idx 0 result) return ; never returns
+* 2 | fallback 500 {decoder crash}
+* _ | fallback 500 {internal error}
+
+= main
+: exit < runCog
+: var  < newEmptyMVar
+: srv  < fork (| syscall | HTTP_SERV | const NONE)
+: _    < runHttpServer
+: _    < cancel srv
+| exit 0

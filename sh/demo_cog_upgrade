@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+set -ex
+
+tmp=$(mktemp -u .demo-XXXXXXX)
+seedfile="${tmp}.seed"
+workdir="./$tmp"
+touch $seedfile
+
+cleanup () { rm -rf "$workdir" "$seedfile"; }
+trap cleanup EXIT
+
+plunder boot "$workdir" sire/demo_cog_upgrade.sire
+
+plunder start "$workdir" &
+
+plunder_pid=$!
+
+cleanup () {
+    rm -rf "$workdir" "$seedfile"
+    kill -9 $plunder_pid
+    wait $plunder_pid || true
+}
+
+trap cleanup EXIT
+
+until find "$workdir" -maxdepth 1 -name "*.http.port" -quit
+do
+     echo "Waiting..."
+     sleep 0.1
+done
+
+sleep 1 # was failing randomly for some reason
+
+PORT=$(cat "$workdir"/*.http.port)
+
+
+################################################################################
+# Produce a seed file for the HTTP Client demo
+
+plunder save "$seedfile" sire/demo_http_client.sire
+
+# plunder show "$seedfile"
+# wc -c <"$seedfile"
+# b3sum <"$seedfile"
+
+
+################################################################################
+# Upload the seed file into the /become endpoing
+
+curl -v --data-binary @$seedfile "http://localhost:$PORT/become"
+
+# The code is taken over by the HTTP Client demo, it performs a request,
+# and then it shuts down.
+
+wait $plunder_pid

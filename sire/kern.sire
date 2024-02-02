@@ -280,6 +280,19 @@ newEmptyMVar=(newRef (**EMPTY []))
 @ sl (put sl me k)
 | end fr kl sl rq
 
+;; {fullyReplaceCog} totally nukes the current cog, completely replacing
+;; it with this new value.
+;;
+;; Danger!  Danger!  Danger!
+;;
+;; This will kill all running threads, cancel all syscall, and delete
+;; all data.  If you want to preserve any of that, you need the new
+;; state to include that information.
+
+
+> PausedCog > Cog b
+(fullyReplaceCog newCogValue k end me fr kl sl rq)=newCogValue
+
 ; To trace the kernel state at the end of each event, replace every
 ; reference to `KERNEL` below with a reference to `TRACED KERNEL`.
 = (TRACED KERNEL fr kl sl rq)
@@ -469,7 +482,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 ^-^ Cog PausedCog
 ^-^ KERNEL DONE
 ^-^ forever
-^-^ runCog syscall
+^-^ runCog syscall fullyReplaceCog
 ^-^ allocateSlot getKernelState
 ^-^
 ^-^ Ref
