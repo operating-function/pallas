@@ -338,8 +338,9 @@ channelPoolRegister channel vChannels psr = do
 -- Given a channel number, takes an item from that pool, cleaning up empty
 -- channel pools.
 --
--- Unlike `readPool`, this never retries and returns a Maybe instead because
--- retrying during `receiveResponse` can cause more widespread blockage.
+-- Unlike `poolTakeNext`, this never retries and returns a Maybe instead
+-- because retrying during `receiveResponse` can cause more widespread
+-- blockage.
 channelPoolTake :: Word64 -> TVar (ChannelPool a) -> STM (Maybe a)
 channelPoolTake channel vChannels = do
     channels <- readTVar vChannels

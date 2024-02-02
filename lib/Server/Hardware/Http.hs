@@ -64,6 +64,9 @@
             invalidate characters in the actual HTTP response.
 
 When called:
+    REQ ->
+        Add to pool of pending http client requests.
+          (On cancel, remove from the pool).
     HEAR ->
         Add to pool of %hear requests.
           (On cancel, remove from the pool).
@@ -111,6 +114,7 @@ import Server.Hardware.Types
 import Server.LmdbStore
 
 import Data.Acquire         (Acquire, mkAcquire)
+import Data.CaseInsensitive (CI)
 import Data.IntMap.Strict   (minView)
 import Fan.Convert          (FromNoun(..), ToNoun(..), fromNoun, toNoun)
 import Optics               (set)
@@ -121,6 +125,8 @@ import System.IO.Error      (catchIOError)
 
 import qualified Data.CaseInsensitive           as CI
 import qualified Data.Vector                    as V
+import qualified Network.HTTP.Client            as Client
+import qualified Network.HTTP.Client.TLS        as Client
 import qualified Network.HTTP.Types             as W
 import qualified Network.Socket                 as N
 import qualified Network.Wai                    as W
@@ -144,6 +150,8 @@ data PathLeaf = PL
 newtype File = FILE { bytes :: LByteString }
 
 type Bar = ByteString
+
+type List a = [a]
 
 data StaticRequest = STAT_REQ
     { method  :: Nat
@@ -178,6 +186,7 @@ data DynamicResponse = DYN_RESP
 data Req
     = SERV Fan             -- (StaticRequest -> Maybe StaticResponse) -> IO Void
     | HEAR                 -- IO DynamicRequest
+    | REQ ClientReq        -- ClientReq -> IO ClientResp
     | HOLD Nat             -- IO ()
     | ECHO DynamicResponse -- IO ()
 
@@ -197,11 +206,28 @@ instance ToNoun DynamicRequest where
 decodeHttpRequest :: Vector Fan -> Maybe Req
 decodeHttpRequest top = (dec . toList) top
   where
-    dec ["serv", ss]       = SERV <$> fromNoun ss
-    dec ["hear"]           = pure HEAR
-    dec ["hold", NAT n]    = pure (HOLD n)
-    dec ["echo",r,c,m,h,b] = ECHO <$> echo r c m h b
-    dec _                  = Nothing
+    dec ["serv", ss]        = SERV <$> fromNoun ss
+    dec ["hear"]            = pure HEAR
+    dec ["hold", NAT n]     = pure (HOLD n)
+    dec ["echo",r,c,m,h,b]  = ECHO <$> echo r c m h b
+    dec ["req",m,u,h,b,r,t] = REQ <$> req m u h b r t
+    dec _                   = Nothing
+
+    req m u h b r t = do
+        traceM $ show (m,u,h,b,r,t)
+        traceM $ show $
+            CLIENT_REQ <$> fromNoun m
+                       <*> fromNoun u
+                       <*> (fromNoun h <&> map \(n,v) -> (CI.mk n, v))
+                       <*> fromNoun b
+                       <*> fromNoun r
+                       <*> fromNoun t
+        CLIENT_REQ <$> fromNoun m
+                   <*> fromNoun u
+                   <*> (fromNoun h <&> map \(n,v) -> (CI.mk n, v))
+                   <*> fromNoun b
+                   <*> fromNoun r
+                   <*> fromNoun t
 
     echo r c m h b =
         DYN_RESP <$> fromNoun r
@@ -210,7 +236,6 @@ decodeHttpRequest top = (dec . toList) top
                  <*> fromNoun h
                  <*> fromNoun b
 
---------------------------------------------------------------------------------
 
 getTab :: Fan -> Maybe (Tab Fan Fan)
 getTab (TAb x) = pure x
@@ -229,7 +254,9 @@ data CogState = COG_STATE
     { sock :: N.Socket -- ^ HTTP Socket
     , port :: Int      -- ^ HTTP Port
     , file :: FilePath -- ^ File containing the HTTP Port
-    , stik :: Async () -- ^ Webserver thread
+
+    , serverThread :: Async ()
+        -- ^ The thread that actually runs the HTTP server.
 
     , serv :: TVar (Pool Fan)        -- ^ Active SERV syscalls
     , hold :: TVar (Pool SysCall)    -- ^ Active HOLD syscalls
@@ -237,21 +264,32 @@ data CogState = COG_STATE
     , hear :: TVar (Pool SysCall)    -- ^ Active HEAR syscalls
     , lock :: MVar ()                -- ^ Fair ordering for hear
 
-      -- | Map from request-id to a response channel and a list of pending
-      -- hold requests.
     , live :: TVar (Pool (TMVar (DynamicResponse, Flow), [Int]))
+      -- ^ Map from request-id to a response channel and a list of pending
+      -- hold requests.
+
+    , liveClientReqs    :: TVar (Pool (ClientReq, SysCall))
+        -- ^ Live HTTP-Client syscalls and their coresponding requests.
+
+    , pendingClientReqs :: TVar [Int]
+         -- ^ List of requested HTTP requests that haven't been launched
+         -- yet.
+
+    , clientThread      :: Async Void
+          -- ^ HTTP Client worker thread.
     }
 
 data HWState = HW_STATE
-    { mach  :: FilePath
-    , wsApp :: CogId -> WS.ServerApp
-    , cogs  :: TVar (Map CogId CogState)
-    , store :: LmdbStore
+    { mach    :: FilePath
+    , wsApp   :: CogId -> WS.ServerApp
+    , cogs    :: TVar (Map CogId CogState)
+    , store   :: LmdbStore
+    , manager :: Client.Manager
     }
 
 cancelCog :: CogState -> IO ()
 cancelCog cog = do
-    cancel cog.stik
+    cancel cog.serverThread
     catchIOError (removeFile cog.file) (const pass)
 
 {-
@@ -306,10 +344,15 @@ spinCog st cogId = do
         sock <- pure listenSocket
         port <- pure listenPort
         live <- newTVarIO emptyPool
+        liveClientReqs    <- newTVarIO emptyPool
+        pendingClientReqs <- newTVarIO []
         mdo
-            stik <- async (servThread st.store (st.wsApp cogId) cs)
-            let ~cs = COG_STATE{sock,port,file=portFile,stik,serv,hear,lock,
-                                hold,live}
+            serverThread <- async (servThread st.store (st.wsApp cogId) cs)
+            clientThread <- async (clientWorker st.manager cs)
+            let file = portFile
+            let ~cs  = COG_STATE{sock,port,file,serverThread,serv,hear,lock,
+                                 hold,live,liveClientReqs,pendingClientReqs,
+                                 clientThread}
             pure cs
 
     -- TODO: For now, we just assume that a second cog with the same
@@ -325,13 +368,13 @@ spinCog st cogId = do
             wipe <- async (staticWipeThread stat)
             dype <- async (dynoWipeThread stat)
             serv <- async (servThread lmdbStore (st.wsApp machineName) stat)
-            stik <- pure (SSS live wipe)
+            serverThread <- pure (SSS live wipe)
             dyno <- DRS <$> newTVarIO mempty
                         <*> newTVarIO []
                         <*> newTVarIO mempty
                         <*> newTVarIO 1
                         <*> pure dype
-            stat <- pure (COG_STATE sock serv port portsFile stik dyno)
+            stat <- pure (COG_STATE sock serv port portsFile serverThread dyno)
             pure stat
 -}
 
@@ -441,6 +484,110 @@ servThread lmdbStore wsApp cog = do
               ret <- k (W.responseLBS stat hedr (fromStrict r.body))
               pure ([], [], ret)
 
+{-
+    Monitors the set of pending reqs.
+
+    -   Whenever there's a new request, launch a thread to perform
+        the request.
+
+        -   Also launch a thread to monitor the pool.  If the syscall
+            is removed from the pool, cancel the thread.
+
+        -   When the request finishes, it should write it's results
+            into the syscall return slot.
+-}
+clientWorker :: Client.Manager -> CogState -> IO Void
+clientWorker manager cog = forever do
+
+    newReq <- atomically do
+
+                  key <- readTVar cog.pendingClientReqs >>= \case
+                             []   -> retry
+                             t:ts -> writeTVar cog.pendingClientReqs ts $> t
+
+                  poolLookup key cog.liveClientReqs >>= \case
+                      Nothing             -> pure Nothing
+                      Just (req, syscall) -> pure $ Just (key, req, syscall)
+
+    traceM $ show ("newReq"::Text, newReq)
+
+    -- If the requests wasn't already canceled, launch a thread to make
+    -- the HTTP request.
+    whenJust newReq \(key, req, syscall) -> do
+
+        reqThread     <- async (launchRequest key req syscall)
+        _cancelThread <- async (launchCanceler key reqThread)
+        pure ()
+
+  where
+    -- If the syscall is every unregistered (happens on
+    -- syscall cancel), then we cancel the request thread.
+    --
+    -- In the happy case, the request is succeeds and is
+    -- unregistered through that.  In that case, we still
+    -- cancel the requesting thread, but that does nothing
+    -- because that thread is already done.
+    launchCanceler key reqThread = do
+        () <- atomically $ poolLookup key cog.liveClientReqs >>= \case
+                  Nothing -> pure ()
+                  Just{}  -> retry
+        cancel reqThread
+
+    launchRequest key req syscall = do
+        traceM $ show ("launchRequest"::Text, key, req, syscall)
+        result <- try do request <- mkClientReq req;
+                         print request
+                         Client.httpLbs request manager
+        print result
+        atomically do
+            flow <- writeResponse syscall
+                        (either clientExnNoun (toNoun . loadClientResp) result)
+            todoHandleFlow flow
+            poolUnregister cog.liveClientReqs key
+
+    -- TODO: Rework this to make it tracable.
+    todoHandleFlow _flow = do
+        pure ()
+
+clientExnNoun :: Client.HttpException -> Fan
+clientExnNoun = \case
+    Client.InvalidUrlException _url p ->
+        toNoun ("INVALID_URL"::Text, BAR (encodeUtf8 $ pack p))
+
+    Client.HttpExceptionRequest _req err -> case err of
+        Client.StatusCodeException _ _  -> "BAD_STATUS_CODE"
+        Client.OverlongHeaders          -> "OVERLONG_HEADERS"
+        Client.ResponseTimeout          -> "RESPONSE_TIMEOUT"
+        Client.ConnectionTimeout        -> "CONNECTION_TIMEOUT"
+        Client.ConnectionFailure _e     -> "CONNECTION_FAILURE"
+        Client.InvalidStatusLine st     -> n (t "INVALID_STATUS_LINE",st)
+        Client.InvalidHeader h          -> n (t "INVALID_HEADER",h)
+        Client.InvalidRequestHeader h   -> n (t "INVALID_REQUEST_HEADER",h)
+        Client.NoResponseDataReceived   -> "NO_RESPONSE_DATA"
+        Client.ResponseBodyTooShort e a -> n (t "RESPONSE_BODY_TOO_SHORT",e,a)
+        Client.InvalidChunkHeaders      -> "INVALID_CHUNK_HEADERS"
+        Client.IncompleteHeaders        -> "INCOMPLETE_HEADERS"
+        Client.InvalidDestinationHost h -> n (t "INVALID_DESTINATION_HOST",h)
+        Client.ConnectionClosed         -> "CONNECTION_CLOSED"
+        Client.TooManyRedirects rs      -> n (t "TOO_MANY_REDIRECTS", resps)
+          where resps = ROW $ fromList (toNoun . loadClientResp <$> rs)
+
+        -- These are errors that should never happen, because we don't
+        -- supply the expose the setting that triggers these areas of
+        -- the API.
+        Client.InternalException{}               -> "INTERNAL_ERROR"
+        Client.ProxyConnectException{}           -> "INTERNAL_ERROR"
+        Client.TlsNotSupported                   -> "INTERNAL_ERROR"
+        Client.WrongRequestBodyStreamSize{}      -> "INTERNAL_ERROR"
+        Client.HttpZlibException{}               -> "INTERNAL_ERROR"
+        Client.InvalidProxyEnvironmentVariable{} -> "INTERNAL_ERROR"
+        Client.InvalidProxySettings{}            -> "INTERNAL_ERROR"
+  where
+    t = id :: Text -> Text
+
+    n :: forall a. ToNoun a => a -> Fan
+    n = toNoun
+
 runSysCall :: HWState -> SysCall -> STM (Cancel, [Flow])
 runSysCall st syscall = do
     mCog <- lookup syscall.cog <$> readTVar st.cogs
@@ -455,11 +602,19 @@ runSysCall st syscall = do
             case decodeHttpRequest syscall.args of
                 Nothing        -> fillInvalidSyscall syscall $>
                                   (CANCEL pass, [])
+                Just (REQ q)   -> onReq cog q
                 Just HEAR      -> onHear cog
                 Just (HOLD r)  -> onHold cog r
                 Just (SERV ss) -> onServ cog ss
                 Just (ECHO r)  -> onEcho cog r syscall.cause
   where
+    onReq :: CogState -> ClientReq -> STM (Cancel, [Flow])
+    onReq cog req = do
+        key <- poolRegister cog.liveClientReqs (req, syscall)
+        traceM (show ("key"::Text, key))
+        modifyTVar' cog.pendingClientReqs (key:)
+        pure (CANCEL (traceM "canceled" >> poolUnregister cog.liveClientReqs key), [])
+
     {-
         When the cog is ready to receive requests, we just register
         the responder.
@@ -604,14 +759,16 @@ categoryCall args = "%http " <> case decodeHttpRequest args of
   Nothing                -> "UNKNOWN"
   Just (SERV _)          -> "%serv"
   Just HEAR              -> "%hear"
+  Just REQ{}             -> "%req"
   Just (HOLD _)          -> "%hold"
   Just (ECHO DYN_RESP{}) -> "%echo"
 
 describeCall :: Vector Fan -> Text
 describeCall args = "%http " <> case decodeHttpRequest args of
   Nothing                     -> "UNKNOWN"
-  Just (SERV _)               -> "%serv"
+  Just SERV{}                 -> "%serv"
   Just HEAR                   -> "%hear"
+  Just REQ{}                  -> "%req"
   Just (HOLD n)               -> "%hold " <> tshow n
   Just (ECHO DYN_RESP{reqId}) -> "%echo " <> tshow reqId
 
@@ -639,5 +796,82 @@ createHardwareHttp mach store wsApp = do
 
     startup :: IO HWState
     startup = do
-        cogs <- newTVarIO mempty
-        pure HW_STATE{store,mach,wsApp,cogs}
+        cogs    <- newTVarIO mempty
+        manager <- Client.newManager Client.tlsManagerSettings
+        pure HW_STATE{store,mach,wsApp,cogs,manager}
+
+
+-- HTTP Client Stuff -----------------------------------------------------------
+
+type HeaderName = CI Bar
+type Header     = (HeaderName, Bar)
+
+data ClientReq = CLIENT_REQ
+    { method        :: Bar
+    , url           :: Bar
+    , headers       :: Array Header
+    , body          :: Bar
+    , redirectCount :: Nat
+    , timeoutMicros :: Nat
+    }
+  deriving Show
+
+data ClientResp = RESP
+    { statusCode :: Nat
+    , statusMsg  :: Bar
+    , headers    :: Array Header
+    , body       :: Bar
+    }
+
+
+--------------------------------------------------------------------------------
+
+instance ToNoun ClientResp where
+    toNoun (RESP code msg headers body) =
+        ROW $ arrayFromListN 4 $
+            [ NAT code
+            , BAR msg
+            , ROW $ headers <&> \(n,v) -> toNoun (CI.original n, v)
+            , mkPin (BAR body)
+            ]
+
+instance FromNoun ClientReq where
+    fromNoun x = do
+        row :: Array Fan <- fromNoun x
+        guard (length row == 6)
+        CLIENT_REQ <$> fromNoun (row ! 0)
+                   <*> fromNoun (row ! 1)
+                   <*> (fromHeaders <$> fromNoun (row ! 2))
+                   <*> fromNoun (row ! 3)
+                   <*> fromNoun (row ! 4)
+                   <*> fromNoun (row ! 5)
+      where
+        fromHeaders :: Array (Bar, Bar) -> Array Header
+        fromHeaders heads = heads <&> \(n,v) -> (CI.mk n, v)
+
+
+mkClientReq :: ClientReq -> IO Client.Request
+mkClientReq req = do
+    res <- Client.parseRequest (unpack $ decodeUtf8 req.url)
+
+    let tout = if (||) (req.timeoutMicros == 0)
+                       (req.timeoutMicros > fromIntegral (maxBound :: Int))
+               then Client.responseTimeoutNone
+               else Client.responseTimeoutMicro (fromIntegral req.timeoutMicros)
+
+    pure $ res { Client.requestHeaders  = toList req.headers
+               , Client.requestBody     = Client.RequestBodyBS req.body
+               , Client.method          = req.method
+               , Client.responseTimeout = tout
+               , Client.redirectCount   = fromIntegral req.redirectCount
+               , Client.cookieJar       = Nothing
+               }
+
+loadClientResp :: Client.Response LByteString -> ClientResp
+loadClientResp r =
+    let W.Status scode smsg = r.responseStatus in
+    RESP { statusCode = fromIntegral scode
+         , statusMsg  = smsg
+         , headers    = fromList r.responseHeaders
+         , body       = toStrict r.responseBody
+         }

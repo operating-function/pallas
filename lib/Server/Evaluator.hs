@@ -101,7 +101,7 @@ runWorker st _workerId tid = do
     forever step
   where
     takeWork :: STM (EvalRequest, EvalStateVar)
-    takeWork = readPool st.pending pure
+    takeWork = poolTakeNext st.pending pure
 
     calcResult req = do
         let exe = (withCalcRuntime . evaluate . force)

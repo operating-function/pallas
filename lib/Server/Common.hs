@@ -34,8 +34,8 @@ poolUnregister :: TVar (Pool a) -> Int -> STM ()
 poolUnregister tvar k = do
     modifyTVar' tvar (over #tab (deleteMap k))
 
-readPool :: TVar (Pool a) -> (a -> STM b) -> STM b
-readPool tvar fun = do
+poolTakeNext :: TVar (Pool a) -> (a -> STM b) -> STM b
+poolTakeNext tvar fun = do
     pool <- readTVar tvar
     case IntMap.minView pool.tab of
         Nothing -> retry
@@ -43,3 +43,8 @@ readPool tvar fun = do
             r <- fun x
             writeTVar tvar (set #tab xs $ pool)
             pure r
+
+poolLookup :: Int -> TVar (Pool a) -> STM (Maybe a)
+poolLookup key vPool = do
+   pool <- readTVar vPool
+   pure $ lookup key pool.tab

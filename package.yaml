@@ -193,6 +193,7 @@ dependencies:
 - hashtables
 - heap
 - http-client
+- http-client-tls
 - http-types
 - integer-gmp
 - kazura-queue

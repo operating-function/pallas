@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -ex
+
+tmp=$(mktemp -u .demo-XXXXXXX)
+
+cleanup () { rm -rf "./$tmp"; }
+trap cleanup EXIT
+
+plunder boot "./$tmp" sire/demo_http_client.sire --start

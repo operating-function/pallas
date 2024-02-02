@@ -390,6 +390,8 @@ cog
 = (PORT_RECV i)         | [%port 0 %recv i]
 = (PORT_RCLL i c)       | [%port 0 %rcll i c]
 
+= (HTTP_REQ m u h b r t) | [%http 0 %req m u h b r t]
+
 typedef#TimeStamp#Nat
 typedef#HttpReqId#Nat
 typedef#HttpStatusCode#Nat
@@ -494,7 +496,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 ^-^
 ^-^ ServReq ServResp
 ^-^ HttpReq HttpReqId HttpStatusCode HttpStatusMsg HttpHeader
-^-^ HTTP_SERV HTTP_HEAR HTTP_HOLD HTTP_ECHO
+^-^ HTTP_SERV HTTP_HEAR HTTP_HOLD HTTP_ECHO HTTP_REQ
 ^-^
 ^-^ SOCK_OPEN SOCK_KILL SOCK_WAIT SOCK_RECV SOCK_SEND
 ^-^
