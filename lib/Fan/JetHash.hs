@@ -91,6 +91,7 @@ jetHashes
     , e "_IsZero"             "DFAgjdmrasgLM1P776gpZDU9DVA2gBtyWuaTWb3fvoaZ"
     , e "_IsOne"              "D2WW4ViRDVPuGzGUpwxtu4Pfv8ovhdbtCwpdAM4X9H4y"
     , e "_If"                 "CGWi51frV26N7KUBbso2WzBad8W2mbix6HaejVem5YaZ"
+    , e "_Ifz"                "WTgkL54PDNkbfBHYSbvEkcRZ7yVHkTRBKCBhthx6Wq1"
     , e "_Not"                "6mbxDTonsXzZJowVdsQtP5bbqfHn6DTghb11eYi6s9qB"
     , e "_Bit"                "D518gnvYpR68fwAkvSghyATH1oCh8LVG9jeQDUuws7HG"
     , e "_And"                "9JhVfFRzAkwjt7VyhC5yi7wHekWx7h4CLn36Pd9xjD7c"

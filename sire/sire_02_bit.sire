@@ -45,7 +45,7 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| sire_01_fan []
+:| sire_01_fan [isZero]
 
 
 ;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -66,6 +66,9 @@ FALSE=0
 
 ;;; Aliases and Syntax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(_Ifz x t e)=(_If (isZero x) t e)
+
+= ifz  | _Ifz
 = if   | _If
 = not  | _Not
 = bit  | _Bit
@@ -106,7 +109,7 @@ FALSE=0
 ^-^
 ^-^ TRUE FALSE
 ^-^
-^-^ if ifNot else
+^-^ if ifNot ifz else
 ^-^
 ^-^ bit not
 ^-^

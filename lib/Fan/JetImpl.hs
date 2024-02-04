@@ -71,6 +71,7 @@ jetImpls = mapFromList
   , ( "_IsZero"                         , Just isZeroJet                      )
   , ( "_IsOne"                          , Nothing                             )
   , ( "_If"                             , Just ifJet                          )
+  , ( "_Ifz"                            , Nothing                             )
   , ( "_Not"                            , Just notJet                         )
   , ( "_Bit"                            , Just bitJet                         )
   , ( "_And"                            , Just andJet                         )
