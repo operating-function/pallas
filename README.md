@@ -6,16 +6,12 @@ While Plunder is working towards a stable, freezable ABI that can
 provide strong portability and long term support guarantees, Blunder is
 a vale-tudo, free-for-all SSI playground.
 
-Blunder is libertine. Blunder doesn't need to be maintainable or stable.
-Blunder is a drunken slut. She'll gladly accept whatever patches you put
-out, without any real consideration or review. Feel free to make a mess,
-Blunder is for fun.
 
 ## Umm, okay. But what's an SSI?
 
 "Solid State Interpreter" is a term coined by the repudiated reactionary
 Curtis Yarvin to describe Urbit, his failed software project and
-neglected technocult.
+neglected technocult (we love you guys).
 
 Basically your data lives in a big JSON file, and that JSON file
 contains a python script.
