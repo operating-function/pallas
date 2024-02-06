@@ -1,8 +1,7 @@
-#### pinhash <- quickcheck
+#### pinhash <- datom
 
 :| sire
 :| blake3
-:| quickcheck
 
 > Nat > Nat > Bar
 = (wordSing sz) | natToSizedBar (mul sz 8)
@@ -41,25 +40,23 @@
 = pinHash  | _PinHash
 = planHash | _PlanHash
 
-;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= (pinItemHash plan)
-| eql | planHash plan
-| pinHash PIN-plan
+;;; Smoke Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-!! propJet planHash [1=3 5=2 7=8]
-!! propJet planHash %[4 6 1 0 10]
-!! propJet planHash [1 2 3 4 5 6]
-!! propJet planHash c4
-!! propJet planHash x#deadbeef
-!! propJet planHash 42
-!! propJet planHash (0 42)
-!! propJet planHash pinItem-add
-!! propJet planHash PIN-42
+= (try fn arg expected)
+@ jetted   | fn arg
+@ unjetted | pinItem fn arg
+| ((jetted == expected) && (unjetted == expected))
 
-!! qc_jet 42 planHash arbPlan
-!! qc_jet 42 pinHash arbPlan
-!! qc1_pass 42 {pinHash equals inner planHash} prop1-pinItemHash arbPlan
+!! | try planHash [3 4]
+   | x#c19ce7d1d4adf1133b691f269bf2ee1c47f020382d0a1fd065ab715350672572
+!! | try pinHash [3 4]
+   | 0
+!! | try pinHash add
+   | x#22121288fea3a01e8a4f5ab0aa2e7955df0720ec2df1f832072dadd59316543b
+!! | try planHash (pinItem add)
+   | x#22121288fea3a01e8a4f5ab0aa2e7955df0720ec2df1f832072dadd59316543b
+
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
