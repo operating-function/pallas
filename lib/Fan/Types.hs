@@ -138,6 +138,7 @@ data Run
     | ARG {-# UNPACK #-} !Int
     | VAR {-# UNPACK #-} !Int
     | LET {-# UNPACK #-} !Int !Run !Run
+    | IFZ !Run !Run !Run
     | IF_ !Run !Run !Run
 
     | EXE                !(SmallArray Fan -> Fan)  --  Precalculated Executor

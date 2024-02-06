@@ -68,8 +68,7 @@ jetImpls = mapFromList
   , ( "_LawBody"                        , Nothing                             )
   , ( "_Car"                            , Nothing                             )
   , ( "_Cdr"                            , Nothing                             )
-  , ( "_IsZero"                         , Just isZeroJet                      )
-  , ( "_IsOne"                          , Nothing                             )
+  , ( "_Eqz"                            , Just eqzJet                         )
   , ( "_If"                             , Just ifJet                          )
   , ( "_Ifz"                            , Nothing                             )
   , ( "_Not"                            , Just notJet                         )
@@ -271,8 +270,8 @@ neqJet :: Jet
 neqJet _ env =
     fromBit $ not $ (fastValEq (env.!1) (env.!2))
 
-isZeroJet :: Jet
-isZeroJet _ env = case env.!1 of
+eqzJet :: Jet
+eqzJet _ env = case env.!1 of
   NAT 0 -> NAT 1
   _     -> NAT 0
 

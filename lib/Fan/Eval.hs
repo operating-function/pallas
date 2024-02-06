@@ -884,6 +884,9 @@ instance Show Run where
     show (IF_ c t e) =
         "(IF " <> show c <> " " <> show t <> " " <> show e <> ")"
 
+    show (IFZ c t e) =
+        "(IFZ " <> show c <> " " <> show t <> " " <> show e <> ")"
+
     show (SEQ x b) =
         "(SEQ " <> show x <> " " <> show b <> ")"
 
@@ -926,6 +929,7 @@ matchConstructors = go
         LET i v b           -> LET i (go v) (go b)
         LETREC vs b         -> LETREC (fmap go <$> vs) (go b)
         IF_ c t e           -> IF_ (go c) (go t) (go e)
+        IFZ c t e           -> IFZ (go c) (go t) (go e)
         SWI c f v           -> SWI (go c) (go f) (go <$> v)
         JMP c f vs          -> JMP (go c) (go f) (go <$> vs)
         JMP_WORD c f ks vs  -> JMP_WORD (go c) (go f) ks (go <$> vs)
@@ -995,6 +999,7 @@ resaturate selfArgs = go
     go MK_ROW{}    = error "resaturate: impossible"
     go MK_TAB{}    = error "resaturate: impossible"
     go IF_{}       = error "resaturate: impossible"
+    go IFZ{}       = error "resaturate: impossible"
     go SWI{}       = error "resaturate: impossible"
     go JMP{}       = error "resaturate: impossible"
     go JMP_WORD{}  = error "resaturate: impossible"
@@ -1213,6 +1218,12 @@ executeLaw self recPro exePro args =
                 NAT 0 -> go vs e
                 NAT _ -> go vs t
                 _     -> go vs e
+
+        IFZ i t e -> do
+            go vs i >>= \case
+                NAT 0 -> go vs t
+                _     -> go vs e
+
 
         SWI i f c -> do
           idx <- go vs i >>= \case

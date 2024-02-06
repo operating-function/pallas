@@ -95,6 +95,7 @@ optimizeSpine = go
         exe@(EXE _ _ (PIN p) r) ->
             let haz = p.hash in
             if | haz == ifHash        -> IF_ (go(r.!0)) (go(r.!1)) (go(r.!2))
+               | haz == ifzHash       -> IFZ (go(r.!0)) (go(r.!1)) (go(r.!2))
                | haz == switchHash    -> goSwitch exe r
                | haz == tabSwitchHash -> goTabSwitch exe r
                | haz == seqHash       -> SEQ (go(r.!0)) (go(r.!1))
@@ -131,6 +132,7 @@ optimizeSpine = go
             -- These branches are only introduced by this pass, if we
             -- see them in the input, something has run afowl.
             IF_{}      -> error "goLazy: impossible"
+            IFZ{}      -> error "goLazy: impossible"
             SWI{}      -> error "goLazy: impossible"
             JMP{}      -> error "goLazy: impossible"
             JMP_WORD{} -> error "goLazy: impossible"
@@ -190,6 +192,7 @@ runSize = w
         LET _ x y        -> 1 + w x + w y
         LETREC vx y      -> 1 + sum (w . snd <$> vx) + w y
         IF_ c t e        -> 1 + w c + w t + w e
+        IFZ c t e        -> 1 + w c + w t + w e
         EXE _ _ _ x      -> 1 + sum (w <$> x)
         OP2 _ _ x y      -> 1 + w x + w y
         SWI c f v        -> 1 + w c + w f + sum (w <$> v)
@@ -230,6 +233,7 @@ freeVarsForRun =
         EXE _ _ _ r      -> traverse_ (go z) r
         OP2 _ _ a b      -> go z a >> go z b
         IF_ i t e        -> go z i >> go z t >> go z e
+        IFZ i t e        -> go z i >> go z t >> go z e
         LET i v b        -> go z v >> go (insertSet (Right i) z) b
         LETREC vs b      -> do let z' = foldr insertSet z (Right . fst <$> vs)
                                traverse_ (go z' . snd) vs
@@ -288,6 +292,7 @@ spineFragment freeTable =
         OP2 f o a b      -> OP2 f o <$> go z a <*> go z b
         EXE x s f xs     -> EXE x s f <$> for xs (go z)
         IF_ i t e        -> IF_ <$> go z i <*> go z t <*> go z e
+        IFZ i t e        -> IFZ <$> go z i <*> go z t <*> go z e
 
         LET i v b        -> do
             let z' = (next+1, insertMap i next loc)

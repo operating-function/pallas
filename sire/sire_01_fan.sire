@@ -28,7 +28,7 @@
 ;;;; _Trk is the only is the only "effectful" jet, the effect is optional,
 ;;;; and the effect is not observable from other PLAN code.
 ;;;;
-;;;; There is an expectation that operations like _Car, _IsLaw, and _IsZero
+;;;; There is an expectation that operations like _Car, _IsLaw, and _Eqz
 ;;;; be very cheap.  They are marked as jets so that implementations are
 ;;;; free to optimize them.  However, the unoptimized legal code should
 ;;;; also perform well enough for moderate use-cases.
@@ -69,8 +69,8 @@
 = (_Car x)     | 1 (_ & 4) (n a _ & 0 n a) (h _ & h) (_ & 0)       x
 = (_Cdr x)     | 1 (i & i) (_ _ b & b)     (_ t & t) (_ & 0)       x
 
-= (_IsZero x)  | 1 (_ & 0) (_ _ _ & 0)     (_ _ & 0) (2 1 (_ & 0)) x
-= (_IsOne x)   | 1 (_ & 0) (_ _ _ & 0)     (_ _ & 0) (2 0 _IsZero) x
+= (_Eqz x)  | 1 (_ & 0) (_ _ _ & 0)     (_ _ & 0) (2 1 (_ & 0)) x
+= (isOne x) | 1 (_ & 0) (_ _ _ & 0)     (_ _ & 0) (2 0 _Eqz) x
 
 
 ;;; Jet Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -95,8 +95,7 @@
 = lawBody   | _LawBody
 = car       | _Car
 = cdr       | _Cdr
-= isZero    | _IsZero
-= isOne     | _IsOne
+= isZero    | _Eqz
 
 
 ;;; Convenient Lisp-Style Cell Accessors ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -169,6 +168,8 @@
 =?= 7 | (0 {f} 1 1)     7
 =?= 7 | (0 {f} 2 1)     7 0
 =?= 7 | (0 {f} 2 2)     0 7
+
+=?= 0 (isZero (0 0))
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
