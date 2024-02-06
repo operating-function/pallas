@@ -324,7 +324,7 @@ e
         | LEFT | **LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
     @ eids | lookupByAidV aid val db
     @ l | setLen eids
-    | if (isZero l)
+    | ifz l
         | LEFT | **LOOKUP_NO_MATCH attrName val
     | RIGHT | setMin eids
 
@@ -591,7 +591,7 @@ e
 > Row (Either (Row e) a) > (Row a > Either (Row e) b) > Either (Row e) b
 = (collectErrors vals cont)
 @ [errs parsedVals] | partition vals
-| ifNot | isZero | len errs
+| if (len errs)
     | LEFT errs
 | cont parsedVals
 

@@ -20,7 +20,7 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire_01_fan
-:| sire_02_bit [if else ifNot and or not]
+:| sire_02_bit [if ifz else ifNot and or not]
 :| sire_03_nat [add sub mul dec]
 :| sire_03_nat [even odd]
 :| sire_05_row [idx get len]
@@ -176,7 +176,7 @@
 = (readTallSet rex err ok)
 ^ _ emptySet rex
 ? (go acc rex)
-| if (isZero rex) (ok acc)
+| ifz rex (ok acc)
 | **readSetLine rex err
 & (newKeys heir)
 ^ go _ heir

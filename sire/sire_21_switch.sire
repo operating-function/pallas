@@ -34,7 +34,7 @@
 = cenWord   } % literals expect a word (and no heir)
 
 = (readFanLit rex err ret)
-| ifNot (isZero rexHeir-rex)
+| ifNonZero (rexHeir rex)
         | err rex {Unexpected heir}
 | if (rexIsEmbd rex)
         | ret (rexEmbd rex)
@@ -113,8 +113,7 @@
         | err form (strWeld rune { node expects two parameters})
 ; = foo body
 @ acc (CONS kids acc)
-| if (isZero heir)
-        | ok (listToRowRev acc)
+| ifz heir | ok (listToRowRev acc)
 | loop acc heir
 
 unrollSlip2Tis=(unrollSlip2Rune {=})

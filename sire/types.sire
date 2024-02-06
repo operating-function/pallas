@@ -146,7 +146,7 @@ abstype#Txp
 | if isNat-x
     | varE (idx x vars)
 @ nam (getPropByKey ss con {typeName})
-| if (isZero nam)
+| ifz nam
     | trk [=ss]
     | die [{Is not a type} con]
 | if (null par)

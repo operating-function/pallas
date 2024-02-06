@@ -55,7 +55,7 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire_01_fan
-:| sire_02_bit [if ifNot and or not else]
+:| sire_02_bit [if ifz ifNot ifNonZero and or not else]
 :| sire_02_bit [TRUE FALSE]
 :| sire_03_nat [add div inc dec]
 :| sire_05_row [idx put len null switch fst snd head]
@@ -92,7 +92,7 @@
 = sigNoHeir } name-sequence cannot have an heir
 
 = (readSignature rex err ok)
-| ifNot (isZero rexHeir-rex)
+| ifNonZero (rexHeir rex)
         | err rex sigNoHeir
 | if (rexIsNode rex)
         | if (neq {|} rexRune-rex)
@@ -213,8 +213,8 @@
 @ valRex   (idx lastIdx sons)
 @ bodyRex  (rexHeir rex)
 ;
-| if (isZero bodyRex) | err rex colNeedsHeir
-| if (lth nSon 2)     | err rex colTwoSons
+| ifz bodyRex     | err rex colNeedsHeir
+| if (lth nSon 2) | err rex colTwoSons
 ;
 | readExp bodyRex err
 & bodyExp
@@ -260,7 +260,7 @@
 ? (loop acc rex)
 @ sons (rexSons rex)
 @ rune (rexRune rex)
-| if (isZero rex)   | ok | listToRowRev acc
+| ifz rex           | ok | listToRowRev acc
 | if (neq {*} rune) | loop (CONS rex acc) 0
 | if (null sons)
     | err rex {Empty * item (not okay)}
@@ -353,8 +353,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
 ^ _ rex ok
 ? (go rex ret)
 ; trk {go},rex
-| if (isZero rex)
-    | ret NIL
+| ifz rex (ret NIL)
 | if (neq rune | rexRune rex)
     : final < readUnmatchingHeir rex err
     | ret (CONS final NIL)
@@ -416,7 +415,7 @@ sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
     | readExp (fst kids) err (compose ok EMBD)
 : heir
     < & ret
-      | if (isZero heir) (ret 0)
+      | ifz heir (ret 0)
       | readQuasiTree readVal readExp heir err ret
 | if (rexIsLeaf rex)
     | ok (rexSetHeir heir rex)
@@ -468,13 +467,13 @@ four=(WORD {4} 0)
     | appE
    ++ cnsE cnsr
    ++ cnsE (rexText rex)
-   ++ if (isZero heir) (cnsE 0) (splicedE heir)
+   ++ ifz heir (cnsE 0) (splicedE heir)
 | else
     | appE
    ++ cnsE cnsr
    ++ cnsE (rexRune rex)
    ++ rowE (map splicedE sons)
-   ++ if (isZero heir) (cnsE 0) (splicedE heir)
+   ++ ifz heir (cnsE 0) (splicedE heir)
 
 ; $$ splices in a constant value
 ; $ splices in an expression
@@ -510,7 +509,7 @@ four=(WORD {4} 0)
 @ nKid (len kids)
 | if (neq rune rexRune-rex)
     | err rex | strWeld {expected rune: } rune
-| if (isZero nKid)
+| ifz nKid
     | err rex {binary operator requries 2+ args}
 | **ok kids nKid
 
@@ -583,7 +582,7 @@ four=(WORD {4} 0)
 | ok (appE kids :: more)
 
 = (assertE exps)
-| if (isZero exps) '(#*)
+| ifz exps '(#*)
 | bloodline
 : exp < listForEach exps
 | OPEN {#=?=} (natE 1, exp) 0

@@ -149,7 +149,7 @@
 = (resolveUnqualified rex env sym st)
 @ notFound
     @ bn (tabIdx sym getSireScope-st)
-    | ifNot (isZero bn)
+    | ifNonZero bn
         | (st, G bn)
     | ({undefined reference}, rex)
 : ng < maybeCase (listElemIndexOpt (SOME sym) env) notFound
@@ -184,7 +184,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 = (readMultiLine rex st)
 ^ (_ ~[] rex)
 ? (go acc rex)
-| if isZero-rex
+| ifz rex
     | (st, K (| barNat | barIntercalateList barNewline | listRev acc))
 @ !acc (natBar (rexText rex) :: acc)
 | go acc (rexHeir rex)
@@ -276,7 +276,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 | (st, L v b)
 
 = (readLetRecBinds acc rex st ok)
-| if (isZero rex)
+| ifz rex
     | ok st (listToRowRev acc)
 @ kids | rexKids rex
 @ nKid | len kids
@@ -441,7 +441,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : hax    < maybeCase (lookupVal {#} st) invalid
     : !st ex < replOpen (expand hax (PREF {#} [rex] 0)) st
     | readExpr env ex st
-| ifNot (isZero heir)
+| ifNonZero heir
     | readExpr env (OPEN {#} (rexSetHeir 0 rex, heir) 0) st
 : leaf < maybeCase (tryReadLeaf rex) ifNotLeaf
 # datacase leaf
@@ -528,7 +528,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     @ !st | setSireNextKey sireNextKey st
     | insertBinding rex (SOME key, extraProps, name, val, code) st
 : key < maybeCase mKey noKey
-| if (isZero key)
+| ifz key
     | ({binding with zero key}, rex)
 @ binding
     | (BIND key val code sireContext name)
@@ -728,7 +728,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 > Str > List Str > Maybe Rex > Repl (Set Str)
 = (doFilter ryn !count acc rex st)
 | trk [doFilter ryn count acc rex {st}]
-| if isZero-rex
+| ifz rex
     @ symSet (setFromRow | sizedListToRow count acc)
     | (filterScope symSet st, symSet)
 | if (rexRune rex /= ryn)
@@ -775,7 +775,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ ryn (rexRune blockRex)
 ^ _ st blockRex
 ? (go st rex)
-| if isZero-rex (st, ())
+| ifz rex (st, ())
 @ bad  | ({bad import}, rex)
 @ sons | rexSons rex
 | if (rexRune rex /= ryn) bad

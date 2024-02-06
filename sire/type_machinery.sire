@@ -70,14 +70,12 @@
 @ bind | tabGet scope name
 @ bRow | pinItem bind
 @ k,v  | bRow
-| if (isZero bind)
-    | err rex {undefined type}
+| ifz bind | err rex {undefined type}
 | if (len v /= 2)
     | err rex {binding is not a type}
 @ bindProps (getProps ss bRow)
 @ name | tabGet bindProps {typeName}
-| if (isZero name)
-    | err rex {binding is a type, but it isn't tied to a name!}
+| ifz name | err rex {binding is a type, but it isn't tied to a name!}
     ;
     ; TODO: can't we just use the binding name instead of having this the
     ; `typeName` property?
@@ -103,10 +101,9 @@
 | ok v
 
 = (lookupTypeOf ss name rex err ok)
-: _ bind < getBind name ss rex err
-@ scheme | getProp ss bind {type}
-| if (isZero scheme)
-    | err rex {binding is untyped}
+: _ bind     < getBind name ss rex err
+@ scheme     | getProp ss bind {type}
+| ifz scheme | err rex {binding is untyped}
 | ok scheme
 
 

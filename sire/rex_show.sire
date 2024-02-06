@@ -85,7 +85,7 @@
 # switch style
 * %LINE ++ b#}_} _
         ++ natBar text
-        ++ | if (isZero heir) 0
+        ++ | ifz heir 0
            | (barNewline, rexRenderOpen d heir)
 * %OPEN ++ @ nSon   (len sons)
            @ lastIx (dec nSon)
@@ -99,7 +99,7 @@
            | intersperse barSpace
            | rowCons natBar-rune
            | map rexRenderClosed sons
-        ++ | if isZero-heir 0
+        ++ | ifz heir 0
            | (barNewline, rexRenderOpen d heir)
 * _      | rexRenderClosed r
 

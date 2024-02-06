@@ -23,7 +23,7 @@
 | if not-(count == barLen bytes)
     | die {%rand size is not what we asked for}
 | trk [=bytes]
-| if (isZero count) (RandLoop 0 [])
+| ifz count (RandLoop 0 [])
 @ count (dec count)
 | RandLoop count [call-count]
 

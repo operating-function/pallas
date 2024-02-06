@@ -262,7 +262,7 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
         @ props | getProps ss bind
         ; trk [=props =bind]
         @ type  | getProp ss bind {type}
-        | if (isZero type)
+        | ifz type
             @ [_ _ _ bindMod bindName] bind
             | {untyped} `($$bindMod).($$bindName)
         : st ty < instantiate (schemeFromType type) st err
@@ -538,7 +538,7 @@ backfill#t2#(a > b > (a,b))
 
 > Nat > Nat > Nat
 = (countDown x y)
-| if isZero-x x
+| if (isZero x) x
 | countDown (dec x) (dec y)
 
 > Nat > Bit > (Nat, Bit)
@@ -554,5 +554,5 @@ backfill#t2#(a > b > (a,b))
 
 > Nat > Nat > Nat
 = (countDown x y)
-| if isZero-x x
+| if (isZero x) x
 | countDown (dec x) (dec y)

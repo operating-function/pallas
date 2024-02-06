@@ -325,7 +325,7 @@ hexAlphabet=(natBar {0123456789abcdef})
 = (readBindPairs rex err ok)
 ^ _ NIL rex
 ? (loop acc rex)
-| if (isZero rex)
+| ifz rex
         | ok | listToRowRev acc
 | if (neq {=} (rexRune rex))
         | err rex {Knot patterns must be = nodes}

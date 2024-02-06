@@ -47,7 +47,7 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire_01_fan [die trk pinItem isZero const]
-:| sire_02_bit [if ifNot not and]
+:| sire_02_bit [if ifz ifNot not and]
 :| sire_03_nat []
 :| sire_05_row [len idx]
 :| sire_04_cmp [eql neq]
@@ -77,7 +77,7 @@ oldHax=(.{#})
 = (**getBind ss name err ok)
 @ scope (idx 2 ss)
 @ bind  (tabGet scope name)
-| if (isZero bind)
+| ifz bind
     | err | strWeld {undefined symbol: } name
 | **ok (pinItem bind)
 

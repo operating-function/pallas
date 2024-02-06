@@ -30,7 +30,7 @@
 :| sire_01_fan [isLaw isApp isNat lawBody lawName lawArgs trk]
 :| sire_01_fan [seq inc die]
 :| sire_01_fan [id compose]
-:| sire_02_bit [bit not if else ifNot or and]
+:| sire_02_bit [bit not if ifz else ifNot or and]
 :| sire_03_nat
 :| sire_05_row [len get idx]
 :| sire_04_cmp [eql neq gte lte min isZero]
@@ -224,7 +224,7 @@ rowToBar=barFromRow
 ^ _ (dec | barLen b)
 ? (loop i)
 | if (eql (barIdx i b) e) | SOME i
-| if (isZero i) NONE
+| ifz i NONE
 | loop (dec i)
 
 = (barSplitOneWith fun b)
@@ -299,7 +299,7 @@ rowToBar=barFromRow
     | err rex {non-line-string contains heir.  What?}
 ^ (_ NIL rex)
 ? (go acc rex)
-| if (isZero rex)
+| ifz rex
     | ok | strFromList | listIntersperse 10 | listRev acc
 @ style (rexStyle rex)
 | if (neq style topStyle)

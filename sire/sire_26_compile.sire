@@ -142,7 +142,7 @@ appList=(listFoldl A)
     | reApp inline d s rs
     | RES (A fx | moveTo rd d 0 rx)
     : e@[_ eMark _ eNeed eArgs] < **maybeCase me NONE
-    | if (isZero eNeed) NONE
+    | ifz eNeed NONE
     | SOME | setENeed-(dec eNeed) | setEArgs-(r :: eArgs) e
 : e < **maybeCase me otherwise
 | ifNot (getENeed e == 0)&&(getEMark e) otherwise

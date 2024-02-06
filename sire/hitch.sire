@@ -40,7 +40,7 @@
 > Row a > Maybe (Row a, a)
 = (rowUnsnoc r)
 @ l | len r
-| if (isZero l) NONE
+| ifz l NONE
 @ minusOne | dec l
 | SOME [(take minusOne r) (idx minusOne r)]
 
@@ -124,7 +124,7 @@ abstype#(LazyIndex k v) ; TODO: (???)
 @ numPlusOne           | inc numLeftKeys
 @ leftVals             | take numPlusOne vals
 @ rightVals            | drop numPlusOne vals
-| if (isZero len-middleKeyAndRightKey) (die %splitIndexAtEmpty)
+| ifz (len middleKeyAndRightKey) (die %splitIndexAtEmpty)
 @ middleKey            | get middleKeyAndRightKey 0
 @ rightKeys            | drop 1 middleKeyAndRightKey
 [[leftKeys leftVals] middleKey [rightKeys rightVals]]
@@ -227,7 +227,7 @@ abstype#(LazyIndex k v) ; TODO: (???)
     @ [left right] | leafSplitAt numLeft items
     @ key          | leafFirstKey right
     | loop leafEmpty (CONS key keys) (CONS right (CONS left leafs))
-| if (isZero itemLen)
+| ifz itemLen
     [(listToRowRev keys) (listToRowRev leafs)]
 | die %leafConstraintViolation
 
@@ -279,7 +279,7 @@ abstype#(LazyIndex k v) ; TODO: (???)
 = (fixup treeConfig treeFun index)
 @ TREE_CONFIG(..) treeConfig
 @ !newRootNode | fromSingletonIndex index
-| if | isZero newRootNode
+| ifz newRootNode
     @ !index | extendIndex treeFun maxLeafItems index
     | fixup treeConfig treeFun index
 newRootNode
@@ -305,7 +305,7 @@ newRootNode
 ;
 = (distributeDownwards treeConfig treeFun hitchhikers index)
   @ TREE_FUN(..) treeFun
-  | if (isZero | hhLength hitchhikers) index
+  | ifz (hhLength hitchhikers) index
   @ [keys vals] index
   @ keyList   | listFromRow keys
   @ splitHH   | downSplit treeFun keyList hitchhikers
@@ -326,7 +326,7 @@ newRootNode
 ;
 = (downPush treeConfig treeFun [hh node])
   @ TREE_FUN(..) treeFun
-  | if (isZero | hhLength hh)
+  | ifz (hhLength hh)
     | **singletonIndex node
   | insertRec treeConfig treeFun hh node
 ;
@@ -476,7 +476,7 @@ abstype#(HSetMap k v)
 ++ hhDeleteKey                   ; hhDelete
 
 = (hmSize [config r])
-| if (isZero r) 0
+| ifz r 0
 | sumOf tabLen
 | getLeafRow hhMapTF r
 
@@ -484,13 +484,13 @@ abstype#(HSetMap k v)
 ;; otherwise.  Is that wrong?
 
 = (hmKeys [config top])
-| if (isZero top) %[]
+| ifz top %[]
 | map tabKeysRow
 | getLeafRow hhMapTF top
 
 = (hmInsert k v [config top])
 @ p | tabSing k v
-| if (isZero top) | hmSingleton config k v
+| ifz top | hmSingleton config k v
 @ !index | insertRec config hhMapTF p top
 @ !fixed | fixup config hhMapTF index
 ++ config
@@ -501,7 +501,7 @@ abstype#(HSetMap k v)
   [config top]
 @ TREE_CONFIG(..) config
 @ !index
-  | if | isZero top
+  | ifz top
       | splitLeafMany hhMapTF maxLeafItems tab
   | insertRec config hhMapTF tab top
 @ !fixed | fixup config hhMapTF index
@@ -511,7 +511,7 @@ abstype#(HSetMap k v)
 ;; TODO: case guard statements would make this much more readable.
 
 = (hmDelete k [config r])
-| if (isZero r) [config r]
+| ifz r [config r]
 @ newRootNode | deleteRec config hhMapTF k NONE r
 # datacase (hmCaseNode newRootNode)
 * (LEAFNODE leaves)
@@ -519,14 +519,14 @@ abstype#(HSetMap k v)
   ++ if (tabIsEmpty leaves) NONE (SOME newRootNode)
 * (INDEXNODE index hitchhikers)
   @ childNode | fromSingletonIndex index
-  | if | isZero childNode
+  | ifz childNode
       [config newRootNode]
   @ base [config childNode]
   | if (tabIsEmpty hitchhikers) base
   | hmInsertMany hitchhikers base
 
 = (hmLookup key [config r])
-| if (isZero r) | NONE
+| ifz r NONE
 ^ _ r
 ? (lookInNode node)
 # datacase (hmCaseNode node)
@@ -575,8 +575,8 @@ abstype#(HSetMap k v)
 ++ hsDeleteItem                  ; hhDelete
 
 = (hsRawInsert i config r)
-@ is | setSing i
-| if (isZero r) | hsRawSingleton i
+@ is     | setSing i
+| ifz r  | hsRawSingleton i
 @ !index | insertRec config hhSetTF is r
 @ !fixed | fixup config hhSetTF index
 | fixed
@@ -587,8 +587,7 @@ abstype#(HSetMap k v)
 | if (setIsEmpty set) r
 @ TREE_CONFIG(..) config
 @ !index
-  | if (isZero r)
-      | splitLeafMany hhSetTF maxLeafItems set
+  | ifz r | splitLeafMany hhSetTF maxLeafItems set
   | insertRec config hhSetTF set r
 | fixup config hhSetTF index
 
@@ -601,12 +600,12 @@ abstype#(HSetMap k v)
 (hsFromSet config c)=[config (hsRawFromSet config c)]
 
 = (hsToSet [config r])
-| if (isZero r) %[]
+| ifz r %[]
 | setCatRowAsc
 | getLeafRow hhSetTF r
 
 = (hsMember key [config r])
-| if (isZero r) FALSE
+| ifz r FALSE
 ^ _ r
 ? (lookInNode node)
 # datacase (hsCaseNode node)
@@ -617,14 +616,14 @@ abstype#(HSetMap k v)
   | setHas key items
 
 = (hsRawDelete key config r)
-| if (isZero r) r
+| ifz r r
 @ newRootNode | deleteRec config hhSetTF key NONE r
 # datacase (hsCaseNode newRootNode)
 * (LEAFNODE leaves)
   | if (setIsEmpty leaves) 0 newRootNode
 * (INDEXNODE index hitchhikers)
   @ childNode | fromSingletonIndex index
-  | if (isZero childNode) newRootNode
+  | ifz childNode newRootNode
   | if (setIsEmpty hitchhikers) childNode
   | hsRawInsertMany hitchhikers config childNode
 
@@ -653,8 +652,8 @@ abstype#(HSetMap k v)
 ;;   faster everywhere else, but I'd have to double check...)
 
 = (hsRawUnion aconfig ar br)
-| if (isZero ar) br
-| if (isZero br) ar
+| ifz ar br
+| ifz br ar
 @ as | setCatRowAsc | getLeafRow hhSetTF ar
 @ bs | setCatRowAsc | getLeafRow hhSetTF br
 | hsRawFromSet aconfig
@@ -731,7 +730,7 @@ rest
 
 > Row (HSet k) > List (Set k)
 = (hsMultiIntersect setRow)
-| if (isZero | len setRow) NIL
+| ifz (len setRow) NIL
 | if (eql 1 | len setRow)
     @ [_ node] | idx 0 setRow
     | getLeafList hhSetTF node
@@ -754,7 +753,7 @@ rest
 
 > Nat > List (Set a) > List (Set a)
 = (lsDrop num sets)
-| if (isZero num) sets
+| ifz num sets
 | listCase sets NIL
 & (x xs)
 @ xl | setLen x
@@ -768,7 +767,7 @@ rest
 
 > Nat > List (Set k) > List (Set k)
 = (lsTake num sets)
-| if (isZero num) NIL
+| ifz num NIL
 | listCase sets NIL
 & (x xs)
 @ xl | setLen x
@@ -862,7 +861,7 @@ rest
 ++ hsmHHDeleteImpl                     ; hhDelete
 
 = (hsmInsert k v [mapConfig setConfig r])
-| if (isZero r)
+| ifz r
     @ raw  | hsRawSingleton v
     @ leaf | tabSing k raw
     ++ mapConfig
@@ -881,7 +880,7 @@ rest
   [mapConfig setConfig r]
 @ tf | hhSetMapTF setConfig
 @ !index
-  | if (isZero r)
+  | ifz r
       @ TREE_CONFIG(..) mapConfig
       | splitLeafMany tf maxLeafItems
       | tabMapWithKey (k v)&(hsRawFromSet setConfig v) tabset
@@ -892,7 +891,7 @@ rest
 ++ fixed
 
 = (hsmDelete k v [mapConfig setConfig r])
-| if (isZero r)
+| ifz r
     [mapConfig setConfig r]
 @ newRootNode | deleteRec mapConfig (hhSetMapTF setConfig) k (SOME v) r
 # datacase (hsmCaseNode newRootNode)
@@ -902,7 +901,7 @@ rest
   ++ if (tabIsEmpty leaves) 0 newRootNode
 * (INDEXNODE index hitchhikers)
   @ childNode | fromSingletonIndex index
-  | if | isZero childNode
+  | ifz childNode
       [mapConfig setConfig newRootNode]
   @ base [mapConfig setConfig childNode]
   | if (tabIsEmpty hitchhikers) base
@@ -915,7 +914,7 @@ rest
 
 = (hsmLookup k [mapConfig setConfig r])
 @ TREE_CONFIG(..) mapConfig
-| if (isZero r)
+| ifz r
     | hsEmpty setConfig
 ^ _ %[] r
 ? (lookInNode !hh node)

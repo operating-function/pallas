@@ -17,7 +17,7 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire_01_fan
-:| sire_02_bit [if else or ifNot FALSE and not]
+:| sire_02_bit [if ifz ifNonZero else or ifNot FALSE and not]
 :| sire_03_nat [even add mod sub mul]
 :| sire_04_cmp [eql neq isZero]
 :| sire_05_row
@@ -49,7 +49,7 @@
 
 > Str > a > (Nat > a) > a
 = (getNatStr str fall ret)
-| if (isZero str) fall
+| ifz str fall
 | rowTraverse (c r)&(**getDigit c fall r) (explode str)
 & nums
 ^ ret (idx 1 (foldr _ [1 0] nums))
@@ -75,7 +75,7 @@
 = cenWord   } % literals expect a word (and no heir)
 
 = (readAtomLit rex err ret)
-| ifNot (isZero rexHeir-rex)
+| ifNonZero (rexHeir rex)
         | err rex {Unexpected heir}
 | if (rexIsEmbd rex)
         @ val (rexEmbd rex)
@@ -239,7 +239,7 @@
      isDigit-c
 
 = (strIsSymbol str)
-| if (isZero str) FALSE
+| ifz str FALSE
 @ chars explode-str
 @ c0 idx-0-chars
 | and (not isDigit-c0)

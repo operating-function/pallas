@@ -40,7 +40,7 @@
 @ bind  | tabGet scope name
 @ bRow  | pinItem bind
 @ key   | idx 0 bRow
-| if (isZero bind)
+| ifz bind
     | err rex | strWeld {undefined symbol: } name
 | if (not key)
     ; trk #[=bind]
@@ -53,15 +53,15 @@
 @ [bindKey _ _ bindMod bindName] bind
 ; trk [getProps bindKey bindName bindMod]
 | if (eql curMod bindMod)
-    @ curProps (idx 4 ss)
+    @ curProps  (idx 4 ss)
     @ bindProps (tabGet curProps bindKey)
-    @ bindProps (if (isZero bindProps) #[] bindProps)
+    @ bindProps (ifz bindProps #[] bindProps)
     | bindProps
 | else
     @ entry      (tabGet modules bindMod)
     @ theirProps (idx 1 | pinItem entry)
     @ bindProps  (tabGet theirProps bindKey)
-    @ bindProps  (if (isZero bindProps) #[] bindProps)
+    @ bindProps  (ifz bindProps #[] bindProps)
     | bindProps
 
 = (addPropsToLocalBindingByKey ss bindKey extraProps)
@@ -84,7 +84,7 @@
 | else
     @ [modScope modProps] | pinItem | tabGet modules bindMod
     @ oldProps  (tabGet modProps bindKey)
-    @ oldProps  (if (isZero oldProps) #[] oldProps)
+    @ oldProps  (ifz oldProps #[] oldProps)
     @ newProps  (tabUnion extraProps oldProps)  ;  left-biased
     @ modProps  (tabPut modProps bindKey newProps)
     @ newModule [modScope modProps]

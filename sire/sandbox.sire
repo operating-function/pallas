@@ -87,7 +87,7 @@
 
 = (insertMatch tab row)
 @ l | len row
-| if (isZero l) tab
+| ifz l tab
 @ h | idx 0 row
 | if (eql 1 l) | tabIns h NONE tab
 ^ tabAlter _ h tab
@@ -117,7 +117,7 @@
 ; Returns true if the request is "allowed" by the passed in matcher tree.
 ;
 = (matches matcher request)
-| if | isZero | len request
+| ifz (len request)
     TRUE
 @ h | idx 0 request
 # datacase | tabLookup h matcher

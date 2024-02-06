@@ -159,7 +159,7 @@
     | else
         | ok (T_VAR sym)
 @ rune (rexRune rex)
-| if (isZero rune)
+| ifz rune
     | err rex {Expected symbol or rune}
 # switch rune
 * {|}
@@ -167,7 +167,7 @@
     @ head (idx 0 kids)
     @ para (drop 1 kids)
     @ nKid (len kids)
-    | if (isZero nKid) ; UNIT
+    | ifz nKid ; UNIT
         | ok | T_TUP []
     : sym < readSymbol head err
     | ifNot (isUpper | mod sym 256)
@@ -192,7 +192,7 @@
 = (parseTypeAnnotation topRex err ok)
 ^ _ FALSE NIL topRex l&(| ok | bigFun | listToRowRev l)
 ? (loop fancy acc rex ret)
-| if (isZero rex) (ret acc)
+| ifz rex (ret acc)
 | ifNot (isTypeAnn rex) (err rex {bad annotation})
 @ heir      | rexHeir rex
 @ sons      | rexSons rex

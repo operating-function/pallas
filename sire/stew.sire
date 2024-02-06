@@ -273,7 +273,7 @@
 @ selfRex  ^ if mark (PREF {**} [_] 0) (else _)
            | varE self
 @ argRexes | map showPat args
-| if (isZero tag)
+| ifz tag
     | NEST {&}  ,(showSig argRexes)                   | showExp body
 | if pin
     | NEST {??} ,(showSig (rowCons selfRex argRexes)) | showExp body
@@ -346,7 +346,7 @@
 | showSwitchArms showExp wild arms
 
 = (rexSplice f rex)
-| if (isZero rex)    | rex
+| ifz rex    | rex
 | if (rexIsEmbd rex) | f | rexEmbd rex
 | rexSetSons | map (rexSplice f) (rexSons rex)
 | rexSetHeir | rexSplice f (rexHeir rex)
@@ -737,7 +737,7 @@
 @ txt  | rexText rex
 @ bar  | natBar txt
 @ heir | rexHeir rex
-| ifNot (isZero heir)
+| ifNonZero heir
     ; TODO: handle this case manually instead of re-entering the parser
     ; on a fake input.  Eventually, we'll want nice error messages and
     ; always working directly with the actual input is needed for that.
@@ -826,9 +826,9 @@
     | err rex {Expected at least one expression}
 : exprs
     < rowTraverse (son ret & readExp son err ret) sons
-@ cmd            | CASSERT (mkApp exprs)
-| if isZero-heir | ok cmd
-: more           < readAssertCmd heir err
+@ cmd      | CASSERT (mkApp exprs)
+| ifz heir | ok cmd
+: more     < readAssertCmd heir err
 | ok (CCHAIN cmd more)
 
 = (readChainCmd readCmd rex err ok)
@@ -840,7 +840,7 @@
 @ kids      | rexKids rex
 @ badParams | err rex {expected two parameters (and maybe another bind)}
 | if (len kids == 3)
-    | if (isZero heir) badParams
+    | ifz heir badParams
     : c1 < readBindCmd (rexSetHeir 0 rex) err
     : c2 < readBindCmd heir err
     | trk {chain},c1,c2
@@ -1052,7 +1052,7 @@
 | ok (_MkTab keys rexes)
 
 = (rexTraverseState ss f rex ok)
-| if (isZero rex)
+| ifz rex
     | ok ss rex
 | if (rexIsEmbd rex)
     : ss newVal < f ss (rexEmbd rex)
@@ -1209,7 +1209,7 @@
     @ rex (showPat pat)
     : _ bind < getBind constr ss rex err
     @ fieldNames (getProp ss bind {fieldNames})
-    | if (isZero fieldNames)
+    | ifz fieldNames
         | err rex (strWeld {Unknown record constructor: } constr)
     | ok (PROW | map PVAR fieldNames)
 
@@ -1328,7 +1328,7 @@
     | todo {support pinned, anonymous lambdas}
 ;
 | ok st
-| if (isZero tag)
+| ifz tag
     | lamE sig bodyRex
 | wutE pin mark nam sig bodyRex
 

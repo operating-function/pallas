@@ -164,7 +164,7 @@
 = (parseItemizedFields rex err ret)
 ^ _ NIL rex
 ? (go acc rex)
-| if (isZero rex)
+| ifz rex
     | ret (listToRowRev acc)
 | ifNot (rexRune rex == {*})
     | err rex fieldItemExpect
@@ -333,7 +333,7 @@ ex=(PAIR %a %b)
 @ that | rexHeir r
 : sig < readDatatypeSig this err
 @ !acc sig::acc
-| if (isZero that)
+| ifz that
     | ok (listToRowRev acc)
 | else
     | go acc that
@@ -384,7 +384,7 @@ ex=(PAIR %a %b)
 @ tag | fromSome ix oTag
 @ prp | #[conTag=tag conAri=ari conFun=_DataTag conHas=TRUE conRaw=FALSE]
 ;
-| if (isZero ari)
+| ifz ari
     @ bod | natE tag
     @ cmd | defKPC key prp [cns] bod
     | loop (inc ix) (cmd :: acc) remain
@@ -465,7 +465,7 @@ ex=(PAIR %a %b)
 : bodyExp < readExp bodyRex err
 ;
 | if (eql '_ sigRex)
-    | ifNot (isZero oFallback)
+    | ifNonZero oFallback
         | err cases {Only one fallback-pattern is allowed}
     | go (SOME bodyExp) acc remain
 ;
@@ -654,7 +654,7 @@ ex=(PAIR %a %b)
 ;;;
 | if (neq 2 (len sons))
     | err rex {#datacase requires one son plus an heir.}
-| if (isZero heir)
+| ifz heir
     | err rex {#datacase requires one son plus an heir.}
 ;;;
 @ [_ valExp] sons

@@ -388,7 +388,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
   | RIGHT hs
 @ [missing idsets] | partition | map lookupTag searchTags
 ;| trk [%results missing idsets]
-| if | not | isZero | len missing
+| ifNonZero (len missing)
   ; send back the missing tags
   | JMAP
  ## =tag      | JSTR b#{BadTag}

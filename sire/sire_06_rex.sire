@@ -43,7 +43,7 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire_01_fan [pinItem lawName lawBody trk]
-:| sire_02_bit [if ifNot or else and not nor]
+:| sire_02_bit [if ifz ifNot or else and not nor]
 :| sire_03_nat [dec rsh]
 :| sire_04_cmp
 :| sire_05_row
@@ -236,12 +236,12 @@ types=(v3 {EMBD} {LEAF} {NODE})
 | rexGetNodeWithRune rune rex fall
 & (s h)
 | **ok
-| if isZero-h s (rowSnoc s h)
+| ifz h s (rowSnoc s h)
 
 = (rexKids rex)
 @ sons (rexSons rex)
 @ heir (rexHeir rex)
-| if isZero-heir sons
+| ifz heir sons
 | rowSnoc sons heir
 
 (rexHasNoHeir rex)=(isZero | rexHeir rex)
@@ -260,13 +260,13 @@ types=(v3 {EMBD} {LEAF} {NODE})
 ;
 = (rexEvery f rex)
 ; trk (v4 rexEvery rex {->} _) _
-| if (isZero rex) 0
+| ifz rex 0
 @ embdCase
     | f rex
 @ leafCase
     | f
     @ heir (idx 0 rex)
-    | if (isZero heir) rex
+    | ifz heir rex
     | mut 0 (rexEvery f heir) rex
 @ nodeCase
     @ heir (idx 0 rex)

@@ -34,7 +34,7 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire_01_fan
-:| sire_02_bit [if else ifNot not and or TRUE FALSE]
+:| sire_02_bit [if ifz else ifNot ifNonZero not and or TRUE FALSE]
 :| sire_03_nat [add div inc]
 :| sire_05_row [len null idx get put fst]
 :| sire_04_cmp [eql neq gte lth isZero]
@@ -201,7 +201,7 @@
 @ heir (rexHeir rex)
 | if (rexIsLeaf rex)
     : sym < readSymbol (rexSetHeir 0 rex) err
-    | if (isZero heir)
+    | ifz heir
         | ok [%v sym]
     | ifNot (eql {..} | rexRune heir)
         | err rex
@@ -491,7 +491,7 @@
 = mbNeedsTwo | {Each multi-bind needs at least two son}
 
 = (readMultiBinder readExp rex err ok)
-| if (isZero rex) ok-[]
+| ifz rex ok-[]
 : sons heir < readNodeWithRune {=} rex err
 | if (lth len-sons 2) (err rex mbNeedsTwo)
 : bind < parseBinder (idx 0 sons) err
@@ -579,7 +579,7 @@
     | if (neq 0 (rexHeir rex))
         | err rex sigNoHeir
     @ sons (rexSons rex)
-    | if (isZero len-sons)
+    | ifz (len sons)
         | err rex sigExpect
     ^ rowTraverse _ sons ok
     ? (step son ret)
@@ -623,7 +623,7 @@
 ;
 | if (and (neq rune {|}) (neq rune {-}))
     | err rex sigExpect
-| ifNot (isZero heir)
+| ifNonZero heir
     | err rex symSigNoHeir
 | if (null sons)
     | err rex symSigExpect
@@ -924,7 +924,7 @@ k9=(a & k 9 a)
 
 = (unrollTis rex)
 @ heir (rexHeir rex)
-| if (isZero heir)            | ~[rex]
+| ifz heir                    | ~[rex]
 | if (neq (rexRune heir) {=}) | ~[rex]
 | CONS (rexSetHeir 0 rex)
 | unrollTis heir

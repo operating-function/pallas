@@ -14,7 +14,7 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire_01_fan
-:| sire_02_bit [if else ifNot and or not bit TRUE FALSE]
+:| sire_02_bit [if ifz else ifNot and or not bit TRUE FALSE]
 :| sire_03_nat [dec sub add lsh rsh div roundUp mod mul]
 :| sire_03_nat [even odd]
 :| sire_03_nat [LT GT EQ]
@@ -28,7 +28,7 @@
 
 = ({>} st rex err ok)
 @ heir (rexHeir rex)
-| if (isZero heir)
+| ifz heir
     | err rex {> annotations require an heir to annotate}
 | ok st heir
 
@@ -301,7 +301,7 @@
 = (listIdxCps i xs not_found found)
 | listCase xs not_found
 & (x xs)
-| if (isZero i) (found x)
+| ifz i (found x)
 | listIdxCps (dec i) xs not_found found
 
 (listIdxMb fb i xs)=(listIdxCps i xs NONE SOME)
@@ -497,7 +497,7 @@
 ;; If the input is sorted, then the output will have no duplicates.
 
 = (listUniq xs)
-| if (isZero xs) NIL
+| ifz xs NIL
 ^ _ (fst xs) (snd xs)
 ? (go x ys)
 | listCase ys (listSing x)
@@ -741,7 +741,7 @@
 = (mapMaybe law row)
 ^ _ NIL 0 len-row
 ? (go acc kept remain)
-| if (isZero remain)
+| ifz remain
     | sizedListToRow kept acc
 @ ix (dec remain)
 | maybeCase (law | idx ix row)
@@ -777,7 +777,7 @@ openRowExpect={Expected something like (++ x), (++ f x y), etc}
 @ sons (rexSons rex)
 @ heir (rexHeir rex)
 @ rune (rexRune rex)
-| if (isZero rex)
+| ifz rex
     | ok (listToRowRev acc)
 | if (neq topRune rune)
     | readExp rex err exp&(go (CONS exp acc) 0)

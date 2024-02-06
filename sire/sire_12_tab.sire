@@ -14,7 +14,7 @@
 
 :| sire_01_fan [lawBody trk isLaw inc seq const id]
 :| sire_01_fan [car cdr]
-:| sire_02_bit [if ifNot and or not nor]
+:| sire_02_bit [if ifz ifNot and or not nor]
 :| sire_03_nat [add toNat rsh mod even]
 :| sire_04_cmp [eql neq lth lte gte gth isZero]
 :| sire_05_row
@@ -403,7 +403,7 @@ tallExpect={Expected something like (## =key val ...)(...)}
 = (readTallTabLit readVal rex err ok)
 ^ _ emptyTab rex
 ? (go acc rex)
-| if (isZero rex) (ok acc)
+| ifz rex (ok acc)
 @ rune     | rexRune rex
 @ sons     | rexSons rex
 @ nSons    | len sons

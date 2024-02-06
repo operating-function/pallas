@@ -225,13 +225,13 @@ st
 | b3ChunkstGetBlocksCompressed c
 
 = (b3ChunkstStartFlag c)
-| if (isZero | b3ChunkstGetBlocksCompressed c)
+| ifz (b3ChunkstGetBlocksCompressed c)
 * b3ChunkStart
 * 0
 
 > Chunk > Row u8 > Chunk
 = (b3ChunkstUpdate c input)
-| if (isZero (len input)) c
+| ifz (len input) c
 @ c | if
     * neq b3BlockLen (b3ChunkstGetBlockLen c)
     * c

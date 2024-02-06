@@ -107,7 +107,7 @@ LTERM={term}
 
 > Bar > Nat > Nat > Nat
 = (eatCurly bar o d)
-| if isZero-d o
+| ifz d o
 @ next (eatCurly bar inc-o)
 # switch (barIdx o bar)
 * 0    | o
@@ -291,7 +291,7 @@ lus=(SPAN (LN {file} 1 b#{ + }) 1 2 LRUNE)
 
 > Item > Tree
 = (iTree item@(I t x k))
-| if (isZero t) ({invalid item} item)
+| ifz t ({invalid item} item)
 | **TNODE t (listToRowRev x) k
 
 > (Nat, Tree) > (Nat, Item) > (Nat, Item)
@@ -372,7 +372,7 @@ WOODS=0
 
 > BlockBuffer > List (List (List Lexeme))
 = (blockBufferOutput x)
-| if (isZero x) NIL
+| ifz x NIL
 | ~[(listRev | idx 1 x)]
 
 ;; A {LineCat} is a categorization of a line, an empty line is {CVOID},
@@ -529,7 +529,7 @@ typedef#FilePath#Str
 = (rexAddHeir rex c)
 @ heir (rexHeir rex)
 ^ rexSetHeir _ rex
-| if isZero-heir c
+| ifz heir c
 | rexAddHeir heir c
 
 = (spanQuotedStr span)
@@ -613,7 +613,7 @@ typedef#(NonEmpty a)#(a, List a)
 
 > Any > (Elem, List Elem) > Rex
 = (heirSeq clumpRex wut@[x xs])
-| if (isZero wut) | die {heirSeq.what}
+| ifz wut | die {heirSeq.what}
 | listFoldl rexAddHeir (elemRex clumpRex x)
 | listMap (elemRex clumpRex) xs
 
@@ -687,7 +687,7 @@ typedef#(NonEmpty a)#(a, List a)
 @ (output, cog)
     | if (NONE /= mLine) (output, cog)
     @ (out, cog) cog-NONE
-    | if (isZero out) (output, cog)
+    | ifz out (output, cog)
     | (CONS out output, cog)
 ++ listRev output
 ++ rexCog cog st

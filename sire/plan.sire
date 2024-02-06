@@ -151,7 +151,7 @@
 ;; {C} does nat pattern-matching, this is the logic for the {2} primop.
 
 = (C z p n st ok)
-| if isZero-n (ok st z)
+| ifz n (ok st z)
 | apply p (VL | dec n) st ok
 
 ;; This mostly just a translation of the PLAN spec.

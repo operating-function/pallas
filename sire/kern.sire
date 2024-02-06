@@ -330,13 +330,13 @@ cog
 ;
 ^ _ (tabToPairList event) fr kl sl rq
 ? (kernel_loop stream fr kl sl rq)
-| if (isZero stream)                           ; no more events, yield to
+| ifz stream                                   ; no more events, yield to
     | KERNEL fr kl sl rq                       ; the runtime
 @ [[key response] stream] stream
 @ exe | get sl key
 @ rq  | put rq key 0
 @ sl  | put sl key 0
-| if (isZero exe)                              ; call thread was canceled
+| ifz exe                                      ; call thread was canceled
      | kernel_loop stream fr kl sl rq          ; earlier in this event, ignore
 @ end | kernel_loop stream
 @ me  | key                                    ; Give the syscall response to

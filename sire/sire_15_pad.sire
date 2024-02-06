@@ -44,7 +44,7 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire_01_fan [die seq isNat const]
-:| sire_02_bit [if ifNot else not or bit]
+:| sire_02_bit [if ifz ifNot else not or bit]
 :| sire_03_nat [inc add mul sub bex dec met lsh rsh mod dis con mix even]
 :| sire_05_row [idx len]
 :| sire_04_cmp [eql neq lte isZero]
@@ -179,7 +179,7 @@ padComplement=(padMap not)
 ^ readPadStr rex (_ strRex) err ok
 ? (collect strings)
 | strWeld rexText-strings
-| if (isZero rexHeir-strings) rexHeir-strings
+| ifz (rexHeir strings) rexHeir-strings
 | collect rexHeir-strings
 
 = ({#p} st rex err ok)

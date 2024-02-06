@@ -50,7 +50,7 @@
 
 :| sire_01_fan [seq isNat cdr die id const isZero isOne]
 :| sire_02_bit [TRUE FALSE]
-:| sire_02_bit [if ifNot else]
+:| sire_02_bit [if ifz ifNot else]
 :| sire_02_bit [not bit and or xor]
 
 
@@ -272,7 +272,7 @@ GT=2
 
 = (checkOrd x y)
 @ ord (natCmp x y)
-| if (isZero ord) ; LT
+| ifz ord ; LT
     | and (bit | natLth x y)
     | and (bit | natLte x y)
     | and (not | natEql x y)

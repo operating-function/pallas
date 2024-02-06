@@ -79,8 +79,9 @@ FALSE=0
 = nor  | _Nor
 = xnor | _Xnor
 
-= (**ifNot x t e) | if x e t
-= (**else x)      | x
+= (**ifNot x t e)     | if x e t
+= (**ifNonZero x t e) | ifz x e t
+= (**else x)          | x
 
 ;; Note that {ifNot} and {else} are marked as "always inline" and will not
 ;; appear in the resulting PLAN code.  They exist only to make code
@@ -111,7 +112,9 @@ FALSE=0
 ^-^
 ^-^ TRUE FALSE
 ^-^
-^-^ if ifNot ifz else
+^-^ if ifNot
+^-^ ifz ifNonZero
+^-^ else
 ^-^
 ^-^ bit not
 ^-^

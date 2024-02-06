@@ -8,7 +8,7 @@
 
 > Nat > (Bar, Bar)
 = (doNat n)
-| if isZero-n | wordSing 1 0
+| ifz n | wordSing 1 0
 @ sz | inc | div (dec met-n) 64 ; what happens if something is bigger than 8 bytes?
 | (wordSing 1 sz, wordSing sz n)
 
