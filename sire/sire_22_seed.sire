@@ -361,15 +361,6 @@ u64max=18446744073709551615
     | go-set-(lawBody non)
 | set
 
-;; TODO: Document {_LoadGerm} and {_SaveGerm}
-
-(_LoadGerm refs bar)=(load refs bar)
-
-= (_SaveGerm pin)
-| ifNot isPin-pin 0
-^ (_, save _ pinItem-pin)
-| pinRefs pin
-
 ;; {_SaveSeed} saves an entire PLAN into one bar, doing full
 ;; deduplication.  {_LoadSeed} reproduces the PLAN value.
 ;;
