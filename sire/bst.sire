@@ -1,12 +1,23 @@
 #### bst <- sire
 
-;;;; This library implements an unbalanced binary search tree intended
-;;;; to be used for symbol tables in Sire.
+;;;; This library implements an unbalanced binary search tree and flat
+;;;; sorted tables.
 ;;;;
-;;;; Since this internal representation is exposed to macros via the
-;;;; "scope" field of the Sire state, all implementations of Sire need
-;;;; to implement this functionality in an identical way.  That's why
-;;;; it's so important that this code be short and straightforward.
+;;;; These are intended to be used for symbol tables in Sire.  Since this
+;;;; internal representation is exposed to macros via the "scope" field
+;;;; of the Sire state, all implementations of Sire need to implement this
+;;;; functionality in an identical way.  That's why it's so important that
+;;;; this code be short and straightforward.
+;;;;
+;;;; Tables are represented like this:
+;;;;
+;;;;     [k1 v1 k2 v2 k3 v3]
+;;;;
+;;;; And trees are represented like this:
+;;;;
+;;;;     [k2 v2 [k1 v1 0 0] [k3 v3 0 0]]
+;;;;
+;;;; # Design Rationale
 ;;;;
 ;;;; Unbalanced binary search trees have degenerate performance with
 ;;;; certain usage patterns, however:
@@ -27,7 +38,7 @@
 ;;;;     is some performance upside as well.
 ;;;;
 ;;;; Another design goal, is that this library have usable performance
-;;;; for "new" runtime systems that still have bad performance and
+;;;; for "new" runtime systems that are not yet optimized and implement
 ;;;; few jets.  In this case, the lack of balancing logic is likely to
 ;;;; have an even more significant upside.
 
@@ -42,22 +53,21 @@
 = bstEmpty        | 0
 = (**bstSing k v) | [k v 0 0]
 
-= (bstList x@[_ _ l r]) | ifz-x NIL (listWeld (bstList l) x::(bstList r))
-= (bstPairsList tree)   | listMap [k v _ _]&[k v] (bstList tree)
-= (bstKeysList tree)    | listMap [k _ _ _]&k (bstList tree)
-= (bstValsList tree)    | listMap [_ v _ _]&v (bstList tree)
+= (bstWalk x@[_ _ l r]) | ifz-x NIL (listWeld (bstWalk l) x::(bstWalk r))
+= (bstPairsList tree)   | listMap [k v _ _]&[k v] (bstWalk tree)
+= (bstKeysList tree)    | listMap [k _ _ _]&k (bstWalk tree)
+= (bstValsList tree)    | listMap [_ v _ _]&v (bstWalk tree)
 
-;; {bstSave} takes a BST and produces a sorted array of key-value pairs.
-;;
-;; Completed Sire modules don't undergo further modification, so we only
-;; care about storage overhead and lookup cost.  Compared with unbalanced
-;; search trees, sorted arrays are faster to search and use less space.
+= (bstSize x)
+^ _ 0 x NIL
+? (go n x@[_ _ l r] xs)
+| ifz x
+    | listCase xs n (x xs & go n x xs)
+@ !n (inc n)
+| go n l (r::xs)
 
-(bstSave tree)=(listFromRow | bstPairsList tree)
-
-= (bstSearch k tree)
-| ifz tree NONE
-@ [xk xv l r] tree
+= (bstSearch k x@[xk xv l r])
+| ifz x NONE
 # switch (cmp k xk)
 * 0 | bstSearch k l
 * 1 | SOME xv
@@ -80,27 +90,50 @@
 * 1 | maybeCase (f SOME-xv) (merge l r) nv&[k nv l r]
 * 2 | [xk xv l (bstAlter k f r)]
 
-;; {bstLoad} takes a sorted array of pairs and uses that to directly
-;; construct a balanced tree.
 
-= (bstLoad pairs)
-^ _ 0 (len pairs)
+;;; Sorted Tables ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; {bstFromTable} always produces a balanced tree, and it produces the
+;; tree lazily.
+
+= (bstFromTable table)
+^ _ 0 (div (len table) 2)
 ? (go off end)
 @ wid  | sub end off
 # switch wid
 * 0 | bstEmpty
-* 1 | uncurry bstSing (idx off pairs)
+* 1 @ i (mul 2 off)
+    | bstSing (idx i table) (idx inc-i table)
 * _ @ mid   | add off (div wid 2)
-    @ [k v] | idx mid pairs
+    @ i     | mul 2 mid
+    @ k     | idx i table
+    @ v     | idx inc-i table
     @ l     | go off mid
     @ r     | go inc-mid end
     | [k v l r]
 
+= (bstToTable x)
+| sizedListToRow (mul 2 bstSize-x)
+| listCatMap ([k v] & ~[k v]) (bstWalk x)
+
+= (tableSearch key table)
+^ _ 0 (div len-table 2)
+? (loop low end)
+| if (gte low end) NONE
+@ mid  | rsh (add low end) 1
+@ ix   | mul mid 2
+@ k    | get table ix
+@ v    | get table inc-ix
+@ LT   | loop low mid
+@ EQ   | SOME v
+@ GT   | loop inc-mid end
+| switch (cmp key k) GT [LT EQ]
+
 ;; This implementation of {bstFilterWithKey} has naive performance,
-;; but it is used somewhat rarely.  The result is always balanced.
+;; but it is used rarely.  The result is always balanced.
 
 = (bstFilterWithKey f x)
-| bstLoad | listToRow | listFilter (uncurry f) | bstPairsList x
+| bstFromTable | listToRow | listFilter uncurry-f bstPairsList-x
 
 
 ;;; Convenience ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -113,7 +146,7 @@
 = bstIsEmpty            | isZero
 = (bst xs)              | foldl     (t [k v]     & bstIns k v t) 0 xs
 = (bstFromPairsList xs) | listFoldl (t [k v]     & bstIns k v t) 0 xs
-= (bstUnion x y)        | listFoldl (t [k v _ _] & bstIns k v t) y bstList-x
+= (bstUnion x y)        | listFoldl (t [k v _ _] & bstIns k v t) y bstWalk-x
 
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -155,19 +188,26 @@ ryt=(foldl (t n)&(bstIns n n t) Z [4 1 6 5 7])
 =?= NONE   | bstSearch 7 lef
 
 =?= (bstDel 4 ryt) | (N 6 (N 5 O-1 Z) O-7)
-=?= (bstDel 4 lef) | (N 6 (N 2 (N 1 Z Z) (N 3 Z Z)) Z)
+=?= (bstDel 4 lef) | (N 6 (N 2 O-1 O-3) Z)
 =?= (bstDel 4 big) | (N 6 (N 5 (N 2 O-1 O-3) Z) O-7)
 
-(ex n)=(| bstLoad | listToRow | listDrop 1 | listGen inc-n i&[i i])
+(ex n)=(| bstFromTable | cat | listToRow | listDrop 1 | listGen inc-n i&[i i])
 
 =?= (ex 0) | Z
 =?= (ex 1) | O-1
-=?= (ex 2) | N 2 (N 1 Z Z) Z
-=?= (ex 3) | N 2 (N 1 Z Z) (N 3 Z Z)
-=?= (ex 4) | N 3 (N 2 (N 1 Z Z) Z) (N 4 Z Z)
-=?= (ex 5) | N 3 (N 2 (N 1 Z Z) Z) (N 5 (N 4 Z Z) Z)
-=?= (ex 6) | N 4 (N 2 (N 1 Z Z) (N 3 Z Z)) (N 6 (N 5 Z Z) Z)
-=?= (ex 7) | (N 4 (N 2 (N 1 Z Z) (N 3 Z Z)) (N 6 (N 5 Z Z) (N 7 Z Z)))
+=?= (ex 2) | N 2 O-1 Z
+=?= (ex 3) | N 2 O-1 O-3
+=?= (ex 4) | N 3 (N 2 O-1 Z) O-4
+=?= (ex 5) | N 3 (N 2 O-1 Z) (N 5 O-4 Z)
+=?= (ex 6) | N 4 (N 2 O-1 O-3) (N 6 O-5 Z)
+=?= (ex 7) | (N 4 (N 2 O-1 O-3) (N 6 O-5 O-7))
+
+= (chk table tree)
+| ((bstToTable tree == table) && (tree == bstFromTable table))
+
+!! chk [3 3 4 4 5 5 6 6] | N 5 (N 4 O-3 Z) O-6
+!! chk [3 3 4 4 5 5]     | N 4 O-3 O-5
+!! chk [3 3 4 4]         | N 4 O-3 Z
 
 
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -183,10 +223,10 @@ ryt=(foldl (t n)&(bstIns n n t) Z [4 1 6 5 7])
 ^-^ bstIns
 ^-^ bstIsEmpty
 ^-^ bstKeysList
-^-^ bstList
+^-^ bstWalk
 ^-^ bstPairsList
 ^-^ bstPut
-^-^ bstSave
+^-^ bstToTable
 ^-^ bstSearch
 ^-^ bstSing
 ^-^ bstUnion
