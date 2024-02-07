@@ -40,12 +40,8 @@
 
 = (httpHello doShutdown st done)
 : req < syscall HTTP_HEAR
-| trk [=req]
 @ [st resp] (handleReq st req)
-| trk [=st =resp]
-| if (resp==0)
-    : _ < doShutdown
-    | done ()
+| ifz resp (doShutdown done)
 | else
     : _ < (syscall | rowApply HTTP_ECHO resp)
     | httpHello doShutdown st done
