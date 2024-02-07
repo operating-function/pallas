@@ -81,7 +81,7 @@ jetImpls = mapFromList
   , ( "_Xnor"                           , Nothing                             )
   , ( "_ToNat"                          , Nothing                             )
   , ( "_Dec"                            , Just decJet                         )
-  , ( "_Exec"                           , Nothing                             )
+  , ( "_Times"                          , Nothing                             )
   , ( "_Add"                            , Just addJet                         )
   , ( "_Mul"                            , Just mulJet                         )
   , ( "_Sub"                            , Just subJet                         )

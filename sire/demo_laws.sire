@@ -304,13 +304,13 @@ hexAlphabet=(natBar {0123456789abcdef})
 =?= pinBytz-(2 0 3) | x#4c3e0d
 =?= pinBytz-toNat   | x#f8c0f745f5e614462f67f2e906
 
-=?= x#{9cfae4b4de9b0ccc3de9b3aa00408bc33f50ca116ed034263b76af95d8736f7f}
+=?= x{d117f9cd69c91e50b44f517a1c71219c8c6924f695b5a6375fd5921bd637b408}
   | pinHash add
 
-=?= x#{6d28120be06cf59c81efac6a030495ff7f647985241a66aa2389b58ee9d3a9cf}
+=?= x{0812f87c0613ea2c72f73e2f25fcd9af79a512015007b495caaea19aee21b87e}
   | pinHash mul
 
-=?= x{d0655f62d082dfd4c4a9af9bc54fb8c3d2f803b59d4fa040d79d4295f79981cf}
+=?= x{39deac7b88921ca453f4a2eedbb179c49071d8a6d63f8b05e7433b697106ed4c}
   | pinHash cmp
 
 = (refsTable pin)

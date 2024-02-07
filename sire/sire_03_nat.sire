@@ -42,7 +42,7 @@
 ;;;;
 ;;;; - _ToNat
 ;;;; - _Dec
-;;;; - _Exec
+;;;; - _Times
 ;;;; - _OrdWeld
 
 
@@ -58,14 +58,14 @@
 
 inc=3
 
-= toNat ( _ToNat x    ?? 2 0 3 x              )
-= dec   ( _Dec x      ?? 2 0 id x             )
-= exec  ( _Exec f z x ?? 2 z (_Exec f f-z) x  )
-= add   ( _Add x y    ?? exec inc (toNat x) y )
-= mul   ( _Mul x y    ?? exec (add x) 0 y     )
-= sub   ( _Sub x y    ?? exec dec x y         )
-= pow   ( _Pow b p    ?? exec (mul b) 1 p     )
-= bex   ( _Bex p      ?? pow 2 p              )
+= toNat ( _ToNat x     ?? 2 0 3 x               )
+= dec   ( _Dec x       ?? 2 0 id x              )
+= times ( _Times f z x ?? 2 z (_Times f f-z) x  )
+= add   ( _Add x y     ?? times inc (toNat x) y )
+= mul   ( _Mul x y     ?? times (add x) 0 y     )
+= sub   ( _Sub x y     ?? times dec (toNat x) y )
+= pow   ( _Pow b p     ?? times (mul b) 1 p     )
+= bex   ( _Bex p       ?? pow 2 p               )
 
 
 ;;; Ordering ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -314,7 +314,7 @@ GT=2
 ^-^
 ^-^ isNat ; re-export
 ^-^
-^-^ toNat exec inc dec add sub mod mul div isOne
+^-^ toNat times inc dec add sub mod mul div isOne
 ^-^ lsh rsh con mix dis pow bex bix
 ^-^
 ^-^ LT EQ GT ordWeld

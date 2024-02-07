@@ -18,10 +18,10 @@ ifzHash :: Hash256
 ifzHash = "3C2F3FHjCiM8zaWbTKQnNJbCfs4vU11tpcj3wETVQJtZ"
 
 switchHash :: Hash256
-switchHash = "H7XPT97CQCEzTb7ekjsKPUhwCUB2mTpSg5pvQietomcd"
+switchHash = "3vzrXZQeTFijPUj8F4rF3QWJnzbEEMNZbjmGsustvzo8"
 
 tabSwitchHash :: Hash256
-tabSwitchHash = "9NWcCQLRRPBPi9gTtAzDokrrUbXLZ6QZbo1p6pRh61nd"
+tabSwitchHash = "GAEvH1zJXuT4fpX9rhnonBPtQ1wxcDmgXgyz53vZxmSa"
 
 seqHash :: Hash256
 seqHash = "7fPzp1b5QXpDDkvpt2oBGUm3w6eCPVKjDnUQ8i8w8mj5"
@@ -36,25 +36,25 @@ getHash :: Hash256
 getHash = "386VJFmFLRAcsu3gXtsNK4s5muQusWJ4SMzgjjS6YUPf"
 
 addHash :: Hash256
-addHash = "3Hzr1k86NC8chd5Nfar1RuGtoaJSXKvCFKFYUxt8ZkjU"
+addHash = "QeTTm1EFP1r7mkXJQVnBYUW2QeKUvjNfYA5PiGzFRVj"
 
 subHash :: Hash256
-subHash = "3xEhUsRSmD5ircNXST1QYogahZP2nc9ifWPKimQaJbiX"
+subHash = "xruy2CzBgGc8fbn6wYDw4ofa4XXNgCsVGhySX6wr7LS"
 
 mulHash :: Hash256
-mulHash = "8YwEx9nXr46SsZokBzNtaaUVqYCszr5ir7FEmy6hEcv4"
+mulHash = "E2TXQPG89ykcNK9s7XSwDhvgQsUrc8ogjvoPsEZu7zyp"
 
 eqlHash :: Hash256
-eqlHash = "6tVP7tm9JYumzncsteAqf94NJBzL768n8u1ky7B3UjvA"
+eqlHash = "Adf29h2HgWaoiya1ZWMeMp4iMQfeUnNZzbVyZ5ocNuUz"
 
 lteHash :: Hash256
-lteHash = "EJX3fqndYRo2bnxjvLLsQNZJbTnzuppti4pdiFAjWhMf"
+lteHash = "3ERFoKQNfT27Q9uf356rXiUA9wuBxH1EX2abyZmikeVy"
 
 lthHash :: Hash256
-lthHash = "D9Q6xrzVYu9YAyErcJ4Ws1cxV7PptSebfuuLGBP6NKyV"
+lthHash = "AdoCNFpqJGYuhrayP8pVoqzyfSR7UcPwDt86gyL7oe4A"
 
 gteHash :: Hash256
-gteHash = "8Hzs96yN8fX9Sni8e1JV56SjKbQMHTQbozpLFZqWtw2h"
+gteHash = "36re96oJE2udJvUgERtaYYFWVm7AJNHe8pVufjoXkQet"
 
 gthHash :: Hash256
-gthHash = "7NLD8TGpofDKEEE8Xq9ABNRQEgCoGXKzdwY7jHcAVgPq"
+gthHash = "vzmdUQLNpoqDJxoyVpU4ESQVZg4eWfv9ye55MzHH5AB"
