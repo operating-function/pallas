@@ -40,8 +40,8 @@
 ;; and {#datatype} that are exported by this modules.
 
 = ({#abstype} ss rex err ok)
-: @(ABSTYPE cnstr args) < parseAbsType rex err
-@ ss                    | mkNewType cnstr (len args) ss
+: @(ABSTYPE name args) < parseAbsType rex err
+@ ss                   | mkNewType name (len args) ss
 | ok ss `(#*)
 
 ;;; This section redefines {#record} and {#datatype} to also generate
@@ -119,22 +119,35 @@ abstype#(Either a b)
 
 abstype#Txp
 
-= anyKey  | getKey#Any
-= funKey  | getKey#Fun
-= natKey  | getKey#Nat
-= bitKey  | getKey#Bit
-= unitKey | getKey#Unit
-= boxKey  | getKey#Sing
-= pairKey | getKey#Pair
-= tripKey | getKey#Trip
-= quadKey | getKey#Quad
-= pentKey | getKey#Pent
+= ({#getTypeRoot} ss rex err ok)
+: _ symbol      < rexParseKids rex [readRex readSymbol] err
+: _ _ bindRow   < getBind symbol ss rex err
+@ [_ v _ _ _ p] | bindRow
+@ [arity tree]  | v
+| ok ss (cnsE | head tree)
 
-=?= Any   | FORALL 0 (TCON anyKey [])
-=?= Fun   | FORALL 2 (TCON funKey [0 1])
-=?= {Any} | getProp#(Any.typeName)
-=?= {Nat} | getProp#(Nat.typeName)
-=?= {Fun} | getProp#(Fun.typeName)
+= anyRoot  | getTypeRoot#Any
+= funRoot  | getTypeRoot#Fun
+= natRoot  | getTypeRoot#Nat
+= bitRoot  | getTypeRoot#Bit
+= unitRoot | getTypeRoot#Unit
+= boxRoot  | getTypeRoot#Sing
+= pairRoot | getTypeRoot#Pair
+= tripRoot | getTypeRoot#Trip
+= quadRoot | getTypeRoot#Quad
+= pentRoot | getTypeRoot#Pent
+
+= (getTypeScheme bind)
+@ [_key val _exp _nam ctx props] (pinItem bind)
+| if (tabGet props {isType}) val
+| die [{is not a type!} bind]
+
+=?= Any | FORALL 0 (TCON getTypeRoot#Any [])
+=?= Fun | FORALL 2 (TCON getTypeRoot#Fun [0 1])
+=?= Any | FORALL 0 getTypeRoot#Any
+=?= Fun | FORALL 2 (getTypeRoot#Fun 0 1)
+
+=?= 1 | getProp#(Any.isType)
 
 = (lookupOr env key fallback ok)
 | ifNot (tabHas key env) fallback
@@ -142,30 +155,30 @@ abstype#Txp
 
 = (showTypeTree ss vars x)
 ^ _ x
-? (loop x@[con par])
+? (loop x)
 | if isNat-x
     | varE (idx x vars)
-@ nam (getPropByKey ss con {typeName})
+@ root (head x)
+@ nam   (| lawName | pinItem root)
 | ifz nam
-    | trk [=ss]
-    | die [{Is not a type} con]
-| if (null par)
-    | if (eql con unitKey) '()
+    | die [{Is not a type} x]
+| if (null x)
+    | if (eql root unitRoot) '()
     | varE nam
-@ kids (map loop par)
-| if (eql con funKey)
+@ kids (map loop tnodeParams-x)
+| if (eql root funRoot)
     @ [x y] kids
     | if ({>} == rexRune y)
         @ ySons (rexSons y)
         | rexSetSons (rowCons x ySons) y
     | `($x > $y)
-| if (eql con pairKey)
+| if (eql root pairRoot)
     @ [p q] kids | `($p , $q)
-| if (eql con tripKey)
+| if (eql root tripRoot)
     @ [p q r] kids | `($p , $q , $r)
-| if (eql con quadKey)
+| if (eql root quadRoot)
     @ [p q r s] kids | `($p , $q , $r , $s)
-| if (eql con pentKey)
+| if (eql root pentRoot)
     @ [p q r s t] kids | `($p , $q , $r , $s , $t)
 | else
     ^ NEST {|} _ 0
@@ -175,8 +188,8 @@ abstype#Txp
 | showTypeTree ss (gen arity | add {a}) x
 
 = (readDefinedSymbol ss rex err ok)
-: sym    < readSymbol rex err
-: _ bind < getBind sym ss rex err
+: sym      < readSymbol rex err
+: _ _ bind < getBind sym ss rex err
 | ok sym bind
 
 = ({#showType} ss rex err ok)
@@ -199,13 +212,13 @@ abstype#Txp
 | ok ss '(#*)
 
 = (tyApp name scheme params err ok)
-@ [arity topTy] scheme
+@ @(FORALL arity topTy) scheme
 | if (arity /= len params)
     | err (varE name) {Bad arity in type application}
 ^ ok (_ topTy)
-? (subst x@[con para])
+? (subst x)
 | if isNat-x (idx x params)
-| [con (map subst para)]
+| tnodeMapParams subst x
 
 = (tupleType n)
 # switch n
@@ -273,7 +286,7 @@ abstype#Txp
 : @(TYPEDEF name vars expr) < parseTypeDef rex err
 : scheme                    < compileType ss vars expr err
 : ss key                    < generateUniqueKey ss
-@ ss                        | bindType key name scheme ss
+@ ss                        | bindTypeAlias key name scheme ss
 | ok ss `(#*)
 
 typedef#Symbol#Nat
@@ -341,7 +354,8 @@ printType#Fun
 
 = ({>} ss rex err ok)
 : ss type _ k bRex < loadAnnBindWithHack ss rex err
-@ ss               | addPropsToLocalBindingByKey ss k #[=type]
+; TODO: How to fill the type with this new approach?
+; ss               | addPropsToLocalBindingByKey ss k #[=type]
 | ok ss bRex
 
 ;;;
@@ -362,14 +376,23 @@ printType#Fun
 } > Int > Ptr (Ptr Char) > IO ()
 
 = ({#backfill} ss rex err ok)
-@ kids rexKids-rex
-| if (3 /= len kids) (err rex backfillExpected)
-@ [_ valRex typRex] kids
-: sym bind < readDefinedSymbol ss valRex err
-: typExp   < parseType typRex err
-@ tyVars   | setToRow (txpFree typExp)
-: scheme   < compileType ss tyVars typExp err
-@ ss (addProps ss bind | tabSing {type} scheme)
+@ kids               | rexKids rex
+| if (3 /= len kids) | err rex backfillExpected
+@ [_ valRex typRex]  | kids
+: sym bindRow < readDefinedSymbol ss valRex err
+: typExp      < parseType typRex err
+@ tyVars      | setToRow (txpFree typExp)
+: scheme      < compileType ss tyVars typExp err
+| trk [=scheme]
+;
+@ [k c bs ms ps]   | ss
+; trk [=k =c =ps]
+@ [bk v e bm bn bps] | bindRow
+; trk [=v =e =nm =bk =bc =bps]
+@ bind             | PIN [k v e bn c (tabPut bps {type} scheme)]
+; die              [tabPut {bs} bn pinItem-bind]
+@ bs               | tabPut bs bn bind
+@ ss               | [inc-k c bs ms ps]
 | ok ss '(#*)
 
 ;;; {#typeof} prints the type of a binding.  It is meant to be used
@@ -389,8 +412,7 @@ printType#Fun
 | if (len kids /= 2) | err rex {Usage: typeof#var}
 : name < readSymbol nameRex err
 : type < lookupTypeOf ss name rex err
-| ok ss
-| cnsE
+^ ok ss (cnsE _)
 ` \ $(varE name)
   $(showType ss type)
 
@@ -423,10 +445,12 @@ printType#Fun
 ^-^ Type FORALL
 ^-^
 ^-^ showType parseType parseTypeAnnotatedBinding compileType
-^-^ txpFree addPropsToLocalBindingByKey
+^-^ txpFree
 ^-^ bindKeyHack loadAnnBindWithHack
+^-^ tnodeMapParams tnodeParams
 ^-^
 ^-^ {#typedef} {#abstype} {#printType} {#typeof} {#backfill}
+^-^ {#getTypeRoot}
 ^-^
 ^-^ {#record} {#datatype} {#datacase}
 ^-^
@@ -444,4 +468,6 @@ printType#Fun
 ^-^
 ^-^ Unit Sing Pair Trip Quad Octo
 ^-^ Row8 Row16
+^-^
+^-^ TRUE FALSE bit not inc add
 ^-^

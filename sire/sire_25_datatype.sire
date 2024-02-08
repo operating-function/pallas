@@ -517,12 +517,13 @@ ex=(PAIR %a %b)
     < listCase remain
         | ok hasTag fun fallback (listToRowRev acc)
 ;
-: bindKey bindRow < getBind constr ss rex err
+: bindKey _pin bindRow < getBind constr ss rex err
 @ props (getProps ss bindRow)
 ;
 ; trk #[=bindKey =bindRow =props =constr]
 ;
 | ifNot (tabHas {conTag} props)
+    | trk [=bindKey =bindRow =props]
     ^ err sigRex (strWeld _ constr)
     | {Unknown constructor(tag): }
 ;
@@ -565,6 +566,19 @@ ex=(PAIR %a %b)
 : hasTag fun fb cases < resolveDatacase casesRex ss oFallback branches err
 | ok hasTag fun fb cases
 
+= nullProps
+   ## =conTag 0
+   ## =conAri 0
+   ## =conFun _DataTag
+   ## =conHas TRUE
+   ## =conRaw FALSE
+= consProps
+   ## =conTag 1
+   ## =conAri 2
+   ## =conFun _DataTag
+   ## =conHas TRUE
+   ## =conRaw FALSE
+
 =?=  ++ TRUE
      ++ dataTag
      ++ cnsE 0
@@ -573,20 +587,9 @@ ex=(PAIR %a %b)
   ^ _ v2 v4
   @ xpr ' * LNULL       [x {]}]
           * (LCONS _ _) [x { } (go xs)]
-  @ scope [LNULL=(PIN [3]) LCONS=(PIN [4])]
-  @ props ## =3
-              ## =conTag 0
-              ## =conAri 0
-              ## =conFun _DataTag
-              ## =conHas TRUE
-              ## =conRaw FALSE
-          ## =4
-              ## =conTag 1
-              ## =conAri 2
-              ## =conFun _DataTag
-              ## =conHas TRUE
-              ## =conRaw FALSE
-  | readDatacaseBody [0 0 scope 0 props] xpr
+  @ scope ## =LNULL (PIN [3 0 0 0 0 nullProps])
+          ## =LCONS (PIN [4 0 0 0 0 consProps])
+  | readDatacaseBody [0 0 scope 0 #[]] xpr
 
 =?=  ++ TRUE
      ++ dataTag
@@ -595,20 +598,9 @@ ex=(PAIR %a %b)
   ^ _ v2 v4
   @ xpr ' * LNULL [x {]}]
           * _     [x { } (go xs)]
-  @ scope [LNULL=(PIN [3]) LCONS=(PIN [4])]
-  @ props ## =3
-              ## =conTag 0
-              ## =conAri 0
-              ## =conFun _DataTag
-              ## =conHas TRUE
-              ## =conRaw FALSE
-          ## =4
-              ## =conTag 1
-              ## =conAri 2
-              ## =conFun _DataTag
-              ## =conHas TRUE
-              ## =conRaw FALSE
-  | readDatacaseBody [0 0 scope 0 props] xpr
+  @ scope ## =LNULL | PIN [3 0 0 0 0 nullProps]
+          ## =LCONS | PIN [4 0 0 0 0 consProps]
+  | readDatacaseBody [0 0 scope 0 #[]] xpr
 
 = xpr ' * _ 0
         * _ 0
@@ -729,17 +721,11 @@ two=2
 
 ;;; Bit ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-setProp#(TRUE.conTag)#one
-setProp#(TRUE.conAri)#zero
-setProp#(TRUE.conRaw)#FALSE
-setProp#(TRUE.conFun)#id
-setProp#(TRUE.conHas)#FALSE
+falseProps=[conAri=zero conFun=id conHas=FALSE conRaw=FALSE conTag=zero]
+trueProps=[conTag=one conAri=zero conRaw=FALSE conFun=id conHas=FALSE]
 
-setProp#(FALSE.conAri)#zero
-setProp#(FALSE.conFun)#id
-setProp#(FALSE.conHas)#FALSE
-setProp#(FALSE.conRaw)#FALSE
-setProp#(FALSE.conTag)#zero
+(0 #= falseProps #= FALSE #= FALSE)
+(0 #= trueProps  #= TRUE  #= TRUE)
 
 =?= {true}
   # datacase TRUE
@@ -749,17 +735,11 @@ setProp#(FALSE.conTag)#zero
 
 ;;; Maybe ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-setProp#(NONE.conTag)#zero
-setProp#(NONE.conAri)#zero
-setProp#(NONE.conFun)#len
-setProp#(NONE.conHas)#FALSE
-setProp#(NONE.conRaw)#FALSE
+noneProps=[conTag=zero conAri=zero conFun=len conHas=FALSE conRaw=FALSE]
+someProps=[conTag=one  conAri=one  conFun=len conHas=FALSE conRaw=FALSE]
 
-setProp#(SOME.conTag)#one
-setProp#(SOME.conAri)#one
-setProp#(SOME.conFun)#len
-setProp#(SOME.conHas)#FALSE
-setProp#(SOME.conRaw)#FALSE
+(0 #= someProps #= SOME #= SOME)
+(0 #= noneProps #= NONE #= NONE)
 
 =?= [{some} %x]
   # datacase (SOME %x)
@@ -769,17 +749,11 @@ setProp#(SOME.conRaw)#FALSE
 
 ;;; List ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-setProp#(CONS.conTag)#two
-setProp#(CONS.conAri)#two
-setProp#(CONS.conFun)#len
-setProp#(CONS.conHas)#FALSE
-setProp#(CONS.conRaw)#FALSE
+consProps=[conTag=two conAri=two conFun=len conHas=FALSE conRaw=FALSE]
+nilProps=[conTag=zero conAri=zero conFun=len conHas=FALSE conRaw=FALSE]
 
-setProp#(NIL.conTag)#zero
-setProp#(NIL.conAri)#zero
-setProp#(NIL.conFun)#len
-setProp#(NIL.conHas)#FALSE
-setProp#(NIL.conRaw)#FALSE
+(0 #= consProps #= CONS #= CONS)
+(0 #= nilProps  #= NIL  #= NIL)
 
 =?= {xyz abcd}
   ^ _ ~[{x} {y} {z } {abcd}]
@@ -791,19 +765,11 @@ setProp#(NIL.conRaw)#FALSE
 
 ;;; Either ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-idx0=(idx 0)
+leftProps=[conTag=zero conAri=one conFun=(idx 0) conHas=TRUE conRaw=FALSE]
+rightProps=[conTag=one conAri=one conFun=(idx 0) conHas=TRUE conRaw=FALSE]
 
-setProp#(LEFT.conTag)#zero
-setProp#(LEFT.conAri)#one
-setProp#(LEFT.conFun)#idx0
-setProp#(LEFT.conHas)#TRUE
-setProp#(LEFT.conRaw)#FALSE
-
-setProp#(RIGHT.conTag)#one
-setProp#(RIGHT.conAri)#one
-setProp#(RIGHT.conFun)#idx0
-setProp#(RIGHT.conHas)#TRUE
-setProp#(RIGHT.conRaw)#FALSE
+(0 #= leftProps  #= LEFT  #= LEFT)
+(0 #= rightProps #= RIGHT #= RIGHT)
 
 = (showEither eat)
 # datacase eat
@@ -827,4 +793,11 @@ setProp#(RIGHT.conRaw)#FALSE
 ^-^ {#datacase}
 ^-^ {#datatype}
 ^-^ {#record}
+^-^
+^-^ ; Re-export re-bindings of these values with meta-data about how to
+^-^ ; pattern match on them.
+^-^ TRUE FALSE
+^-^ LEFT RIGHT
+^-^ SOME NONE
+^-^ CONS NIL
 ^-^

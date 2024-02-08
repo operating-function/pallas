@@ -74,9 +74,12 @@ type InCtx = (?ctx :: Context)
 -- Functions --
 ---------------
 
+mkState :: Any -> Any -> Any -> Any -> Any -> Any
+mkState nex ctxVal scope modules props =
+    ROW (arrayFromListN 5 [nex, ctxVal, scope, modules, props])
+
 initialSireStateAny :: Any
-initialSireStateAny =
-    ROW $ arrayFromListN 5 $ [1, 0, TAb mempty, TAb mempty, TAb mempty]
+initialSireStateAny = mkState 1 0 (TAb mempty) (TAb mempty) (TAb mempty)
 
 runRepl :: Repl a -> Any -> Any
 runRepl (REPL act) ini = unsafePerformIO (execStateT act ini)
@@ -118,7 +121,7 @@ getSyr (NAT n) = V n
 getSyr topVal  = fromMaybe (error $ "bad Sire AST:\n\n" <> unpack (planText topVal)) do
     params <- getRow topVal
     case toList params of
-        [NAT "V", x]           -> Just $ G (getBinding x)
+        [NAT "V", x]           -> Just $ G (getBinding "glo" x)
         [NAT "K", x]           -> Just $ K x
         [NAT "A", f, x]        -> Just $ A (getSyr f) (getSyr x)
         [NAT "L", v, b]        -> Just $ L (getSyr v) (getSyr b)
@@ -135,11 +138,18 @@ getPin :: Any -> Maybe Any
 getPin (F.PIN p) = Just p.item
 getPin _         = Nothing
 
-getBinding :: Any -> Bind
-getBinding bindVal = fromMaybe badBinding $ do
-    row <- getPin bindVal >>= getRow
+getBinding :: String -> Any -> Bind
+getBinding _ctx bindPin = fromMaybe badBinding $ do
+    -- case bindPin of
+        -- F.PIN _ -> traceM ("getBinding " ++ ctx ++ " (PIN)")
+        -- _       -> traceM ("getBinding " ++ ctx ++ " (not a pin!)")
+    pin <- getPin bindPin
+    -- case pin of
+        -- ROW r -> traceM $ "getBinding " <> ctx <> " (ROW): length=" <> show (length r)
+        -- _     -> traceM $ "getBinding " <> ctx <> " (not a row!)"
+    row <- getRow pin
 
-    guard (length row == 5)
+    guard (length row == 6)
 
     let datum = BIND_DATA
              { key      = getNat (row!0) "binding key"
@@ -147,11 +157,16 @@ getBinding bindVal = fromMaybe badBinding $ do
              , code     = getSyr (row!2)
              , location = row!3
              , name     = row!4
+             , props    = row!5
              }
 
-    pure (BIND datum bindVal)
+    pure (BIND datum bindPin)
   where
-    badBinding = error ("Malformed binding:\n" <> unpack (planText bindVal))
+    bindContents = case bindPin of F.PIN x -> x.item; _ -> "MALFORMED"
+    badBinding = error ( "Malformed binding:\n"
+                      <> unpack (planText bindPin) <> "\n"
+                      <> unpack (planText bindContents)
+                       )
 
 getNat :: Any -> String -> Nat
 getNat (NAT n) _   = n
@@ -164,7 +179,7 @@ getTable field ctx getVal = \case
 
 
 getScope :: Any -> Tab Any Bind
-getScope = getTable "scope" "state" getBinding
+getScope = getTable "scope" "state" (getBinding "scope")
 
 getPropsTab :: Any -> Tab Any (Tab Any Any)
 getPropsTab = getTable "props" "state" (getTable "a-prop" "props" id)
@@ -220,7 +235,7 @@ lookupVal str stAny = do
 -- reconstruct the desired state.
 revertSwitchToRepl :: Text -> Any -> Any
 revertSwitchToRepl modu oldSt =
-    ROW $ arrayFromListN 5 [nex, ctxVal, scope, newModules, props]
+    mkState nex ctxVal scope newModules props
   where
     ctxVal = NAT (utf8Nat modu)
 
@@ -251,12 +266,7 @@ revertSwitchToRepl modu oldSt =
 
 switchToContext :: Str -> Any -> Any
 switchToContext newCtx oldSt =
-    force $ ROW $ arrayFromListN 5 [ nextKey
-                                   , NAT newCtx
-                                   , TAb mempty
-                                   , newModules
-                                   , TAb mempty
-                                   ]
+    force (mkState nextKey (NAT newCtx) (TAb mempty) newModules (TAb mempty))
   where
     (nextKey, oldCtxVal, oldScope, oldModVal, oldProps) = getStateFields oldSt
 
@@ -289,7 +299,7 @@ filterScope whitelist st =
     if not (null bogus)
     then parseFail_ (WORD "logic error" Nothing) st
            ("filter for non-existing keys: " <> intercalate ", " bogus)
-    else ROW $ arrayFromListN 5 [nextKey, context, TAb newScope, modules, binds]
+    else mkState nextKey context (TAb newScope) modules binds
   where
     (nextKey, context, scopeVal, modules, binds) = getStateFields st
 
@@ -309,8 +319,7 @@ filterScope whitelist st =
 
 importModule :: InCtx => Pex -> Str -> Maybe (Set Str) -> Any -> Any
 importModule blockRex modu mWhitelist stVal =
-    ROW $ arrayFromListN 5
-        $ [nextKey, context, TAb newScope, modulesVal, propsVal]
+    mkState nextKey context (TAb newScope) modulesVal propsVal
   where
     moduleBinds :: Tab Any Any
     moduleBinds = either (parseFail_ blockRex stVal) id do
@@ -359,69 +368,47 @@ importModule blockRex modu mWhitelist stVal =
     If both maps contain properties for the same binding key, the two
     property-sets are merged.  If two property sets for the same key
     contain the same property, the ones from `x` are chosen.
--}
 mergeProps
     :: Tab Any (Tab Any Any)
     -> Tab Any (Tab Any Any)
     -> Tab Any (Tab Any Any)
 mergeProps x y = tabUnionWith tabUnion x y
+-}
 
 insertBinding
     :: InCtx
     => Pex
-    -> (Maybe Nat, Tab Any Any, Str, Any, Sire)
+    -> (Nat, Tab Any Any, Str, Any, Sire)
     -> Any
     -> Any
-insertBinding rx (mKey, extraProps, name, val, code) stVal =
+insertBinding rx (key, extraProps, name, val, code) stVal =
     let
         (nextKeyAny, context, oldScope, modules, oldPropsVal) =
             getStateFields stVal
-
         !nextKey =
             case nextKeyAny of
                 NAT n -> n
                 _     -> parseFail_ rx stVal
                              "next-key slot in state is not a nat"
-
-    in case mKey of
-
-        -- If the binding key is not explicitly set, generate a new key
-        -- and use that.
-        Nothing ->
-            insertBinding rx (Just nextKey, extraProps, name, val, code)
-                $ ROW
-                $ arrayFromListN 5
-                $ [NAT (nextKey+1), context, oldScope, modules, oldPropsVal]
-
-        Just 0 ->
-            parseFail_ rx stVal
-                "Trying to create a binding with key=0.  Nonsense!"
-
-        Just key ->
-            let
-                binding = mkNewBind $ BIND_DATA
-                    { key      = key
-                    , value    = val
-                    , code     = code
-                    , location = context
-                    , name     = NAT name
-                    }
-
-                scope = case oldScope of
-                            TAb t -> TAb (insertMap (NAT name) binding.noun t)
-                            _     -> error "state.scope slot is not a tab"
-
-                oldProps = getPropsTab oldPropsVal
-
-                newProps =
-                    if null extraProps then
-                        oldProps
-                    else
-                        mergeProps (tabSingleton (NAT key) extraProps) oldProps
-            in
-                ROW $ arrayFromListN 5
-                    $ [NAT nextKey, context, scope, modules, toNoun newProps]
-
+    in if key == 0 then
+           -- If the binding key is not explicitly set, generate a new key
+           -- and use that.
+           insertBinding rx (nextKey, extraProps, name, val, code) $
+               mkState (NAT (nextKey+1)) context oldScope modules oldPropsVal
+    else let
+        binding = mkNewBind $ BIND_DATA
+            { key      = key
+            , value    = val
+            , code     = code
+            , location = context
+            , name     = NAT name
+            , props    = TAb extraProps
+            }
+        scope = case oldScope of
+                    TAb t -> TAb (insertMap (NAT name) binding.noun t)
+                    _     -> error "state.scope slot is not a tab"
+    in
+        mkState (NAT nextKey) context scope modules oldPropsVal
 
 expand :: InCtx => Any -> Pex -> Repl Pex
 expand macro input = do
@@ -1105,10 +1092,10 @@ execAssert (_xRex, xExp) (_yRex, yExp) = do
         parseFail rx "ASSERTION FAILURE"
 
 execBind :: InCtx => Pex -> ToBind -> Repl ()
-execBind rx (TO_BIND mKey mProp str expr) = do
+execBind rx (TO_BIND key mProp str expr) = do
     let val = eval expr
     prp <- getProps rx (eval <$> mProp)
-    modify' (insertBinding rx (mKey, prp, str, val, expr))
+    modify' (insertBinding rx (key, prp, str, val, expr))
     trkRexM $ fmap absurd
             $ itemizeRexes
             $ closureRex (Just str) (loadShallow val)
@@ -1152,31 +1139,31 @@ readBindCmd rex = \case
         props  <- readExpr [] propsRex
         binder <- readBinder binderRex
         expr   <- readBindBody binder exprRex
-        pure $ mkBind (Just key) (Just props) expr binder
+        pure $ mkBind key (Just props) expr binder
 
     [keyRex, binderRex, exprRex] -> do
         key    <- readKey keyRex
         binder <- readBinder binderRex
         expr   <- readBindBody binder exprRex
-        pure $ mkBind (Just key) Nothing expr binder
+        pure $ mkBind key Nothing expr binder
 
     [binderRex, exprRex] -> do
         binder <- readBinder binderRex
         expr   <- readBindBody binder exprRex
-        pure $ mkBind Nothing Nothing expr binder
+        pure $ mkBind 0 Nothing expr binder
 
     _ -> do
         parseFail rex "Define cmd needs two or three parameters"
 
   where
 
-    mkBind mKey mProp body = \case
+    mkBind key mProp body = \case
         Left var ->
-            TO_BIND mKey mProp var body
+            TO_BIND key mProp var body
 
         Right ((mark, name), argNames) ->
             let recr = hasRefTo args body in
-            TO_BIND mKey mProp name
+            TO_BIND key mProp name
                 $ F $ LAM {pin=True, mark, tag=name, args, body, recr}
           where
             args = fromIntegral (length argNames)

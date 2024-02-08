@@ -17,43 +17,35 @@
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 :| sire   ;
-:| types  [TVAR TCON showType loadAnnBindWithHack]
 :| stew   ;
 :| sire   [{=}] ; don't use the STEW version, since we want to manually
                 ; assign binder keys.  This is a short-term hack, eventually
                 ; all of this stuff will be moved into stew-proper.
+:| types  [TVAR TCON showType loadAnnBindWithHack {#getTypeRoot}]
+:| types  [tnodeMapParams tnodeParams]
+:| types  [TRUE FALSE bit not inc add]
 
 
 ;;; Inference ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-funKey=(getKey#Fun)
-natKey=(getKey#Nat)
+funRoot=(getTypeRoot#Fun)
+natRoot=(getTypeRoot#Nat)
+listRoot=(getTypeRoot#List)
+singRoot=(getTypeRoot#Sing)
+tripRoot=(getTypeRoot#Trip)
 
-zero=0
-one=1
-two=2
-
-setProp#(TVAR.conTag)#zero
-setProp#(TVAR.conAri)#one
-setProp#(TVAR.conFun)#len
-setProp#(TVAR.conHas)#FALSE
-setProp#(TVAR.conRaw)#TRUE
-
-setProp#(TCON.conTag)#two
-setProp#(TCON.conAri)#two
-setProp#(TCON.conFun)#len
-setProp#(TCON.conHas)#FALSE
-setProp#(TCON.conRaw)#FALSE
+#= tvarProps [conTag=0 conAri=1 conFun=len conHas=FALSE conRaw=TRUE]
+#= tconProps [conTag=2 conAri=2 conFun=len conHas=FALSE conRaw=FALSE]
+#= 0 tvarProps TVAR TVAR
+#= 0 tvarProps TCON TCON
 
 abstype#(TNode a)
 abstype#SireState ; TODO: Move elsewhere
 
 > (a>b) > TNode a > TNode b
 = (mapTNode f n)
-# datacase n
-* (TVAR v)    | TVAR (f v)
-* (TCON c xs) | TCON c (map (mapTNode f) xs)
-* _           | {bad type node} n
+| if isNat-n (TVAR | f n)
+| tnodeMapParams mapTNode-f n
 
 typedef#Ty#(TNode Str)
 
@@ -66,15 +58,13 @@ typedef#Context#(Tab Str Scheme)
 
 > Substitution > Ty > Ty
 = (applySubst s ty)
-; trk [{applySubst} s ty]
-;^ trk [{applySubst} s ty {->} _] _
-# datacase ty
-* (TVAR v)    | fromSome ty (tabLookup v s)
-* (TCON c xs) | TCON c (map applySubst-s xs)
-* _           | {bad type node} ty
+| if isNat-ty (fromSome ty | tabLookup ty s)
+| tnodeMapParams applySubst-s ty
 
-=?= | TCON funKey [TVAR-{y} TCON-natKey-[]]
-  | applySubst [x={y}] (TCON funKey (TVAR %x, TCON natKey []))
+[funRoot natRoot]
+
+=?= (funRoot {y} natRoot)
+  | applySubst [x={y}] (funRoot %x natRoot)
 
 
 > Substitution > Scheme > Scheme
@@ -82,12 +72,12 @@ typedef#Context#(Tab Str Scheme)
 | SCHEME xs (applySubst (foldr tabDel s xs) t)
 
 =?=   | SCHEME [{x}]
-      | TCON funKey
+      | TCON funRoot
      ++ TVAR {x}
      ++ TVAR {b}
   | applySubstScheme [x={y} a={b}]
   | SCHEME [{x}]
-  | TCON funKey
+  | TCON funRoot
  ++ TVAR {x}
  ++ TVAR {a}
 
@@ -129,18 +119,16 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 
 > Ty > Set Str
 = (free x)
-# datacase x
-* (TVAR v)   | setSing v
-* (TCON _ p) | setCatRow (map free p)
-* _          | {bad type node} x
+| if isNat-x (setSing x)
+| setCatRow (map free tnodeParams-x)
 
-=?= %[a b] (free (TCON funKey [{a} (TCON funKey [{b} {a}])]))
+=?= %[a b] (free (TCON funRoot [{a} (TCON funRoot [{b} {a}])]))
 
 > Scheme > Set Str
 = (schemeFree (SCHEME params t))
 | setDifference (free t) (setFromRow params)
 
-=?= %[b] | schemeFree | SCHEME [{a}] | TCON funKey [{a} {b}]
+=?= %[b] | schemeFree | SCHEME [{a}] | TCON funRoot [{a} {b}]
 
 > Str > Ty > Infer Substitution
 = (varBind key ty st err ok)
@@ -153,23 +141,22 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 ; trk {unify},[=xt =yt =st]
 | if isNat-xt | varBind xt yt st err ok
 | if isNat-yt | varBind yt xt st err ok
-@ [xc xs] xt
-@ [yc ys] yt
-| if (xc /= yc)
+| if (head xt /= head yt)
     ; TODO Use #datatype to define error type.
     | err (NO_UNIFY sireCtx xt yt)
 ;
 ; I miss monads :/
 ;
-^ _ st #[] (listFromRow (zip xs ys))
+^ _ st #[]
+    | listFromRow
+    | zip tnodeParams-xt tnodeParams-yt
 ? (go st subst pairs)
 # datacase pairs
-* NIL (ok st subst)
+* NIL
+    | ok st subst
 * (CONS [x y] pairs)
-: st s2 < unify sireCtx (applySubst subst x) (applySubst subst y) st err
-; trk [=subst =st =s2]
-| go st (composeSubst subst s2) pairs
-
+    : st s2 < unify sireCtx (applySubst subst x) (applySubst subst y) st err
+    | go st (composeSubst subst s2) pairs
 
 (tryUnify sire x y)=(runInfer | unify sire x y)
 
@@ -179,15 +166,16 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 =?= (tryUnify 9 {a} (TCON 0 [{a}]))  |  LEFT | OCCURS_CHECK_FAILED {a}
                                              | TCON 0 [{a}]
 
-=?=   | LEFT (NO_UNIFY 9 (TCON 1 [{b}]) (TCON 0 [{a}]))
+=?=   | LEFT
+      | NO_UNIFY 9 (TCON listRoot [{b}]) (TCON singRoot [{a}])
   | tryUnify 9
-  * TCON 0 ,(TCON 1 [{b}])
-  * TCON 0 ,(TCON 0 [{a}])
+  * TCON singRoot ,(TCON listRoot [{b}])
+  * TCON singRoot ,(TCON singRoot [{a}])
 
-=?=   | RIGHT 0,[a={b}]
+=?=   | RIGHT [0 [a={b}]]
   | tryUnify 9
-  * TCON 0 ,(TCON 0 [{a}])
-  * TCON 0 ,(TCON 0 [{b}])
+  * singRoot (singRoot {a})
+  * singRoot (singRoot {b})
 
 
 > Substitution > Context > Context
@@ -202,9 +190,8 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 ^ SCHEME _ t
 | setToRow (setSub (free t) (ctxFree ctx))
 
-=?=   | SCHEME [%a %c]
-      | TCON 9 (TVAR %a, TVAR %b, TVAR %c)
-  | generalize [a=(SCHEME [] {b})] (TCON 9 [%a %b %c])
+=?=   | SCHEME [%a %c] (tripRoot %a %b %c)
+  | generalize [a=(SCHEME [] {b})] (tripRoot %a %b %c)
 
 = (genTyVars n st err ok)
 | ok (add n st)
@@ -216,9 +203,9 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 ^ ok st (applySubst _ ty)
 | tabFromPairs (zip vars newVars)
 
-=?=   | runInfer | instantiate | SCHEME [%a %b] | TCON 9 [%a %b %foo]
+=?=   | runInfer | instantiate | SCHEME [%a %b] | TCON tripRoot [%a %b %foo]
   ^ RIGHT [2 _]
-  | TCON 9 [{_g0} {_g1} %foo]
+  | TCON tripRoot [{_g0} {_g1} %foo]
 
 > Type > Scheme
 = (schemeFromType ty@(FORALL numParams tNode))
@@ -230,17 +217,17 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 | mapTNode (get names) tNode
 
 =?=   | schemeFromType Fun
-  | [[%a %b] (TCON funKey [%a %b])]
+  | [[%a %b] (TCON funRoot [%a %b])]
 
 = (mkFunType argTypes resultType)
 ^ foldr _ resultType argTypes
 & (in out)
-| TCON funKey [in out]
+| TCON funRoot [in out]
 
 =?= (mkFunType [{a} {b} {c}] {d})
-  ^ TCON funKey [{a} _]
-  ^ TCON funKey [{b} _]
-  | TCON funKey [{c} {d}]
+  ^ TCON funRoot [{a} _]
+  ^ TCON funRoot [{b} _]
+  | TCON funRoot [{c} {d}]
 
 = (unsafeToVarName pat)
 # datacase pat
@@ -253,11 +240,11 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 ? (go ctx exp st ok)
 # datacase exp
 * (EBED n) | {embeded value with unknown type} exp
-* (ENAT n) | ok st (#[], TCON natKey [])
+* (ENAT n) | ok st (#[], TCON natRoot [])
 * (EREF r)
     # datacase (tabLookup r ctx)
     * NONE
-        : _ bind < getBind r ss (showExp exp)
+        : _ _ bind < getBind r ss (showExp exp)
                         (rex msg)&({inference failed}, rex, msg)
         @ props | getProps ss bind
         ; trk [=props =bind]
@@ -274,7 +261,7 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
     : st rt      < genTyVar st err
     : st [s1 ft] < go ctx f st
     : st [s2 xt] < go (applySubstCtx s1 ctx) x st
-    @ mustBe     | TCON funKey [xt rt]
+    @ mustBe     | TCON funRoot [xt rt]
     : st s3      < unify exp (applySubst s2 ft) mustBe st err
     | ok st
    ++ composeSubst (composeSubst s3 s2) s1
@@ -331,9 +318,9 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
     | {unsupportedSyntax}
     | showExp exp
 
-= natN | TCON natKey []
+= natN | TCON natRoot []
 = natT | SCHEME 0 natN
-= funN | (f x)&(TCON funKey [f x])
+= funN | (f x)&(TCON funRoot [f x])
 = incN | funN natN natN
 = incT | SCHEME 0 incN
 = addN | funN natN (funN natN natN)
@@ -344,13 +331,13 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 
 =?= (RIGHT (0, (#[], addN)))
   | runInfer
-  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add}])] 0 [5=[type=addT]]]
+  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add} [type=addT]])] 0 #[]]
   | infer ss #[]
   | EREF {add}
 
 =?= (RIGHT (1, ([_g0=incN], incN)))
   | runInfer
-  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add}])] 0 [5=[type=addT]]]
+  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add} [type=addT]])] 0 #[]]
   | infer ss #[]
   | EAPP (EREF {add}) (ENAT 3)
 
@@ -466,12 +453,25 @@ abstype#(Read2 a b)
 ; only using this AST for type-checking, the actual macro-expansion is
 ; just the rex raw input without the annotation.
 
+; TODO: This does *not* assign the infered type to the annotated binding.
+;
+; We can't actually do that here, because of reasons.
+
 = ({>} ss rex err ok)
 : ss type vars k bRex < loadAnnBindWithHack ss rex err
 : sig body            < parseBinding bRex err
 @ self,sire           | desugaredBindingBody sig body
 : type                < doCheck ss type sire err
-@ ss                  | addPropsToLocalBindingByKey ss k #[=type]
+;
+; TODO: Need to add the type property *directly* to the binding.
+; Or, alternately, to inject the binding followed immediatly by another
+; re-binding with the property in Q.
+;
+; Ah, but we can't really do that here, because we aren't in control of
+; the pipeline.  Can we stub out this code, and then do it *for real*
+; in the next interation?
+;
+; @ ss                  | addPropsToLocalBindingByKey ss k #[=type]
 ; trk `($(WORD 0 self 0) :: $(showType p type))
 | ok ss bRex
 

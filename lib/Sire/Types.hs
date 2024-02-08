@@ -59,7 +59,13 @@ type Rex = GRex Any
 
 -- Types -----------------------------------------------------------------------
 
-data ToBind = TO_BIND (Maybe Nat) (Maybe Sire) Nat Sire
+-- key=0 means "generate a key for me"
+data ToBind = TO_BIND
+    { key   :: Nat
+    , props :: Maybe Sire
+    , name  :: Str
+    , value :: Sire
+    }
 
 
 -- Formal Sire State -----------------------------------------------------------
@@ -95,10 +101,8 @@ data SireState = SIRE_STATE
 -}
 mkNewBind :: BindData -> Bind
 mkNewBind d =
-    BIND d noun
-  where
-    list = [NAT d.key, d.value, sireNoun d.code, d.location, d.name]
-    noun = mkPin $ ROW $ arrayFromListN 5 list
+    BIND d $ mkPin $ toNoun
+        (NAT d.key, d.value, sireNoun d.code, d.location, d.name, d.props)
 
 
 -- Sire Types ------------------------------------------------------------------

@@ -33,36 +33,16 @@
 
 ;;; Functions for getting bindings and adding properties ;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO support inline annotations in = macro
 = (getBind name ss rex err ok)
-@ scope | idx 2 ss
-@ binds | idx 4 ss
-@ bind  | tabGet scope name
-@ bRow  | pinItem bind
-@ key   | idx 0 bRow
-| ifz bind
-    | err rex | strWeld {undefined symbol: } name
-| if (not key)
-    ; trk #[=bind]
-    | err rex {bindKey is zero!!}
-| **ok key bRow
+@ bindPin | tabGet (get ss 2) name
+@ bindRow | pinItem bindPin
+@ key     | get bindRow 0
+| ifz key | err rex (strWeld {undefined symbol: } name)
+| **ok key bindPin bindRow
 
-= (getProps ss@[_ curMod _ modules _curProps] bind)
-| if (isNat bind)
-    | {not a binder} bind
-@ [bindKey _ _ bindMod bindName] bind
-; trk [getProps bindKey bindName bindMod]
-| if (eql curMod bindMod)
-    @ curProps  (idx 4 ss)
-    @ bindProps (tabGet curProps bindKey)
-    @ bindProps (ifz bindProps #[] bindProps)
-    | bindProps
-| else
-    @ entry      (tabGet modules bindMod)
-    @ theirProps (idx 1 | pinItem entry)
-    @ bindProps  (tabGet theirProps bindKey)
-    @ bindProps  (ifz bindProps #[] bindProps)
-    | bindProps
+;; TODO remove unused parameter from {getProps}
+
+(getProps _ bind)=(idx 5 bind)
 
 = (addPropsToLocalBindingByKey ss bindKey extraProps)
 @ curProps (get ss 4)
@@ -74,7 +54,7 @@
 
 = (addProps ss bind extraProps)
 @ [_ curMod _ modules curProps]  | ss
-@ [bindKey _ _ bindMod bindName] | bind
+@ [bindKey _ _ bindMod bindName bindProps] | bind
 | if (eql curMod bindMod)
     @ oldProps (tabGet curProps bindKey)
     @ newProps (tabUnion extraProps oldProps)  ;  left-biased
@@ -92,16 +72,20 @@
     @ ss        (put ss 3 modules)
     | ss
 
-= (getProp ss bind propName)
-@ props (getProps ss bind)
-| tabGet props propName
+= (getProp _ss bind propName)
+| tabGet (getProps {TODO: unused} bind) propName
 
 
 ;;; Convenience Macros to Query properties of bindings. ;;;;;;;;;;;;;;;;;;;;;;;;
 
+= ({#getBind} ss rex err ok)
+: _ sym    < rexParseKids rex [readRex readSymbol] err
+: _ bind _ < getBind sym ss rex err
+| ok ss (cnsE bind)
+
 = ({#getKey} ss rex err ok)
-: _ symbol      < rexParseKids rex [readRex readSymbol] err
-: bindKey _bind < getBind symbol ss rex err
+: _ symbol    < rexParseKids rex [readRex readSymbol] err
+: bindKey _ _ < getBind symbol ss rex err
 | ok ss (cnsE bindKey)
 
 = (readSymbDotProp rex err ret)
@@ -113,44 +97,20 @@
 = ({#hasProp} ss rex err expand)
 : _ [symbol property]
     < rexParseKids rex [readRex readSymbDotProp] err
-: bindKey bind
+: bindKey _pin bind
     < getBind symbol ss rex err
 @ props (getProps ss bind)
 ^ expand ss (cnsE _)
 | tabHas property props
 
-= ({#getProp} ss rex err expand)
+= ({#getProp} ss rex err ok)
 : _ [symbol property] < rexParseKids rex [readRex readSymbDotProp] err
-: bindKey bind        < getBind symbol ss rex err
-^ expand ss (cnsE _)
+: bindKey _pin bind   < getBind symbol ss rex err
+^ ok ss (cnsE _)
 | tabGet (getProps ss bind) property
 
-= ({#setProp} ss rex err expand)
-: _ [symbol property] valSym
-    < rexParseKids rex [readRex readSymbDotProp readSymbol] err
-: _ symBind < getBind symbol ss rex err
-: _ valBind < getBind valSym ss rex err
-^ expand _ '(#*)
-| addProps ss symBind
-| tabSing property (idx 1 valBind)
+#= 0 #[src=('(why=3))] why 3
 
-= (getPropsByKey ss key)
-@ [_ _ _ modules props] ss
-@ curProps (idx 4 ss)
-| if (tabHas key curProps)
-    | tabGet curProps key
-| tabCatRow
-: @(PIN [_ props]) < foreach (tabValsRow modules)
-| ifNot (tabHas key props) #[]
-| tabGet props key
-
-= (getPropByKey ss key property)
-@ props (getPropsByKey ss key)
-| tabGet props property
-
-why=3
-whySrc=('(why=3))
-setProp#(why.src)#whySrc
 (1        =?= hasProp#(why.src))
 ('(why=3) =?= getProp#(why.src))
 why=4
@@ -161,9 +121,7 @@ why=4
 ;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ^-^
-^-^ {#getKey} {#hasProp} {#getProp} {#setProp}
+^-^ {#getBind} {#getKey} {#hasProp} {#getProp}
 ^-^
-^-^ getBind getProps getProp addProps
-^-^ addPropsToLocalBindingByKey
-^-^ getPropsByKey getPropByKey
+^-^ getBind getProps getProp
 ^-^

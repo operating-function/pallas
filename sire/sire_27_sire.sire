@@ -33,6 +33,7 @@
 :| sire_23_repl     [lineRepl cogMap]
 :| sire_24_rex      [simpleCog rexCog listMonoid blockState]
 :| sire_25_datatype [{#record} {#datatype} {#datacase}]
+:| sire_25_datatype [LEFT RIGHT]
 :| sire_26_compile  ;
 
 
@@ -47,7 +48,7 @@
 
 # record ToBind
 | TO_BIND
-* keyToBind   : Maybe Nat
+* keyToBind   : Nat  ;;  0 = "generate for me"
 * propsToBind : Maybe Sire
 * varToBind   : Str
 * expToBind   : Sire
@@ -518,43 +519,36 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 > Rex
 > (Maybe Nat, Tab Any Any, Str, Any, Sire)
 > Repl ()
-= (insertBinding rex [mKey extraProps name val code] st)
-@ @(SIRE_STATE sireNextKey sireContext sireScope sireModules sireAllProps) st
-@ noKey
+= (insertBinding rex [key extraProps name val code] st)
+@ @(SIRE_STATE sireNextKey sireContext sireScope sireModules sps) st
+| ifz key
     ; If the binding key is not explicitly set, generate a new key
     ; and use that.
-    @ key sireNextKey
-    @ !sireNextKey (inc sireNextKey)
-    @ !st | setSireNextKey sireNextKey st
-    | insertBinding rex (SOME key, extraProps, name, val, code) st
-: key < maybeCase mKey noKey
-| ifz key
-    | ({binding with zero key}, rex)
-@ binding
-    | (BIND key val code sireContext name)
-@ sireScope
-    | tabPut sireScope name (4 binding)
-@ sireAllProps
-    | if (tabIsEmpty extraProps) sireAllProps
-    | tabUnion (tabSing key extraProps) sireAllProps
-^ (_, ())
-| SIRE_STATE sireNextKey sireContext sireScope sireModules sireAllProps
+    @ key  | sireNextKey
+    @ !nex | inc key
+    @ !st  | setSireNextKey nex st
+    | insertBinding rex (key, extraProps, name, val, code) st
+| else
+    ^ (_, ())
+    ^ SIRE_STATE sireNextKey sireContext _ sireModules sps
+    ^ tabPut sireScope name (4 _)
+    | BIND key val code sireContext name extraProps
 
 > Rex > ToBind > Repl Any
-= (execBind rx (TO_BIND mKey mProp str expr) st)
+= (execBind rx (TO_BIND key mProp str expr) st)
 @ !val       | force | evalSire expr
 @ extraProps | **maybeCase mProp #[] (x & evalSire x)
-: !st ()     < replOpen (insertBinding rx (mKey, extraProps, str, val, expr)) st
+: !st ()     < replOpen (insertBinding rx (key, extraProps, str, val, expr)) st
 | trk ` = $(sire_06_rex.TEXT str 0) ; $$val
 | (st, val)
 
-= (mkBind mKey mProp bodyExpr eB)
+= (mkBind key mProp bodyExpr eB)
 # datacase eB
 * LEFT-var
-    | TO_BIND mKey mProp var bodyExpr
+    | TO_BIND key mProp var bodyExpr
 * RIGHT-[[doInline tagName] argNames]
     @ nArgs (len argNames)
-    | TO_BIND mKey mProp tagName
+    | TO_BIND key mProp tagName
     | F | LAM TRUE doInline tagName nArgs bodyExpr
 
 > Rex > Maybe (Bit, Nat)
@@ -611,18 +605,18 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     : st props  < replOpen (readExpr NIL propsRex) st
     : st binder < replOpen (readBinder binderRex) st
     : st expr   < replOpen (readBindBody binder exprRex) st
-    | (st, mkBind (SOME key) (SOME props) expr binder)
+    | (st, mkBind key (SOME props) expr binder)
 * 3
     @ [keyRex binderRex exprRex] rexes
     : st key    < replOpen (readKey keyRex) st
     : st binder < replOpen (readBinder binderRex) st
     : st expr   < replOpen (readBindBody binder exprRex) st
-    | (st, mkBind (SOME key) NONE expr binder)
+    | (st, mkBind key NONE expr binder)
 * 2
     @ [binderRex exprRex] rexes
     : st binder < replOpen (readBinder binderRex) st
     : st expr   < replOpen (readBindBody binder exprRex) st
-    | (st, mkBind NONE NONE expr binder)
+    | (st, mkBind 0 NONE expr binder)
 * _
     | ({expected two or three params}, rex)
 

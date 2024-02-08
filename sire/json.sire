@@ -303,58 +303,24 @@ abstype#Json
 @ t (typeTag x)
 | if (t == natTag) x t
 
-= JNULL       | {null}
-= JTRUE       | {true}
-= JFALSE      | {false}
-= (**JSTR x)  | x
-= (**JNUM n)  | 0 n
-= (**JVEC xs) | xs
-= (**JMAP kv) | kv
+; JNUM.conHas=0 because fetching with idx-0 works on (0 _)
+; JNUM.conRaw=0 because wrapper in (0 _)
 
-zero=0
-one=1
+= jnullProps  [conTag={null}  conAri=0 conFun=jsonTag conHas=0 conRaw=0]
+= jtrueProps  [conTag={true}  conAri=0 conFun=jsonTag conHas=0 conRaw=0]
+= jfalseProps [conTag={false} conAri=0 conFun=jsonTag conHas=0 conRaw=0]
+= jstrProps   [conTag=barTag  conAri=1 conFun=jsonTag conHas=0 conRaw=1]
+= jnumProps   [conTag=appTag  conAri=1 conFun=jsonTag conHas=0 conRaw=0]
+= jvecProps   [conTag=rowTag  conAri=1 conFun=jsonTag conHas=0 conRaw=1]
+= jmapProps   [conTag=tabTag  conAri=1 conFun=jsonTag conHas=0 conRaw=1]
 
-setProp#(JNULL.conTag)#JNULL
-setProp#(JNULL.conAri)#zero
-setProp#(JNULL.conFun)#jsonTag
-setProp#(JNULL.conHas)#FALSE
-setProp#(JNULL.conRaw)#FALSE
-
-setProp#(JTRUE.conTag)#JTRUE
-setProp#(JTRUE.conAri)#zero
-setProp#(JTRUE.conFun)#jsonTag
-setProp#(JTRUE.conHas)#FALSE
-setProp#(JTRUE.conRaw)#FALSE
-
-setProp#(JFALSE.conTag)#JFALSE
-setProp#(JFALSE.conAri)#zero
-setProp#(JFALSE.conFun)#jsonTag
-setProp#(JFALSE.conHas)#FALSE
-setProp#(JFALSE.conRaw)#FALSE
-
-setProp#(JSTR.conTag)#barTag
-setProp#(JSTR.conAri)#one
-setProp#(JSTR.conFun)#jsonTag
-setProp#(JSTR.conHas)#FALSE
-setProp#(JSTR.conRaw)#TRUE
-
-setProp#(JNUM.conTag)#appTag
-setProp#(JNUM.conAri)#one
-setProp#(JNUM.conFun)#jsonTag
-setProp#(JNUM.conHas)#FALSE   ; Fetching with idx-0 works on (0 _)
-setProp#(JNUM.conRaw)#FALSE   ; False because wrapper in (0 _)
-
-setProp#(JVEC.conTag)#rowTag
-setProp#(JVEC.conAri)#one
-setProp#(JVEC.conFun)#jsonTag
-setProp#(JVEC.conHas)#FALSE
-setProp#(JVEC.conRaw)#TRUE
-
-setProp#(JMAP.conTag)#tabTag
-setProp#(JMAP.conAri)#one
-setProp#(JMAP.conFun)#jsonTag
-setProp#(JMAP.conHas)#FALSE
-setProp#(JMAP.conRaw)#TRUE
+#= 0 jnullProps  JNULL  {null}
+#= 0 jtrueProps  JTRUE  {true}
+#= 0 jfalseProps JFALSE {false}
+#= 0 jstrProps   JSTR   (JSTR x ?? x)
+#= 0 jnumProps   JNUM   (JNUM n ?? 0 n)
+#= 0 jvecProps   JVEC   (JVEC xs ?? xs)
+#= 0 jmapProps   JMAP   (JMAP kv ?? kv)
 
 = (jsonWithType j)
 # datacase j

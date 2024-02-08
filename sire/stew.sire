@@ -1207,7 +1207,7 @@
     | ok pat
 * (POPN constr)
     @ rex (showPat pat)
-    : _ bind < getBind constr ss rex err
+    : _ _ bind < getBind constr ss rex err
     @ fieldNames (getProp ss bind {fieldNames})
     | ifz fieldNames
         | err rex (strWeld {Unknown record constructor: } constr)
@@ -1590,22 +1590,23 @@
   | EMUT {lol} (EREF {even})
  ++ (%even, [(PVAR %x)], EREF {x})
 
+= someProps
+   ## =conTag 1
+   ## =conAri 1
+   ## =conFun len
+   ## =conHas FALSE
+   ## =conRaw FALSE
+= noneProps
+   ## =conTag 0
+   ## =conAri 0
+   ## =conFun len
+   ## =conHas FALSE
+   ## =conRaw FALSE
 = scope
-    [SOME=(PIN [3 0 0 {REPL} {SOME}]) NONE=(PIN [4 0 0 {REPL} {NONE}])]
+   ## =SOME | PIN [3 0 0 {REPL} {SOME} someProps]
+   ## =NONE | PIN [4 0 0 {REPL} {NONE} noneProps]
 
-= props
-    ## =3 ## =conTag 1
-          ## =conAri 1
-          ## =conFun len
-          ## =conHas FALSE
-          ## =conRaw FALSE
-    ## =4 ## =conTag 0
-          ## =conAri 0
-          ## =conFun len
-          ## =conHas FALSE
-          ## =conRaw FALSE
-
-= ssEx [5 {REPL} scope #[] props]
+= ssEx [5 {REPL} scope #[] #[]]
 
 ; such a beauty
 =?=  ++ put ssEx 0 8

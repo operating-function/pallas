@@ -108,10 +108,21 @@ instance (ToNoun a,ToNoun b,ToNoun c,ToNoun d) => ToNoun (a,b,c,d)
     toNoun (p,q,r,s) =
         ROW $ arrayFromListN 4 [toNoun p,toNoun q,toNoun r,toNoun s]
 
-instance (ToNoun a,ToNoun b,ToNoun c,ToNoun d,ToNoun e) => ToNoun (a,b,c,d,e)
+instance
+    (ToNoun a, ToNoun b, ToNoun c, ToNoun d, ToNoun e)
+       => ToNoun (a, b, c, d, e)
   where
-    toNoun (p,q,r,s,t) =
-        ROW $ arrayFromListN 5 [toNoun p,toNoun q,toNoun r,toNoun s,toNoun t]
+    toNoun (p, q, r, s, t) =
+        ROW $ arrayFromListN 5 $
+            [toNoun p, toNoun q, toNoun r, toNoun s, toNoun t]
+
+instance
+    (ToNoun a, ToNoun b, ToNoun c, ToNoun d, ToNoun e, ToNoun f)
+        => ToNoun (a, b, c, d, e, f)
+  where
+    toNoun (p, q, r, s, t, u) =
+        ROW $ arrayFromListN 6 $
+            [toNoun p, toNoun q, toNoun r, toNoun s, toNoun t, toNoun u]
 
 instance (FromNoun a,FromNoun b)
     => FromNoun (a,b)
@@ -142,6 +153,33 @@ instance (FromNoun a,FromNoun b,FromNoun c,FromNoun d)
               <*> fromNoun (r!1)
               <*> fromNoun (r!2)
               <*> fromNoun (r!3)
+
+instance
+    (FromNoun a,FromNoun b,FromNoun c,FromNoun d,FromNoun e)
+        => FromNoun (a, b, c, d, e)
+  where
+    fromNoun n = do
+        r <- getRawRow n
+        guard (length r == 5)
+        (,,,,) <$> fromNoun (r!0)
+               <*> fromNoun (r!1)
+               <*> fromNoun (r!2)
+               <*> fromNoun (r!3)
+               <*> fromNoun (r!4)
+
+instance
+    (FromNoun a, FromNoun b, FromNoun c, FromNoun d, FromNoun e, FromNoun f)
+        => FromNoun (a, b, c, d, e, f)
+  where
+    fromNoun n = do
+        r <- getRawRow n
+        guard (length r == 6)
+        (,,,,,) <$> fromNoun (r!0)
+                <*> fromNoun (r!1)
+                <*> fromNoun (r!2)
+                <*> fromNoun (r!3)
+                <*> fromNoun (r!4)
+                <*> fromNoun (r!5)
 
 instance ToNoun ByteString where
     toNoun = BAR

@@ -41,8 +41,8 @@
 
 ;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-> Nat > Row (TNode a) > TNode a
-(TCON key params)=[key params]
+> Nat > SireBind > Row (TNode a) > TNode a
+(TCON root params)=(rowApply root params)
 
 > a > TNode a
 (TVAR key)=key
@@ -50,58 +50,55 @@
 # record Type
 | FORALL vars:Nat typ:(TNode Nat)
 
+tnodeParams=rev
+
+= (tnodeMapParams f cn)
+| ifz (isApp cn) cn
+| rowRepel head-cn (map f cn)
+
 
 ;;; Generating New Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= (bindType key name scheme ss)
-@ [nex ctx scope modules props]=ss
-@ bind  | PIN [key scheme [%K scheme] ctx name]
-@ scope | tabPut scope name bind
-@ props | tabPut props key  [typeName=name]
-| [nex ctx scope modules props]
+= (bindTypeAlias key name scheme ss@[k c bs ms ps])
+^ [inc-k c _ ms ps]
+| tabPut bs name
+| PIN [k scheme [%K scheme] c name [isType=TRUE]]
 
-= (mkNewType name arity ss@[key ctx scope mods props])
-^ bindType key name _ [inc-key ctx scope mods props]
-| FORALL arity | TCON key | gen arity TVAR
+= (mkNewType name arity ss@[key ctx bs ms ps])
+@ rootKey  | key
+@ !typeKey | add 1 key
+@ !nextKey | add 2 key
+@ rootVal  | PIN (0 name inc-arity typeKey)
+@ typeVal  | FORALL arity (TCON rootVal | gen arity TVAR)
+@ typeBind | PIN [typeKey typeVal [%K typeVal] ctx name [isType=TRUE]]
+^ [inc-key ctx _ ms ps]
+| tabPut bs name typeBind
+
+; Previously, we represented types as:
+;
+;     [key params]
+;
+; Now, I guess we should instead represent them as:
+;
+;     [key bind params]?
+;
+; This is basically equivalent to:
+;
+;     [bind params]
+;
+; Except that we "cache" the key, to make it faster to grab.
 
 = (lookupType name ss err ok)
-@ [_ _ scope _ props]=ss
-@ rex  | WORD name 0
-@ bind | tabGet scope name
-@ bRow | pinItem bind
-@ k,v  | bRow
-| ifz bind | err rex {undefined type}
-| if (len v /= 2)
-    | err rex {binding is not a type}
-@ bindProps (getProps ss bRow)
-@ name | tabGet bindProps {typeName}
-| ifz name | err rex {binding is a type, but it isn't tied to a name!}
-    ;
-    ; TODO: can't we just use the binding name instead of having this the
-    ; `typeName` property?
-    ;
-    ; TODO: Similarly, would it be better to store a new binding for
-    ; the type of each binding and just store a #[ty=num] in the
-    ; properties?  This would maybe make it possible to have the
-    ; properties table not be scoped which would simplify things
-    ; significantly.  Right now, we store fragments of the properties
-    ; table in each module.  The advantage of this is that the properties
-    ; table is not duplicated in every module.  But if this table is
-    ; kept extremely small, then maybe that doesn't matter so much?
-    ;
-    ; TODO: Alternatively!  Maybe we put the properties *directly*
-    ; on bindings and just don't allow them to be altered from another
-    ; module.  This would make the current #backfill design impossible,
-    ; but we could instead have backfill just create a new binding with
-    ; the same name.
-    ;
-    ; So then, `sire_03_nat.add` would remain forever untyped, but
-    ; stew_03_backfill.add could be an identical binding that does
-    ; include a type.
+@ [_ _ scope _ props]      | ss
+@ rex                      | WORD name 0
+@ bind                     | tabGet scope name
+@ [k v _e nm _c ps]        | pinItem bind
+| ifz bind                 | err rex {undefined type}
+| ifz (tabHas {isType} ps) | err rex {binding is not a type}
 | ok v
 
 = (lookupTypeOf ss name rex err ok)
-: _ bind     < getBind name ss rex err
+: _ _ bind   < getBind name ss rex err
 @ scheme     | getProp ss bind {type}
 | ifz scheme | err rex {binding is untyped}
 | ok scheme
@@ -113,7 +110,8 @@
 ^-^ TCON TVAR
 ^-^ FORALL
 ^-^
-^-^ bindType
+^-^ tnodeParams tnodeMapParams
+^-^ bindTypeAlias
 ^-^ mkNewType
 ^-^ lookupType lookupTypeOf
 ^-^

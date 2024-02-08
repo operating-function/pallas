@@ -40,12 +40,15 @@ data Lam = LAM
     , body :: Sire
     }
 
+-- TODO:: (Key, Ctx, Name, Value, Expr, Props)
+-- TODO:: maybe eliminate the key.
 data BindData = BIND_DATA
     { key      :: Nat
     , value    :: Fan
     , code     :: Sire
     , location :: Fan
     , name     :: Fan
+    , props    :: Fan
     }
 
 -- This indirection is so that the front-end can cheaply reproduce the

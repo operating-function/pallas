@@ -59,6 +59,11 @@
 * bindCode     : Sire ; Source for inlining (unoptimized, unlifted).
 * bindLocation : Any  ; What module was this defined in?
 * bindName     : Any  ; What name was this defined under?
+* bindProps    : Any  ; Free-form table of metadata about the bind.
+
+;; At the moment, the value that macros put in {bindProps} is always
+;; a tab, but Sire itself doesn't directly interact with this value in
+;; any way, so it can technically be anything.
 
 
 ;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

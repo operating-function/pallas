@@ -32,8 +32,8 @@ ss=(SIRE_STATE 5 {repl} [zaz={ZAZBIND}] #[] #[])
 @ [x y] kids
 | ok st `(add $x $y)
 
-= addBind | 4 | BIND 4 add       {STUB} {repl} {add}
-= lusBind | 4 | BIND 4 plusMacro {STUB} {repl} {+}
+= addBind | 4 | BIND 4 add       {STUB} {repl} {add} #[]
+= lusBind | 4 | BIND 4 plusMacro {STUB} {repl} {+}   #[]
 = env     | [add=addBind {+}=lusBind]
 
 ss=(SIRE_STATE 5 {repl} env #[] #[])
@@ -74,14 +74,9 @@ ss=(SIRE_STATE 5 {repl} env #[] #[])
 
 = env2
 ^ tabIns {seventySeven} _ env
-| 4
-| BIND
-* 5
-* 77
-* ^ [%A _ [%K 4]]
-  | [%A [%G addBind] [%K 73]]
-* %repl
-* %seventySeven
+^ 4 (BIND 5 77 _ %repl %seventySeven #[])
+^ [%A _ [%K 4]]
+| [%A [%G addBind] [%K 73]]
 
 ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
 
