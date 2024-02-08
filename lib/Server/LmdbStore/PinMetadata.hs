@@ -29,14 +29,14 @@ where
 import Database.LMDB.Raw
 import Fan.Types
 import Foreign.Marshal.Alloc
+import Foreign.Marshal.Utils
 import Foreign.Ptr
 import Foreign.Storable
 import GHC.ForeignPtr
 import PlunderPrelude
 import Server.LmdbStore.MdbValue
 
-import qualified Data.ByteString.Internal as BS
-import qualified Data.Vector.Storable     as VS
+import qualified Data.Vector.Storable as VS
 
 
 -- Pin Metadata ----------------------------------------------------------------
@@ -84,7 +84,7 @@ instance MdbValue PinMetadata where
             let edgeListBytes = wid - 40
 
             VS.unsafeWith meta.edges \inputEdgeBuf ->
-                BS.memcpy (castPtr mdbEdgePtr)
+                copyBytes (castPtr mdbEdgePtr)
                           (castPtr inputEdgeBuf)
                           edgeListBytes
 
@@ -111,7 +111,7 @@ instance MdbValue PinMetadata where
                       8
 
         withForeignPtr vecBuf \newVecPtr -> do
-            BS.memcpy (castPtr newVecPtr)
+            copyBytes (castPtr newVecPtr)
                       (castPtr edgeListPtr)
                       (fromIntegral edgeListBytes)
 

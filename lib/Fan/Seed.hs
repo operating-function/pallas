@@ -17,15 +17,16 @@ module Fan.Seed
 where
 
 
+import Data.Bits
+import Data.Sorted
+import Fan.Convert
 import Fan.Types
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
-import PlunderPrelude
-import Foreign.Storable
+import Foreign.Marshal.Utils
 import Foreign.Ptr
-import Data.Bits
-import Fan.Convert
-import Data.Sorted
+import Foreign.Storable
+import PlunderPrelude
 
 import Control.Monad.Primitive          (touch)
 import Control.Monad.Trans.Except       (runExcept, throwE)
@@ -324,7 +325,7 @@ saveWorker !ctx !vZoo !vPins !top = do
 
     Prof.withSimpleTracingEvent "write" "save" do
         withForeignPtr ptr \buf -> do
-            void (BS.memset buf 0 wid)
+            void (fillBytes buf 0 $ fromIntegral wid)
             written <- Seed.c_save ctx wid buf
             unless (wid == written) do
                 error $ unlines $ concat
