@@ -9,7 +9,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
 
-        compiler = "ghc944";
+        compiler = "ghc948";
 
         overlays = [ haskellNix.overlay
           (final: prev: {
