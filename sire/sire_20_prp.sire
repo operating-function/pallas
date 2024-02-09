@@ -40,9 +40,7 @@
 | ifz key | err rex (strWeld {undefined symbol: } name)
 | **ok key bindPin bindRow
 
-;; TODO remove unused parameter from {getProps}
-
-(getProps _ bind)=(idx 5 bind)
+(getProps bind)=(idx 5 bind)
 
 = (addPropsToLocalBindingByKey ss bindKey extraProps)
 @ curProps (get ss 4)
@@ -72,8 +70,7 @@
     @ ss        (put ss 3 modules)
     | ss
 
-= (getProp _ss bind propName)
-| tabGet (getProps {TODO: unused} bind) propName
+(getProp bind propName)=(tabGet (getProps bind) propName)
 
 
 ;;; Convenience Macros to Query properties of bindings. ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -99,7 +96,7 @@
     < rexParseKids rex [readRex readSymbDotProp] err
 : bindKey _pin bind
     < getBind symbol ss rex err
-@ props (getProps ss bind)
+@ props (getProps bind)
 ^ expand ss (cnsE _)
 | tabHas property props
 
@@ -107,7 +104,7 @@
 : _ [symbol property] < rexParseKids rex [readRex readSymbDotProp] err
 : bindKey _pin bind   < getBind symbol ss rex err
 ^ ok ss (cnsE _)
-| tabGet (getProps ss bind) property
+| tabGet (getProps bind) property
 
 #= 0 #[src=('(why=3))] why 3
 

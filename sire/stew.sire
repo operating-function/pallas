@@ -1208,7 +1208,7 @@
 * (POPN constr)
     @ rex (showPat pat)
     : _ _ bind < getBind constr ss rex err
-    @ fieldNames (getProp ss bind {fieldNames})
+    @ fieldNames (getProp bind {fieldNames})
     | ifz fieldNames
         | err rex (strWeld {Unknown record constructor: } constr)
     | ok (PROW | map PVAR fieldNames)

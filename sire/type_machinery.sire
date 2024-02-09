@@ -59,19 +59,19 @@ tnodeParams=rev
 
 ;;; Generating New Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= (bindTypeAlias key name scheme ss@[k c bs ms ps])
-^ [inc-k c _ ms ps]
+= (bindTypeAlias key name scheme ss@[k c bs ms])
+^ [inc-k c _ ms]
 | tabPut bs name
 | PIN [k scheme [%K scheme] c name [isType=TRUE]]
 
-= (mkNewType name arity ss@[key ctx bs ms ps])
+= (mkNewType name arity ss@[key ctx bs ms])
 @ rootKey  | key
 @ !typeKey | add 1 key
 @ !nextKey | add 2 key
 @ rootVal  | PIN (0 name inc-arity typeKey)
 @ typeVal  | FORALL arity (TCON rootVal | gen arity TVAR)
 @ typeBind | PIN [typeKey typeVal [%K typeVal] ctx name [isType=TRUE]]
-^ [inc-key ctx _ ms ps]
+^ [inc-key ctx _ ms]
 | tabPut bs name typeBind
 
 ; Previously, we represented types as:
@@ -89,7 +89,7 @@ tnodeParams=rev
 ; Except that we "cache" the key, to make it faster to grab.
 
 = (lookupType name ss err ok)
-@ [_ _ scope _ props]      | ss
+@ [_ _ scope _]            | ss
 @ rex                      | WORD name 0
 @ bind                     | tabGet scope name
 @ [k v _e nm _c ps]        | pinItem bind
@@ -99,7 +99,7 @@ tnodeParams=rev
 
 = (lookupTypeOf ss name rex err ok)
 : _ _ bind   < getBind name ss rex err
-@ scheme     | getProp ss bind {type}
+@ scheme     | getProp bind {type}
 | ifz scheme | err rex {binding is untyped}
 | ok scheme
 

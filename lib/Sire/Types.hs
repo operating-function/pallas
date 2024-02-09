@@ -73,16 +73,13 @@ data ToBind = TO_BIND
 type Str = Nat
 type Any = Fan
 
-type Props = Tab Any (Tab Any Any)
-
 type Scope = Tab Any Bind
 
 data SireState = SIRE_STATE
-    { nextKey :: Nat                     --  Next unique key.
-    , context :: Str                     --  The name of the current module
-    , scope   :: Scope                   --  Current global namespace.
-    , modules :: Tab Any (Scope, Props)  --  Loaded modules.
-    , allProps:: Props                   --  All bindings by key.
+    { nextKey :: Nat            --  Next unique key.
+    , context :: Str            --  The name of the current module
+    , scope   :: Scope          --  Current global namespace.
+    , modules :: Tab Any Scope  --  Loaded modules.
     }
 
 {-

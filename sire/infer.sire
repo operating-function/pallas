@@ -246,9 +246,7 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
     * NONE
         : _ _ bind < getBind r ss (showExp exp)
                         (rex msg)&({inference failed}, rex, msg)
-        @ props | getProps ss bind
-        ; trk [=props =bind]
-        @ type  | getProp ss bind {type}
+        @ type  | getProp bind {type}
         | ifz type
             @ [_ _ _ bindMod bindName] bind
             | {untyped} `($$bindMod).($$bindName)
@@ -331,13 +329,13 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 
 =?= (RIGHT (0, (#[], addN)))
   | runInfer
-  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add} [type=addT]])] 0 #[]]
+  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add} [type=addT]])] 0]
   | infer ss #[]
   | EREF {add}
 
 =?= (RIGHT (1, ([_g0=incN], incN)))
   | runInfer
-  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add} [type=addT]])] 0 #[]]
+  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add} [type=addT]])] 0]
   | infer ss #[]
   | EAPP (EREF {add}) (ENAT 3)
 

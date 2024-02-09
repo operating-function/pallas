@@ -21,7 +21,7 @@
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-ss=(SIRE_STATE 5 {repl} [zaz={ZAZBIND}] #[] #[])
+ss=(SIRE_STATE 5 {repl} [zaz={ZAZBIND}] #[])
 
 =?= (ss, 234) (executeSire `234 ss)
 
@@ -36,7 +36,7 @@ ss=(SIRE_STATE 5 {repl} [zaz={ZAZBIND}] #[] #[])
 = lusBind | 4 | BIND 4 plusMacro {STUB} {repl} {+}   #[]
 = env     | [add=addBind {+}=lusBind]
 
-ss=(SIRE_STATE 5 {repl} env #[] #[])
+ss=(SIRE_STATE 5 {repl} env #[])
 
 =?= (ss, add) | executeSire `add ss
 =?= (ss, 3)   | executeSire `3 ss
@@ -78,7 +78,7 @@ ss=(SIRE_STATE 5 {repl} env #[] #[])
 ^ [%A _ [%K 4]]
 | [%A [%G addBind] [%K 73]]
 
-ss2=(SIRE_STATE 6 {repl} env2 #[] #[])
+ss2=(SIRE_STATE 6 {repl} env2 #[])
 
 =?=   | (ss2, [77])
   | executeSire `(seventySeven = (73+4)) ss

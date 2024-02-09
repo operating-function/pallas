@@ -518,7 +518,7 @@ ex=(PAIR %a %b)
         | ok hasTag fun fallback (listToRowRev acc)
 ;
 : bindKey _pin bindRow < getBind constr ss rex err
-@ props (getProps ss bindRow)
+@ props (getProps bindRow)
 ;
 ; trk #[=bindKey =bindRow =props =constr]
 ;

@@ -74,12 +74,12 @@ type InCtx = (?ctx :: Context)
 -- Functions --
 ---------------
 
-mkState :: Any -> Any -> Any -> Any -> Any -> Any
-mkState nex ctxVal scope modules props =
-    ROW (arrayFromListN 5 [nex, ctxVal, scope, modules, props])
+mkState :: Any -> Any -> Any -> Any -> Any
+mkState nex ctxVal scope modules =
+    ROW (arrayFromListN 4 [nex, ctxVal, scope, modules])
 
 initialSireStateAny :: Any
-initialSireStateAny = mkState 1 0 (TAb mempty) (TAb mempty) (TAb mempty)
+initialSireStateAny = mkState 1 0 (TAb mempty) (TAb mempty)
 
 runRepl :: Repl a -> Any -> Any
 runRepl (REPL act) ini = unsafePerformIO (execStateT act ini)
@@ -181,35 +181,21 @@ getTable field ctx getVal = \case
 getScope :: Any -> Tab Any Bind
 getScope = getTable "scope" "state" (getBinding "scope")
 
-getPropsTab :: Any -> Tab Any (Tab Any Any)
-getPropsTab = getTable "props" "state" (getTable "a-prop" "props" id)
-
 getState :: Any -> SireState
 getState stAny = fromMaybe badState $ do
-    let (nexVal, ctxVal, scopeVal, modVal, propVal) = getStateFields stAny
+    let (nexVal, ctxVal, scopeVal, modVal) = getStateFields stAny
 
     pure $ SIRE_STATE
         { nextKey  = getNat nexVal "invalid `nextKey` field in state"
         , context  = getNat ctxVal "invalid `context` field in state"
         , scope    = getScope scopeVal
         , modules  = getModules modVal
-        , allProps = getPropsTab propVal
         }
   where
     badState = error "Malformed sire state"
 
-    getModules :: Any -> Tab Any ( Tab Any Bind
-                                 , Tab Any (Tab Any Any)
-                                 )
-    getModules = getTable "modules" "state"
-               $ getPinned "module"
-               $ getPair "getState" getScope getPropsTab
-
-getPair :: Text -> (Any -> a) -> (Any -> b) -> (Any -> (a, b))
-getPair _ x y (ROW r) | length r == 2 =
-    (x (r!0), y (r!1))
-
-getPair ctx _ _ _ = error ("getPair: not a pair (" <> unpack ctx <> ")")
+    getModules :: Any -> Tab Any (Tab Any Bind)
+    getModules = getTable "modules" "state" (getPinned "module" getScope)
 
 getPinned :: Text -> (Any -> a) -> (Any -> a)
 getPinned location getItem = \case
@@ -235,11 +221,11 @@ lookupVal str stAny = do
 -- reconstruct the desired state.
 revertSwitchToRepl :: Text -> Any -> Any
 revertSwitchToRepl modu oldSt =
-    mkState nex ctxVal scope newModules props
+    mkState nex ctxVal scope newModules
   where
     ctxVal = NAT (utf8Nat modu)
 
-    (nex, _, _, oldModVal, _) = getStateFields oldSt
+    (nex, _, _, oldModVal) = getStateFields oldSt
 
     oldModTab = getTable "recover" "modules" id oldModVal
 
@@ -249,9 +235,8 @@ revertSwitchToRepl modu oldSt =
         fromMaybe (error "missing old scope in recovery") $
             lookup ctxVal oldModTab
 
-    (scope, props) = getPair "revert" id id
-                   $ fromMaybe (error "module is not a pin (in revert)")
-                   $ getPin oldScopeVal
+    scope = fromMaybe (error "module is not a pin (in revert)")
+          $ getPin oldScopeVal
 
 {-
     Because we are constantly threading the sire state through macro,
@@ -266,9 +251,9 @@ revertSwitchToRepl modu oldSt =
 
 switchToContext :: Str -> Any -> Any
 switchToContext newCtx oldSt =
-    force (mkState nextKey (NAT newCtx) (TAb mempty) newModules (TAb mempty))
+    force (mkState nextKey (NAT newCtx) (TAb mempty) newModules)
   where
-    (nextKey, oldCtxVal, oldScope, oldModVal, oldProps) = getStateFields oldSt
+    (nextKey, oldCtxVal, oldScope, oldModVal) = getStateFields oldSt
 
     oldContext = getNat oldCtxVal "invalid `contenxt` field in state"
 
@@ -280,16 +265,15 @@ switchToContext newCtx oldSt =
         if (oldContext == 0) then
             TAb oldModules
         else
-            let ent = F.mkPin $ ROW $ arrayFromListN 2 [oldScope, oldProps]
-            in TAb (insertMap (NAT oldContext) ent oldModules)
+            TAb (insertMap (NAT oldContext) (F.mkPin oldScope) oldModules)
 
 
-getStateFields :: Any -> (Any, Any, Any, Any, Any)
+getStateFields :: Any -> (Any, Any, Any, Any)
 getStateFields = \case
-    ROW v | length v == 5 ->
-        (v!0, v!1, v!2, v!3, v!4)
+    ROW v | length v == 4 ->
+        (v!0, v!1, v!2, v!3)
     ROW _ ->
-        error "Invalid state object: row does not have five fields"
+        error "Invalid state object: row does not have four fields"
     _ ->
         error "Invalid state object: not a row"
 
@@ -299,9 +283,9 @@ filterScope whitelist st =
     if not (null bogus)
     then parseFail_ (WORD "logic error" Nothing) st
            ("filter for non-existing keys: " <> intercalate ", " bogus)
-    else mkState nextKey context (TAb newScope) modules binds
+    else mkState nextKey context (TAb newScope) modules
   where
-    (nextKey, context, scopeVal, modules, binds) = getStateFields st
+    (nextKey, context, scopeVal, modules) = getStateFields st
 
     oldScope = case scopeVal of
                    TAb t -> t
@@ -319,7 +303,7 @@ filterScope whitelist st =
 
 importModule :: InCtx => Pex -> Str -> Maybe (Set Str) -> Any -> Any
 importModule blockRex modu mWhitelist stVal =
-    mkState nextKey context (TAb newScope) modulesVal propsVal
+    mkState nextKey context (TAb newScope) modulesVal
   where
     moduleBinds :: Tab Any Any
     moduleBinds = either (parseFail_ blockRex stVal) id do
@@ -328,18 +312,16 @@ importModule blockRex modu mWhitelist stVal =
                 TAb tab -> Right tab
                 _       -> Left "state.modules is not a tab"
 
-        modPairVal <-
-            case lookup (NAT modu) modules of
-                Just (F.PIN p) -> pure p.item
-                Just{}         -> Left "module is not a pin"
-                Nothing        -> Left ("Module not loaded: " <> showKey modu)
+        case lookup (NAT modu) modules of
+            Just (F.PIN F.P{item = TAb t}) -> pure t
+            Just{}                         -> Left nonPin
+            Nothing                        -> Left (notLoaded modu)
 
-        case modPairVal of
-            ROW r | length r == 2 ->
-                case r!0 of
-                    TAb t -> Right t
-                    _     -> Left "module pinItem is not a tab"
-            _ -> Left "module pin is not a pair"
+    nonPin :: Text
+    nonPin = "module is not a pin"
+
+    notLoaded :: Nat -> Text
+    notLoaded m = "Module not loaded: " <> showKey m
 
     newBinds :: Tab Any Any
     newBinds =
@@ -362,7 +344,7 @@ importModule blockRex modu mWhitelist stVal =
                    TAb sco -> tabUnion newBinds sco -- left biased
                    _       -> error "state.scope is not a tab"
 
-    (nextKey, context, scopeVal, modulesVal, propsVal) = getStateFields stVal
+    (nextKey, context, scopeVal, modulesVal) = getStateFields stVal
 
 {-
     If both maps contain properties for the same binding key, the two
@@ -378,12 +360,12 @@ mergeProps x y = tabUnionWith tabUnion x y
 insertBinding
     :: InCtx
     => Pex
-    -> (Nat, Tab Any Any, Str, Any, Sire)
+    -> (Nat, Fan, Str, Any, Sire)
     -> Any
     -> Any
-insertBinding rx (key, extraProps, name, val, code) stVal =
+insertBinding rx (key, bindProps, name, val, code) stVal =
     let
-        (nextKeyAny, context, oldScope, modules, oldPropsVal) =
+        (nextKeyAny, context, oldScope, modules) =
             getStateFields stVal
         !nextKey =
             case nextKeyAny of
@@ -393,8 +375,8 @@ insertBinding rx (key, extraProps, name, val, code) stVal =
     in if key == 0 then
            -- If the binding key is not explicitly set, generate a new key
            -- and use that.
-           insertBinding rx (nextKey, extraProps, name, val, code) $
-               mkState (NAT (nextKey+1)) context oldScope modules oldPropsVal
+           insertBinding rx (nextKey, bindProps, name, val, code) $
+               mkState (NAT (nextKey+1)) context oldScope modules
     else let
         binding = mkNewBind $ BIND_DATA
             { key      = key
@@ -402,13 +384,13 @@ insertBinding rx (key, extraProps, name, val, code) stVal =
             , code     = code
             , location = context
             , name     = NAT name
-            , props    = TAb extraProps
+            , props    = bindProps
             }
         scope = case oldScope of
                     TAb t -> TAb (insertMap (NAT name) binding.noun t)
                     _     -> error "state.scope slot is not a tab"
     in
-        mkState (NAT nextKey) context scope modules oldPropsVal
+        mkState (NAT nextKey) context scope modules
 
 expand :: InCtx => Any -> Pex -> Repl Pex
 expand macro input = do
@@ -1043,7 +1025,7 @@ resolveUnqualified blockRex e sym = do
 resolveQualified :: InCtx => Pex -> Nat -> Nat -> Repl Sire
 resolveQualified blockRex modu nam = do
     st <- getState <$> get
-    case (lookup (NAT modu) >=> (Just . fst) >=> lookup (NAT nam)) st.modules of
+    case (lookup (NAT modu) >=> Just >=> lookup (NAT nam)) st.modules of
         Just bn -> pure (G bn)
         Nothing -> parseFail blockRex $ concat [ "Unresolved symbol: "
                                                , showKey modu
@@ -1094,7 +1076,7 @@ execAssert (_xRex, xExp) (_yRex, yExp) = do
 execBind :: InCtx => Pex -> ToBind -> Repl ()
 execBind rx (TO_BIND key mProp str expr) = do
     let val = eval expr
-    prp <- getProps rx (eval <$> mProp)
+    let prp = maybe (TAb mempty) eval mProp
     modify' (insertBinding rx (key, prp, str, val, expr))
     trkRexM $ fmap absurd
             $ itemizeRexes
@@ -1107,11 +1089,6 @@ itemizeRexes rs  = go rs
     go []     = Rx.N Rx.OPEN "*" [] Nothing
     go [x]    = Rx.N Rx.OPEN "*" [x] Nothing
     go (x:xs) = Rx.N Rx.OPEN "*" [x] (Just $ go xs)
-
-getProps :: InCtx => Pex -> Maybe Any -> Repl (Tab Any Any)
-getProps _ Nothing          = pure mempty
-getProps _ (Just (TAb tab)) = pure tab
-getProps r _                = parseFail r "Invalid properties value, must be a tab"
 
 execExpr :: InCtx => Pex -> Repl ()
 execExpr rex = do

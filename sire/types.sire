@@ -379,21 +379,17 @@ printType#Fun
 @ kids               | rexKids rex
 | if (3 /= len kids) | err rex backfillExpected
 @ [_ valRex typRex]  | kids
+;
 : sym bindRow < readDefinedSymbol ss valRex err
 : typExp      < parseType typRex err
 @ tyVars      | setToRow (txpFree typExp)
 : scheme      < compileType ss tyVars typExp err
-| trk [=scheme]
 ;
-@ [k c bs ms ps]   | ss
-; trk [=k =c =ps]
-@ [bk v e bm bn bps] | bindRow
-; trk [=v =e =nm =bk =bc =bps]
-@ bind             | PIN [k v e bn c (tabPut bps {type} scheme)]
-; die              [tabPut {bs} bn pinItem-bind]
-@ bs               | tabPut bs bn bind
-@ ss               | [inc-k c bs ms ps]
-| ok ss '(#*)
+^ ok _ '(#*)
+@ [k c bs ms]       | ss
+@ [bk v e bm bn ps] | bindRow
+^ (inc k, c, tabPut bs bn _, ms)
+| PIN [k v e bn c (tabPut ps {type} scheme)]
 
 ;;; {#typeof} prints the type of a binding.  It is meant to be used
 ;;; interactively from the REPL.

@@ -62,7 +62,6 @@
 * sireContext  : Str                    ;  The name of the current module.
 * sireScope    : Scope                  ;  Current global namespace.
 * sireModules  : Tab Str (Scope, Props) ;  Loaded modules.
-* sireAllProps : Props                  ;  All bindings by key.
 
 
 ;;; Repl Monad ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -164,7 +163,7 @@ ss=[0 0 0 0 0]
 =?= (ss, V 2)
   | resolveUnqualified 'bar ~(SOME %foo, NONE, SOME %bar) %bar ss
 
-ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
+ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[])
 
 =?= (ss, G {ZAZBIND})
   | resolveUnqualified 'zaz ~(SOME %foo, NONE, SOME %bar) %zaz ss
@@ -229,14 +228,15 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 
 > Rex > Str > Str > Repl Sire
 = (resolveQualified rex modu name st)
-@ modules (**getSireModules st)
-| if (not | tabHas modu modules)
+@ modules
+    | **getSireModules st
+| if not-(tabHas modu modules)
     | ({undefined module}, rex)
-@ [modScope _props]
-    | pinItem-(tabGet modules modu)
-| if (not | tabHas name modScope)
+@ scope
+    | pinItem (tabGet modules modu)
+| ifz (tabHas name scope)
     | ({undefined symbol}, rex)
-| (st, G (tabGet modScope name))
+| (st, G (tabGet scope name))
 
 (runeLit rune)=(sire_06_rex.NEST rune [] 0)
 
@@ -520,7 +520,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 > (Maybe Nat, Tab Any Any, Str, Any, Sire)
 > Repl ()
 = (insertBinding rex [key extraProps name val code] st)
-@ @(SIRE_STATE sireNextKey sireContext sireScope sireModules sps) st
+@ @(SIRE_STATE sireNextKey sireContext sireScope sireModules) st
 | ifz key
     ; If the binding key is not explicitly set, generate a new key
     ; and use that.
@@ -530,7 +530,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
     | insertBinding rex (key, extraProps, name, val, code) st
 | else
     ^ (_, ())
-    ^ SIRE_STATE sireNextKey sireContext _ sireModules sps
+    ^ SIRE_STATE sireNextKey sireContext _ sireModules
     ^ tabPut sireScope name (4 _)
     | BIND key val code sireContext name extraProps
 
@@ -638,10 +638,10 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 : st vals < replOpen (doDefine_ rex) st
 | (st, listToRow vals)
 
-= (switchToContext newCtx (SIRE_STATE nex oldCtx scope oldMods props))
-^ (SIRE_STATE nex newCtx #[] _ #[])
+= (switchToContext newCtx (SIRE_STATE nex oldCtx scope oldMods))
+^ (SIRE_STATE nex newCtx #[] _)
 | if (oldCtx == 0) oldMods
-| tabPut oldMods oldCtx PIN-[scope props]
+| tabPut oldMods oldCtx (PIN scope)
 
 > Str > Rex > Repl () ; (input is expected to be an = or #= node)
 = (doEnter topRex st)
@@ -739,11 +739,11 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
       @ modules (**getSireModules st)
       | ifNot (tabHas modu modules)
           | ({undefined module}, rex)
-      @ modPin (tabGet modules modu)
+      @ modPin@(PIN m)
+          | tabGet modules modu
       | ifNot isPin-modPin
           | ({corrupted sire state; module is not a pin}, rex)
-      @ [scope props] pinItem-modPin
-      | ok scope
+      | ok m
 @ newBinds
     : syms < maybeCase mWhite otherScope
     | tabFilterWithKey (k _ & setHas k syms) otherScope
@@ -845,7 +845,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[] #[])
 @ (out, cog) | cog output
 | ((NIL, ~[out]), sireCog okErr cog ss2)
 
-initialSireState=(SIRE_STATE 1 0 #[] #[] #[])
+initialSireState=(SIRE_STATE 1 0 #[] #[])
 
 = (sireRepl okErr)
 ^ lineRepl listMonoid _ b#{}
