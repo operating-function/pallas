@@ -383,7 +383,7 @@ u64max=18446744073709551615
 ;; {_SaveGerm} only save one pin, so some sort of compound structure is
 ;; required in order to serialize an entire PLAN.
 
-(_LoadGerm refs bar)=(load refs bar)
+(_LoadGerm refs bar)=(4 (load refs bar))
 
 = (_SaveGerm pin)
 | ifNot isPin-pin 0
