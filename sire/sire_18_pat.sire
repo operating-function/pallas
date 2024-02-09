@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### sire_19_pat <- sire_17_sug
+#### sire_18_pat <- sire_17_sug
 
 ;;;; Pattern Matching
 ;;;; ================

@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### sire_20_prp <- sire_19_pat
+#### sire_20_prp <- sire_19_bst
 
 ;;;; Sire Properties
 ;;;; ===============
@@ -28,7 +28,8 @@
 :| sire_15_pad
 :| sire_16_bar
 :| sire_17_sug
-:| sire_19_pat
+:| sire_18_pat
+:| sire_19_bst
 
 
 ;;; Functions for getting bindings and adding properties ;;;;;;;;;;;;;;;;;;;;;;;
@@ -42,35 +43,7 @@
 
 (getProps bind)=(idx 5 bind)
 
-= (addPropsToLocalBindingByKey ss bindKey extraProps)
-@ curProps (get ss 4)
-@ oldProps (tabGet curProps bindKey)
-@ newProps (tabUnion extraProps oldProps)  ;  left-biased
-@ curProps (tabPut curProps bindKey newProps)
-@ ss       (put ss 4 curProps)
-| ss
-
-= (addProps ss bind extraProps)
-@ [_ curMod _ modules curProps]  | ss
-@ [bindKey _ _ bindMod bindName bindProps] | bind
-| if (eql curMod bindMod)
-    @ oldProps (tabGet curProps bindKey)
-    @ newProps (tabUnion extraProps oldProps)  ;  left-biased
-    @ curProps (tabPut curProps bindKey newProps)
-    @ ss       (put ss 4 curProps)
-    | ss
-| else
-    @ [modScope modProps] | pinItem | tabGet modules bindMod
-    @ oldProps  (tabGet modProps bindKey)
-    @ oldProps  (ifz oldProps #[] oldProps)
-    @ newProps  (tabUnion extraProps oldProps)  ;  left-biased
-    @ modProps  (tabPut modProps bindKey newProps)
-    @ newModule [modScope modProps]
-    @ modules   (tabPut modules bindMod | PIN [modScope modProps])
-    @ ss        (put ss 3 modules)
-    | ss
-
-(getProp bind propName)=(tabGet (getProps bind) propName)
+(getProp bind propName)=(btGet (getProps bind) propName)
 
 
 ;;; Convenience Macros to Query properties of bindings. ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -88,25 +61,27 @@
 = (readSymbDotProp rex err ret)
 | if (neq {.} rexRune-rex)
   | err rex {Expected a . rune}
-: symbol property < rexParseKids rex [readSymbol readSymbol] err
-| ret [symbol property]
+: symbol propNm < rexParseKids rex [readSymbol readSymbol] err
+| ret [symbol propNm]
 
 = ({#hasProp} ss rex err expand)
-: _ [symbol property]
+: _ [symbol propNm]
     < rexParseKids rex [readRex readSymbDotProp] err
 : bindKey _pin bind
     < getBind symbol ss rex err
 @ props (getProps bind)
 ^ expand ss (cnsE _)
-| tabHas property props
+| btHas propNm props
 
 = ({#getProp} ss rex err ok)
-: _ [symbol property] < rexParseKids rex [readRex readSymbDotProp] err
+: _ [symbol propNm] < rexParseKids rex [readRex readSymbDotProp] err
 : bindKey _pin bind   < getBind symbol ss rex err
 ^ ok ss (cnsE _)
-| tabGet (getProps bind) property
+| btGet (getProps bind) propNm
 
-#= 0 #[src=('(why=3))] why 3
+whyProps=(bt [[%src '(why=3)]])
+
+#= 0 whyProps why 3
 
 (1        =?= hasProp#(why.src))
 ('(why=3) =?= getProp#(why.src))

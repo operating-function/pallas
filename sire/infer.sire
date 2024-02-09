@@ -329,13 +329,13 @@ typedef#(Infer a)#(Nat > (Str>a) > (Nat>a>a) > a)
 
 =?= (RIGHT (0, (#[], addN)))
   | runInfer
-  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add} [type=addT]])] 0]
+  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add} btSing-{type}-addT])] 0]
   | infer ss #[]
   | EREF {add}
 
 =?= (RIGHT (1, ([_g0=incN], incN)))
   | runInfer
-  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add} [type=addT]])] 0]
+  @ ss [6 {03_nat} [add=(PIN [5 0 0 {03_nat} {add} btSing-{type}-addT])] 0]
   | infer ss #[]
   | EAPP (EREF {add}) (ENAT 3)
 

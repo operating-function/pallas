@@ -1591,22 +1591,24 @@
  ++ (%even, [(PVAR %x)], EREF {x})
 
 = someProps
-   ## =conTag 1
-   ## =conAri 1
-   ## =conFun len
-   ## =conHas FALSE
-   ## =conRaw FALSE
+    | bt
+   ++ {conTag},1
+   ++ {conAri},1
+   ++ {conFun},len
+   ++ {conHas},FALSE
+   ++ {conRaw},FALSE
 = noneProps
-   ## =conTag 0
-   ## =conAri 0
-   ## =conFun len
-   ## =conHas FALSE
-   ## =conRaw FALSE
+    | bt
+   ++ {conTag},0
+   ++ {conAri},0
+   ++ {conFun},len
+   ++ {conHas},FALSE
+   ++ {conRaw},FALSE
 = scope
    ## =SOME | PIN [3 0 0 {REPL} {SOME} someProps]
    ## =NONE | PIN [4 0 0 {REPL} {NONE} noneProps]
 
-= ssEx [5 {REPL} scope #[] #[]]
+= ssEx [5 {REPL} scope #[] btEmpty]
 
 ; such a beauty
 =?=  ++ put ssEx 0 8

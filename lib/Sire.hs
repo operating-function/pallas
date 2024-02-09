@@ -1076,7 +1076,7 @@ execAssert (_xRex, xExp) (_yRex, yExp) = do
 execBind :: InCtx => Pex -> ToBind -> Repl ()
 execBind rx (TO_BIND key mProp str expr) = do
     let val = eval expr
-    let prp = maybe (TAb mempty) eval mProp
+    let prp = maybe 0 eval mProp
     modify' (insertBinding rx (key, prp, str, val, expr))
     trkRexM $ fmap absurd
             $ itemizeRexes
@@ -1111,6 +1111,13 @@ doDefine ryn rex = do
 readBindCmd :: InCtx => Pex -> [Pex] -> Repl ToBind
 readBindCmd rex = \case
 
+    {-
+        TODO: Eventually we should be able to kill these hacky "bind
+        with props" and "bind with keys" forms.
+
+        Instead of having this as a built-in features in Sire, we should
+        define macros that do this, and use those instead.
+    -}
     [keyRex, propsRex, binderRex, exprRex] -> do
         key    <- readKey keyRex
         props  <- readExpr [] propsRex

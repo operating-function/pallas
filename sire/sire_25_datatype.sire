@@ -53,7 +53,8 @@
 :| sire_15_pad
 :| sire_16_bar
 :| sire_17_sug
-:| sire_19_pat
+:| sire_18_pat
+:| sire_19_bst
 :| sire_20_prp
 :| sire_21_switch
 :| sire_22_seed
@@ -280,7 +281,7 @@
 : ss constrKey < generateUniqueKey ss
 ;
 @ fields  | map snd fields  ;;  (Row (RexId, Symbol, Type)) -> Row Symbol
-@ props   | #[fieldNames=fields]
+@ props   | bt [[%fieldNames fields]]
 ;
 | ok ss
 | if (null fields)
@@ -382,7 +383,7 @@ ex=(PAIR %a %b)
 ;
 @ ari | len arg
 @ tag | fromSome ix oTag
-@ prp | #[conTag=tag conAri=ari conFun=_DataTag conHas=TRUE conRaw=FALSE]
+@ prp | bt [{conTag},tag {conAri},ari {conFun},_DataTag {conHas},1 {conRaw},0]
 ;
 | ifz ari
     @ bod | natE tag
@@ -522,32 +523,32 @@ ex=(PAIR %a %b)
 ;
 ; trk #[=bindKey =bindRow =props =constr]
 ;
-| ifNot (tabHas {conTag} props)
+| ifNot (btHas {conTag} props)
     | trk [=bindKey =bindRow =props]
     ^ err sigRex (strWeld _ constr)
     | {Unknown constructor(tag): }
 ;
-| ifNot (tabHas {conAri} props)
+| ifNot (btHas {conAri} props)
     ^ err sigRex (strWeld _ constr)
     | {Unknown constructor(ari): }
 ;
-| ifNot (tabHas {conFun} props)
+| ifNot (btHas {conFun} props)
     ^ err sigRex (strWeld _ constr)
     | {Unknown constructor(fun): }
 ;
-| ifNot (tabHas {conHas} props)
+| ifNot (btHas {conHas} props)
     ^ err sigRex (strWeld _ constr)
     | {Unknown constructor(has): }
 ;
-| ifNot (tabHas {conRaw} props)
+| ifNot (btHas {conRaw} props)
     ^ err sigRex (strWeld _ constr)
     | {Unknown constructor(raw): }
 ;
-@ tag    | tabGet props {conTag}
-@ ari    | tabGet props {conAri}
-@ fun    | tabGet props {conFun}
-@ hasTag | tabGet props {conHas}
-@ isRaw  | tabGet props {conRaw}
+@ tag    | btGet props {conTag}
+@ ari    | btGet props {conAri}
+@ fun    | btGet props {conFun}
+@ hasTag | btGet props {conHas}
+@ isRaw  | btGet props {conRaw}
 ;
 | if (len fields /= ari)
     ^ err sigRex (strWeld _ | showNat ari)
@@ -567,17 +568,19 @@ ex=(PAIR %a %b)
 | ok hasTag fun fb cases
 
 = nullProps
-   ## =conTag 0
-   ## =conAri 0
-   ## =conFun _DataTag
-   ## =conHas TRUE
-   ## =conRaw FALSE
+    | bt
+   ++ [%conTag 0]
+   ++ [%conAri 0]
+   ++ [%conFun _DataTag]
+   ++ [%conHas TRUE]
+   ++ [%conRaw FALSE]
 = consProps
-   ## =conTag 1
-   ## =conAri 2
-   ## =conFun _DataTag
-   ## =conHas TRUE
-   ## =conRaw FALSE
+    | bt
+   ++ [%conTag 1]
+   ++ [%conAri 2]
+   ++ [%conFun _DataTag]
+   ++ [%conHas TRUE]
+   ++ [%conRaw FALSE]
 
 =?=  ++ TRUE
      ++ dataTag
@@ -714,15 +717,10 @@ typeTag=(_TypeTag)
 
 ;;; Backfills ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-zero=0
-one=1
-two=2
-
-
 ;;; Bit ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-falseProps=[conAri=zero conFun=id conHas=FALSE conRaw=FALSE conTag=zero]
-trueProps=[conTag=one conAri=zero conRaw=FALSE conFun=id conHas=FALSE]
+= falseProps | bt [{conAri},0 {conFun},id {conHas},0 {conRaw},0  {conTag},0]
+= trueProps  | bt [{conTag},1 {conAri},0  {conRaw},0 {conFun},id {conHas},0]
 
 (0 #= falseProps #= FALSE #= FALSE)
 (0 #= trueProps  #= TRUE  #= TRUE)
@@ -735,8 +733,8 @@ trueProps=[conTag=one conAri=zero conRaw=FALSE conFun=id conHas=FALSE]
 
 ;;; Maybe ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-noneProps=[conTag=zero conAri=zero conFun=len conHas=FALSE conRaw=FALSE]
-someProps=[conTag=one  conAri=one  conFun=len conHas=FALSE conRaw=FALSE]
+= noneProps | bt [{conTag},0 {conAri},0 {conFun},len {conHas},0 {conRaw},0]
+= someProps | bt [{conTag},1 {conAri},1 {conFun},len {conHas},0 {conRaw},0]
 
 (0 #= someProps #= SOME #= SOME)
 (0 #= noneProps #= NONE #= NONE)
@@ -749,8 +747,8 @@ someProps=[conTag=one  conAri=one  conFun=len conHas=FALSE conRaw=FALSE]
 
 ;;; List ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-consProps=[conTag=two conAri=two conFun=len conHas=FALSE conRaw=FALSE]
-nilProps=[conTag=zero conAri=zero conFun=len conHas=FALSE conRaw=FALSE]
+= consProps | bt [{conTag},2 {conAri},2 {conFun},len {conHas},0 {conRaw},0]
+= nilProps  | bt [{conTag},0 {conAri},0 {conFun},len {conHas},0 {conRaw},0]
 
 (0 #= consProps #= CONS #= CONS)
 (0 #= nilProps  #= NIL  #= NIL)
@@ -765,8 +763,8 @@ nilProps=[conTag=zero conAri=zero conFun=len conHas=FALSE conRaw=FALSE]
 
 ;;; Either ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-leftProps=[conTag=zero conAri=one conFun=(idx 0) conHas=TRUE conRaw=FALSE]
-rightProps=[conTag=one conAri=one conFun=(idx 0) conHas=TRUE conRaw=FALSE]
+= leftProps  | bt [{conTag},0 {conAri},1 {conFun},(idx 0) {conHas},1 {conRaw},0]
+= rightProps | bt [{conTag},1 {conAri},1 {conFun},(idx 0) {conHas},1 {conRaw},0]
 
 (0 #= leftProps  #= LEFT  #= LEFT)
 (0 #= rightProps #= RIGHT #= RIGHT)

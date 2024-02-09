@@ -23,7 +23,8 @@
 :| sire_15_pad
 :| sire_16_bar
 :| sire_17_sug
-:| sire_19_pat
+:| sire_18_pat
+:| sire_19_bst
 :| sire_20_prp
 :| sire_21_switch   [{#switch} dataTag]
 :| sire_22_seed     [pinRefs _LoadGerm _SaveGerm _LoadSeed _SaveSeed]

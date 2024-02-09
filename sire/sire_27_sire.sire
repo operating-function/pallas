@@ -26,7 +26,8 @@
 :| sire_15_pad      []
 :| sire_16_bar      ;
 :| sire_17_sug      ;
-:| sire_19_pat      ;
+:| sire_18_pat      ;
+:| sire_19_bst      []
 :| sire_20_prp      []
 :| sire_21_switch   [{#switch}]
 :| sire_22_seed     [_SaveSeed]
@@ -537,7 +538,7 @@ ss=(SIRE_STATE 5 {repl} (tabSing %zaz {ZAZBIND}) #[])
 > Rex > ToBind > Repl Any
 = (execBind rx (TO_BIND key mProp str expr) st)
 @ !val       | force | evalSire expr
-@ extraProps | **maybeCase mProp #[] (x & evalSire x)
+@ extraProps | **maybeCase mProp 0 (x & evalSire x)
 : !st ()     < replOpen (insertBinding rx (key, extraProps, str, val, expr)) st
 | trk ` = $(sire_06_rex.TEXT str 0) ; $$val
 | (st, val)

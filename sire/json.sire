@@ -306,13 +306,16 @@ abstype#Json
 ; JNUM.conHas=0 because fetching with idx-0 works on (0 _)
 ; JNUM.conRaw=0 because wrapper in (0 _)
 
-= jnullProps  [conTag={null}  conAri=0 conFun=jsonTag conHas=0 conRaw=0]
-= jtrueProps  [conTag={true}  conAri=0 conFun=jsonTag conHas=0 conRaw=0]
-= jfalseProps [conTag={false} conAri=0 conFun=jsonTag conHas=0 conRaw=0]
-= jstrProps   [conTag=barTag  conAri=1 conFun=jsonTag conHas=0 conRaw=1]
-= jnumProps   [conTag=appTag  conAri=1 conFun=jsonTag conHas=0 conRaw=0]
-= jvecProps   [conTag=rowTag  conAri=1 conFun=jsonTag conHas=0 conRaw=1]
-= jmapProps   [conTag=tabTag  conAri=1 conFun=jsonTag conHas=0 conRaw=1]
+= (dataProps tag ari fun has raw)
+| bt [{conTag},tag {conAri},ari {conFun},fun {conHas},has {conRaw},raw]
+
+= jnullProps  | dataProps {null}  0 jsonTag 0 0
+= jtrueProps  | dataProps {true}  0 jsonTag 0 0
+= jfalseProps | dataProps {false} 0 jsonTag 0 0
+= jstrProps   | dataProps barTag  1 jsonTag 0 1
+= jnumProps   | dataProps appTag  1 jsonTag 0 0
+= jvecProps   | dataProps rowTag  1 jsonTag 0 1
+= jmapProps   | dataProps tabTag  1 jsonTag 0 1
 
 #= 0 jnullProps  JNULL  {null}
 #= 0 jtrueProps  JTRUE  {true}

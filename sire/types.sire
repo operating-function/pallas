@@ -137,10 +137,10 @@ abstype#Txp
 = quadRoot | getTypeRoot#Quad
 = pentRoot | getTypeRoot#Pent
 
-= (getTypeScheme bind)
-@ [_key val _exp _nam ctx props] (pinItem bind)
-| if (tabGet props {isType}) val
-| die [{is not a type!} bind]
+= (getTypeScheme bind@(PIN [_ val _ _ _ props]))
+# datacase (btSearch {isType} props)
+* NONE   | die ({is not a type!}, bind)
+* SOME-_ | val
 
 =?= Any | FORALL 0 (TCON getTypeRoot#Any [])
 =?= Fun | FORALL 2 (TCON getTypeRoot#Fun [0 1])
@@ -148,10 +148,6 @@ abstype#Txp
 =?= Fun | FORALL 2 (getTypeRoot#Fun 0 1)
 
 =?= 1 | getProp#(Any.isType)
-
-= (lookupOr env key fallback ok)
-| ifNot (tabHas key env) fallback
-| ok (tabGet env key)
 
 = (showTypeTree ss vars x)
 ^ _ x
@@ -389,7 +385,7 @@ printType#Fun
 @ [k c bs ms]       | ss
 @ [bk v e bm bn ps] | bindRow
 ^ (inc k, c, tabPut bs bn _, ms)
-| PIN [k v e bn c (tabPut ps {type} scheme)]
+| PIN [k v e bn c (btPut ps {type} scheme)]
 
 ;;; {#typeof} prints the type of a binding.  It is meant to be used
 ;;; interactively from the REPL.

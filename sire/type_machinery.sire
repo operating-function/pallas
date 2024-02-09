@@ -62,7 +62,7 @@ tnodeParams=rev
 = (bindTypeAlias key name scheme ss@[k c bs ms])
 ^ [inc-k c _ ms]
 | tabPut bs name
-| PIN [k scheme [%K scheme] c name [isType=TRUE]]
+| PIN [k scheme [%K scheme] c name (btSing %isType 1)]
 
 = (mkNewType name arity ss@[key ctx bs ms])
 @ rootKey  | key
@@ -70,7 +70,7 @@ tnodeParams=rev
 @ !nextKey | add 2 key
 @ rootVal  | PIN (0 name inc-arity typeKey)
 @ typeVal  | FORALL arity (TCON rootVal | gen arity TVAR)
-@ typeBind | PIN [typeKey typeVal [%K typeVal] ctx name [isType=TRUE]]
+@ typeBind | PIN [typeKey typeVal [%K typeVal] ctx name (btSing %isType 1)]
 ^ [inc-key ctx _ ms]
 | tabPut bs name typeBind
 
@@ -89,12 +89,12 @@ tnodeParams=rev
 ; Except that we "cache" the key, to make it faster to grab.
 
 = (lookupType name ss err ok)
-@ [_ _ scope _]            | ss
-@ rex                      | WORD name 0
-@ bind                     | tabGet scope name
-@ [k v _e nm _c ps]        | pinItem bind
-| ifz bind                 | err rex {undefined type}
-| ifz (tabHas {isType} ps) | err rex {binding is not a type}
+@ [_ _ scope _]           | ss
+@ rex                     | WORD name 0
+@ bind                    | tabGet scope name
+@ [k v _e nm _c ps]       | pinItem bind
+| ifz bind                | err rex {undefined type}
+| ifz (btHas {isType} ps) | err rex {binding is not a type}
 | ok v
 
 = (lookupTypeOf ss name rex err ok)

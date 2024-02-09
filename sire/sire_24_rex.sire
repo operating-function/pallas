@@ -20,7 +20,8 @@
 :| sire_15_pad
 :| sire_16_bar
 :| sire_17_sug
-:| sire_19_pat
+:| sire_18_pat
+:| sire_19_bst []
 :| sire_20_prp
 :| sire_21_switch   [_DataTag {#switch}]
 :| sire_22_seed
