@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
-stack install
+usage () {
+    echo "usage: $0 [--no-cache]"
+    exit 1
+}
 
-if [ "$1" = --no-cache ]
+if [ "$#" -eq 1 ] && [ "$1" = --no-cache ]
 then
     rm -f sire.cache
+elif [ "$#" -ne 0 ]
+then
+    usage
 fi
 
 cleanup () { rm -f errout; }
@@ -21,6 +27,10 @@ runtest () {
         exit 1
     }
 }
+
+set -x
+
+stack install
 
 ulimit -n 55555 # or else fulltag sometimes fails
 
