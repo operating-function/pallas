@@ -123,7 +123,7 @@ sireNoun = go
     go = \case
         V n   -> NAT n
         K n   -> ROW $ arrayFromListN 2 ["K", n]
-        G b   -> ROW $ arrayFromListN 2 ["V", b.noun]
+        G b   -> ROW $ arrayFromListN 2 ["G", b.noun]
         A f x -> ROW $ arrayFromListN 3 ["A", go f, go x]
         L v b -> ROW $ arrayFromListN 3 ["L", go v, go b]
         R v b -> ROW $ arrayFromListN 3 ["R", goBinds v, go b]

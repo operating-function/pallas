@@ -121,7 +121,7 @@ getSyr (NAT n) = V n
 getSyr topVal  = fromMaybe (error $ "bad Sire AST:\n\n" <> unpack (planText topVal)) do
     params <- getRow topVal
     case toList params of
-        [NAT "V", x]           -> Just $ G (getBinding "glo" x)
+        [NAT "G", x]           -> Just $ G (getBinding "glo" x)
         [NAT "K", x]           -> Just $ K x
         [NAT "A", f, x]        -> Just $ A (getSyr f) (getSyr x)
         [NAT "L", v, b]        -> Just $ L (getSyr v) (getSyr b)
