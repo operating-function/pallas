@@ -315,15 +315,16 @@ times_exo_word x y =
 exoQuotRem :: Exo -> Exo -> (Exo, Exo)
 exoQuotRem (EXO 0 _) _ = (zeroExo, zeroExo)
 exoQuotRem _ (EXO 0 _) = divZeroError
-exoQuotRem (EXO nn nfp) (EXO dn dfp) = unsafePerformIO do
+exoQuotRem n@(EXO nn nfp) (EXO dn dfp) | nn < dn   = (zeroExo, n)
+                                       | otherwise = unsafePerformIO do
     let qxn = 0      -- That's what the docs say?  *shrug*
     let qn = nn-dn+1 -- TODO: is oper precedence same as docs?
     let rn = dn
     qfp <- mallocForeignPtrBytes $ fromIntegral (qn * 8)
     rfp <- mallocForeignPtrBytes $ fromIntegral (rn * 8)
     id $
-        withForeignPtr nfp  \np ->
-        withForeignPtr dfp  \dp ->
+        withForeignPtr nfp \np ->
+        withForeignPtr dfp \dp ->
         withForeignPtr qfp \qp ->
         withForeignPtr rfp \rp -> do
             mpn_tdiv_qr qp rp qxn np nn dp dn

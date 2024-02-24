@@ -78,10 +78,7 @@ instance Integral Nat where
         let (q,r) = quotRem x y
         in (exoNat q, exoNat r)
 
-    quotRem (NatS# x) (NatJ# y) =
-        -- TODO: So slow
-        let (q, r) = quotRem (wordExo (W# x)) y
-        in (exoNat q, exoNat r)
+    quotRem n@(NatS# _) (NatJ# _) = (wordNat 0, n)
 
     quotRem (NatJ# x) (NatS# y) =
         -- TODO: So slow
