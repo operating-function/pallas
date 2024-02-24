@@ -11,6 +11,7 @@ module Nat
     , Exo(..)
     , natUtf8Exn
     , natUtf8Lenient
+    , pattern NatJ#
     )
 where
 
@@ -22,6 +23,7 @@ import Foreign.ForeignPtr
 import Foreign.Storable
 
 import Optics        (over, _1)
+import Debug.Trace   (trace, traceM)
 import ClassyPrelude (ByteString, IsString(..), NFData(..), pack)
 import GHC.Exts      (Word(..), Int(..), Word#, addWordC#, timesWord2#)
 
@@ -37,7 +39,34 @@ type Natural = Nat
 
 data Nat
     = NatS# Word#
-    | NatJ# {-# UNPACK #-} !Exo
+    | NatJ## {-# UNPACK #-} !Exo
+
+msw :: Exo -> Word
+msw (EXO 0 _) = 0
+msw (EXO sz buf) =
+    unsafePerformIO $
+    withForeignPtr buf \fp ->
+    peekElemOff fp (fromIntegral sz - 1)
+
+pattern NatJ# :: Exo -> Nat
+pattern NatJ# a <- NatJ## a where
+    NatJ# x = checkIndirect x
+
+checkIndirect :: Exo -> Nat
+checkIndirect (EXO 0 _) =
+    trace "bad bignat: 0" (NatS# 0##)
+
+checkIndirect x@(EXO 1 fp) =
+    unsafePerformIO do
+        traceM ("bad bignat sz=1, nat=" <> show x)
+        !(W# w) <- withForeignPtr fp peek
+        pure (NatS# w)
+
+checkIndirect x =
+    if msw x == 0 then error ("checkIndirect: (msw==0): num=" <> show x) else
+    NatJ## x
+
+{-# COMPLETE NatS#, NatJ# #-}
 
 instance Eq Nat where
     NatS#{} == NatJ#{} = False
@@ -78,7 +107,7 @@ instance Integral Nat where
         let (q,r) = quotRem x y
         in (exoNat q, exoNat r)
 
-    quotRem n@(NatS# _) (NatJ# _) = (wordNat 0, n)
+    quotRem n@(NatS# _) (NatJ# _) = (NatS# 0##, n)
 
     quotRem (NatJ# x) (NatS# y) =
         -- TODO: So slow
@@ -117,7 +146,8 @@ plus_word_word x y =
       _  -> NatJ# (word_word_exo 1## r)
 
 plus_word_exo :: Word# -> Exo -> Nat
-plus_word_exo x y = NatJ# (wordExo (W# x) + y)
+plus_word_exo 0## y = NatJ# y
+plus_word_exo x   y = NatJ# (wordExo (W# x) + y)
   -- TODO: Optimize
 
 intNat :: Int -> Nat
@@ -142,9 +172,9 @@ plus_nat_nat = \cases
     (NatJ# x) (NatS# w) -> plus_word_exo w x
     (NatJ# x) (NatJ# y) -> NatJ# (x + y)
 
-_natExo :: Nat -> Exo
-_natExo (NatJ# x) = x
-_natExo (NatS# w) = wordExo (W# w)
+-- _natExo :: Nat -> Exo
+-- _natExo (NatJ# x) = x
+-- _natExo (NatS# w) = wordExo (W# w)
 
 times_nat_nat :: Nat -> Nat -> Nat
 times_nat_nat = \cases
