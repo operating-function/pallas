@@ -1,0 +1,73 @@
+#### ethsign <- ecdsa
+
+:| prelude
+:| keccak [keccak256]
+:| ecdsa
+
+> Str > Bar
+= (ethereumHash msg)
+^ keccak256 | barCat _
+++ x#19
+++ b#{Ethereum Signed Message:}
+++ natBar newlineChar
+++ barShowDecimal strLen-msg
+++ natBar msg
+
+> Bar > Bar > Str > Bit
+= (verifyEthMsg signature address msg)
+; | and (barLen signature == 65)
+@ r | barSliceToNat  0 32 signature
+@ s | barSliceToNat 32 32 signature
+@ v | barSliceToNat 64  1 signature
+@ m | ethereumHash msg
+| trk [=r =s =v =m]
+; | and (v == 27) ; (v == 28) ; might want to include chain id
+@ i | sub v 27
+@ n | getN secp256k1
+@ x | addMod-n r | mul i n
+@ yCands | yCandidates secp256k1 x
+| trk [=x =yCands =i =n]
+: y < foreach yCands
+| trk [=y]
+| verify secp256k1 m (r,s) (x,y)
+
+> Bar > Bar > Nat > Bar > Maybe Bar
+= (ethAddrToPubKey r s v msgHash)
+@ recovery | sub v 27
+| maybeGuard (recovery == 0 || recovery == 1)
+| maybeGuard (barLen r == 32 && barLen s == 32)
+@ signature | barWeld r s
+| 'recover msgHash signature recovery
+
+> Curve > Bar > Maybe Point
+= (decompressPubKey [p _ _ _ _ _] compressed)
+| maybeGuard (len natBar-compressed == 33)
+@ add | addMod-p
+@ pow | powMod-p
+@ sqrt | sqrtMod-p
+@ prefix | barTake 1 compressed
+@ x | barNat | barDrop 1 compressed
+@ y | sqrt | add 7 | pow x 3
+# switch prefix
+* _ | NONE
+* x#02 | SOME (x, if even-y y (sub p y))
+* x#04 | SOME (x, if odd-y y (sub p y))
+
+= sign
+x#edca60ae5b832bca88bd596fc240c1aa6a11c989931715b50129e47be59654b737c141c4d4c48d62bc6c69e998c4435f73738b0755cac840802ec1dd69eda1951b
+
+= signNat
+| natBar 0xedca60ae5b832bca88bd596fc240c1aa6a11c989931715b50129e47be59654b737c141c4d4c48d62bc6c69e998c4435f73738b0755cac840802ec1dd69eda1951b
+
+= addr
+x#E145A012F830A6A55b4166022AE664df7465f7b8
+
+= addrNat
+| natBar 0xE145A012F830A6A55b4166022AE664df7465f7b8
+
+= msg {pls sign me}
+
+= (test x)
+| if x | verifyEthMsg signNat addrNat msg
+| verifyEthMsg sign addr msg
+
