@@ -270,7 +270,7 @@ rowToBar=barFromRow
 
 > Str > Bar
 = (barFromHex nat)
-@ dig | map hexCharToNat explode-nat
+@ dig | map hexCharToNat | filter neq-newlineChar explode-nat
 @ pad | if (even len-dig) [] [0]
 @ buf | listFromRow cat-[pad dig [0 1]]
 ^ _ 0 buf 1
@@ -289,7 +289,7 @@ rowToBar=barFromRow
 (barPad bar)=(lawBody bar)
 
 = blWantText } Bar literals require a text parameter, for example: b#asdf
-= blTwoKids  } Bar literals need too kids, for example: b#adsf
+= blTwoKids  } Bar literals need two kids, for example: b#adsf
 = blBadHeir  } Bar literals may not have heirs.
 = blBadMacro } Bar literals must look like b#... or x#...
 
@@ -579,6 +579,14 @@ hexAlphabet=(b#{0123456789abcdef})
 =?= b#x      | barSing %x
 =?= x#00     | barSing 0
 =?= b#xy     | barDuo  %x %y
+
+=?= x#deadbeef
+  # x } dead
+      } beef
+
+=?= x#{}
+  # x }
+      }
 
 
 ;;; Testing Juxtaposition AutoHax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
