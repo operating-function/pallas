@@ -61,6 +61,12 @@
 = (take n v)        | slice v 0 n
 = (splitAt i r)     | v2 (take i r) (drop i r)
 
+= (foldr1 f xs)
+| if (null xs)
+    | die {fold1: empty row}
+@ las (dec len-xs)
+| foldr f (idx las xs) (take las xs)
+
 = (chunks sz row)
 | gen | div (roundUp len-row sz) sz
 & ix
@@ -947,7 +953,7 @@ F=found
 ^-^ rowAnd rowOr sum sumOf all any zip zipWith
 ^-^ cat catMap
 ^-^ take drop rev
-^-^ unfoldr span splitAt strictRow insert
+^-^ unfoldr span splitAt foldr1 strictRow insert
 ^-^
 ^-^ bopE bapE bowE appE rowE
 ^-^ {,}
