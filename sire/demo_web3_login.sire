@@ -128,14 +128,15 @@
 ;pw
 
 ; cookie might be "plundauth-0x...=thing" OR "pl-0x..=x; pl-0x..=y; <etc>"
-; we need to split cookie on "; " when there are multiple, or just be okay with 1
-; either way this should be a list, and:
+; we need to split cookie on ";", trimming whitespace
+; when there are multiple, or just be okay with 1 (always return a row) and:
 ; check each item in this list (including just 1)
 ; against all [TODO: valid] sessions
 
 = (validateCookie cookie sessions)
 @ eachCookie | splitSemicol cookie
-| trk eachCookie
+; TODO: trim whitespace!
+| trk [%each eachCookie]
 | (tabGet sessions cookie)
 
 =?= TRUE
