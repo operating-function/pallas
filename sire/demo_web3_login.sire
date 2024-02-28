@@ -1,0 +1,516 @@
+
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+
+#### demo_web3_login <- demo_parallel_mandelbrot
+
+:|  prelude
+:|  kern
+:|  hitch
+:|  json
+:|  gen
+:|  stew
+:|  types
+
+:| demo_parallel_mandelbrot [mandelbrotLine]
+
+
+= favicon
+| PIN
+| barCat
+, x#{0000010001002020100001000400e80200001600000028000000200000004000}
+  x#{0000010004000000000000000000000000000000000000000000000000000000}
+  x#{00000000060001000f000000170000002b0000003b0000004200000151000100}
+  x#{6c0000007a0000008a000000940001038c000000a0000200a7000000aa000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{000000000ccccc00000000000000000000000000ccccc0000000000000000000}
+  x#{00000000cccccccc00000000000000000000000cccccccc00000000000000000}
+  x#{0000000cccc00cccc000000000000000000000cccc00cccc0000000000000000}
+  x#{000000cccc0000cccc0000000000000000000cccc0000cccc000000000000000}
+  x#{00000cccc000000cccc00000000000000000cccc000000cccc00000000000000}
+  x#{0000cccc00000000cccc000000000000000cccc00000000cccc0000000000000}
+  x#{000cccc0000000000cccc0000000000000cccc0000000000cccc000000000000}
+  x#{00cccc000000000000cccc00000000000cccc000000000000cccc00000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{000000000000000000000000000000000000000000000000000000000000c000}
+  x#{0003000000010000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{000000000000000000000000000000000000000000008000000040000001}
+
+# typedef ContentType Bar
+
+# typedef SessionID Str
+
+# typedef SessionAuthed Nat
+
+= startingFiles
+; TODO: Figure out tuned config for files.
+| hmSingleton
+* largeConfig
+* {/favicon.ico}
+* [b#{image/x-icon} favicon]
+
+= startingSessions
+| tabFromPairs [[]]
+; | tabFromPairs [[b#{plunder-admintestgood} 1] [b#{plunder-admintestbad} 0]]
+
+# record CogState
+| COG_STATE
+* accessKey        : Str
+* files            : (HMap Str (ContentType, Pin Bar))
+* fileBytes        : Nat
+* sessions         : (HMap SessionID SessionAuthed)
+* servThread       : ThreadId
+
+= (newState servThread)
+| COG_STATE
+* "v@p0rvv@r3"
+* startingFiles
+* 0
+* startingSessions
+* servThread
+
+
+;;; JSON Handling ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; = (asJsonRow m)
+; # datacase m
+; * JVEC|v | SOME v
+; * _      | NONE
+
+; = (asJsonNum m)
+; # datacase m
+; * JNUM|n | SOME n
+; * _      | NONE
+
+= (jsonMap jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| if (res || leftover) NONE
+# datacase json
+* JMAP|m | SOME m
+* _      | NONE
+
+= (asJsonStr m)
+# datacase m
+* JSTR|s | SOME s
+* _      | NONE
+
+(bindMaybe mVal k)=(maybeCase mVal NONE k)
+
+= jsonContentType [(b#{content-type}, b#{application/json})]
+= corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{amz-sdk-invocation-id,amz-sdk-request,authorization,content-type,x-amz-acl,x-amz-content-sha256,x-amz-date,x-amz-user-agent}) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+;; TODO: this is the Groups S3 header:
+;; AWS4-HMAC-SHA256 Credential=vinney@vaporware.network/20240125/vaporworld/s3/aws4_request, SignedHeaders=amz-sdk-invocation-id;amz-sdk-request;content-length;content-type;host;x-amz-acl;x-amz-content-sha256;x-amz-date;x-amz-user-agent, Signature=23e2df631dbf09160fe72caec12d37bf0c1444b8daeede9c3c4102c1c7e761c0
+; (barIsPrefixOf b#{vinney@vaporware.network} x 28) == 1
+
+;; and the request URL (which is going to PUT fallback):
+;; Request URL PUT: https://vinneys3.vinney.xyz/sogrum-savluc/sogrum-savluc/2024.1.25..16.23.36..d4fd.f3b6.45a1.cac0-green-fractal.jpg?x-id=PutObject
+
+= (splitSemicol b)
+@ res | barSplit {;} b
+[(idx 0 res) (idx 0 (idx 1 res))]
+
+;= (parsePasswordFromBody body)
+;@ split | listToRow | splitAmp body
+;@ tabbed | tabFromPairs | map splitEq split
+;@ pw | tabGet tabbed b#{password}
+;| if (eql pw b#{})
+;  0
+;pw
+
+; cookie might be "plundauth-0x...=thing" OR "pl-0x..=x; pl-0x..=y; <etc>"
+; we need to split cookie on "; " when there are multiple, or just be okay with 1
+; either way this should be a list, and:
+; check each item in this list (including just 1)
+; against all [TODO: valid] sessions
+
+= (validateCookie cookie sessions)
+@ eachCookie | splitSemicol cookie
+| trk eachCookie
+| (tabGet sessions cookie)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{b} TRUE sessions)
+  @ sessions | (tabIns b#{a} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a} sessions)
+
+=?= FALSE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{b} TRUE sessions)
+  @ sessions | (tabIns b#{a} FALSE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a} sessions)
+
+=?= FALSE
+  @ sessions [[]]
+  | trk [%session sessions]
+  | (validateCookie b#{a} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo; b=bar} sessions)
+
+= (checkCookie cookie state)
+@ sessions (**getSessions state)
+@ eachCookie | listToRow | splitSemicol cookie
+| trk [%state state]
+| trk [%cookie cookie]
+| trk [%eachCookie eachCookie]
+| trk [%sessions sessions]
+; TODO we might get many cookies! need to split them on ; and return first true
+; TODO: even better, check by identifier some day (multi-user)
+| (tabGet sessions cookie)
+
+; to run these assertions, you must adjust the starting sessions in cog state
+; =?= TRUE
+;   | (checkCookie b#{plunder-admintestgood} (newState 9))
+; ; 9 is just an arbitrary value for servThread
+;
+; =?= FALSE
+;   | (checkCookie b#{plunder-admintestbad} (newState 9))
+;
+; =?= FALSE
+;   | (checkCookie b#{plunder-nonexistant} (newState 9))
+;
+; =?= FALSE
+;   | (checkCookie b#{someweird-thing} (newState 9))
+
+= (getRandomCookie seed identifier)
+| barCat [b#{plundauth-} (natBar identifier) b#{=} (barToHex (idx 0 (mkRand seed)))]
+
+;;; Website ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(emptyFileServer req)=NONE
+
+= (sessionGuard headers st)
+; | trk [%gotRequest path]
+@ cookieHeader | **fromSome b#{plunder-invalid}
+               | tabLookup b#{cookie}
+               | tabFromPairs headers
+| trk [%cookieHeader cookieHeader]
+(checkCookie cookieHeader st)
+
+= (pwFromBody body)
+body
+
+= (fileServer (PIN st) [method path headers (PIN body)])
+| trk [%youveHitFileServer path]
+| trk [%files (**getFiles st)]
+| trk [%getHeaders headers]
+# switch method
+* _ | NONE
+* GET
+  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
+  & [type (PIN content)]
+  @ head | [(b#{content-type}, type)]
+  ; TODO: gets are not protected! because loading assets becomes hard
+  [200 b#gotcha head content]
+
+; `modifyState` modifies the vSt ref and reboots the static server
+; in-place (keeping the same ThreadId).
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ srv       | **getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
+| return ()
+
+;
+= (parseUpdate jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| trk [%parseUpdate jsonBS]
+: string < **bindMaybe (asJsonStr json)
+| SOME string
+
+= (parseSecretJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: theSecret < **bindMaybe (tabLookup %newSecret map)
+| SOME (barNat theSecret)
+
+= (parseAddressJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: addr < **bindMaybe (tabLookup %address map)
+| barNat addr
+
+= (parseSignatureJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: sig < **bindMaybe (tabLookup %signature map)
+| barNat sig
+
+= (getOffset needle haystack)
+@ start (idx 0 (barSubstringSearch needle haystack))
+@ width (barLen needle)
+(add start width)
+
+= (splitEq b)
+@ res | barSplit {=} b
+[(idx 0 res) (idx 0 (idx 1 res))]
+
+= (splitAmp b)
+@ res | barSplit {&} b
+[(idx 0 res) (idx 1 res)]
+
+= (parseSignature body)
+@ split | listToRow | splitAmp body
+@ tabbed | tabFromPairs | map splitEq split
+| tabGet tabbed b#{address}
+
+= (parseAddress body)
+@ split | listToRow | splitAmp body
+@ tabbed | tabFromPairs | map splitEq split
+| tabGet tabbed b#{signature}
+
+= (parsePasswordFromBody body)
+@ split | listToRow | splitAmp body
+@ tabbed | tabFromPairs | map splitEq split
+@ pw | tabGet tabbed b#{password}
+| if (eql pw b#{})
+  0
+pw
+
+=?= b#{letmein}
+  | (parsePasswordFromBody b#{password=letmein&otherthing=here})
+
+
+=?= b#{test}
+  | (parsePasswordFromBody b#{password=test})
+
+=?= 0
+  | (parsePasswordFromBody b#{password=})
+
+=?= 0
+  | (parsePasswordFromBody b#{junk})
+
+=?= b#{letmein}
+  | (parsePasswordFromBody b#{password=letmein&otherthing=here})
+
+=?= b#{letmein}
+  | (parsePasswordFromBody b#{otherthing=here&password=letmein})
+
+= (parseBucketJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: theBucket < **bindMaybe (tabLookup %newBucket map)
+| SOME (barNat theBucket)
+
+= (parseUpdateJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: theUpdate < **bindMaybe (tabLookup %newState map)
+| SOME (barNat theUpdate)
+;; See below: need to convert between barNat and natBar
+
+(msgToStr m)=(JSTR | natBar m)
+
+= (buildJson st)
+@ COG_STATE(..) st
+| JMAP
+## =messages  | JVEC (map msgToStr [])
+## =files     | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
+; TODO: add bucketUploads
+## =totalSize | JVEC (map fileBytes) ; this is structured wrong
+;; TODO: need to natBar the string. but why?!
+;; Answer: because we need to store strings as byte arrays
+
+= (handleReq vSt request return)
+@ [rid method path headers pBody@(PIN body)] request
+| trk [%gotRequest]
+# switch method
+* GET
+  | trk [%gotGet path]
+  # switch path
+  * b#{/profile}
+    : (PIN st) < readRef vSt
+    | if (sessionGuard headers st)
+      ; if okay, proceed
+      @ stateJson | **buildJson st
+      @ stateJsonBS | printJson stateJson
+      | trk [%resultJSON stateJsonBS]
+      : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok jsonContentType stateJsonBS))
+      | return ()
+    | trk [%noSession]
+    : _ < fork (syscall (**HTTP_ECHO rid 401 b#bad [] b#{}))
+    | return ()
+  * b#{/state}
+    : (PIN st) < readRef vSt
+    | trk [%oldState st]
+    @ stateJson | **buildJson st
+    @ stateJsonBS | printJson stateJson
+    | trk [%fetchedState st]
+    | trk [%resultJSON stateJsonBS]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok jsonContentType stateJsonBS))
+    | return ()
+  ;; switch to bucketUploads
+  * b#{/files}
+    : (PIN st) < readRef vSt
+    @ files (**getFiles st)
+    @ fileNames (hmKeys files)
+    | trk [%fileNames fileNames]
+    @ stateJson | **buildJson st
+    @ stateJsonBS | printJson stateJson
+    | trk [%resultJSON stateJsonBS]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok jsonContentType stateJsonBS))
+    | return ()
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+    | return ()
+* POST
+  | trk [%gotPost]
+  | trk [%path path]
+  | trk [%body body]
+  # switch path
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+    | return ()
+  * b#{/login}
+      | trk [%postToLogin]
+      @ address (parseAddressJson body)
+      @ signature (parseSignatureJson body)
+      | trk [%address address]
+      | trk [%signature signature]
+      ;
+      ; TODO: validate signature
+      ;
+      @ valid TRUE
+      : (PIN st) < readRef vSt
+      | if (valid)
+        : ??(got_time now_seed) < syscall TIME_WHEN
+        @ newCookie | (getRandomCookie now_seed address)
+        | trk [%newCookie newCookie]
+        @ sessions (**getSessions st)
+        | trk [%oldSessions sessions]
+        @ allSessions | (tabIns newCookie TRUE sessions)
+        | trk [%allSessions allSessions]
+        ; TODO: replace cookie if we have one for this identifier already
+        ; set cookie in db
+        : _ < modifyState vSt & st
+                              | setSessions allSessions
+                              | st
+        ; respond with cookie
+        @ cookieHeader [(b#{Set-Cookie}, newCookie)]
+        : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok cookieHeader b#{}))
+        | return ()
+      | trk [%invalidSignature address signature]
+      : _ < fork (syscall (**HTTP_ECHO rid 401 b#bad [] b#{}))
+      | return ()
+  * b#{/set-secret}
+    # datacase (parseSecretJson body)
+    * NONE
+      : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+      | return ()
+    * (SOME sec)
+      @ hostHeader | **fromSome b#{not-localhost}
+                   | tabLookup b#{host}
+                   | tabFromPairs headers
+      ; Enforce localhost only
+      ; TODO: this is terribly unsafe. headers can be spoofed!
+      | ifNot (barIsPrefixOf b#{localhost} hostHeader 0)
+        | trk [%gotBadHostHeader hostHeader]
+        : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
+        | return ()
+      ; | trk [%headers headers]
+      ; | trk [%hostHeader hostHeader]
+      ; | trk [%request request]
+      ;
+      @ authHeader | **fromSome b#{xxxxxxx}
+                   | tabLookup b#{authorization}
+                   | tabFromPairs headers
+      ; | trk [%authHeader authHeader]
+      | trk [%newSecretIs sec]
+      : _ < modifyState vSt & st
+                            | setAccessKey sec
+                            | st
+      | trk [%secretUpdated]
+      : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
+      | return ()
+* OPTIONS
+  | trk [%gotOptions]
+  | trk [%headz corsHeaders]
+  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
+  | return ()
+* PUT
+  | trk [%gotPut]
+  | trk [%path path]
+  : (PIN st) < readRef vSt
+  @ hostHeader | **fromSome b#{not-localhost}
+               | tabLookup b#{host}
+               | tabFromPairs headers
+  @ barType | **fromSome b#{text/plain}
+            | tabLookup b#{content-type}
+            | tabFromPairs headers
+  @ theirKey | **fromSome b#{xxxxxxx}
+               | tabLookup b#{authorization}
+               | tabFromPairs headers
+  | trk [%authHeader theirKey]
+  | trk [%secret (natBar (getAccessKey st))]
+  ;; Only allow PUT to root from localhost
+  | ifNot (barIsPrefixOf b#{localhost} hostHeader 0)
+    | trk b#{Not allowed!}
+    : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
+    | return ()
+  | trk [%prevSize (getFileBytes st)]
+  @ newTotalSize | add (barLen body) | getFileBytes st
+  | trk [%newSize newTotalSize]
+  ; TODO: Currently inserting paths as nats instead of bars because bars put in
+  ; don't get looked up later despite showing up with hmKeys? Somehow? wat?
+  @ files (**getFiles st)
+  | trk [%hmKeys (hmKeys files)]
+  | trk [%fileName path]
+  | trk [%fileType barType]
+  @ files | hmInsert (barNat path) [barType pBody] files
+  | trk [%hmKeysAfter (hmKeys files)]
+  @ stateJson | **buildJson st
+  @ stateJsonBS | printJson stateJson
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done corsHeaders stateJsonBS))
+  : _ < modifyState vSt & st
+                        | setFileBytes newTotalSize
+                        | setFiles files
+                        | st
+  | trk [%st st]
+  | return ()
+* _
+  | trk [%gotUnknown method]
+  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+  | return ()
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (runHttpServer vSt return)
+: ??(rhs_heard req) < syscall HTTP_HEAR
+: _                 < handleReq vSt req
+| runHttpServer vSt return
+
+= (launchDemo return)
+: servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+: vSt         < newRef (PIN | newState servThread)
+: _           < modifyState vSt id
+: httpThread1 < fork (runHttpServer vSt)
+: httpThread2 < fork (runHttpServer vSt)
+| return ()
+
+main=(runCog launchDemo)
