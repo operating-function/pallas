@@ -23,7 +23,7 @@ import Foreign.ForeignPtr
 import Foreign.Storable
 
 import Optics        (over, _1)
-import Debug.Trace   (trace, traceM)
+import Debug.Trace   (trace)
 import ClassyPrelude (ByteString, IsString(..), NFData(..), pack)
 import GHC.Exts      (Word(..), Int(..), Word#, addWordC#, timesWord2#)
 
@@ -56,9 +56,8 @@ checkIndirect :: Exo -> Nat
 checkIndirect (EXO 0 _) =
     trace "bad bignat: 0" (NatS# 0##)
 
-checkIndirect x@(EXO 1 fp) =
+checkIndirect (EXO 1 fp) =
     unsafePerformIO do
-        traceM ("bad bignat sz=1, nat=" <> show x)
         !(W# w) <- withForeignPtr fp peek
         pure (NatS# w)
 
