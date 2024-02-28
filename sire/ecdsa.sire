@@ -1,0 +1,239 @@
+#### ecdsa <- keccak
+
+:| sire
+:| keccak
+:| quickcheck
+
+; Should possibly be moved somewhere? Or implemented using pads instead?
+= (_NatFoldMSB f z n)
+^ _ z met-n n
+? (go z i n)
+| if (not i) z
+@ z | if (eql met-n i) | f z 1
+    | else             | f z 0
+| seq z
+| go z dec-i (clearBit dec-i n)
+
+(natFoldMSB = _NatFoldMSB)
+
+=?= 0 | log2floor 1
+=?= 1 | log2floor 2
+=?= 1 | log2floor 3
+=?= 2 | log2floor 4
+=?= 3 | log2floor 15
+=?= 4 | log2floor 16
+=?= 4 | log2floor 17
+
+=?= FALSE | isPow2 0
+=?= TRUE  | isPow2 1
+=?= TRUE  | isPow2 2
+=?= FALSE | isPow2 3
+=?= TRUE  | isPow2 4
+=?= FALSE | isPow2 15
+=?= TRUE  | isPow2 16
+=?= FALSE | isPow2 17
+
+=?= 0 | log2ceil 1
+=?= 1 | log2ceil 2
+=?= 2 | log2ceil 3
+=?= 2 | log2ceil 4
+=?= 4 | log2ceil 15
+=?= 4 | log2ceil 16
+=?= 5 | log2ceil 17
+
+= (mulMod p a b) | mod (mul a b) p
+
+=?= 8 | addMod-11 5 3
+=?= 5 | addMod-11 7 9
+=?= 0 | addMod-25 10 15
+=?= 9 | mulMod-11 4 5
+=?= 5 | mulMod-11 7 7
+=?= 2 | mulMod-7 3 3
+
+= (addInverse p a) | subMod p 0 a
+
+=?= 10 | subMod-17 15 5
+=?= 5  | subMod-17 7 2
+=?= 0  | subMod-17 5 5
+=?= 15 | subMod-17 3 5
+=?= 2  | subMod-17 1 16
+=?= 16 | subMod-17 0 1
+=?= 16 | subMod-17 16 0
+=?= 8  | addInverse-11 3
+=?= 12 | addInverse-17 5
+=?= 13 | addInverse-23 10
+
+= (powMod p base exp)
+@ modP | flip mod p
+| ifNot exp   | 1
+| if even-exp | modP | powMod p (modP | pow base 2) (div exp 2)
+| else        | modP | mul base | powMod p base dec-exp
+
+; `p` must be prime and `p mod 4 = 3`
+= (sqrtMod p a)
+| powMod-p a (div inc-p 4)
+
+; Multiplicative inverse of a, modulo the *prime* p.
+> Nat > Nat > Nat
+= (mulInverse p a)
+| ifNot (mod a p) | NONE
+| SOME | powMod-p a (sub p 2)
+
+= (divMod p a b) | fmapMaybe (mulInverse p b) (mulMod p a)
+
+=?= 10      | powMod-11 2 5
+=?= 1       | powMod-13 3 3
+=?= 1       | powMod-31 5 0
+=?= 4       | powMod-6 10 2
+=?= 0       | sqrtMod-3 0
+=?= 1       | sqrtMod-7 1
+=?= 4       | powMod-7 (sqrtMod-7 4) 2
+=?= 4       | powMod-11 (sqrtMod-11 4) 2
+=?= 9       | powMod-11 (sqrtMod-11 9) 2
+=?= SOME-6  | mulInverse-17 3
+=?= SOME-12 | mulInverse-17 10
+=?= SOME-8  | mulInverse-17 15
+=?= NONE    | mulInverse-17 0
+=?= SOME-9  | divMod-17 4 8
+=?= SOME-1  | divMod-11 3 3
+
+!! ^ qc2_pass 42 {pow identity} (prop2 _) arbU64 arbU64
+   & (a m) | or (gth m 1) (powMod m a 0 == 1)
+
+# typedef Point (Maybe (Nat, Nat))
+
+# record Curve | CURVE p:Nat a:Nat b:Nat G:Point n:Nat h:Nat
+
+# typedef Signature (Nat, Nat)
+
+> Curve
+= secp256k1
+| CURVE
+* 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+* 0
+* 7
+* SOME
+  ++ 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+  ++ 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+* 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+* 1
+
+> Curve > Point > Point > Point
+= (addPoints [p a _ _ _ _] P1 P2)
+: (x1,y1) < maybeCase P1 P2
+: (x2,y2) < maybeCase P2 P1
+| maybeGuardNot (x1 == x2 && (y1 == addInverse p y2))
+@ addP | addMod p
+@ mulP | mulMod p
+@ subP | subMod p
+@ divP | divMod p
+@ powP | powMod p
+| if (x1 /= x2)
+  @ lambda | unpackSome | divP (subP y2 y1) (subP x2 x1)
+  @ x3     | subP (subP (powP lambda 2) x1) x2
+  @ y3     | subP (mulP lambda (subP x1 x3)) y1
+  | SOME (x3,y3)
+| if (P1 == P2)
+  @ lambda | unpackSome | divP (addP a (mulP 3 (powP x1 2))) (mulP 2 y1)
+  @ x3     | subP (powP lambda 2) (mulP 2 x1)
+  @ y3     | subP (mulP lambda (subP x1 x3)) y1
+  | SOME (x3,y3)
+| else | die {impossible}
+
+> Curve > Nat > Point > Point
+= (scalarMul curve x P)
+^ natFoldMSB _ NONE x
+& (Acc bit)
+@ add | addPoints curve
+@ Acc | add Acc Acc
+| ifNot bit Acc
+| add Acc P
+
+> Curve > Gen Point
+= (genPoint curve@[_ _ _ G n _])
+| genMap (x & scalarMul curve (mod x n) G) genU64
+
+= arbPoint (genPoint, const ~[])
+
+!! ^ qc2_pass 42 {add commutative} (prop2 _) arbPoint arbPoint
+   (P Q)&(addPoints secp256k1 P Q == addPoints secp256k1 P Q)
+
+; !! ^ qc2_pass 42 {add associative} (prop2 _) [genPoint _&NIL] [(gen2 genPoint genPoint) (shrink2 _&NIL _&NIL)]
+;    & (P [Q R])
+;    @ add | addPoints secp256k1
+;    (add P (add Q R) == add (add P Q) R)
+
+!! ^ qc1_pass 42 {add identity} (prop1 _) arbPoint
+   & P | and | eql P (addPoints secp256k1 P NONE)
+       | eql P (addPoints secp256k1 NONE P)
+
+!! ^ qc1_pass 42 {zero identity} (prop1 _) arbPoint
+   & P | isNone | scalarMul secp256k1 0 P
+
+!! ^ qc1_pass 42 {add inverse} (prop1 _) arbPoint
+   & P : (x,y) < maybeCase P TRUE
+       | isNone | addPoints secp256k1 P
+                | SOME (x, addInverse (getP secp256k1) y)
+
+!! ^ qc1_pass 42 {mul identity} (prop1 _) arbPoint
+   & P | eql P | scalarMul secp256k1 1 P
+
+!! ^ qc1_pass 42 {double} (prop1 _) arbPoint
+   & P | eql | scalarMul secp256k1 2 P
+       | addPoints secp256k1 P P
+
+; !! ^ qc2_pass 42 {mul distributive} (prop2 _) arbU64 arbU64
+;    & (x y)
+;    @ addP | addPoints secp256k1
+;    @ mulP | scalarMul secp256k1
+;    @ G    | getG secp256k1
+;    | eql | mulP (add x y) G
+;    | addP (mulP x G) (mulP y G)
+
+; Replaces the {mul distributive} property for the time being
+=?= | addPoints secp256k1 | scalarMul secp256k1 bex-240 | getG secp256k1
+    | scalarMul secp256k1 bex-31 | getG secp256k1
+  | scalarMul secp256k1 (add bex-240 bex-31) (getG secp256k1)
+
+; Replaces {add associative}
+=?= @ G | getG secp256k1
+    @ add | addPoints secp256k1
+    | add (add G G) G
+  @ G | getG secp256k1
+  @ add | addPoints secp256k1
+  | add G (add G G)
+
+; See section 4.1.4 in https://www.secg.org/sec1-v2.pdf
+; The hashing step is excluded, so make sure to hash your message before.
+> Curve > Bar > Signature > Point > Bit
+= (verify curve@[p a b G n h] msg sign@(r,s) pubKey)
+| trk ['verify [=sign =pubKey]]
+@ addPoints | addPoints secp256k1
+@ scalarMul | scalarMul secp256k1
+| and | rowAnd [lte-1-r lth-r-n lte-1-s lth-s-n]
+@ e  | padNat | fst | padSplitAt (log2ceil n) (barPad msg)
+: w  < maybeCase (mulInverse n s) FALSE
+@ u1 | mulMod-n e w
+@ u2 | mulMod-n r w
+@ R  | addPoints (scalarMul u1 G) (scalarMul u2 pubKey)
+: (xR,_) < maybeCase R FALSE
+(r == mod xR n)
+
+> Curve > Row Nat
+= (yCandidates [p a b _ _ _] x)
+@ add  | addMod-p
+@ mul  | mulMod-p
+@ pow  | powMod-p
+@ sqrt | sqrtMod-p
+@ y    | sqrt | add b | add (mul a x) | pow x 3
+[y (addInverse-p y)]
+
+!! | verify secp256k1
+   * natBar 0xEC208BAA0FC1C19F708A9CA96FDEFF3AC3F230BB4A7BA4AEDE4942AD003C0F60
+   * ++ 0xAC8D1C87E51D0D441BE8B3DD5B05C8795B48875DFFE00B7FFCFAC23010D3A395
+     ++ 0x68342CEFF8935EDEDD102DD876FFD6BA72D6A427A3EDB13D26EB0781CB423C4
+   * SOME
+     ++ 0x887387E452B8EACC4ACFDE10D9AAF7F6D9A0F975AABB10D006E4DA568744D06C
+     ++ 0x61DE6D95231CD89026E286DF3B6AE4A894A3378E393E93A0F45B666329A0AE34
+
+; ^-^ verify decompressPubKey secp256k1
