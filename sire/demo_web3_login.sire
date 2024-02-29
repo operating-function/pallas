@@ -116,8 +116,9 @@
 ;; Request URL PUT: https://vinneys3.vinney.xyz/sogrum-savluc/sogrum-savluc/2024.1.25..16.23.36..d4fd.f3b6.45a1.cac0-green-fractal.jpg?x-id=PutObject
 
 = (splitSemicol b)
-@ res | barSplit {;} b
-[(idx 0 res) (idx 0 (idx 1 res))]
+| barSplit {;} b
+; @ res | barSplit {;} b
+; [(idx 0 res) (idx 0 (idx 1 res))]
 
 ;= (parsePasswordFromBody body)
 ;@ split | listToRow | splitAmp body
@@ -133,25 +134,97 @@
 ; check each item in this list (including just 1)
 ; against all [TODO: valid] sessions
 
+= (trimWhitespacePre b)
+| barDropWhile (eql { }) b
+;| if (eql (barLen b) 0) b
+;| if (barAll b#{ } b) b#{ }
+;^ _ 0
+;? (loop i)
+;| if (eql i (barLen b)) b
+;| trk [%looping i]
+;| ifNot (eql (natBar | barIdx i b) b#{ }) (idx 1 | barSplitAt i b)
+;| trk [%afterIfNot]
+;| loop (inc i)
+
+=?= b#{a}
+  | trimWhitespacePre b#{a}
+
+=?= b#{a}
+  | trimWhitespacePre b#{ a}
+
+=?= b#{a}
+  | trimWhitespacePre b#{  a}
+
+=?= b#{hello}
+  | trimWhitespacePre b#{  hello}
+
+=?= b#{. a}
+  | trimWhitespacePre b#{  . a}
+
+=?= b#{}
+  | trimWhitespacePre b#{}
+
+=?= b#{}
+  | trimWhitespacePre b#{ }
+
+=?= b#{}
+  | trimWhitespacePre b#{  }
+
+= (trimWhitespacePost b)
+@ b | barFromListRev | barToList b   ; reverse
+@ trimmed | trimWhitespacePre b      ; trim
+| barFromListRev | barToList trimmed ; reverse
+
+=?= b#{a}
+  | trimWhitespacePost b#{a }
+
+=?= b#{a}
+  | trimWhitespacePost b#{a  }
+
+=?= b#{hello}
+  | trimWhitespacePost b#{hello  }
+
+= (trimWhitespaceAll b)
+| trimWhitespacePost | trimWhitespacePre b
+
+=?= b#{a}
+  | trimWhitespaceAll b#{  a  }
+
 = (validateCookie cookie sessions)
-@ eachCookie | splitSemicol cookie
-; TODO: trim whitespace!
+| trk [%allSessions sessions]
+| trk [%allCookies cookie]
+@ eachCookie | map trimWhitespaceAll | splitSemicol cookie
 | trk [%each eachCookie]
-| (tabGet sessions cookie)
+^ _ 0
+; loop through each cookie
+? (loop i)
+| if (eql i (len eachCookie)) FALSE
+; return its value if we find it in sessions
+@ res (tabGet sessions (idx i eachCookie))
+| trk [%res res]
+| if (eql res TRUE) res
+| loop (inc i)
 
 =?= TRUE
   @ sessions [[]]
-  @ sessions | (tabIns b#{b} TRUE sessions)
-  @ sessions | (tabIns b#{a} TRUE sessions)
+  @ sessions | (tabIns b#{b=foo} TRUE sessions)
+  @ sessions | (tabIns b#{a=bar} TRUE sessions)
   | trk [%session sessions]
-  | (validateCookie b#{a} sessions)
+  | validateCookie b#{a=bar} sessions
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=bar} TRUE sessions)
+  @ sessions | (tabIns b#{b=foo} TRUE sessions)
+  | trk [%session sessions]
+  | validateCookie b#{a=bar} sessions
 
 =?= FALSE
   @ sessions [[]]
-  @ sessions | (tabIns b#{b} TRUE sessions)
-  @ sessions | (tabIns b#{a} FALSE sessions)
+  @ sessions | (tabIns b#{b=foo} TRUE sessions)
+  @ sessions | (tabIns b#{a=bar} FALSE sessions)
   | trk [%session sessions]
-  | (validateCookie b#{a} sessions)
+  | (validateCookie b#{a=bar} sessions)
 
 =?= FALSE
   @ sessions [[]]
@@ -174,32 +247,43 @@
   @ sessions [[]]
   @ sessions | (tabIns b#{a=foo} TRUE sessions)
   | trk [%session sessions]
+  | (validateCookie b#{a=foo} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  | trk [%session sessions]
   | (validateCookie b#{a=foo; b=bar} sessions)
 
-= (checkCookie cookie state)
-@ sessions (**getSessions state)
-@ eachCookie | listToRow | splitSemicol cookie
-| trk [%state state]
-| trk [%cookie cookie]
-| trk [%eachCookie eachCookie]
-| trk [%sessions sessions]
-; TODO we might get many cookies! need to split them on ; and return first true
-; TODO: even better, check by identifier some day (multi-user)
-| (tabGet sessions cookie)
+=?= FALSE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{r=rrr; r=rrr} sessions)
 
-; to run these assertions, you must adjust the starting sessions in cog state
-; =?= TRUE
-;   | (checkCookie b#{plunder-admintestgood} (newState 9))
-; ; 9 is just an arbitrary value for servThread
-;
-; =?= FALSE
-;   | (checkCookie b#{plunder-admintestbad} (newState 9))
-;
-; =?= FALSE
-;   | (checkCookie b#{plunder-nonexistant} (newState 9))
-;
-; =?= FALSE
-;   | (checkCookie b#{someweird-thing} (newState 9))
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} FALSE sessions)
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo; b=bar} sessions)
+
+=?= FALSE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  @ sessions | (tabIns b#{a=foo} FALSE sessions)
+  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo; b=bar} sessions)
+
+=?= FALSE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b8=ab5d303c674521f668bf38a00a6005fa8baeb0bfdb6046d82c639a1def035ba4} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{plundauth-someaddress=daf0afee547b9f1e9aaba3aa36c087755aee9637dde797a035cdf9f38f754128; plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b875ba2039f5085e403ddec7d1d13aadba4e984c03d937a2f045ab48fca57ff895; plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b8=ab5d303c674521f668bf38a00a6005fa8baeb0bfdb6046d82c639a1def035ba4} sessions)
 
 = (getRandomCookie seed identifier)
 | barCat [b#{plundauth-} (natBar identifier) b#{=} (barToHex (idx 0 (mkRand seed)))]
@@ -214,7 +298,7 @@
                | tabLookup b#{cookie}
                | tabFromPairs headers
 | trk [%cookieHeader cookieHeader]
-(checkCookie cookieHeader st)
+(validateCookie cookieHeader st)
 
 = (pwFromBody body)
 body
