@@ -193,17 +193,15 @@
 = (validateCookie cookie sessions)
 | trk [%allSessions sessions]
 | trk [%allCookies cookie]
-@ eachCookie | map trimWhitespaceAll | splitSemicol cookie
-| trk [%each eachCookie]
-^ _ 0
-; loop through each cookie
-? (loop i)
-| if (eql i (len eachCookie)) FALSE
-; return its value if we find it in sessions
-@ res (tabGet sessions (idx i eachCookie))
-| trk [%res res]
-| if (eql res TRUE) res
-| loop (inc i)
+@ cookieList | listToRow | listMap trimWhitespaceAll | splitSemicol cookie
+| trk [%cookiesSanitized cookieList]
+@ cookieSet  | setFromRow cookieList
+@ sessionSet | tabKeysSet sessions
+| trk [%sessionSet sessionSet]
+| trk [%cookieSet cookieSet]
+| trk [%intersection (setIntersection cookieSet sessionSet)]
+| trk [%foundKey (idx 0 | setToList (setIntersection cookieSet sessionSet))]
+| tabGet sessions (idx 0 | setToList (setIntersect cookieSet sessionSet))
 
 =?= TRUE
   @ sessions [[]]
@@ -251,10 +249,11 @@
 
 =?= TRUE
   @ sessions [[]]
-  @ sessions | (tabIns b#{a=foo} TRUE sessions)
-  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  @ sessions | (tabIns b#{plundauth-thing=foo} TRUE sessions)
+  @ sessions | (tabIns b#{plundauth-thing=bar} FALSE sessions)
+  @ sessions | (tabIns b#{plundauth-thing=baz} FALSE sessions)
   | trk [%session sessions]
-  | (validateCookie b#{a=foo; b=bar} sessions)
+  | (validateCookie b#{junk; junk; junk; plundauth-thing=foo; some-other=shit} sessions)
 
 =?= FALSE
   @ sessions [[]]
@@ -279,11 +278,12 @@
   | trk [%session sessions]
   | (validateCookie b#{a=foo; b=bar} sessions)
 
-=?= FALSE
+=?= TRUE
   @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} FALSE sessions)
   @ sessions | (tabIns b#{plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b8=ab5d303c674521f668bf38a00a6005fa8baeb0bfdb6046d82c639a1def035ba4} TRUE sessions)
   | trk [%session sessions]
-  | (validateCookie b#{plundauth-someaddress=daf0afee547b9f1e9aaba3aa36c087755aee9637dde797a035cdf9f38f754128; plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b875ba2039f5085e403ddec7d1d13aadba4e984c03d937a2f045ab48fca57ff895; plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b8=ab5d303c674521f668bf38a00a6005fa8baeb0bfdb6046d82c639a1def035ba4} sessions)
+  | (validateCookie b#{ plundauth-someaddress=daf0afee547b9f1e9aaba3aa36c087755aee9637dde797a035cdf9f38f754128; plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b875ba2039f5085e403ddec7d1d13aadba4e984c03d937a2f045ab48fca57ff895;   plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b8=ab5d303c674521f668bf38a00a6005fa8baeb0bfdb6046d82c639a1def035ba4 } sessions)
 
 = (getRandomCookie seed identifier)
 | barCat [b#{plundauth-} (natBar identifier) b#{=} (barToHex (idx 0 (mkRand seed)))]
@@ -292,13 +292,13 @@
 
 (emptyFileServer req)=NONE
 
-= (sessionGuard headers st)
+= (sessionGuard headers sessions)
 ; | trk [%gotRequest path]
 @ cookieHeader | **fromSome b#{plunder-invalid}
                | tabLookup b#{cookie}
                | tabFromPairs headers
 | trk [%cookieHeader cookieHeader]
-(validateCookie cookieHeader st)
+(validateCookie cookieHeader sessions)
 
 = (pwFromBody body)
 body
@@ -430,7 +430,8 @@ pw
   # switch path
   * b#{/profile}
     : (PIN st) < readRef vSt
-    | if (sessionGuard headers st)
+    @ sessions (**getSessions st)
+    | if (sessionGuard headers sessions)
       ; if okay, proceed
       @ stateJson | **buildJson st
       @ stateJsonBS | printJson stateJson
