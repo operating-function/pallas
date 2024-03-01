@@ -105,15 +105,56 @@
 
 (bindMaybe mVal k)=(maybeCase mVal NONE k)
 
-= jsonContentType [(b#{content-type}, b#{application/json})]
-= corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{amz-sdk-invocation-id,amz-sdk-request,authorization,content-type,x-amz-acl,x-amz-content-sha256,x-amz-date,x-amz-user-agent}) (b#{Access-Control-Allow-Credentials}, b#{true})]
+;;;; begin potential http library ;;;;
 
-;; TODO: this is the Groups S3 header:
-;; AWS4-HMAC-SHA256 Credential=vinney@vaporware.network/20240125/vaporworld/s3/aws4_request, SignedHeaders=amz-sdk-invocation-id;amz-sdk-request;content-length;content-type;host;x-amz-acl;x-amz-content-sha256;x-amz-date;x-amz-user-agent, Signature=23e2df631dbf09160fe72caec12d37bf0c1444b8daeede9c3c4102c1c7e761c0
-; (barIsPrefixOf b#{vinney@vaporware.network} x 28) == 1
+= baseHeaders
+++ (b#{Content-Type}, b#{text/html; charset=utf-8})
+++ (b#{Server}, b#{Pallas/0.1})
+++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
+;++ (b#{Access-Control-Allow-Origin}, b#{*})
 
-;; and the request URL (which is going to PUT fallback):
-;; Request URL PUT: https://vinneys3.vinney.xyz/sogrum-savluc/sogrum-savluc/2024.1.25..16.23.36..d4fd.f3b6.45a1.cac0-green-fractal.jpg?x-id=PutObject
+= (mergeHeaders oldPairs newPairs)
+@ oldTab    | tabFromPairs oldPairs
+@ newTab    | tabFromPairs newPairs
+| tabToPairs | tabWeld newTab oldTab
+
+; use to overwrite base headers
+= (baseHeaderOverwrite newHeaders)
+| mergeHeaders baseHeaders newHeaders
+
+= (baseResponse rid code msg moreHeaders body)
+[rid code msg moreHeaders body]
+
+=?=
+  ++ (b#{Server}, b#{Pallas/0.1})
+  ++ (b#{Content-Type}, b#{application/json})
+  ++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+  ++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
+  |  baseHeaderOverwrite [(b#{Content-Type}, b#{application/json})]
+
+=?=
+  ++ (b#{Server}, b#{Pallas/0.1})
+  ++ (b#{Other-Thing}, b#{foo})
+  ++ (b#{Content-Type}, b#{application/json})
+  ++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+  ++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
+  @ base | baseHeaderOverwrite [(b#{Content-Type}, b#{application/json})]
+  @ m1 | mergeHeaders base [(b#{Other-Thing}, b#{foo})]
+  m1
+
+= (dynamicCorsCookieHeader origin newCookie)
+[(b#{Set-Cookie}, newCookie) (b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+= (dynamicCors origin)
+[(b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true}) (b#{Access-Control-Allow-Headers}, b#{Content-Type, Authorization}) (b#{Access-Control-Allow-Methods}, b#{POST, GET, OPTIONS})]
+
+= (dynamicCorsJson origin)
+[(b#{Content-Type}, b#{application/json}) (b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+= jsonContentType [(b#{Content-Type}, b#{application/json})]
+
+;;;; end potential http library ;;;;
 
 = (splitSemicol b)
 | barSplit {;} b
@@ -312,7 +353,7 @@ body
 * GET
   | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
   & [type (PIN content)]
-  @ head | [(b#{content-type}, type)]
+  @ head | [(b#{Content-Type}, type)]
   ; TODO: gets are not protected! because loading assets becomes hard
   [200 b#gotcha head content]
 
@@ -414,8 +455,10 @@ pw
 = (buildJson st)
 @ COG_STATE(..) st
 | JMAP
+## =accesssKey | (msgToStr accessKey)
 ## =messages  | JVEC (map msgToStr [])
 ## =files     | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
+## =sessions  | JVEC (map msgToStr (hmKeys sessions))
 ; TODO: add bucketUploads
 ## =totalSize | JVEC (map fileBytes) ; this is structured wrong
 ;; TODO: need to natBar the string. but why?!
@@ -430,16 +473,26 @@ pw
   # switch path
   * b#{/profile}
     : (PIN st) < readRef vSt
+    ; TODO: REMOVE. for localhost testing
+    @ originHeader | **fromSome b#{localhost}
+                   | tabLookup b#{origin}
+                   | tabFromPairs headers
+    | trk [%origin originHeader]
     @ sessions (**getSessions st)
     | if (sessionGuard headers sessions)
       ; if okay, proceed
       @ stateJson | **buildJson st
       @ stateJsonBS | printJson stateJson
       | trk [%resultJSON stateJsonBS]
-      : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok jsonContentType stateJsonBS))
+      @ head | (baseHeaderOverwrite (dynamicCorsJson originHeader))
+      @ res | (baseResponse rid 200 b#ok head stateJsonBS)
+      | trk [%res res]
+      : _ < fork (syscall | rowApply **HTTP_ECHO res)
       | return ()
     | trk [%noSession]
-    : _ < fork (syscall (**HTTP_ECHO rid 401 b#bad [] b#{}))
+    @ head | (baseHeaderOverwrite (dynamicCorsJson originHeader))
+    @ res | (baseResponse rid 401 b#bad head b#{})
+    : _ < fork (syscall | rowApply **HTTP_ECHO res)
     | return ()
   * b#{/state}
     : (PIN st) < readRef vSt
@@ -497,7 +550,12 @@ pw
                               | setSessions allSessions
                               | st
         ; respond with cookie
-        @ cookieHeader [(b#{Set-Cookie}, newCookie)]
+        ; TODO: remove, for local testing
+        @ origin | **fromSome b#{localhost}
+                       | tabLookup b#{origin}
+                       | tabFromPairs headers
+        @ cookieHeader (dynamicCorsCookieHeader origin newCookie)
+        | trk [%cookieHeader cookieHeader]
         : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok cookieHeader b#{}))
         | return ()
       | trk [%invalidSignature address signature]
@@ -535,8 +593,12 @@ pw
       | return ()
 * OPTIONS
   | trk [%gotOptions]
-  | trk [%headz corsHeaders]
-  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
+  | trk [%headz baseHeaders]
+  @ originHeader | **fromSome b#{localhost}
+                 | tabLookup b#{origin}
+                 | tabFromPairs headers
+  @ dynamicCors (dynamicCors originHeader)
+  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok dynamicCors b#{}))
   | return ()
 * PUT
   | trk [%gotPut]
@@ -546,7 +608,7 @@ pw
                | tabLookup b#{host}
                | tabFromPairs headers
   @ barType | **fromSome b#{text/plain}
-            | tabLookup b#{content-type}
+            | tabLookup b#{Content-Type}
             | tabFromPairs headers
   @ theirKey | **fromSome b#{xxxxxxx}
                | tabLookup b#{authorization}
@@ -571,7 +633,7 @@ pw
   | trk [%hmKeysAfter (hmKeys files)]
   @ stateJson | **buildJson st
   @ stateJsonBS | printJson stateJson
-  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done corsHeaders stateJsonBS))
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done baseHeaders stateJsonBS))
   : _ < modifyState vSt & st
                         | setFileBytes newTotalSize
                         | setFiles files
