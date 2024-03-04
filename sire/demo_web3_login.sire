@@ -4,18 +4,14 @@
 ; found in the LICENSE file.
 
 
-#### demo_web3_login <- demo_parallel_mandelbrot
+#### demo_web3_login <- ethsign
 
+:|  ethsign [verifyEthMsg]
 :|  prelude
 :|  kern
 :|  hitch
 :|  json
 :|  gen
-:|  stew
-:|  types
-
-:| demo_parallel_mandelbrot [mandelbrotLine]
-
 
 = favicon
 | PIN
@@ -385,12 +381,27 @@ body
 = (parseAddressJson jsonBS)
 : map < **bindMaybe (jsonMap jsonBS)
 : addr < **bindMaybe (tabLookup %address map)
-| barNat addr
+addr
+; : addrs < **bindMaybe (asJsonStr addr)
+; | addrs
+
+= (parseAddressStrJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: addr < **bindMaybe (tabLookup %address map)
+: addrs < **bindMaybe (asJsonStr addr)
+addrs
+
+= (parseMessageJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: msg < **bindMaybe (tabLookup %message map)
+: msgs < **bindMaybe (asJsonStr msg)
+| msgs
 
 = (parseSignatureJson jsonBS)
 : map < **bindMaybe (jsonMap jsonBS)
 : sig < **bindMaybe (tabLookup %signature map)
-| barNat sig
+: sigs < **bindMaybe (asJsonStr sig)
+| sigs
 
 = (getOffset needle haystack)
 @ start (idx 0 (barSubstringSearch needle haystack))
@@ -423,24 +434,23 @@ body
   0
 pw
 
-=?= b#{letmein}
-  | (parsePasswordFromBody b#{password=letmein&otherthing=here})
+> Bar > Bar
+= (hexFromBar bar)
+; convert b#{0xe14...} to x#e14....
+| barFromHex bar
+@ bytes | barBytes bar
+@ sliced | slice bytes 2 len-bytes
+| barFromHex | strFromList | listFromRow sliced
 
+=?= x#{e145a012f830a6a55b4166022ae664df7465f7b8}
+  | (hexFromBar b#{0xe145a012f830a6a55b4166022ae664df7465f7b8})
 
-=?= b#{test}
-  | (parsePasswordFromBody b#{password=test})
+> Bar > Bar
+= (strFromBar bar)
+| strFromList | listFromRow | barBytes bar
 
-=?= 0
-  | (parsePasswordFromBody b#{password=})
-
-=?= 0
-  | (parsePasswordFromBody b#{junk})
-
-=?= b#{letmein}
-  | (parsePasswordFromBody b#{password=letmein&otherthing=here})
-
-=?= b#{letmein}
-  | (parsePasswordFromBody b#{otherthing=here&password=letmein})
+=?= {sign me}
+  | (strFromBar b#{sign me})
 
 = (parseBucketJson jsonBS)
 : map < **bindMaybe (jsonMap jsonBS)
@@ -530,14 +540,33 @@ pw
     | return ()
   * b#{/login}
       | trk [%postToLogin]
-      @ address (parseAddressJson body)
-      @ signature (parseSignatureJson body)
-      | trk [%address address]
-      | trk [%signature signature]
+      @ address | (parseAddressJson body)
+      @ addressStr | (parseAddressStrJson body)
+      @ a | hexFromBar address
+      @ signature | (parseSignatureJson body)
+      @ s | hexFromBar signature
+      @ m | strFromBar | parseMessageJson body
+      ;barFromHex "e145a012f830a6a55b4166022ae664df7465f7b8"
+      ;  => x#e145a012f830a6a55b4166022ae664df7465f7b8
+      ; ^ This is what ethsign wants.
+      ; but i cannot get from b#{0xe145a012f830a6a55b4166022ae664df7465f7b8}
+      ; to that value.
       ;
-      ; TODO: validate signature
+      ; even though these two nats are identical:
+      ; barNat b#{0xe145a012f830a6a55b4166022ae664df7465f7b8}
+      ; 2606435325581013181542947971169170276883442175172006805064851029601137423819386792236577023340901
+      ; barNat | barFromHex "e145a012f830a6a55b4166022ae664df7465f7b8"
+      ; 2606435325581013181542947971169170276883442175172006805064851029601137423819386792236577023340901
+      | trk [%a a]
+      | trk [%s s]
+      | trk [%m m]
+      ; TODO: literal x# works, but i cannot figure out how to convert from b# to x#
+      ; @ s x#a02b1ec65cc215f2cb9bb1b1cbfa8717c24eadc17cb5b24f46bd5256610b6533517b1eb66cab3ec263c52cee8a9461842c9102cadcb934d53b3e682c28390f381c
+      ; @ a x#e145a012f830a6a55b4166022ae664df7465f7b8
+      ; @ m {sign me} ; THIS WORKS! but (parseMessageJson body) does NOT
+      | trk [%verify (verifyEthMsg s a m)]
       ;
-      @ valid TRUE
+      @ valid (verifyEthMsg s a m)
       : (PIN st) < readRef vSt
       | if (valid)
         : ??(got_time now_seed) < syscall TIME_WHEN
@@ -564,7 +593,7 @@ pw
         @ res | (baseResponse rid 200 b#ok head b#{})
         : _ < fork (syscall | rowApply **HTTP_ECHO res)
         | return ()
-      | trk [%invalidSignature address signature]
+      | trk [%invalidSignature a s]
       : _ < fork (syscall (**HTTP_ECHO rid 401 b#bad [] b#{}))
       | return ()
   * b#{/set-secret}
@@ -613,8 +642,8 @@ pw
   @ hostHeader | **fromSome b#{not-localhost}
                | tabLookup b#{host}
                | tabFromPairs headers
-  @ barType | **fromSome b#{text/plain}
-            | tabLookup b#{Content-Type}
+  @ barType | **fromSome b#{text/html}
+            | tabLookup b#{content-type}
             | tabFromPairs headers
   @ theirKey | **fromSome b#{xxxxxxx}
                | tabLookup b#{authorization}
@@ -639,7 +668,11 @@ pw
   | trk [%hmKeysAfter (hmKeys files)]
   @ stateJson | **buildJson st
   @ stateJsonBS | printJson stateJson
-  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done baseHeaders stateJsonBS))
+  @ contentHeader [(b#{Content-Type}, barType)]
+  | trk [%contentHeader contentHeader]
+  @ uploadHeaders | (baseHeaderOverwrite contentHeader)
+  | trk [%uploadHeaders uploadHeaders]
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done uploadHeaders stateJsonBS))
   : _ < modifyState vSt & st
                         | setFileBytes newTotalSize
                         | setFiles files
