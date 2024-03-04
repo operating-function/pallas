@@ -207,9 +207,8 @@
 ; The hashing step is excluded, so make sure to hash your message before.
 > Curve > Bar > Signature > Point > Bit
 = (verify curve@[p a b G n h] msg sign@(r,s) pubKey)
-| trk ['verify [=sign =pubKey]]
-@ addPoints | addPoints secp256k1
-@ scalarMul | scalarMul secp256k1
+@ addPoints | addPoints curve
+@ scalarMul | scalarMul curve
 | and | rowAnd [lte-1-r lth-r-n lte-1-s lth-s-n]
 @ e  | padNat | fst | padSplitAt (log2ceil n) (barPad msg)
 : w  < maybeCase (mulInverse n s) FALSE
@@ -220,13 +219,15 @@
 (r == mod xR n)
 
 > Curve > Row Nat
-= (yCandidates [p a b _ _ _] x)
+= (pointFromX [p a b _ _ _] x oddY)
 @ add  | addMod-p
 @ mul  | mulMod-p
 @ pow  | powMod-p
 @ sqrt | sqrtMod-p
 @ y    | sqrt | add b | add (mul a x) | pow x 3
-[y (addInverse-p y)]
+^ SOME (x,_)
+| if (odd-y == oddY) | y
+| addInverse-p y
 
 !! | verify secp256k1
    * natBar 0xEC208BAA0FC1C19F708A9CA96FDEFF3AC3F230BB4A7BA4AEDE4942AD003C0F60

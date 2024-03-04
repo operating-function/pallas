@@ -13,31 +13,35 @@
 ++ barShowDecimal strLen-msg
 ++ natBar msg
 
+= (barRev bar)
+| barFromRow | rev | barBytes bar
+
 > Bar > Bar > Str > Bit
 = (verifyEthMsg signature address msg)
-; | and (barLen signature == 65)
-@ r | barSliceToNat  0 32 signature
-@ s | barSliceToNat 32 32 signature
+| and (barLen signature == 65)
+@ r | barNat | barRev | barSlice  0 32 signature
+@ s | barNat | barRev | barSlice 32 32 signature
 @ v | barSliceToNat 64  1 signature
 @ m | ethereumHash msg
-| trk [=r =s =v =m]
-; | and (v == 27) ; (v == 28) ; might want to include chain id
+@ e | barNat | barFromRow | rev | barBytes m
+| and | or (v == 27) (v == 28)
 @ i | sub v 27
 @ n | getN secp256k1
-@ x | addMod-n r | mul i n
-@ yCands | yCandidates secp256k1 x
-| trk [=x =yCands =i =n]
-: y < foreach yCands
-| trk [=y]
-| verify secp256k1 m (r,s) (x,y)
+@ R | pointFromX secp256k1 r i
+: rInv < maybeCase (mulInverse-n r) FALSE
+@ s1 | mulMod-n rInv | addInverse-n e
+@ s2 | mulMod-n rInv s
+@ G  | getG secp256k1
+@ mulP | scalarMul secp256k1
+@ addP | addPoints secp256k1
+: (x,y) < maybeCase
+           | addP | mulP s1 G
+           | mulP s2 R
+        | FALSE
+@ pubKeyBar | barWeld (barRev | natBar x) (barRev | natBar y)
+| eql address
+| barDrop 12 | keccak256 pubKeyBar
 
-> Bar > Bar > Nat > Bar > Maybe Bar
-= (ethAddrToPubKey r s v msgHash)
-@ recovery | sub v 27
-| maybeGuard (recovery == 0 || recovery == 1)
-| maybeGuard (barLen r == 32 && barLen s == 32)
-@ signature | barWeld r s
-| 'recover msgHash signature recovery
 
 > Curve > Bar > Maybe Point
 = (decompressPubKey [p _ _ _ _ _] compressed)
@@ -53,11 +57,24 @@
 * x#02 | SOME (x, if even-y y (sub p y))
 * x#04 | SOME (x, if odd-y y (sub p y))
 
-= sign
-x#edca60ae5b832bca88bd596fc240c1aa6a11c989931715b50129e47be59654b737c141c4d4c48d62bc6c69e998c4435f73738b0755cac840802ec1dd69eda1951b
+> Bar > Point
+= (splitPubKey bar)
+@ key | barDrop 1 bar
+| SOME
+| map barNat
+++ barTake 32 key
+++ barDrop 32 key
 
-= signNat
-| natBar 0xedca60ae5b832bca88bd596fc240c1aa6a11c989931715b50129e47be59654b737c141c4d4c48d62bc6c69e998c4435f73738b0755cac840802ec1dd69eda1951b
+> Bar > Signature
+= (splitSignature bar)
+@ r | barSliceToNat  0 32 bar
+@ s | barSliceToNat 32 32 bar
+@ v | barSliceToNat 64  1 bar
+(r,s)
+
+= sign
+; | splitSignature
+x#32b48057fb911d814b0a6a76902f1a169f8a6981baf1ca39a4ead8b8a50f027c6e7415a5dcd51f68a3324560c8cfc6831b4db3a7d183292721406a98c8477ad71c
 
 = addr
 x#E145A012F830A6A55b4166022AE664df7465f7b8
@@ -65,9 +82,8 @@ x#E145A012F830A6A55b4166022AE664df7465f7b8
 = addrNat
 | natBar 0xE145A012F830A6A55b4166022AE664df7465f7b8
 
-= msg {pls sign me}
+= (test str)
+| verifyEthMsg sign addr str
 
-= (test x)
-| if x | verifyEthMsg signNat addrNat msg
-| verifyEthMsg sign addr msg
+= msg | ethereumHash {test}
 
