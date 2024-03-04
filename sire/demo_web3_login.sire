@@ -437,10 +437,8 @@ pw
 > Bar > Bar
 = (hexFromBar bar)
 ; convert b#{0xe14...} to x#e14....
-| barFromHex bar
 @ bytes | barBytes bar
-@ sliced | slice bytes 2 len-bytes
-| barFromHex | strFromList | listFromRow sliced
+| barFromHex | strFromList | listFromRow | slice bytes 2 len-bytes
 
 =?= x#{e145a012f830a6a55b4166022ae664df7465f7b8}
   | (hexFromBar b#{0xe145a012f830a6a55b4166022ae664df7465f7b8})
