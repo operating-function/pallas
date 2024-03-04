@@ -61,6 +61,7 @@
 # record CogState
 | COG_STATE
 * accessKey        : Str
+* ethAddress       : Bar
 * files            : (HMap Str (ContentType, Pin Bar))
 * fileBytes        : Nat
 * sessions         : (HMap SessionID SessionAuthed)
@@ -69,6 +70,7 @@
 = (newState servThread)
 | COG_STATE
 * "v@p0rvv@r3"
+* b#{0x0}
 * startingFiles
 * 0
 * startingSessions
@@ -466,7 +468,7 @@ pw
 = (buildJson st)
 @ COG_STATE(..) st
 | JMAP
-## =accesssKey | (msgToStr accessKey)
+## =accessKey | (msgToStr accessKey)
 ## =messages  | JVEC (map msgToStr [])
 ## =files     | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
 ## =sessions  | JVEC (map msgToStr (hmKeys sessions))
@@ -539,31 +541,13 @@ pw
   * b#{/login}
       | trk [%postToLogin]
       @ address | (parseAddressJson body)
-      @ addressStr | (parseAddressStrJson body)
       @ a | hexFromBar address
-      @ signature | (parseSignatureJson body)
-      @ s | hexFromBar signature
+      @ s | hexFromBar | (parseSignatureJson body)
       @ m | strFromBar | parseMessageJson body
-      ;barFromHex "e145a012f830a6a55b4166022ae664df7465f7b8"
-      ;  => x#e145a012f830a6a55b4166022ae664df7465f7b8
-      ; ^ This is what ethsign wants.
-      ; but i cannot get from b#{0xe145a012f830a6a55b4166022ae664df7465f7b8}
-      ; to that value.
-      ;
-      ; even though these two nats are identical:
-      ; barNat b#{0xe145a012f830a6a55b4166022ae664df7465f7b8}
-      ; 2606435325581013181542947971169170276883442175172006805064851029601137423819386792236577023340901
-      ; barNat | barFromHex "e145a012f830a6a55b4166022ae664df7465f7b8"
-      ; 2606435325581013181542947971169170276883442175172006805064851029601137423819386792236577023340901
       | trk [%a a]
       | trk [%s s]
       | trk [%m m]
-      ; TODO: literal x# works, but i cannot figure out how to convert from b# to x#
-      ; @ s x#a02b1ec65cc215f2cb9bb1b1cbfa8717c24eadc17cb5b24f46bd5256610b6533517b1eb66cab3ec263c52cee8a9461842c9102cadcb934d53b3e682c28390f381c
-      ; @ a x#e145a012f830a6a55b4166022ae664df7465f7b8
-      ; @ m {sign me} ; THIS WORKS! but (parseMessageJson body) does NOT
       | trk [%verify (verifyEthMsg s a m)]
-      ;
       @ valid (verifyEthMsg s a m)
       : (PIN st) < readRef vSt
       | if (valid)
