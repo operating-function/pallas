@@ -99,20 +99,17 @@ GT=2
 
 ;;; Operations Involving Division ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-= (_DivMod x y)
-^ _ x y 0
-? (go x y i)
-| if (natLth x y) | 0 i x
-| go (sub x y) y inc-i
+= (_Div x y)
+| if (natLth x y) 0
+| inc (_Div (sub x y) y)
 
-divMod=_DivMod
+div=_Div
 
-= (div x y) | cdar | divMod x y
-= (mod x y) | cdr  | divMod x y
-
-= lsh ( _Lsh v n ?? mul (bex n) v           )
-= rsh ( _Rsh v n ?? div v (bex n)           )
-= bix ( _Bix i n ?? mod (rsh n i) 2         )
+= mod    ( _Mod x y    ?? sub x (mul y | div x y) )
+= divMod ( _DivMod x y ?? 0 (div x y) (mod x y)   )
+= lsh    ( _Lsh v n    ?? mul (bex n) v           )
+= rsh    ( _Rsh v n    ?? div v (bex n)           )
+= bix    ( _Bix i n    ?? mod (rsh n i) 2         )
 
 
 ;;; Bitwise Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -319,7 +316,7 @@ divMod=_DivMod
 ^-^
 ^-^ isNat ; re-export
 ^-^
-^-^ toNat times inc dec add sub divMod mod mul div isOne
+^-^ toNat times inc dec add sub mod mul div divMod isOne
 ^-^ lsh rsh con mix dis pow bex bix
 ^-^
 ^-^ LT EQ GT ordWeld

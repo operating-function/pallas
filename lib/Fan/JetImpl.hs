@@ -88,6 +88,8 @@ jetImpls = mapFromList
   , ( "_Pow"                            , Nothing                             )
   , ( "_Bex"                            , Just bexJet                         )
   , ( "_OrdWeld"                        , Nothing                             )
+  , ( "_Div"                            , Just divJet                         )
+  , ( "_Mod"                            , Just modJet                         )
   , ( "_DivMod"                         , Just divModJet                      )
   , ( "_Lsh"                            , Just lshJet                         )
   , ( "_Rsh"                            , Just rshJet                         )
@@ -338,6 +340,9 @@ gteJet _ env = if ((env.!1) >= (env.!2)) then NAT 1 else NAT 0
 bexJet :: Jet
 bexJet _ env = NAT (bex $ toNat (env.!1))
 
+modJet :: Jet
+modJet _ env = NAT (toNat(env.!1) `mod` toNat(env.!2))
+
 divModJet :: Jet
 divModJet _ env = let (d,m) = toNat(env.!1) `divMod` toNat(env.!2)
                    in KLO 1 . smallArrayFromListN 3 $ NAT <$> [0, d, m]
@@ -417,6 +422,13 @@ conJet _ env = NAT (toNat(env.!1)  .&.  toNat(env.!2))
 
 disJet :: Jet
 disJet _ env = NAT (toNat(env.!1)  .|. toNat(env.!2))
+
+divJet :: Jet
+divJet _ env =
+    let yv = toNat (env.!2)
+    in if (yv == 0)
+       then NAT 0
+       else NAT (toNat(env.!1) `div` yv)
 
 subJet :: Jet
 subJet _ env =
