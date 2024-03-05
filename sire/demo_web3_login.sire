@@ -381,8 +381,10 @@ body
 | SOME (barNat theSecret)
 
 = (parseAddressJson jsonBS)
+| trk jsonBS
 : map < **bindMaybe (jsonMap jsonBS)
 : addr < **bindMaybe (tabLookup %address map)
+| trk addr
 addr
 ; : addrs < **bindMaybe (asJsonStr addr)
 ; | addrs
@@ -391,7 +393,7 @@ addr
 : map < **bindMaybe (jsonMap jsonBS)
 : addr < **bindMaybe (tabLookup %address map)
 : addrs < **bindMaybe (asJsonStr addr)
-addrs
+| SOME addrs
 
 = (parseMessageJson jsonBS)
 : map < **bindMaybe (jsonMap jsonBS)
@@ -539,6 +541,7 @@ pw
     : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
     | return ()
   * b#{/login}
+      : (PIN st) < readRef vSt
       | trk [%postToLogin]
       @ address | (parseAddressJson body)
       @ a | hexFromBar address
@@ -547,10 +550,14 @@ pw
       | trk [%a a]
       | trk [%s s]
       | trk [%m m]
-      | trk [%verify (verifyEthMsg s a m)]
       @ valid (verifyEthMsg s a m)
-      : (PIN st) < readRef vSt
-      | if (valid)
+      @ ethAddress | strToLower | barNat (**getEthAddress st)
+      @ isOurAddress (eql (barNat address) ethAddress)
+      | trk [%valid valid]
+      | trk [%ethAddress ethAddress]
+      | trk [%compareAddress (barNat address)]
+      | trk [%isOurAddress isOurAddress]
+      | if (valid && isOurAddress)
         : ??(got_time now_seed) < syscall TIME_WHEN
         @ newCookie | (getRandomCookie now_seed address)
         | trk [%newCookie newCookie]
@@ -575,15 +582,18 @@ pw
         @ res | (baseResponse rid 200 b#ok head b#{})
         : _ < fork (syscall | rowApply **HTTP_ECHO res)
         | return ()
-      | trk [%invalidSignature a s]
+      | trk %badLogin
       : _ < fork (syscall (**HTTP_ECHO rid 401 b#bad [] b#{}))
       | return ()
-  * b#{/set-secret}
-    # datacase (parseSecretJson body)
+  * b#{/set-address}
+    | trk [%addrParsed (parseAddressStrJson body)]
+    # datacase (parseAddressStrJson body)
     * NONE
+      | trk [%none]
       : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
       | return ()
-    * (SOME sec)
+    * (SOME addr)
+      | trk [%some addr]
       @ hostHeader | **fromSome b#{not-localhost}
                    | tabLookup b#{host}
                    | tabFromPairs headers
@@ -601,11 +611,11 @@ pw
                    | tabLookup b#{authorization}
                    | tabFromPairs headers
       ; | trk [%authHeader authHeader]
-      | trk [%newSecretIs sec]
+      | trk [%newAddressIs addr]
       : _ < modifyState vSt & st
-                            | setAccessKey sec
+                            | setEthAddress addr
                             | st
-      | trk [%secretUpdated]
+      | trk [%addressUpdated]
       : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
       | return ()
 * OPTIONS
