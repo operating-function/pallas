@@ -11,7 +11,6 @@ module Nat
     , Exo(..)
     , natUtf8Exn
     , natUtf8Lenient
-    , pattern NatJ#
     )
 where
 
@@ -23,7 +22,6 @@ import Foreign.ForeignPtr
 import Foreign.Storable
 
 import Optics        (over, _1)
-import Debug.Trace   (trace)
 import ClassyPrelude (ByteString, IsString(..), NFData(..), pack)
 import GHC.Exts      (Word(..), Int(..), Word#, addWordC#, timesWord2#)
 
@@ -39,33 +37,7 @@ type Natural = Nat
 
 data Nat
     = NatS# Word#
-    | NatJ## {-# UNPACK #-} !Exo
-
-msw :: Exo -> Word
-msw (EXO 0 _) = 0
-msw (EXO sz buf) =
-    unsafePerformIO $
-    withForeignPtr buf \fp ->
-    peekElemOff fp (fromIntegral sz - 1)
-
-pattern NatJ# :: Exo -> Nat
-pattern NatJ# a <- NatJ## a where
-    NatJ# x = checkIndirect x
-
-checkIndirect :: Exo -> Nat
-checkIndirect (EXO 0 _) =
-    trace "bad bignat: 0" (NatS# 0##)
-
-checkIndirect (EXO 1 fp) =
-    unsafePerformIO do
-        !(W# w) <- withForeignPtr fp peek
-        pure (NatS# w)
-
-checkIndirect x =
-    if msw x == 0 then error ("checkIndirect: (msw==0): num=" <> show x) else
-    NatJ## x
-
-{-# COMPLETE NatS#, NatJ# #-}
+    | NatJ# {-# UNPACK #-} !Exo
 
 instance Eq Nat where
     NatS#{} == NatJ#{} = False
@@ -241,7 +213,7 @@ natShiftR (NatJ# x)  i = exoNat (x `shiftR` i)
 
 natShiftL :: Nat -> Int -> Nat
 natShiftL (NatS# x) i =
-    if fromIntegral (W# (wordBitWidth# x)) + i < 64
+    if fromIntegral (W# (wordBitWidth# x)) + i <= 64
     then wordNat (W# x `shiftL` i)
     else NatJ# (wordExo (W# x) `shiftL` i)
 
