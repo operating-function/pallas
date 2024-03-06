@@ -1,0 +1,631 @@
+; Copyright 2023 Vinney Cavallo
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+;
+; Running it:
+;  - nix develop
+;  - export ACCESS_KEY=v@p0rvv@r3
+;  - sh/web-demo.sh -d image-gallery -s sire/demo_image_gallery.sire -u demo/image_gallery
+;  -                   ^ in .ships/     ^ sire file                     ^ ui dir
+;  - visit the UI (localhost:<port>/index.html), then (in this order!):
+;    1. enter v@p0rvv@r3 in the "password field"
+;    2. Choose an image under the "default Frame image" header
+;    3. under "Choose images", click "+ Add Images" and select multiple images
+;    4. click "Create frame link" button
+;    5. visit localhost:<port>/framer/start.html to validate it worked.
+;
+; Testing gallery logic:
+
+;   There are two Frame states you can think of:
+;     - i'm on the "start" frame
+;     - i'm on an image in the linear gallery
+;   the "start" frame is /framer/start.html
+;   images in the gallery are /framer/1.html, /framer/2.html, etc
+;     these pages embed 0.jpg, 1.jpg, etc. within them. we only care about html
+;     urls, not about images. images are handled by the html template (specifically,
+;     they embed the image number that corresponds to their page).
+;
+;     frame html files are uploaded to (and served from) /framer/<html-filename>
+;     images are uploaded to (and served from) /framer/images/<image-filename>
+;
+;   Testing this is normally done through https://warpcast.com/~/developers/frames, but
+;   the URL needs to be accessible, so it's difficult on localhost. Either use
+;   an ngrok or similar tunnel, set up a web server, do this on a cloud machine,
+;   or, simulate the Frames logic with cURL:
+;     Curl explanation:
+;       - the Frames UI sends a json message, the only part of which we care about
+;         is the button that was clicked:
+;           - `{ untrustedData: { buttonIndex: 1 }}`
+;       - the UI indexes buttons from 1 -> 4
+;       - When you're on the /start Frame, there is only one button "start ->",
+;         which is button index 1
+;       - When you're on subsequent "image gallery" Frames, there are two buttons
+;         for "<- back" and "forward ->", indexed 1 and 2, respectively.
+;       - When clicking a button, the server responds with the next url you should
+;         be redirected to. "on 0, clicked 'next' == 1, on 3, 'previous' == 2,
+;         on last image, 'next' == 0, on first image, clicked 'previous' == last, etc.
+;     Doing this in cURL.
+;       1. "i'm on start, want to click start: curl -v http://localhost:<port>/framer/start.html --data '{"untrustedData": {"buttonIndex": 1}'
+;       2. "i'm on 0, want to click next: curl -v http://localhost:<port>/framer/0.html --data '{"untrustedData": {"buttonIndex": 2}'
+;       3. "i'm on 3, want to click previous: curl -v http://localhost:<port>/framer/3.html --data '{"untrustedData": {"buttonIndex": 1}'
+;       - You'll get a  reply like:
+;         ```
+;         [etc...]
+;         < Server: Warp/3.3.25
+;         < Location: http://localhost:60729/framer/0.html
+;         ```
+;         ...which means the server wanted to redirect you to the first image (0.html)
+;         By using these requests, you can test the server's logic
+;
+; Problems:
+;  - [ ] There seemed to be a few times that the wraparound logic didn't work correctly.
+;    I'm  not able to reproduce it now, but we should be sure the relevant functions
+;    look like they should work correctly.
+;  - [ ] Need to cache-bust on all images. The embedded image URLs in the html templates
+;    should ideally have timestamps appended: <myurl>/framer/images/1.jpg&v=1231231231231.
+;    this means that the server should trim off or ignore any query params (from the "&" on)
+;    and load whatever image it has there. This will allow users to swap out their
+;    images given:
+;      - the uploder UI will add the timestamp to the image url in the html template
+;      - the UI will upload the image file named **without the timestamp**
+;      - the server doesn't care about timestamps re: filenames. it only ever has base names
+;      - the Warpcast Frames UI will think differently timestamped files are unique
+;        and will insure a fresh image is retrieved from the server
+;
+; Improvements:
+;  - ideally we woudldn't name the files 1, 2, 3. etc.
+;    but instead keep the original filenames and handle routing to them
+;    with some additional position-in-gallery->image-file mapping
+
+#### image_gallery_cog <- ethsign
+
+:|  ethsign [verifyEthMsg]
+:|  prelude
+:|  kern
+:|  hitch
+:|  json
+:|  gen
+
+> Pin Bar
+= favicon
+| PIN
+| barCat
+, x#{89504e470d0a1a0a0000000d4948445200000020000000200806000000737a7a}
+  x#{f4000000017352474200aece1ce9000002a0494441545847ed563f486a71183d}
+  x#{95e054439448e06063818b91e09fc616079186280c4402876875484b51281c5a}
+  x#{1a1a1491a2a2c9c121684c88444187748a828230515c44a2a17c9c1ff4309ecf}
+  x#{7bf53d5f6ff05b1cbcbf73ce3ddf77bedf1d02d0c437d6d040c0c081ffde81c9}
+  x#{c949f87c3e919368348a42a1d031332a950a5eaf573cb3bfbf8fa7a7a78ecf4b}
+  x#{a660787818cfcfcf50abd5d8ddddfd09fe3b54a7d389783c8e7abd0e8a7f7b7b}
+  x#{fb33013c1d8bc5e072b990cbe5a0d7eb3b029e9f9f637979198944024b4b4b92}
+  x#{1b46d20122d8ed7601d86c3631353585979797b6c00a8502e57219e3e3e34230}
+  x#{9d902a590246474751a954a0542a418b8f8e8edae21a8d465c5f5fe3e3e34308}
+  x#{a518a992258020979797585c5c042d5e5959698b1b0c06b1bdbd8d4c260383c1}
+  x#{20c52dfe972d60737313070707a8d56ae0a4bfbfbfff4290cd66313737879d9d}
+  x#{1d8442a1bf2b607a7a1af7f7f7029456dfdcdc7c21a0a852a904a68683ca8195}
+  x#{53b21d2058b158c4cccc8c783bbe656badadade1f8f8584456a3d1888195535d}
+  x#{090887c3f0783ca0d5f3f3f35ff04f4f4fb1baba8a482402b7db2d87bbbb19e0}
+  x#{d30b0b0bb8baba1253cec5c464b0464646443427262660b3d9904c26fb23a035}
+  x#{e7b4fce4e4441071e2d3e9345e5f5fc5f66b341afd1140d44fabf9eb70380491}
+  x#{dfef472010c0c5c505ac56ab6cf2ae62f889ca3e939cf6b30d6c07df9e2e6c6c}
+  x#{6ce0f0f0b0bf02b866b9e1d80e923e3c3c88fe337e5aad168f8f8ffd1540f454}
+  x#{2a058bc522acbfbbbbc3d9d9196e6f6fa1d3e9ba22efa9053cc4283292b49e02}
+  x#{38907b7b7bd8dadafa3702666767c58709d731277e6c6c0c66b3595c44dd5657}
+  x#{8ba8159cbd67cf59d56a550c64bbfb414a50cf02d6d7d7613299047e3e9f1717}
+  x#{552fd5b3805ec8da9d19081838f0ed0efc0071b51f10d1add5a6000000004945}
+  x#{4e44ae426082}
+
+# typedef ContentType Bar
+
+> HMap Str (ContentType, Pin Bar)
+= startingFiles
+; TODO: Figure out tuned config for files.
+| hmSingleton
+* largeConfig
+* {/favicon.ico}
+* [b#{image/x-icon} favicon]
+
+# record CogState
+| COG_STATE
+* accessKey        : Str
+* files            : (HMap Str (ContentType, Pin Bar))
+* fileBytes        : Nat
+* servThread       : ThreadId
+
+;
+> ThreadId > CogState
+= (newState servThread)
+| COG_STATE
+* "v@p0rvv@r3"
+* startingFiles
+* 0
+* servThread
+
+(bindMaybe mVal k)=(maybeCase mVal NONE k)
+
+;; nat parsing helper from sire.sire
+> Bar > Maybe Nat
+= (parseNat bar)
+@ wid (barLen bar)
+@ hed (barIdx 0 bar)
+| maybeGuardNot (isZero wid)
+| maybeGuard    (isDigit hed)
+@ acc (sub hed {0})
+^ (_ acc 1)
+? (go acc ix)
+| if (gte ix wid) (SOME acc)
+@ c (barGet bar ix)
+| maybeGuard (isDigit c)
+@ !acc (add (mul 10 acc) (sub c {0}))
+| go acc inc-ix
+
+;;; JSON Handling ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; = (asJsonRow m)
+; # datacase m
+; * JVEC|v | SOME v
+; * _      | NONE
+
+= (asJsonNum m)
+# datacase m
+* JNUM|n | SOME n
+* _      | NONE
+
+> Bar > Maybe (Tab Str Json)
+= (jsonMap jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| if (res || leftover) NONE
+# datacase json
+* JMAP|m | SOME m
+* _      | NONE
+
+= (asJsonStr m)
+# datacase m
+* JSTR|s | SOME s
+* _      | NONE
+
+> Bar > Maybe Nat
+= (parseFramePost jsonBS)
+: map          < bindMaybe (jsonMap jsonBS)
+: untrusted    < bindMaybe (tabLookup %untrustedData map)
+: jbuttonIndex < bindMaybe (tabLookup %buttonIndex untrusted)
+: buttonIndex  < bindMaybe (asJsonNum jbuttonIndex)
+| SOME buttonIndex
+
+=?= SOME-2
+  | parseFramePost b#{{"untrustedData": { "buttonIndex": 2 } }}
+
+= corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{amz-sdk-invocation-id,amz-sdk-request,authorization,content-type,x-amz-acl,x-amz-content-sha256,x-amz-date,x-amz-user-agent}) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+;;;; Business logic helpers ;;;;
+
+;; TODO: should we only care about /change and ignore all else?
+; @ isChange | barIsPrefixOf b#{/change/} path 0
+; | trk [%isChangePath isChange]
+
+; TODO:
+
+;; also POST /start
+;; res.redirect(`/fg_1-mg_1-bg_1.html`); ? or respond with html?
+
+; TODO:
+; - URLs in meta tags in HTML need to be absolute
+;   - this includes images
+
+;; DONE
+;; parse n out of { untrustedData: { buttonIndex: n } }
+
+;; DONE
+;; - translate n to FG/MID/BG
+
+;; DONE
+;; - split the path
+;;   /change/fg_1-mg_2-bg_3.html (.html for sure?)
+
+;; DONE
+;; parse nat out of layer
+
+;; DONE
+;; map of subjects
+
+;; DONE
+;; need wraparound function (or does this just work bcz 0?)
+;; bar-builder for switch on button pressed
+
+= subject
+| tabFromPairs [[b#fg [b#fg_1 b#fg_2 b#fg_3]] [b#mg [b#mg_1 b#mg_2 b#mg_3]] [b#bg [b#bg_1 b#bg_2 b#bg_3]]]
+
+=?= SOME-[b#fg_1 b#fg_2 b#fg_3]
+  | (tabLookup b#fg subject)
+
+=?= SOME-[b#mg_1 b#mg_2 b#mg_3]
+  | (tabLookup b#mg subject)
+
+=?= SOME-[b#bg_1 b#bg_2 b#bg_3]
+  | (tabLookup b#bg subject)
+
+;          b#fg  mg_1
+= (getNext layer currentSubject)
+@ layerRow | fromSome [] | (tabLookup layer subject)
+| trk [%layerRow layerRow]
+@ currentIndexInRow | fromSome 0 | (elemIdx currentSubject layerRow NONE SOME)
+| trk [%currentIdx currentIndexInRow]
+@ nextIdx (add 1 currentIndexInRow)
+| if (gth nextIdx 2)
+  (idx 0 layerRow)
+(idx nextIdx layerRow)
+
+=?= b#fg_2
+  | (getNext b#fg b#fg_1)
+
+=?= b#fg_3
+  | (getNext b#fg b#fg_2)
+
+=?= b#fg_1
+  | (getNext b#fg b#fg_3)
+
+=?= b#mg_1
+  | (getNext b#mg b#mg_3)
+
+=?= b#bg_1
+  | (getNext b#bg b#bg_3)
+
+=?= b#bg_2
+  | (getNext b#bg b#bg_8)
+
+
+= (determineNextState f m b layerChanged)
+| if (eql layerChanged b#fg)
+  [(getNext layerChanged f) m b]
+| if (eql layerChanged b#mg)
+  [f (getNext layerChanged m) b]
+| if (eql layerChanged b#bg)
+  [f m (getNext layerChanged b)]
+[f m b]
+
+=?= [b#fg_2 b#mg_1 b#bg_1]
+  | determineNextState b#fg_1 b#mg_1 b#bg_1 b#fg
+
+=?= [b#fg_1 b#mg_2 b#bg_1]
+  | determineNextState b#fg_1 b#mg_1 b#bg_1 b#mg
+
+=?= [b#fg_1 b#mg_1 b#bg_2]
+  | determineNextState b#fg_1 b#mg_1 b#bg_1 b#bg
+
+=?= [b#fg_1 b#mg_3 b#bg_3]
+  | determineNextState b#fg_3 b#mg_3 b#bg_3 b#fg
+
+=?= [b#fg_3 b#mg_1 b#bg_3]
+  | determineNextState b#fg_3 b#mg_3 b#bg_3 b#mg
+
+=?= [b#fg_3 b#mg_3 b#bg_1]
+  | determineNextState b#fg_3 b#mg_3 b#bg_3 b#bg
+
+
+> Bar > Nat
+= (getSubject layer)
+| fromSome 1
+| parseNat
+| idx 1 (barSplitAt 3 layer)
+
+=?= 1 | getSubject b#{fg_1}
+=?= 2 | getSubject b#{fg_2}
+=?= 3 | getSubject b#{fg_3}
+=?= 4 | getSubject b#{fg_4}
+=?= 1 | getSubject b#{fg_n}
+=?= 2 | getSubject b#{mg_2}
+=?= 2 | getSubject b#{bg_2}
+=?= 3 | getSubject b#{xx_3}
+
+
+> Nat > Maybe Bar
+= (buttonToLayer n)
+@ str | (idx (sub n 1) [b#fg b#mg b#bg])
+| SOME str
+
+=?= (SOME b#fg)
+  | buttonToLayer 1
+
+=?= (SOME b#mg)
+  | buttonToLayer 2
+
+=?= (SOME b#bg)
+  | buttonToLayer 3
+
+=?= (SOME 0)
+  | buttonToLayer 4
+
+
+= (getOffset needle haystack)
+@ start (idx 0 (barSubstringSearch needle haystack))
+@ width (barLen needle)
+(add start width)
+
+> Bar > Nat
+= (getSpotFromPath path)
+@ changeOffset (getOffset b#{/change/} path)
+@ [change param] (barSplitAt changeOffset path)
+| **fromSome 0 | parseNat | (barSlice 0 1 param) ; only works on single digit numbers lol.
+
+= (addWithWraparound n)
+| if (eql n 3)
+  | 0
+| (add 1 n)
+
+= (subWithWraparound n)
+| if (eql n 0)
+  | 3
+| (sub n 1)
+
+= (buttonToNext buttonIndex path)
+| trk [%havePath path]
+@ spot (getSpotFromPath path)
+| trk [%spot spot]
+@ forward | eql buttonIndex 2
+| if forward
+  | trk [%goingForward]
+  | (addWithWraparound spot)
+| (subWithWraparound spot)
+
+=?= 1
+  | buttonToNext 2 b#{/framer/change/0.html}
+
+=?= 2
+  | buttonToNext 2 b#{/framer/change/1.html}
+
+=?= 3
+  | buttonToNext 2 b#{/framer/change/2.html}
+
+=?= 0
+  | buttonToNext 2 b#{/framer/change/3.html}
+
+=?= 2
+  | buttonToNext 1 b#{/framer/change/3.html}
+
+=?= 1
+  | buttonToNext 1 b#{/framer/change/2.html}
+
+=?= 0
+  | buttonToNext 1 b#{/framer/change/1.html}
+
+=?= 3
+  | buttonToNext 1 b#{/framer/change/0.html}
+
+
+; = (getNextFromInteraction buttonIndex path)
+; @ layerShortName | **fromSome b#{fg}
+;                  | (buttonToLayer buttonIndex)
+; @ [f m b] (getFMB path)
+; | determineNextState f m b layerShortName
+;
+; =?= [b#{fg_2} b#{mg_1} b#{bg_1}]
+;   | getNextFromInteraction 1 b#{/change/fg_1-mg_1-bg_1.html}
+;
+; =?= [b#{fg_1} b#{mg_3} b#{bg_3}]
+;   | getNextFromInteraction 1 b#{/change/fg_3-mg_3-bg_3.html}
+;
+; =?= [b#{fg_3} b#{mg_1} b#{bg_3}]
+;   | getNextFromInteraction 2 b#{/change/fg_3-mg_3-bg_3.html}
+;
+; =?= [b#{fg_3} b#{mg_3} b#{bg_1}]
+;   | getNextFromInteraction 3 b#{/change/fg_3-mg_3-bg_3.html}
+
+= (stateAsFilename n)
+| if (gth n 3)
+  | barCat [(natBar | showNat 0) b#{.html}]
+| barCat [(natBar | showNat n) b#{.html}]
+
+=?= b#{0.html}
+  | stateAsFilename 0
+
+=?= b#{1.html}
+  | stateAsFilename 1
+
+=?= b#{2.html}
+  | stateAsFilename 2
+
+=?= b#{3.html}
+  | stateAsFilename 3
+
+=?= b#{0.html}
+  | stateAsFilename 4
+
+;;; Website ;;;;;;;
+
+(emptyFileServer req)=NONE
+
+= (fileServer (PIN st) [method path headers (PIN body)])
+| trk [%youveHitFileServer path]
+| trk [%files (**getFiles st)]
+| trk [%hmKeys (hmKeys **getFiles st)]
+@ theirHead | tabFromPairs headers
+| trk [%reqHeaders theirHead]
+@ range | **fromSome b#{none} | (tabLookup b#{range} theirHead)
+| trk [%range range]
+# switch method
+* _ | NONE
+* GET
+  @ safePath path
+  ; TODO: appending .html safely?
+  ; if the path has no extension:
+  ;   check if we have a file with extensionless-path.html
+  ;   if so, use that as the path
+  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
+  & [type (PIN content)]
+  | if (eql range b#{none})
+    | trk [%normal]
+    @ ourHead | [(b#{content-type}, type)]
+    [200 b#gotcha ourHead content]
+  | trk [%haveRange range]
+  @ idx | barElemIndex 61 range
+  | trk [%index idx]
+  @ desiredRange | barSlice idx range ;; 61 is '='
+  | trk [%desiredRange desiredRange]
+  ;; 45 is -
+  | trk [%contentLen (barLen content)]
+  ;; & partialContent (
+  @ ourHead | [(b#{content-type}, type)]
+  [200 b#gotcha ourHead content]
+
+
+; `modifyState` modifies the vSt ref and reboots the static server
+; in-place (keeping the same ThreadId).
+> Ref CogState
+> (CogState > CogState)
+> Cog ()
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ srv       | **getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
+| return ()
+
+(msgToStr m)=(JSTR | natBar m)
+
+= (buildJson st)
+@ COG_STATE(..) st
+| JMAP
+## =files     | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
+## =totalSize | JVEC (map fileBytes) ; this is structured wrong
+
+> Ref CogState > HttpReq > Cog ()
+= (handleReq vSt request return)
+@ [rid method path headers pBody@(PIN body)] request
+| trk [%gotRequest]
+# switch method
+* POST
+  | trk [%gotPost]
+  | trk [%path path]
+  | trk [%headers headers]
+  @ hostHeader | **fromSome b#{not-localhost}
+               | tabLookup b#{host}
+               | tabFromPairs headers
+  | trk [%body body]
+  @ buttonIndex (parseFramePost body)
+  | trk [%button buttonIndex]
+  | if (eql path b#{/framer/start.html})
+    @ redirUrl | (barCat [b#{http://} hostHeader b#{/framer/0.html}])
+    | trk [%redirUrl redirUrl]
+    ;
+    @ redirectHed | [(b#{Location}, redirUrl)]
+    : _ < fork (syscall (**HTTP_ECHO rid 302 b#found redirectHed b#{}))
+    | return ()
+  # datacase buttonIndex
+  * NONE
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#noidx [] b#{}))
+    | return ()
+  * (SOME buttonIndex)
+    @ nextPage | **fromSome b#{1}
+               | buttonToNext buttonIndex path
+    | trk [%currentSpot (getSpotFromPath path)]
+    @ next (buttonToNext buttonIndex path)
+    | trk [%next next]
+    @ nextFilename (stateAsFilename next)
+    | trk [%html nextFilename]
+    : (PIN st) < readRef vSt
+    | trk [%st st]
+    | trk [%filez (**getFiles st)]
+    ; | **fmapMaybe | hmLookup (barNat nextFilename) (**getFiles st)
+    ; & [type (PIN htmlBody)]
+    ; | trk [%typ type]
+    @ files (**getFiles st)
+    ; TODO:
+    ; do maybe:
+    @ soughtFilename (barCat [b#{/framer/} nextFilename])
+    | trk [%sought soughtFilename]
+    @ bod | hmLookup (barNat soughtFilename) | files
+    @ [type content] | **fmapMaybe | hmLookup (barNat soughtFilename) | files
+    ; ; & [type (PIN content)]
+    ; | trk [%content content]
+    ; | trk [%bod bod]
+    ; | trk [%fileKeys (hmKeys files)]
+    ; @ htmlBody b#{fuck fuck fuckkxk}
+    ; | trk [%htmlBody htmlBody]
+    ; @ hed | [(b#{content-type}, b#{text/html})]
+    ; : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok hed content))
+    ; | return ()
+    ; for redirect
+    | trk [%hostHeader hostHeader]
+    @ redirUrl | (barCat [b#{http://} hostHeader soughtFilename])
+    | trk [%redirUrl redirUrl]
+    @ redirectHed | [(b#{Location}, redirUrl)]
+    : _ < fork (syscall (**HTTP_ECHO rid 302 b#found redirectHed b#{}))
+    | return ()
+* PUT
+  | trk [%gotPut]
+  | trk [%path path]
+  : (PIN st) < readRef vSt
+  @ hostHeader | **fromSome b#{not-localhost}
+               | tabLookup b#{host}
+               | tabFromPairs headers
+  @ barType | **fromSome b#{text/plain}
+            | tabLookup b#{content-type}
+            | tabFromPairs headers
+  @ theirKey | **fromSome b#{xxxxxxx}
+               | tabLookup b#{authorization}
+               | tabFromPairs headers
+  @ ourKey | natBar | (getAccessKey st)
+  | trk b#{Checking access headers...}
+  | trk [b#{ours: } ourKey]
+  | trk [b#{theirs: } theirKey]
+  | trk [b#{eql check...} (eql ourKey theirKey)]
+  | ifNot (eql ourKey theirKey)
+    | trk b#{Not allowed!}
+    : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
+    | return ()
+  ;; Only allow PUT to root from localhost
+  ;; TODO: add access key control for local coordination server access only
+  ;; TODO: BRING BACK. was just for embed test
+  ;; | ifNot (barIsPrefixOf b#{localhost} hostHeader 0)
+  ;;   | trk b#{Not allowed!}
+  ;;   : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
+  ;;   | return ()
+  | trk [%prevSize (getFileBytes st)]
+  @ newTotalSize | add (barLen body) | getFileBytes st
+  | trk [%newSize newTotalSize]
+  @ files (**getFiles st)
+  | trk [%hmKeys (hmKeys files)]
+  | trk [%fileName path]
+  | trk [%fileType barType]
+  @ files | hmInsert (barNat path) [barType pBody] files
+  | trk [%hmKeysAfter (hmKeys files)]
+  @ stateJson | **buildJson st
+  @ stateJsonBS | printJson stateJson
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done [] stateJsonBS))
+  : _ < modifyState vSt & st
+                        | setFileBytes newTotalSize
+                        | setFiles files
+                        | st
+  | trk [%st st]
+  | return ()
+* OPTIONS
+  | trk [%gotOptions]
+  | trk [%headz corsHeaders]
+  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
+  | return ()
+* _
+  | trk [%gotUnknown method]
+  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+  | return ()
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Ref CogState > Cog Void
+= (runHttpServer vSt return)
+: ??(rhs_heard req) < syscall HTTP_HEAR
+: _                 < handleReq vSt req
+| runHttpServer vSt return
+
+> Cog ()
+= (launchDemo return)
+: servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+: vSt         < newRef (PIN | newState servThread)
+: _           < modifyState vSt id
+: httpThread1 < fork (runHttpServer vSt)
+: httpThread2 < fork (runHttpServer vSt)
+| return ()
+
+> PausedCog
+main=(runCog launchDemo)
