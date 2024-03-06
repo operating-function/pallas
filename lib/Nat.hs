@@ -212,7 +212,8 @@ natShiftR (NatS# w#) i = wordNat (W# w# `shiftR` i)
 natShiftR (NatJ# x)  i = exoNat (x `shiftR` i)
 
 natShiftL :: Nat -> Int -> Nat
-natShiftL (NatS# x) i =
+natShiftL n@(NatS# 0##) _ = n
+natShiftL   (NatS# x)   i =
     if fromIntegral (W# (wordBitWidth# x)) + i <= 64
     then wordNat (W# x `shiftL` i)
     else NatJ# (wordExo (W# x) `shiftL` i)
