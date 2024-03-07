@@ -48,7 +48,7 @@
 
 ;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-:| sire_01_fan [seq isNat cdr die id const isZero isOne cdr cdar]
+:| sire_01_fan [seq isNat cdr die id const isZero isOne]
 :| sire_02_bit [TRUE FALSE]
 :| sire_02_bit [if ifz ifNot else]
 :| sire_02_bit [not bit and or xor]
