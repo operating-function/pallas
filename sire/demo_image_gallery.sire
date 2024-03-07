@@ -473,8 +473,7 @@
 # switch method
 * _ | NONE
 * GET
-  ; TODO: fix
-  ; @ path | barTakeWhile (neq {?}) path
+  @ path | barTakeWhile (neq {?}) path
   ; TODO: appending .html safely?
   ; if the path has no extension:
   ;   check if we have a file with extensionless-path.html
