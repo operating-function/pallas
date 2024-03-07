@@ -58,11 +58,12 @@
 ;         By using these requests, you can test the server's logic
 ;
 ; Problems:
+;  - [ ] currently only deals with single digit html/image file names (line 349). this is bad
 ;  - [ ] There seemed to be a few times that the wraparound logic didn't work correctly.
 ;    I'm  not able to reproduce it now, but we should be sure the relevant functions
 ;    look like they should work correctly.
 ;  - [ ] Need to cache-bust on all images. The embedded image URLs in the html templates
-;    should ideally have timestamps appended: <myurl>/framer/images/1.jpg&v=1231231231231.
+;    should ideally have timestamps appended: <myurl>/framer/images/1.jpg?v=1231231231231.
 ;    this means that the server should trim off or ignore any query params (from the "&" on)
 ;    and load whatever image it has there. This will allow users to swap out their
 ;    images given:
