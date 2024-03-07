@@ -401,44 +401,84 @@
   | (addWithWraparound spot fileState)
 | (subWithWraparound spot fileState)
 
-; =?= 1
-;   | buttonToNext 2 b#{/framer/change/0.html}
-; 
-; =?= 2
-;   | buttonToNext 2 b#{/framer/change/1.html}
-; 
-; =?= 3
-;   | buttonToNext 2 b#{/framer/change/2.html}
-; 
-; =?= 4
-;   | buttonToNext 2 b#{/framer/change/3.html}
-; 
-; =?= 0
-;   | buttonToNext 2 b#{/framer/change/3.html}
-; 
-; =?= 2
-;   | buttonToNext 1 b#{/framer/change/3.html}
-; 
-; =?= 1
-;   | buttonToNext 1 b#{/framer/change/2.html}
-; 
-; =?= 0
-;   | buttonToNext 1 b#{/framer/change/1.html}
-; 
-; =?= 3
-;   | buttonToNext 1 b#{/framer/change/0.html}
-; 
-; =?= 10
-;   | buttonToNext 2 b#{/framer/change/9.html}
-; 
-; =?= 11
-;   | buttonToNext 2 b#{/framer/change/10.html}
-; 
-; =?= 9
-;   | buttonToNext 1 b#{/framer/change/10.html}
-; 
-; =?= 10
-;   | buttonToNext 1 b#{/framer/change/11.html}
+= (buildTabFrom pairs)
+^ _ pairs %[]
+? (build pairs t)
+| listCase pairs
+  t
+& ([key val] xs)
+| build xs (tabIns key val t)
+
+= (buildHMinsertManyFrom pairs)
+@ empty | hmEmpty largeConfig
+@ tab   | buildTabFrom pairs
+| hmInsertMany tab empty
+
+= (testImageMap)
+| buildHMinsertManyFrom
+~~ ({/framer/images/0.png}, b#{image/png})
+~~ ({/framer/images/1.png}, b#{image/png})
+~~ ({/framer/images/2.png}, b#{image/png})
+~~ ({/framer/images/3.png}, b#{image/png})
+~~ ({/framer/images/4.png}, b#{image/png})
+~~ ({/framer/images/5.png}, b#{image/png})
+~~ ({/framer/images/6.png}, b#{image/png})
+~~ ({/framer/images/7.png}, b#{image/png})
+~~ ({/framer/images/8.png}, b#{image/png})
+~~ ({/framer/images/9.png}, b#{image/png})
+~~ ({/framer/images/10.png}, b#{image/png})
+~~ ({/framer/images/11.png}, b#{image/png})
+~~ ({/framer/images/12.png}, b#{image/png})
+
+=?= 1
+   | buttonToNext 2 b#{/framer/change/0.html} testImageMap
+
+=?= 2
+  | buttonToNext 2 b#{/framer/change/1.html} testImageMap
+
+=?= 0
+  | buttonToNext 2 b#{/framer/change/12.html} testImageMap
+
+=?= 12
+  | buttonToNext 1 b#{/framer/change/0.html} testImageMap
+
+=?= 2
+  | buttonToNext 1 b#{/framer/change/3.html} testImageMap
+
+=?= 1
+  | buttonToNext 1 b#{/framer/change/2.html} testImageMap
+
+=?= 0
+  | buttonToNext 1 b#{/framer/change/1.html} testImageMap
+
+=?= 12
+  | buttonToNext 2 b#{/framer/change/11.html} testImageMap
+
+=?= 11
+  | buttonToNext 1 b#{/framer/change/12.html} testImageMap
+
+= (testWeirdImageMap)
+| buildHMinsertManyFrom
+~~ ({/framer/images/0.png}, b#{image/png})
+~~ ({/framer/images/1.png}, b#{image/png})
+~~ ({/framer/nonsense/2.png}, b#{image/png})
+~~ ({/framer/nonsense/3.png}, b#{image/png})
+
+; normal foward
+=?= 1
+  | buttonToNext 2 b#{/framer/change/0.html} testWeirdImageMap
+
+; wrap forward
+=?= 0
+  | buttonToNext 2 b#{/framer/change/1.html} testWeirdImageMap
+
+; normal back
+=?= 0
+  | buttonToNext 1 b#{/framer/change/1.html} testWeirdImageMap
+
+; wrap back
+=?= 1
+  | buttonToNext 1 b#{/framer/change/0.html} testWeirdImageMap
 
 = (stateAsFilename n)
 | barCat [(natBar | showNat n) b#{.html}]
