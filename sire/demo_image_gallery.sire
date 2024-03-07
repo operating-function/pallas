@@ -187,6 +187,7 @@
 
 > Bar > Maybe Nat
 = (parseFramePost jsonBS)
+| trk [%parseFramePost jsonBS]
 : map          < bindMaybe (jsonMap jsonBS)
 : untrusted    < bindMaybe (tabLookup %untrustedData map)
 : jbuttonIndex < bindMaybe (tabLookup %buttonIndex untrusted)
@@ -195,6 +196,9 @@
 
 =?= SOME-2
   | parseFramePost b#{{"untrustedData": { "buttonIndex": 2 } }}
+
+=?= SOME-1
+  | parseFramePost b#{{"untrustedData": { "buttonIndex": 1 } }}
 
 = corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{amz-sdk-invocation-id,amz-sdk-request,authorization,content-type,x-amz-acl,x-amz-content-sha256,x-amz-date,x-amz-user-agent}) (b#{Access-Control-Allow-Credentials}, b#{true})]
 
@@ -342,94 +346,117 @@
 @ width (barLen needle)
 (add start width)
 
+
+= (filterImages path)
+| trk [%baris (barIsPrefixOf b#{/framer/images/} (natBar path) 0)]
+@ is (barIsPrefixOf b#{/framer/images/} (natBar path) 0)
+| if is
+  1
+0
+
+= (getAllImageNames filesState) ; filesState is an HMAP
+@ fileNames | (idx 0 (hmKeys filesState))
+| trk [%imageNamesHmKeys fileNames]
+| map natBar | filter filterImages fileNames
+
+= (getImageCount fileState)
+| trk [%getImageCount fileState]
+| len (getAllImageNames fileState)
+
+= (maxImageIndex fileState)
+| trk [%maxImageIndex fileState]
+(sub (getImageCount fileState) 1)
+
 > Bar > Nat
 = (getSpotFromPath path)
+| trk [%getSpotFromPath path]
 @ changeOffset (getOffset b#{/change/} path)
 @ [change param] (barSplitAt changeOffset path)
-| **fromSome 0 | parseNat | (barSlice 0 1 param) ; only works on single digit numbers lol.
+| **fromSome 0 | parseNat | barTakeWhile (neq {.}) param
 
-= (addWithWraparound n)
-| if (eql n 3)
+
+= (addWithWraparound n fileState)
+| trk [%addWithwrap n fileState]
+@ max | maxImageIndex fileState
+| trk [%max max]
+| if (eql n max)
   | 0
 | (add 1 n)
 
-= (subWithWraparound n)
+= (subWithWraparound n fileState)
+| trk [%subWithWrap n fileState]
+@ max | maxImageIndex fileState
+| trk [%max max]
 | if (eql n 0)
-  | 3
+  | max
 | (sub n 1)
 
-= (buttonToNext buttonIndex path)
-| trk [%havePath path]
+= (buttonToNext buttonIndex path fileState)
+| trk [%buttonToNext buttonIndex path fileState]
 @ spot (getSpotFromPath path)
 | trk [%spot spot]
 @ forward | eql buttonIndex 2
 | if forward
   | trk [%goingForward]
-  | (addWithWraparound spot)
-| (subWithWraparound spot)
+  | (addWithWraparound spot fileState)
+| (subWithWraparound spot fileState)
 
-=?= 1
-  | buttonToNext 2 b#{/framer/change/0.html}
-
-=?= 2
-  | buttonToNext 2 b#{/framer/change/1.html}
-
-=?= 3
-  | buttonToNext 2 b#{/framer/change/2.html}
-
-=?= 0
-  | buttonToNext 2 b#{/framer/change/3.html}
-
-=?= 2
-  | buttonToNext 1 b#{/framer/change/3.html}
-
-=?= 1
-  | buttonToNext 1 b#{/framer/change/2.html}
-
-=?= 0
-  | buttonToNext 1 b#{/framer/change/1.html}
-
-=?= 3
-  | buttonToNext 1 b#{/framer/change/0.html}
-
-
-; = (getNextFromInteraction buttonIndex path)
-; @ layerShortName | **fromSome b#{fg}
-;                  | (buttonToLayer buttonIndex)
-; @ [f m b] (getFMB path)
-; | determineNextState f m b layerShortName
-;
-; =?= [b#{fg_2} b#{mg_1} b#{bg_1}]
-;   | getNextFromInteraction 1 b#{/change/fg_1-mg_1-bg_1.html}
-;
-; =?= [b#{fg_1} b#{mg_3} b#{bg_3}]
-;   | getNextFromInteraction 1 b#{/change/fg_3-mg_3-bg_3.html}
-;
-; =?= [b#{fg_3} b#{mg_1} b#{bg_3}]
-;   | getNextFromInteraction 2 b#{/change/fg_3-mg_3-bg_3.html}
-;
-; =?= [b#{fg_3} b#{mg_3} b#{bg_1}]
-;   | getNextFromInteraction 3 b#{/change/fg_3-mg_3-bg_3.html}
+; =?= 1
+;   | buttonToNext 2 b#{/framer/change/0.html}
+; 
+; =?= 2
+;   | buttonToNext 2 b#{/framer/change/1.html}
+; 
+; =?= 3
+;   | buttonToNext 2 b#{/framer/change/2.html}
+; 
+; =?= 4
+;   | buttonToNext 2 b#{/framer/change/3.html}
+; 
+; =?= 0
+;   | buttonToNext 2 b#{/framer/change/3.html}
+; 
+; =?= 2
+;   | buttonToNext 1 b#{/framer/change/3.html}
+; 
+; =?= 1
+;   | buttonToNext 1 b#{/framer/change/2.html}
+; 
+; =?= 0
+;   | buttonToNext 1 b#{/framer/change/1.html}
+; 
+; =?= 3
+;   | buttonToNext 1 b#{/framer/change/0.html}
+; 
+; =?= 10
+;   | buttonToNext 2 b#{/framer/change/9.html}
+; 
+; =?= 11
+;   | buttonToNext 2 b#{/framer/change/10.html}
+; 
+; =?= 9
+;   | buttonToNext 1 b#{/framer/change/10.html}
+; 
+; =?= 10
+;   | buttonToNext 1 b#{/framer/change/11.html}
 
 = (stateAsFilename n)
-| if (gth n 3)
-  | barCat [(natBar | showNat 0) b#{.html}]
 | barCat [(natBar | showNat n) b#{.html}]
 
-=?= b#{0.html}
-  | stateAsFilename 0
-
-=?= b#{1.html}
-  | stateAsFilename 1
-
-=?= b#{2.html}
-  | stateAsFilename 2
-
-=?= b#{3.html}
-  | stateAsFilename 3
-
-=?= b#{0.html}
-  | stateAsFilename 4
+; =?= b#{0.html}
+;   | stateAsFilename 0
+; 
+; =?= b#{1.html}
+;   | stateAsFilename 1
+; 
+; =?= b#{2.html}
+;   | stateAsFilename 2
+; 
+; =?= b#{3.html}
+;   | stateAsFilename 3
+; 
+; =?= b#{0.html}
+;   | stateAsFilename 4
 
 ;;; Website ;;;;;;;
 
@@ -446,7 +473,8 @@
 # switch method
 * _ | NONE
 * GET
-  @ path | barTakeWhile (neq {?}) path
+  ; TODO: fix
+  ; @ path | barTakeWhile (neq {?}) path
   ; TODO: appending .html safely?
   ; if the path has no extension:
   ;   check if we have a file with extensionless-path.html
@@ -517,14 +545,14 @@
     : _ < fork (syscall (**HTTP_ECHO rid 400 b#noidx [] b#{}))
     | return ()
   * (SOME buttonIndex)
+    : (PIN st) < readRef vSt
     @ nextPage | **fromSome b#{1}
-               | buttonToNext buttonIndex path
+               | buttonToNext buttonIndex path (getFiles st)
     | trk [%currentSpot (getSpotFromPath path)]
-    @ next (buttonToNext buttonIndex path)
+    @ next (buttonToNext buttonIndex path (getFiles st))
     | trk [%next next]
     @ nextFilename (stateAsFilename next)
     | trk [%html nextFilename]
-    : (PIN st) < readRef vSt
     | trk [%st st]
     | trk [%filez (**getFiles st)]
     ; | **fmapMaybe | hmLookup (barNat nextFilename) (**getFiles st)
