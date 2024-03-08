@@ -233,11 +233,20 @@
 = (cookieHeader newCookie)
 [(b#{Set-Cookie}, newCookie) (b#{Access-Control-Allow-Credentials}, b#{true})]
 
+= (nonDynamicCorsCookieHeader newCookie)
+[(b#{Set-Cookie}, newCookie) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
 = (dynamicCorsCookieHeader origin newCookie)
 [(b#{Set-Cookie}, newCookie) (b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true})]
 
+= (nonDynamicCors)
+[(b#{Access-Control-Allow-Credentials}, b#{true}) (b#{Access-Control-Allow-Headers}, b#{Content-Type, Authorization}) (b#{Access-Control-Allow-Methods}, b#{POST, GET, PUT, OPTIONS})]
+
 = (dynamicCors origin)
 [(b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true}) (b#{Access-Control-Allow-Headers}, b#{Content-Type, Authorization}) (b#{Access-Control-Allow-Methods}, b#{POST, GET, PUT, OPTIONS})]
+
+= (nonDynamicCorsJson)
+[(b#{Content-Type}, b#{application/json}) (b#{Access-Control-Allow-Credentials}, b#{true})]
 
 = (dynamicCorsJson origin)
 [(b#{Content-Type}, b#{application/json}) (b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true})]
@@ -838,14 +847,13 @@ addr
       @ stateJson | **buildJson st
       @ stateJsonBS | printJson stateJson
       | trk [%resultJSON stateJsonBS]
-      ; TODO: REMOVE dynamicCors. for localhost testing
-      @ head | (baseHeaderOverwrite (dynamicCorsJson originHeader))
+      @ head | (baseHeaderOverwrite nonDynamicCorsJson)
       @ res | (baseResponse rid 200 b#ok head stateJsonBS)
       | trk [%res res]
       : _ < fork (syscall | rowApply **HTTP_ECHO res)
       | return ()
     | trk [%noSession]
-    @ head | (baseHeaderOverwrite (dynamicCorsJson originHeader))
+    @ head | (baseHeaderOverwrite nonDynamicCorsJson)
     @ res | (baseResponse rid 401 b#bad head b#{})
     : _ < fork (syscall | rowApply **HTTP_ECHO res)
     | return ()
@@ -922,12 +930,10 @@ addr
                               | setSessions allSessions
                               | st
         ; respond with cookie
-        ; TODO: remove, for local testing
         @ origin | **fromSome b#{localhost}
                        | tabLookup b#{origin}
                        | tabFromPairs headers
-        ; TODO: remove dynamic, for local testing
-        @ cookieHeader (dynamicCorsCookieHeader origin newCookie)
+        @ cookieHeader (nonDynamicCorsCookieHeader newCookie)
         @ head | (baseHeaderOverwrite cookieHeader)
         | trk [%cookieHeader head]
         @ res | (baseResponse rid 200 b#ok head b#{})
@@ -1009,10 +1015,7 @@ addr
     | trk [%hmKeysAfter (hmKeys files)]
     @ stateJson | **buildJson st
     @ stateJsonBS | printJson stateJson
-    @ originHeader | **fromSome b#{localhost}
-                   | tabLookup b#{origin}
-                   | tabFromPairs headers
-    @ head | (baseHeaderOverwrite (dynamicCors originHeader))
+    @ head | (baseHeaderOverwrite nonDynamicCors)
     : _ < fork (syscall (**HTTP_ECHO rid 201 b#done head stateJsonBS))
     : _ < modifyState vSt & st
                           | setFileBytes newTotalSize
@@ -1026,10 +1029,7 @@ addr
 * OPTIONS
   | trk [%gotOptions]
   | trk [%reqheaders headers]
-  @ originHeader | **fromSome b#{localhost}
-                 | tabLookup b#{origin}
-                 | tabFromPairs headers
-  @ head | (baseHeaderOverwrite (dynamicCors originHeader))
+  @ head | (baseHeaderOverwrite nonDynamicCors)
   | trk [%resheaders head]
   : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok head b#{}))
   | return ()
