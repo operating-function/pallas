@@ -875,23 +875,20 @@ addr
       | return ()
     * (SOME addr)
       | trk [%some addr]
-      @ hostHeader | **fromSome b#{not-localhost}
-                   | tabLookup b#{host}
-                   | tabFromPairs headers
-      ; Enforce localhost only
-      ; TODO: this is terribly unsafe. headers can be spoofed!
-      | ifNot (barIsPrefixOf b#{localhost} hostHeader 0)
-        | trk [%gotBadHostHeader hostHeader]
-        : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
-        | return ()
-      ; | trk [%headers headers]
-      ; | trk [%hostHeader hostHeader]
-      ; | trk [%request request]
-      ;
-      @ authHeader | **fromSome b#{xxxxxxx}
+      : (PIN st) < readRef vSt
+      @ sessions (**getSessions st)
+      @ theirKey | **fromSome b#{xxxxxxx}
                    | tabLookup b#{authorization}
                    | tabFromPairs headers
-      ; | trk [%authHeader authHeader]
+      @ ourKey | natBar | (getAccessKey st)
+      | trk b#{Checking access headers...}
+      | trk [b#{ours: } ourKey]
+      | trk [b#{theirs: } theirKey]
+      | trk [b#{eql check...} (eql ourKey theirKey)]
+      | ifNot (eql ourKey theirKey)
+        | trk [%noAccessKeyForSetAddress]
+        : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
+        | return ()
       | trk [%newAddressIs addr]
       : _ < modifyState vSt & st
                             | setEthAddress addr
