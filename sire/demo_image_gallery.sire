@@ -78,7 +78,7 @@
 ;    but instead keep the original filenames and handle routing to them
 ;    with some additional position-in-gallery->image-file mapping
 
-#### image_gallery_cog <- ethsign
+#### demo_image_gallery <- ethsign
 
 :|  ethsign [verifyEthMsg]
 :|  prelude
@@ -197,7 +197,7 @@
 = baseHeaders
 ++ (b#{Content-Type}, b#{text/html; charset=utf-8})
 ++ (b#{Server}, b#{Pallas/0.1})
-++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, PUT, DELETE, OPTIONS})
 ++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
 ;++ (b#{Access-Control-Allow-Origin}, b#{*})
 
@@ -216,7 +216,7 @@
 =?=
   ++ (b#{Server}, b#{Pallas/0.1})
   ++ (b#{Content-Type}, b#{application/json})
-  ++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+  ++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, PUT, DELETE, OPTIONS})
   ++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
   |  baseHeaderOverwrite [(b#{Content-Type}, b#{application/json})]
 
@@ -224,7 +224,7 @@
   ++ (b#{Server}, b#{Pallas/0.1})
   ++ (b#{Other-Thing}, b#{foo})
   ++ (b#{Content-Type}, b#{application/json})
-  ++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+  ++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, PUT, DELETE, OPTIONS})
   ++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
   @ base | baseHeaderOverwrite [(b#{Content-Type}, b#{application/json})]
   @ m1 | mergeHeaders base [(b#{Other-Thing}, b#{foo})]
@@ -237,7 +237,7 @@
 [(b#{Set-Cookie}, newCookie) (b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true})]
 
 = (dynamicCors origin)
-[(b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true}) (b#{Access-Control-Allow-Headers}, b#{Content-Type, Authorization}) (b#{Access-Control-Allow-Methods}, b#{POST, GET, OPTIONS})]
+[(b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true}) (b#{Access-Control-Allow-Headers}, b#{Content-Type, Authorization}) (b#{Access-Control-Allow-Methods}, b#{POST, GET, PUT, OPTIONS})]
 
 = (dynamicCorsJson origin)
 [(b#{Content-Type}, b#{application/json}) (b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true})]
@@ -418,6 +418,13 @@
                | tabFromPairs headers
 | trk [%cookieHeader cookieHeader]
 (validateCookie cookieHeader sessions)
+
+= (parseAddressJson jsonBS)
+| trk jsonBS
+: map < **bindMaybe (jsonMap jsonBS)
+: addr < **bindMaybe (tabLookup %address map)
+| trk addr
+addr
 
 = (parseAddressStrJson jsonBS)
 : map < **bindMaybe (jsonMap jsonBS)
@@ -778,9 +785,6 @@
 | trk [%files (**getFiles st)]
 | trk [%hmKeys (hmKeys **getFiles st)]
 @ theirHead | tabFromPairs headers
-| trk [%reqHeaders theirHead]
-@ range | **fromSome b#{none} | (tabLookup b#{range} theirHead)
-| trk [%range range]
 # switch method
 * _ | NONE
 * GET
@@ -815,6 +819,7 @@
 
 > Ref CogState > HttpReq > Cog ()
 = (handleReq vSt request return)
+| trk [%inHandleReq]
 @ [rid method path headers pBody@(PIN body)] request
 | trk [%gotRequest]
 # switch method
@@ -852,46 +857,126 @@
   | trk [%gotPost]
   | trk [%path path]
   | trk [%headers headers]
-  @ hostHeader | **fromSome b#{not-localhost}
-               | tabLookup b#{host}
-               | tabFromPairs headers
-  | trk [%body body]
-  @ buttonIndex (parseFramePost body)
-  | trk [%button buttonIndex]
-  | if (eql path b#{/framer/start.html})
-    @ redirUrl | (barCat [b#{http://} hostHeader b#{/framer/0.html}])
-    | trk [%redirUrl redirUrl]
-    ;
-    @ redirectHed | [(b#{Location}, redirUrl)]
-    : _ < fork (syscall (**HTTP_ECHO rid 302 b#found redirectHed b#{}))
-    | return ()
-  # datacase buttonIndex
-  * NONE
-    : _ < fork (syscall (**HTTP_ECHO rid 400 b#noidx [] b#{}))
-    | return ()
-  * (SOME buttonIndex)
-    : (PIN st) < readRef vSt
-    @ nextPage | **fromSome b#{1}
-               | buttonToNext buttonIndex path (getFiles st)
-    | trk [%currentSpot (getSpotFromPath path)]
-    @ next (buttonToNext buttonIndex path (getFiles st))
-    | trk [%next next]
-    @ nextFilename (stateAsFilename next)
-    | trk [%html nextFilename]
-    | trk [%st st]
-    | trk [%filez (**getFiles st)]
-    @ files (**getFiles st)
-    @ soughtFilename (barCat [b#{/framer/} nextFilename])
-    | trk [%sought soughtFilename]
-    @ bod | hmLookup (barNat soughtFilename) | files
-    @ [type content] | **fmapMaybe | hmLookup (barNat soughtFilename) | files
-    ; for redirect
-    | trk [%hostHeader hostHeader]
-    @ redirUrl | (barCat [b#{http://} hostHeader soughtFilename])
-    | trk [%redirUrl redirUrl]
-    @ redirectHed | [(b#{Location}, redirUrl)]
-    : _ < fork (syscall (**HTTP_ECHO rid 302 b#found redirectHed b#{}))
-    | return ()
+  # switch path
+  * b#{/set-address}
+    | trk [%addrParsed (parseAddressStrJson body)]
+    # datacase (parseAddressStrJson body)
+    * NONE
+      | trk [%none]
+      : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+      | return ()
+    * (SOME addr)
+      | trk [%some addr]
+      @ hostHeader | **fromSome b#{not-localhost}
+                   | tabLookup b#{host}
+                   | tabFromPairs headers
+      ; Enforce localhost only
+      ; TODO: this is terribly unsafe. headers can be spoofed!
+      | ifNot (barIsPrefixOf b#{localhost} hostHeader 0)
+        | trk [%gotBadHostHeader hostHeader]
+        : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
+        | return ()
+      ; | trk [%headers headers]
+      ; | trk [%hostHeader hostHeader]
+      ; | trk [%request request]
+      ;
+      @ authHeader | **fromSome b#{xxxxxxx}
+                   | tabLookup b#{authorization}
+                   | tabFromPairs headers
+      ; | trk [%authHeader authHeader]
+      | trk [%newAddressIs addr]
+      : _ < modifyState vSt & st
+                            | setEthAddress addr
+                            | st
+      | trk [%addressUpdated]
+      : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
+      | return ()
+  * b#{/login}
+      : (PIN st) < readRef vSt
+      | trk [%postToLogin]
+      @ address | (parseAddressJson body)
+      @ a | hexFromBar address
+      @ s | hexFromBar | (parseSignatureJson body)
+      @ m | strFromBar | parseMessageJson body
+      | trk [%a a]
+      | trk [%s s]
+      | trk [%m m]
+      @ valid (verifyEthMsg s a m)
+      @ ethAddress | strToLower | barNat (**getEthAddress st)
+      @ isOurAddress (eql (barNat address) ethAddress)
+      | trk [%valid valid]
+      | trk [%ethAddress ethAddress]
+      | trk [%compareAddress (barNat address)]
+      | trk [%isOurAddress isOurAddress]
+      | if (valid && isOurAddress)
+        : ??(got_time now_seed) < syscall TIME_WHEN
+        @ newCookie | (getRandomCookie now_seed address)
+        | trk [%newCookie newCookie]
+        @ sessions (**getSessions st)
+        | trk [%oldSessions sessions]
+        @ allSessions | (tabIns newCookie TRUE sessions)
+        | trk [%allSessions allSessions]
+        ; TODO: replace cookie if we have one for this identifier already
+        ; set cookie in db
+        : _ < modifyState vSt & st
+                              | setSessions allSessions
+                              | st
+        ; respond with cookie
+        ; TODO: remove, for local testing
+        @ origin | **fromSome b#{localhost}
+                       | tabLookup b#{origin}
+                       | tabFromPairs headers
+        ; TODO: remove dynamic, for local testing
+        @ cookieHeader (dynamicCorsCookieHeader origin newCookie)
+        @ head | (baseHeaderOverwrite cookieHeader)
+        | trk [%cookieHeader head]
+        @ res | (baseResponse rid 200 b#ok head b#{})
+        : _ < fork (syscall | rowApply **HTTP_ECHO res)
+        | return ()
+      | trk %badLogin
+      : _ < fork (syscall (**HTTP_ECHO rid 401 b#bad [] b#{}))
+      | return ()
+  * _
+    @ hostHeader | **fromSome b#{not-localhost}
+                 | tabLookup b#{host}
+                 | tabFromPairs headers
+    | trk [%body body]
+    @ buttonIndex (parseFramePost body)
+    | trk [%button buttonIndex]
+    | if (eql path b#{/framer/start.html})
+      @ redirUrl | (barCat [b#{http://} hostHeader b#{/framer/0.html}])
+      | trk [%redirUrl redirUrl]
+      ;
+      @ redirectHed | [(b#{Location}, redirUrl)]
+      : _ < fork (syscall (**HTTP_ECHO rid 302 b#found redirectHed b#{}))
+      | return ()
+    # datacase buttonIndex
+    * NONE
+      : _ < fork (syscall (**HTTP_ECHO rid 400 b#noidx [] b#{}))
+      | return ()
+    * (SOME buttonIndex)
+      : (PIN st) < readRef vSt
+      @ nextPage | **fromSome b#{1}
+                 | buttonToNext buttonIndex path (getFiles st)
+      | trk [%currentSpot (getSpotFromPath path)]
+      @ next (buttonToNext buttonIndex path (getFiles st))
+      | trk [%next next]
+      @ nextFilename (stateAsFilename next)
+      | trk [%html nextFilename]
+      | trk [%st st]
+      | trk [%filez (**getFiles st)]
+      @ files (**getFiles st)
+      @ soughtFilename (barCat [b#{/framer/} nextFilename])
+      | trk [%sought soughtFilename]
+      @ bod | hmLookup (barNat soughtFilename) | files
+      @ [type content] | **fmapMaybe | hmLookup (barNat soughtFilename) | files
+      ; for redirect
+      | trk [%hostHeader hostHeader]
+      @ redirUrl | (barCat [b#{http://} hostHeader soughtFilename])
+      | trk [%redirUrl redirUrl]
+      @ redirectHed | [(b#{Location}, redirUrl)]
+      : _ < fork (syscall (**HTTP_ECHO rid 302 b#found redirectHed b#{}))
+      | return ()
 * PUT
   | trk [%gotPut]
   | trk [%path path]
@@ -924,7 +1009,11 @@
     | trk [%hmKeysAfter (hmKeys files)]
     @ stateJson | **buildJson st
     @ stateJsonBS | printJson stateJson
-    : _ < fork (syscall (**HTTP_ECHO rid 201 b#done [] stateJsonBS))
+    @ originHeader | **fromSome b#{localhost}
+                   | tabLookup b#{origin}
+                   | tabFromPairs headers
+    @ head | (baseHeaderOverwrite (dynamicCors originHeader))
+    : _ < fork (syscall (**HTTP_ECHO rid 201 b#done head stateJsonBS))
     : _ < modifyState vSt & st
                           | setFileBytes newTotalSize
                           | setFiles files
@@ -936,8 +1025,13 @@
   | return ()
 * OPTIONS
   | trk [%gotOptions]
-  | trk [%headz corsHeaders]
-  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
+  | trk [%reqheaders headers]
+  @ originHeader | **fromSome b#{localhost}
+                 | tabLookup b#{origin}
+                 | tabFromPairs headers
+  @ head | (baseHeaderOverwrite (dynamicCors originHeader))
+  | trk [%resheaders head]
+  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok head b#{}))
   | return ()
 * _
   | trk [%gotUnknown method]
