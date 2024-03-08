@@ -420,16 +420,6 @@ addr
 @ res | barSplit {&} b
 [(idx 0 res) (idx 1 res)]
 
-= (parseSignature body)
-@ split | listToRow | splitAmp body
-@ tabbed | tabFromPairs | map splitEq split
-| tabGet tabbed b#{address}
-
-= (parseAddress body)
-@ split | listToRow | splitAmp body
-@ tabbed | tabFromPairs | map splitEq split
-| tabGet tabbed b#{signature}
-
 = (parsePasswordFromBody body)
 @ split | listToRow | splitAmp body
 @ tabbed | tabFromPairs | map splitEq split

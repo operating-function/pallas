@@ -126,11 +126,16 @@
 * {/favicon.ico}
 * [b#{image/x-icon} favicon]
 
+= startingSessions
+| tabFromPairs [[]]
+
 # record CogState
 | COG_STATE
 * accessKey        : Str
+* ethAddress       : Bar
 * files            : (HMap Str (ContentType, Pin Bar))
 * fileBytes        : Nat
+* sessions         : (HMap SessionID SessionAuthed)
 * servThread       : ThreadId
 
 ;
@@ -138,8 +143,10 @@
 = (newState servThread)
 | COG_STATE
 * "v@p0rvv@r3"
+* b#{0x0}
 * startingFiles
 * 0
+* startingSessions
 * servThread
 
 (bindMaybe mVal k)=(maybeCase mVal NONE k)
@@ -184,6 +191,270 @@
 # datacase m
 * JSTR|s | SOME s
 * _      | NONE
+
+;;;; begin potential http library ;;;;
+
+= baseHeaders
+++ (b#{Content-Type}, b#{text/html; charset=utf-8})
+++ (b#{Server}, b#{Pallas/0.1})
+++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
+;++ (b#{Access-Control-Allow-Origin}, b#{*})
+
+= (mergeHeaders oldPairs newPairs)
+@ oldTab    | tabFromPairs oldPairs
+@ newTab    | tabFromPairs newPairs
+| tabToPairs | tabWeld newTab oldTab
+
+; use to overwrite base headers
+= (baseHeaderOverwrite newHeaders)
+| mergeHeaders baseHeaders newHeaders
+
+= (baseResponse rid code msg moreHeaders body)
+[rid code msg moreHeaders body]
+
+=?=
+  ++ (b#{Server}, b#{Pallas/0.1})
+  ++ (b#{Content-Type}, b#{application/json})
+  ++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+  ++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
+  |  baseHeaderOverwrite [(b#{Content-Type}, b#{application/json})]
+
+=?=
+  ++ (b#{Server}, b#{Pallas/0.1})
+  ++ (b#{Other-Thing}, b#{foo})
+  ++ (b#{Content-Type}, b#{application/json})
+  ++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+  ++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
+  @ base | baseHeaderOverwrite [(b#{Content-Type}, b#{application/json})]
+  @ m1 | mergeHeaders base [(b#{Other-Thing}, b#{foo})]
+  m1
+
+= (cookieHeader newCookie)
+[(b#{Set-Cookie}, newCookie) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+= (dynamicCorsCookieHeader origin newCookie)
+[(b#{Set-Cookie}, newCookie) (b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+= (dynamicCors origin)
+[(b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true}) (b#{Access-Control-Allow-Headers}, b#{Content-Type, Authorization}) (b#{Access-Control-Allow-Methods}, b#{POST, GET, OPTIONS})]
+
+= (dynamicCorsJson origin)
+[(b#{Content-Type}, b#{application/json}) (b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+= jsonContentType [(b#{Content-Type}, b#{application/json})]
+
+= (splitSemicol b)
+| barSplit {;} b
+; @ res | barSplit {;} b
+; [(idx 0 res) (idx 0 (idx 1 res))]
+
+;= (parsePasswordFromBody body)
+;@ split | listToRow | splitAmp body
+;@ tabbed | tabFromPairs | map splitEq split
+;@ pw | tabGet tabbed b#{password}
+;| if (eql pw b#{})
+;  0
+;pw
+
+; cookie might be "plundauth-0x...=thing" OR "pl-0x..=x; pl-0x..=y; <etc>"
+; we need to split cookie on ";", trimming whitespace
+; when there are multiple, or just be okay with 1 (always return a row) and:
+; check each item in this list (including just 1)
+; against all [TODO: valid] sessions
+
+= (trimWhitespacePre b)
+| barDropWhile (eql { }) b
+;| if (eql (barLen b) 0) b
+;| if (barAll b#{ } b) b#{ }
+;^ _ 0
+;? (loop i)
+;| if (eql i (barLen b)) b
+;| trk [%looping i]
+;| ifNot (eql (natBar | barIdx i b) b#{ }) (idx 1 | barSplitAt i b)
+;| trk [%afterIfNot]
+;| loop (inc i)
+
+=?= b#{a}
+  | trimWhitespacePre b#{a}
+
+=?= b#{a}
+  | trimWhitespacePre b#{ a}
+
+=?= b#{a}
+  | trimWhitespacePre b#{  a}
+
+=?= b#{hello}
+  | trimWhitespacePre b#{  hello}
+
+=?= b#{. a}
+  | trimWhitespacePre b#{  . a}
+
+=?= b#{}
+  | trimWhitespacePre b#{}
+
+= (trimWhitespacePost b)
+@ b | barFromListRev | barToList b   ; reverse
+@ trimmed | trimWhitespacePre b      ; trim
+| barFromListRev | barToList trimmed ; reverse
+
+=?= b#{a}
+  | trimWhitespacePost b#{a }
+
+=?= b#{a}
+  | trimWhitespacePost b#{a  }
+
+=?= b#{hello}
+  | trimWhitespacePost b#{hello  }
+
+= (trimWhitespaceAll b)
+| trimWhitespacePost | trimWhitespacePre b
+
+=?= b#{a}
+  | trimWhitespaceAll b#{  a  }
+
+= (validateCookie cookie sessions)
+| trk [%allSessions sessions]
+| trk [%allCookies cookie]
+@ cookieList | listToRow | listMap trimWhitespaceAll | splitSemicol cookie
+| trk [%cookiesSanitized cookieList]
+@ cookieSet  | setFromRow cookieList
+@ sessionSet | tabKeysSet sessions
+| trk [%sessionSet sessionSet]
+| trk [%cookieSet cookieSet]
+| trk [%intersection (setIntersection cookieSet sessionSet)]
+| trk [%foundKey (idx 0 | setToList (setIntersection cookieSet sessionSet))]
+| tabGet sessions (idx 0 | setToList (setIntersect cookieSet sessionSet))
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{b=foo} TRUE sessions)
+  @ sessions | (tabIns b#{a=bar} TRUE sessions)
+  | trk [%session sessions]
+  | validateCookie b#{a=bar} sessions
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=bar} TRUE sessions)
+  @ sessions | (tabIns b#{b=foo} TRUE sessions)
+  | trk [%session sessions]
+  | validateCookie b#{a=bar} sessions
+
+=?= FALSE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{b=foo} TRUE sessions)
+  @ sessions | (tabIns b#{a=bar} FALSE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=bar} sessions)
+
+=?= FALSE
+  @ sessions [[]]
+  | trk [%session sessions]
+  | (validateCookie b#{a} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{plundauth-thing=foo} TRUE sessions)
+  @ sessions | (tabIns b#{plundauth-thing=bar} FALSE sessions)
+  @ sessions | (tabIns b#{plundauth-thing=baz} FALSE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{junk; junk; junk; plundauth-thing=foo; some-other=shit} sessions)
+
+=?= FALSE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{r=rrr; r=rrr} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} FALSE sessions)
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo; b=bar} sessions)
+
+=?= FALSE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  @ sessions | (tabIns b#{a=foo} FALSE sessions)
+  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo; b=bar} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} FALSE sessions)
+  @ sessions | (tabIns b#{plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b8=ab5d303c674521f668bf38a00a6005fa8baeb0bfdb6046d82c639a1def035ba4} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{ plundauth-someaddress=daf0afee547b9f1e9aaba3aa36c087755aee9637dde797a035cdf9f38f754128; plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b875ba2039f5085e403ddec7d1d13aadba4e984c03d937a2f045ab48fca57ff895;   plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b8=ab5d303c674521f668bf38a00a6005fa8baeb0bfdb6046d82c639a1def035ba4 } sessions)
+
+= (getRandomCookie seed identifier)
+| barCat [b#{plundauth-} (natBar identifier) b#{=} (barToHex (idx 0 (mkRand seed)))]
+
+= (sessionGuard headers sessions)
+; | trk [%gotRequest path]
+@ cookieHeader | **fromSome b#{plunder-invalid}
+               | tabLookup b#{cookie}
+               | tabFromPairs headers
+| trk [%cookieHeader cookieHeader]
+(validateCookie cookieHeader sessions)
+
+= (parseAddressStrJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: addr < **bindMaybe (tabLookup %address map)
+: addrs < **bindMaybe (asJsonStr addr)
+| SOME addrs
+
+= (parseMessageJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: msg < **bindMaybe (tabLookup %message map)
+: msgs < **bindMaybe (asJsonStr msg)
+| msgs
+
+= (parseSignatureJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: sig < **bindMaybe (tabLookup %signature map)
+: sigs < **bindMaybe (asJsonStr sig)
+| sigs
+
+> Bar > Bar
+= (hexFromBar bar)
+; convert b#{0xe14...} to x#e14....
+@ bytes | barBytes bar
+| barFromHex | strFromList | listFromRow | slice bytes 2 len-bytes
+
+=?= x#{e145a012f830a6a55b4166022ae664df7465f7b8}
+  | (hexFromBar b#{0xe145a012f830a6a55b4166022ae664df7465f7b8})
+
+> Bar > Bar
+= (strFromBar bar)
+| strFromList | listFromRow | barBytes bar
+
+=?= {sign me}
+  | (strFromBar b#{sign me})
+
+;;;; end potential http library ;;;;
+
 
 > Bar > Maybe Nat
 = (parseFramePost jsonBS)
@@ -514,26 +785,11 @@
 * _ | NONE
 * GET
   @ path | barTakeWhile (neq {?}) path
-  ; TODO: appending .html safely?
-  ; if the path has no extension:
-  ;   check if we have a file with extensionless-path.html
-  ;   if so, use that as the path
   | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
   & [type (PIN content)]
-  | if (eql range b#{none})
-    | trk [%normal]
-    @ ourHead | [(b#{content-type}, type)]
-    [200 b#gotcha ourHead content]
-  | trk [%haveRange range]
-  @ idx | barElemIndex 61 range
-  | trk [%index idx]
-  @ desiredRange | barSlice idx range ;; 61 is '='
-  | trk [%desiredRange desiredRange]
-  ;; 45 is -
-  | trk [%contentLen (barLen content)]
-  ;; & partialContent (
-  @ ourHead | [(b#{content-type}, type)]
-  [200 b#gotcha ourHead content]
+  @ head | [(b#{Content-Type}, type)]
+  ; TODO: gets are not protected! because loading assets becomes hard
+  [200 b#gotcha head content]
 
 
 ; `modifyState` modifies the vSt ref and reboots the static server
@@ -562,6 +818,36 @@
 @ [rid method path headers pBody@(PIN body)] request
 | trk [%gotRequest]
 # switch method
+* GET
+  | trk [%gotGet path]
+  # switch path
+  * b#{/profile}
+    : (PIN st) < readRef vSt
+    @ originHeader | **fromSome b#{localhost}
+                   | tabLookup b#{origin}
+                   | tabFromPairs headers
+    | trk [%origin originHeader]
+    @ sessions (**getSessions st)
+    | if (sessionGuard headers sessions)
+      ; if okay, proceed
+      @ stateJson | **buildJson st
+      @ stateJsonBS | printJson stateJson
+      | trk [%resultJSON stateJsonBS]
+      ; TODO: REMOVE dynamicCors. for localhost testing
+      @ head | (baseHeaderOverwrite (dynamicCorsJson originHeader))
+      @ res | (baseResponse rid 200 b#ok head stateJsonBS)
+      | trk [%res res]
+      : _ < fork (syscall | rowApply **HTTP_ECHO res)
+      | return ()
+    | trk [%noSession]
+    @ head | (baseHeaderOverwrite (dynamicCorsJson originHeader))
+    @ res | (baseResponse rid 401 b#bad head b#{})
+    : _ < fork (syscall | rowApply **HTTP_ECHO res)
+    | return ()
+  * _
+  @ res | (baseResponse rid 404 b#notfound baseHeaders b#{})
+  : _ < fork (syscall | rowApply **HTTP_ECHO res)
+  | return ()
 * POST
   | trk [%gotPost]
   | trk [%path path]
@@ -594,25 +880,11 @@
     | trk [%html nextFilename]
     | trk [%st st]
     | trk [%filez (**getFiles st)]
-    ; | **fmapMaybe | hmLookup (barNat nextFilename) (**getFiles st)
-    ; & [type (PIN htmlBody)]
-    ; | trk [%typ type]
     @ files (**getFiles st)
-    ; TODO:
-    ; do maybe:
     @ soughtFilename (barCat [b#{/framer/} nextFilename])
     | trk [%sought soughtFilename]
     @ bod | hmLookup (barNat soughtFilename) | files
     @ [type content] | **fmapMaybe | hmLookup (barNat soughtFilename) | files
-    ; ; & [type (PIN content)]
-    ; | trk [%content content]
-    ; | trk [%bod bod]
-    ; | trk [%fileKeys (hmKeys files)]
-    ; @ htmlBody b#{fuck fuck fuckkxk}
-    ; | trk [%htmlBody htmlBody]
-    ; @ hed | [(b#{content-type}, b#{text/html})]
-    ; : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok hed content))
-    ; | return ()
     ; for redirect
     | trk [%hostHeader hostHeader]
     @ redirUrl | (barCat [b#{http://} hostHeader soughtFilename])
@@ -624,6 +896,7 @@
   | trk [%gotPut]
   | trk [%path path]
   : (PIN st) < readRef vSt
+  @ sessions (**getSessions st)
   @ hostHeader | **fromSome b#{not-localhost}
                | tabLookup b#{host}
                | tabFromPairs headers
@@ -638,34 +911,28 @@
   | trk [b#{ours: } ourKey]
   | trk [b#{theirs: } theirKey]
   | trk [b#{eql check...} (eql ourKey theirKey)]
-  | ifNot (eql ourKey theirKey)
-    | trk b#{Not allowed!}
-    : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
+  ; we want to EITHER allow access key puts OR valid session
+  | if (or (eql ourKey theirKey) (sessionGuard headers sessions))
+    | trk [%prevSize (getFileBytes st)]
+    @ newTotalSize | add (barLen body) | getFileBytes st
+    | trk [%newSize newTotalSize]
+    @ files (**getFiles st)
+    | trk [%hmKeys (hmKeys files)]
+    | trk [%fileName path]
+    | trk [%fileType barType]
+    @ files | hmInsert (barNat path) [barType pBody] files
+    | trk [%hmKeysAfter (hmKeys files)]
+    @ stateJson | **buildJson st
+    @ stateJsonBS | printJson stateJson
+    : _ < fork (syscall (**HTTP_ECHO rid 201 b#done [] stateJsonBS))
+    : _ < modifyState vSt & st
+                          | setFileBytes newTotalSize
+                          | setFiles files
+                          | st
+    | trk [%st st]
     | return ()
-  ;; Only allow PUT to root from localhost
-  ;; TODO: add access key control for local coordination server access only
-  ;; TODO: BRING BACK. was just for embed test
-  ;; | ifNot (barIsPrefixOf b#{localhost} hostHeader 0)
-  ;;   | trk b#{Not allowed!}
-  ;;   : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
-  ;;   | return ()
-  | trk [%prevSize (getFileBytes st)]
-  @ newTotalSize | add (barLen body) | getFileBytes st
-  | trk [%newSize newTotalSize]
-  @ files (**getFiles st)
-  | trk [%hmKeys (hmKeys files)]
-  | trk [%fileName path]
-  | trk [%fileType barType]
-  @ files | hmInsert (barNat path) [barType pBody] files
-  | trk [%hmKeysAfter (hmKeys files)]
-  @ stateJson | **buildJson st
-  @ stateJsonBS | printJson stateJson
-  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done [] stateJsonBS))
-  : _ < modifyState vSt & st
-                        | setFileBytes newTotalSize
-                        | setFiles files
-                        | st
-  | trk [%st st]
+  | trk b#{Not allowed!}
+  : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
   | return ()
 * OPTIONS
   | trk [%gotOptions]
