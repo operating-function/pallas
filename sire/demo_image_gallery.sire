@@ -682,7 +682,7 @@ addr
 | trk [%buttonToNext buttonIndex path fileState]
 @ spot (getSpotFromPath path)
 | trk [%spot spot]
-@ forward | eql buttonIndex 2
+@ forward | eql buttonIndex 3
 | if forward
   | trk [%goingForward]
   | (addWithWraparound spot fileState)
