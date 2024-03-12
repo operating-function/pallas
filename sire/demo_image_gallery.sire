@@ -707,13 +707,13 @@ addr
 ~~ ({/framer/images/12.png}, b#{image/png})
 
 =?= 1
-   | buttonToNext 2 b#{/framer/change/0.html} testImageMap
+   | buttonToNext 3 b#{/framer/change/0.html} testImageMap
 
 =?= 2
-  | buttonToNext 2 b#{/framer/change/1.html} testImageMap
+  | buttonToNext 3 b#{/framer/change/1.html} testImageMap
 
 =?= 0
-  | buttonToNext 2 b#{/framer/change/12.html} testImageMap
+  | buttonToNext 3 b#{/framer/change/12.html} testImageMap
 
 =?= 12
   | buttonToNext 1 b#{/framer/change/0.html} testImageMap
@@ -728,7 +728,7 @@ addr
   | buttonToNext 1 b#{/framer/change/1.html} testImageMap
 
 =?= 12
-  | buttonToNext 2 b#{/framer/change/11.html} testImageMap
+  | buttonToNext 3 b#{/framer/change/11.html} testImageMap
 
 =?= 11
   | buttonToNext 1 b#{/framer/change/12.html} testImageMap
@@ -742,11 +742,11 @@ addr
 
 ; normal foward
 =?= 1
-  | buttonToNext 2 b#{/framer/change/0.html} testWeirdImageMap
+  | buttonToNext 3 b#{/framer/change/0.html} testWeirdImageMap
 
 ; wrap forward
 =?= 0
-  | buttonToNext 2 b#{/framer/change/1.html} testWeirdImageMap
+  | buttonToNext 3 b#{/framer/change/1.html} testWeirdImageMap
 
 ; normal back
 =?= 0
