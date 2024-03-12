@@ -5,85 +5,37 @@
 :| ecdsa
 
 > Str > Bar
-= (ethereumHash msg)
+= (hashEthMsg msg)
 ^ keccak256 | barCat _
 ++ x#19
 ++ b#{Ethereum Signed Message:}
-++ natBar newlineChar
+++ barNewline
 ++ barShowDecimal strLen-msg
 ++ natBar msg
-
-= (barRev bar)
-| barFromRow | rev | barBytes bar
 
 > Bar > Bar > Str > Bit
 = (verifyEthMsg signature address msg)
 | and (barLen signature == 65)
-@ r | barNat | barRev | barSlice  0 32 signature
-@ s | barNat | barRev | barSlice 32 32 signature
-@ v | barSliceToNat 64  1 signature
-@ m | ethereumHash msg
-@ e | barNat | barFromRow | rev | barBytes m
-| and | or (v == 27) (v == 28)
-@ i | sub v 27
-@ n | getN secp256k1
-@ R | pointFromX secp256k1 r i
+@ r  | barNatRev | barSlice  0 32 signature
+@ s  | barNatRev | barSlice 32 32 signature
+@ v  | barSliceToNat 64 1 signature
+@ e  | barNatRev | hashEthMsg msg
+| and (v==27 || v==28)
+@ i  | sub v 27
+@ n  | getN secp256k1
+@ R  | pointFromX secp256k1 r i
 : rInv < maybeCase (mulInverse-n r) FALSE
 @ s1 | mulMod-n rInv | addInverse-n e
 @ s2 | mulMod-n rInv s
 @ G  | getG secp256k1
 @ mulP | scalarMul secp256k1
-@ addP | addPoints secp256k1
-: (x,y) < maybeCase
-           | addP | mulP s1 G
-           | mulP s2 R
-        | FALSE
-@ pubKeyBar | barWeld (barRev | natBar x) (barRev | natBar y)
-| eql address
-| barDrop 12 | keccak256 pubKeyBar
+@ pubKey | addPoints secp256k1 (mulP s1 G) (mulP s2 R)
+| eql address | barDrop 12 | keccak256 | pointToBar pubKey
 
+!! | verifyEthMsg
+   * # x } 32b48057fb911d814b0a6a76902f1a169f8a6981baf1ca39a4ead8b8a50f027c6
+         } e7415a5dcd51f68a3324560c8cfc6831b4db3a7d183292721406a98c8477ad71c
+   * x#E145A012F830A6A55b4166022AE664df7465f7b8
+   * {test}
 
-> Curve > Bar > Maybe Point
-= (decompressPubKey [p _ _ _ _ _] compressed)
-| maybeGuard (len natBar-compressed == 33)
-@ add | addMod-p
-@ pow | powMod-p
-@ sqrt | sqrtMod-p
-@ prefix | barTake 1 compressed
-@ x | barNat | barDrop 1 compressed
-@ y | sqrt | add 7 | pow x 3
-# switch prefix
-* _ | NONE
-* x#02 | SOME (x, if even-y y (sub p y))
-* x#04 | SOME (x, if odd-y y (sub p y))
-
-> Bar > Point
-= (splitPubKey bar)
-@ key | barDrop 1 bar
-| SOME
-| map barNat
-++ barTake 32 key
-++ barDrop 32 key
-
-> Bar > Signature
-= (splitSignature bar)
-@ r | barSliceToNat  0 32 bar
-@ s | barSliceToNat 32 32 bar
-@ v | barSliceToNat 64  1 bar
-(r,s)
-
-= sign
-; | splitSignature
-x#32b48057fb911d814b0a6a76902f1a169f8a6981baf1ca39a4ead8b8a50f027c6e7415a5dcd51f68a3324560c8cfc6831b4db3a7d183292721406a98c8477ad71c
-
-= addr
-x#E145A012F830A6A55b4166022AE664df7465f7b8
-
-= addrNat
-| natBar 0xE145A012F830A6A55b4166022AE664df7465f7b8
-
-= (test str)
-| verifyEthMsg sign addr str
-
-= msg | ethereumHash {test}
-
+^-^ verifyEthMsg

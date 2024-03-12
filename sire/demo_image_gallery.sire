@@ -453,21 +453,12 @@ addr
 : sigs < **bindMaybe (asJsonStr sig)
 | sigs
 
+; convert b#0xe14... to x#e14....
 > Bar > Bar
-= (hexFromBar bar)
-; convert b#{0xe14...} to x#e14....
-@ bytes | barBytes bar
-| barFromHex | strFromList | listFromRow | slice bytes 2 len-bytes
+= (hexFromBar bar) | barFromHex | barNat | barDrop 2 bar
 
-=?= x#{e145a012f830a6a55b4166022ae664df7465f7b8}
-  | (hexFromBar b#{0xe145a012f830a6a55b4166022ae664df7465f7b8})
-
-> Bar > Bar
-= (strFromBar bar)
-| strFromList | listFromRow | barBytes bar
-
-=?= {sign me}
-  | (strFromBar b#{sign me})
+=?= x#e145a012f830a6a55b4166022ae664df7465f7b8
+  | hexFromBar b#0xe145a012f830a6a55b4166022ae664df7465f7b8
 
 ;;;; end potential http library ;;;;
 
@@ -902,7 +893,7 @@ addr
       @ address | (parseAddressJson body)
       @ a | hexFromBar address
       @ s | hexFromBar | (parseSignatureJson body)
-      @ m | strFromBar | parseMessageJson body
+      @ m | barNat | parseMessageJson body
       | trk [%a a]
       | trk [%s s]
       | trk [%m m]
