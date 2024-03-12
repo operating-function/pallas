@@ -626,7 +626,6 @@ addr
 
 
 = (filterImages path)
-| trk [%baris (barIsPrefixOf b#{/framer/images/} (natBar path) 0)]
 @ is (barIsPrefixOf b#{/framer/images/} (natBar path) 0)
 | if is
   1
@@ -634,7 +633,6 @@ addr
 
 = (getAllImageNames filesState) ; filesState is an HMAP
 @ fileNames | (idx 0 (hmKeys filesState))
-| trk [%imageNamesHmKeys fileNames]
 | map natBar | filter filterImages fileNames
 
 = (getImageCount fileState)
