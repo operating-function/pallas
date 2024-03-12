@@ -936,7 +936,7 @@ addr
     @ buttonIndex (parseFramePost body)
     | trk [%button buttonIndex]
     | if (eql path b#{/framer/start.html})
-      @ redirUrl | (barCat [b#{http://} hostHeader b#{/framer/0.html}])
+      @ redirUrl | (barCat [b#{https://} hostHeader b#{/framer/0.html}])
       | trk [%redirUrl redirUrl]
       ;
       @ redirectHed | [(b#{Location}, redirUrl)]
@@ -964,7 +964,7 @@ addr
       @ [type content] | **fmapMaybe | hmLookup (barNat soughtFilename) | files
       ; for redirect
       | trk [%hostHeader hostHeader]
-      @ redirUrl | (barCat [b#{http://} hostHeader soughtFilename])
+      @ redirUrl | (barCat [b#{https://} hostHeader soughtFilename])
       | trk [%redirUrl redirUrl]
       @ redirectHed | [(b#{Location}, redirUrl)]
       : _ < fork (syscall (**HTTP_ECHO rid 302 b#found redirectHed b#{}))
