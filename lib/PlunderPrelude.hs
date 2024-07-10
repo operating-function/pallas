@@ -15,7 +15,8 @@ where
 
 import ClassyPrelude             as X hiding (trace, traceM, traceShowId)
 import Control.Monad.Except      as X (MonadError(..), liftEither)
-import Control.Monad.STM         as X (retry)
+import Control.Monad.STM         as X (check, retry)
+import Control.Concurrent.STM.TQueue as X (flushTQueue)
 import Data.Coerce               as X (coerce)
 import Data.Function             as X ((&))
 import Data.List.NonEmpty        as X (NonEmpty(..))

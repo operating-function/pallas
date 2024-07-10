@@ -65,8 +65,7 @@ newtype Cancel = CANCEL { action :: STM () }
 -- Callbacks -------------------------------------------------------------------
 
 data SysCall = SYSCALL
-    { cog   :: CogId
-    , dev   :: DeviceName
+    { dev   :: DeviceName
     , args  :: Vector Fan
     , state :: CallStateVar
     , cause :: Flow
@@ -74,9 +73,9 @@ data SysCall = SYSCALL
   deriving Show
 
 data Device = DEVICE
-    { spin     :: CogId -> IO ()
+    { spin     :: ProcId -> IO ()
     , call     :: SysCall -> STM (Cancel, [Flow])
-    , stop     :: CogId -> IO ()
+    , stop     :: ProcId -> IO ()
     , category :: Vector Fan -> Text
     , describe :: Vector Fan -> Text
     }

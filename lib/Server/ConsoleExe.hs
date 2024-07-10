@@ -22,15 +22,15 @@ import System.Environment
 import System.Posix.Signals hiding (Handler)
 import System.Process
 
-import Server.Hardware.Http  (createHardwareHttp)
-import Server.Hardware.Port  (createHardwarePort)
-import Server.Hardware.Rand  (createHardwareRand)
+-- import Server.Hardware.Http  (createHardwareHttp)
+-- import Server.Hardware.Port  (createHardwarePort)
+-- import Server.Hardware.Rand  (createHardwareRand)
 import Server.Hardware.Types (DeviceTable(..))
-import System.Random         (randomIO)
+-- import System.Random         (randomIO)
 -- ort Server.Hardware.Sock (createHardwareSock)
-import Server.Hardware.Time (createHardwareTime)
+-- import Server.Hardware.Time (createHardwareTime)
 -- ort Server.Hardware.Wock (createHardwareWock)
-import Server.Hardware.Poke (createHardwarePoke)
+-- import Server.Hardware.Poke (createHardwarePoke)
 
 import Control.Concurrent       (threadDelay)
 import Control.Monad.State      (State, execState, modify')
@@ -139,8 +139,8 @@ data RunType
     | RTLoot FilePath ProfilingOpts [FilePath]
     | RTBoot ProfilingOpts InterpreterOpts MachineOpts Bool FilePath Text
     | RTUses FilePath Int
-    | RTOpen FilePath CogId
-    | RTTerm FilePath CogId
+    | RTOpen FilePath
+    | RTTerm FilePath
     -- TODO: Rename 'run' or 'spin' or 'crank' or something.
     | RTStart FilePath
               ProfilingOpts
@@ -148,11 +148,6 @@ data RunType
               MachineOpts
               ReplayFrom
  -- | RTPoke FilePath Text FilePath
-
-cogIdArg :: Parser CogId
-cogIdArg = COG_ID <$> argument auto (metavar "COG" <> help helpTxt)
-  where
-    helpTxt = "The cog id number"
 
 replayFromOption :: Parser ReplayFrom
 replayFromOption =
@@ -192,12 +187,10 @@ plunderCmd cmd desc parser =
 runType :: FilePath -> Parser RunType
 runType defaultDir = subparser
     ( plunderCmd "term" "Connect to the terminal of a cog."
-      (RTTerm <$> storeOpt
-              <*> cogIdArg)
+      (RTTerm <$> storeOpt)
 
    <> plunderCmd "open" "Open a terminal's GUI interface."
-      (RTOpen <$> storeOpt
-              <*> cogIdArg)
+      (RTOpen <$> storeOpt)
 
    <> plunderCmd "sire" "Run a standalone Sire repl."
       (RTSire <$> storeOpt
@@ -370,8 +363,8 @@ main = do
         RTUses d w    -> duMachine d w
         RTShow fp     -> showSeed fp
         RTRepl fp o _ -> replSeed fp o
-        RTOpen d cog  -> void (openBrowser d cog)
-        RTTerm d cog  -> void (openTerminal d cog)
+        RTOpen d      -> void (openBrowser d)
+        RTTerm d      -> void (openTerminal d)
 
         RTLoot _ _ fz -> do
             liftIO $ Loot.ReplExe.replMain fz
@@ -427,8 +420,8 @@ withInterpreterOpts args act = do
         RTLoot _ _ _        -> Nothing
         RTBoot _ io _ _ _ _ -> Just io
         RTUses _ _          -> Nothing
-        RTOpen _ _          -> Nothing
-        RTTerm _ _          -> Nothing
+        RTOpen _            -> Nothing
+        RTTerm _            -> Nothing
         RTStart _ _ io _ _  -> Just io
 
 bootMachine :: (Debug, Rex.RexColor) => FilePath -> Text -> IO ()
@@ -441,12 +434,9 @@ bootMachine storeDir pash = do
 
         with (DB.openDatastore storeDir) $ \lmdb -> do
             DB.hasSnapshot lmdb >>= \case
-                False -> do
-                    firstCogId <- COG_ID <$> randomIO
-                    DB.writeMachineSnapshot lmdb (BatchNum 0)
-                                            (singletonMap firstCogId
-                                             (CG_SPINNING val))
-                True -> do
+                False ->
+                    DB.writeMachineSnapshot lmdb (BatchNum 0) (CG_SPINNING val)
+                True ->
                     error "Trying to overwrite existing machine"
 
 -- TODO: Output the result of an expression?  Not just "main"?
@@ -526,10 +516,9 @@ shellFg c a = do
     (_, _, _, ph) <- createProcess p
     waitForProcess ph
 
-openBrowser :: FilePath -> CogId -> IO ExitCode
-openBrowser dir cogId = do
-    let cogNm = tshow cogId.int
-    let pax = (dir </> unpack (cogNm <> ".http.port"))
+openBrowser :: FilePath -> IO ExitCode
+openBrowser dir = do
+    let pax = (dir </> ".http.port") -- TODO which port?
     exists <- doesFileExist pax
     unless exists (error "Cog does not serve HTTP")
     port <- do cont <- readFileUtf8 pax
@@ -539,10 +528,9 @@ openBrowser dir cogId = do
     let url = "http://localhost:" <> show port
     shellFg "xdg-open" [url]
 
-openTerminal :: FilePath -> CogId -> IO ExitCode
-openTerminal dir cogId = do
-    let cogNm = tshow cogId.int
-    let pax = (dir </> unpack (cogNm <> ".telnet.port"))
+openTerminal :: FilePath -> IO ExitCode
+openTerminal dir = do
+    let pax = (dir </> ".telnet.port") -- TODO which port?
     exists <- doesFileExist pax
     unless exists (error "Cog does not serve Telnet")
     port <- do cont <- readFileUtf8 pax
@@ -579,28 +567,10 @@ withMachineIn storeDir numWorkers enableSnaps machineAction = do
     -- ignoring it, but there's a bunch of things the old system did to catch
     -- Ctrl-C.
 
-    let devTable db hw_poke = do
-            hw1_rand          <- createHardwareRand
-          --(hw4_wock, wsApp) <- createHardwareWock
-            let wsApp _cogId _ws = pure ()
-            hw2_http          <- createHardwareHttp storeDir db wsApp
-          --hw3_sock          <- createHardwareSock storeDir
-            hw5_time          <- createHardwareTime
-            hw6_port          <- createHardwarePort
-            (pure . DEVICE_TABLE . mapFromList) $
-                [ ( "rand", hw1_rand )
-                , ( "http", hw2_http )
-                --( "sock", hw3_sock )
-                --( "wock", hw4_wock )
-                , ( "time", hw5_time )
-                , ( "port", hw6_port )
-                , ( "poke", hw_poke  )
-                ]
-
     let machineState = do
             lmdb <- DB.openDatastore storeDir
-            (pokeHW, _submitPoke) <- createHardwarePoke
-            hw <- devTable lmdb pokeHW
+--          (pokeHW, _submitPoke) <- createHardwarePoke
+            let hw = DEVICE_TABLE mempty
             eval <- evaluator numWorkers
             pure MACHINE_CONTEXT{lmdb,hw,eval,enableSnaps}
     with machineState machineAction

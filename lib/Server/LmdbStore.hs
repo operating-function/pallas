@@ -191,7 +191,7 @@ hasSnapshot store = do
 loadLogBatches
     :: forall a
      . ReplayFrom
-    -> ((Map CogId CogState, BatchNum) -> a)
+    -> ((CogState, BatchNum) -> a)
     -> (a -> LogBatch -> IO a)
     -> LmdbStore
     -> Cushion
@@ -228,7 +228,7 @@ loadLogBatches replayFrom mkInitial fun lmdbStore cache = do
           vBS <- peekMdbVal @Hash256 v
 
           pin   <- loadPinByHash lmdbStore cache [] vBS
-          case fromNoun @(Map CogId CogState) pin.item of
+          case fromNoun @CogState pin.item of
             Nothing -> error "Couldn't read snapshot"
             Just ss ->
               pure (key, mkInitial (ss, BatchNum $ fromIntegral key))
@@ -278,7 +278,7 @@ writeLogBatch lmdbStore lb = do
               (BadWriteLogBatch lb.batchNum)
 
 writeMachineSnapshot :: Debug => LmdbStore -> BatchNum
-                     -> Map CogId CogState
+                     -> CogState
                      -> IO ()
 writeMachineSnapshot lmdbStore (BatchNum bn) f = do
     let p = coerceIntoPin $ toNoun f

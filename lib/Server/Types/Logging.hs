@@ -15,8 +15,10 @@ import Server.Time
 
 --------------------------------------------------------------------------------
 
--- | A numeric identifier for a cog within a single machine.
-newtype CogId = COG_ID { int :: Word64 }
+-- TODO we might actually want to keep CogId in the log but just always set it to 0,
+-- for forwards compatibility with a multi-cog world.
+
+newtype ProcId = PROC_ID Word64 -- TODO should maybe be generic workerid?
   deriving newtype (Eq, Show, Ord)
 
 -- | A positional index into the machine's Request vector.
@@ -34,31 +36,14 @@ data ReceiptItem
   -- replay.
   = ReceiptEvalOK
 
-  -- | Receipt of anything else.
-  | ReceiptVal Fan
-
-  -- | Receipt of a serve. {reqIdx} points back to the requesting
-  -- cause. `(sender, serveId)` should form a unique identifier for the return
-  -- value to be consumed in ReceiptRequest.
-  | ReceiptTell { asker :: CogId, reqIdx :: RequestIdx, tellId :: TellId }
-
-  -- | Receipt of a request getting fulfilled from a serve.
-  | ReceiptAsk { tellId :: TellId }
-
-  -- | Receipt of a spin. Contains the assigned cog id.
-  | ReceiptSpun { cogNum :: CogId }
-
-  -- | Receipt of a reap.
-  | ReceiptReap { cogNum :: CogId }
-
-  -- | Receipt of a cog stop.
-  | ReceiptStop { cogNum :: CogId }
+  -- | Receipt of an input from a Proc.
+  | ReceiptVal Fan -- TODO should maybe be a list/array? and maybe not have ProcId? do we track that outside of this?
   deriving (Eq, Ord, Show)
 
 data Receipt
-    = RECEIPT_OK { cogNum :: CogId, inputs :: IntMap ReceiptItem }
-    | RECEIPT_CRASHED { cogNum :: CogId, op :: Nat, arg :: Fan }
-    | RECEIPT_TIME_OUT { cogNum :: CogId, timeoutAmount :: NanoTime }
+    = RECEIPT_OK { inputs :: IntMap ReceiptItem }
+    | RECEIPT_CRASHED { op :: Nat, arg :: Fan } -- TODO is this necessary?
+    | RECEIPT_TIME_OUT { timeoutAmount :: NanoTime }
   deriving (Show)
 
 data CogFailure
@@ -67,11 +52,8 @@ data CogFailure
     | INVALID_TIMEOUT_IN_LOGBATCH
     | INVALID_CRASHED_IN_LOGBATCH
     | INVALID_OK_RECEIPT_IN_LOGBATCH
-    | INVALID_SPUN_RECEIPT_IN_LOGBATCH CogId
     | INVALID_TELL_RECEIPT_IN_LOGBATCH
     | INVALID_ASK_RECEIPT_IN_LOGBATCH
-    | INVALID_REAP_RECEIPT_IN_LOGBATCH
-    | INVALID_STOP_RECEIPT_IN_LOGBATCH
   deriving (Eq, Ord, Show, Generic, Exception)
 
 -- | Log batches count up from 0.

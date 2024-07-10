@@ -1,32 +1,27 @@
--- Copyright 2023 The Plunder Authors
+---Copyright 2023 The Plunder Authors
 -- Use of this source code is governed by a BSD-style license that can be
 -- found in the LICENSE file.
-
-{-
-    TOPLEVEL TODOS:
-
-    - TODO: `shutdownMachine` works for now, but what we really want is a way
-            to hit ctrl-c once to begin shutdown and then have a second ctrl-c
-            which aborts snapshotting.
--}
 
 {-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE Strict           #-}
 {-# LANGUAGE StrictData       #-}
 {-# OPTIONS_GHC -Wall   #-}
--- {-# OPTIONS_GHC -Werror #-}
+{-# OPTIONS_GHC -Werror #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -freverse-errors #-}
+
 
 module Server.Proc
-    ( Machine(..)
-    , spawnProc
-    , shutdownMachine
+    ( spawnProc
+    , WriteRequest(..)
+    , ReadRequest(..)
+    , CogHandle(..)
     )
 where
 
 import PlunderPrelude
 
-import Control.Monad.State   (StateT, execStateT)
+import Control.Monad.State   (execStateT, modify)
 import Fan                   (Fan(..), PrimopCrash(..), (%%))
 -- import Optics                (set)
 import Server.Convert        ()
@@ -45,20 +40,6 @@ import qualified Data.IntMap as IM
 import qualified Data.Vector as V
 
 --------------------------------------------------------------------------------
-
-newtype ProcId = PROC_ID Word64
-  deriving newtype (Eq, Show, Ord)
-
--- | Toplevel handle for a Machine, a group of individual Proc fan evaluation
--- that makes requests and receives responses and which share an event log.
---
--- Internally, machine execution has three long lived asyncs: a `Runner` async,
--- a `Logger` async, and a `Snapshotter` async. These communicate and are
--- controlled via the following STM variables:
-data Machine = MACHINE
-  { -- ctx            :: MachineContext
-    procAsyncs     :: Map ProcId (Async ())
-  }
 
 thirtySecondsInMicroseconds :: Nat
 thirtySecondsInMicroseconds = 30 * 10 ^ (6::Int)
@@ -79,6 +60,12 @@ data ReadRequest
 data WriteRequest
   = CogWrite { cmd :: Fan, state :: CallStateVar }
 
+instance ToNoun WriteRequest where
+  toNoun write = write.cmd
+
+instance ToNoun ReadRequest where
+  toNoun read = read.query
+
 data Request
   = DB_READ Fan
   | DB_WRITE Fan
@@ -95,16 +82,20 @@ instance FromNoun Request where
         _ -> Nothing
 
 getCurrentReqNoun :: Fan -> Vector Fan
-getCurrentReqNoun s = do
+getCurrentReqNoun s =
     case s of
-        KLO _ xs -> do
-            let len = sizeofSmallArray xs
+        KLO _ xs ->
+            let len = sizeofSmallArray xs in
+----          trace (unlines
+----            [ "getCurrentReqNoun: " <> show s
+----            , "closure length: " <> show len
+----            , "closure last: " <> show (xs .! (len-1)) ])
             case (xs .! (len-1)) of
                 ROW x -> V.fromArray x
                 _     -> mempty
         _ -> mempty
-
--- A request noun is empty if it is a row with a nonzero value.
+  
+---- A request noun is empty if it is a row with a nonzero value.
 hasNonzeroReqs :: Fan -> Bool
 hasNonzeroReqs = any (/= NAT 0) . getCurrentReqNoun
 
@@ -116,12 +107,19 @@ data EvalCancelledError = EVAL_CANCELLED
 -- `LiveRequest` which contains STM variables to listen
 type ProcSysCalls = IntMap (Fan, LiveRequest)
 
+data CogHandle = COG_HANDLE
+    { write :: WriteRequest -> STM ()
+    , read  :: ReadRequest -> STM ()
+    }
+
 -- | Data used only by the Runner async. This is all the data needed to
 -- run the main thread of Fan evaluation and start Requests that it made.
 data Runner = RUNNER
-    { hw    :: DeviceTable
-    , vProc :: TVar Fan          -- ^ Current value
-    , vReqs :: TVar ProcSysCalls -- ^ Current requests table
+    { hw   :: DeviceTable
+    , init :: Fan          -- ^ Starting value
+    , proc :: Fan          -- ^ Current value
+    , reqs :: ProcSysCalls -- ^ Current requests table
+    , cog  :: CogHandle
     }
 
 -- -----------------------------------------------------------------------
@@ -134,12 +132,12 @@ data ResponseTuple = RTUP
 
 getReadResult :: ReadRequest -> STM Fan
 getReadResult CogRead{..} = readTVar state.var >>= \case
-  DONE result _ -> pure result <* writeTVar state.var DEAD -- TODO abstract out the result handling using a typeclass or a function in the record
-  _             -> retry
+  DONE result _ -> result <$ writeTVar state.var DEAD -- TODO abstract out the result handling using a typeclass or a function in the record
+  _             -> retry -- TODO if the result is DEAD we should remove the request
 
 getWriteResult :: WriteRequest -> STM Fan
 getWriteResult CogWrite{..} = readTVar state.var >>= \case
-  DONE _ _ -> pure (toNoun ()) <* writeTVar state.var DEAD -- TODO maybe return something? if the Proc should be able to react to error msgs.
+  DONE _ _ -> toNoun () <$ writeTVar state.var DEAD -- TODO maybe return something? if the Proc should be able to react to error msgs.
   _        -> retry
 
 -- | A `LiveRequest` is a handle that could produce a Response to an open
@@ -148,12 +146,10 @@ data LiveRequest
   = LiveDbRead
     { lrIdx :: RequestIdx
     , lrCall :: ReadRequest
-    , lrCancel :: Cancel
     }
   | LiveDbWrite
     { lwIdx :: RequestIdx
     , lwCall :: WriteRequest
-    , lwCancel :: Cancel
     }
 
 instance Show LiveRequest where
@@ -161,54 +157,39 @@ instance Show LiveRequest where
         LiveDbRead{}  -> "READ"
         LiveDbWrite{} -> "WRITE"
 
-data ParseRequestsState = PRS
-    { syscalls  :: ProcSysCalls
---  , flows     :: [Flow]
---  , onPersist :: [STM OnCommitFlow]
-    }
-
 makeFieldLabelsNoPrefix ''Runner
-makeFieldLabelsNoPrefix ''ParseRequestsState
 
 -- -----------------------------------------------------------------------
 -- No template haskell beyond this point because optics.
 -- -----------------------------------------------------------------------
 
-spawnProc :: Debug => Fan -> DeviceTable -> IO (Async ())
-spawnProc proc hw =
+spawnProc :: Debug => Fan -> CogHandle -> DeviceTable -> IO (Async ())
+spawnProc proc cog hw =
+  let init = proc
+      reqs = mempty in
   asyncOnCurProcess $ withThreadName "Foo"
   $ handle (onErr "runner foo")
-  $ runnerFun hw (error "procname") =<< atomically do
-      vProc <- newTVar proc
-      vReqs <- newTVar mempty
-      pure RUNNER{..}
+  $ runnerFun "procname" RUNNER{..}
   where
     onErr name e = do
       debugText $ name <> " thread was killed by: " <> pack (displayException e)
       throwIO (e :: SomeException)
 
--- | Synchronously shuts down a machine and wait for it to exit.
-shutdownMachine :: Machine -> IO ()
-shutdownMachine MACHINE{procAsyncs} = traverse_ cancel procAsyncs
-
-callCog :: SysCall -> STM Cancel
-callCog = error "callCog"
-
 -- | Given a Request parsed from the proc, turn it into a LiveRequest that can
 -- produce a value and that we can listen to.
-buildLiveRequest :: Debug
-                 => DeviceTable -> RequestIdx -> Request -> STM LiveRequest
-buildLiveRequest _ reqIdx = \case
-  DB_READ query -> do
-    callSt <- STVAR <$> newTVar LIVE
-    let lrCall = CogRead query callSt
-    lrCancel <- callCog $ error "lrCall"
-    pure LiveDbRead{lrIdx=reqIdx, lrCall, lrCancel}
-  DB_WRITE cmd -> do
-    callSt <- STVAR <$> newTVar LIVE
-    let lwCall = CogWrite cmd callSt
-    lwCancel <- callCog (error "lwCall")
-    pure LiveDbWrite{lwIdx=reqIdx, lwCall, lwCancel}
+buildLiveRequest :: Debug => CogHandle -> RequestIdx -> Request -> STM LiveRequest
+buildLiveRequest cog reqIdx = \case
+    DB_READ query -> do
+      callSt <- STVAR <$> newTVar LIVE
+      let lrCall = CogRead query callSt
+      cog.read lrCall
+      pure $ LiveDbRead reqIdx lrCall
+      -- modifying' #reads $ flip poolRegister lrCall
+    DB_WRITE cmd -> do
+      callSt <- STVAR <$> newTVar LIVE
+      let lwCall = CogWrite cmd callSt
+      cog.write lwCall
+      pure $ LiveDbWrite reqIdx lwCall
 
 receiveResponse :: (Fan, LiveRequest) -> STM ResponseTuple
 receiveResponse = \case
@@ -228,14 +209,14 @@ receiveResponse = \case
 
 -- The Proc Runner --------------------------------------------------------------
 
-runnerFun :: Debug => DeviceTable -> ByteString -> Runner -> IO ()
-runnerFun _ processName st =
+runnerFun :: Debug => ByteString -> Runner -> IO ()
+runnerFun processName st =
     bracket_ registerProcsWithHardware stopProcsWithHardware $ do
         -- Process the initial syscall vector
-        atomically $ parseRequests st
+        newReqs <- atomically $ parseRequests st
 
         -- Run the event loop until we're forced to stop.
-        procTick
+        procTick st{reqs=newReqs}
   where
     registerProcsWithHardware :: IO ()
     registerProcsWithHardware = pure () -- for_ ctx.hw.table $ \d -> d.spin procId
@@ -243,29 +224,32 @@ runnerFun _ processName st =
     stopProcsWithHardware :: IO ()
     stopProcsWithHardware = pure () -- for_ ctx.hw.table $ \d -> d.stop procId
 
-    -- Collects all responses that are ready for one proc.
-    takeReturns :: IO (Maybe ResponseTuple)
-    takeReturns = do
-        withAlwaysTrace "WaitForResponse" "proc" do
-            procSysCalls <- IM.elems <$> readTVarIO st.vReqs
-            case procHasLiveRequests procSysCalls of
-                False -> pure Nothing
-                True -> Just <$> do
-                  reordered <- shuffleM procSysCalls -- TODO shuffling is ugly! maybe use a finger tree instead?
-                  -- debugText $ "takeReturns: " <> tshow reordered
-                  atomically . asum $ receiveResponse <$> reordered
 
-    procTick :: IO ()
-    procTick = takeReturns >>= \case
-      Nothing -> pure ()
-      Just response -> do
-        withProcessName processName $
-          withThreadName ("Proc: ") $
-            runResponse st response
-        procTick
+    procTick :: Runner -> IO ()
+    procTick st = do
+      response <- withAlwaysTrace "WaitForResponse" "proc"
+        case IM.elems st.reqs of
+          []           -> pure Nothing
+          procSysCalls -> Just <$> do
+              reordered <- shuffleM procSysCalls -- TODO shuffling is ugly! maybe use a finger tree instead?
+              -- debugText $ "takeReturns: " <> tshow reordered
+              atomically . asum $ receiveResponse <$> reordered
+      case response of
+        Nothing -> -- TODO procTick $ reset st
+          trace "injecting request 0 into proc" $
+          procTick =<< (withProcessName processName $
+                          withThreadName ("Proc: ") $
+                            runResponse st $
+                              RTUP (RequestIdx 0) (RespRead $ NAT 0))
 
-    procHasLiveRequests :: [(a, LiveRequest)] -> Bool
-    procHasLiveRequests = not . null -- any \(_, req) -> validLiveRequest req
+        Just response ->
+          procTick =<< (withProcessName processName $
+                         withThreadName ("Proc: ") $
+                           runResponse st response)
+
+
+reset :: Runner -> Runner
+reset st@RUNNER{init} = st{proc=init, reqs=mempty}
 
 {-
     Given a set of responses to syscalls in a procs SysCall table, create
@@ -273,126 +257,69 @@ runnerFun _ processName st =
 
     Side Effects:
 
+    -   Any new requests are launched.
+
+    Results:
+
     -   The PLAN value for the proc is replaced.
 
     -   The proc's requests row is updated to reflect the new set of
         requests.
 
-    -   If we received a PROC_TELL message, the corresponding PROC_ASK request
-        is also processed.
-
-    -   If we spawned a proc or stopped a proc, we inform every hardware
-        device that this happened.
-
-    Results:
-
-    -   The set of profiling events triggered by this change.
-
-    -   A list of event-log receipts (and the corresponding actions to
-        be triggered when those receipts have been committed to disk.
-        (This is for disk-synchronized syscalls).
+    Q: what happens to outstanding requests if we restart the process?
+    A: we just don't listen to them.
+    Q: but is this a space leak? what happens on the cog/hw end?
 -}
-runResponse :: Debug => Runner -> ResponseTuple -> IO ()
-runResponse st resp = do
-  proc <- atomically (readTVar st.vProc)
+runResponse :: Debug => Runner -> ResponseTuple -> IO Runner
+runResponse st@RUNNER{..} resp = do
   (_, result) <- do
       withAlwaysTrace "Eval" "proc" do
-          let preEvaluate = ensureResponseEvaluated resp.resp
-          evalWithTimeout thirtySecondsInMicroseconds [preEvaluate] (proc %% toNoun resp.key) (toNoun resp.resp)
+          evalWithTimeout thirtySecondsInMicroseconds [] (proc %% toNoun resp.key) (toNoun resp.resp)
 
-  let newState = case result of
-        OKAY _ resultFan -> case hasNonzeroReqs resultFan of
-                                True  -> resultFan
-                                False -> error "TODO: restart"
-        CRASH{}          -> error "TODO: restart"
-        TIMEOUT          -> error "TODO: restart, maybe?"
+  let st' = case result of
+        OKAY _ resultFan | hasNonzeroReqs resultFan
+          -> st{proc=resultFan, reqs=deleteMap resp.key.int reqs}
+        _ -> reset st
 
-  withAlwaysTrace "Tick" "proc" do
-      let responses = resp.resp
+  final <- withAlwaysTrace "Tick" "proc" do
+      -- Perform parseRequest and handle all changes that have to be handled
+      -- atomically.
+      newReqs <- atomically $ parseRequests st'
+      pure st'{reqs=newReqs}
 
-      -- 1) Notify hardware about spins which started a proc. We have to do this
-      -- before we record the proc state or do parseRequests because the initial
-      -- state of a newly created proc might try to communicate with the
-      -- hardware.
-      performAlertHardwareOnSpin responses
+--  traceM $ unlines
+--    [ "proc processing response: " <> show resp
+--    , "proc before: " <> show st.proc
+--    , "proc middle: " <> show st'.proc
+--    , "proc after: " <> show final.proc
+--    , "reqs before: " <> show st.reqs
+--    , "reqs middle: " <> show st'.reqs
+--    , "reqs after: " <> show final.reqs ]
 
-      -- 2) Perform parseRequest and handle all changes that have to be handled
-      -- attomically. This has to happen after we notify the hardware about
-      -- procs being spun.
-      atomically $ performStateUpdate newState result
+  pure final
 
-      -- 3) If this proc shut down for any reason, we have to alert the hardware
-      -- that it has shut down. This has to be done after parsing requests
-      -- because parsing requests will cancel ongoing hardware events.
---    case newState of
---      CG_SPINNING _ -> pure ()
---      _             -> for_ st.ctx.hw.table $ \d -> d.stop procNum
 
-      pure ()
-
+-- | Given a proc in a runner, update the `requests`.
+parseRequests :: Debug => Runner -> STM ProcSysCalls
+parseRequests RUNNER{..} =
+  flip execStateT reqs $ do
+--  traceM $ unlines
+--    [ "parseRequests, proc: " <> show proc
+--    , "parseRequests, reqs: " <> show reqs ]
+    for_ (getCurrentReqNoun proc) \v ->
+      case reqFromVal v of
+        Nothing -> pure ()
+        Just (rIdx, request) -> do
+          liveReq <- lift $ buildLiveRequest cog rIdx request
+          modify $ insertMap rIdx.int (v, liveReq)
   where
-    ensureResponseEvaluated :: Response -> IO ()
-    {-
-    ensureResponseEvaluated (RespTell TELL_PAYLOAD{..}) = do
-      -- We must force evaluate the response thunk so that we make sure it
-      -- doesn't have a crash, but must do this while crediting the runtime
-      -- (and possible crash) to the %tell since the %tell provides the
-      -- function.
-      evaluate $ force ret
-      pure ()
-    -}
-    ensureResponseEvaluated _ = pure ()
-
-    performAlertHardwareOnSpin :: Response -> IO ()
-    performAlertHardwareOnSpin _ = pure ()
-
-    performStateUpdate newState result = do
-        writeTVar st.vProc newState
-
-        -- TODO do we need the below?
-        _ <- case result of
-            OKAY{} -> do
-              -- Delete the consumed `LiveRequest`s without formally
-              -- canceling it because it completed.
-              modifyTVar' st.vReqs (deleteMap resp.key.int)
-            _ -> do
-              -- If we crashed, do nothing. We'll formally cancel all
-              -- requests when we reparse in the next step, and we have no
-              -- valid responses to process side effects from.
-              pure mempty
-
-        _ <- parseRequests st
-
-        pure ()
-
--- | Given a noun in a runner, update the `requests`
-parseRequests :: Debug => Runner -> STM ()
-parseRequests runner = do
-    procState <- readTVar runner.vProc
-    syscalls <- readTVar runner.vReqs
-
-    let init = PRS{syscalls}
-
-    st <- flip execStateT init do
-              let actual = getCurrentReqNoun procState
-              mapM_ createReq (toList actual)
-
-    writeTVar runner.vReqs st.syscalls
-  where
-    createReq :: Fan -> StateT ParseRequestsState STM ()
-    createReq v = maybe (pure ()) build do
+    reqFromVal :: Fan -> Maybe (RequestIdx, Request)
+    reqFromVal v = do
         ROW reqFan <- pure v
         let fan = V.fromArray reqFan
         i <- fromNoun $ fan V.! 0
         request <- fromNoun $ fan V.! 1
         pure (RequestIdx i, request)
-      where
-        build :: (RequestIdx, Request) -> StateT ParseRequestsState STM ()
-        build (rIdx, request) = do
-            live <- lift $
-              buildLiveRequest (error "TODO hw table") rIdx request
-
-            modifying' #syscalls (insertMap rIdx.int (v, live))
 
 evalWithTimeout
     :: Debug

@@ -24,9 +24,9 @@ instance FromNoun NanoTime where
     fromNoun (NAT n) = Just $ NanoTime n
     fromNoun _       = Nothing
 
-instance ToNoun CogId where toNoun (COG_ID i) = NAT $ fromIntegral i
-instance FromNoun CogId where
-    fromNoun n = (COG_ID . fromIntegral) <$> fromNoun @Nat n
+instance ToNoun ProcId where toNoun (PROC_ID i) = NAT $ fromIntegral i
+instance FromNoun ProcId where
+    fromNoun n = (PROC_ID . fromIntegral) <$> fromNoun @Nat n
 
 instance ToNoun RequestIdx where
     toNoun (RequestIdx i) = NAT $ fromIntegral i
@@ -47,55 +47,30 @@ instance ToNoun ReceiptItem where
     toNoun re = toNoun $ case re of
         ReceiptEvalOK   -> NAT 0
         ReceiptVal val  -> toNoun (NAT 1, val)
-        ReceiptTell{..} -> toNoun (NAT 2, asker, reqIdx, tellId)
-        ReceiptAsk{..}  -> toNoun (NAT 3, tellId)
-        ReceiptSpun{..} -> toNoun (NAT 4, cogNum)
-        ReceiptReap{..} -> toNoun (NAT 5, cogNum)
-        ReceiptStop{..} -> toNoun (NAT 6, cogNum)
 
 instance FromNoun ReceiptItem where
     fromNoun n = case n of
         NAT 0                     -> Just ReceiptEvalOK
         ROW v -> case toList v of
-            [NAT 1, val]          -> Just $ ReceiptVal val
-            [NAT 2, askerN, reqN, tellN] -> do
-                asker <- fromNoun askerN
-                reqIdx <- fromNoun reqN
-                tellId <- fromNoun tellN
-                Just ReceiptTell{..}
-            [NAT 3, tellN] -> do
-                tellId <- fromNoun tellN
-                Just ReceiptAsk{..}
-            [NAT 4, cogN]         -> do
-                cogNum <- fromNoun cogN
-                Just ReceiptSpun{..}
-            [NAT 5, cogN]         -> do
-                cogNum <- fromNoun cogN
-                Just ReceiptReap{..}
-            [NAT 6, cogN]         -> do
-                cogNum <- fromNoun cogN
-                Just ReceiptStop{..}
-            _                     -> Nothing
+            [NAT 1, val] -> Just $ ReceiptVal val
+            _            -> Nothing
         _                         -> Nothing
 
 instance ToNoun Receipt where
-    toNoun RECEIPT_OK{..}       = toNoun (NAT 0, cogNum, inputs)
-    toNoun RECEIPT_CRASHED{..}  = toNoun (NAT 1, cogNum, op, arg)
-    toNoun RECEIPT_TIME_OUT{..} = toNoun (NAT 2, cogNum, timeoutAmount)
+    toNoun RECEIPT_OK{..}       = toNoun (NAT 0, inputs)
+    toNoun RECEIPT_CRASHED{..}  = toNoun (NAT 1, op, arg)
+    toNoun RECEIPT_TIME_OUT{..} = toNoun (NAT 2, timeoutAmount)
 
 instance FromNoun Receipt where
     fromNoun = \case
         ROW v -> case toList v of
-            [NAT 0, cogNumNoun, inputNoun] -> do
-                cogNum <- fromNoun cogNumNoun
+            [NAT 0, inputNoun] -> do
                 inputs <- fromNoun inputNoun
                 Just RECEIPT_OK{..}
-            [NAT 1, cogNumNoun, NAT op, argFan] -> do
-                cogNum <- fromNoun cogNumNoun
+            [NAT 1, NAT op, argFan] -> do
                 arg <- fromNoun argFan
                 Just RECEIPT_CRASHED{..}
-            [NAT 2, cogNumNoun, timeoutFan] -> do
-                cogNum <- fromNoun cogNumNoun
+            [NAT 2, timeoutFan] -> do
                 timeoutAmount <- fromNoun timeoutFan
                 Just RECEIPT_TIME_OUT{..}
             _     -> Nothing

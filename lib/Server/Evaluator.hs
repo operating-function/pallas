@@ -27,7 +27,7 @@ import Server.Common
 import Server.Debug
 import Server.Hardware.Types (Cancel(CANCEL))
 import Server.Time
-import Server.Types.Logging
+-- import Server.Types.Logging
 
 import Control.Concurrent (threadDelay)
 
@@ -56,8 +56,7 @@ data Evaluator = EVALUATOR
     }
 
 data EvalRequest = EVAL_REQUEST
-    { cogId     :: CogId
-    , flow      :: Flow
+    { flow      :: Flow
     , timeoutMs :: Nat
     , func      :: Fan
     , args      :: Vector Fan
@@ -120,7 +119,7 @@ runWorker st _workerId tid = do
         vTimeout      <- newTVarIO False
 
         let workName = ("Work: (" <>
-                        (encodeUtf8 $ tshow req.cogId.int) <> ")")
+                        "cogid lol?" <> ")")
 
         execTid <- async $ withCopiedTid tid $ do
           -- Even if we timeout or crash, we always need a response flow to
