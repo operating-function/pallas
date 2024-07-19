@@ -1,0 +1,47 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_cog_asktell_askcrash <- demo_cog_stop
+
+:| sire
+:| kern
+:| demo_timer
+:| stew
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+crashCogChannel=28
+
+= (crashAsk cogid msg)
+[(die {lol}) msg]
+
+= (crashCog return)
+: ??(crashed_them msg) < syscall (COG_TELL crashCogChannel crashAsk)
+| crashCog return
+
+= (askerCog crashCogId return)
+: ??(asker_told val) < syscall (COG_ASK crashCogId crashCogChannel ())
+# datacase val
+* NONE
+    : ??(wait_for_reap val) < syscall (COG_REAP crashCogId)
+    # datacase val
+    * NONE
+        | trk {FAIL: crashCogDidntExist?}
+        | return ()
+    * SOME-val
+        | ifNot | eql 2 | idx 0 val
+             | trk {FAIL: cogNotCrashed}
+             | return ()
+        | trk {PASS: countCogCrashedAndTellerReaped}
+        | return ()
+* SOME-i
+    | trk {FAIL: remoteDidntCrash}
+    | return ()
+
+= (askCrashDemo return)
+: ??(spin_got_id crashCogId) < syscall (COG_SPIN | runCog crashCog)
+: _ < fork (askerCog crashCogId)
+| return ()
+
+main=(runCog askCrashDemo)

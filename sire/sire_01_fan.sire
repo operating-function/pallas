@@ -1,0 +1,198 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_01_fan
+
+;;;; PLAN Primitives
+;;;; ===============
+;;;;
+;;;; This module essentially just defines named wrappers around primitive
+;;;; PLAN operations.
+;;;;
+;;;; For example `_IsLaw` is just a nice interface to functionality provided
+;;;; by the `1` primop.
+;;;;
+;;;;     (_IsLaw x)=(1 _&0 (_ _ _)&1 (_ _)&0 _&0 x)
+;;;;
+;;;; In addition, this module includes some bread-and-butter utilities and
+;;;; combinators that are widely used but don't belong anywhere else.
+;;;;
+;;;;
+;;;; Jetting
+;;;; -------
+;;;;
+;;;; All of the jets in this file are optional.
+;;;;
+;;;; The _Trk jet prints it's first argument to some sort of debugging log.
+;;;; _Trk is the only is the only "effectful" jet, the effect is optional,
+;;;; and the effect is not observable from other PLAN code.
+;;;;
+;;;; There is an expectation that operations like _Car, _IsLaw, and _Eqz
+;;;; be very cheap.  They are marked as jets so that implementations are
+;;;; free to optimize them.  However, the unoptimized legal code should
+;;;; also perform well enough for moderate use-cases.
+
+
+;;; Names for PLAN Primitives ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= LAW     | 0
+= valCase | 1
+= natCase | 2
+= inc     | 3
+= PIN     | 4
+= die     | {die}   ; Calling a primop above 4 is a crash.
+= todo    | {todo}  ; Calling a primop above 4 is a crash.
+
+
+;;; Primops API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (_Force x)       | 0 0 1 (2 x) 0
+= (_Seq x y)       | 2 y (_ & y) x
+= (deepseq x y)    | _Seq (_Force x) y
+= (_Trace x y)     | deepseq x y
+= (_DeepTrace x y) | deepseq x y
+
+= (traceId x)     | _Trace x x
+= (deepTraceId x) | _DeepTrace x x
+
+= (_IsPin x)   | 1 (_ & 1) (_ _ _ & 0)     (_ _ & 0) (_ & 0)       x
+= (_IsLaw x)   | 1 (_ & 0) (_ _ _ & 1)     (_ _ & 0) (_ & 0)       x
+= (_IsApp x)   | 1 (_ & 0) (_ _ _ & 0)     (_ _ & 1) (_ & 0)       x
+= (_IsNat x)   | 1 (_ & 0) (_ _ _ & 0)     (_ _ & 0) (_ & 1)       x
+= (_PlanTag x) | 1 (_ & 0) (_ _ _ & 1)     (_ _ & 2) (_ & 3)       x
+
+= (_PinItem x) | 1 (i & i) (_ _ _ & 0)     (_ _ & 0) (_ & 0)       x
+= (_LawName x) | 1 (_ & 0) (i _ _ & i)     (_ _ & 0) (_ & 0)       x
+= (_LawArgs x) | 1 (_ & 0) (_ i _ & i)     (_ _ & 0) (_ & 0)       x
+= (_LawBody x) | 1 (_ & 0) (_ _ i & i)     (_ _ & 0) (_ & 0)       x
+= (_Car x)     | 1 (_ & 4) (n a _ & 0 n a) (h _ & h) (_ & 0)       x
+= (_Cdr x)     | 1 (i & i) (_ _ b & b)     (_ t & t) (_ & 0)       x
+
+= (_Eqz x)  | 1 (_ & 0) (_ _ _ & 0)     (_ _ & 0) (2 1 (_ & 0)) x
+= (isOne x) | 1 (_ & 0) (_ _ _ & 0)     (_ _ & 0) (2 0 _Eqz) x
+
+
+;;; Jet Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; The _JetNaming convention is used for laws that runtime systems are
+;; expected to optimize.  It is unsightly, however.
+
+= force     | _Force
+= seq       | _Seq
+= trk       | _Trace
+= trace     | _Trace
+= dTrk      | _DeepTrace
+= deepTrace | _DeepTrace
+= isPin     | _IsPin
+= isLaw     | _IsLaw
+= isApp     | _IsApp
+= isNat     | _IsNat
+= planTag   | _PlanTag
+= pinItem   | _PinItem
+= lawName   | _LawName
+= lawArgs   | _LawArgs
+= lawBody   | _LawBody
+= car       | _Car
+= cdr       | _Cdr
+= isZero    | _Eqz
+
+
+;;; Convenient Lisp-Style Cell Accessors ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (caar x)   | car | car | x
+= (cadr x)   | car | cdr | x
+= (cdar x)   | cdr | car | x
+= (cddr x)   | cdr | cdr | x
+= (caaar x)  | car | car | car | x
+= (caadr x)  | car | car | cdr | x
+= (cadar x)  | car | cdr | car | x
+= (caddr x)  | car | cdr | cdr | x
+= (cdaar x)  | cdr | car | car | x
+= (cdadr x)  | cdr | car | cdr | x
+= (cddar x)  | cdr | cdr | car | x
+= (cdddr x)  | cdr | cdr | cdr | x
+= (caaaar x) | car | car | car | car | x
+
+
+;;; Common Combinators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (id x)          | x
+= (const x y)     | x
+= (ignore x y)    | y
+= (compose g f y) | g (f y)
+= (flip f x y)    | f y x
+= (apply f x)     | f x
+= (supply x f)    | f x
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= 0   | pinItem 4
+=?= 4   | pinItem | 4 4
+=?= 4-4 | pinItem | 4 4-4
+
+=?= 1 | car (1 2)
+=?= 2 | cdr (1 2)
+=?= 2 | caar ((2 0) (0 0))
+=?= 2 | cdar ((0 2) (0 0))
+=?= 2 | cadr ((0 0) (2 0))
+=?= 2 | cddr ((0 0) (0 2))
+
+=?= 4 | car car
+=?= 1 | cdadr car
+
+=?= {const}       | lawName (0 {const} 2 1)
+=?= 2             | lawArgs (0 {const} 2 1)
+=?= 1             | lawBody (0 {const} 2 1)
+=?= 1             | cdr     (0 {const} 2 1)
+=?= (0 {const} 2) | car     (0 {const} 2 1)
+
+=?= (const a b ? a)  | 0 {const}  2 1
+=?= (ignore a b ? b) | 0 {ignore} 2 2
+=?= (die x ? die x)  | 0 {die}    1 (0 0 1)
+=?= (f a b ? f)      | 0 {f}      2 0
+=?= (f a b ? a)      | 0 {f}      2 1
+=?= (f a b ? b)      | 0 {f}      2 2
+=?= (f a b ? 3)      | 0 {f}      2 3
+=?= (f a b ? a b)    | 0 {f}      2 (0 1 2)
+=?= (f a b ? f a b)  | 0 {f}      2 (0 (0 0 1) 2)
+=?= (f a b ? f 7 7)  | 0 {f}      2 (0 (0 0 7) 7)
+=?= (f a b ? f 1 2)  | 0 {f}      2 (0 (0 0 (2 1)) (2 2))
+
+=?= (a b & a)       | 0 0 2 1
+=?= (a b & b)       | 0 0 2 2
+=?= (a b & 3)       | 0 0 2 3
+
+=?= 7 | (0 {f} 1 (2 7)) 3
+=?= 7 | (0 {f} 1 1)     7
+=?= 7 | (0 {f} 2 1)     7 0
+=?= 7 | (0 {f} 2 2)     0 7
+
+=?= 0 (isZero (0 0))
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ LAW valCase natCase inc PIN die todo
+^-^
+^-^ force seq deepseq
+^-^
+^-^ trace trk
+^-^ deepTrace dTrk
+^-^ traceId deepTraceId
+^-^
+^-^ isLaw lawName lawArgs lawBody
+^-^ isPin pinItem
+^-^ isApp car cdr
+^-^ isNat
+^-^ planTag
+^-^
+^-^ isZero isOne
+^-^
+^-^ caar cadr cdar cddr caaar caadr cadar caddr cdaar cdadr cddar cdddr
+^-^ caaaar
+^-^
+^-^ id const ignore compose flip apply supply
+^-^

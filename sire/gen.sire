@@ -1,0 +1,97 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### gen <- blake3
+
+;;;; Pseudo-Random Number Generator
+;;;; ==============================
+;;;;
+;;;; This is an extremely naive pseudo-random number generator that works
+;;;; by simply runing blake 3 on some seed, and then hashing that hash
+;;;; to get more random bits, etc.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+:| blake3
+:| stew
+
+
+;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (mkRand seed)
+@ bar (blake3 natBar-seed)
+@ pad 1
+| seq bar
+| [bar pad]
+
+= (growRand gen)
+@ [bar pad] gen
+@ newPad (padWeld pad barPad-bar)
+@ newBar (blake3 bar)
+| seq newPad
+| seq newBar
+| [newBar newPad]
+
+; This returns the new generator and a pad (bit array)
+= (genBits numBits gen)
+@ [bar pad] gen
+| if (gth numBits padLen-pad)
+        | genBits numBits (growRand gen)
+@ [looted remain]
+        | padSplitAt numBits pad
+@ newGen [bar remain]
+| seq looted
+| seq newGen
+| [newGen looted]
+
+; This returns the new generator and a randomly-generator nat.
+= (genBitsNat numBits gen)
+@ gen,pad (genBits numBits gen)
+@ res (padNat pad)
+| seq gen
+| seq res
+| [gen res]
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; = r
+; @ r  (mkRand 3)
+; @ rx (genBits 1 r)
+; @ r  (idx 0 rx)
+; @ rx (genBits 1 r)
+; @ r  (idx 0 rx)
+; @ rx (genBits 1 r)
+; @ r  (idx 0 rx)
+; @ rx (genBits 1 r)
+; @ r  (idx 0 rx)
+; @ rx (genBits 64 r)
+; @ r  (idx 0 rx)
+; @ rx (genBits 64 r)
+; @ r  (idx 0 rx)
+; @ rx (genBits 128 r)
+; @ r  (idx 0 rx)
+; @ rx (genBits 256 r)
+; @ r  (idx 0 rx)
+; @ rx (genBits 512 r)
+; @ r  (idx 0 rx)
+; @ rx (genBits 1024 r)
+; @ r  (idx 0 rx)
+; | r
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; !! eql idx-1-(genBits 4 r)    | p#1110
+; !! eql idx-1-(genBitsNat 4 r) | 7
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^ mkRand
+^-^ genBits
+^-^ genBitsNat

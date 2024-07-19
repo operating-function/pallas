@@ -1,0 +1,15 @@
+#! /usr/bin/env nix-shell
+#! nix-shell -i bash -p inotify-tools
+
+EXE=./o.test_seed
+INPUT=test_input.sexp
+
+clear
+make && $EXE <$INPUT
+
+while
+        inotifywait -e modify -e close_write -e move -e create .
+do
+        clear
+        make && $EXE <$INPUT
+done

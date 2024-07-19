@@ -1,0 +1,388 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_13_exp <- sire_12_tab
+
+;;;; Sire Expressions
+;;;; ================
+;;;;
+;;;; This is a collection of utilities for working with Rex trees that
+;;;; represent Sire expressions.
+;;;;
+;;;; This is initially useful for writing macros, but should also be
+;;;; useful in sire-in-sire once that's fully working.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan
+:| sire_02_bit [if ifz ifNonZero else or ifNot FALSE and not]
+:| sire_03_nat [even add mod sub mul]
+:| sire_04_cmp [eql neq isZero]
+:| sire_05_row
+:| sire_06_rex [rexHeir rexEmbd rexSons rexText rexRune]
+:| sire_06_rex [rexIsLeaf rexIsEmbd rexIsNode]
+:| sire_06_rex [WORD EMBD NEST OPEN PREF TEXT]
+:| sire_06_rex [rexGetWord rexKids rexStyle {'}]
+:| sire_06_rex [rexGetNodeWithRune rexGetKidsOfNodeWithRune]
+:| sire_06_rex [rexGetWordNoHeir rexSetHeir]
+:| sire_07_dat
+:| sire_10_str [isAlpha isDigit digits]
+:| sire_10_str [strCat explode strWeld]
+:| sire_11_set [{%}]
+:| sire_12_tab [tabToPairs {#} tabE]
+
+
+;;; Parsing and Printing Nats ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(showNat n)=(strCat digits-n)
+
+(showDigit d)=(add d {0})
+
+(loadDigit chr)=(mod (sub chr {0}) 10)
+
+= (getDigit chr fall ret)
+@ res (**loadDigit chr)
+| ifNot (eql chr (**showDigit res)) fall
+| **ret res
+
+> Str > a > (Nat > a) > a
+= (getNatStr str fall ret)
+| ifz str fall
+| rowTraverse (c r)&(**getDigit c fall r) (explode str)
+& nums
+^ ret (idx 1 (foldr _ [1 0] nums))
+? (f elem rest)
+@ pos (idx 0 rest)
+@ acc (idx 1 rest)
+++ mul 10 pos
+++ add acc (mul pos elem)
+
+;;
+
+= rnWord } Expected a bare word
+= rnNumb } Invalid number literal
+
+= (readNat rex err ret)
+| rexGetWordNoHeir rex (err rex rnWord)
+& text
+| getNatStr text       (err rex rnNumb)
+& numb
+| ret numb
+
+= cenOneKid } % literals must have one kid
+= cenWord   } % literals expect a word (and no heir)
+
+= (readAtomLit rex err ret)
+| ifNonZero (rexHeir rex)
+        | err rex {Unexpected heir}
+| if (rexIsEmbd rex)
+        @ val (rexEmbd rex)
+        | ifNot (isNat val)
+                | err rex {Embed fan is not a number}
+        | ret val
+| if (rexIsLeaf rex)
+        | if (eql {WORD} (rexStyle rex))
+                | readNat rex err ret
+        | else
+                | ret (rexText rex)
+| else
+        | rexGetKidsOfNodeWithRune {%} rex
+                | err rex {Expected a %234 literal}
+        & kids
+        | if (neq 1 len-kids)
+                | err rex cenOneKid
+        | rexGetWord (idx 0 kids) (err rex cenWord)
+        & (text heir)
+        | if (neq 0 heir) (err rex cenWord)
+        | ret text
+
+
+=?= 1  | getDigit {1}  [] id
+=?= 5  | getDigit {5}  [] id
+=?= 9  | getDigit {9}  [] id
+=?= [] | getDigit {a}  [] id
+=?= [] | getDigit {}   [] id
+=?= [] | getDigit {10} [] id
+
+=?= 123 | getNatStr {123} [] id
+=?= []  | getNatStr {}    [] id
+=?= 0   | getNatStr {0}   [] id
+=?= 1   | getNatStr {1}   [] id
+=?= []  | getNatStr {a}   [] id
+
+=?= 345          | readNat '345 v2 id
+=?= 0            | readNat '0   v2 id
+=?= ['[] rnWord] | readNat '[]  v2 id
+=?= ['a  rnNumb] | readNat 'a   v2 id
+
+=?= 345               | readAtomLit '345     v2 id
+=?= %asdf             | readAtomLit '(%asdf) v2 id
+=?= %asdf             | readAtomLit '{asdf}  v2 id
+=?= ['(%) cenOneKid]  | readAtomLit '(%)     v2 id
+=?= ['(%(.)) cenWord] | readAtomLit '(%(.))  v2 id
+
+
+;;; Expresssions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (natE n)         | WORD (showNat n) 0
+= (varE v)         | WORD v 0
+= (cnsE v)         | EMBD v
+= (barE xs)        | NEST {#|} xs 0
+= (letE i x b)     | OPEN {#@}  [varE-i    x] b
+= (txtE t)         | TEXT t 0
+= (tmpName s n)    | strCat [{_} s showNat-n]
+= (tmpVarE s n)    | varE (tmpName s n)
+= (sigE r)         | if (eql 1 len-r) varE-(idx 0 r) (NEST {|} (map varE r) 0)
+= (lamE rs b)      | OPEN {#&}  [(sigE rs)] b
+
+= (recE vs b)
+^ OPEN {#@@} [_] b
+| foldr (flip rexSetHeir) 0
+| map vx&(OPEN {=} [varE-(fst vx) snd-vx] 0) vs
+
+=?=   | recE [[%a 'b] [%b '(a a)]] '(a b)
+  ' #@@ = a b
+        = b (a a)
+      (a b)
+
+= (wutE pin mark n rs b)
+@ rune (if pin {#??} {#?})
+^ OPEN rune [_] b
+^ NEST {|} _ 0
+| rowCons
+    ^ if mark (PREF {**} [_] 0) _
+    | txtE n
+| map varE rs
+
+=?=   | wutE 1 1 {f} [{x} {y}] ' | x y
+  ;
+  ' #?? (**{f} x y)
+      | x y
+
+=?=   | wutE 0 0 {f} [{x} {y}] ' | x y
+  ;
+  ' #? ({f} x y)
+     | x y
+
+= (**generateUniqueKey st ok)
+@ nex | get st 0
+@ st  | put st 0 (inc nex)
+| **ok st nex
+
+= (**generateTempName name st ok)
+| generateUniqueKey st
+& (st nex)
+| **ok st (tmpName name nex)
+
+= (**generateVarE name st ok)
+| generateUniqueKey st
+& (st nex)
+| **ok st (tmpVarE name nex)
+
+(**generateTempAnon st ok)=(generateTempName {g} st ok)
+(**generateAnonVarE st ok)=(generateVarE {g} st ok)
+
+= (inlinedLamE f rs b)
+^ OPEN {#?} [_] b
+^ NEST {|} (rowCons _ | map varE rs) 0
+| PREF {**} [(varE f)] 0
+
+
+;;; Bloodlines ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Given a list of rex nodes, make each one the heir of the last.
+> List Rex > Rex
+(bloodline lis)=(listFoldr (i r & rexSetHeir r i) 0 lis)
+
+=?= '((a=1)(b=2)(c=3))
+  | bloodline ['(a=1) ['(b=2) ['(c=3) 0]]]
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (readNodeWithRune rune rex err ret)
+| **rexGetNodeWithRune rune rex
+        | err rex
+        | strCat ({Expected a }, rune, { node})
+| ret
+
+= (readKidsOfNodeWithRune rune rex err ret)
+| **rexGetKidsOfNodeWithRune rune rex
+        | err rex
+        | strCat ({Expected a }, rune, { node})
+| ret
+
+
+= (readNodeWithoutHeirButWithRune rune rex err ok)
+| **readNodeWithRune rune rex err
+& (sons heir)
+| if (neq 0 heir)
+        | err heir
+        | strCat ({Unexpected heir on }, rune, { node})
+| **ok sons
+
+= needBar | {Expected a | node}
+
+=?= ['3 '4]          | readNodeWithoutHeirButWithRune {,} '[3 4] v2 id
+=?= ['[3 4] needBar] | readNodeWithoutHeirButWithRune {|} '[3 4] v2 id
+=?= ['[3 4] needBar] | readNodeWithoutHeirButWithRune {|} '[3 4] v2 id
+
+
+
+;;; Sire Symbols ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (isSymbolChar c)
+| or eql-{_}-c
+| or isAlpha-c
+     isDigit-c
+
+= (strIsSymbol str)
+| ifz str FALSE
+@ chars explode-str
+@ c0 idx-0-chars
+| and (not isDigit-c0)
+| all isSymbolChar chars
+
+= (rexIsSymbol rex)
+| rexGetWord rex 0
+& (word heir)
+| and (isZero heir)
+      (strIsSymbol word)
+
+= badSymChar } Invalid Character in Symbol
+= badSymHeir } Unexpected heir on symbol
+= badSymBare } expected a bare word
+
+= (readWord rex err ok)
+| rexGetWord rex (err rex {Expected a word}) ok
+
+symTodo={todo: support .foo and .234}
+
+= (readSymbol rex err ok)
+@ rune (rexRune rex)
+@ kids (rexKids rex)
+@ nKid (len kids)
+| if (eql {.} rune)
+    | if (neq 1 nKid)
+        | err rex {Should be .x, .5, .{x}, etc}
+    @ kid (idx 0 kids)
+    | ifNot (rexIsLeaf kid)
+        | err rex {Should be .x, .5, .{x}, etc}
+    | if (eql {WORD} | rexStyle kid)
+        | err rex symTodo
+    | ok (rexText kid)
+| rexGetWord rex | (err rex badSymBare)
+& (word heir)
+| if (neq 0 heir) | (err rex badSymHeir)
+| ifNot strIsSymbol-word | (err rex badSymChar)
+| ok word
+
+=?= [{asdf}]        ^ readSymbol _ v2 v1 | '(.{asdf})
+=?= [{ }]           ^ readSymbol _ v2 v1 | '(.{ })
+=?= [{}]            ^ readSymbol _ v2 v1 | '(.{})
+=?= ['(.x) symTodo] ^ readSymbol _ v2 v1 | '(.x)
+=?= ['(.1) symTodo] ^ readSymbol _ v2 v1 | '(.1)
+
+= (litE nat)
+| if (strIsSymbol nat) (txtE nat)
+| natE nat
+
+
+;;; Sire Law Signatures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (rexParseRow rexRow readRow err ok)
+^ rowTraverse _ (zip readRow rexRow) ok
+? (step pair ret)
+@ read (idx 0 pair)
+@ rex  (idx 1 pair)
+| read rex err ret
+
+= (rexParseSonsRow rex readers err ok)
+| ifNot (rexIsNode rex)
+    | err rex {Expected a node}
+@ sons (rexSons rex)
+| if (neq len-readers len-sons)
+    | err rex
+    | strCat ({Expecting }, showNat len-readers, { sons})
+| rexParseRow sons readers err ok
+
+= (rexParseSons rex readers err ok)
+| rexParseSonsRow rex readers err (rowApply ok)
+
+= (rexParseKidsRow rex readers err ok)
+| ifNot (rexIsNode rex)
+    | err rex {Expected a node}
+@ kids (rexKids rex)
+| if (neq len-readers len-kids)
+    | err rex
+    | strCat ({Expecting }, showNat len-readers, { kids})
+| rexParseRow kids readers err ok
+
+= (rexParseKids rex readers err ok)
+| rexParseKidsRow rex readers err (rowApply ok)
+
+
+
+;;; Read Row of Names ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= nrBadForm } Patterns must be a symbol (x) or a row of: (x,y,z)
+= nrBadHeir } Name-sequence cannot have an heir
+
+= (readRowOfNames rex err ok)
+| if (rexIsNode rex)
+    | if (neq (rexRune rex) {,}) | err rex nrBadForm
+    | if (neq (rexHeir rex) 0)   | err rex nrBadHeir
+    @ step
+        ? (step son ret)
+        | readSymbol son err ret
+    | rowTraverse step (rexSons rex) ok
+| if (eql {WORD} rexStyle-rex)
+    | readSymbol rex err
+    & sym
+    | ok [sym]
+| else
+    | err rex nrBadForm
+
+=?= [%x]                | readRowOfNames 'x        v2 id
+=?= [%x]                | readRowOfNames '(x)      v2 id
+=?= []                  | readRowOfNames '[]       v2 id
+=?= [%x]                | readRowOfNames '[x]      v2 id
+=?= [%x %y]             | readRowOfNames '[x y]    v2 id
+=?= [%x %y %z]          | readRowOfNames '[x y z]  v2 id
+=?= ['9 badSymChar]     | readRowOfNames '[x y 9]  v2 id
+=?= ['() nrBadForm]     | readRowOfNames '()       v2 id
+=?= ['([][]) nrBadHeir] | readRowOfNames '([][])   v2 id
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ readNodeWithRune
+^-^ readKidsOfNodeWithRune
+^-^ readNodeWithoutHeirButWithRune
+^-^
+^-^ isSymbolChar strIsSymbol rexIsSymbol readSymbol
+^-^ natE litE varE cnsE barE letE recE
+^-^ sigE lamE wutE
+^-^ inlinedLamE
+^-^ txtE appE
+^-^
+^-^ bloodline
+^-^
+^-^ showNat getNatStr readNat
+^-^ showDigit loadDigit getDigit
+^-^ readAtomLit
+^-^
+^-^ readRowOfNames
+^-^ rexParseKids rexParseKidsRow
+^-^ rexParseSons rexParseSonsRow
+^-^
+^-^ rowE tabE
+^-^
+^-^ tmpName tmpVarE
+^-^ generateUniqueKey
+^-^ generateTempName generateVarE
+^-^ generateTempAnon generateAnonVarE
+^-^

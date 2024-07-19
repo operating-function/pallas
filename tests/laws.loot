@@ -1,0 +1,3021 @@
+mkLaw=0
+
+valCase=1
+
+natCase=2
+
+inc=3
+
+mkPin=4
+
+(S a b c)=(a c b-c)
+
+(K a b)=a
+
+(I a)=a
+
+(apply a b)=(a b)
+
+(supply a b)=(b a)
+
+(compose a b c)=(a b-c)
+
+(isNat a)=(1:(b&0):(b c d & 0):(b c & 0):1 a)
+
+(isApp a)=(1:(b&0):(b c d & 0):(b c & 1):0 a)
+
+(isPin a)=(1:(b&1):(b c d & 0):(b c & 0):0 a)
+
+(isLaw a)=(1:(b&0):(b c d & 1):(b c & 0):0 a)
+
+(isHed a)=(1:(b&1):(b c d & 1):(b c & 0):1 a)
+
+(pinItem a)=(1:(b&b):(b c d & 0):(b c & 0):0 a)
+
+(lawName a)=(1:(b&0):(b c d & b):(b c & 0):0 a)
+
+(lawArgs a)=(1:(b&0):(b c d & c):(b c & 0):0 a)
+
+(lawBody a)=(1:(b&0):(b c d & d):(b c & 0):0 a)
+
+(appHead a)=(1:(b&0):(b c d & 0):(b c & b):0 a)
+
+(appTail a)=(1:(b&0):(b c d & 0):(b c & c):0 a)
+
+(force a)=(lawBody (0!0!1 a))
+
+(seq a b)=(2 b ((c d & c) b) a)
+
+(deepseq a b)=(seq force-a b)
+
+(trk a b)=(deepseq a b)
+
+(trkVal a b)=(trk R2-a-b b)
+
+(die a)=(die a)
+
+(toNat a)=(2:0:3 a)
+
+(dec a)=(2:0:(b&b) a)
+
+(exec a b c)=(2 b (exec a a-b) c)
+
+(if a b c)=(2 c ((d e & d) b) a)
+
+(bool a)=(2:0:(b&1) a)
+
+(not a)=(2:1:(b&0) a)
+
+(isZero a)=(2:1:(b&0) a)
+
+(ifZero a b c)=(2 b ((d e & d) c) a)
+
+(until a b c d)=(if a-d c (b until-a-b c d))
+
+(car a)=(1:(b&4):(b c d & 0-b-c):(b c & b):0 a)
+
+(cdr a)=(1:(b&b):(b c d & d):(b c & c):0 a)
+
+(caar a)=(car car-a)
+
+(cadr a)=(car cdr-a)
+
+(cdar a)=(cdr car-a)
+
+(cddr a)=(cdr cdr-a)
+
+(caaar a)=(car (car car-a))
+
+(caadr a)=(car (car cdr-a))
+
+(cadar a)=(car (cdr car-a))
+
+(caddr a)=(car (cdr cdr-a))
+
+(cdaar a)=(cdr (car car-a))
+
+(cdadr a)=(cdr (car cdr-a))
+
+(cddar a)=(cdr (cdr car-a))
+
+(cdddr a)=(cdr (cdr cdr-a))
+
+F=0
+
+T=1
+
+(bool a)=(if a 1 0)
+
+(not a)=(if a 0 1)
+
+(and a b)=(if a bool-b 0)
+
+(or a b)=(if a 1 bool-b)
+
+(xor a b)=(if a not-b bool-b)
+
+(nand a b)=(not and-a-b)
+
+(nor a b)=(not or-a-b)
+
+(xnor a b)=(not xor-a-b)
+
+(add a b)=(exec:3 toNat-a b)
+
+(mul a b)=(exec add-a 0 b)
+
+(sub a b)=(exec:dec a b)
+
+(lte a b)=(isZero sub-a-b)
+
+(lth a b)=(lte 3-a b)
+
+(gte a b)=(lte b a)
+
+(gth a b)=(lth b a)
+
+(aeq a b)=(and lte-b-a lte-a-b)
+
+(min a b)=(if lte-a-b a b)
+
+(max a b)=(if gth-a-b a b)
+
+(square a)=(mul a a)
+
+
+= (eql a b)
+| if isNat-a (and isNat-b aeq-a-b)
+| if isLaw-a
+   | and isLaw-b
+   | and (aeq lawArgs-a lawArgs-b)
+   | and (aeq lawName-a lawName-b)
+   | eql lawBody-a lawBody-b
+| if isPin-a (and isPin-b (eql pinItem-a pinItem-b))
+| and isApp-b
+| and (eql appHead-a appHead-b)
+| eql appTail-a appTail-b
+
+
+(neq a b)=(not eql-a-b)
+
+(execStrict a b c)=(ifZero c b (d @ a-b)(seq d (execStrict a d dec-c)))
+
+
+= (div a b)
+| ifZero b (die 'divide by zero')
+| until gth-b ((c d e f & d 3-e sub-f-c) b) 0 a
+
+
+(mod a b)=(sub a (mul b div-a-b))
+
+(bex a)=(exec:(mul-2):1 a)
+
+(lsh a b)=(mul bex-b a)
+
+(rsh a b)=(div a bex-b)
+
+(takeBits a b)=(mod b bex-a)
+
+(even a)=(not mod-a-2)
+
+(odd a)=(mod a 2)
+
+(bitWidth a)=(until:isZero:(b c d & b 3-c rsh-d-1):0 a)
+
+(takeByte a)=(takeBits:8 a)
+
+(dropByte a)=(rsh a 8)
+
+
+= (perbit a b c)
+. c a b 0 0
+? (loop d e f g h)
+| if (and isZero-e isZero-f) h
+| loop d div-e-2 div-f-2 3-g
+| add h (lsh (d mod-e-2 mod-f-2) g)
+
+
+(con a b)=(perbit a b or)
+
+(dis a b)=(perbit a b and)
+
+(mix a b)=(perbit a b xor)
+
+(roundUp a b)=(ifZero b a (ifZero mod-a-b a (sub add-a-b mod-a-b)))
+
+(bitWeld a b c)=(add b (lsh c (roundUp bitWidth-b a)))
+
+byteWeld=(bitWeld 8)
+
+NONE=0
+
+(SOME a)=(0 a)
+
+(optionCase a b c)=(if isNat-a b (c cdr-a))
+
+(fromSome a b)=(if isNat-b a cdr-b)
+
+(LEFT a)=(0 a)
+
+(RIGHT a)=(1 a)
+
+(eitherCase a b c)=(if car-a (c cdr-a) (b cdr-a))
+
+(eitherCaseLeft a b c)=(if car-a (b cdr-a) (c cdr-a))
+
+(eitherOpen a b)=(if car-a (b cdr-a) a)
+
+(eitherOpenLeft a b)=(if car-a a (b cdr-a))
+
+(fromRight a b)=(if car-b cdr-b (a cdr-b))
+
+(mkRow a)=(0:0 3-a 0)
+
+(natArgs a)=(if (aeq:0 a) 3 (if (aeq:1 a) 5 (if (aeq:2 a) 3 1)))
+
+
+= (arity a)
+| if isLaw-a lawArgs-a
+| if isNat-a natArgs-a
+| if isPin-a (arity pinItem-a) (dec (arity car-a))
+
+
+(head a)=(if isHed-a a (head car-a))
+
+
+= (isCow a)
+| and isLaw-a
+| and (eql:0 lawName-a) (eql:0 lawBody-a)
+
+
+(isRow a)=(and (eql:1 arity-a) (isCow head-a))
+
+
+= (idx a b)
+@ c
+   . a b
+   ? (loop d e)
+   | if isHed-e 0:0
+   @ f (loop d car-e)
+   | if
+      car-f
+      f
+      (g @ cdr-f)(if eql-d-g (1 cdr-e) (0 3-g))
+| if car-c cdr-c 0
+
+
+(get a b)=(idx b a)
+
+(len a)=(dec (arity head-a))
+
+
+= (splice a b c)
+|
+            ? (loop d e f g)
+            (if gte-f-e g (loop d e 3-f (g get-d-f)))
+         a
+      c
+   b
+| mkRow sub-c-b
+
+
+(switch a b c)=(if (gte a len-c) b idx-a-c)
+
+(match a b c)=(switch (idx:0 a) b c)
+
+NIL=0
+
+(CONS a b)=(R2 a b)
+
+(listCase a b c)=(if isNat-a b (c (idx:0 a) (idx:1 a)))
+
+
+= (listMap a b)
+| if isNat-b 0
+| R2 (a (idx:0 b)) (listMap a (idx:1 b))
+
+
+(listTurn a b)=(listMap b a)
+
+(listHead a)=(if isNat-a 0 (SOME (idx:0 a)))
+
+(listSafeHead a b)=(if isNat-b a (idx:0 b))
+
+(listUnsafeHead a)=(listSafeHead:0)
+
+
+= (gen a b)
+. b a 0 mkRow-a
+? (loop c d e f)
+(ifZero d f (loop c dec-d 3-e (f c-e)))
+
+
+
+= (foldr a b c)
+| ifZero len-c b
+. a b c len-c 0
+? (loop d e f g h)
+(if eql-h-g e (d get-f-h (loop d e f g 3-h)))
+
+
+
+= (foldl a b c)
+. a c len-c b 0
+? (loop d e f g h)
+| if gte-h-f g
+| (i @ d g get-e-h)(seq i (loop d e f i 3-h))
+
+
+
+= (weld a b)
+@ c len-a
+| gen (add c len-b)
+| (d e f g & if lth-g-f get-d-g (get e sub-g-f)) a b
+| c
+
+
+(snoc a b)=(weld a R1-b)
+
+(cons a b)=(weld R1-a b)
+
+
+= (find a b)
+. a b len-b 0
+? (loop c d e f)
+| if eql-e-f 0
+| if (eql c get-d-f) SOME-f (loop c d e 3-f)
+
+
+
+= (update a b c)
+| gen len-c
+| (d e f g & if eql-g-d e idx-g-f) a b c
+
+
+(replicate a b)=(gen b ((c d & c) a))
+
+(map a b)=(gen len-b ((c d e & c get-d-e) a b))
+
+(turn a b)=(map b a)
+
+(put a b c)=(update b c a)
+
+(rowAnd a)=(foldr:and:1 a)
+
+(rowOr a)=(foldr:or:0 a)
+
+(sum a)=(foldr:add:0 a)
+
+(all a b)=(rowAnd map-a-b)
+
+(any a b)=(rowOr map-a-b)
+
+(concat a)=(foldr:weld:[] a)
+
+(concatMap a b)=(concat map-a-b)
+
+
+= (zip a b)
+| gen (min len-a len-b)
+| (c d e & R2 idx-e-c idx-e-d) a b
+
+
+
+= (zipWith a b c)
+| gen (min len-b len-c)
+| (d e f g & d idx-g-e idx-g-f) a b c
+
+
+(rowApply a b)=(foldl:apply a b)
+
+(take a b)=(gen (min a len-b) get-b)
+
+(drop a b)=(gen (sub len-b a) ((c d e & get d add-e-c) a b))
+
+
+= (reverse a)
+@ b len-a
+| gen b ((c d e & get c (sub d 3-e)) a b)
+
+
+(has a b)=(any eql-a b)
+
+
+= (chunks a b)
+| ifZero len-b []
+|
+         ? (loop c d e)
+         (if (eql:0 len-d) e (loop c drop-c-d (e take-c-d)))
+      a
+   b
+| mkRow (div (roundUp len-b a) a)
+
+
+(rap a b)=(foldl bitWeld-a 0 b)
+
+(implode a)=(rap:8 a)
+
+
+= (listFoldl a b c)
+| if isNat-c b
+| (d @ a b (idx:0 c))(seq d (listFoldl a d (idx:1 c)))
+
+
+(listFoldr a b c)=(if isNat-c b (a (idx:0 c) (listFoldr a b (idx:1 c))))
+
+(listLen a)=(listFoldr:(b c & 3-c):0 a)
+
+(listSum a)=(listFoldr:add:0 a)
+
+(listToRow a)=(listFoldl:apply (mkRow listLen-a) a)
+
+(listToRowReversed a)=(listFoldr:supply (mkRow listLen-a) a)
+
+(listFromRow a)=(foldr:CONS:0 a)
+
+(listAnd a)=(listFoldr:and:1 a)
+
+(listOr a)=(listFoldr:or:0 a)
+
+(listSum a)=(listFoldr:add:0 a)
+
+(listAll a b)=(listAnd listMap-a-b)
+
+(listAny a b)=(listOr listMap-a-b)
+
+(listHas a b)=(listAny eql-a b)
+
+(listEnumFrom a)=(R2 a (listEnumFrom 3-a))
+
+(listWeld a b)=(if isNat-a b (R2 (idx:0 a) (listWeld (idx:1 a) b)))
+
+
+= (listConcat a)
+| if isNat-a 0
+| listWeld (idx:0 a) (listConcat (idx:1 a))
+
+
+
+= (listTake a b)
+| ifZero a 0
+| if isNat-b 0
+| R2 (idx:0 b) (listTake dec-a (idx:1 b))
+
+
+(listDrop a b)=(ifZero a b (if isNat-b 0 (listDrop dec-a (idx:1 b))))
+
+
+= (listDigits a)
+| ifZero a (CONS:48 0)
+. a 0
+? (loop b c)
+| seq c
+| ifZero b c (loop div-b-10 (R2 (add mod-b-10 48) c))
+
+
+(digits a)=(listToRow listDigits-a)
+
+
+= (listZipWith a b c)
+| if isNat-b 0
+| if isNat-c 0
+| R2 (a (idx:0 b) (idx:0 c))
+| listZipWith a (idx:1 b) (idx:1 c)
+
+
+(listZip a b)=(listZipWith:R2 a b)
+
+
+= (listFilter a b)
+| if isNat-b 0
+@ c (idx:0 b)
+@ d (idx:1 b)
+| if a-c (R2 c listFilter-a-d) listFilter-a-d
+
+
+(listNull a)=(isZero (idx:0 a))
+
+
+= (listMinimumOn a b c)
+| if isNat-c b
+@ d (idx:0 c)
+| listMinimumOn a (if (lth a-d a-b) d b) (idx:1 c)
+
+
+
+= (listSortOn a b)
+| if isNat-b 0
+@ c (listMinimumOn a (idx:0 b) (idx:1 b))
+| R2 c
+| listSortOn a
+| listFilter ((d e f & not (eql e d-f)) a a-c) b
+
+
+(sortOn a b)=(listToRow (listSortOn a listFromRow-b))
+
+(eitherMap a b)=(if car-b (RIGHT (a cdr-b)) (0 cdr-b))
+
+
+= (eitherRowSequence a)
+|  !  ? (loop b c)
+      | if isNat-c (1 listToRowReversed-b)
+      | if
+         (car (idx:0 c))
+         (loop (R2 (cdr (idx:0 c)) b) (idx:1 c))
+      | 0 (cdr (idx:0 c))
+   ! 0
+| listFromRow-a
+
+
+(eitherRowTraverse a b)=(eitherRowSequence map-a-b)
+
+(tabLen a)=(len (lawBody head-a))
+
+
+= (tabIdx a b)
+@ c (find a (lawBody head-b))
+| if isNat-c 0 (idx cdr-c b)
+
+
+(look a b)=(tabIdx b a)
+
+(tabKeys a)=(lawBody head-a)
+
+(tabHas a b)=(has a tabKeys-b)
+
+(tabGet a b)=(tabIdx b a)
+
+(tabValues a)=(map tabGet-a tabKeys-a)
+
+(tabSwitch a b c)=(if (not tabHas-a-c) b tabIdx-a-c)
+
+(tabMatch a b c)=(tabSwitch (idx:0 a) b c)
+
+
+= (tabFromRow a)
+@ b (sortOn:(idx-0) a)
+| rowApply
+   (0:0 (3 len-b) (map:(idx-0) b))
+   (map:(idx-1) b)
+
+
+
+= (tabToRow a)
+| listToRow
+| listZip (listFromRow tabKeys-a) listFromRow-a
+
+
+(tabToList a)=(listFromRow tabToRow-a)
+
+(tabPut a b c)=(tabFromRow (weld tabToRow-a (R1 R2-b-c)))
+
+(toByt a)=(mod a 256)
+
+(cordWeld a b)=(bitWeld:8 a b)
+
+(cordConcat a)=(foldr:cordWeld:[] a)
+
+(showNat a)=(cordConcat digits-a)
+
+(EROR a)=a
+
+(NODE a b)=(R3:0 a b)
+
+(HEIR a b c)=(R4:0 a b c)
+
+(WORD a)=(R2:1 a)
+
+(TEXT a)=(R2:2 a)
+
+(PAGE a)=(R2:3 a)
+
+(VRAW a)=(R2:4 a)
+
+(mkHeir a b c)=(if (eql:0 c) NODE-a-b HEIR-a-b-c)
+
+
+= (rexCase a b c d e f)
+| switch (idx:0 a) 0
+| R5
+   (b (idx:1 a) (idx:2 a) (idx:3 a))
+   (c (idx:1 a))
+   (d (idx:1 a))
+   (e (idx:1 a))
+| f (idx:1 a)
+
+
+
+= (rexGetNode a b c)
+| switch (idx:0 a) 0
+| R5 (c (idx:1 a) (idx:2 a) (idx:3 a)) b b b b
+
+
+(rexGetWord a b c)=(switch (idx:0 a) 0 (R5 b (c (idx:1 a)) b b b))
+
+(rexGetText a b c)=(switch (idx:0 a) 0 (R5 b b (c (idx:1 a)) b b))
+
+(natE a)=(WORD showNat-a)
+
+(varE a)=(WORD a)
+
+(cnsE a)=(VRAW a)
+
+(appE a)=(NODE:124 a)
+
+(appE2 a b)=(NODE:124 R2-a-b)
+
+(vecE a)=(NODE:44 a)
+
+(letE a b c)=(HEIR:64 R2-a-b c)
+
+(recE a b c)=(HEIR:126 R2-a-b c)
+
+(txtE a)=(TEXT a)
+
+(gensymE a)=(WORD (cordWeld:(%_g) showNat-a))
+
+(mergeHeir a b)=(if (eql:0 b) a (weld a R1-b))
+
+
+= (rexGetNodeFolded a b c)
+| switch (idx:0 a) 0
+| R5 (c (idx:1 a) (mergeHeir (idx:2 a) (idx:3 a))) b b b
+| b
+
+
+
+= (tabE a)
+| NODE:37
+| R1
+| vecE
+| turn tabToRow-a
+& b
+(NODE:61 (R2 (WORD (showNat (idx:0 b))) (idx:1 b)))
+
+
+
+= (simpleMacro a b c d e f g)
+@ h mergeHeir-f-g
+| if (neq len-b len-h)
+   | LEFT
+   | R2 mkHeir-a-f-g
+   | cordConcat
+   | R3:'Expecting ' (showNat len-b)
+      ''' parameters
+@ i (eitherRowSequence (zipWith:apply b h))
+. i
+| if car-i
+@ j (rowApply c cdr-i)
+| if car-j (RIGHT (R2:0 cdr-j)) j
+
+
+
+= (gensymMacro a b c d e f g)
+@ h mergeHeir-f-g
+| if (neq len-b len-h)
+   | LEFT
+   | R2 mkHeir-a-f-g
+   | cordConcat
+   | R3:'Expecting ' (showNat len-b)
+      ''' parameters
+@ i (eitherRowSequence (zipWith:apply b h))
+| if car-i (rowApply c-e cdr-i) i
+
+
+(isDigit a)=(and gte-a-48 lte-a-57)
+
+(isUpper a)=(and gte-a-65 lte-a-90)
+
+(isLower a)=(and gte-a-97 lte-a-122)
+
+(isAlpha a)=(or isUpper-a isLower-a)
+
+
+= (explode a)
+@ b (div (roundUp bitWidth-a 8) 8)
+. b 0 a mkRow-b
+? (loop c d e f)
+(if eql-d-c f (loop c 3-d rsh-e-8 (f (dis:255 e))))
+
+
+
+= ('```' a b c d)
+@ e mergeHeir-c-d
+| if (neq:1 len-e)
+   '''Expected 1 Parameter
+| RIGHT (R2:0 (cnsE (idx:0 e)))
+
+
+(okaySymbolChar a)=(or (eql:95 a) (or isAlpha-a isDigit-a))
+
+
+= (okaySymbol a)
+| if (eql:0 a) 0
+@ b explode-a
+| and (not (isDigit (idx:0 b))) (all:okaySymbolChar b)
+
+
+
+= (readSymbol a)
+@ b (LEFT (R2 a '`readSymbol` expected a NAME node'))
+| switch (idx:0 a) 0
+. b b b
+| R5 b
+@ c (idx:1 a)
+. RIGHT-c
+| ifZero okaySymbol-c
+| LEFT (R2 a 'Invalid Character in Symbol')
+
+
+
+= (readRowOfNames a b)
+@ c
+   | LEFT
+   | R2 b
+   | cordWeld a
+   |
+      ''' pattern must be a symbol (x) or a row of: (x,y,z)
+| switch (idx:0 b) 0
+. c c c
+| R5
+   | if (neq (idx:1 b) 44) c
+   | if
+      (neq (idx:3 b) 0)
+      (LEFT (R2 b 'name-sequence cannot have an heir'))
+   | eitherRowTraverse:readSymbol (idx:2 b)
+| (d @ readSymbol-b)(if car-d (idx:0 cdr-d) d)
+
+
+
+= ('#*' a b c d)
+. a b c d
+! gensymMacro
+!
+   '''#*
+! [(readRowOfNames 'In *~ names list,') RIGHT RIGHT]
+!  & (e f g h)
+   @ i gensymE-e
+   | RIGHT
+   | R2:1
+   | letE i g
+   |
+            ? (bindSlots f g h)
+            | if isNat-h f
+            @ i (idx:0 h)
+            | letE
+               (WORD (idx:1 i))
+               (appE (R3 cnsE-idx (natE (idx:0 i)) g))
+            | bindSlots f g (idx:1 h)
+         h
+      i
+   | listZip listEnumFrom-0 listFromRow-f
+
+
+
+= ('#*' a b c d)
+. a b c d
+! gensymMacro
+!
+   '''#*
+! [(readRowOfNames 'In *~ names list,') RIGHT RIGHT]
+!  & (e f g h)
+   @ i gensymE-e
+   | RIGHT
+   | R2:1
+   | letE i g
+   |
+            ? (bindSlots f g h)
+            | if isNat-h f
+            @ i (idx:0 h)
+            | letE
+               (WORD (idx:1 i))
+               (appE (R3 cnsE-idx (natE (idx:0 i)) g))
+            | bindSlots f g (idx:1 h)
+         h
+      i
+   | listZip listEnumFrom-0 listFromRow-f
+
+'*'=($'#*')
+
+(opnE a b c)=(NODE:42 (R3 (NODE:44 (map:varE a)) b c))
+
+
+= (readBindPairs a)
+@ b
+   . a
+   !  ? (loop c d)
+      | if (eql:0 d) c
+      @ e
+         | LEFT
+         | R2
+            d
+            '''Knot binders must be an = node with 2 kids
+      | switch (idx:0 d) 0
+      . e e e e
+      | R5
+      @ f (idx:2 d)
+      | if (neq:61 (idx:1 d)) e
+      | if (neq:2 len-f) e
+      @ g (readSymbol (idx:0 f))
+      . g
+      | if car-g
+      | loop (R3:CONS (R2 (cdr cdr-g) (idx:1 f)) c)
+      | idx:3 d
+   ! 0
+| if car-b (listToRowReversed cdr-b) b
+
+
+
+= (':' a b c d)
+. a b c d
+! gensymMacro
+! 58
+! [readBindPairs I]
+!  & (e f g)
+   @ h gensymE-e
+   @ i (map:(idx-0) f)
+   | RIGHT
+   | R2:1
+   | recE
+      h
+      (opnE i h (vecE (map:(idx-1) f)))
+      opnE-i-h-g
+
+
+
+= (byteWidth a)
+|  ! (loop b c ? seq b (ifZero c b (loop 3-b rsh-c-8)))
+   ! 0
+| a
+
+
+
+= (barTrail a)
+. a
+!  ? (loop b c)
+   | seq b
+   | if (or (eql:1 c) (eql:0 c)) b
+   | loop (ifZero mod-c-8 3-b 0) rsh-c-8
+! 0
+
+
+(barEnc a b)=(add b (bex (mul:8 (add a byteWidth-b))))
+
+(barDec a)=(sub a (bex (mul:8 (dec byteWidth-a))))
+
+
+= (checkBar a b c)
+@ d barEnc-b-c
+| and eql-d-a
+| and (eql b barTrail-d) (eql c barDec-d)
+
+
+(mkBar a b)=(0!1!1 barEnc-a-b)
+
+(natBar a)=(mkBar:0 a)
+
+(barNat a)=(barDec lawBody-a)
+
+(barPad a)=(barTrail lawBody-a)
+
+(barLen a)=(dec (byteWidth lawBody-a))
+
+
+= (barIdx a b)
+. a barNat-b
+? (loop c d)
+| ifZero c takeByte-d
+| ifZero d 0 (loop dec-c dropByte-d)
+
+
+
+= (zEnd a)
+|
+         ? (loop b c d)
+         (if get-b-d c (ifZero d 3-c (loop b 3-c dec-d)))
+      a
+   0
+| dec len-a
+
+
+(stripZEnd a)=(take (sub len-a zEnd-a) a)
+
+
+= (bytesBar a)
+@ b zEnd-a
+| mkBar b
+| foldr:(c d & add c lsh-d-8):0
+| map:toByt (take (sub len-a b) a)
+
+
+(barGen a b)=(bytesBar gen-a-b)
+
+(barGet a b)=(barIdx b a)
+
+(barBytes a)=(gen barLen-a barGet-a)
+
+(barFoldl a b c)=(foldl a b barBytes-c)
+
+(barFoldr a b c)=(foldr a b barBytes-c)
+
+
+= (barWeld a b)
+@ c barLen-a
+| barGen (add c barLen-b)
+|
+         & (d e f g)
+         (if lth-g-f barIdx-g-d (barIdx sub-g-f e))
+      a
+   b
+| c
+
+
+(B a)=(natBar a)
+
+emptyBar=B''
+
+(barConcat a)=(foldr:barWeld:B'' a)
+
+
+= (barIntercalate a b)
+|
+         ? (go c d e)
+         | if isNat-e d
+         @ f (idx:0 e)
+         @ g (idx:1 e)
+         | if
+            isNat-g
+            barWeld-d-f
+            (go c (barConcat R3-d-f-c) g)
+      a
+   B''
+| listFromRow-b
+
+
+bex32=4294967296
+
+bex31=2147483648
+
+wMax32=4294967295
+
+wMin32=0
+
+iMax32=2147483647
+
+iMin32=2147483648
+
+(w32 a)=(mod a 4294967296)
+
+(i32 a)=(mod a 4294967296)
+
+(inc32 a)=(w32 3-a)
+
+(dec32 a)=(2:4294967295:(b&b) a)
+
+(add32 a b)=(w32 (add w32-a w32-b))
+
+(mul32 a b)=(w32 (mul w32-a w32-b))
+
+(div32 a b)=(div w32-a w32-b)
+
+(not32 a)=(not w32-a)
+
+(lth32 a b)=(lth w32-a w32-b)
+
+(gth32 a b)=(gth w32-a w32-b)
+
+(lte32 a b)=(lte w32-a w32-b)
+
+(gte32 a b)=(gte w32-a w32-b)
+
+(eql32 a b)=(aeq w32-a w32-b)
+
+(and32 a b)=(dis w32-a w32-b)
+
+(or32 a b)=(con w32-a w32-b)
+
+(xor32 a b)=(mix w32-a w32-b)
+
+(lsh32 a b)=(and32 (lsh w32-a w32-b) 4294967295)
+
+(rsh32 a b)=(and32 (rsh w32-a w32-b) 4294967295)
+
+(chop32 a)=(and32 a 4294967295)
+
+(not32 a)=(not w32-a)
+isZero32=not32
+
+
+= (sub32 a b)
+| if lte32-b-a (sub w32-a w32-b)
+| sub (add:4294967296 a) b
+
+
+(ror32 a b)=(or32 rsh32-a-b (lsh32 a (sub32:32 b)))
+
+(rol32 a b)=(or32 lsh32-a-b (rsh32 a (sub32:32 b)))
+
+(bitFlip32 a)=(sub32:4294967295 a)
+
+(iNeg32 a)=(inc32 bitFlip32-a)
+
+(iIsZero32 a)=(not32 a)
+
+(iInc32 a)=(inc32 a)
+
+(iAdd32 a b)=(add32 a b)
+
+(iSub32 a b)=(add32 a iNeg32-b)
+
+(iMul32 a b)=(mul32 a b)
+
+(iDec32 a)=(dec32 a)
+
+(iEql32 a b)=(eql32 a b)
+
+(iIsNeg32 a)=(gth32 a 2147483647)
+
+(iAbs32 a)=(if iIsNeg32-a iNeg32-a a)
+
+
+= (iDiv32 a b)
+@ c (div32 iAbs32-a iAbs32-b)
+| if (R3:xor iIsNeg32-a iIsNeg32-a) iNeg32-c c
+
+
+
+= (iGth32 a b)
+| if iIsNeg32-a (and iIsNeg32-b (gth32 iNeg32-b iNeg32-a))
+| or iIsNeg32-b gth32-a-b
+
+
+(iGte32 a b)=(or eql32-a-b iGth32-a-b)
+
+(iLte32 a b)=(iGte32 b a)
+
+(iLth32 a b)=(iGth32 b a)
+
+bex48=281474976710656
+
+bex47=140737488355328
+
+wMax48=281474976710655
+
+wMin48=0
+
+iMax48=140737488355327
+
+iMin48=140737488355328
+
+(w48 a)=(mod a 281474976710656)
+
+(I48 a)=(mod a 281474976710656)
+
+(inc48 a)=(w48 3-a)
+
+(dec48 a)=(2:281474976710655:(b&b) a)
+
+(add48 a b)=(w48 (add w48-a w48-b))
+
+(mul48 a b)=(w48 (mul w48-a w48-b))
+
+(div48 a b)=(div w48-a w48-b)
+
+(not48 a)=(not w48-a)
+
+(lth48 a b)=(lth w48-a w48-b)
+
+(gth48 a b)=(gth w48-a w48-b)
+
+(lte48 a b)=(lte w48-a w48-b)
+
+(gte48 a b)=(gte w48-a w48-b)
+
+(eql48 a b)=(aeq w48-a w48-b)
+
+(not48 a)=(not w48-a)
+isZero48=not48
+
+
+= (sub48 a b)
+| if lte48-b-a (sub w48-a w48-b)
+| sub (add:281474976710656 a) b
+
+
+(bitFlip48 a)=(sub48:281474976710655 a)
+
+(iNeg48 a)=(inc48 bitFlip48-a)
+
+(iIsZero48 a)=(not48 a)
+
+(iInc48 a)=(inc48 a)
+
+(iAdd48 a b)=(add48 a b)
+
+(iSub48 a b)=(add48 a iNeg48-b)
+
+(iMul48 a b)=(mul48 a b)
+
+(iDec48 a)=(dec48 a)
+
+(iEql48 a b)=(eql48 a b)
+
+(iIsNeg48 a)=(gth48 a 140737488355327)
+
+(iAbs48 a)=(if iIsNeg48-a iNeg48-a a)
+
+
+= (iDiv48 a b)
+@ c (div48 iAbs48-a iAbs48-b)
+| if (xor iIsNeg48-a iIsNeg48-a) iNeg48-c c
+
+
+
+= (iGth48 a b)
+| if iIsNeg48-a (and iIsNeg48-b (gth48 iNeg48-b iNeg48-a))
+| or iIsNeg48-b gth48-a-b
+
+
+(iGte48 a b)=(or eql48-a-b iGth48-a-b)
+
+(iLte48 a b)=(iGte48 b a)
+
+(iLth48 a b)=(iGth48 b a)
+
+(gulf a b)=(gen (sub 3-b a) add-a)
+
+b3OutLen=32
+
+b3KeyLen=32
+
+b3BlockLen=64
+
+b3ChunkLen=1024
+
+b3ChunkStart=1
+
+b3ChunkEnd=2
+
+b3Parent=4
+
+b3Root=8
+
+b3KeyedHash=16
+
+b3DeriveKeyContext=32
+
+b3DeriveKeyMaterial=64
+
+
+= b3Iv
+,, 1779033703
+,, 3144134277
+,, 1013904242
+,, 2773480762
+,, 1359893119
+,, 2600822924
+,, 528734635
+,, 1541459225
+
+
+b3MsgPermutation=[2 6 3 10 7 0 4 13 1 11 12 5 9 14 15 8]
+
+
+= (b3G a b c d e f g)
+@ h (put a b (add32 (add32 get-a-b get-a-c) f))
+@ i (put h e (ror32 (xor32 get-h-e get-h-b) 16))
+@ j (put i d (add32 get-i-d get-i-e))
+@ k (put j c (ror32 (xor32 get-j-c get-j-d) 12))
+@ l (put k b (add32 (add32 get-k-b get-k-c) g))
+@ m (put l e (ror32 (xor32 get-l-e get-l-b) 8))
+@ n (put m d (add32 get-m-d get-m-e))
+| put n c (ror32 (xor32 get-n-c get-n-d) 7)
+
+
+
+= (b3Round a b)
+. 3 4 9 14 get-b-14 get-b-15
+| b3G
+. 2 7 8 13 get-b-12 get-b-13
+| b3G
+. 1 6 11 12 get-b-10 get-b-11
+| b3G
+. 0 5 10 15 get-b-8 get-b-9
+| b3G
+. 3 7 11 15 get-b-6 get-b-7
+| b3G
+. 2 6 10 14 get-b-4 get-b-5
+| b3G
+| b3G (b3G a 0 4 8 12 get-b-0 get-b-1) 1 5 9 13 get-b-2
+| get-b-3
+
+
+
+= (b3Permute a)
+| gen:16
+. a
+& (b c)
+| get b
+| get:[2 6 3 10 7 0 4 13 1 11 12 5 9 14 15 8] c
+
+
+(u8weld a b)=(add a lsh-b-8)
+
+
+= (u32weld a)
+| if (not (aeq len-a 4)) (die 'u32weld requires 4 bytes')
+| u8weld get-a-0
+| u8weld get-a-1 (u8weld get-a-2 get-a-3)
+
+
+
+= (bytesToWords a)
+| if
+   (mod len-a 4)
+   (die 'byte-row length not a multiple of 4')
+@ b (div len-a 4)
+. a b 0 0 mkRow-b
+? (loop c d e f g)
+| if eql-f-d g
+@ h add-e-4
+| loop c d h 3-f (g (u32weld splice-c-e-h))
+
+
+
+= (wordToBytes a)
+. a mkRow-4
+!  ? (go b c d)
+   (if eql-b-4 d (go 3-b rsh-c-8 (d (dis:255 c))))
+! 0
+
+
+(wordsToBytes a)=(concat (map:wordToBytes a))
+
+
+= (b3Compress a)
+@ b (idx:0 a)
+@ c (idx:2 a)
+@ d (b3Permute (idx:1 a))
+@ e b3Permute-d
+@ f b3Permute-e
+@ g b3Permute-f
+@ h b3Permute-g
+|
+         ? (loop i j k)
+         | if eql-j-8 k
+         @ l (put k j (xor32 (get k add-j-8) get-k-j))
+         | loop i 3-j
+         | put
+            l
+            add-j-8
+            (xor32 (get l add-j-8) get-i-j)
+      b
+   0
+| b3Round
+   . h
+   | b3Round
+   . g
+   | b3Round
+   . f
+   | b3Round
+   . e
+   | b3Round
+   . d
+   | b3Round
+   . (idx:1 a)
+   | b3Round
+   . (idx:3 a) (idx:4 a)
+   | R16 get-b-0 get-b-1 get-b-2 get-b-3 get-b-4 get-b-5 get-b-6 get-b-7
+                  . 0
+                  ! get
+                  !  ,, 1779033703
+                     ,, 3144134277
+                     ,, 1013904242
+                     ,, 2773480762
+                     ,, 1359893119
+                     ,, 2600822924
+                     ,, 528734635
+                     ,, 1541459225
+               . 1
+               ! get
+               !  ,, 1779033703
+                  ,, 3144134277
+                  ,, 1013904242
+                  ,, 2773480762
+                  ,, 1359893119
+                  ,, 2600822924
+                  ,, 528734635
+                  ,, 1541459225
+            . 2
+            ! get
+            !  ,, 1779033703
+               ,, 3144134277
+               ,, 1013904242
+               ,, 2773480762
+               ,, 1359893119
+               ,, 2600822924
+               ,, 528734635
+               ,, 1541459225
+         . 3
+         ! get
+         !  ,, 1779033703
+            ,, 3144134277
+            ,, 1013904242
+            ,, 2773480762
+            ,, 1359893119
+            ,, 2600822924
+            ,, 528734635
+            ,, 1541459225
+      chop32-c
+   | chop32 rsh-c-32
+| b3Permute-h
+
+
+(first8words a)=(splice a 0 8)
+
+(b3OutputNew a b c d e)=(R5 a b c d e)
+
+(b3OutputGetInputChainingValue a)=(get a 0)
+
+(b3OutputGetBlockWords a)=(get a 1)
+
+(b3OutputGetCounter a)=(get a 2)
+
+(b3OutputGetBlockLen a)=(get a 3)
+
+(b3OutputGetFlags a)=(get a 4)
+
+(b3OutputChainingValue a)=(first8words b3Compress-a)
+
+
+= (b3OutputRootOutputBytes a b)
+@ c (mul:2 32)
+@ d (div roundUp-b-c c)
+| concat
+. a c d 0 b mkRow-d
+? (loop e f g h i j)
+| if eql-h-g j
+@ k min-f-i
+| loop e f g 3-h sub-i-k
+| j
+| take k
+| wordsToBytes
+| b3Compress
+| R5
+   b3OutputGetInputChainingValue-e
+   b3OutputGetBlockWords-e
+   h
+   b3OutputGetBlockLen-e
+| or32 b3OutputGetFlags-e 8
+
+
+(b3ChunkstGetChainingVal a)=(get a 0)
+
+(b3ChunkstGetChunkCounter a)=(get a 1)
+
+(b3ChunkstGetBlock a)=(get a 2)
+
+(b3ChunkstGetBlockLen a)=(get a 3)
+
+(b3ChunkstGetBlocksCompressed a)=(get a 4)
+
+(b3ChunkstGetFlags a)=(get a 5)
+
+(b3ChunkstPutChainingVal a)=(put a 0)
+
+(b3ChunkstPutChunkCounter a)=(put a 1)
+
+(b3ChunkstPutBlock a)=(put a 2)
+
+(b3ChunkstPutBlockLen a)=(put a 3)
+
+(b3ChunkstPutBlocksCompressed a)=(put a 4)
+
+(b3ChunkstPutFlags a)=(put a 5)
+
+(b3ChunkstNew a b c)=(R6 a b (replicate:0 64) 0 0 c)
+
+
+= (b3ChunkstLen a)
+| add b3ChunkstGetBlockLen-a
+| mul:64 b3ChunkstGetBlocksCompressed-a
+
+
+(b3ChunkstStartFlag a)=(if (eql b3ChunkstGetBlocksCompressed-a 0) 1 0)
+
+
+= (b3ChunkstUpdate a b)
+| if (eql len-b 0) a
+@ c
+   | if (neq:64 b3ChunkstGetBlockLen-a) a
+   @ d
+      | b3ChunkstPutChainingVal a
+      | first8words
+      | b3Compress
+      | R5
+         b3ChunkstGetChainingVal-a
+         (bytesToWords b3ChunkstGetBlock-a)
+         b3ChunkstGetChunkCounter-a
+         64
+      | or32 b3ChunkstGetFlags-a b3ChunkstStartFlag-a
+   . 0
+   | b3ChunkstPutBlockLen
+   | b3ChunkstPutBlock
+      | b3ChunkstPutBlocksCompressed d
+      | 3 b3ChunkstGetBlocksCompressed-d
+   | replicate:0 64
+@ d (min (sub:64 b3ChunkstGetBlockLen-c) len-b)
+@ e
+   | b3ChunkstPutBlock c
+   | weld take-d-b (drop d b3ChunkstGetBlock-c)
+. drop-d-b
+| b3ChunkstUpdate
+| b3ChunkstPutBlockLen e
+| add b3ChunkstGetBlockLen-e d
+
+
+
+= (b3ChunkstOutput a)
+| b3OutputNew
+   b3ChunkstGetChainingVal-a
+   (bytesToWords b3ChunkstGetBlock-a)
+   b3ChunkstGetChunkCounter-a
+   b3ChunkstGetBlockLen-a
+| or32 (or32 b3ChunkstGetFlags-a b3ChunkstStartFlag-a)
+| 2
+
+
+
+= (b3ParentOutput a b c d)
+| b3OutputNew c (weld (take:8 a) (take:8 b)) 0 64
+| or32:4 d
+
+
+(b3ParentCv a b c d)=(b3OutputChainingValue b3ParentOutput-a-b-c-d)
+
+(b3HasherGetChunkst a)=(get a 0)
+
+(b3HasherGetKeyWords a)=(get a 1)
+
+(b3HasherGetCvStack a)=(get a 2)
+
+(b3HasherGetFlags a)=(get a 3)
+
+(b3HasherPutChunkst a b)=(put a 0 b)
+
+(b3HasherPutCvStack a b)=(put a 2 b)
+
+
+= (b3HasherNewInternal a b)
+| if
+   (not (eql:8 len-a))
+   (die 'Incorrect length of keyWords')
+| R4 b3ChunkstNew-a-0-b a 0 b
+
+
+
+= b3HasherNew
+,, ,, ,, 1779033703
+      ,, 3144134277
+      ,, 1013904242
+      ,, 2773480762
+      ,, 1359893119
+      ,, 2600822924
+      ,, 528734635
+      ,, 1541459225
+   ,, 0
+   ,, ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+   ,, 0
+   ,, 0
+   ,, 0
+,, ,, 1779033703
+   ,, 3144134277
+   ,, 1013904242
+   ,, 2773480762
+   ,, 1359893119
+   ,, 2600822924
+   ,, 528734635
+   ,, 1541459225
+,, 0
+,, 0
+
+
+(b3HasherPushStack a b)=(b3HasherPutCvStack a (R2 b b3HasherGetCvStack-a))
+
+
+= (b3HasherPopStack a)
+@ b b3HasherGetCvStack-a
+| if isNat-b (die 'Trying to pop empty stack')
+| R2 (idx:0 b) (b3HasherPutCvStack a (idx:1 b))
+
+
+
+= (b3HasherAddChunkChainingValue a b c)
+. a b c
+? (go d e f)
+| ifZero and32-f-1
+   @ g b3HasherPopStack-d
+   @ h (idx:1 g)
+   . rsh-f-1
+   | go h
+   | b3ParentCv (idx:0 g) e b3HasherGetKeyWords-h
+   | b3HasherGetFlags-h
+| b3HasherPushStack-d-e
+
+
+
+= (b3HasherUpdate a b)
+@ c
+   |  & (f g h)
+      @ i
+         | min
+            (sub:1024 (b3ChunkstLen b3HasherGetChunkst-g))
+         | len-h
+      . drop-i-h
+      | f
+      | b3HasherPutChunkst g
+      | b3ChunkstUpdate b3HasherGetChunkst-g take-i-h
+   | b3HasherUpdate
+| ifZero len-b a
+| if (neq:1024 (b3ChunkstLen b3HasherGetChunkst-a)) c-a-b
+@ d (3 (b3ChunkstGetChunkCounter b3HasherGetChunkst-a))
+@ e
+   . d
+   | b3HasherAddChunkChainingValue a
+   | b3OutputChainingValue
+   | b3ChunkstOutput b3HasherGetChunkst-a
+. b
+| c
+| b3HasherPutChunkst e
+| b3ChunkstNew b3HasherGetKeyWords-e d
+| b3HasherGetFlags-e
+
+
+
+= (b3Finalize a b)
+|
+            ? (go c d e f)
+            | if isNat-f b3OutputRootOutputBytes-e-d
+            . (idx:1 f)
+            | go c d
+            | b3ParentOutput
+               (idx:0 f)
+               b3OutputChainingValue-e
+               b3HasherGetKeyWords-c
+            | b3HasherGetFlags-c
+         a
+      b
+   (b3ChunkstOutput b3HasherGetChunkst-a)
+| b3HasherGetCvStack-a
+
+
+
+= (blake3 a)
+. 32
+| b3Finalize
+. a
+! b3HasherUpdate
+!  ,, ,, ,, 1779033703
+         ,, 3144134277
+         ,, 1013904242
+         ,, 2773480762
+         ,, 1359893119
+         ,, 2600822924
+         ,, 528734635
+         ,, 1541459225
+      ,, 0
+      ,, ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+   ,, ,, 1779033703
+      ,, 3144134277
+      ,, 1013904242
+      ,, 2773480762
+      ,, 1359893119
+      ,, 2600822924
+      ,, 528734635
+      ,, 1541459225
+   ,, 0
+   ,, 0
+
+
+(mkInput a)=(map:(b & mod-b-256) (gulf:0 dec-a))
+
+hexAlphabet=B'0123456789abcdef'
+
+(hexChar a)=(barGet:B'0123456789abcdef' a)
+
+
+= (hexByte a)
+| implode
+| map:hexChar (R2 (takeBits:4 rsh-a-4) (takeBits:4 a))
+
+
+(showByte a)=(bitWeld:16:(%0x) hexByte-a)
+
+(showHash a)=(cordWeld:(%0x) (rap:16 (map:hexByte a)))
+
+(hexCharToNat a)=(if lte-a-57 sub-a-48 (add:10 (sub min-a-102 97)))
+
+
+= (barFromHex a)
+@ b (map:hexCharToNat explode-a)
+. 1
+|  !  ? (loop c d e)
+      | seq c
+      | if isNat-d (0!1!1 c)
+      | if (isNat (idx:1 d)) (die %impossible)
+      | loop
+            | add c
+            | add (mul e (idx:0 (idx:1 d)))
+            | mul e (mul:16 (idx:0 d))
+         (idx:1 (idx:1 d))
+      | mul:256 e
+   ! 0
+| listFromRow
+| concat (R3 (if (even len-b) [] [0]) b [0 1])
+
+
+(X a)=(barFromHex a)
+
+
+= (refs a)
+| listToRowReversed
+|  !  ? (go b c)
+      | if isNat-c b
+      | if isApp-c (go (go b car-c) cdr-c)
+      | if isLaw-c (go b lawBody-c)
+      | if listHas-c-b b R2-c-b
+   ! 0
+| if isPin-a pinItem-a a
+
+
+
+= (listLookup a b)
+| if isNat-b 0
+| if (eql (idx:0 (idx:0 b)) a) (SOME (idx:1 (idx:0 b)))
+| listLookup a (idx:1 b)
+
+
+
+= (mat a)
+| ifZero a [1 1]
+@ b bitWidth-a
+@ c bitWidth-b
+| R2 (add b add-c-c)
+| bitWeld:0 bex-c
+| mix (takeBits dec-c b) (lsh a dec-c)
+
+
+
+= (optionRowSequence a)
+|  !  ? (loop b c)
+      | if isNat-c (0 listToRowReversed-b)
+      | if (isNat (idx:0 c)) 0
+      | loop (R2 (cdr (idx:0 c)) b) (idx:1 c)
+   ! 0
+| listFromRow-a
+
+
+(optionRowTraverse a b)=(optionRowSequence map-a-b)
+
+
+= ('#@' a b c d)
+@ e mergeHeir-c-d
+| if (neq:3 len-e)
+   '''Expected 3 parameters
+@ f (idx:0 e)
+| RIGHT
+| R2:0
+| NODE:64
+| R3 f (idx:1 e)
+| appE
+| R4 cnsE-if (appE (R2:[4 isNat] f)) f (idx:2 e)
+
+
+
+= (readDigit a)
+| tabSwitch a 0
+. SOME-0
+   SOME-1
+   SOME-2
+   SOME-3
+   SOME-4
+   SOME-5
+   SOME-6
+   SOME-7
+   SOME-8
+   SOME-9
+%['0' '1' '2' '3' '4' '5' '6' '7' '8' '9']
+
+
+
+= (readNat a)
+| if (isNat (optionRowTraverse:readDigit explode-a)) 0
+@ b (cdr (optionRowTraverse:readDigit explode-a))
+| ifZero len-b 0
+| 0
+| idx:1
+. b
+! foldr
+!  & (c d)
+   (e @ idx:0 d)(R2 (mul:10 e) (add (idx:1 d) mul-e-c))
+! [1 0]
+
+
+(readNatEither a b c)=(d @ readNat-c)(if isNat-d (LEFT R2-a-b) (1 cdr-d))
+
+
+= (readNatWord a)
+@ b
+   '''Not an atom literal (readNatWord)
+@ c (LEFT R2-a-b)
+| switch (idx:0 a) 0
+. c c c
+| R5 c
+@ d (readNat (idx:1 a))
+| if isNat-d (LEFT R2-a-b) (1 cdr-d)
+
+
+
+= (readAtomLit a)
+@ b (LEFT (R2 a 'Not an atom literal (readAtomLit)'))
+| switch (idx:0 a) 0
+| R5
+            @ c (idx:2 a)
+            | if
+                  | rowOr
+                  | R3 (neq:37 (idx:1 a)) (neq:0 (idx:3 a))
+                  | neq:1 len-c
+               b
+            | switch (idx:0 (idx:0 c)) 0
+            | R5 b (RIGHT (idx:1 (idx:0 c))) b b b
+         @ c (readNat (idx:1 a))
+         | if isNat-c (LEFT R2-a-b) (1 cdr-c)
+      (RIGHT (idx:1 a))
+   (RIGHT (idx:1 a))
+| (c @ idx:1 a)(if isNat-c RIGHT-c b)
+
+
+
+= (readSwitchPattern a)
+| if (and (eql:1 (idx:0 a)) (eql:95 (idx:1 a))) RIGHT-0
+| (b @ readAtomLit-a)(if car-b (RIGHT (SOME cdr-b)) b)
+
+
+
+= (derpSwitchPattern a b)
+@ c readSwitchPattern-a
+| if car-c (RIGHT (R2 cdr-c b)) c
+
+
+
+= (unrollSlip2 a b c)
+. a b 0 c
+? (loop d e f g)
+@ h loop-d-e
+@ i (j @ e-g)(if car-j (h (CONS cdr-j f) 0) cdr-j)
+| if (eql:0 g) listToRowReversed-f
+| switch (idx:0 g) 0
+. i i i i
+| R5
+| if (neq d (idx:1 g)) i
+| h (CONS (idx:2 g) f) (idx:3 g)
+
+
+
+= (unrollSlip2Tis a b)
+. a 0 b
+? (loop c d e)
+@ f loop-c
+@ g (h @ c-e)(if car-h (f (CONS cdr-h d) 0) h)
+| if (eql:0 e) (RIGHT listToRowReversed-d)
+| switch (idx:0 e) 0
+. g g g g
+| R5
+@ h (idx:2 e)
+@ i (idx:3 e)
+| if (neq:61 (idx:1 e)) g
+@ j len-h
+| if
+   (and (eql:1 j) (neq:0 i))
+   (f (CONS (R2 (idx:0 h) i) d) 0)
+| if
+   (neq:2 j)
+   (LEFT (R2 e '= node expects two parameters'))
+| f CONS-h-d i
+
+
+
+= (readSwitchPatterns a)
+@ b (unrollSlip2Tis:(d & RIGHT (R2 WORD-95 d)) a)
+. b
+| if car-b
+@ c (eitherRowTraverse:(rowApply-derpSwitchPattern) cdr-b)
+. c
+| if car-c
+| RIGHT
+. cdr-c
+|  ! foldl
+   !  & (d e)
+      @ f (idx:1 e)
+      | if (isNat (idx:0 e)) put-d-0-f
+      | put d 1 (tabPut (idx:1 d) (cdr (idx:0 e)) f)
+| R2 cnsE-0 %[]
+
+
+
+= ('`' a b c d)
+. a b c d
+! simpleMacro
+! 96
+! [RIGHT readSwitchPatterns]
+!  & (e f)
+   @ g (idx:0 f)
+   @ h (idx:1 f)
+   | RIGHT
+   | if
+         | listAnd
+         | listZipWith:eql listEnumFrom-0
+         | listFromRow tabKeys-h
+      (appE (R4 cnsE-switch e g (vecE tabValues-h)))
+   | appE (R4 cnsE-tabSwitch e g tabE-h)
+
+
+
+= (switchTest a)
+| tabSwitch a (B %hur)
+| %[345 346 hi yop] (B %345) (B %346) (B %hi) (B %yop)
+
+
+
+= (switchTest2 a)
+| switch a %Other
+| R4:(%Zero):(%One):(%Two) (barNat (B %Three))
+
+
+(switchTest3 a)=(switch a %Fallback [%Zero %One %Two])
+
+(valRex a)=(TEXT 'EMBED VAL')
+
+
+= (showRex a)
+| switch (idx:0 a) 0
+| R5
+            @ b (idx:1 a)
+            @ c (idx:2 a)
+            @ d (idx:3 a)
+            @ e
+               | barConcat
+               . B-41
+               | R3 B-40
+               | barIntercalate B-32
+               | if eql-b-124 map-showRex-c
+               | weld (R1 natBar-b) map-showRex-c
+            | if eql-d-0 e (barWeld e showRex-d)
+         (natBar (idx:1 a))
+      (barConcat (R3 B-34 (natBar (idx:1 a)) B-34))
+   (showRex (TEXT (cordConcat (idx:1 a))))
+| showRex (valRex (idx:1 a))
+
+
+
+= (natWords a)
+. [%Zero]
+| switch a
+. natWords a
+? (loop b c)
+| switch c (cordConcat (R2 (loop b div-c-10) (b mod-c-10)))
+,, 0
+,, %One
+,, %Two
+,, %Three
+,, %Four
+,, %Five
+,, %Six
+,, %Seven
+,, %Eight
+,, %Nine
+
+
+{0}=B'(= (showRex expr))(! rexCase expr (& (! r x k))(@ hed (barConcat)(,, (- B "("))(,, (barIntercalate (- B " "))(if (eql r "|") (- map showRex x))(weld (, (- natBar r)) (- map showRex x)))(,, (- B ")")))(if (eql k 0) hed)(barWeld hed (- showRex k)) (& (! name) (natBar name)) (& (! cord) (barConcat (, (- B """) (- natBar cord) (- B """)))) (& (! page) (showRex (TEXT (- cordConcat page)))) (& (! cnst) (showRex (- valRex cnst))))'
+showRexExample=($0)
+
+
+= ('==' a b c d)
+@ e mergeHeir-c-d
+| RIGHT
+| switch len-e
+   | R2:1
+   @ f gensymE-b
+   | letE f (idx:0 e)
+   |     ? (loop g h)
+         | if isNat-h (die %impossible)
+         @ i (idx:0 h)
+         @ j (idx:1 h)
+         | if isNat-j (appE (R3 cnsE-eql g i))
+         | appE
+            (R3 cnsE-and (appE (R3 cnsE-eql g i)) loop-g-j)
+      f
+   | listFromRow (drop:1 e)
+| R3
+   (R2:0 natE-1)
+   (R2:0 (appE (R3 cnsE-seq (idx:0 e) natE-1)))
+| R2:0 (appE (R3 cnsE-eql (idx:0 e) (idx:1 e)))
+
+
+
+= ('/=' a b c d)
+. a b c d
+! simpleMacro
+!
+   '''/=
+! [RIGHT RIGHT]
+!  & (e f)
+   (RIGHT (appE (R2 cnsE-not (NODE:'==' R2-e-f))))
+
+
+(getEnvTab a b c d)=(RIGHT (R2:0 cnsE-a))
+
+(getEnvTab a b c d)=(RIGHT (R2:0 cnsE-a))
+'|?|'=getEnvTab
+
+
+= (readSpecificRuneFolded a b c)
+@ d
+   | LEFT
+   | R2 b (cordConcat (R3:"Expected a '" a "' node"))
+| switch (idx:0 b) 0
+. d d d d
+| R5
+| if (neq a (idx:1 b)) d
+| c (mergeHeir (idx:2 b) (idx:3 b))
+
+
+
+= (readTabPatternBinder a)
+@ b
+   | LEFT
+   | R2 a (cordConcat ["Expected a '" 61 "' node"])
+| switch (idx:0 a) 0
+. b b b b
+| R5
+| if (neq:61 (idx:1 a)) b
+@ c
+   | LEFT
+   | R2 a
+      '''Tab-Binder must have form {= k} or {= k v}
+| switch (len (mergeHeir (idx:2 a) (idx:3 a))) c
+| R3 c
+   @ d (LEFT 'Expected a word in Tab-Binder key')
+   | switch
+      (idx:0 (idx:0 (mergeHeir (idx:2 a) (idx:3 a))))
+      0
+   . d d d
+   | R5 d
+   @ e (idx:1 (idx:0 (mergeHeir (idx:2 a) (idx:3 a))))
+   | RIGHT R2-e-e
+| rexGetWord
+   (idx:0 (mergeHeir (idx:2 a) (idx:3 a)))
+   (LEFT 'Expected a word in Tab-Binder key')
+|  & (f g)
+   | rexGetWord
+      f
+      (LEFT 'Expected a word in Tab-Binder value')
+   | (f g & RIGHT R2-f-g) g
+| idx:1 (mergeHeir (idx:2 a) (idx:3 a))
+
+
+
+= (readTabPattern a)
+@ b
+   | LEFT
+   | R2 a (cordConcat ["Expected a '" 37 "' node"])
+| switch (idx:0 a) 0
+. b b b b
+| R5
+| if (neq:37 (idx:1 a)) b
+| if (neq:1 (len (mergeHeir (idx:2 a) (idx:3 a))))
+   | LEFT
+   | R2
+      a
+      '''Tab-Pattern expects % rune with one parameter
+@ c (idx:0 (mergeHeir (idx:2 a) (idx:3 a)))
+@ d
+   | LEFT
+   | R2 c (cordConcat ["Expected a '" 44 "' node"])
+| switch (idx:0 c) 0
+. d d d d
+| R5
+| if (neq:44 (idx:1 c)) d
+| eitherMap:tabFromRow
+| eitherRowTraverse:readTabPatternBinder
+| mergeHeir (idx:2 c) (idx:3 c)
+
+
+(fromEither a b c)=(if car-c (b cdr-c) (a cdr-c))
+
+
+= ('*%' a b c d)
+. a b c d
+! gensymMacro
+!
+   '''*%
+! [readTabPattern RIGHT RIGHT]
+!  & (e f g h)
+   | deepseq f
+   @ i (gensymE %tab)
+   | RIGHT
+   | R2:1
+   | letE i g
+   |
+            ? (bindSlotsLoop f g h)
+            | if isNat-h f
+            | letE
+               (WORD (idx:1 (idx:0 h)))
+               (appE (R3 cnsE-tabIdx (cnsE (idx:0 (idx:0 h))) g))
+            | bindSlotsLoop f g (idx:1 h)
+         h
+      i
+   | tabToList-f
+
+
+('<^>' a b c d)=(RIGHT (R2:0 (VRAW (idx:1 (idx:0 c)))))
+
+
+= (readSignature a)
+@ b
+   | LEFT
+   | R2 a
+   '''Function Signature must be a symbol `x` or signature `(x y z)`
+| switch (idx:0 a) 0
+. b b b
+| R5
+   | if (neq (idx:1 a) 124) b
+   | if (neq (idx:3 a) 0)
+      | LEFT
+      | R2 a
+         '''name-sequence cannot have a continuation
+   | eitherRowTraverse:readSymbol (idx:2 a)
+| (c @ readSymbol-a)(if car-c (R1 (idx:0 cdr-c)) c)
+
+
+(readCorePattern a b)=(c @ readSignature-a)(if car-c (RIGHT (R2 cdr-c b)) c)
+
+
+= (readCoreBody a)
+@ b
+   | unrollSlip2Tis:(c & LEFT (R2 c 'Not a core arm'))
+   | a
+| if
+   car-b
+   (eitherRowTraverse:(rowApply-readCorePattern) cdr-b)
+| b
+
+
+(anonLamE a b)=(HEIR:38 (R1 appE-a) b)
+
+
+= (taggedLamE a b c d)
+| HEIR:63 (R1 (appE (weld (R1 (NODE:36 (R2 a natE-b))) c)))
+| d
+
+
+(matchE a b c)=(appE (R4 cnsE-match a b vecE-c))
+
+
+= ('#' a b c d)
+. a b c d
+! gensymMacro
+! 35
+! [readAtomLit RIGHT readCoreBody]
+!  & (e f g h)
+   @ i gensymE-e
+   @ j (gensymE 3-e)
+   @ k
+      . i
+      ? (bindArms i j k)
+      | if isNat-k j
+      @ l (idx:0 (idx:1 (idx:0 k)))
+      @ m (map:WORD (drop:1 l))
+      | letE (WORD (idx:0 l))
+         | anonLamE m
+         | appE
+         | R2
+            i
+            (vecE (weld (R1 (natE (idx:0 (idx:0 k)))) m))
+      | bindArms i j (idx:1 k)
+   @ l (listZip listEnumFrom-0 listFromRow-h)
+   | RIGHT
+   | R2:2
+   . k-g-l
+   | letE i
+   | taggedLamE i f R1-j
+   . l
+   | k
+   | matchE j natE-0
+   | turn listToRow-l
+   . j
+   & (i j)
+   | NODE:42
+   | R3
+         | NODE:44
+         | map:WORD
+            (weld:[95] (drop:1 (idx:0 (idx:1 j))))
+      i
+   | idx:1 (idx:1 j)
+
+
+
+= (looper a)
+. (R2:0 a)
+? (loop b)
+(match b 0 (R1 (ifZero (idx:1 b) 0 (loop [0 0]))))
+
+
+evenOdd=[even odd]
+
+
+= (even a)
+. a
+! (b c & b (R2:0 c))
+!  ? (even_odd b)
+   | match b 0
+   | R2 (c @ idx:1 b)(ifZero c 1 (even_odd (R2:1 dec-c)))
+   | (c @ idx:1 b)(ifZero c 0 (even_odd (R2:0 dec-c)))
+
+
+
+= (odd a)
+. a
+! (b c & b (R2:1 c))
+!  ? (even_odd b)
+   | match b 0
+   | R2 (c @ idx:1 b)(ifZero c 1 (even_odd (R2:1 dec-c)))
+   | (c @ idx:1 b)(ifZero c 0 (even_odd (R2:0 dec-c)))
+
+
+
+= (jam a b)
+@ c
+   ? (jamCore d)
+   @ e ((j k l & j (R3:0 k l)) jamCore)
+   @ f ((j k l m n & j (R5:2 k l m n)) jamCore)
+   @ g ((j k l m & j (R4:3 k l m)) jamCore)
+   | match d 0
+   | R4
+            @ h (mat (idx:2 d))
+            | R3
+               (3 (idx:0 h))
+               (mul:2 (idx:1 h))
+               (idx:1 d)
+         @ h (mat (idx:2 d))
+         | R3 (add:2 (idx:0 h)) (mix:3 (lsh (idx:1 h) 2))
+         | idx:1 d
+      @ h (add:2 (idx:1 d))
+      @ i (jamCore (R4:3 h (idx:2 d) (idx:3 d)))
+      @ j (idx:0 i)
+      @ k (jamCore (R4:3 add-j-h (idx:2 i) (idx:4 d)))
+      . (idx:2 k)
+      | R3 (add:2 (add j (idx:0 k)))
+      | mix:1 (lsh (bitWeld:0 (idx:1 i) (idx:1 k)) 2)
+   @ h (idx:1 d)
+   @ i (idx:2 d)
+   @ j (idx:3 d)
+   @ k listLookup-j-i
+   | if isNat-k
+      @ l (R2 R2-j-h i)
+      | if isPin-j (jamCore (R5:2 h l 4 pinItem-j))
+      | if isNat-j (jamCore (R3:0 l j))
+      | if isApp-j (jamCore (R5:2 h l car-j cdr-j))
+      | jamCore
+         (R5:2 h l (0 lawName-j lawArgs-j) lawBody-j)
+   @ l cdr-k
+   | if
+      (and isNat-j (lte bitWidth-j bitWidth-l))
+      (jamCore (R3:0 i j))
+   | jamCore (R3:1 i l)
+| idx:1
+| c
+| R4:3 len-a (listZip listFromRow-a listEnumFrom-0)
+| if isPin-b pinItem-b b
+
+
+
+= (jar a)
+@ b refs-a
+@ c (explode jam-b-a)
+. b c
+| R3
+| blake3
+| concat
+. c
+| R3 (concat (map ((d e & idx:0 d-e) jar) b))
+| replicate:0 32
+
+
+
+= (niceJar a)
+@ b jar-a
+| R3 (bytesBar (idx:0 b)) (idx:1 b)
+| bytesBar (idx:2 b)
+
+
+(jarHash a)=(idx:0 niceJar-a)
+
+%0xb74e96e0385dcb18599b1570e3c5807a9284050258766cb7cd10b004713d2032
+(mul a b)=(exec add-a 0 b)
+DLZ7asf6Z8JKVJh7XYdPE2vvchwLi8SYDqg1KdmRPGWM=mul
+
+mulHaz=X'3ef4f678b1163ca00829fdea3f5267fcb818b304f1f8ce38a9d1860d5bf2273a'
+
+
+= (refsTable a)
+| tabFromRow
+| turn refs-a (b & R2 (lawName pinItem-b) jarHash-b)
+
+
+(appify a)=(if (eql:1 len-a) (idx:0 a) (NODE:124 a))
+
+
+= ('~' a b c d)
+@ e
+   '''~ expects to be wrapped around a tuple literal: `~[3 4 5]`
+| if (or (neq:0 d) (neq:1 len-c)) e
+| switch (idx:0 (idx:0 c)) 0
+. e e e e
+| R5
+| if (neq (idx:1 (idx:0 c)) 44) e
+| RIGHT
+| R2:0
+| foldr:(f g & vecE R2-f-g) natE-0
+| mergeHeir (idx:2 (idx:0 c)) (idx:3 (idx:0 c))
+
+
+
+= ('~~' a b c d)
+| RIGHT
+| R2:0
+| foldr:(e f & vecE (R2 appify-e f)) natE-0
+| unrollSlip2:'~~':(e & RIGHT R1-e) (HEIR:'~~' c d)
+
+
+
+= (unApp a b)
+| if isApp-a (unApp car-a (R2 cdr-a b))
+| listToRow R2-a-b
+
+
+
+= (inspect a)
+| if isApp-a (unApp car-a (CONS cdr-a 0))
+| if isLaw-a (R4:0 lawName-a lawArgs-a lawBody-a)
+| if isPin-a (R2:4 pinItem-a) a
+
+
+(fullInspection a)=(b @ inspect-a)(if isNat-b b map-fullInspection-b)
+
+(runVec a)=(rowApply (idx:0 a) (drop:1 a))
+
+(rebuild a)=(if isNat-a a (runVec map-rebuild-a))
+
+
+= (unCell a b)
+| if isNat-a (listToRow CONS-a-b)
+| unApp car-a (CONS cdr-a b)
+
+
+
+= (showTreeBar a)
+| if isNat-a
+   | if okaySymbol-a (barWeld B-37 natBar-a)
+   | natBar showNat-a
+| barConcat
+. B-41
+| R3 B-40
+| barIntercalate B-32
+| map showTreeBar (unCell car-a (CONS cdr-a 0))
+
+
+(showTree a)=(barNat showTreeBar-a)
+
+
+= (showTree2 a)
+| if isNat-a a
+| R2 (showTree2 car-a) (showTree2 cdr-a)
+
+
+
+= _
+%% ='#'
+%% ='*' $'#*'
+%% =':'
+%% =B
+%% =F 0
+%% =I
+%% =K
+%% =S
+%% =T 1
+%% =X
+%% ='`'
+%% ='~'
+%% ='*%'
+%% ='#*'
+%% ='/='
+%% ='=='
+%% ='#@'
+%% =if
+%% =or
+%% ='~~'
+%% =i32
+%% =w32
+%% =I48
+%% =w48
+%% ='<^>'
+%% =b3G
+%% =NIL 0
+%% ='```'
+%% =sub
+%% =dec
+%% =inc 3
+%% =add
+%% =odd
+%% =and
+%% =mod
+%% =die
+%% =gte
+%% =lte
+%% =lsh
+%% =rsh
+%% =gth
+%% =lth
+%% =trk
+%% =all
+%% =eql
+%% =mul
+%% =jam
+%% =sum
+%% =gen
+%% =len
+%% =min
+%% =con
+%% =map
+%% =rap
+%% =zip
+%% =aeq
+%% =neq
+%% =seq
+%% =car
+%% =jar
+%% =cdr
+%% =nor
+%% =xor
+%% =has
+%% =dis
+%% =mat
+%% =get
+%% =not
+%% =put
+%% =div
+%% =max
+%% =idx
+%% =bex
+%% =mix
+%% =any
+%% ='|?|' getEnvTab
+%% =or32
+%% =WORD
+%% =NODE
+%% =PAGE
+%% =SOME
+%% =NONE 0
+%% =tabE
+%% =recE
+%% =vecE
+%% =opnE
+%% =appE
+%% =varE
+%% =cnsE
+%% =natE
+%% =letE
+%% =txtE
+%% =HEIR
+%% =EROR
+%% =CONS
+%% =LEFT
+%% =TEXT
+%% =VRAW
+%% =exec
+%% =snoc
+%% =head
+%% =weld
+%% =zEnd
+%% =nand
+%% =find
+%% =take
+%% =gulf
+%% =look
+%% =bool
+%% =even
+%% =turn
+%% =drop
+%% =caar
+%% =cdar
+%% =cadr
+%% =cddr
+%% =xnor
+%% =refs
+%% =cons
+%% =b3Iv
+   ,, 1779033703
+   ,, 3144134277
+   ,, 1013904242
+   ,, 2773480762
+   ,, 1359893119
+   ,, 2600822924
+   ,, 528734635
+   ,, 1541459225
+%% =bex31 2147483648
+%% =sub32
+%% =dec32
+%% =inc32
+%% =add32
+%% =and32
+%% =gte32
+%% =lte32
+%% =lsh32
+%% =rsh32
+%% =gth32
+%% =lth32
+%% =rol32
+%% =eql32
+%% =mul32
+%% =ror32
+%% =xor32
+%% =not32
+%% =div32
+%% =bex32 4294967296
+%% =appE2
+%% =bex47 140737488355328
+%% =sub48
+%% =dec48
+%% =inc48
+%% =add48
+%% =gte48
+%% =lte48
+%% =gth48
+%% =lth48
+%% =eql48
+%% =mul48
+%% =not48
+%% =div48
+%% =bex48 281474976710656
+%% =RIGHT
+%% =isHed
+%% =force
+%% =match
+%% =foldl
+%% =until
+%% =mkPin 4
+%% =isPin
+%% =unApp
+%% =isApp
+%% =rowOr
+%% =mkBar
+%% =caaar
+%% =cdaar
+%% =cadar
+%% =cddar
+%% =caadr
+%% =cdadr
+%% =caddr
+%% =cdddr
+%% =foldr
+%% =toNat
+%% =isNat
+%% =toByt
+%% =mkLaw 0
+%% =isLaw
+%% =isCow
+%% =mkRow
+%% =isRow
+%% =apply
+%% =arity
+%% =iSub32
+%% =iDec32
+%% =iInc32
+%% =iAdd32
+%% =iGte32
+%% =iLte32
+%% =iNeg32
+%% =iGth32
+%% =iLth32
+%% =iEql32
+%% =iMul32
+%% =iMin32 2147483648
+%% =wMin32 0
+%% =chop32
+%% =iAbs32
+%% =iDiv32
+%% =iMax32 2147483647
+%% =wMax32 4294967295
+%% =blake3
+%% =iSub48
+%% =iDec48
+%% =iInc48
+%% =iAdd48
+%% =iGte48
+%% =iLte48
+%% =iNeg48
+%% =iGth48
+%% =iLth48
+%% =iEql48
+%% =iMul48
+%% =iMin48 140737488355328
+%% =wMin48 0
+%% =iAbs48
+%% =iDiv48
+%% =iMax48 140737488355327
+%% =wMax48 281474976710655
+%% =matchE
+%% =barDec
+%% =runVec
+%% =barEnc
+%% =barPad
+%% =u8weld
+%% =rowAnd
+%% =splice
+%% =square
+%% =update
+%% =switch
+%% =trkVal
+%% =unCell
+%% =sortOn
+%% =barGen
+%% =tabLen
+%% =barLen
+%% =ifZero
+%% =isZero
+%% =listOr
+%% =natBar
+%% =looper
+%% =mkHeir
+%% =tabHas
+%% =chunks
+%% =digits
+%% =barNat
+%% =concat
+%% =tabGet
+%% =barGet
+%% =perbit
+%% =b3Root 8
+%% =tabPut
+%% =tabIdx
+%% =barIdx
+%% =valRex
+%% =appify
+%% =supply
+%% =mulHaz
+   X'3ef4f678b1163ca00829fdea3f5267fcb818b304f1f8ce38a9d1860d5bf2273a'
+%% =gensymE
+%% =isAlpha
+%% =appHead
+%% =evenOdd [even odd]
+%% =barWeld
+%% =bitWeld
+%% =u32weld
+%% =rebuild
+%% =listAnd
+%% =b3Round
+%% =implode
+%% =explode
+%% =lawName
+%% =valCase 1
+%% =natCase 2
+%% =rexCase
+%% =compose
+%% =reverse
+%% =hexByte
+%% =jarHash
+%% =zipWith
+%% =appTail
+%% =listAll
+%% =pinItem
+%% =listSum
+%% =listLen
+%% =roundUp
+%% =listMap
+%% =listZip
+%% =deepseq
+%% =niceJar
+%% =hexChar
+%% =isUpper
+%% =isLower
+%% =listHas
+%% =natArgs
+%% =lawArgs
+%% =tabKeys
+%% =readNat
+%% =showNat
+%% =inspect
+%% =isDigit
+%% =mkInput
+%% =showRex
+%% =lawBody
+%% =listAny
+%% =iIsNeg32
+%% =isZero32 not32
+%% =iIsNeg48
+%% =isZero48 not48
+%% =anonLamE
+%% =listHead
+%% =cordWeld
+%% =byteWeld bitWeld 8
+%% =listWeld
+%% =showTree
+%% =listTake
+%% =fromSome
+%% =listCase
+%% =takeByte
+%% =dropByte
+%% =showByte
+%% =tabMatch
+%% =showHash
+%% =bitWidth
+%% =barFoldl
+%% =barTrail
+%% =listNull
+%% =b3OutLen 32
+%% =b3KeyLen 32
+%% =listTurn
+%% =listDrop
+%% =checkBar
+%% =bytesBar
+%% =emptyBar B''
+%% =barFoldr
+%% =natWords
+%% =barBytes
+%% =takeBits
+%% =b3Parent 4
+%% =tabToRow
+%% =rowApply
+%% =iIsZero32
+%% =bitFlip32
+%% =showTree2
+%% =iIsZero48
+%% =bitFlip48
+%% =getEnvTab
+%% =stripZEnd
+%% =refsTable
+%% =replicate
+%% =b3Permute
+%% =tabSwitch
+%% =byteWidth
+%% =listFoldl
+%% =eitherMap
+%% =concatMap
+%% =listFoldr
+%% =mergeHeir
+%% =tabValues
+%% =barConcat
+%% =fromRight
+%% =readDigit
+%% =tabToList
+%% =listToRow
+%% =taggedLamE
+%% =b3ChunkEnd 2
+%% =rexGetWord
+%% =rexGetNode
+%% =optionCase
+%% =eitherCase
+%% =b3Finalize
+%% =readSymbol
+%% =okaySymbol
+%% =listSortOn
+%% =b3BlockLen 64
+%% =b3ChunkLen 1024
+%% =eitherOpen
+%% =listLookup
+%% =fromEither
+%% =listFilter
+%% =b3Compress
+%% =listDigits
+%% =cordConcat
+%% =listConcat
+%% =execStrict
+%% =switchTest
+%% =rexGetText
+%% =b3ParentCv
+%% =tabFromRow
+%% =barFromHex
+%% =unrollSlip2
+%% =switchTest2
+%% =switchTest3
+%% =readNatWord
+%% =b3KeyedHash 16
+%% =listZipWith
+%% =simpleMacro
+%% =gensymMacro
+%% =showTreeBar
+%% =first8words
+%% =wordToBytes
+%% =hexAlphabet B'0123456789abcdef'
+%% =readAtomLit
+%% =b3HasherNew
+   ,, ,, ,, 1779033703
+         ,, 3144134277
+         ,, 1013904242
+         ,, 2773480762
+         ,, 1359893119
+         ,, 2600822924
+         ,, 528734635
+         ,, 1541459225
+      ,, 0
+      ,, ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+         ,, 0
+      ,, 0
+      ,, 0
+      ,, 0
+   ,, ,, 1779033703
+      ,, 3144134277
+      ,, 1013904242
+      ,, 2773480762
+      ,, 1359893119
+      ,, 2600822924
+      ,, 528734635
+      ,, 1541459225
+   ,, 0
+   ,, 0
+%% =b3OutputNew
+%% =listFromRow
+%% =listSafeHead
+%% =listEnumFrom
+%% =b3ChunkstLen
+%% =bytesToWords
+%% =wordsToBytes
+%% =hexCharToNat
+%% =b3ChunkStart 1
+%% =b3ChunkstNew
+%% =readCoreBody
+%% =readSignature
+%% =listMinimumOn
+%% =readNatEither
+%% =readBindPairs
+%% =listUnsafeHead
+%% =showRexExample $0
+%% =b3HasherUpdate
+%% =barIntercalate
+%% =fullInspection
+%% =readTabPattern
+%% =okaySymbolChar
+%% =readRowOfNames
+%% =unrollSlip2Tis
+%% =eitherCaseLeft
+%% =eitherOpenLeft
+%% =b3ParentOutput
+%% =b3ChunkstUpdate
+%% =readCorePattern
+%% =b3ChunkstOutput
+%% =rexGetNodeFolded
+%% =b3HasherPopStack
+%% =b3MsgPermutation [2 6 3 10 7 0 4 13 1 11 12 5 9 14 15 8]
+%% =b3HasherGetFlags
+%% =b3OutputGetFlags
+%% =listToRowReversed
+%% =optionRowSequence
+%% =eitherRowSequence
+%% =optionRowTraverse
+%% =eitherRowTraverse
+%% =b3HasherPushStack
+%% =b3ChunkstGetBlock
+%% =b3ChunkstPutBlock
+%% =readSwitchPattern
+%% =derpSwitchPattern
+%% =b3ChunkstGetFlags
+%% =b3ChunkstPutFlags
+%% =b3ChunkstStartFlag
+%% =b3HasherGetCvStack
+%% =b3HasherPutCvStack
+%% =b3OutputGetCounter
+%% =readSwitchPatterns
+%% =b3HasherGetChunkst
+%% =b3HasherPutChunkst
+%% =b3DeriveKeyContext 32
+%% =b3DeriveKeyMaterial 64
+%% =b3HasherNewInternal
+%% =b3OutputGetBlockLen
+%% =b3HasherGetKeyWords
+%% =b3ChunkstGetBlockLen
+%% =b3ChunkstPutBlockLen
+%% =readTabPatternBinder
+%% =b3OutputChainingValue
+%% =b3OutputGetBlockWords
+%% =readSpecificRuneFolded
+%% =b3ChunkstGetChainingVal
+%% =b3ChunkstPutChainingVal
+%% =b3OutputRootOutputBytes
+%% =b3ChunkstGetChunkCounter
+%% =b3ChunkstPutChunkCounter
+%% =b3ChunkstGetBlocksCompressed
+%% =b3ChunkstPutBlocksCompressed
+%% =b3HasherAddChunkChainingValue
+%% =b3OutputGetInputChainingValue
+%% =DLZ7asf6Z8JKVJh7XYdPE2vvchwLi8SYDqg1KdmRPGWM mul
+
+
+;
+; ==== Sire REPL ====
+;
+; Since input is multi-line, there is currently no input-prompt.
+; Just type away!
+;
+

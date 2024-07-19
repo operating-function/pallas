@@ -1,0 +1,219 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_04_cmp <- sire_03_nat
+
+;;;; Ordering and Equality
+;;;; =====================
+;;;;
+;;;; This defines a universal ordering jet (`_Cmp`) and a handful of
+;;;; convenience wrappers around that:
+;;;;
+;;;;     %[_Eql _Neq _Lth _Lte _Gte _Gth _Min _Max]
+;;;;
+;;;;
+;;;; Jetting
+;;;; -------
+;;;;
+;;;; _Cmp is an extremely important jet.  While the legal code is fairly
+;;;; reasonable and mostly performs well unjetted, tearing apart large
+;;;; datajets with `car` and `cdr` can be somewhat expensive.
+;;;;
+;;;; _Cmp is also the building block upon which Maps and Sets will be
+;;;; built.  It is also the routine that the function used by the built-in
+;;;; sorting and searching routines.
+;;;;
+;;;; _Eql is also very important, because an equality test on two non-equal
+;;;; pins can immediately return FALSE (just by checking hashes).
+;;;; In contrast, `_Cmp` needs to continue to traverse the body, since
+;;;; "not equal" isn't enough information to produce an order.
+;;;;
+;;;; The remaining jets are all nearly trivial, but are used frequently
+;;;; enough that larger implementations should still jet them.
+;;;;
+;;;;
+;;;; Ordering Rules
+;;;; --------------
+;;;;
+;;;; Nat < Pin < Law < App
+;;;;
+;;;; (PIN x), (LAW n a b), and (APP x y) are compared leftmost-field first.
+;;;;
+;;;; The leftmost-field-first is chosen because it:
+;;;;
+;;;; 1)  Maximizes laziness in APP nodes.
+;;;;
+;;;; 2)  Laws with different names or arities can be compared quickly.
+;;;;
+;;;; 3)  Row, Sets, and Tabs of different lengths can be compared quickly.
+;;;;
+;;;;
+;;;; Lazy Evaluation Behavior
+;;;; ------------------------
+;;;;
+;;;; This section spells out the lazy evaluation of behavior of {_Cmp} jet
+;;;; in signifiant detail.  Everything in this section matches the legal
+;;;; code, and can be derived from the legal code.  However, spelling
+;;;; this out in detailed prose is still useful, as the behavior is
+;;;; somewhat subtle.
+;;;;
+;;;; The {_Cmp} function has the following lazy-evaluation behavior:
+;;;;
+;;;; -   Both argument are always evaluated to WHNF.
+;;;;
+;;;; -   Pins, laws, and Nats in WHNF are also in normal form.  So,
+;;;;     comparing values of these types always normalizes.
+;;;;
+;;;; -   The above also applies to data-jets that are built on laws:
+;;;;     Bar, Cow, Set, and Rex.
+;;;;
+;;;; -   All of the remaining comparisons have to do with closures.
+;;;;
+;;;; -   If a closure is compared to a non-closure, none of it's arguments
+;;;;     are evaluated.
+;;;;
+;;;; -   If two closures of non-equal size are compared, none of their
+;;;;     arguments will be evaluated.
+;;;;
+;;;; -   If two closures with non-equal heads are compared, none of their
+;;;;     arguments are evaluated.
+;;;;
+;;;; -   If two closures are compared, and they have the same size and
+;;;;     the same head, then the argument list of both is traversed,
+;;;;     in application order.  And each each argument is compared until
+;;;;     one is found to be non-equal.
+;;;;
+;;;; -   The above rules apply in the same way to data-jets that are built
+;;;;     on closures (Rows and Tabs)
+;;;;
+;;;;     1)  Smaller rows/tabs are smaller that larger rows/tabs.  This is
+;;;;         true even when comparing a row to a tab.
+;;;;
+;;;;     2)  Rows are smaller than tabs, if the sizes are the same.
+;;;;
+;;;;     3)  When comparing two rows of equal size, compare the arguments
+;;;;         from right-to-left (rows are stored as reversed closure).
+;;;;
+;;;;     4)  When comparing two tabs of equal size, compare the parameters
+;;;;         starting from the greatest key, and working backwards.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan [isPin pinItem isOne isZero]
+:| sire_01_fan [isLaw lawArgs lawName lawBody]
+:| sire_01_fan [car cdr]
+:| sire_01_fan [isNat]
+:| sire_01_fan [const id]
+:| sire_02_bit [if ifNot and not]
+:| sire_03_nat [natCmp LT EQ GT ordWeld]
+
+
+;;; Comparisons ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (**lawCmp cmp x y)
+| ordWeld (natCmp (lawName x) (lawName y))
+| ordWeld (natCmp (lawArgs x) (lawArgs y))
+          (cmp (lawBody x) (lawBody y))
+
+= (_Cmp x y)
+| if (isNat x) | ifNot (isNat y) LT (natCmp x y)
+| if (isNat y) | GT
+| if (isPin x) | ifNot (isPin y) LT (_Cmp (pinItem x) (pinItem y))
+| if (isPin y) | GT
+| if (isLaw x) | ifNot (isLaw y) LT (lawCmp _Cmp x y)
+| if (isLaw y) | GT
+| ordWeld
+    (_Cmp (car x) (car y))
+    (_Cmp (cdr x) (cdr y))
+
+= cmp _Cmp
+
+= eql (_Eql x y ?? isOne (cmp x y))
+= neq (_Neq x y ?? not (eql x y))
+= lth (_Lth x y ?? eql LT (cmp x y))
+= lte (_Lte x y ?? neq GT (cmp x y))
+= gth (_Gth x y ?? eql GT (cmp x y))
+= gte (_Gte x y ?? neq LT (cmp x y))
+= min (_Min x y ?? if (lte x y) x y)
+= max (_Max x y ?? if (gte x y) x y)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= 1 | eql 0              0
+=?= 1 | eql 99             99
+=?= 1 | eql id             id
+=?= 1 | eql _&0            _&0
+=?= 1 | eql (0 0)          (0 0)
+=?= 1 | eql (const 0)      (const 0)
+=?= 1 | eql (const const)  (const const)
+=?= 1 | eql (1 0 1 2)      (1 0 1 2)
+
+=?= LT | cmp 9     const
+=?= EQ | cmp const const
+=?= GT | cmp (0 0) const
+
+=?= LT | cmp 0 1
+=?= EQ | cmp 1 1
+=?= GT | cmp 2 1
+
+=?= LT | cmp (0 0) (1 1)
+=?= LT | cmp (0 1) (1 1)
+=?= LT | cmp (0 2) (1 1)
+=?= LT | cmp (1 0) (1 1)
+=?= EQ | cmp (1 1) (1 1)
+=?= GT | cmp (1 2) (1 1)
+=?= GT | cmp (2 0) (1 1)
+=?= GT | cmp (2 1) (1 1)
+=?= GT | cmp (2 2) (1 1)
+
+=?= LT | cmp (1 1 1) | (1 1 1 1)
+=?= EQ | cmp (1 1 1) | (1 1 1)
+=?= GT | cmp (1 1 1) | (1 1)
+
+=?= LT | cmp (2 2) | (1 1 1 1)
+=?= LT | cmp (2 2) | (1 1 1)
+=?= GT | cmp (2 2) | (1 1)
+=?= GT | cmp (2 2) | 1
+
+=?= LT | cmp (0 1 1 1) (0 2 2 2)
+=?= LT | cmp (0 1 1 2) (0 2 2 2)
+=?= LT | cmp (0 1 1 3) (0 2 2 2)
+=?= LT | cmp (0 1 2 1) (0 2 2 2)
+=?= LT | cmp (0 1 2 2) (0 2 2 2)
+=?= LT | cmp (0 1 2 3) (0 2 2 2)
+=?= LT | cmp (0 1 3 1) (0 2 2 2)
+=?= LT | cmp (0 1 3 2) (0 2 2 2)
+=?= LT | cmp (0 1 3 3) (0 2 2 2)
+=?= LT | cmp (0 2 1 1) (0 2 2 2)
+=?= LT | cmp (0 2 1 2) (0 2 2 2)
+=?= LT | cmp (0 2 1 3) (0 2 2 2)
+=?= LT | cmp (0 2 2 1) (0 2 2 2)
+=?= EQ | cmp (0 2 2 2) (0 2 2 2)
+=?= GT | cmp (0 2 2 3) (0 2 2 2)
+=?= GT | cmp (0 2 3 1) (0 2 2 2)
+=?= GT | cmp (0 2 3 2) (0 2 2 2)
+=?= GT | cmp (0 2 3 3) (0 2 2 2)
+=?= GT | cmp (0 3 1 1) (0 2 2 2)
+=?= GT | cmp (0 3 1 2) (0 2 2 2)
+=?= GT | cmp (0 3 1 3) (0 2 2 2)
+=?= GT | cmp (0 3 2 1) (0 2 2 2)
+=?= GT | cmp (0 3 2 2) (0 2 2 2)
+=?= GT | cmp (0 3 2 3) (0 2 2 2)
+=?= GT | cmp (0 3 3 1) (0 2 2 2)
+=?= GT | cmp (0 3 3 2) (0 2 2 2)
+=?= GT | cmp (0 3 3 3) (0 2 2 2)
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ ordWeld isZero isOne ; re-exports
+^-^
+^-^ cmp
+^-^ eql neq
+^-^ lth lte gth gte
+^-^ min max
+^-^

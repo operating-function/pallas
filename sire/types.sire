@@ -1,0 +1,465 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### types <- type_machinery
+
+:| sire
+:| type_syntax
+:| type_machinery
+
+
+;;; Utilities ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: Move these into sire_13_exp (or wherever).
+
+= (defC sig bodyExp)
+| OPEN {#=} (sigE sig, bodyExp) 0
+
+= (defKC key sig bodyExp)
+| OPEN {#=} (natE key, sigE sig, bodyExp) 0
+
+= (defKPC key props sig bodyExp)
+| OPEN {#=} (natE key, cnsE props, sigE sig, bodyExp) 0
+
+
+;;; #abstype ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; {#abstype} is used to backfill things that were earlier in the
+;; bootstrapping process than the type system, and things that are
+;; built using PLAN primitives (instead of typed-sire constructucts).
+;;
+;; Pins, Functions, Rows, Tabs, etc.
+;;
+;; {#abstype} simply defines a new type with no operations, and
+;; operations are backfilled retroactivly using {#backfill}.  This can
+;; be abused to create bindings that don't match their declared types,
+;; so don't do that.
+;;
+;; {#abstype} is also used internally by the versions of {#record},
+;; and {#datatype} that are exported by this modules.
+
+= ({#abstype} ss rex err ok)
+: @(ABSTYPE name args) < parseAbsType rex err
+@ ss                   | mkNewType name (len args) ss
+| ok ss `(#*)
+
+;;; This section redefines {#record} and {#datatype} to also generate
+;;; a new opaque type.
+;;;
+;;; TODO This is jank af, break {#record} and {#abstype} into re-usable
+;;; parser + code generated and use those here (instead of just manually
+;;; expanding both macros and combining the result).
+
+oldRecord=(.{#record})
+oldDataType=(.{#datatype})
+
+= ({#record} st rex err ok)
+: st tCmd < .{#abstype} st `(abstype#($(idx 1 | rexKids rex))) err
+: st rCmd < oldRecord st rex err
+| ok st
+` #* $tCmd
+  #* $rCmd
+
+= ({#datatype} st rex err ok)
+: st tCmd < .{#abstype} st `(abstype#($(idx 1 | rexKids rex))) err
+: st dCmd < oldDataType st rex err
+| ok st
+` #* $tCmd
+  #* $dCmd
+
+
+;;; Declare Basic Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+abstype#Type
+abstype#TNode
+abstype#Void
+abstype#Any
+abstype#Nat
+abstype#Pad
+abstype#(Pin a)
+abstype#(Fun a b)
+abstype#Bar
+abstype#BarTree
+abstype#Bit
+abstype#Char
+abstype#Str
+abstype#Ordering
+abstype#Word8
+abstype#Word16
+abstype#Word32
+abstype#Word48
+abstype#Word64
+abstype#Rex
+abstype#(Read a)
+abstype#(Read2 a b)
+abstype#(Read3 a b c)
+abstype#(Read4 a b c d)
+abstype#(Tab k v)
+abstype#(Set k)
+abstype#(Row a)
+abstype#(Maybe a)
+abstype#(List a)
+abstype#(Either a b)
+
+* # record Unit                   | UNIT
+* # record (Sing a)               | SING p:a
+* # record (Pair a b)             | PAIR p:a q:b
+* # record (Trip a b c)           | TRIP p:a q:b r:c
+* # record (Quad a b c d)         | QUAD p:a q:b r:c s:d
+* # record (Pent a b c d e)       | PENT p:a q:b r:c s:d t:e
+* # record (Octo a b c d e f g h) | OCTO p:a q:b r:c s:d t:e u:f v:g w:h
+
+# record (Row8 a)
+| ROW8 _:a _:a _:a _:a _:a _:a _:a _:a
+
+# record (Row16 a)
+| ROW16 _:a _:a _:a _:a _:a _:a _:a _:a
+        _:a _:a _:a _:a _:a _:a _:a _:a
+
+abstype#Txp
+
+= ({#getTypeRoot} ss rex err ok)
+: _ symbol      < rexParseKids rex [readRex readSymbol] err
+: _ _ bindRow   < getBind symbol ss rex err
+@ [_ v _ _ _ p] | bindRow
+@ [arity tree]  | v
+| ok ss (cnsE | head tree)
+
+= anyRoot  | getTypeRoot#Any
+= funRoot  | getTypeRoot#Fun
+= natRoot  | getTypeRoot#Nat
+= bitRoot  | getTypeRoot#Bit
+= unitRoot | getTypeRoot#Unit
+= boxRoot  | getTypeRoot#Sing
+= pairRoot | getTypeRoot#Pair
+= tripRoot | getTypeRoot#Trip
+= quadRoot | getTypeRoot#Quad
+= pentRoot | getTypeRoot#Pent
+
+= (getTypeScheme bind@(PIN [_ val _ _ _ props]))
+# datacase (btSearch {isType} props)
+* NONE   | die ({is not a type!}, bind)
+* SOME-_ | val
+
+=?= Any | FORALL 0 (TCON getTypeRoot#Any [])
+=?= Fun | FORALL 2 (TCON getTypeRoot#Fun [0 1])
+=?= Any | FORALL 0 getTypeRoot#Any
+=?= Fun | FORALL 2 (getTypeRoot#Fun 0 1)
+
+=?= 1 | getProp#(Any.isType)
+
+= (showTypeTree ss vars x)
+^ _ x
+? (loop x)
+| if isNat-x
+    | varE (idx x vars)
+@ root (head x)
+@ nam   (| lawName | pinItem root)
+| ifz nam
+    | die [{Is not a type} x]
+| if (null x)
+    | if (eql root unitRoot) '()
+    | varE nam
+@ kids (map loop tnodeParams-x)
+| if (eql root funRoot)
+    @ [x y] kids
+    | if ({>} == rexRune y)
+        @ ySons (rexSons y)
+        | rexSetSons (rowCons x ySons) y
+    | `($x > $y)
+| if (eql root pairRoot)
+    @ [p q] kids | `($p , $q)
+| if (eql root tripRoot)
+    @ [p q r] kids | `($p , $q , $r)
+| if (eql root quadRoot)
+    @ [p q r s] kids | `($p , $q , $r , $s)
+| if (eql root pentRoot)
+    @ [p q r s t] kids | `($p , $q , $r , $s , $t)
+| else
+    ^ NEST {|} _ 0
+    | rowCons (varE nam) kids
+
+= (showType ss scheme@[arity x])
+| showTypeTree ss (gen arity | add {a}) x
+
+= (readDefinedSymbol ss rex err ok)
+: sym      < readSymbol rex err
+: _ _ bind < getBind sym ss rex err
+| ok sym bind
+
+= ({#showType} ss rex err ok)
+@ kids (rexKids rex)
+| if (len kids /= 2)
+    | err rex {Usage: printType#Type}
+: symbol < readSymbol (snd kids) err
+: scheme < lookupType symbol ss err
+| ok ss | cnsE | OPEN {=} [(varE symbol)] (showType ss scheme)
+
+= ({#printType} ss rex err ok)
+@ kids (rexKids rex)
+| if (len kids /= 2)
+    | die {Usage: printType#Type}
+: symbol < readSymbol (snd kids) err
+: scheme < lookupType symbol ss err
+| trk
+    | OPEN {=} [(varE symbol)]
+    | showType ss scheme
+| ok ss '(#*)
+
+= (tyApp name scheme params err ok)
+@ @(FORALL arity topTy) scheme
+| if (arity /= len params)
+    | err (varE name) {Bad arity in type application}
+^ ok (_ topTy)
+? (subst x)
+| if isNat-x (idx x params)
+| tnodeMapParams subst x
+
+= (tupleType n)
+# switch n
+* 0 | Unit
+* 1 | Sing
+* 2 | Pair
+* 3 | Trip
+* 4 | Quad
+* 5 | Pent
+* 8 | Octo
+* _ | {todo support bigger tuples: } n
+
+> SireState > Row Str > Txp > Read Type
+= (compileType ss vars tExp err ok)
+^ : tree < _ tExp
+  | ok (FORALL (len vars) tree)
+? (go tExp ret)
+| tyExpCase tExp
+* ? (onVAR sym)
+    # datacase (elemIdx sym vars NONE SOME)
+    * NONE     | err varE-sym {unbound type variable}
+    * (SOME i) | ret (TVAR i)
+* ? (onTUP exps)
+    : params < rowTraverse go exps
+    @ scheme | tupleType (len exps)
+    : result < tyApp {TUP} scheme params err
+    | ret result
+* ? (onFUN a b)
+    : x < go a
+    : y < go b
+    : r < tyApp {Fun} Fun [x y] err
+    | ret r
+* ? (onREF cnstr args)
+    : params < rowTraverse go args
+    : scheme < lookupType cnstr ss err
+    : result < tyApp cnstr scheme params err
+    | ret result
+
+
+;;; Parsing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Type :=
+;;;
+;;;     | TyCon
+;;;     | tyVar
+;;;     | (Row a)
+;;;     | Row-a
+;;;     | (Type > Type)
+;;;     | (Type > Type > Type)
+;;;     | (Type > Type > Type > ...)
+;;;
+;;;     | ()                       ;; UNIT=0
+;;;     | (,)                      ;; UNIT=0
+;;;     | ,a [a]                   ;; *FORBIDDEN* (looks like list type)
+;;;     | (a, b)                   ;; Pair a b
+;;;     | (a, b, c)                ;; Trip a b c
+;;;     | ...
+
+
+;;; Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; {#typedef} creates a named type based on a type-expression.
+
+= ({#typedef} ss rex err ok)
+: @(TYPEDEF name vars expr) < parseTypeDef rex err
+: scheme                    < compileType ss vars expr err
+: ss key                    < generateUniqueKey ss
+@ ss                        | bindTypeAlias key name scheme ss
+| ok ss `(#*)
+
+typedef#Symbol#Nat
+typedef#RexKey#Nat
+
+typedef#(Key a)#Nat
+
+# typedef NatOp2
+    (Nat > Nat > Nat)
+
+# typedef (Foo z)
+    > z > List z > Nat > Nat
+
+# typedef (Zaz a b c d)
+    > Foo (a,b)
+    > Foo (c,d)
+    > (a,b,c,d)
+
+printType#NatOp2
+printType#Foo
+printType#Zaz
+printType#Quad
+printType#Pent
+printType#Unit
+printType#Fun
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; {>} is the type-annotation rune.  It is prefixed directly onto the
+;;; same block as the definition it annotates
+;;;
+;;;     > Nat > Nat
+;;;     (add3 x)=(add 3 x)
+;;;
+;;; TODO: Support separate blocks for annotation and binding.
+;;;
+;;;     \ add3 : Nat > Nat
+;;;
+;;;     add2:(Nat > Nat)
+;;;
+;;;     (add3 x)=(add 3 x)
+;;;
+;;;     (add2 x)=(add 2 x)
+;;;
+
+= (bindKeyHack ss bindRex err ok)
+@ sons (rexSons bindRex)
+@ kids (rexKids bindRex)
+| if (len kids == 3)
+    : key < readKey (fst kids) err
+    | ok ss key bindRex
+| if (len kids == 2)
+    : ss key < generateUniqueKey ss
+    | ok ss key | rexSetSons (rowCons natE-key sons) bindRex
+| else
+    | err bindRex {Wait, this is not a binder??}
+
+= (loadAnnBindWithHack ss rex err ok)
+: tExp bindRex < parseTypeAnnotatedBinding rex err
+@ vars         | setToRow (txpFree tExp)
+: type         < compileType ss vars tExp err
+: ss k bindRex < bindKeyHack ss bindRex err
+| ok ss type vars k bindRex
+
+= ({>} ss rex err ok)
+: ss type _ k bRex < loadAnnBindWithHack ss rex err
+; TODO: How to fill the type with this new approach?
+; ss               | addPropsToLocalBindingByKey ss k #[=type]
+| ok ss bRex
+
+;;;
+;;; {#backfill} assigns a type to an existing binding without checking it.
+;;;
+;;; This is intended as a way to retroactively assign types to things
+;;; that we defined before the type system was built, and to give types
+;;; to things that are defined directly in terms of PLAN primitives.
+;;;
+;;; (At the moment, nothing is checked at all, so this isn't actually
+;;; different from `>`.  In the future it will be, though.
+;;;
+
+= backfillExpected
+} Expected something like:
+}
+} # backfill main
+} > Int > Ptr (Ptr Char) > IO ()
+
+= ({#backfill} ss rex err ok)
+@ kids               | rexKids rex
+| if (3 /= len kids) | err rex backfillExpected
+@ [_ valRex typRex]  | kids
+;
+: sym bindRow < readDefinedSymbol ss valRex err
+: typExp      < parseType typRex err
+@ tyVars      | setToRow (txpFree typExp)
+: scheme      < compileType ss tyVars typExp err
+;
+^ ok _ '(#*)
+@ [k c bs ms]       | ss
+@ [bk v e bm bn ps] | bindRow
+^ (inc k, c, tabPut bs bn _, ms)
+| PIN [k v e bn c (btPut ps {type} scheme)]
+
+;;; {#typeof} prints the type of a binding.  It is meant to be used
+;;; interactively from the REPL.
+
+= ({#typeof} ss rex err ok)
+@ kids@[_ nameRex] (rexKids rex)
+| if (len kids /= 2) | err rex {Usage: typeof#var}
+: name < readSymbol nameRex err
+: type < lookupTypeOf ss name rex err
+| trk ` \ $(varE name)
+        $(showType ss type)
+| ok ss '(#*)
+
+= ({#showTypeOf} ss rex err ok)
+@ kids@[_ nameRex] (rexKids rex)
+| if (len kids /= 2) | err rex {Usage: typeof#var}
+: name < readSymbol nameRex err
+: type < lookupTypeOf ss name rex err
+^ ok ss (cnsE _)
+` \ $(varE name)
+  $(showType ss type)
+
+
+;;; Backfill Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+* # backfill TRUE  Bit
+* # backfill FALSE Bit
+* # backfill bit   (a > Bit)
+* # backfill not   (Bit > Bit)
+* # backfill inc   (Nat > Nat)
+* # backfill add   (Nat > Nat > Nat)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= showType#NatOp2
+  ` = NatOp2
+    (Nat > Nat > Nat)
+
+=?= showTypeOf#add
+  ` \ add
+    (Nat > Nat > Nat)
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ TNode TCON TVAR
+^-^ Type FORALL
+^-^
+^-^ showType parseType parseTypeAnnotatedBinding compileType
+^-^ txpFree
+^-^ bindKeyHack loadAnnBindWithHack
+^-^ tnodeMapParams tnodeParams
+^-^
+^-^ {#typedef} {#abstype} {#printType} {#typeof} {#backfill}
+^-^ {#getTypeRoot}
+^-^
+^-^ {#record} {#datatype} {#datacase}
+^-^
+^-^ {>}
+^-^
+^-^ Void Any Type
+^-^ Nat Pin Fun
+^-^ Ordering
+^-^ Bit Pad Char Str
+^-^ Word8 Word16 Word32 Word48 Word64
+^-^ Rex Read Read2 Read3 Read4
+^-^ Row List Set Tab
+^-^ Maybe Either
+^-^ Bar BarTree
+^-^
+^-^ Unit Sing Pair Trip Quad Octo
+^-^ Row8 Row16
+^-^
+^-^ TRUE FALSE bit not inc add
+^-^

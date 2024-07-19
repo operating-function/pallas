@@ -1,0 +1,52 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### seed_tests <- quickcheck
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire         ;
+:| sire_22_seed [save load]
+:| quickcheck   [qc1_pass prop1 arbU8 arbU8List arbU64 arbU64List]
+:| plan         [try]
+
+
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(checkEq a b)=(| if (a == b) 1 | trk `($$a /= $$b) 0)
+
+= (loadGerm [pinz bytz])
+| trk [=pinz =bytz]
+| _LoadGerm pinz bytz
+
+(trySave h v)=(| checkEq v   | load h    | save h v      )
+(trySeed val)=(| checkEq val | _LoadSeed | _SaveSeed val )
+(tryPin  pin)=(| checkEq pin | loadGerm  | _SaveGerm pin )
+
+
+;;; Unit Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= [natMin _Sub] (pinRefs natCmp)
+
+!! trySave []            natCmp
+!! trySave [natMin]      natCmp
+!! trySave [natMin _Sub] natCmp
+!! trySave [_Sub]        natCmp
+
+!! tryPin eql
+!! tryPin save
+!! tryPin tryPin
+
+!! trySeed [[[[1 2] [4 5]] [[6 7] [8 9]]] [[[10 11] [12 13]] [14 15]]]
+!! trySeed eql
+!! trySeed trySeed ; very slow without jets
+
+
+;;; QuickCheck Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+!! qc1_pass 42 {save byte}      prop1-trySeed arbU8
+!! qc1_pass 42 {save byte list} prop1-trySeed arbU8List
+!! qc1_pass 42 {save word}      prop1-trySeed arbU64
+!! qc1_pass 42 {save word list} prop1-trySeed arbU64List

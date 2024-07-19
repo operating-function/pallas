@@ -1,0 +1,48 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_port_localhost_bob <- demo_port_localhost_ali
+
+:| kern
+:| prelude
+:| demo_port_localhost
+
+= usSeed
+| idx-0-bob_seed_addr
+
+= usAddr
+| idx-1-bob_seed_addr
+
+= themAddr
+| idx-1-ali_seed_addr
+
+= ourName
+| {bob}
+
+= whitelist
+| setSing idx-1-ali_seed_addr
+
+= (chatter cogExit)
+@ portRqst [usAddr themAddr NONE (natBar 100)]
+: ??(p_rqst clientPort) < syscall (**PORT_RQST usSeed portRqst)
+@ [_cpThem _cpPayload cpMbPortId] | clientPort
+| trk [ourName %got %clientPort clientPort]
+| maybeCase cpMbPortId
+  | trk {no client port, exiting}
+  | cogExit ()
+& portId
+^ _ ()
+? (loop _)
+: ??(p_recv [recvWhen (PIN recvBody)]) < syscall (**PORT_RECV portId)
+| trk [ourName %recvd recvBody %at recvWhen]
+@ count | barNat recvBody
+@ newCount (sub count 1)
+@ payload | natBar newCount
+: ??(p_send now) < syscall (**PORT_SEND portId payload)
+| trk [ourName %sent payload {on port} portId %at now]
+| if (lte newCount 1)
+  | cogExit ()
+| loop ()
+
+main=(runCog chatter)

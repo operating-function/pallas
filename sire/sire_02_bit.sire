@@ -1,0 +1,122 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_02_bit <- sire_01_fan
+
+;;;; Bits (Booleans)
+;;;; ===============
+;;;;
+;;;; This module defines the foundational operations on bits (booleans).
+;;;;
+;;;;
+;;;; Jetting
+;;;; -------
+;;;;
+;;;; All of the jets in this module are optional.
+;;;;
+;;;; If implementing a subset of these jets, then _If is the highest
+;;;; leverage, followed by _Bit and _Not.
+;;;;
+;;;;
+;;;; The `_If` Jet
+;;;; -------------
+;;;;
+;;;; `_If` is a particularly important jet because, if the result is known
+;;;; to be demanded, it can avoid creating thunks for both branches.
+;;;;
+;;;; Consider something like the following:
+;;;;
+;;;;     | _If (cond expr) (big "then" expr) (big "else" expr))
+;;;;
+;;;; The naive behavior is to:
+;;;;
+;;;; 1.  Construct thunks for all three arguments.
+;;;; 2.  Evaluate the condition thunk.
+;;;; 3.  Choose either the `then` or `else` branch.
+;;;; 4.  Evaluate that version.
+;;;;
+;;;; An optimized version can avoid constructing these thunks and just:
+;;;;
+;;;; 1. Evaluate the conditional expression.
+;;;; 2. Choose a branch.
+;;;; 3. Evaluate the expression for that branch.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan [isZero]
+
+
+;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+TRUE=1
+FALSE=0
+
+= (_If x t e) | 2 e _&t x
+= (_Not x)    | _If x 0 1
+= (_Bit x)    | _If x 1 0
+= (_And x y)  | _If x (_Bit y) 0
+= (_Or x y)   | _If x 1 (_Bit y)
+= (_Xor x y)  | _If x (_Not y) (_Bit y)
+= (_Nand x y) | _If x (_Not y) 1
+= (_Nor x y)  | _If x 0 (_Not y)
+= (_Xnor x y) | _If x (_Bit y) (_Not y)
+
+
+;;; Aliases and Syntax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(_Ifz x t e)=(_If (isZero x) t e)
+
+= ifz  | _Ifz
+= if   | _If
+= not  | _Not
+= bit  | _Bit
+= and  | _And
+= or   | _Or
+= xor  | _Xor
+= nand | _Nand
+= nor  | _Nor
+= xnor | _Xnor
+
+= (**ifNot x t e)     | if x e t
+= (**ifNonZero x t e) | ifz x e t
+= (**else x)          | x
+
+;; Note that {ifNot} and {else} are marked as "always inline" and will not
+;; appear in the resulting PLAN code.  They exist only to make code
+;; look nicer.
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= 1 | TRUE
+=?= 1 | not FALSE
+=?= 1 | not (not TRUE)
+
+=?= 1 | if 1 1 0
+=?= 1 | not (if 1 0 1)
+=?= 1 | if 0 0 1
+=?= 1 | not (if 0 1 0)
+
+=?= 1 | if if 0 1
+=?= 1 | not (if if 1 0)
+
+=?= 0 | and 1 (x&x)
+
+=?= {no} (ifz (0 0) {yes} {no})
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ TRUE FALSE
+^-^
+^-^ if ifNot
+^-^ ifz ifNonZero
+^-^ else
+^-^
+^-^ bit not
+^-^
+^-^ and or xor nand nor xnor
+^-^

@@ -1,0 +1,429 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_26_compile <- sire_25_datatype
+
+;;;; This file contains the "backend" of the Sire compiler.  The code
+;;;; that transforms as Sire AST into a Fan value.  Basically this is
+;;;; just inlining, lambda lifting, let-optimization, and code generation.
+
+:| sire_01_fan
+:| sire_02_bit
+:| sire_03_nat
+:| sire_05_row
+:| sire_04_cmp
+:| sire_05_row
+:| sire_06_rex
+:| sire_07_dat
+:| sire_10_str
+:| sire_11_set
+:| sire_12_tab
+:| sire_13_exp
+:| sire_14_hax
+:| sire_15_pad
+:| sire_16_bar
+:| sire_17_sug
+:| sire_18_pat
+:| sire_19_bst []
+:| sire_20_prp []
+:| sire_21_switch
+:| sire_22_seed
+:| sire_23_repl [lineRepl cogMap]
+:| sire_25_datatype
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# record Lam
+| LAM
+* pin    : Bit
+* inline : Bit
+* tag    : Nat
+* args   : Nat
+* body   : Sire
+
+# datatype Sire
+* V=V v:Nat
+* K=K x:Any
+* G=G g:Bind
+* A=A f:Sire        x:Sire
+* L=L v:Sire        b:Sire
+* R=R vs:(Row Sire) b:Sire
+* M=M x:Sire
+* F=F l:Lam
+
+# record Bind
+| BIND
+* bindKey      : Nat  ; The binding-key of the binder.
+* bindValue    : Any  ; The value of the binder.
+* bindCode     : Sire ; Source for inlining (unoptimized, unlifted).
+* bindLocation : Any  ; What module was this defined in?
+* bindName     : Any  ; What name was this defined under?
+* bindProps    : Any  ; Free-form table of metadata about the bind.
+
+;; At the moment, the value that macros put in {bindProps} is always
+;; a tab, but Sire itself doesn't directly interact with this value in
+;; any way, so it can technically be anything.
+
+
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+apple=(foldl A)
+
+(apple_ exps)=(foldl A fst-exps (drop 1 exps))
+
+appList=(listFoldl A)
+
+
+;;; Inlining ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+* # record Arg | ARG d:Nat x:Sire
+* # record Pot | POT eLam:Lam eMark:Bool eDeep:Nat eNeed:Nat eArgs:(List Arg)
+* # record Res | RES out:Sire xExpo:(Maybe Pot)
+
+= (hasRefTo d exp)
+# datacase exp
+* V-v   | v==d
+* A-f-x | (hasRefTo d f || hasRefTo d x)
+* L-v-b | (hasRefTo d v || hasRefTo inc-d b)
+* R-v-b | listAny (hasRefTo (add d len-v)) (b :: listFromRow v)
+* M-f   | hasRefTo d f
+* F-l   | hasRefTo inc-(add d getArgs-l) getBody-l
+* _     | FALSE
+
+=?= 1 | hasRefTo 0 | V 0
+=?= 0 | hasRefTo 0 | V 1
+=?= 0 | hasRefTo 0 | K 1
+=?= 1 | hasRefTo 0 | M (V 0)
+=?= 1 | hasRefTo 0 | L (K 7) (V 1)
+=?= 1 | hasRefTo 0 | L (V 0) (V 0)
+=?= 1 | hasRefTo 0 | R [(K 7)] (V 1)
+=?= 1 | hasRefTo 0 | R [(V 1)] (V 0)
+=?= 1 | hasRefTo 0 | F | LAM 0 0 0 2 (V 3)
+=?= 0 | hasRefTo 0 | F | LAM 0 0 0 2 (V 2)
+=?= 1 | hasRefTo 0 | F | LAM 0 0 0 2 | A (V 3) (V 2)
+
+> Nat > Nat > Nat > Sire > Sire
+= (moveTo from to alreadyBound topExp)
+^ if from==to topExp (_ alreadyBound topExp)
+? (go l e)
+# datacase e
+* V-v   | if (lth v l) e (V | sub (add v to) from)
+* M-x   | M (go l x)
+* A-f-x | A (go l f) (go l x)
+* L-v-b | L (go l v) (go inc-l b)
+* R-v-b | (ll @ add l len-v)(R (map (go ll) v) (go ll b))
+* F-fn  | F (setBody (go _ getBody-fn) fn)^(inc | add l getArgs-fn)
+* _     | e
+
+=?= (V 3)                 | moveTo 0 3 0 | V 0
+=?= (V 2)                 | moveTo 1 3 0 | V 0
+=?= (L (K 9) (V 0))       | moveTo 1 3 0 | L (K 9) (V 0)
+=?= (L (K 9) (V 3))       | moveTo 1 3 0 | L (K 9) (V 1)
+=?= (L (K 9) (V 4))       | moveTo 0 3 0 | L (K 9) (V 1)
+=?= (V 0)                 | moveTo 0 3 1 | V 0
+=?= (F | LAM 0 0 0 1 V-0) | moveTo 0 3 0 | F (LAM 0 0 0 1 V-0)
+=?= (F | LAM 0 0 0 1 V-1) | moveTo 0 3 0 | F (LAM 0 0 0 1 V-1)
+=?= (F | LAM 0 0 0 1 V-5) | moveTo 0 3 0 | F (LAM 0 0 0 1 V-2)
+=?= (F | LAM 0 0 0 1 V-6) | moveTo 0 3 0 | F (LAM 0 0 0 1 V-3)
+
+= (renum d !n args)
+: a@(ARG ad ax) as < listCase args NIL
+| (moveTo ad (add d n) 0 ax :: renum d inc-n as)
+
+=?=  ~[K-0 V-1 V-2]         | renum 3 0 ~[[3 K-0] [3 V-0] [3 V-0]]
+=?=  ~[K-0 V-2 V-3]         | renum 3 0 ~[[3 K-0] [2 V-0] [2 V-0]]
+=?=  ~[K-0 V-2 (L K-0 V-0)] | renum 3 0 ~[[3 K-0] [2 V-0] [2 (L K-0 V-0)]]
+
+= (expand d e@(POT lam _ deep _ args))
+@ body | moveTo deep d (inc getArgs-lam) getBody-lam
+| listFoldr L body
+| renum d 0 (ARG d (K 0) :: listRev args)
+
+= (reApp inline d s args f@(RES !fx !me))
+@ otherwise
+    : r@[rd rx] rs < listCase args f
+    | reApp inline d s rs
+    | RES (A fx | moveTo rd d 0 rx)
+    : e@[_ eMark _ eNeed eArgs] < **maybeCase me NONE
+    | ifz eNeed NONE
+    | SOME | setENeed-(dec eNeed) | setEArgs-(r :: eArgs) e
+: e < **maybeCase me otherwise
+| ifNot (getENeed e == 0)&&(getEMark e) otherwise
+| inline d s args (expand d e)
+
+> Nat > List (Maybe Pot) > List Arg > Sire > Res
+= (inline d s params syr)
+@ rap (reApp inline d s params)
+# datacase syr
+* K-_ | rap | RES syr NONE
+* V-v | rap | RES syr | listIdx v s
+* G-p | rap | RES syr | getXExpo | inline d NIL NIL | getBindCode pinItem-p
+* M-b
+    @ @(RES r me) | inline d s ~[] b
+    | rap | RES r (fmapMaybe me | setEMark TRUE)
+* F-(lam@(LAM _ lMark _ lArgs lBody))
+    | rap
+    | RES @ s | listWeld (listRep NONE inc-lArgs) s
+           @ d | inc (add lArgs d)
+           | F | (setBody _ lam)^(getOut | inline d s ~[] lBody)
+    | if (hasRefTo lArgs lBody) NONE
+    | SOME (POT lam lMark d lArgs ~[])
+* R-vs-b
+    @ nBinds (len vs)
+    @ d_ | add d nBinds
+    @ s_ | listWeld (listRep NONE nBinds) s
+    @ vr | map (inline d_ s_ NIL) vs
+    @ br | inline d_ s_ params b
+    | RES (R (map getOut vr) getOut-br) NONE
+* L-v-b
+    @ @(RES vrs vre)  | inline d     s        NIL    v
+    @ @(RES brs _bre) | inline inc-d (vre::s) params b
+    | RES (L vrs brs) NONE
+* A-f-x
+    @ @(RES x _) | inline d s ~[] x
+    | inline d s (ARG d x :: params) f
+
+
+;;; Compilation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; {codeShaped} checks if a value is a valid law-shape.  Nats are valid
+;; code if they are less than the binding depth (variable references).
+;; Otherwise, only the following forms are valid:
+;;
+;;     (0 _ _)
+;;     (1 _ _)
+;;     (2 x)
+
+= (codeShaped depth v)
+@ h  | car v
+@ t  | cdr v
+@ hh | car h
+|| (isNat v && lth v depth)
+&& (isApp v)
+|| (h == 2)
+&& (isApp h)
+|| (hh == 1)
+|| (hh == 0)
+
+!! (codeShaped 1 0)
+!! (codeShaped 0 (0 0 0))
+!! (codeShaped 0 (2 0))
+!! (codeShaped 0 (1 0 0))
+!! not (codeShaped | 5 5)
+!! not (codeShaped | 0 0)
+!! not (codeShaped | 1 0)
+!! not (codeShaped | 1 0 0 0)
+!! not (codeShaped | 2 1 2)
+!! not (codeShaped | codeShaped)
+!! not (codeShaped | (x&x))
+
+= (getSVal x fallback k)
+# datacase x
+* K-x | k x
+* G-b | k (**getBindValue | pinItem b)
+* M-x | getSVal x fallback k
+* _   | fallback
+
+
+;;; New Compiler ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# datatype Exp
+* VAL=VAL k:Any
+* VAR=VAR v:Nat
+* APP=APP f:Exp x:Exp
+
+# record Fun
+| FUN
+* pin : Bool
+* tag : Nat
+* slf : Nat
+* arg : List Nat
+* bin : Tab Nat Exp
+* bod : Exp
+
+(**getVal x o k)=(# datacase x)(VAL v * (**k v))(_ * o)
+
+=?= %nah | getVal (APP 3 4) %nah v2
+=?= %nah | getVal (VAR 9)   %nah (I x ?? x)
+=?= 9    | getVal (VAL 9)   %nah id
+
+> Exp > Exp > Exp
+= (app f x)
+@ fallback (APP f x)
+: fv < getVal f     fallback
+: xv < getVal x     fallback
+| if (arity fv == 1) fallback
+| VAL (fv xv)
+
+=?= (VAL 0-1)         | app VAL-0 VAL-1
+=?= (APP VAL-4 VAL-4) | app VAL-4 VAL-4
+=?= (APP VAL-4 VAL-4) | app VAL-4 VAL-4
+=?= (APP VAL-0 VAR-0) | app VAL-0 VAR-0
+
+= (ing compile s x st@[env nex])
+@ ing (ing compile)
+# datacase x
+* V-i   | st,(listIdx i s)
+* M-x   | ing s x st
+* G-g   | st,(VAL (**getBindValue | pinItem g))
+* K-x   | st,(VAL x)
+* A-f-x @ [st f] (ing s f st)
+        @ [st x] (ing s x st)
+        | st,(app f x)
+* L-v-b @ [[env nex] vr] | ing s v [env nex]
+        # datacase vr
+        * _       | ing (vr::s) b [env nex]
+        * APP-_-_ @ k   | nex
+                  @ nex | inc nex
+                  @ env | tabPut env k vr
+                  | ing (VAR k :: s) b [env nex]
+* R-vs-b
+    @ nBinds | len vs
+    @ ks     | gen nBinds add-nex
+    @ nex    | add nex nBinds
+    @ ss     | listWeld (listFromRow | map VAR ks) s
+    @ st     ^ foldl _ [env nex] (zip vs ks)
+             & (st [vx k])
+             @ [[env nex] vr] (ing ss vx st)
+             | [(tabPut env k vr) nex]
+    | ing ss b st
+* F-lam @ @(LAM pin _ tag lArg lBod) lam
+        @ slf           | nex
+        @ !nex          | inc nex
+        @ arg           | listGen lArg (add nex)
+        @ !nex          | add nex lArg
+        @ s2            | listWeld (listMap VAR listRev-arg) (VAR slf :: s)
+        @ [bin nex],bod | ing s2 lBod [#[] nex]
+        @ [cns free]    | compile nex (FUN pin tag slf arg bin bod)
+        ^ [[env nex] _]
+        | listFoldl APP (VAL cns) (listMap VAR free)
+
+(ingest compile top)=(ing compile NIL top [#[] 0])
+
+;; TODO: This are using {#=} because Stew does not yet understand
+;; {#genenv}.
+
+#= gAdd
+#| G
+#| tabIdx {add} #getenv
+
+=?= ([#[] 0], VAL 0)             ^ ing v2 NIL _ [#[] 0] | K-0
+=?= ([#[] 0], VAL add)           ^ ing v2 NIL _ [#[] 0] | gAdd
+=?= ([#[] 0], VAL (add 1))       ^ ing v2 NIL _ [#[] 0] | A gAdd K-1
+=?= ([#[] 0], VAL 7)             ^ ing v2 NIL _ [#[] 0] | L K-7 V-0
+=?= ([#[] 0], APP VAL-7 VAL-7)   ^ ing v2 NIL _ [#[] 0] | L K-7 (A V-0 V-0)
+=?= ([#[] 0], APP VAL-7 VAL-7)   ^ ing v2 NIL _ [#[] 0] | L K-7 (A V-0 V-0)
+
+=?=  ++ [[0=(APP VAL-4 VAL-4)] 1]
+     ++ VAR-0
+  ^ ing v2 ~[VAR-0] _ [#[0=(APP VAL-4 VAL-4)] 1]
+  | V-0
+
+=?=  ++ [[0=(APP VAL-4 VAL-4)] 1]
+     ++ APP (VAL 1) (VAR 0)
+  ^ ing v2 ~[VAR-0] _ [[0=(APP VAL-4 VAL-4)] 1]
+  | L K-1 (A V-0 V-1)
+
+> Fun > (Tab Nat Nat, List Nat)
+= (stats fun@(FUN _ _ fSlf fArg fBin fBod))
+^ @ final@[seen tab lis] (_ fBod (%[], #[], NIL))
+  | (tab, listRev lis)
+? (go sx st0@[seen0 tab0 lis0])
+# datacase sx
+* VAL-_   | st0
+* APP-f-x | go x (go f st0)
+* VAR-k   @ [seen tab lis]
+              | if (setHas k seen0 || not (tabHas k fBin)) st0
+              | go (tabIdx k fBin)
+              | (setIns k seen0, tab0, lis0)
+         ++ seen
+         ++ tabIns k inc-(tabIdx k tab) tab
+         ++ if (tabHas k tab) lis k::lis
+
+=?= [[=1 3=2] ~[1 3]]
+  | stats
+  | FUN 0 0 0 ~[1 2] #[3=(APP VAL-2 VAR-3)] (APP VAR-1 VAR-3)
+
+> Fun > (Tab Nat Nat, List Nat) > Any
+= (codeGen fn stat@(refcounts, refSeq))
+@ @(FUN fPin fTag fSlf fArg fBin fBod) fn
+@ (keep k)
+    : _ _  < tabSearchCase k fBin      FALSE
+    : _ cv < tabSearchCase k refcounts FALSE
+    | gth cv 1
+@ binds   | listFilter keep refSeq
+@ nBind   | listLen binds
+@ nArg    | listLen fArg
+@ scopeSz | inc (add nArg nBind)
+@ scope   | (fSlf :: listWeld fArg binds)
+@ table   | tabFromPairsList (listZip scope | listEnumFrom 0)
+@ (cgen s)
+    # datacase s
+    * (VAL k)   | if (codeShaped scopeSz k) (2 k) k
+    * (APP f x) | 0 (cgen f) (cgen x)
+    * (VAR v)   @ fall (tabIdx v table)
+                | if (1 /= tabIdx v refcounts) fall
+                : _ bx < tabSearchCase v fBin fall
+                | cgen bx
+@ (bind k rest)
+    | 1 (cgen | tabIdx k fBin) rest
+^ if fPin (4 _) _
+@ bOut (cgen fBod)
+| 0 fTag nArg
+| listFoldr bind bOut binds
+
+> Nat > Fun > (Any, List Nat)
+= (compile nex f1)
+@ @(FUN pin1 tag1 slf1 arg1 bin1 bod1) f1
+@ (isFree k)        | not (k==slf1 || tabHas k bin1 || listHas k arg1)
+@ stat1@(_, !refs1) | stats f1
+@ free              | listFilter isFree refs1
+@ newSelf           | listFoldl APP VAR-nex (listMap VAR free)
+@ f2                | setSlf | nex
+                    | setArg | listWeld free arg1
+                    | setBin | tabIns slf1 newSelf bin1
+                    | f1
+@ (f3, stat3)       | if listIsEmpty-free (f1, stat1) (f2, stats f2)
+| (codeGen f3 stat3, free)
+
+> Sire > Any
+= (compileSire inlined)
+^ (fst _) 0
+@ ([bin n], bod) (ingest compile inlined)
+| compile (add 2 n)
+| FUN 0 0 n ~[inc-n] bin bod
+
+
+;;; Compiler API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Sire > Any
+(evalSire sire)=(| compileSire | getOut | inline 0 NIL NIL sire)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+three=3
+
+;; TODO: These are using {#=} because Stew does not yet understand
+;; {#genenv}.
+
+#= gAdd   #| G #| tabIdx {add}   #getenv
+#= gThree #| G #| tabIdx {three} #getenv
+
+=?= add | evalSire | apple_ [gAdd]
+=?= 6   | evalSire | apple_ [gAdd K-3 gThree]
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ LAM
+^-^ V K G A L R M F
+^-^ BIND getBindKey getBindValue getBindCode getBindLocation getBindName
+^-^
+^-^ evalSire
+^-^ apple apple_ appList
+^-^

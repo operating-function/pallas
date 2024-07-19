@@ -1,0 +1,64 @@
+#### pinhash <- datom
+
+:| sire
+:| blake3
+
+> Nat > Nat > Bar
+= (wordSing sz) | natToSizedBar (mul sz 8)
+
+> Nat > (Bar, Bar)
+= (doNat n)
+| ifz n | wordSing 1 0
+@ sz | inc | div (dec met-n) 64 ; what happens if something is bigger than 8 bytes?
+| (wordSing 1 sz, wordSing sz n)
+
+> Any > Bar
+= (_PlanHash plan)
+^ blake3 (_ plan)
+? (go a)
+| if isTab-a :: x#08
+             :: (wordSing 1 tabLen-a)
+             :: (listMap go tabKeysList-a)
+             :: (listMap go tabValsList-a)
+| if isSet-a | (x#07 :: wordSing 1 setLen-a :: map go setToRow-a)
+| if isRow-a | (x#06 :: wordSing 1 len-a :: map go a)
+| if isCow-a | (x#05 :: doNat cowSize-a)
+| if isBar-a | (x#04 :: wordSing 1 barLen-a :: a)
+| if isNat-a | (x#03 :: doNat a)
+| if isApp-a ^ (x#02 :: _ 0 ~[] a)
+             ? (loop n as a)
+             | ifNot isApp-a (wordSing 1 n :: go a :: listMap go as)
+             | loop (inc n) (cdr-a :: as) (car a)
+| if isLaw-a | (x#01 :: doNat lawName-a :: doNat lawArgs-a :: go lawBody-a)
+| if isPin-a | (x#00 :: _PlanHash pinItem-a)
+| else       | die {impossible case in _PinHash}
+
+= (_PinHash pin)
+| ifNot isPin-pin 0
+| _PlanHash pinItem-pin
+
+= pinHash  | _PinHash
+= planHash | _PlanHash
+
+
+;;; Smoke Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (try fn arg expected)
+@ jetted   | fn arg
+@ unjetted | pinItem fn arg
+| ((jetted == expected) && (unjetted == expected))
+
+= threeFourHash
+    | x#c19ce7d1d4adf1133b691f269bf2ee1c47f020382d0a1fd065ab715350672572
+= addHash
+    | x#060eb5e38be102311584a13cff1b6cef4a6b2dcd2cc7bf2396e3748b90cf4e42
+
+!! try planHash [3 4] threeFourHash
+!! try pinHash [3 4] 0
+!! try pinHash add addHash
+!! try planHash (pinItem add) addHash
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^ planHash pinHash

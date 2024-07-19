@@ -1,0 +1,168 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### rex_show <- parse
+
+;;;; TODO: This doesn't handle cases where line-strings have heirs that
+;;;; are not line-strings.
+;;;;
+;;;; TODO: Open-rune handling is a gigantic hack.  It only does the
+;;;; outer-most layer and it doesn't respect depth, so it only works in
+;;;; the case where all of the col=1 runes have the same width (which
+;;;; is usually).
+;;;;
+;;;; TODO: Implement some basic layout engine instead of just falling back
+;;;; to closed-forms for everything besides the heir and the last son.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| prelude
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (planRender x)
+| if isNat-x
+    | if strIsSymbol-x [b#{%} natBar-x]
+    | natBar showNat-x
+@ node | unApply car-x (CONS cdr-x NIL)
+@ kids | listToRow
+       | listIntersperse b#{ }
+       | listMap planRender node
+| (b#{(} , kids , b#{)} )
+
+(planShow x)=(barFlat | planRender x)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Rex > BarTree
+= (rexRenderClosed expr)
+| if (expr == 0) b#{}
+@ style (rexStyle expr)
+@ heir  (rexHeir expr)
+# switch (rexType expr)
+* NODE
+    @ rune | rexRune expr
+    @ sons | rexSons expr
+    @ bune | natBar rune
+    | if ((style == %NEST) && (rune == {,}))
+       ++ b#{[}
+       ++ intersperse barSpace (map rexRenderClosed sons)
+       ++ b#{]}
+       ++ if (heir==0) 0 [b#{(} (rexRenderClosed heir) b#{)}]
+    ^
+        ++ (b#{(}, _, b#{)})
+        ++ | if (heir==0) 0
+           | [b#{(} (rexRenderClosed heir) b#{)}]
+    # switch style
+    * PREF | [bune rexRenderClosed-(idx 0 sons)]
+    * SHUT | intersperse bune (map rexRenderClosed sons)
+    * INFX | intersperse barCat-[barSpace bune barSpace]
+           | map rexRenderClosed sons
+    * _    | intersperse barSpace
+           | if (rune=={|} && (1 /= len sons))
+               | map rexRenderClosed sons
+           | rowCons bune (map rexRenderClosed sons)
+* LEAF
+    @ t (rexText expr)
+    # switch style
+    * WORD | natBar t
+    * TEXT | barCat (b#}_{_, natBar t, b#}_}_, rexRenderClosed heir)
+    * LINE | barCat (b#}_"_, natBar t, b#}_"_, rexRenderClosed heir)
+* EMBD
+    | planRender (rexEmbd expr)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (rexRenderOpen d r)
+@ rune  | rexRune r
+@ style | rexStyle r
+@ text  | rexText r
+@ sons  | rexSons r
+@ heir  | rexHeir r
+^ (barRep d spaceChar, _)
+# switch style
+* %LINE ++ b#}_} _
+        ++ natBar text
+        ++ | ifz heir 0
+           | (barNewline, rexRenderOpen d heir)
+* %OPEN ++ @ nSon   (len sons)
+           @ lastIx (dec nSon)
+           @ last   (get sons | dec nSon)
+           | if (nSon && (rexStyle last == %OPEN))
+               ++ | intersperse barSpace
+                  | rowCons natBar-rune
+                  | map rexRenderClosed (take lastIx sons)
+               ++ barNewline
+               ++ rexRenderOpen (add 4 d) last
+           | intersperse barSpace
+           | rowCons natBar-rune
+           | map rexRenderClosed sons
+        ++ | ifz heir 0
+           | (barNewline, rexRenderOpen d heir)
+* _      | rexRenderClosed r
+
+= (rexShowOpen r)   | barFlat (rexRenderOpen 0 r)
+= (rexShowClosed r) | barFlat (rexRenderClosed r)
+= rexShow           | rexShowOpen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= b#{()}                 | rexShow '()
+=?= b#{3}                  | rexShow '3
+=?= b#{{3}}                | rexShow '{3}
+=?= b#{(3 4 5)}            | rexShow '(3 4 5)
+=?= b#{(+ 3 4 5)}          | rexShow '(+ 3 4 5)
+=?= b#{(3 + 4 + 5)}        | rexShow '(3 + 4 + 5)
+=?= b#{(%((3=3) , (4=4)))} | rexShow '(%(3=3, 4=4))
+=?= b#{((+3) (+4) (+5))}   | rexShow '(+3 +4 +5)
+=?= b#{(3+4+5)(9)}         | rexShow '((3+4+5)9)
+=?= b#{(| p)((q r)(s))}    | rexShow '(| p)(q r)(s)
+
+=?=   # b } | p
+          } | q r
+          } s
+  | rexShow
+  ' | p
+    | q r
+    s
+
+=?=   # b } | p
+          }     | q r
+          } s
+  | rexShow
+  ' | p
+      | q r
+    s
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?=   | rexShow
+      `
+      = (rexShow expr)
+      | **rexCase expr
+          & (r x k)
+          @ hed | barCat
+               ++ b#{(}
+               ++ | barIntercalate b#{ }
+                  | if (r == {|}) map-rexShow-x
+                  | weld [natBar-r] map-rexShow-x
+               ++ b#{)}
+          | if (k == 0) hed
+          | barWeld hed rexShow-k
+        (name & natBar name)
+        (cord & barCat [b#{"} natBar-cord b#{"}])
+        (page & rexShow (TEXT strCat-page))
+        (cnst & rexShow valRex-cnst)
+  # b
+  } = (rexShow expr)
+  } | (**rexCase) expr (& (r x k))((@ hed (| barCat)((++ (b#{(}))((++ (barIntercalate (b#{ }))((if (r == {|}) (map-rexShow-x))((weld [(natBar-r)] (map-rexShow-x)))))((++ (b#{)}))))))((if (k == 0) hed)((barWeld hed (rexShow-k))))) (name & (natBar name)) (cord & (barCat [(b#{"}) (natBar-cord) (b#{"})])) (page & (rexShow (TEXT (strCat-page)))) (cnst & (rexShow (valRex-cnst)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^ planRender      planShow
+^-^ rexRenderOpen   rexShowOpen
+^-^ rexRenderClosed rexShowClosed
+^-^ rexShow

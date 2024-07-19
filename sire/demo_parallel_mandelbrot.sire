@@ -1,0 +1,152 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_parallel_mandelbrot <- prelude
+
+;;;; We emulate floating point math with by using signed integers with
+;;;; a fixed point, so that 10.000.000 is floating 1.0.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| prelude
+
+
+;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (natFp x) | iMul64 x 10_000_000
+= addFp     | iAdd64
+= subFp     | iSub64
+= (fpNat x) | iDiv64 x 10_000_000
+
+= (mulFp a b)
+| iDiv64 | iMul64 iDiv64-a-100 b
+| 100_000
+
+= (fracFp over under)
+; Returns a fraction where when {over=0, fpFraction=0}
+; and when {over=under, fpFraction=--10.000.000}.
+| iDiv64 (iMul64 over 10_000_000) under
+
+= leftEdge   | iNeg64 21_000_000
+= rightEdge  | 15_000_000
+= topEdge    | 15_000_000
+= bottomEdge | iNeg64 15_000_000
+= maxIter    | 1000
+
+black=(bytesBar [0 0 0])
+
+= controlPoints
+++ [          0 [  0   7 100]]
+++ [  1_600_000 [ 32 107 203]]
+++ [  4_200_000 [237 255 255]]
+++ [  6_425_000 [255 170   0]]
+++ [  8_575_000 [  0   2   0]]
+++ [ 10_000_000 [  0   7 100]]
+
+= (linearInterp ratio lo hi)
+@ lo_   | natFp lo
+@ hi_   | natFp hi
+@ delta | subFp hi_ lo_
+| fpNat | addFp lo_ (mulFp ratio delta)
+
+= (getAboveIdx x)
+^ _ 0
+? (go idx)
+| if (| lte x | fst | get controlPoints idx)
+    | idx
+| go (add 1 idx)
+
+= iterColors
+: o     < gen maxIter
+@ x     | fracFp (natFp | add 1 o) (natFp maxIter)
+@ hiIdx | getAboveIdx x
+@ loIdx | sub hiIdx 1
+@ [lo [rLo gLo bLo]] | get controlPoints loIdx
+@ [hi [rHi gHi bHi]] | get controlPoints hiIdx
+@ betwRatio | fracFp (subFp x lo) (subFp hi lo)
+@ r | linearInterp betwRatio rLo rHi
+@ g | linearInterp betwRatio gLo gHi
+@ b | linearInterp betwRatio bLo bHi
+| bytesBar [r g b]
+
+= (calcColor o)
+| if (gth o maxIter) black
+| get iterColors o
+
+= (mandelbrotLine w h y)
+@ fpW natFp-w
+@ fpH natFp-h
+^ barCat (gen w _)
+? (m_pixel x)
+@ scrX | natFp x
+@ scrY | natFp y
+@ cr   | subFp (mulFp (fracFp scrX fpW) 25_000_000) 20_000_000
+@ ci   | subFp (mulFp (fracFp scrY fpH) 25_000_000) 12_500_000
+^ _ 0 0 0
+? (m_loop i x0 y0)
+@ xx | mulFp x0 x0
+@ yy | mulFp y0 y0
+| if (gte i maxIter) black
+| if not-(iLth64 addFp-xx-yy 40_000_000)
+    | calcColor i
+@ x1 (| addFp cr | subFp xx yy)
+@ y1 (| addFp ci | iMul64 2 | mulFp x0 y0)
+| m_loop inc-i x1 y1
+
+(mandelbrot w h)=(gen h | mandelbrotLine w h)
+
+spc={ }
+NL=10
+
+; Probably better to just do this to all of `plasmaColors` up front?
+= (renderColor trip)
+@ [a b c] trip
+| cat (digits a, [spc], digits b, [spc], digits c, [spc])
+
+; TODO use bars instead of byte-vectors.
+= (mandelbrotPpm w h)
+@ header
+    | cat
+    ++ [%P %3 NL NL]
+    ++ digits-w
+    ++ [spc]
+    ++ digits-h
+    ++ [NL %2 %5 %5 NL]
+@ body
+    | cat
+    | map ln&(weld catMap-renderColor-ln [NL])
+    | mandelbrot w h
+| implode
+| weld header body
+
+; mandelbrotPpm 8 8
+; mandelbrotPpm 16 16
+; mandelbrotPpm 8 8
+; mandelbrotPpm 4 4
+
+> Nat > Nat > Cog Void
+= (mandelbrotDemo width height cogExit)
+@ header ; Row Str
+    | cat
+   ++ [%P %3 NL NL]
+   ++ digits width
+   ++ [spc]
+   ++ digits height
+   ++ [NL %2 %5 %5 NL]
+@ rowIds (gen height id)
+: ??(pmapDone barLns)
+    < pmap 5000 (mandelbrotLine width height) rowIds
+@ bodStr
+    | cat
+    : ln < foreach barLns
+    ^ weld _ [NL]
+    | catMap renderColor (chunks 3 | barBytes ln)
+| trk [ppm=(implode | weld header bodStr)]
+| cogExit ()
+
+
+;;; Cog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+main=(runCog | mandelbrotDemo 32 32)

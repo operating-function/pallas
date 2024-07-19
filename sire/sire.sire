@@ -1,0 +1,36 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire <- sire_27_sire
+
+;;;; Re-export everything in the boot-sequence, with the exception
+;;;; of internal routines that are imported by some specific modules.
+
+:| sire_01_fan
+:| sire_02_bit
+:| sire_03_nat
+:| sire_05_row
+:| sire_04_cmp
+:| sire_05_row
+:| sire_06_rex
+:| sire_07_dat
+:| sire_10_str
+:| sire_11_set
+:| sire_12_tab
+:| sire_13_exp
+:| sire_14_hax
+:| sire_15_pad
+:| sire_16_bar
+:| sire_17_sug
+:| sire_18_pat
+:| sire_19_bst
+:| sire_20_prp
+:| sire_21_switch   [{#switch} dataTag]
+:| sire_22_seed     [pinRefs _LoadGerm _SaveGerm _LoadSeed _SaveSeed]
+:| sire_23_repl     []
+:| sire_24_rex      [simpleCog rexCog listMonoid blockState]
+:| sire_25_datatype [{#datatype} {#datacase} {#record} typeTag]
+:| sire_25_datatype [TRUE FALSE LEFT RIGHT SOME NONE CONS NIL]
+:| sire_26_compile  []
+:| sire_27_sire     [main]

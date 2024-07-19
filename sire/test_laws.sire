@@ -1,0 +1,122 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### test_laws <- test_kern_var
+
+;;;; Rethink this now that we don't have a way to get random data in
+;;;; the REPL.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; :| sire
+; :| blake3
+;
+; ; Given an expected result and an expression
+; ; `[pin args..]`, check that both (pin
+; ; args..) and (pinItem args..) are equal to the
+; ; expected result.
+; ;
+; ; This allows us to test that the behavior of
+; ; the jetted and unjetted versions of `pin`
+; ; have the same behavior.
+; ; (a > Expr a > Bit)
+; = (check expect expr)
+; @ pin | idx 0 expr
+; @ arg | drop 1 expr
+; @ kor | pinItem pin
+; | all eql-expect
+; ++ rowApply pin arg
+; ++ rowApply kor arg
+;
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; ;; Silly Pseudo-Random Number Generator ;;
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ; TODO Probably better to use an explicit state
+; ; object instead of an infinite list.  That way
+; ; it can be stored across events.
+; ; (Bar 32 > List Bar-32)
+; = (randGen seed)
+; | CONS seed
+; | randGen
+; | bytesBar
+; | blake3
+; | barBytes seed
+;
+; ; (Bar 32 > List Byt)
+; = (randGenBytes seed)
+; | listCat
+; | listMap listFromRow
+; | listMap barBytes
+; | randGen seed
+;
+; ; `<` is not longer implemented
+; ;
+; ; We crash now.
+;
+; [_ seed]<[[%rand]]
+; abc=(barBytes seed)
+;
+; ; (Nat > Lis Byt > (Bar, Lis Byt))
+; = (randBar wid rSt)
+; @ res | bytesBar | listToRow | listTake wid rSt
+; @ sta | listDrop wid rSt
+; , res sta
+;
+; = abcd
+; @ rSt (randGenBytes seed)
+; * a,rSt | randBar 8 rSt
+; * b,rSt | randBar 8 rSt
+; * c,rSt | randBar 8 rSt
+; * d,rSt | randBar 8 rSt
+; , a b c d
+;
+; a=(idx 0 abcd)
+; b=(idx 1 abcd)
+; c=(idx 2 abcd)
+; d=(idx 3 abcd)
+;
+; ;;;;;;;;;
+; ;; idx ;;
+; ;;;;;;;;;
+;
+; !! check a [idx 0 a,b,c]
+; !! check b [idx 1 a,b,c]
+; !! check c [idx 2 a,b,c]
+; !! check 0 [idx 3 a,b,c]
+; !! check a [idx 0 1-b-a]
+; !! check b [idx 1 1-b-a]
+; !! check 0 [idx 2 1-b-a]
+; !! check 0 [idx 0 1]
+;
+; ;;;;;;;;;;
+; ;; take ;;
+; ;;;;;;;;;;
+;
+; ;; Normal Behavior
+; !! check []      , take 0 a,b,c
+; !! check [a]     , take 1 a,b,c
+; !! check [a b]   , take 2 a,b,c
+; !! check [a b c] , take 3 a,b,c
+; !! check [a b c] , take 4 a,b,c
+;
+; ;; Non-closure interpreted as empty row
+; !! check [] , take 0 %hi
+; !! check [] , take 5 %hi
+;
+; ;; Unnatural length interpreted as 0
+; !! check [] , take 0-0 a,b,c
+; !! check [] , take x&x a,b,c
+; !! check [] , take add a,b,c
+;
+; ;; Vectors operations work on any closure
+; !! check []    , take 0 put-2-1
+; !! check [1]   , take 1 put-2-1
+; !! check [1 2] , take 2 put-2-1

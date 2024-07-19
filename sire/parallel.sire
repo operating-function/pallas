@@ -1,0 +1,39 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### parallel <- gen
+
+;;;; Parallelism
+;;;; ===========
+;;;;
+;;;; Utilities for evaluating things in parallel.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+
+
+;;; {par} and {pseq} ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Jetted parallelism primitives
+
+(par a b)=b
+(pseq a b)=(seq a b)
+
+
+;;; {parList} ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (parList l)
+| listCase l NIL
+& (x xs)
+@ l | parList xs
+| par x | pseq l | CONS x l
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ par pseq parList
+^-^

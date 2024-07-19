@@ -1,0 +1,94 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### w48 <- w32
+
+;;;; 48-Bit Words
+;;;; ============
+;;;;
+;;;; TODO Use macros to generate these for different word sizes (32,
+;;;; 48, 64).
+;;;;
+;;;; TODO Split into w48 and i48.
+;;;;
+;;;; TODO Figure out why this diverges from w32, and if any of those
+;;;; divergencies matter.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= bex48   | bex 48
+= bex47   | bex 47
+= wMax48  | dec bex48
+= wMin48  | 0
+= iMax48  | dec bex47
+= iMin48  | bex47
+= (w48 x) | mod x bex48
+= (i48 x) | mod x bex48
+
+= (inc48 x)   | w48 (inc x)
+= (dec48 x)   | 2 wMax48 y&y x
+= (add48 x y) | w48 (add w48-x w48-y)
+= (mul48 x y) | w48 (mul w48-x w48-y)
+= (div48 x y) | div w48-x w48-y
+= (not48 x)   | not w48-x
+= (lth48 x y) | lth w48-x w48-y
+= (gth48 x y) | gth w48-x w48-y
+= (lte48 x y) | lte w48-x w48-y
+= (gte48 x y) | gte w48-x w48-y
+= (eql48 x y) | eql w48-x w48-y
+
+isZero48=not48
+
+= (sub48 x y)
+| if (lte48 y x)
+    | sub w48-x w48-y
+| sub (add bex48 x) y
+
+= (bitFlip48 x) | sub48 wMax48 x
+= (iNeg48 x)    | inc48 (bitFlip48 x)
+= (iIsZero48 x) | isZero48 x
+= (iInc48 x)    | inc48 x
+= (iAdd48 x y)  | add48 x y
+= (iSub48 x y)  | add48 x (iNeg48 y)
+= (iMul48 x y)  | mul48 x y
+= (iDec48 x)    | dec48 x
+= (iEql48 x y)  | eql48 x y
+= (iIsNeg48 x)  | gth48 x iMax48
+= (iAbs48 x)    | if (iIsNeg48 x) (iNeg48 x) x
+
+= (iDiv48 x y)
+@ res | div48 (iAbs48 x) (iAbs48 y)
+| if (xor (iIsNeg48 x) (iIsNeg48 y))
+    (iNeg48 res)
+| res
+
+= (iGth48 x y)
+| if (iIsNeg48 x)
+    | and (iIsNeg48 y)
+    | gth48 (iNeg48 y) (iNeg48 x)
+| or (iIsNeg48 y)
+| gth48 x y
+
+= (iGte48 x y) | or (eql48 x y) (iGth48 x y)
+= (iLte48 x y) | iGte48 y x
+= (iLth48 x y) | iGth48 y x
+
+^-^ w48 wMax48 wMin48
+^-^ inc48 dec48 add48 mul48 div48
+^-^ lth48 gth48 lte48 gte48 eql48
+^-^ not48
+^-^ isZero48 sub48
+^-^ bitFlip48
+^-^
+^-^ i48 iMax48 iMin48
+^-^ iIsZero48 iIsNeg48 iNeg48 iAbs48
+^-^ iGth48 iLth48 iGte48 iLte48 iEql48
+^-^ iInc48 iDec48 iAdd48 iSub48
+^-^ iMul48 iDiv48

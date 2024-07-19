@@ -1,0 +1,20 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_timer <- prelude
+
+;;;; This is an example of a tiny program using the `kern.sire`
+;;;; exo-kernel.
+
+:| prelude
+
+= (timeDemo count return)
+| trk {timeDemo},count,return
+| ifz count           | return ()
+: ??(td_got_time now) < syscall TIME_WHEN
+| trk [current_time=now]
+: ??(td_waited _) < syscall (**TIME_WAIT | inc now)
+| timeDemo (dec count) return
+
+main=(runCog | timeDemo 5)

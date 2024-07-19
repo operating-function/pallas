@@ -1,0 +1,601 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### rex_block_parser <- rex_line_parser
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| prelude
+:| rex_show
+:| rex_line_parser
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# datatype Elem
+* I=I rune:Bar sons:(List Rex) heir:(Maybe Rex)
+* T=T text:Bar                 heir:(Maybe Rex)
+
+> Elem > Elem
+= (elemClose elem)
+# datacase elem
+* (I r s h) | I r (map rexClose s) (fmapMaybe h rexClose)
+* (T x h)   | T x                  (fmapMaybe h rexClose)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(rn m r cs)=(m r cs NONE)
+
+> Rex > Rex > Rex
+= (rexAddCont r c)
+^ (rexSetHeir _ r)
+@ h (rexHeir r)
+| if h==0 c (rexAddCont h c)
+
+=?= `(+3)(+4)(+5) | rexAddCont `(+3)(+4) `(+5)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Form > Rex
+= (formToRex topForm)
+# mutrec {form_to_rex} (form topForm)
+* (nest n)
+    # datacase n
+    * (WRAPD f)    | form f
+    * (PREFX r fs) | rn NEST (barNat r) (map form fs)
+    * (PAREN ns)   | goApp ns
+    * (INFIX r fs) | rn INFX (barNat r) (map goApp fs)
+* (form f)
+    # datacase f
+    * (BEFO ru bod) | rn PREF (barNat ru) [(form bod)]
+    * (SHIP i)      | itmz i
+    * (SHIN ru ps)  | rn SHUT (barNat ru) (map itmz ps)
+* (goApp fs)
+    | form
+    | if (len fs == 1) (idx 0 fs)
+    | SHIP ,(INEST (PREFX b#{|} fs))
+* (itmz is)
+    @ i (idx 0 is)
+    | if (len is == 1) (item i)
+    | rexAddCont (item i) (itmz | drop 1 is)
+* (item i)
+    # datacase i
+    * (INEST n) | nest n
+    * (ILEAF l) # datacase l
+                * (LNAME t)   | WORD barNat-t NONE
+                * (LTEXT s t) # datacase s
+                              * THICK | TEXT barNat-t NONE
+                              * LIGHT | TEXT barNat-t NONE
+                              * CURLY | TEXT barNat-t NONE
+                              * LINED | LINE barNat-t NONE
+
+> Elem > Rex
+= (iRex e)
+# datacase e
+* (I t x k) | OPEN (barNat t) (rev x) (fromSome 0 k)
+* (T b k)   | LINE barNat-b (fromSome 0 k)
+
+> Frag > Rex
+= (fRex f)
+# datacase f
+* (RUNE rune) | OPEN (barNat rune) [] NONE
+* (FORM wide) | formToRex wide
+* (LSTR t)    | LINE barNat-t NONE
+
+=?= (iRex (I b#{+++} [] NONE)) ` +++
+
+=?= (iRex (T b#{hi} NONE))  ` } hi
+
+= (go bar)
+# datacase (runParser frag bar)
+* (FAIL e)         | die (FAIL e)
+* (OKAY [col frg]) | fRex frg
+
+=?= (go b#{..})           ` ..
+=?= (go b#{(3 4 5)})      ` (3 4 5)
+=?= (go b#{(3 4)})        ` (3 4)
+=?= (go b#{(3)})          ` 3
+=?= (go b#{()})           ` ()
+=?= (go b#{(+ 3 4)})      ` (+ 3 4)
+=?= (go b#{[3 4]})        ` [3 4]
+=?= (go b#{+3})           ` +3
+=?= (go b#{(3,4)})        ` (3,4)
+=?= (go b#{(3, 4)})       ` (3, 4)
+=?= (go b#{{x}{y}})       ` {x}{y}
+=?= (go b#{{}{}{}})       ` {}{}{}
+=?= (go b#{({})({})({})}) ` {}{}{}
+=?= (go b#{(3)(4)})       ` (3)(4)
+=?= (go b#}_} xyz_)       ` } xyz
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(overFst f pair)=(| put pair 0 | f | get pair 0)
+(overSnd f pair)=(| put pair 1 | f | get pair 1)
+
+= (eitherMap f e)
+# datacase e
+* (LEFT _)  | e
+* (RIGHT x) | RIGHT (f x)
+
+> (Nat, Rex) > (Nat, Elem) > Either Str (Nat, Elem)
+= (merge (rp,r) (ip,i))
+@ ord (cmp rp ip)
+| if (ord == LT)
+    | LEFT ({Impossible: invalid merge})
+# datacase i
+* (T t h)
+    | if ((h /= 0) || (ord == GT))
+        | LEFT {Line strings may not have child nodes.}
+    | RIGHT (ip, T t (SOME r))
+* (I ryn ss h)
+    | RIGHT
+    # datacase h
+    * (SOME k)
+        | (ip, I ryn (rowCons k ss) (SOME r))
+    * NONE
+    | if (ord == EQ)
+        | (ip, I ryn ss (SOME r))
+    | else
+        | (ip, I ryn (rowCons r ss) NONE)
+
+(testMerge x y)=(eitherMap (overSnd (compose rexClose iRex)) (merge x y))
+
+=?= RIGHT-(3, `{foo}xxx)
+  | testMerge (3, `xxx) (3, T b#foo 0)
+
+=?= LEFT-{Line strings may not have child nodes.}
+  | testMerge (4, `xxx) (3, T b#foo 0)
+
+=?= LEFT-{Impossible: invalid merge}
+  | testMerge (2, `xxx) (3, T b#foo 0)
+
+=?=   | RIGHT (3, `[x y]xxx)
+  | testMerge (3, `xxx) (3, I b#{,} [`x] (SOME `y))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; {close} reduces the stack until the stack has only one item, or
+;; until the topmost item has position <= p.
+;;
+;; This code requires that the first `Elem` (the bottom of stack),
+;; has the smallest poisition of all items in the block.
+;;
+;; For example, if we try to work with the block:
+;;
+;;     + foo
+;;   + bar
+;;
+;; The layout algorithm doesn't work on that.  This needs to be handled
+;; by the code that splits files into blocks before those blocks are
+;; passed to this code.  The above example should be split into two
+;; different blocks:
+;;
+;;     + foo
+;;
+;; And:
+;;
+;;   + bar
+
+= badBlock
+} Invariant Violation: item indented too little for block
+
+> Nat > List (Nat, Elem) > Either Str (List (Nat, Elem))
+= (close p elems)
+# datacase elems
+* NIL | RIGHT ~[]
+* (CONS i is)
+| if (gte p | fst i)
+    | RIGHT (i::is)
+# datacase is
+* NIL | LEFT badBlock
+* (CONS j ks)
+    : ij < eitherBind (merge (overSnd iRex i) j)
+    | close p (ij::ks)
+
+= (testClose n es)
+# datacase (close n es)
+* (LEFT m)   | LEFT m
+* (RIGHT es) | RIGHT (listMap (overSnd elemClose) es)
+
+exItem=(I b#{,} [`x] (SOME `y))
+
+=?=   | RIGHT ~[4,exItem 4,exItem]
+  | testClose 4 ~[4,exItem 4,exItem]
+
+=?=   | RIGHT ~[4,exItem 4,exItem]
+  | testClose 4 ~[4,exItem 4,exItem]
+
+=?=   | RIGHT ~[4,exItem 3,exItem]
+  | testClose 4 ~[4,exItem 3,exItem]
+
+=?=   | RIGHT ~[(3, (I b#{,} [`y `x] (SOME `[x]y))) (2, exItem)]
+  | testClose 3 ~[4,exItem 3,exItem 2,exItem]
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> List (Nat, Elem) > (Nat, Frag) > Either Str (List (Nat, Elem))
+= (pushOnto stk (fp,f))
+: stk < eitherBind (close fp stk)
+# datacase f
+* (RUNE r) | RIGHT (fp, I r [] NONE)::stk
+* (FORM _)
+    # datacase stk
+    * NIL         | LEFT {Impossible: SOME-Form case already handled in `rush`}
+    * (CONS i is) | eitherMap x&(x::is) (merge (fp, fRex f) i)
+* (LSTR l)
+    # datacase stk
+    * NIL         | LEFT {Impossible: SOME-Line case already handled in `rush`}
+    * (CONS _ _)  | RIGHT (fp, T l NONE)::stk
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+oneForm={Blocks starting with closed forms may only contain one form.}
+
+= (listFoldl1 f xs)
+# datacase xs
+* NIL ({listFoldl1} {empty list})
+* (CONS x xs)
+| listFoldl f x xs
+
+=?= 12 (listFoldl1 add ~[3 4 5])
+
+> (b > a > Either e b) > b > List a > Either e b
+= (eitherListFoldlM f acc xs)
+# datacase xs
+* NIL (RIGHT acc)
+* (CONS x xs)
+: acc < eitherBind (f acc x)
+| eitherListFoldlM f acc xs
+
+> (Nat, Elem) > (Nat, Elem) > (Nat, Elem)
+= (forceMerge a b)
+# datacase (merge (overSnd iRex a) b)
+* (LEFT e)  | die e
+* (RIGHT x) | x
+
+> (Nat, Elem) > List (Nat, Frag) > Either Str (List (Nat, Elem))
+= (pushAll pf fs)
+| eitherListFoldlM pushOnto ~[pf] fs
+
+; TODO: rework this to use rows
+> List (Nat, Frag) > Either Str Rex
+= (rush stk)
+# datacase stk
+* NIL
+    | LEFT {impossible: rush given an empty list}
+* (CONS pf@[p f] fs)
+# datacase f
+* (RUNE r)
+    : x < eitherBind (pushAll (p, I r [] NONE) fs)
+    | RIGHT | iRex | snd | listFoldl1 forceMerge x
+* (LSTR l)
+    : x < eitherBind (pushAll (p, T l NONE) fs)
+    | RIGHT | iRex | snd | listFoldl1 forceMerge x
+* (FORM _)
+    # datacase fs
+    * NIL        | RIGHT (fRex f)
+    * (CONS _ _) | LEFT oneForm
+
+= (testRush bar)
+# datacase (runParser line bar)
+* (FAIL e) (LEFT e)
+* (OKAY frags)
+# datacase (rush | listFromRow frags)
+* (LEFT e) (LEFT e)
+* (RIGHT v)
+| rexClose v
+
+=?= `(f (x (y (f x y))))
+  | testRush b#{| f | x | y (f x y)}
+
+=?= `(f (x (y (| (f x y)))))
+  | testRush b#{| f | x | y | (f x y)}
+
+=?= `(f x y (z | z | z))
+  | testRush b#{| f x y (z | z | z)}
+
+
+;;; Block Parser ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> (Nat, Frag) > Bit
+= (fragIsForm [_ frag])
+# datacase frag
+* (FORM _) | TRUE
+* _        | FALSE
+
+> Row (Row (Nat, Frag)) > Either Str Rex
+= (lineHack frags)
+^ rush _
+| if (lth len-frags 2 || not (fragIsForm | idx 0 frags))
+    | listFromRow frags
+| CONS (0, RUNE b#{|})
+| listMap (overFst inc)
+| listFromRow frags
+
+> Row (Row (Nat, Frag)) > Either Str Rex
+= (parseBlock lines)
+@ lines (filter (compose not null) lines)
+# switch (len lines)
+* 0 | LEFT {empty block}
+* 1 | lineHack (idx 0 lines)
+* _ | rush (listFromRow | cat lines)
+
+> Row Bar > Either Str Rex
+= (testParseBlock bars)
+: results < ^ rowTraverse _ bars
+            & (bar ret)
+            : frags < eitherBind (runParser line bar)
+            | ret frags
+# datacase (parseBlock results)
+* (LEFT e)  | e
+* (RIGHT v) | rexClose v
+
+=?= `(f x y)
+  | testParseBlock [b#{f x y}]
+
+=?= `(f (x y))
+  | testParseBlock [b#{f | x y}]
+
+=?= oneForm
+  | testParseBlock [b#{f | x y} b#{| a}]
+
+=?= `(f (x y))(| a)
+  | testParseBlock [b#{| f | x y} b#{| a}]
+
+=?= `(f (x y))a
+  | testParseBlock [b#{| f | x y} b#{} b#{a}]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# typedef Lexed (Nat, Bar, Row (Nat, Frag))
+
+( lexedLinNum [ln _  _   ] )=ln
+( lexedInput  [_  in _   ] )=in
+( lexedTokens [_  _  toks] )=toks
+
+# record PartialBlock
+| PB depth:Nat fstLineNum:Nat acc:(List Lexed)
+
+# typedef BlockState (Nat, PartialBlock)
+
+;; files start on line one with an empty block-buffer.
+initialBS=(1, NONE)
+
+> PartialBlock > (Row (Nat, Row Lexed))
+= (emit (PB depth ln acc))
+| [(ln, listToRowRev acc)]
+
+> BlockState > Maybe Lexed > (BlockState, Row (Nat, Row Lexed))
+= (blockStep (ln, mPb) mLine)
+# datacase mLine
+* NONE ; eof
+    # datacase mPb
+    * NONE    ((ln, NONE), [])
+    * SOME-pb ((ln, NONE), emit pb)
+* SOME-(lnLexed@(lnNum, lnTxt, lnToks))
+    | if lnTxt==0 (die {badLine},[=mLine =lnLexed =lnTxt])
+    @ isBlank   | barAll (eql spaceChar) lnTxt
+    @ isComment | null-lnToks
+    ; blank line
+    | if isBlank
+        # datacase mPb
+        * NONE    ((inc ln, NONE), [])      ; blank line outside of block
+        * SOME-pb ((inc ln, NONE), emit pb) ; blank line inside block
+    ; line contains nothing but a comment.  If there is no partial block,
+    ; we just ignore it.   If there is a partial block, we include it.
+    ; It contributes nothing to the rex result, but if we want to
+    ; reproduce the block for error messages, we need to record it.
+    | if isComment
+        # datacase mPb
+        * NONE               | ((inc ln, NONE), [])
+        * SOME-(PB bd bn ls) | ((inc ln, SOME (PB bd bn lnLexed::ls)), [])
+    ;
+    @ [fstTokDepth fstTok] (fst lnToks)
+    ;
+    # datacase mPb
+    * NONE
+        # datacase fstTok
+        * (FORM _) ; closed forms get output immediately.
+            | if (len lnToks == 1)
+                ((inc ln, NONE), [(ln, [lnLexed])])
+            | else
+                @ lnLexed (lnNum, lnTxt, rowCons (0, RUNE b#{|}) lnToks)
+                ((inc ln, NONE), [(ln, [lnLexed])])
+        * _
+            ((inc ln, SOME (PB fstTokDepth ln ~[lnLexed])), [])
+    * SOME-(pb @ PB bd bn ls)
+        | if (gte fstTokDepth bd)
+            ((inc ln, SOME (PB bd bn lnLexed::ls)), [])
+        | else
+            @ [res output] | blockStep (ln, NONE) (SOME lnLexed)
+            | (res, weld (emit pb) output)
+
+
+;;; Parsing Files ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> List Bar > List (Nat, Row Lexed)
+= (blox lines)
+^ _ (1, NONE) lines
+? (go st@(lineNum, mPb) lines)
+# datacase lines
+* NONE
+    @ (_, output) | blockStep st NONE
+    | output
+* (CONS lineBar lines)
+    # datacase (runParser line lineBar)
+    * FAIL-e  | {lexedLn: fail} e
+    * OKAY-ts
+        @ (st, output) | blockStep st (SOME (lineNum, lineBar, ts))
+        | weld output
+        | go st lines
+
+; Row Lexed > Rex
+= (blockToRex (firstLineNum, lexedLines))
+# datacase
+    | rush
+    | listFromRow
+    | catMap lexedTokens
+    | lexedLines
+* (LEFT e)  | die | FAIL e
+* (RIGHT v) | v
+
+
+;;; Testing `blockStep` ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Bar > Lexed
+= (lexedLn lnNum l)
+# datacase (runParser line l)
+* FAIL-e  | {lexedLn: fail} e
+* OKAY-ts | (lnNum, l, ts)
+
+(justHi lineNum)=(lexedLn lineNum b#{hi})
+
+(justBar lineNum)=(lexedLn lineNum b#{|})
+
+(barHi lineNum)=(lexedLn lineNum b#{     | hi  })
+
+=?= ++ 9
+    ++ b#{| | |}
+    ++ ++ (1, (%RUNE, b#{|}))
+       ++ (3, (%RUNE, b#{|}))
+       ++ (5, (%RUNE, b#{|}))
+  | lexedLn 9 b#{| | |}
+
+;; EOF with nothing buffered: no change
+=?= ((1,NONE), []) | blockStep (1,NONE) NONE
+=?= ((5,NONE), []) | blockStep (5,NONE) NONE
+
+;; Blank line on empty state: bumps line count
+=?= ((2,NONE), []) | blockStep (1,NONE) | SOME (lexedLn 1 b#{})
+=?= ((3,NONE), []) | blockStep (2,NONE) | SOME (lexedLn 2 b#{            })
+
+
+;; EOF with one line buffered, outputs buffer, line count does not change.
+=?= ++ (1,NONE)
+    ++ [(1, [(justBar 1)])]
+  ^ blockStep _ NONE
+  | (1, SOME (PB 1 1 ~[(justBar 1)]))
+
+;; blank line with one line buffered: output lines and bump line count.
+=?= ++ (3,NONE)
+    ++ [(1, [(justBar 1)])]
+  ^ blockStep _ (SOME | lexedLn 2 b#{})
+  | (2, SOME (PB 1 1 ~[(justBar 1)]))
+
+;; comment line alone (not in a block): ignore and bump line count
+=?= ((2, NONE), [])
+  ^ blockStep _ (SOME | lexedLn 2 b#{ ; hi})
+  | (1, NONE)
+
+;; comment line mid-block: incorporate the comment line.
+=?= ((2, SOME (PB 1 1 ~[(lexedLn 2 b#{ ; hi}) (justBar 1)])), [])
+  ^ blockStep _ (SOME | lexedLn 2 b#{ ; hi})
+  | (1, SOME (PB 1 1 ~[(justBar 1)]))
+
+;; closed form alone (no partial block).  Immediately output
+;; the single-line as a block.
+=?= ((2, NONE), [(1, ,(lexedLn 2 b#{  hi  }))])
+  ^ blockStep _ (SOME | lexedLn 2 b#{  hi  })
+  | (1, NONE)
+
+;; Open form alone (no partial block).  Push to buffer.
+=?= ((2, SOME (PB 6 1 ~[(lexedLn 2 b#{     | hi  })])), [])
+  ^ blockStep _ (SOME | lexedLn 2 b#{     | hi  })
+  | (1, NONE)
+
+; line added to partial-block with depth less than block depth
+
+=?= ((2, SOME (PB 1 1 ~[(justBar 1)])), [])
+  ^ blockStep _ (SOME | justBar 1)
+  | (1, NONE)
+
+=?= ((3, SOME (PB 1 1 ~[(barHi 2) (justBar 1)])), [])
+  ^ blockStep _ (SOME | barHi 2)
+  | (2, SOME (PB 1 1 ~[(justBar 1)]))
+
+=?= ((3, SOME (PB 1 1 ~[(barHi 2) (justBar 1)])), [])
+  ^ blockStep fst-_ (SOME | barHi 2)
+  ^ blockStep fst-_ (SOME | justBar 1)
+  | ((1, NONE), [])
+
+
+; New line is added to partial block, but depth
+; is less than block depth.  The partial block is
+; output and then the line is re-processed with an
+; empty partial-block
+
+=?= ((3, SOME (PB 1 2 ~[(justBar 2)])), [(1, [(barHi 1)])])
+  ^ blockStep _ (SOME | justBar 2)
+  | (2, SOME (PB 6 1 ~[(barHi 1)]))
+
+=?=   ^ ((3, NONE), _)
+     ++ (1, [(barHi 1)])
+     ++ (2, [(justHi 2)])
+  ^ blockStep _ (SOME | justHi 2)
+  | (2, SOME (PB 6 1 ~[(barHi 1)]))
+
+=?=   ^ ((3, NONE), _)
+     ++ (1, [(barHi 1)])
+     ++ (2, [(justHi 2)])
+  ^ blockStep fst-_ (SOME | justHi 2)
+  ^ blockStep fst-_ (SOME | barHi 1)
+  | ((1, NONE), [])
+
+
+;;; Testing the whole thing: ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= ++ `(s (| n)(| a))(| k)(| e)
+    ++ `(die (|die))die
+    ++ `pizza
+    ++ `(| pie)
+    ++ `(| bird)
+  | map (compose rexClose blockToRex)
+  | blox
+ ~~ b#}    |   s
+ ~~ b#}      | n
+ ~~ b#}      | a
+ ~~ b#}    |   k
+ ~~ b#}    |   e
+ ~~ b#}  | die
+ ~~ b#}  |die
+ ~~ b#}  die
+ ~~ b#}
+ ~~ b#} pizza
+ ~~ b#} | pie
+ ~~ b#}
+ ~~ b#} | bird
+ ~~ b#}
+
+=?=  ++ b#{(s (| n)((| a)))((| k)((| e)))}
+     ++ b#{(die (|die))(die)}
+     ++ b#pizza
+     ++ b#{(| pie)}
+     ++ b#{(| bird)}
+  | map blk&(| rexShow | rexClose | blockToRex blk)
+  | blox
+ ~~ b#}     |   s
+ ~~ b#}       | n
+ ~~ b#}       | a
+ ~~ b#}     |   k
+ ~~ b#}     |   e
+ ~~ b#}   | die
+ ~~ b#}   |die
+ ~~ b#}   die
+ ~~ b#}
+ ~~ b#} pizza
+ ~~ b#} | pie
+ ~~ b#}
+ ~~ b#} | bird
+ ~~ b#}
+ ~~ b#}
+ ~~ b#}
+ ~~ b#}
+ ~~ b#}
+ ~~ b#}

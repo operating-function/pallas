@@ -1,0 +1,31 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_cog_wait <- demo_cog_spin
+
+:| sire
+:| kern
+:| stew
+
+;; Just keep spinning grabbing the time and waiting forever.
+= (infiniteSpinCog return)
+: ??(td_got_time now) < syscall TIME_WHEN
+: ??(td_waited _) < syscall (**TIME_WAIT | inc now)
+| infiniteSpinCog return
+
+;; Waits for infinite cog to no longer be running.
+= (waitCog infiniteCogid return)
+| trk [%wait infiniteCogid]
+: ??(wc_got_wait _) < syscall | COG_WAIT infiniteCogid
+| trk {PASS: received wait}
+| return ()
+
+;;
+= (demo return)
+: ??(spun_inf infCogid) < syscall | COG_SPIN runCog-infiniteSpinCog
+: ??(spun_wai _)        < syscall | COG_SPIN runCog-(waitCog infCogid)
+: ??(stop_infinite _)   < syscall | COG_STOP infCogid
+| return ()
+
+main=(runCog demo)

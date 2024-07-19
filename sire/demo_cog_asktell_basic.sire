@@ -1,0 +1,67 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_cog_asktell_basic <- demo_cog_stop
+
+:| sire
+:| kern
+:| demo_timer
+:| stew
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+countCogChannel=28
+
+= (count i sender msg)
+[i [sender i (inc i)]]
+
+= (countCog i return)
+: ??(count_got_new [sender oldi newi])
+    < syscall (COG_TELL countCogChannel count-i)
+| countCog newi return
+
+= (askerCog onExit tid countCogId return)
+^ _ NIL return
+? (go nums return)
+| if | gte listLen-nums 10
+    : _ < onExit (%ok, tid, listToRowRev nums)
+    | return ()
+: ??(asker_told mybNum)
+    < syscall (COG_ASK countCogId countCogChannel ())
+# datacase mybNum
+* NONE
+    : () < onExit | traceId (%crash, tid, listToRowRev nums)
+    | return ()
+* SOME-num
+    | go (CONS num nums) return
+
+= (askDemo return)
+: ??(spin_got_id countCogId) < syscall (COG_SPIN (runCog-(countCog 11)))
+: a < newEmptyMVar
+: b < newEmptyMVar
+: c < newEmptyMVar
+: d < newEmptyMVar
+: _ < fork (askerCog (putMVar a) 1 countCogId)
+: _ < fork (askerCog (putMVar b) 2 countCogId)
+: _ < fork (askerCog (putMVar c) 3 countCogId)
+: _ < fork (askerCog (putMVar d) 4 countCogId)
+: ar@(aOk, _, aRes) < takeMVar a
+: br@(bOk, _, bRes) < takeMVar b
+: cr@(cOk, _, cRes) < takeMVar c
+: dr@(dOk, _, dRes) < takeMVar d
+;
+: _  < syscall (COG_STOP countCogId)
+| trk [{RESULTS} aRes bRes cRes dRes]
+;
+| ifNot
+   && | all (eql %ok)          | [aOk bOk cOk dOk]
+   && | all (x & eql 10 len-x) | [aRes bRes cRes dRes]
+   && | eql 40 | setLen | setFromRow | cat [aRes bRes cRes dRes]
+* die
+   ++ {bad results!}
+   ++ [=ar =br =cr =dr]
+| trk {ALL TESTS PASSED}
+| return ()
+
+main=(runCog askDemo)

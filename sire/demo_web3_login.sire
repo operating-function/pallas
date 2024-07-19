@@ -1,0 +1,685 @@
+
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+
+#### demo_web3_login <- ethsign
+
+:|  ethsign [verifyEthMsg]
+:|  prelude
+:|  kern
+:|  hitch
+:|  json
+:|  gen
+
+= favicon
+| PIN
+| barCat
+, x#{0000010001002020100001000400e80200001600000028000000200000004000}
+  x#{0000010004000000000000000000000000000000000000000000000000000000}
+  x#{00000000060001000f000000170000002b0000003b0000004200000151000100}
+  x#{6c0000007a0000008a000000940001038c000000a0000200a7000000aa000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{000000000ccccc00000000000000000000000000ccccc0000000000000000000}
+  x#{00000000cccccccc00000000000000000000000cccccccc00000000000000000}
+  x#{0000000cccc00cccc000000000000000000000cccc00cccc0000000000000000}
+  x#{000000cccc0000cccc0000000000000000000cccc0000cccc000000000000000}
+  x#{00000cccc000000cccc00000000000000000cccc000000cccc00000000000000}
+  x#{0000cccc00000000cccc000000000000000cccc00000000cccc0000000000000}
+  x#{000cccc0000000000cccc0000000000000cccc0000000000cccc000000000000}
+  x#{00cccc000000000000cccc00000000000cccc000000000000cccc00000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{000000000000000000000000000000000000000000000000000000000000c000}
+  x#{0003000000010000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{000000000000000000000000000000000000000000008000000040000001}
+
+# typedef ContentType Bar
+
+# typedef SessionID Str
+
+# typedef SessionAuthed Nat
+
+= startingFiles
+; TODO: Figure out tuned config for files.
+| hmSingleton
+* largeConfig
+* {/favicon.ico}
+* [b#{image/x-icon} favicon]
+
+= startingSessions
+| tabFromPairs [[]]
+; | tabFromPairs [[b#{plunder-admintestgood} 1] [b#{plunder-admintestbad} 0]]
+
+# record CogState
+| COG_STATE
+* accessKey        : Str
+* ethAddress       : Bar
+* files            : (HMap Str (ContentType, Pin Bar))
+* fileBytes        : Nat
+* sessions         : (HMap SessionID SessionAuthed)
+* servThread       : ThreadId
+
+= (newState servThread)
+| COG_STATE
+* "v@p0rvv@r3"
+* b#{0x0}
+* startingFiles
+* 0
+* startingSessions
+* servThread
+
+
+;;; JSON Handling ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; = (asJsonRow m)
+; # datacase m
+; * JVEC|v | SOME v
+; * _      | NONE
+
+; = (asJsonNum m)
+; # datacase m
+; * JNUM|n | SOME n
+; * _      | NONE
+
+= (jsonMap jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| if (res || leftover) NONE
+# datacase json
+* JMAP|m | SOME m
+* _      | NONE
+
+= (asJsonStr m)
+# datacase m
+* JSTR|s | SOME s
+* _      | NONE
+
+(bindMaybe mVal k)=(maybeCase mVal NONE k)
+
+;;;; begin potential http library ;;;;
+
+= baseHeaders
+++ (b#{Content-Type}, b#{text/html; charset=utf-8})
+++ (b#{Server}, b#{Pallas/0.1})
+++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
+;++ (b#{Access-Control-Allow-Origin}, b#{*})
+
+= (mergeHeaders oldPairs newPairs)
+@ oldTab    | tabFromPairs oldPairs
+@ newTab    | tabFromPairs newPairs
+| tabToPairs | tabWeld newTab oldTab
+
+; use to overwrite base headers
+= (baseHeaderOverwrite newHeaders)
+| mergeHeaders baseHeaders newHeaders
+
+= (baseResponse rid code msg moreHeaders body)
+[rid code msg moreHeaders body]
+
+=?=
+  ++ (b#{Server}, b#{Pallas/0.1})
+  ++ (b#{Content-Type}, b#{application/json})
+  ++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+  ++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
+  |  baseHeaderOverwrite [(b#{Content-Type}, b#{application/json})]
+
+=?=
+  ++ (b#{Server}, b#{Pallas/0.1})
+  ++ (b#{Other-Thing}, b#{foo})
+  ++ (b#{Content-Type}, b#{application/json})
+  ++ (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS})
+  ++ (b#{Access-Control-Allow-Headers}, b#{Origin, X-Requested-With, Content-Type, Accept})
+  @ base | baseHeaderOverwrite [(b#{Content-Type}, b#{application/json})]
+  @ m1 | mergeHeaders base [(b#{Other-Thing}, b#{foo})]
+  m1
+
+= (cookieHeader newCookie)
+[(b#{Set-Cookie}, newCookie) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+= (dynamicCorsCookieHeader origin newCookie)
+[(b#{Set-Cookie}, newCookie) (b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+= (dynamicCors origin)
+[(b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true}) (b#{Access-Control-Allow-Headers}, b#{Content-Type, Authorization}) (b#{Access-Control-Allow-Methods}, b#{POST, GET, OPTIONS})]
+
+= (dynamicCorsJson origin)
+[(b#{Content-Type}, b#{application/json}) (b#{Access-Control-Allow-Origin}, origin) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+= jsonContentType [(b#{Content-Type}, b#{application/json})]
+
+;;;; end potential http library ;;;;
+
+= (splitSemicol b)
+| barSplit {;} b
+; @ res | barSplit {;} b
+; [(idx 0 res) (idx 0 (idx 1 res))]
+
+;= (parsePasswordFromBody body)
+;@ split | listToRow | splitAmp body
+;@ tabbed | tabFromPairs | map splitEq split
+;@ pw | tabGet tabbed b#{password}
+;| if (eql pw b#{})
+;  0
+;pw
+
+; cookie might be "plundauth-0x...=thing" OR "pl-0x..=x; pl-0x..=y; <etc>"
+; we need to split cookie on ";", trimming whitespace
+; when there are multiple, or just be okay with 1 (always return a row) and:
+; check each item in this list (including just 1)
+; against all [TODO: valid] sessions
+
+= (trimWhitespacePre b)
+| barDropWhile (eql { }) b
+;| if (eql (barLen b) 0) b
+;| if (barAll b#{ } b) b#{ }
+;^ _ 0
+;? (loop i)
+;| if (eql i (barLen b)) b
+;| trk [%looping i]
+;| ifNot (eql (natBar | barIdx i b) b#{ }) (idx 1 | barSplitAt i b)
+;| trk [%afterIfNot]
+;| loop (inc i)
+
+=?= b#{a}
+  | trimWhitespacePre b#{a}
+
+=?= b#{a}
+  | trimWhitespacePre b#{ a}
+
+=?= b#{a}
+  | trimWhitespacePre b#{  a}
+
+=?= b#{hello}
+  | trimWhitespacePre b#{  hello}
+
+=?= b#{. a}
+  | trimWhitespacePre b#{  . a}
+
+=?= b#{}
+  | trimWhitespacePre b#{}
+
+=?= b#{}
+  | trimWhitespacePre b#{ }
+
+=?= b#{}
+  | trimWhitespacePre b#{  }
+
+= (trimWhitespacePost b)
+@ b | barFromListRev | barToList b   ; reverse
+@ trimmed | trimWhitespacePre b      ; trim
+| barFromListRev | barToList trimmed ; reverse
+
+=?= b#{a}
+  | trimWhitespacePost b#{a }
+
+=?= b#{a}
+  | trimWhitespacePost b#{a  }
+
+=?= b#{hello}
+  | trimWhitespacePost b#{hello  }
+
+= (trimWhitespaceAll b)
+| trimWhitespacePost | trimWhitespacePre b
+
+=?= b#{a}
+  | trimWhitespaceAll b#{  a  }
+
+= (validateCookie cookie sessions)
+| trk [%allSessions sessions]
+| trk [%allCookies cookie]
+@ cookieList | listToRow | listMap trimWhitespaceAll | splitSemicol cookie
+| trk [%cookiesSanitized cookieList]
+@ cookieSet  | setFromRow cookieList
+@ sessionSet | tabKeysSet sessions
+| trk [%sessionSet sessionSet]
+| trk [%cookieSet cookieSet]
+| trk [%intersection (setIntersection cookieSet sessionSet)]
+| trk [%foundKey (idx 0 | setToList (setIntersection cookieSet sessionSet))]
+| tabGet sessions (idx 0 | setToList (setIntersect cookieSet sessionSet))
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{b=foo} TRUE sessions)
+  @ sessions | (tabIns b#{a=bar} TRUE sessions)
+  | trk [%session sessions]
+  | validateCookie b#{a=bar} sessions
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=bar} TRUE sessions)
+  @ sessions | (tabIns b#{b=foo} TRUE sessions)
+  | trk [%session sessions]
+  | validateCookie b#{a=bar} sessions
+
+=?= FALSE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{b=foo} TRUE sessions)
+  @ sessions | (tabIns b#{a=bar} FALSE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=bar} sessions)
+
+=?= FALSE
+  @ sessions [[]]
+  | trk [%session sessions]
+  | (validateCookie b#{a} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{plundauth-thing=foo} TRUE sessions)
+  @ sessions | (tabIns b#{plundauth-thing=bar} FALSE sessions)
+  @ sessions | (tabIns b#{plundauth-thing=baz} FALSE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{junk; junk; junk; plundauth-thing=foo; some-other=shit} sessions)
+
+=?= FALSE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{r=rrr; r=rrr} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} FALSE sessions)
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo; b=bar} sessions)
+
+=?= FALSE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} TRUE sessions)
+  @ sessions | (tabIns b#{a=foo} FALSE sessions)
+  @ sessions | (tabIns b#{x=dog} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{a=foo; b=bar} sessions)
+
+=?= TRUE
+  @ sessions [[]]
+  @ sessions | (tabIns b#{a=foo} FALSE sessions)
+  @ sessions | (tabIns b#{plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b8=ab5d303c674521f668bf38a00a6005fa8baeb0bfdb6046d82c639a1def035ba4} TRUE sessions)
+  | trk [%session sessions]
+  | (validateCookie b#{ plundauth-someaddress=daf0afee547b9f1e9aaba3aa36c087755aee9637dde797a035cdf9f38f754128; plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b875ba2039f5085e403ddec7d1d13aadba4e984c03d937a2f045ab48fca57ff895;   plundauth-0xe145a012f830a6a55b4166022ae664df7465f7b8=ab5d303c674521f668bf38a00a6005fa8baeb0bfdb6046d82c639a1def035ba4 } sessions)
+
+= (getRandomCookie seed identifier)
+| barCat [b#{plundauth-} (natBar identifier) b#{=} (barToHex (idx 0 (mkRand seed)))]
+
+;;; Website ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(emptyFileServer req)=NONE
+
+= (sessionGuard headers sessions)
+; | trk [%gotRequest path]
+@ cookieHeader | **fromSome b#{plunder-invalid}
+               | tabLookup b#{cookie}
+               | tabFromPairs headers
+| trk [%cookieHeader cookieHeader]
+(validateCookie cookieHeader sessions)
+
+= (pwFromBody body)
+body
+
+= (fileServer (PIN st) [method path headers (PIN body)])
+| trk [%youveHitFileServer path]
+| trk [%files (**getFiles st)]
+| trk [%getHeaders headers]
+# switch method
+* _ | NONE
+* GET
+  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
+  & [type (PIN content)]
+  @ head | [(b#{Content-Type}, type)]
+  ; TODO: gets are not protected! because loading assets becomes hard
+  [200 b#gotcha head content]
+
+; `modifyState` modifies the vSt ref and reboots the static server
+; in-place (keeping the same ThreadId).
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ srv       | **getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
+| return ()
+
+;
+= (parseUpdate jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| trk [%parseUpdate jsonBS]
+: string < **bindMaybe (asJsonStr json)
+| SOME string
+
+= (parseSecretJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: theSecret < **bindMaybe (tabLookup %newSecret map)
+| SOME (barNat theSecret)
+
+= (parseAddressJson jsonBS)
+| trk jsonBS
+: map < **bindMaybe (jsonMap jsonBS)
+: addr < **bindMaybe (tabLookup %address map)
+| trk addr
+addr
+; : addrs < **bindMaybe (asJsonStr addr)
+; | addrs
+
+= (parseAddressStrJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: addr < **bindMaybe (tabLookup %address map)
+: addrs < **bindMaybe (asJsonStr addr)
+| SOME addrs
+
+= (parseMessageJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: msg < **bindMaybe (tabLookup %message map)
+: msgs < **bindMaybe (asJsonStr msg)
+| msgs
+
+= (parseSignatureJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: sig < **bindMaybe (tabLookup %signature map)
+: sigs < **bindMaybe (asJsonStr sig)
+| sigs
+
+= (getOffset needle haystack)
+@ start (idx 0 (barSubstringSearch needle haystack))
+@ width (barLen needle)
+(add start width)
+
+= (splitEq b)
+@ res | barSplit {=} b
+[(idx 0 res) (idx 0 (idx 1 res))]
+
+= (splitAmp b)
+@ res | barSplit {&} b
+[(idx 0 res) (idx 1 res)]
+
+= (parsePasswordFromBody body)
+@ split | listToRow | splitAmp body
+@ tabbed | tabFromPairs | map splitEq split
+@ pw | tabGet tabbed b#{password}
+| if (eql pw b#{})
+  0
+pw
+
+> Bar > Bar
+= (hexFromBar bar)
+; convert b#{0xe14...} to x#e14....
+@ bytes | barBytes bar
+| barFromHex | strFromList | listFromRow | slice bytes 2 len-bytes
+
+=?= x#{e145a012f830a6a55b4166022ae664df7465f7b8}
+  | (hexFromBar b#{0xe145a012f830a6a55b4166022ae664df7465f7b8})
+
+> Bar > Bar
+= (strFromBar bar)
+| strFromList | listFromRow | barBytes bar
+
+=?= {sign me}
+  | (strFromBar b#{sign me})
+
+= (parseBucketJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: theBucket < **bindMaybe (tabLookup %newBucket map)
+| SOME (barNat theBucket)
+
+= (parseUpdateJson jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+: theUpdate < **bindMaybe (tabLookup %newState map)
+| SOME (barNat theUpdate)
+;; See below: need to convert between barNat and natBar
+
+(msgToStr m)=(JSTR | natBar m)
+
+= (buildJson st)
+@ COG_STATE(..) st
+| JMAP
+## =accessKey | (msgToStr accessKey)
+## =messages  | JVEC (map msgToStr [])
+## =files     | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
+## =sessions  | JVEC (map msgToStr (hmKeys sessions))
+; TODO: add bucketUploads
+## =totalSize | JVEC (map fileBytes) ; this is structured wrong
+;; TODO: need to natBar the string. but why?!
+;; Answer: because we need to store strings as byte arrays
+
+= (handleReq vSt request return)
+@ [rid method path headers pBody@(PIN body)] request
+| trk [%gotRequest]
+# switch method
+* GET
+  | trk [%gotGet path]
+  # switch path
+  * b#{/profile}
+    : (PIN st) < readRef vSt
+    @ originHeader | **fromSome b#{localhost}
+                   | tabLookup b#{origin}
+                   | tabFromPairs headers
+    | trk [%origin originHeader]
+    @ sessions (**getSessions st)
+    | if (sessionGuard headers sessions)
+      ; if okay, proceed
+      @ stateJson | **buildJson st
+      @ stateJsonBS | printJson stateJson
+      | trk [%resultJSON stateJsonBS]
+      ; TODO: REMOVE dynamicCors. for localhost testing
+      @ head | (baseHeaderOverwrite (dynamicCorsJson originHeader))
+      @ res | (baseResponse rid 200 b#ok head stateJsonBS)
+      | trk [%res res]
+      : _ < fork (syscall | rowApply **HTTP_ECHO res)
+      | return ()
+    | trk [%noSession]
+    @ head | (baseHeaderOverwrite (dynamicCorsJson originHeader))
+    @ res | (baseResponse rid 401 b#bad head b#{})
+    : _ < fork (syscall | rowApply **HTTP_ECHO res)
+    | return ()
+  * b#{/state}
+    : (PIN st) < readRef vSt
+    | trk [%oldState st]
+    @ stateJson | **buildJson st
+    @ stateJsonBS | printJson stateJson
+    | trk [%fetchedState st]
+    | trk [%resultJSON stateJsonBS]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok jsonContentType stateJsonBS))
+    | return ()
+  ;; switch to bucketUploads
+  * b#{/files}
+    : (PIN st) < readRef vSt
+    @ files (**getFiles st)
+    @ fileNames (hmKeys files)
+    | trk [%fileNames fileNames]
+    @ stateJson | **buildJson st
+    @ stateJsonBS | printJson stateJson
+    | trk [%resultJSON stateJsonBS]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok jsonContentType stateJsonBS))
+    | return ()
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+    | return ()
+* POST
+  | trk [%gotPost]
+  | trk [%path path]
+  | trk [%body body]
+  # switch path
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+    | return ()
+  * b#{/login}
+      : (PIN st) < readRef vSt
+      | trk [%postToLogin]
+      @ address | (parseAddressJson body)
+      @ a | hexFromBar address
+      @ s | hexFromBar | (parseSignatureJson body)
+      @ m | strFromBar | parseMessageJson body
+      | trk [%a a]
+      | trk [%s s]
+      | trk [%m m]
+      @ valid (verifyEthMsg s a m)
+      @ ethAddress | strToLower | barNat (**getEthAddress st)
+      @ isOurAddress (eql (barNat address) ethAddress)
+      | trk [%valid valid]
+      | trk [%ethAddress ethAddress]
+      | trk [%compareAddress (barNat address)]
+      | trk [%isOurAddress isOurAddress]
+      | if (valid && isOurAddress)
+        : ??(got_time now_seed) < syscall TIME_WHEN
+        @ newCookie | (getRandomCookie now_seed address)
+        | trk [%newCookie newCookie]
+        @ sessions (**getSessions st)
+        | trk [%oldSessions sessions]
+        @ allSessions | (tabIns newCookie TRUE sessions)
+        | trk [%allSessions allSessions]
+        ; TODO: replace cookie if we have one for this identifier already
+        ; set cookie in db
+        : _ < modifyState vSt & st
+                              | setSessions allSessions
+                              | st
+        ; respond with cookie
+        ; TODO: remove, for local testing
+        @ origin | **fromSome b#{localhost}
+                       | tabLookup b#{origin}
+                       | tabFromPairs headers
+        ; TODO: remove dynamic, for local testing
+        @ cookieHeader (dynamicCorsCookieHeader origin newCookie)
+        @ head | (baseHeaderOverwrite cookieHeader)
+        | trk [%cookieHeader head]
+        @ res | (baseResponse rid 200 b#ok head b#{})
+        : _ < fork (syscall | rowApply **HTTP_ECHO res)
+        | return ()
+      | trk %badLogin
+      : _ < fork (syscall (**HTTP_ECHO rid 401 b#bad [] b#{}))
+      | return ()
+  * b#{/set-address}
+    | trk [%addrParsed (parseAddressStrJson body)]
+    # datacase (parseAddressStrJson body)
+    * NONE
+      | trk [%none]
+      : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+      | return ()
+    * (SOME addr)
+      | trk [%some addr]
+      @ hostHeader | **fromSome b#{not-localhost}
+                   | tabLookup b#{host}
+                   | tabFromPairs headers
+      ; Enforce localhost only
+      ; TODO: this is terribly unsafe. headers can be spoofed!
+      | ifNot (barIsPrefixOf b#{localhost} hostHeader 0)
+        | trk [%gotBadHostHeader hostHeader]
+        : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
+        | return ()
+      ; | trk [%headers headers]
+      ; | trk [%hostHeader hostHeader]
+      ; | trk [%request request]
+      ;
+      @ authHeader | **fromSome b#{xxxxxxx}
+                   | tabLookup b#{authorization}
+                   | tabFromPairs headers
+      ; | trk [%authHeader authHeader]
+      | trk [%newAddressIs addr]
+      : _ < modifyState vSt & st
+                            | setEthAddress addr
+                            | st
+      | trk [%addressUpdated]
+      : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
+      | return ()
+* OPTIONS
+  | trk [%gotOptions]
+  | trk [%headz baseHeaders]
+  @ originHeader | **fromSome b#{localhost}
+                 | tabLookup b#{origin}
+                 | tabFromPairs headers
+  @ dynamicCors (dynamicCors originHeader)
+  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok dynamicCors b#{}))
+  | return ()
+* PUT
+  | trk [%gotPut]
+  | trk [%path path]
+  : (PIN st) < readRef vSt
+  @ hostHeader | **fromSome b#{not-localhost}
+               | tabLookup b#{host}
+               | tabFromPairs headers
+  @ barType | **fromSome b#{text/html}
+            | tabLookup b#{content-type}
+            | tabFromPairs headers
+  @ theirKey | **fromSome b#{xxxxxxx}
+               | tabLookup b#{authorization}
+               | tabFromPairs headers
+  | trk [%authHeader theirKey]
+  | trk [%secret (natBar (getAccessKey st))]
+  ;; Only allow PUT to root from localhost
+  | ifNot (barIsPrefixOf b#{localhost} hostHeader 0)
+    | trk b#{Not allowed!}
+    : _ < fork (syscall (**HTTP_ECHO rid 401 b#unauthorized [] b#{}))
+    | return ()
+  | trk [%prevSize (getFileBytes st)]
+  @ newTotalSize | add (barLen body) | getFileBytes st
+  | trk [%newSize newTotalSize]
+  ; TODO: Currently inserting paths as nats instead of bars because bars put in
+  ; don't get looked up later despite showing up with hmKeys? Somehow? wat?
+  @ files (**getFiles st)
+  | trk [%hmKeys (hmKeys files)]
+  | trk [%fileName path]
+  | trk [%fileType barType]
+  @ files | hmInsert (barNat path) [barType pBody] files
+  | trk [%hmKeysAfter (hmKeys files)]
+  @ stateJson | **buildJson st
+  @ stateJsonBS | printJson stateJson
+  @ contentHeader [(b#{Content-Type}, barType)]
+  | trk [%contentHeader contentHeader]
+  @ uploadHeaders | (baseHeaderOverwrite contentHeader)
+  | trk [%uploadHeaders uploadHeaders]
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done uploadHeaders stateJsonBS))
+  : _ < modifyState vSt & st
+                        | setFileBytes newTotalSize
+                        | setFiles files
+                        | st
+  | trk [%st st]
+  | return ()
+* _
+  | trk [%gotUnknown method]
+  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+  | return ()
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (runHttpServer vSt return)
+: ??(rhs_heard req) < syscall HTTP_HEAR
+: _                 < handleReq vSt req
+| runHttpServer vSt return
+
+= (launchDemo return)
+: servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+: vSt         < newRef (PIN | newState servThread)
+: _           < modifyState vSt id
+: httpThread1 < fork (runHttpServer vSt)
+: httpThread2 < fork (runHttpServer vSt)
+| return ()
+
+main=(runCog launchDemo)

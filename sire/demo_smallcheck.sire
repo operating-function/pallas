@@ -1,0 +1,33 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_smallcheck <- demo_simple_eval_cb
+
+:| sire
+:| stew
+
+
+;;; Generators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# datatype (GenStream a)
+* ITEM item:a more:(Unit > GenStream a)
+* DONE
+
+> GenStream a > Nat > List a
+= (generate n g)
+| trk {generate},n,g
+| if (eql 0 n) NIL
+# datacase (g 0)
+* DONE        | NIL
+* (ITEM x g2) | trk [x g2] | CONS x (generate (dec n) g2)
+
+> Nat > GenStream Nat
+= (natsFrom i _)
+| seq i
+| ITEM i (natsFrom (inc i))
+
+> GenStream Nat
+nats=(natsFrom 0)
+
+!! eql ~[0 1 2 3 4 5 6 7 8 9] (generate 10 nats)

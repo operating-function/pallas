@@ -1,0 +1,95 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### test_pq <- quickcheck
+
+:| pq
+:| quickcheck
+:| prelude
+
+(**debug m v)=v
+
+; uncomment to get debug output
+;(**debug m v)=(trk m v)
+
+abstype#(Gen a)
+abstype#(Pq a)
+abstype#PropResult
+
+> (a > Ordering) > Gen a > Gen (Pq a)
+= (genPq cmp gen)
+| genMap (pqFromList cmp)
+| genList gen
+
+> (a > Ordering) > (a > List a) > Pq a > List (Pq a)
+= (shrinkPq cmp shr pq)
+| listMap (pqFromList cmp)
+| shrinkList shr
+| pqToList cmp pq
+
+> (a > Ordering) > Pq a > PropResult
+= (prop_delMin_ord cmp pq0)
+| debug [{pq0} pq0]
+@ [mbV1 pq1] | pqDelMin cmp pq0
+: v1 < maybeCase mbV1 NONE
+| debug [{v1} v1]
+@ [mbV2 pq2] | pqDelMin cmp pq1
+: v2 < maybeCase mbV2 NONE
+| debug [{v2} v2]
+| qcEql (cmp v1 v2) LT
+
+> (a > Ordering) > (a, Pq a) > PropResult
+= (prop_insert_min cmp (x, pq0))
+@ mbY | pqMin pq0
+@ pq1 | pqInsert cmp x pq0
+: z   < maybeCase (pqMin pq1) (die [{pqInsert: impossible}])
+| maybeCase mbY
+    | qcEql x z
+& y
+| qcEql (min x y) z
+
+> (a > Ordering) > (a, (a, Pq a)) > PropResult
+= (prop_insert_order cmp (x, (y, pq0)))
+@ pqA | pqInsert cmp x (pqInsert cmp y pq0)
+@ pqB | pqInsert cmp y (pqInsert cmp x pq0)
+| qcEql (pqToList cmp pqA) (pqToList cmp pqB)
+
+= (prop_pqSort_rev ls)
+| qcEql (pqSort cmp ls)
+| listRev (pqSort flip-cmp ls)
+
+> (a -> Ordering) > List a > Bit
+= (isSorted cmp xs)
+# datacase xs
+* NIL | TRUE
+* (CONS x xs)
+    # datacase xs
+    * NIL | TRUE
+    * (CONS _ _)
+        | listAnd
+        | listZipWith (a b)&(cmp a b /= GT) (x::xs) xs
+
+= (prop_pqSort_sorted cmp ls)
+| qcIs
+| isSorted cmp
+| pqSort cmp ls
+
+= arbU64List | (genList genU64, shrinkList shrinkNat)
+= arbPqU64   | (genPq cmp genU64, shrinkPq cmp shrinkNat)
+
+= arbU64andPqU64
+@ g | gen2 genU64 (genPq cmp genU64)
+@ s | shrink2 shrinkNat (shrinkPq cmp shrinkNat)
+| (g, s)
+
+= arb2U64sandPqU64
+@ g | gen2 genU64 (gen2 genU64 (genPq cmp genU64))
+@ s | shrink2 shrinkNat (shrink2 shrinkNat (shrinkPq cmp shrinkNat))
+| (g, s)
+
+!! qc1_pass 42 {delMin_ord U64}   (prop_delMin_ord cmp)    arbPqU64
+!! qc1_pass 42 {insert_min U64}   (prop_insert_min cmp)    arbU64andPqU64
+!! qc1_pass 40 {insert_order U64} (prop_insert_order cmp)  arb2U64sandPqU64
+!! qc1_pass 42 {pqSort rev}       prop_pqSort_rev          arbU64List
+!! qc1_pass 42 {pqSort sorted}    (prop_pqSort_sorted cmp) arbU64List

@@ -1,0 +1,329 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### test_hitch <- test_stroll
+
+:| sire
+:| hitch
+:| blake3
+:| gen
+:| stew
+
+
+;;; MapTest ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(flipUnfoldr b0 f)=(unfoldr f b0)
+
+
+;;; HitchhikerMapTest ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;
+; Builds an assoc list of 0-256 to random lower case strings.
+;
+= (mkTestPair count gen)
+^ _ 0 NIL gen
+? (loop_mktestpair idx cur gen)
+| if | eql idx count
+    [gen cur]
+@ [gen key]    | genBitsNat 8 gen
+@ [gen valLen] | genBitsNat 4 gen
+@ (valloop gen i)
+  @ [gen rawVal] | genBitsNat 32 gen
+  @ letter | add 97 | mod rawVal 26
+  | if | eql i valLen
+    [gen NIL]
+  @ [gen rest] | valloop gen (inc i)
+  [gen (CONS letter rest)]
+@ [gen listVal] | valloop gen 0
+| loop_mktestpair (inc idx) (CONS [key (implode | listToRow listVal)] cur) gen
+
+= (buildTabFrom pairs)
+^ _ pairs %[]
+? (build pairs t)
+| listCase pairs
+  t
+& ([key val] xs)
+| build xs (tabIns key val t)
+
+= (buildHMinsertFrom pairs)
+@ empty | hmEmpty twoThreeConfig
+^ _ pairs empty
+? (build pairs hm)
+| listCase pairs
+  hm
+& ([key val] xs)
+| build xs (hmInsert key val hm)
+
+= (buildHMinsertManyFrom pairs)
+@ empty | hmEmpty twoThreeConfig
+@ tab   | buildTabFrom pairs
+| hmInsertMany tab empty
+
+= (FORCE x) (force x)
+
+= (testEqsTab build lookup seed)
+@ gen           | mkRand seed
+@ [gen count]   | genBitsNat 6 gen
+@ [gen inPairs] | mkTestPair count gen
+@ tab           | buildTabFrom inPairs
+@ checkLen      | tabLen tab
+| seq (FORCE (inPairs,checkLen,tab,checkLen))
+@ hm            | build inPairs
+^ _ 0
+? (loop_eqs_tab idx)
+| if (eql idx checkLen) TRUE
+@ [key val] | tabElemIdx idx tab
+| if (neq (SOME val) | lookup key hm)
+    | trk [%couldntlookup key %expected val %got (lookup key hm)]
+    | trk [%inpairs inPairs]
+    | trk [%tab tab]
+    | FALSE
+| loop_eqs_tab (inc idx)
+
+= (testDeleteTab build lookup delete seed)
+@ gen           | mkRand seed
+@ [gen count]   | genBitsNat 6 gen
+@ [gen inPairs] | mkTestPair count gen
+@ tab           | buildTabFrom inPairs
+@ checkLen      | tabLen tab
+| seq (FORCE (inPairs,checkLen,tab,checkLen))
+@ hm            | build inPairs
+@ [gen raw]     | genBitsNat 32 gen
+@ delIdx        | mod raw | dec count
+; step 1: verify that item exists
+@ [key val] | tabElemIdx delIdx tab
+| if (neq (SOME val) | lookup key hm)
+    | trk [%couldntlookup key %expected val %got (lookup key hm)]
+    | trk [%inpairs inPairs]
+    | trk [%tab tab]
+    | FALSE
+; step 2: delete that item and verify its deleted from all
+@ tab | tabDel key tab
+@ hm  | delete key hm
+| if (neq NONE | lookup key hm)
+  | trk [%didnotdelete key]
+  | FALSE
+; step 3: ensure that all other items are present; not only did we delete the
+; target item, we did not delete anything else.
+@ checkLen      | tabLen tab
+^ _ 0
+? (loop_eqs_tab idx)
+| if (eql idx checkLen) TRUE
+@ [key val] | tabElemIdx idx tab
+| if (neq (SOME val) | lookup key hm)
+    | trk [%couldntlookup key %expected val %got (lookup key hm)]
+    | trk [%inpairs inPairs]
+    | trk [%tab tab]
+    | FALSE
+| loop_eqs_tab (inc idx)
+
+
+;;; HitchhikerSetTest ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (mkIntList genLen count gen)
+^ _ 0 NIL gen
+? (loop_mkint_list idx cur gen)
+| if | eql idx count
+    [gen cur]
+@ [gen val] | genBitsNat genLen gen
+| loop_mkint_list (inc idx) (CONS val cur) gen
+
+= (buildSetFrom list)
+| listFoldr setIns %[] list
+
+= (buildHSinsertFrom list)
+| listFoldr hsInsert (hsEmpty twoThreeConfig) list
+
+= (buildHSinsertManyFrom list)
+@ empty | hsEmpty twoThreeConfig
+@ set   | buildSetFrom list
+| hsInsertMany set empty
+
+= (testEqsSet build member seed)
+@ gen          | mkRand seed
+@ [gen count]  | genBitsNat 6 gen
+@ [gen inList] | mkIntList 9 count gen
+@ checkItems   | setToRow (buildSetFrom inList)
+@ checkLen     | len checkItems
+| seq (FORCE (inList,checkLen,checkItems))
+@ hs           | build inList
+^ _ 0
+? (loop_eqs_set idx)
+| if (eql idx checkLen) TRUE
+@ val | get checkItems idx
+| if (not | member val hs)
+    | trk [%couldntcheck val %got (member val hs)]
+    | trk [%inList hs]
+    | trk [%checkItems checkItems]
+    | FALSE
+| loop_eqs_set (inc idx)
+
+= (testDeleteSet build member delete seed)
+@ gen          | mkRand seed
+@ [gen count]  | genBitsNat 6 gen
+@ [gen inList] | mkIntList 9 count gen
+@ set          | buildSetFrom inList
+@ setWid       | setLen set
+| seq (FORCE (inList,set,setWid))
+@ hs           | build inList
+@ [gen raw]    | genBitsNat 32 gen
+@ delIdx       | mod raw | dec count
+; step 1: verify that item exists
+@ key | setElem delIdx set
+| if (not | member key hs)
+  | trk [%couldntcheck key %got (member key hs)]
+  | trk [%inList hs]
+  | trk [%set set]
+  | FALSE
+; step 2: delete that item and verify its deleted from all
+@ set | setDel key set
+@ hs  | delete key hs
+| if (member key hs)
+  | trk [%didnotdelete key]
+  | FALSE
+; step 3: ensure that all other items are present; not only did we delete the
+; target item, we did not delete anything else.
+@ setWid      | setLen set
+^ _ 0
+? (loop_eqs_set idx)
+| if (eql idx setWid) TRUE
+@ val | setElem idx set
+| if (not | member val hs)
+    | trk [%couldntcheck val %got (member val hs)]
+    | trk [%inList hs]
+    | trk [%set set]
+    | FALSE
+| loop_eqs_set (inc idx)
+
+
+;;; HitchhikerSetMapTest ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; we can reuse mkTestPair, but we need our own
+
+= (buildTabSetFrom pairs)
+@ (alt val prev)
+  | SOME
+  | maybeCase prev (setSing val)
+  & c
+  | setIns val c
+^ _ pairs %[]
+? (build pairs t)
+| listCase pairs
+  t
+& ([key val] xs)
+| build xs (tabAlter (alt val) key t)
+
+= (buildHSMinsertFrom pairs)
+@ empty | hsmEmpty twoThreeConfig twoThreeConfig
+^ _ pairs empty
+? (build pairs hm)
+| listCase pairs
+  hm
+& ([key val] xs)
+| build xs (hsmInsert key val hm)
+
+= (buildHSMinsertManyFrom list)
+@ empty  | hsmEmpty twoThreeConfig twoThreeConfig
+@ tabset | buildTabSetFrom list
+| hsmInsertMany tabset empty
+
+= (testEqsTabSet build lookup seed)
+@ gen           | mkRand seed
+@ [gen count]   | genBitsNat 6 gen
+@ [gen inPairs] | mkTestPair count gen
+@ tab           | buildTabSetFrom inPairs
+@ checkLen      | len tab
+| seq (FORCE (tab, checkLen, gen, count, inPairs))
+@ hsm           | build inPairs
+^ _ 0
+? (loop_eqs_tabset idx)
+| if (eql idx checkLen) TRUE
+@ [key val] | tabElemIdx idx tab
+| if | not | eql val | hsToSet | lookup key hsm
+    | trk [%couldntlookup key %expected val %got (lookup key hsm)]
+    | trk [%hsm hsm]
+    | trk [%tab tab]
+    FALSE
+| loop_eqs_tabset | inc idx
+
+= (rowRemove i r)
+| weld (take i r) (drop (inc i) r)
+
+= (testDeleteTabSet build lookup delete seed)
+@ gen           | mkRand seed
+@ [gen count]   | genBitsNat 6 gen
+@ [gen inPairs] | mkTestPair count gen
+@ tab           | buildTabFrom inPairs
+@ checkLen      | tabLen tab
+| seq (FORCE (inPairs,checkLen,tab,checkLen))
+@ hsm           | build inPairs
+@ [gen raw]     | genBitsNat 32 gen
+@ delIdx        | mod raw | dec count
+; step 1: verify that item exists
+@ inRow         | listToRow inPairs
+@ [key val]     | idx delIdx inRow
+| if | not | hsMember val | lookup key hsm
+    | trk [%couldntlookup key %expected val %got (lookup key hsm)]
+    | trk [%hsm hsm]
+    | trk [%tab tab]
+    FALSE
+; step 2: delete that item and verify its deleted.
+@ inRow         | rowRemove delIdx inRow
+@ hsm           | delete key val hsm
+| if | hsMember val | lookup key hsm
+  | trk [%didnotdelete key val]
+  FALSE
+; step 3: ensure that all other items are present; not only did we delete the
+; target item, we did not delete anything else.
+@ inRowCount    | len inRow
+^ _ 0
+? (loop_eqs_tabset i)
+| if (eql i inRowCount) TRUE
+@ [key val] | idx i inRow
+| if | not | hsMember val | lookup key hsm
+    | trk [%couldntlookup key %expected val %got (lookup key hsm)]
+    | trk [%hsm hsm]
+    | trk [%tab tab]
+    FALSE
+| loop_eqs_tabset (inc i)
+
+;; Test that doing a three way intersection returns the same result as just
+;; doing the intersections on the input sets. This uses smaller numbers and
+;; larger counts to increase the chance of inclusion in all three sets.
+= (testMultiIntersectionSet build intersect seed)
+@ gen          | mkRand seed
+@ [gen countA] | genBitsNat 7 gen
+@ [gen listA]  | mkIntList 8 countA gen
+@ [gen countB] | genBitsNat 7 gen
+@ [gen listB]  | mkIntList 8 countB gen
+@ [gen countC] | genBitsNat 7 gen
+@ [gen listC]  | mkIntList 8 countB gen
+@ setA         | buildSetFrom listA
+@ setB         | buildSetFrom listB
+@ setC         | buildSetFrom listC
+@ hsA          | hsFromSet twoThreeConfig setA
+@ hsB          | hsFromSet twoThreeConfig setB
+@ hsC          | hsFromSet twoThreeConfig setC
+@ setInt       | setIntersect setC
+               | setIntersect setB setA
+@ rows         | intersect [hsA hsB hsC]
+;
+@ rowsAsSet   | setCatRowAsc | listToRow rows
+| if (eql setInt rowsAsSet) TRUE
+| trk [%notequal setInt rowsAsSet] FALSE
+
+
+;;; Runner ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+seeds=[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
+!! all (testEqsTab buildHMinsertFrom hmLookup) seeds
+!! all (testEqsTab buildHMinsertManyFrom hmLookup) seeds
+!! all (testDeleteTab buildHMinsertFrom hmLookup hmDelete) seeds
+!! all (testEqsSet buildHSinsertFrom hsMember) seeds
+!! all (testEqsSet buildHSinsertManyFrom hsMember) seeds
+!! all (testDeleteSet buildHSinsertFrom hsMember hsDelete) seeds
+!! all (testEqsTabSet buildHSMinsertFrom hsmLookup) seeds
+!! all (testEqsTabSet buildHSMinsertManyFrom hsmLookup) seeds
+!! all (testDeleteTabSet buildHSMinsertFrom hsmLookup hsmDelete) seeds
+!! all (testMultiIntersectionSet buildHSinsertFrom hsMultiIntersect) seeds

@@ -1,0 +1,134 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_23_repl <- sire_22_seed
+
+;;;; REPL Utilities
+;;;; ==============
+;;;;
+;;;; This is a collection of utillities used for building repls that
+;;;; are compiled to seed files and run with `plunder repl` and similar.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan
+:| sire_02_bit
+:| sire_03_nat
+:| sire_05_row
+:| sire_04_cmp
+:| sire_05_row
+:| sire_06_rex
+:| sire_07_dat
+:| sire_10_str
+:| sire_11_set
+:| sire_12_tab
+:| sire_13_exp
+:| sire_14_hax
+:| sire_15_pad
+:| sire_16_bar
+:| sire_17_sug
+:| sire_18_pat
+:| sire_19_bst []
+:| sire_20_prp []
+:| sire_21_switch
+:| sire_22_seed
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: {consumeLines} should return a row (using {rowToSizedListRev})
+
+> Bar > (List Bar, Bar)
+= (consumeLines buf)
+@ wid (barLen buf)
+^ (_ NIL 0)
+? (go acc off)
+@ idx (barElemIndexOff newlineChar off buf)
+| if (idx == wid)
+    | (listRev acc, barDrop off buf)
+@ sid (sub idx off) ; slice width
+@ acc (barSlice off sid buf :: acc)
+| go acc (inc | add off sid)
+
+=?= (NIL, b#asdf) | consumeLines | b#asdf
+
+=?= (~[b#foo], b#bar)
+  | consumeLines | # b } foo
+                       } bar
+
+=?= (~[b#foo b#bar], b#{})
+  | consumeLines | # b } foo
+                       } bar
+                       }
+
+=?= (~[b#foo b#bar b#{}], b#{})
+  | consumeLines | # b } foo
+                       } bar
+                       }
+                       }
+
+=?= (~[b#foo b#bar b#{}], b#{xyz})
+  | consumeLines | # b } foo
+                       } bar
+                       }
+                       } xyz
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Given a subcog that implements a repl that accepts lines (Maybe Bar),
+; convert that to a repl that accepts arbitrarily-chunked input.
+
+; type Cog i o = (i -> (o, Cog i o))
+
+;; {echoCog} is not actually used for anything real, just for testing
+;; {lineRepl}.
+
+> Cog Bar Bar
+(echoCog mLine)=(maybeCase mLine b#{} ln&ln, echoCog)
+
+> Monoid a => Cog Maybe-Bar a > Bar > Cog Bar a
+= (lineRepl a_monoid@(a_mempty, a_mappend) cog buffer rawInput)
+@ eof               | barIsEmpty rawInput
+@ buffer            | barWeld buffer (if eof barNewline rawInput)
+@ (lines, leftover) | consumeLines buffer
+@ (output, cog)
+    ^ listFoldl _ (a_mempty, cog) lines
+    & (acc@[out cog] line)
+    @ (newOut, cog) (cog | SOME line)
+    | (a_mappend out newOut, cog)
+@ (output, cog)
+    | if not-eof (output, cog)
+    @ (newOut, cog) (cog NONE)
+    | (a_mappend output newOut, cog)
+| (output, lineRepl a_monoid cog leftover)
+
+barMonoid=(b#{}, barWeld)
+
+=?= (b#{asdf#hi}, lineRepl barMonoid echoCog b#{'hi'})
+  | lineRepl barMonoid echoCog b#{asdf#} b#} hi
+                                           } 'hi'
+
+=?= (b#{'hi'}, lineRepl barMonoid echoCog b#{})
+  | lineRepl barMonoid echoCog b#{'hi'} b#{}
+
+> Cog i o > Cog i ()
+= (trkCog inp)
+| trk inp
+| ((), trkCog)
+
+> (a -> b) > Cog i a > Cog i b
+= (cogMap f cog inp)
+; trk [=f STEP=(cog inp)]
+@ (out, cog) | cog inp
+@ out (f out)
+| (out, cogMap f cog)
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ echoCog trkCog lineRepl consumeLines
+^-^ cogMap
+^-^

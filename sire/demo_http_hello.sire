@@ -1,0 +1,57 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_http_hello <- demo_full_tag_site
+
+:| prelude
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (handleReq st [rid method path headers body])
+# switch method
+* GET
+    ^ [st _]
+    @ entry (tabGet st path)
+    | if (eql 0 entry)
+        | [rid 404 b#{Not Found} [] b#{}]
+    @ head | [(b#{Content-Type}, b#{text/plain})]
+    | [rid 200 b#gotcha head pinItem-entry]
+* PUT
+    @ st (tabIns path body st)
+    @ resp [rid 201 b#done [] b#{}]
+    | [st resp]
+* POST
+    | if (path == b#{/shutdown}) [st 0]
+    | [st [rid 400 b#bad [] b#{}]]
+* _
+    | [st [rid 400 b#bad [] b#{}]]
+
+=?=  | handleReq (tabIns b#{index.html} (PIN b#{<body />}) #[])
+     | [5 {GET} b#{index.html} [] b#{}]
+  ++ (tabIns b#{index.html} (PIN b#{<body />}) #[])
+  ++ [5 200 b#gotcha [(b#{Content-Type}, b#{text/plain})] b#{<body />}]
+
+=?=  | handleReq #[]
+     | [5 {PUT} b#{/path} [] b#data]
+  ++ (tabIns b#{/path} b#data #[])
+  ++ [5 201 b#done [] b#{}]
+
+= (httpHello doShutdown st done)
+: req < syscall HTTP_HEAR
+@ [st resp] (handleReq st req)
+| ifz resp (doShutdown done)
+| else
+    : _ < (syscall | rowApply HTTP_ECHO resp)
+    | httpHello doShutdown st done
+
+= main
+: exit < runCog
+: var  < newEmptyMVar
+: srv  < fork (| syscall | HTTP_SERV | const NONE)
+: dyn  < fork (httpHello (putMVar var ()) #[])
+: _    < takeMVar var
+: _    < cancel srv
+: _    < cancel dyn
+| exit

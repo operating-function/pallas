@@ -1,0 +1,19 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_wait_loop <- demo_token_ring
+
+:| prelude
+
+
+;;; Wait Loop ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (waitLoop k)
+: now < syscall TIME_WHEN
+| trk [{the time is}=now]
+: _ < syscall (**TIME_WAIT (add now 1))
+| waitLoop k
+
+
+main=(runCog waitLoop)

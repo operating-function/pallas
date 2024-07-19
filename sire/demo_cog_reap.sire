@@ -1,0 +1,31 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_cog_reap <- demo_cog_spin
+
+:| sire
+:| kern
+:| demo_timer
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (dieDemo return)
+; Get who we are just to prevent premature evaluation of {die}
+: ??(spin_who me) < syscall COG_WHO
+| trk %dieDemo
+| {die} 0
+
+= (reapDemo return)
+: ??(spin_got_id id) < syscall (COG_SPIN runCog-dieDemo)
+| trk [%cogId id]
+;
+: ??(reap_got_val val) < syscall (COG_REAP id)
+| if | isNone val
+  | {COG_REAP did not return the val for cog: } val
+| trk [%reapVal (fromSome 0 val)]
+| return ()
+
+main=(runCog reapDemo)

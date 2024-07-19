@@ -1,0 +1,175 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### test_ordering <- test_laws
+
+:| sire
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (flipOrd o)
+| if (eql o EQ) EQ
+| if (eql o LT) GT
+| else          LT
+
+raw=(pinItem cmp)
+
+;
+; This checks both the jetted and unjetted version of `cmp`.
+;
+= (checkOrder expected x y)
+| and (eql (cmp x y) expected)
+| and (eql (cmp y x) flipOrd-expected)
+| and (eql (raw x y) expected)
+      (eql (raw y x) flipOrd-expected)
+
+
+;;; PLAN Type Ordering Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+!! checkOrder EQ 0 0         ; Nats are the same as nats.
+!! checkOrder LT 0 const     ; Nats are smaller than pins.
+!! checkOrder LT 0 x&x       ; Nats are smaller than laws.
+!! checkOrder LT 0 (0 0)     ; Nats are smaller than apps.
+
+!! checkOrder GT const 0     ; Pins are bigger than nats.
+!! checkOrder EQ const const ; Pins are the same as pins.
+!! checkOrder LT const x&x   ; Pins are smaller than laws.
+!! checkOrder LT const (0 0) ; Pins are smaller than apps.
+
+!! checkOrder GT x&x 0       ; Laws are bigger than nats.
+!! checkOrder GT x&x const   ; Laws are bigger than pins.
+!! checkOrder EQ x&x x&x     ; Laws are the same as laws.
+!! checkOrder LT x&x (0 0)   ; Laws are smaller than apps.
+
+!! checkOrder GT (0 0) 0     ; Apps are bigger than nats.
+!! checkOrder GT (0 0) const ; Apps are bigger than pins.
+!! checkOrder GT (0 0) x&x   ; Apps are bigger than laws.
+!! checkOrder EQ (0 0) (0 0) ; Apps are the same as apps.
+
+!! checkOrder LT 0 1
+!! checkOrder EQ 1 1
+
+
+;;; Basic Ordering Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+!! checkOrder LT 9     const
+!! checkOrder EQ const const
+!! checkOrder GT (0 0) const
+
+!! checkOrder LT 0 1
+!! checkOrder EQ 1 1
+!! checkOrder GT 2 1
+
+!! checkOrder LT (0 0) (1 1)
+!! checkOrder LT (0 1) (1 1)
+!! checkOrder LT (0 2) (1 1)
+!! checkOrder LT (1 0) (1 1)
+!! checkOrder EQ (1 1) (1 1)
+!! checkOrder GT (1 2) (1 1)
+!! checkOrder GT (2 0) (1 1)
+!! checkOrder GT (2 1) (1 1)
+!! checkOrder GT (2 2) (1 1)
+
+!! checkOrder LT (1 1 1) | (1 1 1 1)
+!! checkOrder EQ (1 1 1) | (1 1 1)
+!! checkOrder GT (1 1 1) | (1 1)
+
+!! checkOrder LT (2 2) | (1 1 1 1)
+!! checkOrder LT (2 2) | (1 1 1)
+!! checkOrder GT (2 2) | (1 1)
+!! checkOrder GT (2 2) | 1
+
+!! checkOrder LT (0 1 1 1) (0 2 2 2)
+!! checkOrder LT (0 1 1 2) (0 2 2 2)
+!! checkOrder LT (0 1 1 3) (0 2 2 2)
+!! checkOrder LT (0 1 2 1) (0 2 2 2)
+!! checkOrder LT (0 1 2 2) (0 2 2 2)
+!! checkOrder LT (0 1 2 3) (0 2 2 2)
+!! checkOrder LT (0 1 3 1) (0 2 2 2)
+!! checkOrder LT (0 1 3 2) (0 2 2 2)
+!! checkOrder LT (0 1 3 3) (0 2 2 2)
+!! checkOrder LT (0 2 1 1) (0 2 2 2)
+!! checkOrder LT (0 2 1 2) (0 2 2 2)
+!! checkOrder LT (0 2 1 3) (0 2 2 2)
+!! checkOrder LT (0 2 2 1) (0 2 2 2)
+!! checkOrder EQ (0 2 2 2) (0 2 2 2)
+!! checkOrder GT (0 2 2 3) (0 2 2 2)
+!! checkOrder GT (0 2 3 1) (0 2 2 2)
+!! checkOrder GT (0 2 3 2) (0 2 2 2)
+!! checkOrder GT (0 2 3 3) (0 2 2 2)
+!! checkOrder GT (0 3 1 1) (0 2 2 2)
+!! checkOrder GT (0 3 1 2) (0 2 2 2)
+!! checkOrder GT (0 3 1 3) (0 2 2 2)
+!! checkOrder GT (0 3 2 1) (0 2 2 2)
+!! checkOrder GT (0 3 2 2) (0 2 2 2)
+!! checkOrder GT (0 3 2 3) (0 2 2 2)
+!! checkOrder GT (0 3 3 1) (0 2 2 2)
+!! checkOrder GT (0 3 3 2) (0 2 2 2)
+!! checkOrder GT (0 3 3 3) (0 2 2 2)
+
+
+;;; Rows, Tabs, and Sets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; non-empty rows and tabs are closures.
+!! checkOrder EQ []  []
+!! checkOrder EQ [0] [0]
+!! checkOrder LT []  [0]
+!! checkOrder LT []  [0 0]
+!! checkOrder LT [0] [0 0]
+
+; Rows are always bigger than sets, unless the row is empty.
+!! checkOrder LT []    %[]
+!! checkOrder GT [0]   %[]
+!! checkOrder GT [0]   %[0]
+!! checkOrder GT [0 0] %[0 1]
+!! checkOrder GT [0 1] %[0 1]
+!! checkOrder GT [0 1] %[0 1]
+
+; Tabs are always bigger than sets (because tabs are apps)
+!! checkOrder LT %[]    #[]
+!! checkOrder LT %[9]   #[]
+!! checkOrder LT %[8 9] #[]
+
+; Tabs have size one and are bigger than size-one rows.
+!! checkOrder LT []     #[]
+!! checkOrder LT [0]    #[]
+!! checkOrder GT [0 0]  #[]
+
+; Bigger tabs are bigger than smaller ones
+!! checkOrder LT #[]      #[=1]
+!! checkOrder LT #[=0]    #[=1]
+!! checkOrder EQ #[=1]    #[=1]
+!! checkOrder GT #[=0 =1] #[=1]
+
+; Tabs with different keys are compared by key in decending order.
+!! checkOrder LT #[=1 =3 =5] #[=0 =3 =6]
+!! checkOrder GT #[=1 =3 =5] #[=0 =3 =5]
+!! checkOrder EQ #[=1 =3 =5] #[=1 =3 =5]
+
+; Rows are smaller than all other (same sized) law-headed closures.
+!! checkOrder LT [0] | ((x y   & x) 0)
+!! checkOrder LT [0] | ((x y z & x) 0)
+!! checkOrder LT [0] | ((f x y ? f) 0)
+!! checkOrder EQ [0] | 0 0 2 0 0
+
+
+; Rows are larger than (same sized) pin-headed closures.
+anonConst=(4 (x y & x))
+
+!! checkOrder GT [0] | (4 c1 0)
+!! checkOrder GT [0] | (const 0)
+!! checkOrder GT [0] | (anonConst 0)
+
+; Rows are larger than (same sized) nat-headed closures.
+!! checkOrder GT [0] | (0 1)
+!! checkOrder GT [0] | (2 1)
+
+
+;;; Fun, Pin, Bar, Cow, Rex ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; These are all laws
+
+; Laws are compared by name first, then arity, then body.

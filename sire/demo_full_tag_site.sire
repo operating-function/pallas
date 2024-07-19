@@ -1,0 +1,577 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_full_tag_site <- prelude
+
+:| sire
+:| kern
+:| hitch
+:| json
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Design:
+;
+; Has one big HTTP server which just receives posts and gets. All POSTs perform
+; plunder lookups. All GETs perform lookups in a cache of file for PUT
+;
+; - POST /usecdn   - sets demo to use CDN urls in the json
+; - POST /uselocal - sets demo to use urls we serve
+;
+; - POST /learn 'content-type: application/json' [json file]
+;
+; - POST /count -> application/json back.
+;
+; - POST /search 'tags@[x y z]' -> application/json back.
+;
+; - GET / -> frontpage
+
+> TreeConfig
+= imgmapConfig
+@ minFanout 128
+@ maxFanout | dec | mul 2 minFanout
+| TREE_CONFIG
+* minFanout
+* maxFanout
+* dec minFanout
+* dec maxFanout
+* minFanout
+* maxFanout
+* minFanout
+
+
+; config for just the set part of the id setmap, optimized for nat -> bigset of
+; nats.
+= idsetConfig
+@ minItems 1024
+@ maxItems | dec | mul 2 minItems
+@ minFanout 128
+@ maxFanout | dec | mul 2 minFanout
+| TREE_CONFIG
+* minFanout
+* maxFanout
+* dec minFanout
+* dec maxFanout
+* minItems
+* maxItems
+* maxItems
+
+; derpibooru's favicon
+> Pin Bar
+= favicon
+| PIN
+| barCat
+, x#{0000010001001010000000000000680400001600000028000000100000002000}
+  x#{000001002000000000000004000000000000000000000000000000000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffff}
+  x#{ff00edd673ffedd673ffeed97ee6ffffff00ffffff00ffffff0000000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00fefdfb05edd6}
+  x#{73ffedd673fffbf8e9ffedd673ffedd673ffffffff00ffffff0000000000ffff}
+  x#{ff00ffffff00ffffff00ddc194ffffffff00ffffff00edd673feedd673ffedd6}
+  x#{73ffedd673ffedd673ffedd673ffedd673fff9f2d445ffffff0000000000ffff}
+  x#{ff00ffffff00ffffff00ddc194ffddc194ffedd673ffedd673fffbf8e9ffedd6}
+  x#{73ffedd673ffedd673ffedd673ffedd673ffedd673ffffffff0000000000fdfb}
+  x#{f213edd673ffedd673ffedd673ffddc194ffedd673ffedd673ffedd673ffedd6}
+  x#{73ffedd673ffedd673fffbf8e9ffedd673ffedd673ffffffff0000000000ffff}
+  x#{ff00ffffff00edd673ffedd673ffddc194ffddc194ffedd673ffedd673ffedd6}
+  x#{73ffedd673ffedd673ffedd673ffedd673ffedd673ffefda82dd00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00fefefe00ddc194fffefefd02ffffff00ffff}
+  x#{ff00ffffff00fdfaef18edd673ffedd673ffedd673ffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194ffffffff00ffff}
+  x#{ff00ffffff00ffffff00ffffff00edd673fffbf8e9ffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194fff1e5d360ffff}
+  x#{ff00ffffff00ffffff00ffffff00edd673ffedd673ffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ddc194fcffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00edd673ffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00be85}
+  x#{23fff9efdf7cffffff00ffffff00ffffff00edd673ffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00fdf9f428be85}
+  x#{23fff3e1c1fffdfaf61effffff00ffffff00f0dd8cffedd673ff00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2c3ffddc1}
+  x#{94ffddc194ffe1c79cfff4e2c3fff7ebd6a2edd673ffefda83dc00000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2}
+  x#{c3ffddc194fff4e2c3ffffffff00ffffff00edd673ffffffff0000000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00f4e2}
+  x#{c3ffffffff00f3e1c2ffffffff00ffffff00edd673ffffffff0000000000ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffff}
+  x#{ff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff0000000000ff8f}
+  x#{0000ff070000ec070000e003000080030000c0010000fbe10000fdf10000fdf1}
+  x#{0000fef90000ff790000ff390000fe010000ff1b0000ff5b0000ffff0000}
+
+
+# typedef ContentType Bar ; TODO
+
+> HMap Str (ContentType, Pin Bar)
+= startingFiles
+; TODO: Figure out tuned config for files.
+| hmSingleton
+* largeConfig
+* {/favicon.ico}
+* [b#{image/x-icon} favicon]
+
+#* # typedef Lock  | MVar ()
+#* # typedef Url   | Bar
+#* # typedef ImgId | Nat
+
+# record ImgRow
+| IMG_ROW
+* imgId : ImgId
+* tags  : Row Str
+* url   : Url
+
+typedef#Tag#Str
+
+# record CogState
+| COG_STATE
+* files      : (HMap Str (ContentType, Pin Bar))
+* fileBytes  : Nat
+* local      : Bit
+* imgCount   : Nat
+* pairCount  : Nat
+* imgs       : (HMap ImgId ImgRow)
+* tags       : (HSetMap Tag Image)
+* servThread : ThreadId
+* learnLock  : Lock
+
+> ThreadId > Lock > CogState
+= (newState servThread learnLock)
+| COG_STATE
+* startingFiles
+* 0
+* FALSE
+* 0
+* 0
+* hmEmpty imgmapConfig
+* hsmEmpty largeConfig idsetConfig
+* servThread
+* learnLock
+
+(mkBarPath path)=(barFlat (b#{/}, listIntersperse b#{/} (listFromRow path)))
+
+=?= (mkBarPath [b#{a} b#{b}])
+   b#{/a/b}
+
+= (getFilename path)
+# datacase (barElemIndexEnd {/} path)
+* NONE           | {weird filename} path
+* (SOME lastIdx) | barDrop (inc lastIdx) path
+
+=?= (getFilename b#{http://blah/blah/two.html})
+   b#{two.html}
+
+; Set of images from derpibooru where there was a proper non-deleted API
+; response, but the thumbnail file referenced was non-existent. Handle these as
+; exceptions.
+> Set ImgId
+= missingImgs
+%% 79135   918505  3031483 3030628 3028888 3031523 1078315 3017754 500313
+%% 2899504 2460697 2944469 911039  1078318 543877  3032025 2999533 2662803
+%% 2863835 2916074 2929953 3023899 891477  2918755 2971526 2460696 2824778
+%% 3032519 2915600 918535  1772525 2905776 2871055 2983147 2937212 2825423
+%% 3019449 3032217 2836375 2668954 2938918 2994310 89769   2922373 3020597
+%% 2943107
+
+
+;;; JSON Handling ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (unsafeGetJsonMap json)
+# datacase json
+* JMAP|m | m
+* _      | %notAMap json
+
+= (unsafeGetJsonNumber json)
+# datacase json
+* JNUM|n | n
+* _      | {unsafeGetJsonNumber: not a number} json
+
+= (unsafeTabLookup key t)
+# datacase (tabLookup key t)
+* SOME|v | v
+* NONE   | {unsafeTabLookup: missing key} key
+
+= (unsafeGetJsonArray json)
+# datacase json
+* JVEC|v | v
+* _      | {unsafeGetJsonArray: not an array} json
+
+= (unsafeGetJsonStr json)
+# datacase json
+* JSTR|s | s
+* _      | {unsafeGetJsonStr: not a string} json
+
+= (jsonImgToRow jsonBS m)
+@ id | unsafeGetJsonNumber | unsafeTabLookup %id m
+| if (setHas id missingImgs) NONE
+@ !rawTags
+  | strictRow
+  | map unsafeGetJsonStr
+  | unsafeGetJsonArray
+  | unsafeTabLookup %tags m
+@ !thumbnailURL
+  | unsafeGetJsonStr
+  | unsafeTabLookup %thumb
+  | unsafeGetJsonMap
+  | unsafeTabLookup %representations m
+| SOME [id rawTags thumbnailURL]
+
+= (imgRowToTagTabSet [id tags _])
+| tabFromPairs
+| map tag&(barNat tag, setSing id) tags
+
+= (imgRowToPair imgRow@[id _ _])
+[id imgRow]
+
+# record LearnData
+| LEARN_DATA
+* addRows   : Any
+* addImages : Tab ImgId ImgRow
+* addTags   : Any
+
+> Bar > LearnData
+= (parseLearn (PIN jsonBS))
+@ [!json _]
+  | trk %parse
+  | parseJson jsonBS
+@ !rows
+  | catMaybes
+  | map m&(jsonImgToRow jsonBS | unsafeGetJsonMap m)
+  | unsafeGetJsonArray
+  | unsafeTabLookup %images
+  | unsafeGetJsonMap json
+@ !addTags
+  | trk %addTags
+  | foldl (tabUnionWith setUnion) #[]
+  | map imgRowToTagTabSet rows
+@ !addImgs
+  | tabFromPairs
+  | map imgRowToPair rows
+| LEARN_DATA rows addImgs addTags
+
+abstype#Image ;; TODO: fix.  What is the real type?
+
+> Pin CogState
+> Pin LearnData
+> (HMap ImgId ImgRow, HSetMap Tag Image, Nat, Nat)
+= (calcLearnSt (PIN st) (PIN [rows addImgs addTags]))
+| trk [%calcLearnSt (len rows) %rows]
+@ COG_STATE(..) st
+@ !nuImgs   | hmInsertMany addImgs imgs
+@ !nuTags   | hsmInsertMany addTags tags
+@ imgCount  | add imgCount  | len rows
+@ pairCount | add pairCount | tabLen addTags
+| [nuImgs nuTags imgCount pairCount]
+
+> Any > EvalResult b > b
+= (forceUnpackEvalResult ctx res)
+# switch (len res)
+* 0 (die ({eval-timeout} ctx))
+* 1 (idx 0 res)
+* 2 (die ({eval-crash} [ctx res]))
+
+; TODO: user #datatype to define the json structure, and use #datacase here.
+= (jsonRow jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| if res NONE
+| if (neq 0 leftover) NONE
+# switch (if json json (idx 0 json))
+* vec | SOME (idx 1 json)
+* _   | NONE
+
+> Bar > Maybe (Tab Str Json)
+= (jsonMap jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| if (res || leftover) NONE
+# datacase json
+* JMAP|m | SOME m
+* _      | NONE
+
+= (asJsonMap m)
+# datacase m
+* JMAP|m | SOME m
+* _      | NONE
+
+= (asJsonRow m)
+# datacase m
+* JVEC|v | SOME v
+* _      | NONE
+
+= (asJsonNum m)
+# datacase m
+* JNUM|n | SOME n
+* _      | NONE
+
+= (asJsonStr m)
+# datacase m
+* JSTR|s | SOME (barNat s)
+* _      | NONE
+
+; List of commands we parse out of the incoming json
+# datatype Cmd
+* STATUSCMD
+* SEARCHCMD offset:Nat tags:Any
+
+(**bindMaybe mVal k)=(maybeCase mVal NONE k)
+
+;
+; the json here being parsed is `{tag: "Search", contents: [array of str]}`.
+;
+> Bar > Maybe (Row Str)
+= (parseSearch jsonBS)
+: map < **bindMaybe (jsonMap jsonBS)
+@ isSearch
+    (SOME (JSTR b#{Search}) == tabLookup %tag map)
+| ifNot isSearch NONE
+: jcontents < **bindMaybe (tabLookup %contents map)
+: content   < **bindMaybe (asJsonMap jcontents)
+: joffset   < **bindMaybe (tabLookup %offset content)
+: offset    < **bindMaybe (asJsonNum joffset)
+: jr        < **bindMaybe (tabLookup %tags content)
+: r         < **bindMaybe (asJsonRow jr)
+: terms     < ^ (rowTraverse _ r)
+              & (item pure)
+              # datacase item
+              * JSTR|s | pure (barNat s)
+              * _      | NONE
+| SOME (**SEARCHCMD offset terms)
+
+; todo: this is doing the quick hack of just calling the old parseSearch; I
+; think all of this should be rewritten when we have more user friendly json
+; usage components.
+> Bar > Maybe Cmd
+= (parseCmd jsonBS)
+: jm < **bindMaybe (jsonMap jsonBS)
+: jt < **bindMaybe (tabLookup %tag jm)
+: tg < **bindMaybe (asJsonStr jt)
+# switch tg
+* Search | parseSearch jsonBS
+* Status | SOME 0 ; STATUSCMD (but #datatype generated [0], not 0)
+
+=?= NONE | parseCmd b#{"}
+=?= NONE | parseCmd b#{{"x":3}}
+=?= NONE | parseCmd b#{[]}
+
+=?= (SOME [1 5 [%x]])
+  | parseCmd b#{{"tag": "Search", "contents": {"offset":5, "tags":["x"]}}}
+
+=?= NONE
+  | parseCmd b#{{"tag": "bonk",   "contents": {"offset":0, "tags":["x"]}}}
+
+=?= NONE
+  | parseCmd b#{{"tag": "Search", "contents": [234]}}
+
+=?= SOME-[1 8 [%x %y]]
+  | parseCmd
+  | b#{{"tag": "Search", "contents": {"offset":8, "tags":["x", "y"]}}}
+
+=?= (SOME 0)
+  | parseCmd b#{{"tag": "Status"}}
+
+(tagToStr t)=(JSTR | natBar t)
+
+= (buildStatus st)
+@ COG_STATE(..) st
+| JMAP
+## =bytes | JNUM fileBytes
+## =imgs  | JNUM imgCount
+## =pairs | JNUM pairCount
+
+; [hm hsm] [cord] > bar
+= (doSearch st [offset searchTags])
+@ COG_STATE(..) st
+@ (lookupTag tag)
+  @ hs | hsmLookup tag tags
+  | if | hsNull hs
+    | LEFT tag
+  | RIGHT hs
+@ [missing idsets] | partition | map lookupTag searchTags
+;| trk [%results missing idsets]
+| ifNonZero (len missing)
+  ; send back the missing tags
+  | JMAP
+ ## =tag      | JSTR b#{BadTag}
+ ## =contents | JVEC (map tagToStr missing)
+ ## =status   | **buildStatus st
+;
+@ ids
+  | hsMultiIntersect idsets
+;
+;| trk [%ids ids]
+@ targetIds
+    | lsToList
+    | lsTake 25
+    | lsDrop offset ids
+@ records
+    | listToRow
+    ^ (listMapMaybe _ targetIds)
+    & id
+    | **fmapMaybe (hmLookup id imgs)
+    & [_ _ url]
+    @ path
+      | ifNot local url
+      ; generate a local server path from the id and the filename
+      @ filename | getFilename url
+      | mkBarPath [b#{img} (natBar | showNat id) filename]
+    | JVEC
+   ++ JNUM id
+   ++ JSTR path
+| JMAP
+## =tag      | JSTR b#{OK}
+## =contents | JMAP
+            ## =total  | JNUM | lsLen ids
+            ## =offset | JNUM | offset
+            ## =query  | JVEC | map tagToStr searchTags
+            ## =slice  | JVEC | records
+## =status   | **buildStatus st
+
+= (doStatus st)
+| JMAP
+## =tag      | JSTR b#{Status}
+## =contents | **buildStatus st
+
+
+;;; Website ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(emptyFileServer req)=NONE
+
+= (fileServer (PIN st) [method path headers (PIN body)])
+# switch method
+* _ | NONE
+* POST
+  # switch path
+  * b#{/search}
+    # datacase (parseCmd body)
+    * NONE     | SOME [400 b#bad [] b#{}]
+    * (SOME q)
+    # datacase q
+    * STATUSCMD
+      @ statusJson | **doStatus st
+      @ statusBS   | printJson statusJson
+      | SOME [200 b#gotcha [] statusBS]
+    * (SEARCHCMD offset tags)
+      @ searchJson | doSearch st [offset tags]
+      @ searchBS   | printJson searchJson
+      | SOME [200 b#gotcha [] searchBS]
+* GET
+  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
+  & [type (PIN content)]
+  @ head | [(b#{content-type}, type)]
+  [200 b#gotcha head content]
+
+; `modifyState` modifies the vSt ref and reboots the static server
+; in-place (keeping the same ThreadId).
+
+> Ref CogState
+> (CogState > CogState)
+> Cog ()
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ srv       | **getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
+| return ()
+
+; `addLearningsToState` inserts the new images and tags into the state.
+; We do this in an EVAL to free up the main loop, but it needs to be
+; transactional so we take the `learnLock` lock to prevent multiple
+; simultaneous insertions.
+
+> Ref CogState > Pin LearnData > Cog ()
+= (addLearningsToState vSt pBundle return)
+;
+; Take the lock, and inject the stuff
+: (PIN tmp) < readRef vSt
+@ learnLock (**getLearnLock tmp)
+;
+: ??(alts_locked _)   < takeMVar learnLock
+: pOld                < readRef vSt
+: ??(alts_evaled res) < syscall (**EVAL 1000 [calcLearnSt pOld pBundle])
+;
+@ [nuImgs nuTags nuImgCount nuPairCount]
+    (forceUnpackEvalResult %learn res)
+;
+: _ < modifyState vSt & st
+                      | setImgCount nuImgCount
+                      | setPairCount nuPairCount
+                      | setImgs nuImgs
+                      | setTags nuTags
+                      | st
+; Release the lock (This wont block, since there are no other writers)
+| putMVar learnLock () return
+
+= (addToState vSt rid jsonPin return)
+: ??(ats_evaled evalResult) < syscall (EVAL1 1000 parseLearn jsonPin)
+# switch (len evalResult)
+* 0 | trk b#{TIMEOUT in /learn}
+    | syscall (**HTTP_ECHO rid 408 b#timeout [] b#{})
+    | return
+* 2 | trk [b#{CRASH in /learn} (idx 0 evalResult) (idx 1 evalResult)]
+    | syscall (**HTTP_ECHO rid 500 b#error [] b#{})
+    | return
+* 1
+;
+@ parsed (idx 0 evalResult)
+: ??(ats_learned _) < addLearningsToState vSt (PIN parsed)
+| syscall (**HTTP_ECHO rid 200 b#ok [] b#{})
+| return
+
+> Ref CogState > HttpReq > Cog ()
+= (handleReq vSt request return)
+@ [rid method path headers pBody@(PIN body)] request
+# switch method
+* POST
+  # switch path
+  * b#{/usecdn}
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
+    : _ < modifyRef vSt (@(PIN st))&(PIN (setLocal FALSE st))
+    | return ()
+  * b#{/uselocal}
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
+    : _ < modifyRef vSt (@(PIN st))&(| PIN | setLocal TRUE st)
+    | return ()
+  * b#{/learn}
+    : _ < fork (addToState vSt rid pBody)
+    | return ()
+* PUT
+  @ barType | **fromSome b#{text/plain}
+            | tabLookup b#{content-type}
+            | tabFromPairs headers
+  : (PIN st) < readRef vSt
+  @ newTotalSize | add (barLen body) | getFileBytes st
+  ; TODO: Currently inserting paths as nats instead of bars because bars put in
+  ; don't get looked up later despite showing up with hmKeys? Somehow? wat?
+  @ files (**getFiles st)
+  @ files | hmInsert (barNat path) [barType pBody] files
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done [] b#{}))
+  : _ < modifyState vSt & st
+                        | setFileBytes newTotalSize
+                        | setFiles files
+                        | st
+  | return ()
+* _
+  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+  | return ()
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Ref CogState > Cog Void
+= (runHttpServer vSt return)
+: ??(rhs_heard req) < syscall HTTP_HEAR
+: _                 < handleReq vSt req
+| runHttpServer vSt return
+
+> Cog ()
+= (launchFullTagDemo return)
+: servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+: learnLock   < newMVar ()
+: vSt         < newRef (PIN | newState servThread learnLock)
+: httpThread1 < fork (runHttpServer vSt)
+: httpThread2 < fork (runHttpServer vSt)
+| return ()
+
+> PausedCog
+main=(runCog launchFullTagDemo)

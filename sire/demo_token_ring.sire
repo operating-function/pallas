@@ -1,0 +1,55 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_token_ring <- demo_token_ring_chr
+
+:| sire
+:| kern
+:| stew
+
+
+;;; Talker ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (talker ourName us them white theMsg cogExit)
+; trk [%talker ourName us them theMsg]
+: sendThread < fork
+                  & done
+                  : ??(p_send now) < syscall (**PORT_SEND us them theMsg)
+                  | trk [ourName %sent theMsg %at now]
+                  | done 0
+: ??(p_recv response) < syscall (**PORT_RECV us white)
+@ respBody (idx 2 response)
+| trk [ourName %got respBody]
+| talker ourName us them white theMsg cogExit
+
+= (tokenRing cogExit)
+;
+; trk {tokenRing},cogExit
+;
+: ??(p_sire ali_seed_addr) < syscall PORT_SIRE
+: ??(p_sire bob_seed_addr) < syscall PORT_SIRE
+: ??(p_sire chr_seed_addr) < syscall PORT_SIRE
+@ [ali_seed ali_addr] ali_seed_addr
+@ [bob_seed bob_addr] bob_seed_addr
+@ [chr_seed chr_addr] chr_seed_addr
+;
+@ ali_white | setSing chr_addr
+@ bob_white | setSing ali_addr
+@ chr_white | setSing bob_addr
+;
+; trk [=ali_seed =ali_addr =bob_seed =bob_addr]
+;
+@ ali_msg b#{Hi, Bob.  What's good?}
+@ bob_msg b#{Life is good.  Charlie?}
+@ chr_msg b#{Life is good.  Alice?}
+;
+; trk [%ali ali_seed ali_addr]
+; trk [%bob bob_seed bob_addr]
+; trk [%chr chr_seed chr_addr]
+;
+: ali_thread < fork (talker %ali ali_seed bob_addr ali_white ali_msg)
+: bob_thread < fork (talker %bob bob_seed chr_addr bob_white bob_msg)
+| talker %chr chr_seed ali_addr chr_white chr_msg cogExit
+
+main=(runCog tokenRing)

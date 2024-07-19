@@ -1,0 +1,128 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_rex_repl <- rex_block_parser
+
+:| prelude
+:| rex_show
+:| rex_line_parser
+:| rex_block_parser
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;
+; TODO: Return a row (using rowToSizedListRev)
+;
+; Bar > (List Bar, Bar)
+= (consumeLines buf)
+@ wid (barLen buf)
+^ (_ NIL 0)
+? (go acc off)
+@ idx (barElemIndexOff newlineChar off buf)
+| if (idx == wid)
+    | (listRev acc, barDrop off buf)
+@ sid (sub idx off) ; slice width
+@ acc (barSlice off sid buf :: acc)
+| go acc (inc | add off sid)
+
+=?= (NIL, b#asdf) | consumeLines | b#asdf
+
+=?= (~[b#foo], b#bar)
+  | consumeLines | # b } foo
+                       } bar
+
+=?= (~[b#foo b#bar], b#{})
+  | consumeLines | # b } foo
+                       } bar
+                       }
+
+=?= (~[b#foo b#bar b#{}], b#{})
+  | consumeLines | # b } foo
+                       } bar
+                       }
+                       }
+
+=?= (~[b#foo b#bar b#{}], b#{xyz})
+  | consumeLines | # b } foo
+                       } bar
+                       }
+                       } xyz
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Given a subcog that implements a repl that accepts lines (Maybe Bar),
+; convert that to a repl that accepts arbitrarily-chunked input.
+
+; # typedef LineCog ( Maybe Bar -> (Bar, LineCog) )
+; # typedef BarCog  ( Bar       -> (Bar, BarCog)  )
+
+; LineCog
+= (catCog mLine) ; this is jsut for testing lineRepl
+^ (_, catCog)
+# datacase mLine
+* NONE      | b#{}
+* SOME-line | line
+
+; LineCog > Bar > BarCog
+= (lineRepl cog buffer rawInput)
+@ eof               | barIsEmpty rawInput
+@ buffer            | barWeld buffer (if eof barNewline rawInput)
+@ (lines, leftover) | consumeLines buffer
+@ (output, cog)
+    ^ listFoldl _ (b#{}, cog) lines
+    & (acc@[outputSoFar cog] line)
+    @ (output, cog) (cog | SOME line)
+    | (barWeld outputSoFar output, cog)
+@ (output, cog)
+    | if not-eof (output, cog)
+    @ (moreOutput, cog) (cog NONE)
+    | (barWeld output moreOutput, cog)
+| (output, lineRepl cog leftover)
+
+=?= (b#{asdf#hi}, lineRepl catCog b#{'hi'})
+  | lineRepl catCog b#{asdf#} # b } hi
+                                  } 'hi'
+
+=?= (b#{'hi'}, lineRepl catCog b#{})
+  | lineRepl catCog b#{'hi'} b#{}
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+barDoubleNewline=(barDuo newlineChar newlineChar)
+
+; Put two newlines between each block.
+> Row Bar > Bar
+= (barUnblocks blocks)
+| barFlat
+^ foldr _  NIL blocks
+| (x xs)&[x barDoubleNewline xs]
+
+= (rexRepl st0@(lineNum, _) mLine)
+@ ret@(st1, output)
+    | blockStep st0
+    # datacase mLine
+    * NONE    NONE
+    * SOME-ln # datacase (runParser line ln)
+              * FAIL-er | {lexedLn: fail} er
+              * OKAY-ts | SOME (lineNum, ln, ts)
+^ (_, rexRepl st1)
+| barUnblocks
+| map (compose rexShow blockToRex)
+| output
+
+=?=   ^ (_, lineRepl (rexRepl 3,NONE) b#{})
+      # b } | asdf
+          }
+          } asdf
+          }
+          }
+  | lineRepl (rexRepl [1 NONE]) b#{}
+  # b }  | asdf
+      } asdf
+      }
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+main=(lineRepl (rexRepl (1,NONE)) b#{})

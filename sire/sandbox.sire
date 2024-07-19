@@ -1,0 +1,178 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sandbox <- kern
+
+;;;;
+;;;; This is a generic wrapper around a cog function, which validates that the
+;;;; cog is only attempting to send reap/stop cog requests on cogs that it
+;;;; started.
+;;;;
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+:| kern
+:| mutrec
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (isCogSpin r)
+| ifNot | isRow r
+    FALSE
+| ifNot | eql %cog | idx 0 r
+    FALSE
+| eql %spin | idx 1 r
+
+= (isCogReapOrStop r)
+| ifNot | isRow r
+    FALSE
+| ifNot | eql %cog | idx 0 r
+    FALSE
+| or (eql %reap (idx 1 r)) (eql %stop (idx 1 r))
+
+= (findNewCogids reqs resp)
+| setFromRow
+| listToRow
+| listCatMaybes
+: k < listForEach (findIdxMany isCogSpin reqs)
+| tabLookup k resp
+
+= (findDeadCogids reqs resp)
+| setFromRow
+| listToRow
+| listCatMaybes
+: k < listForEach (findIdxMany isCogReapOrStop reqs)
+# datacase | tabLookup k resp
+* NONE NONE
+* (SOME _)
+    ; x is data in the response
+    | SOME | idx 2 | idx k reqs
+
+= (updateOwnedCogs cogids reqs resp)
+@ add | findNewCogids reqs resp
+@ rm  | findDeadCogids reqs resp
+@ sum | setUnion add cogids
+| setDifference sum rm
+
+; Given a response row for a %reap or %stop, assume that the value was
+; wrapped with `withCogSandbox` and return the wrapped value so that the
+; sandbox is transparent to the cog.
+= (unwrapReqsResp reqs resp)
+@ idxes | findIdxMany isCogReapOrStop reqs
+^ listFoldl _ resp idxes
+& (resp i)
+^ tabAlter _ i resp
+& resp
+# datacase resp
+* NONE
+    | {unwrapReqsResp: impossible lack of response value} 0
+* (SOME val)
+    | trk [%val val]
+    | maybeCase val resp
+    & cogstate
+    | if | eql 0 | idx 0 cogstate
+        | trk [%0 (idx 1 | idx 1 cogstate)]
+        | SOME | SOME | (put cogstate 1 (idx 1 | idx 1 cogstate))
+    | if | eql 1 | idx 0 cogstate
+        | SOME | SOME | (put cogstate 3 (idx 1 | idx 3 cogstate))
+    | if | eql 2 | idx 0 cogstate
+        | SOME | SOME | (put cogstate 2 (idx 1 | idx 2 cogstate))
+    | NONE
+
+
+= (insertMatch tab row)
+@ l | len row
+| ifz l tab
+@ h | idx 0 row
+| if (eql 1 l) | tabIns h NONE tab
+^ tabAlter _ h tab
+& in
+# datacase in
+* NONE
+    ; we have no value for h yet.
+    | SOME | SOME | insertMatch #[] (drop 1 row)
+* (SOME prevval)
+    # datacase prevval
+    * NONE
+        ; if we already have a shorter match, don't insert the longer one.
+        in
+    * (SOME subtab)
+        | SOME | SOME | insertMatch subtab (drop 1 row)
+
+=?= #[eval=NONE]             | insertMatch #[] [%eval]
+=?= #[eval=(SOME #[3=NONE])] | insertMatch #[] [%eval 3]
+
+; Given a list of rows which are treated as prefix
+(buildMatcher rows)=(foldl insertMatch #[] rows)
+
+=?= #[eval=NONE]                    | buildMatcher [[%eval 3] [%eval]]
+=?= #[eval=NONE]                    | buildMatcher [[%eval] [%eval 3]]
+=?= #[eval=(SOME #[3=NONE 4=NONE])] | buildMatcher [[%eval 4] [%eval 3]]
+
+; Returns true if the request is "allowed" by the passed in matcher tree.
+;
+= (matches matcher request)
+| ifz (len request)
+    TRUE
+@ h | idx 0 request
+# datacase | tabLookup h matcher
+* NONE FALSE
+* SOME|m
+    # datacase m
+    * NONE TRUE
+    * SOME|rest | matches rest | drop 1 request
+
+=?= TRUE  | matches (buildMatcher [[%eval]])
+                    [%eval 3]
+=?= FALSE | matches (buildMatcher [[%eval 4] [%eval 5]])
+                    [%eval 2]
+
+; `withCogSandbox`: Generic wrapper around a cog function, limiting the
+; requests it can make to those that match a list of prefixes and filter out
+; unsafe usage of %cog requests. This makes sure a cog can only make the
+; requests you prespecify and can only can %stop or %reap cogs which it
+; started. It also wraps every new cog created in the wrapper to make sure it
+; can't break out that way.
+;
+# mutual cog_sandbox_impl
+; Toplevel entry point for users.
+= (withCogSandbox rowPrefixes fun)
+    @ patterns | buildMatcher rowPrefixes
+    | withPatternSandbox patterns fun
+= (withPatternSandbox patterns fun)
+    @ filteredReqs | filterCogReqs patterns %[] | idx 0 fun
+    | cogLoop patterns %[] fun filteredReqs
+;
+= (cogLoop patterns cogids fun filteredReqs resp)
+    @ unwrapped | unwrapReqsResp filteredReqs resp
+    @ cogids | updateOwnedCogs cogids filteredReqs unwrapped
+    @ fun | fun unwrapped
+    @ filteredReqs | filterCogReqs patterns cogids | idx 0 fun
+    | cogLoop patterns cogids fun filteredReqs
+;
+; Return reqs with every instance of a %stop or %reap call to a cogid not in
+; cogids with a 0.
+= (filterCogReqs patterns cogids reqs)
+    : r < foreach reqs
+    | ifNot | matches patterns r
+        0
+    | if | isCogSpin r
+        [%cog %spin (withPatternSandbox patterns | idx 2 r)]
+    | ifNot | isCogReapOrStop r
+        r
+    @ i | idx 2 r
+    | if | setHas i cogids
+        r
+    0
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ withCogSandbox
+^-^

@@ -1,0 +1,32 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_no_claim_fork_and_send <- demo_mvars
+
+:| sire
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; this test case forks a logged process, prints its pid, and shuts down.
+
+= (forked selfId)
+| trk [%forked selfId]
+^ _ []
+? (loop _ id val)
+| trk [%recv id val]
+0
+
+= (sendTest selfId)
+| trk [%self selfId]
+^ _ [[2 forked]]
+& (_ _ forkId)
+| trk [%completed forkId]
+^ _ [[1 forkId %hi]]
+& (_ recvId val)
+| trk [%sendack recvId val]
+0
+
+main=sendTest

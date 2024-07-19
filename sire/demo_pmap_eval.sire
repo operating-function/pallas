@@ -1,0 +1,30 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_pmap_eval <- demo_parallel_mandelbrot
+
+:| sire
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (pmap ms f args)
+@ jobs | map x&[0 ms f [x]] args
+@ l    | len args
+@ ret  | rep 0 l
+^ _ l ret jobs
+? (loop remaining all jobs idx val)
+| trk [%loopBegin remaining all jobs idx val]
+;
+; todo: val needs a ton of validation instead of assuming it worked.
+;
+@ all  | put all idx | get val 1
+@ jobs | put jobs idx 0
+| if (eql remaining 1) | trk [%fin all] all
+| loop (dec remaining) all jobs
+
+
+= pmaptest
+| pmap 1000 (mul 2) [1 2 3 4 5 6]

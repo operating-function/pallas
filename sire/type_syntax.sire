@@ -1,0 +1,325 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### type_syntax <- mutrec
+
+;;;; This module provides parsers for types, and a representation for
+;;;; syntax-trees of parsed types.  This doesn't do name resolution,
+;;;; and doesn't do anything related to the actual typing engine.
+;;;; The representation used here is *not* the same as the one used
+;;;; in the actual types system.
+;;;;
+;;;; Here's a vague, hand-wavey "grammar" for the language of type-
+;;;; expressions.
+;;;;
+;;;;     Type :=
+;;;;
+;;;;         | TyCon
+;;;;         | tyVar
+;;;;         | (Row a)
+;;;;         | Row-a
+;;;;         | (Type > Type)
+;;;;         | (Type > Type > Type)
+;;;;         | (Type > Type > Type > ...)
+;;;;
+;;;;         | ()                       ;; UNIT=0
+;;;;         | (,)                      ;; UNIT=0
+;;;;         | ,a [a]                   ;; *FORBIDDEN* (looks like list type)
+;;;;         | (a, b)                   ;; Pair a b
+;;;;         | (a, b, c)                ;; Trip a b c
+;;;;         | ...
+
+:| sire
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; {Txp} is a syntactic type expression.  Code downstream from this
+;;; will do name-resolution on this, and then compile that into a
+;;; lower-level representation.
+;;;
+;;; data Txp
+;;;   = T_Var Str            --  All chars {isLower}
+;;;   | T_Tup (Row Txp)
+;;;   | T_REF Str (Row Txp)  --  Name is capitalized, all chars {alphaNum}
+;;;   | T_FUN Txp Txp
+
+(**T_VAR sym)=sym
+(**T_TUP xs)=[{TUP} xs]
+(**T_REF nam params)=[{REF} nam params]
+(**T_FUN a b)=[{FUN} a b]
+
+= (tyExpCase x onVar onTup onFun onRef)
+| if isNat-x (**onVar x)
+# switch (fst x)
+* {TUP} | **onTup (snd x)
+* {FUN} | **onFun (snd x) (thr x)
+* {REF} | **onRef (snd x) (thr x)
+* _     | die {impossible: tyExpCase}
+
+;;; {txpFree} returns the set of type variables used in a type-expression,
+;;; For example the set of type-variables in {Either a (b, List a)}
+;;; is {%[a b]}.
+
+> Txp > Set Symbol
+= (txpFree x)
+| tyExpCase x
+* ? (onVAR sym)  | setSing sym
+* ? (onTUP xs)   | setCatRow (map txpFree xs)
+* ? (onFUN a b)  | setUnion (txpFree a) (txpFree b)
+* ? (onREF _ xs) | setCatRow (map txpFree xs)
+
+
+;;; Parsing Type Variables and Constructor Names ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= schemeExpected
+} Scheme signatures look like:
+}
+}     Any
+}     (Fun a b)
+
+= (parseVarName rex err ok)
+: name < readSymbol rex err
+| ifNot (listAll isLower | strToList name)
+    | err rex {type vars must be lowercase}
+| ok name
+
+({a}                                  =?= parseVarName 'a   v2 id)
+({foo}                                =?= parseVarName 'foo v2 id)
+(['Foo {type vars must be lowercase}] =?= parseVarName 'Foo v2 id)
+(['ooF {type vars must be lowercase}] =?= parseVarName 'ooF v2 id)
+(['o5 {type vars must be lowercase}]  =?= parseVarName 'o5  v2 id)
+
+= (parseCnstrName rex err ok)
+: name < readSymbol rex err
+: c cs < listCase (strToList name)
+           | err rex {empty symbol}
+| ifNot (isUpper c)
+    | err rex {constructors must be capitalized}
+| ifNot (listAll isAlphaNum cs)
+    | err rex {nonsense char in constructor}
+| ok name
+
+(['a {constructors must be capitalized}]   =?= parseCnstrName 'a   v2 id)
+(['foo {constructors must be capitalized}] =?= parseCnstrName 'foo v2 id)
+({Foo}                                     =?= parseCnstrName 'Foo v2 id)
+(['ooF {constructors must be capitalized}] =?= parseCnstrName 'ooF v2 id)
+(['o5 {constructors must be capitalized}]  =?= parseCnstrName 'o5  v2 id)
+("O5"                                      =?= parseCnstrName 'O5  v2 id)
+(['O_ {nonsense char in constructor}]      =?= parseCnstrName 'O_  v2 id)
+
+
+;;; Parsing Type Definition Signatures: (Foo a b) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (parseSchemeSig rex err ok)
+@ rune (rexRune rex)
+@ kids (rexKids rex)
+| ifNot (rune == {|})
+    : cnstr < parseCnstrName rex err
+    | ok cnstr []
+| if (lth (len kids) 2)
+    | err rex schemeExpected
+: cnstr < parseCnstrName (fst kids) err
+: vars  < rowTraverse (k ok & parseVarName k err ok) (drop 1 kids)
+| if (len vars /= setLen (setFromRow vars))
+    | err rex {type params must be unique}
+| ok cnstr vars
+
+
+;;; Parsing Type Expressions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (isTypeAnn rex)
+@ style (rexStyle rex)
+| and (rexIsNode rex)
+| and (rexRune rex == {>})
+      ((style == {OPEN}) || (style == {NEST}))
+
+;; TODO: {foldr1} belongs elsewhere
+
+= (foldr1 f xs)
+| if (null xs)
+    | die {fold1: empty row}
+@ las (dec len-xs)
+| foldr f (idx las xs) (take las xs)
+
+(bigFun args)=(**foldr1 T_FUN args)
+
+= (parseType_ parseTypeAnnotation rex err ok)
+^ _ rex ok
+? (loop rex ok)
+| if (isTypeAnn rex)
+    : annRes < parseTypeAnnotation rex err
+    | ok annRes
+| if (rexIsSymbol rex)
+    : sym < readSymbol rex err
+    @ fst (mod sym 256)
+    | if (isUpper fst)
+        | ok (T_REF sym [])
+    | else
+        | ok (T_VAR sym)
+@ rune (rexRune rex)
+| ifz rune
+    | err rex {Expected symbol or rune}
+# switch rune
+* {|}
+    @ kids (rexKids rex)
+    @ head (idx 0 kids)
+    @ para (drop 1 kids)
+    @ nKid (len kids)
+    | ifz nKid ; UNIT
+        | ok | T_TUP []
+    : sym < readSymbol head err
+    | ifNot (isUpper | mod sym 256)
+        | err head {expected: TypeName}
+    : params < rowTraverse loop para
+    | ok (T_REF sym params)
+* {>}
+    @ style (rexStyle rex)
+    : kidTypes < rowTraverse loop (rexKids rex)
+    | ok (bigFun kidTypes)
+* {->}
+    : kidTypes < rowTraverse loop (rexKids rex)
+    | ok (bigFun kidTypes)
+* {,}
+    : kidTypes < rowTraverse loop (rexKids rex)
+    | if (len kidTypes == 1)
+        | err rex {Write (Row x), not [x]}
+    | ok (T_TUP kidTypes)
+* _
+    | err rex (strWeld {invalid type rune: } rune)
+
+= (parseTypeAnnotation topRex err ok)
+^ _ FALSE NIL topRex l&(| ok | bigFun | listToRowRev l)
+? (loop fancy acc rex ret)
+| ifz rex (ret acc)
+| ifNot (isTypeAnn rex) (err rex {bad annotation})
+@ heir      | rexHeir rex
+@ sons      | rexSons rex
+@ numSons   | len sons
+@ lastSonIx | dec numSons
+@ lastSon   | idx lastSonIx sons
+| if (fancy && not (isZero heir))
+    | err rex {Don't try to get fancy}
+| if ((numSons /= 0) && isTypeAnn lastSon)
+    @ sons | take lastSonIx sons
+    | if (any isTypeAnn sons)
+        | err rex {bad annotation (don't be weird)}
+    @ iRex | if (len sons == 1) (idx 0 sons) (NEST {|} sons 0)
+    : item < parseType_ parseTypeAnnotation iRex err
+    @ acc  | item::acc
+    : acc  < loop TRUE acc lastSon
+    : acc  < loop fancy acc heir
+    | ret acc
+@ sons (rexSons rex)
+| if (any isTypeAnn sons)
+    | err rex {bad annotation (don't be weird)}
+@ iRex | if (len sons == 1) (idx 0 sons) (NEST {|} sons 0)
+: item < parseType_ parseTypeAnnotation iRex err
+@ acc | item::acc
+| loop fancy acc heir ret
+
+= (parseType rex err ok)
+| parseType_ parseTypeAnnotation rex err ok
+
+
+;;; Parsing #typedef ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(**TYPEDEF name params expr)=[name params expr]
+
+= (parseTypeDef rex err ok)
+@ kids@[keyword sigRex tyRex] (rexKids rex)
+| if | not && ({#} == rexRune rex)
+           && (3 == len kids)
+           && ('typedef == keyword)
+    | err rex {Usage: # typedef type (a > b)}
+: sym vars < parseSchemeSig sigRex err
+: expr     < parseType tyRex err
+| ok (TYPEDEF sym vars expr)
+
+(tryDef x)=(parseTypeDef x v2 id)
+
+=?= (TYPEDEF {Int} [] (T_REF %Nat []))        | tryDef 'typedef#Int#Nat
+=?= ['[] {expected a bare word}]              | tryDef 'typedef#(Row [])#Nat
+=?= ['Int {type vars must be lowercase}]      | tryDef 'typedef#(Row Int)#Nat
+=?= (TYPEDEF {Row} [{a}] (T_REF %Nat []))     | tryDef 'typedef#(Row a)#Nat
+=?= ['(Row a a) {type params must be unique}] | tryDef 'typedef#(Row a a)#Nat
+
+=?=   | TYPEDEF %Derp [%a %b %c]
+      | T_FUN %a
+      | T_FUN (T_REF %Row [%b])
+      | T_REF %Derp [%c]
+  | tryDef
+  ' # typedef (Derp a b c)
+    > a > Row b > Derp c
+
+
+;;; Parsing #abstype ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(**ABSTYPE name params)=[name params]
+
+= absExpected
+} Expected something like one of these:
+}
+}     abstype#Any
+}     abstype#(Fun a b)
+
+= (parseAbsType rex err ok)
+@ sons@[_ sigRex] (rexSons rex)
+@ rune (rexRune sigRex)
+| if (len sons /= 2)
+    | err rex absExpected
+: cnstr args < parseSchemeSig sigRex err
+| ok (ABSTYPE cnstr args)
+
+
+;;; Type-Annotated Bindings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (splitAnn topRex err ok)
+^ _ NONE topRex
+? (loop acc rex)
+@ rune (rexRune rex)
+| if (rune == {=})
+    | ok (bloodline | listRev acc) rex
+| if (neq {>} rune)
+    | err topRex
+    } Expected something like:
+    }
+    }     > Type
+    }     = Binding ...
+| loop (rexSetHeir 0 rex :: acc) (rexHeir rex)
+
+(tryAnn x)=(splitAnn x v2 v2)
+
+=?=  ++ ' > Row Nat > Row Nat
+     ++ ' = 32 (id x) x
+  | tryAnn
+  ' > Row Nat > Row Nat
+    = 32 (id x) x
+
+=?=  ++ ' > Row Nat
+          > Row Nat
+     ++ ' = (id x) x
+  | tryAnn
+  ' > Row Nat
+    > Row Nat
+    = (id x) x
+
+= (parseTypeAnnotatedBinding rex err ok)
+: annRex bindRex < splitAnn rex err
+: annTy          < parseType annRex err
+| ok annTy bindRex
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ T_VAR T_TUP T_REF T_FUN tyExpCase
+^-^ txpFree
+^-^
+^-^ parseVarName parseCnstrName
+^-^ parseSchemeSig
+^-^ parseType parseTypeAnnotation
+^-^ parseTypeDef parseAbsType
+^-^ parseTypeAnnotatedBinding
+^-^

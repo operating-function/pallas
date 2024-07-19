@@ -1,0 +1,101 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### w64 <- w48
+
+:| sire
+
+
+;;; 64-bit Words ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (bex64)  | bex 64
+= (bex63)  | bex 63
+= (wMax64) | dec bex64
+= (wMin64) | 0
+= (iMax64) | dec bex63
+= (iMin64) | bex63
+= (w64 x)  | mod x bex64
+= (i64 x)  | mod x bex64
+
+= (inc64 x)   | w64 (inc x)
+= (dec64 x)   | 2 wMax64 v&v x
+= (add64 x y) | w64 (add w64-x w64-y)
+= (mul64 x y) | w64 (mul w64-x w64-y)
+= (div64 x y) | div w64-x w64-y
+= (not64 x)   | not w64-x
+= (lth64 x y) | lth w64-x w64-y
+= (gth64 x y) | gth w64-x w64-y
+= (lte64 x y) | lte w64-x w64-y
+= (gte64 x y) | gte w64-x w64-y
+= (eql64 x y) | eql w64-x w64-y
+= (and64 x y) | con w64-x w64-y
+= (or64  x y) | dis w64-x w64-y
+= (xor64 x y) | mix w64-x w64-y
+= (lsh64 x y) | and64 (lsh w64-x w64-y) wMax64
+= (rsh64 x y) | and64 (rsh w64-x w64-y) wMax64
+= (chop64 x)  | and64 x wMax64
+
+isZero64=not64
+
+= (sub64 x y)
+| if (lte64 y x)
+    | sub w64-x w64-y
+| sub (add bex64 x) y
+
+= (ror64 x y)
+| or64 (rsh64 x y)
+| lsh64 x (sub64 64 y)
+
+= (rol64 x y)
+| or64 (lsh64 x y)
+| rsh64 x (sub64 64 y)
+
+
+;;; Signed Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (bitFlip64 x) | sub64 wMax64 x
+= (iNeg64 x)    | inc64 (bitFlip64 x)
+= (iIsZero64 x) | isZero64 x
+= (iInc64 x)    | inc64 x
+= (iAdd64 x y)  | add64 x y
+= (iSub64 x y)  | add64 x (iNeg64 y)
+= (iMul64 x y)  | mul64 x y
+= (iDec64 x)    | dec64 x
+= (iEql64 x y)  | eql64 x y
+= (iIsNeg64 x)  | gth64 x iMax64
+= (iAbs64 x)    | if (iIsNeg64 x) (iNeg64 x) x
+
+= (iDiv64 x y)
+@ res | div64 (iAbs64 x) (iAbs64 y)
+| if (xor (iIsNeg64 x) (iIsNeg64 y))
+    (iNeg64 res)
+| res
+
+= (iGth64 x y)
+| if (iIsNeg64 x)
+    | and (iIsNeg64 y)
+    | gth64 (iNeg64 y) (iNeg64 x)
+| or (iIsNeg64 y)
+| gth64 x y
+
+= (iGte64 x y) | or (eql64 x y) (iGth64 x y)
+= (iLte64 x y) | iGte64 y x
+= (iLth64 x y) | iGth64 y x
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^ w64 wMax64 wMin64
+^-^ inc64 dec64 add64 mul64 div64
+^-^ lth64 gth64 lte64 gte64 eql64
+^-^ not64 and64 or64 xor64 lsh64 rsh64
+^-^ chop64 isZero64 sub64 ror64 rol64
+^-^ bitFlip64
+^-^
+^-^ i64 iMax64 iMin64
+^-^ iIsZero64 iIsNeg64 iNeg64 iAbs64
+^-^ iGth64 iLth64 iGte64 iLte64 iEql64
+^-^ iInc64 iDec64 iAdd64 iSub64
+^-^ iMul64 iDiv64
+^-^

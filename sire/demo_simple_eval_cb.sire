@@ -1,0 +1,20 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_simple_eval_cb <- demo_random_number
+
+:| sire
+:| stew
+
+
+;;; Eval Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; This is a simple eval callback. It waits on a single eval, prints the
+; results, and exits.
+
+= evalTest
+^ _ [[0 100000 add [200 2]]]
+& (_ id val)
+| trk [%add val]
+0

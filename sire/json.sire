@@ -1,0 +1,546 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### json <- hitch
+
+:| sire
+:| sire_25_datatype [natTag barTag appTag rowTag tabTag]
+:| mutrec           [{#mutrec}]
+:| stew
+
+
+;;; Lexemes ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+abstype#(ResultPair a b) ; type (ResultPair a b) = (Or Str (a, b))
+abstype#(MaybePair a b)  ; type (MaybePair a b)  = (Or Zero (a, b))
+
+typedef#Deci#(MaybePair Nat Nat)
+typedef#Expo#(MaybePair Nat Nat)
+
+# datatype JLexeme
+* ( TSPACE = space  )
+* ( TNULL  = null   )
+* ( TTRUE  = true   )
+* ( TFALSE = false  )
+* ( TCOMMA = comma  )
+* ( TCOLON = colon  )
+* ( TLBRAK = l_brak )
+* ( TRBRAK = r_brak )
+* ( TLCURL = l_curl )
+* ( TRCURL = r_curl )
+* ( TSTR   = str    ) str:Bar
+* ( TNUM   = num    ) neg:Bit num:Nat dec:Deci exp:Expo
+* ( TERR   = err    ) off:Nat why:Str
+
+
+;;; Lexing Whitespace  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (chomp input off)
+# switch (barIdx off input)
+* 32 | chomp input (inc off)
+* 9  | chomp input (inc off)
+* 10 | chomp input (inc off)
+* 13 | chomp input (inc off)
+* _  | off
+
+=?= 7 (chomp b{	  	   xyz} 0)
+
+
+;;; Lexing Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (lexStringLoop input top off)
+@ off (barElemIndexOff {"} off input)
+| if (eql off barLen-input)
+    | {Unexpected EOF (string)}
+@ (countSlashes off count)
+    | if (eql {\} | barIdx off input)
+        | countSlashes (dec off) (inc count)
+    | count
+@ numSlashes | **countSlashes (dec off) 0
+| if (and (gth numSlashes 0) (mod numSlashes 2))
+    | lexStringLoop input top (inc off)
+| else
+    @ tok (**TSTR (barSlice top (sub off top) input))
+    | (tok, inc off)
+
+(lexString input off)=(lexStringLoop input off off)
+
+=?= (TSTR b{fdsafdsa}, 10)
+  | lexString b{"fdsafdsa"} 1
+
+=?= (TSTR b{fdsafdsa\"more}, 16)
+  | lexString b{"fdsafdsa\"more"} 1
+
+=?= (TSTR b{fdsafdsa\\}, 12)
+  | lexString b{"fdsafdsa\\"} 1
+
+=?= {Unexpected EOF (string)}
+  | lexString b{"fdsafdsa\"more} 1
+
+
+;;; Lexing Digits ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (consumeDigits input startOff)
+^ _ 0 startOff
+? (loop acc off)
+@ chr (barIdx off input)
+| ifNot (isDigit chr) [acc off]
+@ !acc (add (sub chr 48) (mul 10 acc))
+| loop acc (inc off)
+
+=?= [1234 5] (consumeDigits b{+1234+} 1)
+=?= [0 0]    (consumeDigits b{+1234+} 0)
+
+
+;;; Lexing Strings of Zeros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (consumeZeros input startOff)
+^ _ 0 startOff
+? (go !count off)
+| if ({0} == barIdx off input)
+    | go (inc count) (inc off)
+| [count off]
+
+=?= [0 0] | consumeZeros b{+0000+} 0
+=?= [4 5] | consumeZeros b{+0000+} 1
+=?= [3 5] | consumeZeros b{+0000+} 2
+
+
+;;; Lexing Decimal Sections ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= noDig | {No digits after dot (.)}
+
+; This can't be turned into inlined-continuation-passing-style because
+; we have two places where we return successfully, and the short-circult
+; case is the common case, so we don't want to just do the whole thing
+; each time.
+;
+; Inlining this anyways doesn't make things faster, because it's used
+; in the body of a let-binding, so all of the branches become calls to
+; `if` instead of being a part of the law's code.
+;
+> Bar > Nat > ResultPair Deci Nat
+= (lexDecimal input off)
+| ifNot ({.} == barIdx off input) [0 off]
+;
+@ off            | inc off
+@ [numZeros zof] | **consumeZeros input off
+@ [nat dof]      | **consumeDigits input zof
+;
+| if (dof == off) noDig
+| [[numZeros nat] dof]
+
+=?= [[2 33] 6] | lexDecimal b{#.0033#} 1
+=?= [[1 0 ] 3] | lexDecimal b{#.0#}    1
+=?= [[0 1 ] 3] | lexDecimal b{#.1#}    1
+=?= [0      1] | lexDecimal b{##}      1
+=?= [0      1] | lexDecimal b{#e2#}    1
+=?= noDig      | lexDecimal b{#.#}     1
+
+
+;;; Lexing Exponent Sections ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;
+; optional exponent. {e,E}{-,+,[nothing]}[digits]
+;
+
+= noDig | {No digits in exponent}
+
+;
+; This can't be turned into inlined-continuation-passing-style because
+; we have two places where we return successfully, and the short-circult
+; case is the common case, so we don't want to just do the whole thing
+; each time.
+;
+; if we were to just inline this anyways, that doesn't make things faster,
+; because it's used in the body of a let-binding, so all of the branches
+; become calls to `if` instead of being a part of the law's code.
+;
+> Bar > Nat > ResultPair Expo Nat
+= (lexExponent input off)
+;
+@ chr    (barIdx off input)
+@ hasExp ((chr == {e}) || (chr == {E}))
+;
+| ifNot hasExp [0 off]
+@ off    (inc off)
+;
+@ chr    (barIdx off input)
+@ nega   (chr == {-})
+@ posi   (chr == {+})
+@ signed (nega || posi)
+@ off    (add off signed)
+;
+@ [nat dof] (**consumeDigits input off)
+;
+| if (dof == off) noDig
+;
+| [[nega nat] dof]
+
+=?= [[0  0] 3] | lexExponent b{#e0#}   1
+=?= [[0  0] 4] | lexExponent b{#e00#}  1
+=?= [[0  0] 5] | lexExponent b{#e+00#} 1
+=?= [[1  0] 5] | lexExponent b{#e-00#} 1
+=?= [[1  1] 5] | lexExponent b{#e-01#} 1
+=?= [[1 10] 5] | lexExponent b{#e-10#} 1
+=?= [[1 11] 5] | lexExponent b{#e-11#} 1
+=?= noDig      | lexExponent b{#e-#}   1
+=?= noDig      | lexExponent b{#e+#}   1
+=?= noDig      | lexExponent b{#e#}    1
+=?= [0 0]      | lexExponent b{#e00#}  0
+=?= [0 1]      | lexExponent b{#g00#}  1
+
+
+;;; Lexing Json ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (lexJson input)
+^ _ 0
+? (loop off)
+# switch (barIdx off input)
+* 0
+    | NIL
+* n
+    | ifNot (b#null == barSlice off 4 input) 0
+    | (TNULL, loop (add 4 off))
+* t
+    | ifNot (b#true == barSlice off 4 input) 0
+    | (TTRUE, loop (add 4 off))
+* f
+    | ifNot (b#false == barSlice off 5 input) 0
+    | (TFALSE, loop (add 5 off))
+;
+* }_,_ (TCOMMA, loop (inc off))
+* }_:_ (TCOLON, loop (inc off))
+* }_[_ (TLBRAK, loop (inc off))
+* }_]_ (TRBRAK, loop (inc off))
+* }_{_ (TLCURL, loop (inc off))
+* }_}_ (TRCURL, loop (inc off))
+;
+* }_"_
+    @ res (**lexString input (inc off))
+    | if res (**TERR off res, 0)
+    @ [tok off] res
+    [tok (loop off)]
+;
+* 32 (TSPACE, loop (chomp input | inc off))
+* 9  (TSPACE, loop (chomp input | inc off))
+* 10 (TSPACE, loop (chomp input | inc off))
+* 13 (TSPACE, loop (chomp input | inc off))
+* _
+    @ fst       | barIdx off input
+    @ neg       | eql {-} fst
+    @ off       | add neg off ; add bit+number to avoid branching.
+    @ chr       | barIdx off input
+    @ [nat dof] | **consumeDigits input off
+    | if (dof == off)
+        | if neg (**TERR off {Bad number, no digits}, 0)
+        | (**TERR off {Unexpected Character}, 0)
+    ;
+    @ off               | dof
+    @ [deci off]@decRes | lexDecimal input off
+    | if decRes (**TERR off decRes, 0)
+    @ [expi off]@expRes | lexExponent input off
+    | if expRes (**TERR off expRes, 0)
+    ;
+    | (**TNUM neg nat deci expi, loop off)
+
+=?= (listToRow | lexJson b{{"x":999}})
+ ++ TLCURL
+ ++ TSTR b#x
+ ++ TCOLON
+ ++ TNUM FALSE 999 0 0
+ ++ TRCURL
+
+=?= (listToRow | lexJson b{{"x":-999}})
+ ++ TLCURL
+ ++ TSTR b#x
+ ++ TCOLON
+ ++ TNUM TRUE 999 0 0
+ ++ TRCURL
+
+=?= (listToRow | lexJson b{{"x":9.9}})
+ ++ TLCURL
+ ++ TSTR b#x
+ ++ TCOLON
+ ++ TNUM FALSE 9 [0 9] 0
+ ++ TRCURL
+
+=?= (listToRow | lexJson b{{"x":9e9}})
+ ++ TLCURL
+ ++ TSTR b#x
+ ++ TCOLON
+ ++ TNUM FALSE 9 0 [0 9]
+ ++ TRCURL
+
+=?= (listToRow | lexJson b{{"x":09.09e9}})
+ ++ TLCURL
+ ++ TSTR b#x
+ ++ TCOLON
+ ++ TNUM FALSE 9 [1 9] [0 9]
+ ++ TRCURL
+
+=?= (listToRow | lexJson b{ { "x" : 999 } })
+ ++ TSPACE
+ ++ TLCURL
+ ++ TSPACE
+ ++ TSTR b#x
+ ++ TSPACE
+ ++ TCOLON
+ ++ TSPACE
+ ++ TNUM FALSE 999 0 0
+ ++ TSPACE
+ ++ TRCURL
+ ++ TSPACE
+
+
+;;; Representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+abstype#Json
+
+> Json > Nat
+= (jsonTag x)
+@ t (typeTag x)
+| if (t == natTag) x t
+
+; JNUM.conHas=0 because fetching with idx-0 works on (0 _)
+; JNUM.conRaw=0 because wrapper in (0 _)
+
+= (dataProps tag ari fun has raw)
+| bt [{conTag},tag {conAri},ari {conFun},fun {conHas},has {conRaw},raw]
+
+= jnullProps  | dataProps {null}  0 jsonTag 0 0
+= jtrueProps  | dataProps {true}  0 jsonTag 0 0
+= jfalseProps | dataProps {false} 0 jsonTag 0 0
+= jstrProps   | dataProps barTag  1 jsonTag 0 1
+= jnumProps   | dataProps appTag  1 jsonTag 0 0
+= jvecProps   | dataProps rowTag  1 jsonTag 0 1
+= jmapProps   | dataProps tabTag  1 jsonTag 0 1
+
+#= 0 jnullProps  JNULL  {null}
+#= 0 jtrueProps  JTRUE  {true}
+#= 0 jfalseProps JFALSE {false}
+#= 0 jstrProps   JSTR   (JSTR x ?? x)
+#= 0 jnumProps   JNUM   (JNUM n ?? 0 n)
+#= 0 jvecProps   JVEC   (JVEC xs ?? xs)
+#= 0 jmapProps   JMAP   (JMAP kv ?? kv)
+
+= (jsonWithType j)
+# datacase j
+* JNULL   [{n} j]
+* JTRUE   [{t} j]
+* JFALSE  [{f} j]
+* JSTR|x  [{s} x]
+* JNUM|n  [{u} n]
+* JVEC|xs [{v} xs]
+* JMAP|kv [{m} kv]
+
+=?=   | map jsonWithType
+      | [ {null} {true} {false} b{lol} 0-9 [0-3 0-4 0-5] #[foo={null}] ]
+ ++ [%n %null]
+ ++ [%t %true]
+ ++ [%f %false]
+ ++ [%s b#lol]
+ ++ [%u 9]
+ ++ [%v [0-3 0-4 0-5]]
+ ++ [%m [foo={null}]]
+
+
+;;; Parser ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (eatSpace stream)
+: t ts < listCase stream stream
+| if (TSPACE == t) ts stream
+
+= (parseLexerStream inputStream topFail topOkay)
+# mutrec %loop
+   | val inputStream topFail topOkay
+* (val stream fail ok)
+   @ stream | eatSpace stream
+   : t ts   < listCase stream (fail {value} stream)
+   # switch (dataTag t)
+   * null   | ok JNULL ts
+   * true   | ok JTRUE ts
+   * false  | ok JFALSE ts
+   * l_brak | arr NIL ts fail ok
+   * l_curl | obj 0 NIL ts fail ok
+   * str    | ok (JSTR | idx 1 t) ts
+   * num    | ok (JNUM | idx 2 t) ts  ; todo: more data.
+   * err    @ [_ off why] t
+            @ msg (strCat [{lex error @} showNat-off {: } why])
+            | fail msg stream
+   * _      | fail {value} stream
+;
+* (obj count pairs stream fail ok)
+   ;
+   @ stream (eatSpace stream)
+   ;
+   : t@[k v] ts < listCase stream (fail }@'}', or key@ stream)
+   ;
+   | if (t == TRCURL)
+       @ !row (sizedListToRow count pairs)
+       @ !tab (tabFromPairs row)
+       | ok (JMAP tab) ts
+   ;
+   | if (isNat t || neq {str} k)
+       | trk #[=t =k =v]
+       | fail }@'}', or key@ stream
+   ;
+   @ newKey   | barNat v
+   @ stream   | eatSpace ts
+   @ complain | fail {Expecting :} stream
+   : t ts     < listCase stream complain
+   ;
+   | if (TCOLON /= t) complain
+   ;
+   @ stream        | eatSpace ts
+   : newVal stream < val stream fail
+   @ !pairs        | CONS (newKey, newVal) pairs
+   @ !count        | inc count
+   @ stream        | eatSpace stream
+   @ complain      | fail }@Expecting , or }@ stream
+   : t ts          < listCase stream complain
+   ;
+   | if (t == TRCURL) | obj count pairs stream fail ok
+   | if (t == TCOMMA) | obj count pairs ts fail ok
+   ;
+   | complain
+;
+* (arr acc stream fail ok)
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [end]
+   @ stream   | eatSpace stream
+   @ complain | fail {space, ']', or value} stream
+   : t ts     < listCase stream complain
+   ;
+   | if (t == TRBRAK)
+       @ res (JVEC | listToRowRev acc)
+       | ok res ts
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [val]
+   : val more < val stream fail
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [more]
+   @ more     | eatSpace more
+   @ complain | fail {space, ']', or value} stream
+   : m ms     < listCase more complain
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; [final]
+   | if (TRBRAK == m)
+       @ acc (CONS val acc)
+       @ !res (JVEC | listToRowRev acc) ; TODO: use a sized operation here
+       | ok res ms
+   | if (TCOMMA == m)
+       @ acc (CONS val acc)
+       | arr acc ms fail ok
+   | fail {space or ',' or ']'} more
+
+= (parseJson input)
+@ tokStream       | lexJson input
+@ (fail reason _) | reason
+@ (okay v extra)  | [v extra]
+| parseLexerStream tokStream fail okay
+
+=?= (parseJson b{"})
+  | {lex error @0: Unexpected EOF (string)}
+
+=?= (parseJson b{[null]})
+  ^ (JVEC [_], NIL)
+  | JNULL
+
+=?= (parseJson b{ [null,null,true,false] })
+  ^ (JVEC _, [TSPACE 0])
+ ++ JNULL
+ ++ JNULL
+ ++ JTRUE
+ ++ JFALSE
+
+=?= (parseJson b{[[]]})
+  ^ (JVEC [_], NIL)
+  | JVEC []
+
+=?= (parseJson b{[[null,null]]})
+  ^ (JVEC [_], NIL)
+  | (JVEC (JNULL, JNULL))
+
+=?= (parseJson b{[[0,0],[0, 0],[0 ,0],[0 , 0]]})
+  ^ (JVEC _, NIL)
+ ++ JVEC (JNUM 0, JNUM 0)
+ ++ JVEC (JNUM 0, JNUM 0)
+ ++ JVEC (JNUM 0, JNUM 0)
+ ++ JVEC (JNUM 0, JNUM 0)
+
+=?= (parseJson b{[0, ",", 1]})
+  ^ (JVEC _, NIL)
+  | (JNUM 0, JSTR b{,}, JNUM 1)
+
+=?= (parseJson b{{}})   (JMAP #[], NIL)
+=?= (parseJson b{ { }}) (JMAP #[], NIL)
+=?= (parseJson b{ {"str":"x", "null":null}})
+  ^ (JMAP _, NIL)
+ ## =str  | JSTR b#x
+ ## =null | JNULL
+
+
+;;; Printer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; TODO: Substitue escape characters.
+;;; TODO: Handle edge-cases with "\u1234" escapes.
+
+= (printVec go vec)
+^ [b{[} _ b{]}]
+| listIntersperse b{,}
+| listFromRow
+| map go vec
+
+= (printMap go map)
+^ [b#}_{_ _ b#}_}_]
+| listIntersperse b{,}
+: [k v] < listForEach (tabToPairList map)
+| (go (JSTR | natBar k), b{:}, go v)
+
+= (printJson input)
+^ barFlat (_ input)
+? (go json)
+# datacase json
+* JNULL  | b#null
+* JTRUE  | b#true
+* JFALSE | b#false
+* JSTR|s | [b{"} s b{"}]
+* JNUM|n | natBar (showNat n)
+* JVEC|v | printVec go v
+* JMAP|t | printMap go t
+* _      | {bad json} [json [tag=(jsonTag json)]]
+
+=?= b{["hi",null,true,false,99]}
+  ^ printJson (JVEC _)
+ ++ JSTR b#hi
+ ++ JNULL
+ ++ JTRUE
+ ++ JFALSE
+ ++ JNUM 99
+
+=?= b{{"null":null,"bools":[true,false]}}
+  ^ printJson (JMAP _)
+ ## =null  | JNULL
+ ## =bools | JVEC [JTRUE JFALSE]
+
+=?=  ++ b{{}}
+     ++ b{{}}
+     ++ b{{"str":"x","null":null}}
+ ++ printJson | idx 0 | parseJson b{{}}
+ ++ printJson | idx 0 | parseJson b{ { }}
+ ++ printJson | idx 0 | parseJson b{ {"str":"x", "null":null}}
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ JLexeme
+^-^ TSPACE TNULL TTRUE TFALSE
+^-^ TCOMMA TCOLON
+^-^ TLBRAK TRBRAK TLCURL TRCURL
+^-^ TSTR TNUM
+^-^
+^-^
+^-^ Json
+^-^ JNULL JTRUE JFALSE JSTR JNUM JVEC JMAP
+^-^
+^-^ lexJson parseJson printJson
+^-^

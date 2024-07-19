@@ -1,0 +1,474 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_tests <- sire
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+:| sire_27_sire
+
+
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (trySire bar)
+@ [outputs _cog] (sireRepl TRUE bar)
+| listToRow | listMap (compose fst snd) outputs
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+ss=(SIRE_STATE 5 {repl} [zaz={ZAZBIND}] #[])
+
+=?= (ss, 234) (executeSire `234 ss)
+
+= (plusMacro st rex err ok)
+@ kids (rexKids rex)
+| if (len kids /= 2)
+    | err rex {Expcted two params}
+@ [x y] kids
+| ok st `(add $x $y)
+
+= addBind | 4 | BIND 4 add       {STUB} {repl} {add} 0
+= lusBind | 4 | BIND 4 plusMacro {STUB} {repl} {+}   0
+= env     | [add=addBind {+}=lusBind]
+
+ss=(SIRE_STATE 5 {repl} env #[])
+
+=?= (ss, add) | executeSire `add ss
+=?= (ss, 3)   | executeSire `3 ss
+=?= (ss, 4)   | executeSire `4 ss
+
+=?=   | (ss, A (A (G addBind) K-3) K-4)
+  | readExpr ~[] `(add 3 4) ss
+
+=?=   | (ss, add 3)
+  | evalExpr `(add 3) ss
+
+=?=   | (ss, 7)
+  | evalExpr `(add 3 4) ss
+
+=?=   | (ss, strCat [}'{' newlineChar {z}])
+  ^ (evalExpr _ ss)
+  ` | add 1
+    } z
+    } z
+
+=?=   ^ (ss, _)
+      | 0 {x}
+      | 0 {x}
+      | 0 {x}
+      | 0 } x
+  ^ (evalExpr _ ss) ` | 0 {x}
+                      | 0 {x}
+                      | 0 {x}
+                      | 0 } x
+
+; This tests macro expansion!
+
+=?= (ss, 7)
+  | executeSire `(3+4) ss
+
+= env2
+^ tabIns {seventySeven} _ env
+^ 4 (BIND 5 77 _ %repl %seventySeven 0)
+^ [%A _ [%K 4]]
+| [%A [%G addBind] [%K 73]]
+
+ss2=(SIRE_STATE 6 {repl} env2 #[])
+
+=?=   | (ss2, [77])
+  | executeSire `(seventySeven = (73+4)) ss
+
+=?=   | (ss2, 80)
+  | executeSire `(seventySeven+3) ss2
+
+=?= [3 4 999]
+  ^ trySire _
+  # b } 3
+      } 4
+      } 2 0 3 999
+      }
+
+=?=  ++ ` # {undefined rune} on line $$1
+          # ===
+  ^ trySire _
+  # b } ===
+      }
+      }
+
+=?= ++ [3]
+    ++ 4
+    ++ ` # {expected two or three params} on line $$3
+         # (x=x=x=x=x)
+  ^ trySire _
+  # b } x=3
+      } (3 3)
+      } x=x=x=x=x
+      }
+
+=?= [[0 1 2 3 4 {die} {todo}] id]
+  ^ trySire _
+  # b } = LAW     | 0
+      } = valCase | 1
+      } = natCase | 2
+      } = inc     | 3
+      } = PIN     | 4
+      } = die     | {die}   ; Calling a primop above 4 is a crash.
+      } = todo    | {todo}  ; Calling a primop above 4 is a crash.
+      }
+      } | PIN (LAW {id} 1 1)
+      }
+      }
+
+=?=   ^ [0 [3] 3 0 _]
+      ` # {undefined reference} on line $$8
+        # x
+  ^ trySire _
+  b#} #### sire_01_rex
+    }
+    } x=3
+    } x
+    }
+    } #### sire_02_bit <- sire_01_rex
+    }
+    } x
+    }
+
+=?=   | [[[3] [4]] 3 4]
+  ^ trySire _
+  # b } #* x=3 y=4
+      }
+      } x
+      } y
+      }
+
+=?=   | [[[3] [4]] 3 4 %[]]
+  ^ trySire _
+  # b } #* x=3 y=4
+      }
+      } x
+      } y
+      }
+      } ^-^
+      }
+      }
+
+=?= [[[3] [4]] 3 4 %[x]]
+  ^ trySire _
+  # b } #* x=3 y=4
+      }
+      } x
+      } y
+      }
+      } ^-^ x x
+      }
+      }
+
+=?= [[[3] [4]] 3 4 %[x]]
+  ^ trySire _
+  # b } #* x=3 y=4
+      }
+      } x
+      } y
+      }
+      } ^-^ x
+      } ^-^ x
+      }
+      }
+
+=?=   | [[[3] [4]] 3 4 %[y] 4]
+  ^ trySire _
+  # b } #* x=3 y=4
+      }
+      } x
+      } y
+      }
+      } ^-^ y
+      }
+      } y
+      }
+
+=?=   ^ [[[3] [4]] 3 4 %[y] _]
+      ` # {undefined reference} on line $$8
+        # x
+  ^ trySire _
+  # b } #* x=3 y=4
+      }
+      } x
+      } y
+      }
+      } ^-^ y
+      }
+      } x
+      }
+
+=?=   ^ [_]
+      ` # {assertion failed} on line $$1
+        # (=?= 3 4)
+  ^ trySire _
+  # b } (=?= 3 4)
+      }
+
+=?=   | [[3]]
+  ^ trySire _
+  # b } (=?= 3 3)
+      }
+
+=?=   | [[3 4]]
+  ^ trySire _
+  # b } =?= 3 3
+      } =?= 4 4
+      }
+      }
+
+=?=   | [[3]]
+  ^ trySire _
+  # b } =?= 3
+      }   | 3 2
+      }
+      }
+
+=?=   ^ [0 [3] 0 _]
+      ` # {import list contains duplicates} on line $$4
+        # [x x]
+  ^ trySire _
+  # b } (#### foo)
+      } x=3
+      } (#### bar (<- foo))
+      } (:| foo [x x])
+      }
+
+=?=   | [0 [3] 0 0 3]
+  ^ trySire _
+  # b } (#### foo)
+      } x=3
+      } (#### bar (<- foo))
+      } (:| foo [x])
+      } x
+      }
+
+=?=   ^ [0 [3 4] 0 0 3 4 _]
+      ` # {undefined reference} on line $$7
+        # y
+  ^ trySire _
+  # b } (#### foo)
+      } (x=3)(y=4)
+      } (#### bar (<- foo))
+      } (:| foo [x])
+      } x
+      } foo.y
+      } y
+      }
+
+=?=   ^ [0 [3 4] 0 0 _ 4]
+      ` # {undefined reference} on line $$5
+        # x
+  ^ trySire _
+  # b } (#### foo)
+      } (x=3)(y=4)
+      } (#### bar (<- foo))
+      } (:| foo [y])
+      } x
+      } y
+      }
+
+=?=   | [0 [3 4] 0 0 3 4]
+  ^ trySire _
+  # b } (#### foo)
+      } (x=3)(y=4)
+      } (#### bar (<- foo))
+      } (:| foo)
+      } x
+      } y
+      }
+
+=?=   | [0 [3 4] 0 0 3 4]
+  ^ trySire _
+  # b } #### foo
+      }
+      } (x=3)(y=4)
+      }
+      } #### bar <- foo
+      }
+      } :| foo [x y]
+      }
+      } .{x}
+      } #.{y}
+      }
+
+=?=   | [%a %b %c %d %e 10]
+  ^ trySire _
+  # b } 97
+      } {b}
+      } {c}
+      } {d}
+      } } e
+      }   }
+      }   }
+      }
+      }
+
+=?=   ^ [_ 5]
+      ` # {only one param was expected} on line $$1
+        # 3**4
+  ^ trySire _
+  # b } 3**4
+      } (**3 4)
+      }
+
+appHead=(1 0 0 (a b & a) 0)
+
+=?=   ^ [3 [appHead] 2 _] ` # {undefined reference} on line $$10
+                            # x
+  ^ trySire _
+  # b }
+      } @ x 3
+      } | x
+      }
+      } appHead=(1 0 0 (0 0 2 1) 0)
+      }
+      } @@ x=(2 x)
+      }  | appHead x
+      }
+      } x@x@x
+      }
+
+=?=   | [(0-0 0-0) (0-0 0-0)]
+  ^ trySire _
+  # b }
+      } ^ _ _ (0 0)
+      }
+      } ^ _ _
+      } | 0 0
+      }
+      }
+
+=?=  ++ (a & a)
+     ++ (a b & a)
+     ++ (a b & b)
+     ++ (const x y ? x)
+  ^ trySire _
+  # b } (x & x)
+      } (x y & x)
+      } (x y & y)
+      } ({const} & x y & x)
+      }
+
+=?=  ++ (f x ? f)
+     ++ (f x ? x)
+     ++ (f x ? f)
+     ++ (f x ? x)
+     ++ (f x ?? f)
+     ++ (f x ?? x)
+  ^ trySire _
+  # b } (f x #? f)
+      } (f x #? x)
+      } (**f x ? f)
+      } (**f x ? x)
+      } (f x ?? f)
+      } (f x ?? x)
+      }
+
+;; {anonRecursive} is a top level definition because stew does not
+;; understand the {(tag ?? sig ?? body)} form, so we need to fallback to
+;; expressing this with primitive runes only.
+;;
+;; TODO: Update stew to support the explicitly tagged form.
+
+ #= anonRecursive
+#?? 0 (f x y)
+  | f x y
+
+=?=  ++ (lol x y ?? lol x y)
+     ++ anonRecursive
+  ^ trySire _
+  # b } ({lol} ?? **f x y ?? f x y)
+      } (0 ?? **f x y ?? f x y)
+      }
+
+=?=  ++ ++ (f x ?? x)
+        ++ (g x y ?? y)
+        ++ (g x y ?? x)
+        ++ (g x y ?? g)
+        ++ (g x y ?? 2)
+        ++ (g x y ?? 3)
+  ^ trySire _
+  # b } = (f x)     | x
+      } = (**g x y) | y
+      } = (**g x y) | x
+      } = (**g x y) | g
+      } = (**g x y) | 2
+      } = (**g x y) | 3
+      }
+      }
+
+=?=  ++ [0]
+     ++ 0 0 1 | 2-(2 (0 1))
+     ++ 0 0 1 | 0 3 (0 1)
+  ^ trySire _
+  # b } zero=0
+      } x&(2 | zero 1)
+      } x&(3 | zero 1)
+      }
+      }
+
+=?=  ++ ++ | 0 {f} 1
+           ^ 0 _ 1
+           | 0 {g} 2
+           | 0 1 2
+     ++ (1 2)
+  ^ trySire _
+  # b } = x ? (f x)
+      }     ? (g y)
+      }     | x y
+      }
+      } (x 1 2)
+      }
+
+=?=  ++ [(f x y ?? x)]
+     ++ [(g x ?? x)]
+  ^ trySire _
+  # b } (f x y)=x
+      } (g x)=(**f x 999)
+      }
+
+=?=  ++ (x & 0 x x)
+  ^ trySire _
+  # b } & x
+      } @ bar (a & 0 a a)
+      } (**bar x)
+      }
+      }
+
+=?=  ++ [%x]
+  ^ trySire _
+  # b } ({x} =?= }|x|)
+      }
+
+=?=  ++ [(g k ? 0 (_ & k 0))]
+     ++ (test a ? 0-((b c & b 0) a))
+  ^ trySire _
+  # b
+  } g=(g k ? 0 (_ & **k 0))
+  } (test a ? **g a)
+  }
+  }
+
+=?=  ++ ` # {malformed leaf} on line $$1
+          # 123_123
+     ++ [("#" a b c d ?? c b %pizza)]
+     ++ ` # {pizza} on line $$3
+          # #123_123
+  ^ trySire _
+  # b
+  } 123_123
+  } ({#} st rex err ok)=(err rex "pizza")
+  } 123_123
+  }
+
+| deepTrace trySire
+| {COMPILER BUILT AND ALL TESTS PASS}

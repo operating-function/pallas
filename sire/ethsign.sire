@@ -1,0 +1,41 @@
+#### ethsign <- ecdsa
+
+:| prelude
+:| keccak [keccak256]
+:| ecdsa
+
+> Str > Bar
+= (hashEthMsg msg)
+^ keccak256 | barCat _
+++ x#19
+++ b#{Ethereum Signed Message:}
+++ barNewline
+++ barShowDecimal strLen-msg
+++ natBar msg
+
+> Bar > Bar > Str > Bit
+= (verifyEthMsg signature address msg)
+| and (barLen signature == 65)
+@ r  | barNatRev | barSlice  0 32 signature
+@ s  | barNatRev | barSlice 32 32 signature
+@ v  | barSliceToNat 64 1 signature
+@ e  | barNatRev | hashEthMsg msg
+| and (v==27 || v==28)
+@ i  | sub v 27
+@ n  | getN secp256k1
+@ R  | pointFromX secp256k1 r i
+: rInv < maybeCase (mulInverse-n r) FALSE
+@ s1 | mulMod-n rInv | addInverse-n e
+@ s2 | mulMod-n rInv s
+@ G  | getG secp256k1
+@ mulP | scalarMul secp256k1
+@ pubKey | addPoints secp256k1 (mulP s1 G) (mulP s2 R)
+| eql address | barDrop 12 | keccak256 | pointToBar pubKey
+
+!! | verifyEthMsg
+   * # x } 32b48057fb911d814b0a6a76902f1a169f8a6981baf1ca39a4ead8b8a50f027c6
+         } e7415a5dcd51f68a3324560c8cfc6831b4db3a7d183292721406a98c8477ad71c
+   * x#E145A012F830A6A55b4166022AE664df7465f7b8
+   * {test}
+
+^-^ verifyEthMsg

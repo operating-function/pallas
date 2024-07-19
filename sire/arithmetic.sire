@@ -1,0 +1,150 @@
+; WARNING: Some of the modular arithmetic helper functions in here may
+; assume secp256k1 or prime parameters without explicitly telling you so.
+; Please verify that any functions you rely on work for your modulus.
+
+#### arithmetic <- quickcheck
+
+:| sire
+:| quickcheck
+
+; Should possibly be implemented using pads instead?
+= (natFoldMSB f z n)
+^ _ z met-n n
+? (go z i n)
+| if (not i) z
+@ !z | f z (met n == i)
+| go z dec-i (clearBit dec-i n)
+
+=?= 0 | natFoldMSB (acc bit & add bit (mul acc 2)) 0 0
+=?= 1 | natFoldMSB (acc bit & add bit (mul acc 2)) 0 1
+=?= 2 | natFoldMSB (acc bit & add bit (mul acc 2)) 0 2
+=?= 3 | natFoldMSB (acc bit & add bit (mul acc 2)) 0 3
+=?= 6 | natFoldMSB (acc bit & add bit (mul acc 2)) 0 6
+
+> Nat > Nat
+= (log2floor n)
+| if (lte n 1) | 0
+| inc | log2floor | rsh n 1
+
+> Nat > Bit
+= (isPow2 n) | and n | isZero | con n dec-n
+
+> Nat > Nat
+= (log2ceil n)
+| if (lte 2 1) 0
+^ if (isPow2 n) _ (inc _)
+| log2floor n
+
+=?= 0 | log2floor 1
+=?= 1 | log2floor 2
+=?= 1 | log2floor 3
+=?= 2 | log2floor 4
+=?= 3 | log2floor 15
+=?= 4 | log2floor 16
+=?= 4 | log2floor 17
+
+=?= FALSE | isPow2 0
+=?= TRUE  | isPow2 1
+=?= TRUE  | isPow2 2
+=?= FALSE | isPow2 3
+=?= TRUE  | isPow2 4
+=?= FALSE | isPow2 15
+=?= TRUE  | isPow2 16
+=?= FALSE | isPow2 17
+
+=?= 0 | log2ceil 1
+=?= 1 | log2ceil 2
+=?= 2 | log2ceil 3
+=?= 2 | log2ceil 4
+=?= 4 | log2ceil 15
+=?= 4 | log2ceil 16
+=?= 5 | log2ceil 17
+
+= (addMod p a b) | mod (add a b) p
+= (mulMod p a b) | mod (mul a b) p
+
+; We need a special function for this since we only have nats.
+> Nat > Nat > Nat
+= (subMod p x y)
+^ mod (sub _ y) p
+| if (lte y x) | x
+| else         | add x p
+
+= (addInverse p a) | subMod p 0 a
+
+= (powMod p base exp)
+| ifNot exp   | 1
+| if even-exp | powMod-p (mod (pow base 2) p) (div exp 2)
+| else        | mulMod-p base | powMod-p base dec-exp
+
+; `p` must be prime and `p mod 4 == 3`
+= (sqrtMod p a) | powMod-p a (div inc-p 4)
+
+; Multiplicative inverse of a, modulo the *prime* p.
+> Nat > Nat > Maybe Nat
+= (mulInverse p a)
+| maybeGuard (mod a p)
+| SOME | powMod-p a (sub p 2)
+
+> Nat > Nat > Nat > Maybe Nat
+= (divMod p a b) | fmapMaybe (mulInverse p b) (mulMod p a)
+
+=?= 8 | addMod-11 5 3
+=?= 5 | addMod-11 7 9
+=?= 0 | addMod-25 10 15
+
+=?= 9 | mulMod-11 4 5
+=?= 5 | mulMod-11 7 7
+=?= 2 | mulMod-7 3 3
+
+=?= 10 | subMod-17 15 5
+=?= 5  | subMod-17 7 2
+=?= 0  | subMod-17 5 5
+=?= 15 | subMod-17 3 5
+=?= 2  | subMod-17 1 16
+=?= 16 | subMod-17 0 1
+=?= 16 | subMod-17 16 0
+
+=?= 8  | addInverse-11 3
+=?= 12 | addInverse-17 5
+=?= 13 | addInverse-23 10
+
+=?= 10 | powMod-11 2 5
+=?= 1  | powMod-13 3 3
+=?= 1  | powMod-31 5 0
+=?= 4  | powMod-6 10 2
+
+!! ^ qc2_pass 42 {pow identity} (prop2 _) arbU64 arbU64
+   & (a m) | or (gth m 1) (powMod m a 0 == 1)
+
+=?= 0 | sqrtMod-3 0
+=?= 1 | sqrtMod-7 1
+
+=?= 4 | powMod-7 (sqrtMod-7 4) 2
+=?= 4 | powMod-11 (sqrtMod-11 4) 2
+=?= 9 | powMod-11 (sqrtMod-11 9) 2
+
+=?= SOME-6  | mulInverse-17 3
+=?= SOME-12 | mulInverse-17 10
+=?= SOME-8  | mulInverse-17 15
+=?= NONE    | mulInverse-17 0
+
+=?= SOME-9 | divMod-17 4 8
+=?= SOME-1 | divMod-11 3 3
+
+> Nat > Nat > Nat > Nat
+= (rotate w n r)
+| if (r == w) | n
+@ shift | subMod-w w r
+| dis | rsh n shift
+^ lsh _ r
+| bitSlice 0 shift n
+
+=?= 2   | rotate 8 1 1
+=?= 1   | rotate 8 128 1
+=?= 255 | rotate 8 255 1
+=?= 240 | rotate 8 15 4
+=?= 85  | rotate 8 170 3
+=?= 3   | rotate 8 192 2
+=?= 170 | rotate 8 85 7
+

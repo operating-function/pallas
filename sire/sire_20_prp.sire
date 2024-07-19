@@ -1,0 +1,99 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_20_prp <- sire_19_bst
+
+;;;; Sire Properties
+;;;; ===============
+;;;;
+;;;; Lookup and set properties on syntax objects.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan
+:| sire_02_bit
+:| sire_03_nat
+:| sire_05_row
+:| sire_04_cmp
+:| sire_05_row
+:| sire_06_rex
+:| sire_07_dat
+:| sire_10_str
+:| sire_11_set
+:| sire_12_tab
+:| sire_13_exp
+:| sire_14_hax
+:| sire_15_pad
+:| sire_16_bar
+:| sire_17_sug
+:| sire_18_pat
+:| sire_19_bst
+
+
+;;; Functions for getting bindings and adding properties ;;;;;;;;;;;;;;;;;;;;;;;
+
+= (getBind name ss rex err ok)
+@ bindPin | tabGet (get ss 2) name
+@ bindRow | pinItem bindPin
+@ key     | get bindRow 0
+| ifz key | err rex (strWeld {undefined symbol: } name)
+| **ok key bindPin bindRow
+
+(getProps bind)=(idx 5 bind)
+
+(getProp bind propName)=(btGet (getProps bind) propName)
+
+
+;;; Convenience Macros to Query properties of bindings. ;;;;;;;;;;;;;;;;;;;;;;;;
+
+= ({#getBind} ss rex err ok)
+: _ sym    < rexParseKids rex [readRex readSymbol] err
+: _ bind _ < getBind sym ss rex err
+| ok ss (cnsE bind)
+
+= ({#getKey} ss rex err ok)
+: _ symbol    < rexParseKids rex [readRex readSymbol] err
+: bindKey _ _ < getBind symbol ss rex err
+| ok ss (cnsE bindKey)
+
+= (readSymbDotProp rex err ret)
+| if (neq {.} rexRune-rex)
+  | err rex {Expected a . rune}
+: symbol propNm < rexParseKids rex [readSymbol readSymbol] err
+| ret [symbol propNm]
+
+= ({#hasProp} ss rex err expand)
+: _ [symbol propNm]
+    < rexParseKids rex [readRex readSymbDotProp] err
+: bindKey _pin bind
+    < getBind symbol ss rex err
+@ props (getProps bind)
+^ expand ss (cnsE _)
+| btHas propNm props
+
+= ({#getProp} ss rex err ok)
+: _ [symbol propNm] < rexParseKids rex [readRex readSymbDotProp] err
+: bindKey _pin bind   < getBind symbol ss rex err
+^ ok ss (cnsE _)
+| btGet (getProps bind) propNm
+
+whyProps=(bt [[%src '(why=3)]])
+
+#= 0 whyProps why 3
+
+(1        =?= hasProp#(why.src))
+('(why=3) =?= getProp#(why.src))
+why=4
+(0 =?= hasProp#(why.src))
+(0 =?= getProp#(why.src))
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ {#getBind} {#getKey} {#hasProp} {#getProp}
+^-^
+^-^ getBind getProps getProp
+^-^

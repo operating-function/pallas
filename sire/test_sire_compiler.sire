@@ -1,0 +1,343 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### test_sire_compiler
+
+(const x y)=x
+
+(const 0 0)
+
+  ^ _ 0
+  & a
+ @@ = x (x x)
+    = z x
+    = y a
+    = p (z z)
+    = q (y y)
+  | const 3
+  | 1 x q q
+  | 1 p p
+
+
+;;; Basic Inliner Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(**I x)=x
+
+=?= a&a     | a&(I a)
+=?= (a b)&b | (a b)&(I b)
+
+
+;;; Basic Codegen Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?=   | 0 {f} 1
+      | 0 {h} 1
+      | 0 (0 {g} 2 1 1)
+      | 1
+  ? (f _)
+  @ f (g x y ? x)
+  @ f1 (f 1)
+  ? (h a)
+  | f1 a
+
+
+;;; Constant Folding Sees Through Lets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?=   | 0 0 1
+      | (0 0 3 3) 3 4
+  & _
+  @ f ((x y z & z) 3)
+  | f 4
+
+
+;;; Flexible Inline Annotations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(const x y)=x
+
+(0 0 1 3)=?=(_ & (**const 3 4))
+(0 0 1 3)=?=(_ & (**(const 3) 4))
+(0 0 1 3)=?=(_ & **(const 3 4))
+(0 0 1 3)=?=(_ & (x @ const 3 4)(**x))
+
+
+;;; Argument Ordering ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(**i1_2 x y)=x
+(**i2_2 x y)=y
+
+(**i1_3 x y z)=x
+(**i2_3 x y z)=y
+(**i3_3 x y z)=z
+
+=?= (x a b)?a (x a b)?(i1_2 a a)
+=?= (x a b)?b (x a b)?(i1_2 b b)
+=?= (x a b)?a (x a b)?(i1_2 a b)
+=?= (x a b)?b (x a b)?(i1_2 b a)
+
+=?= (x a b)?a (x a b)?(i2_2 a a)
+=?= (x a b)?b (x a b)?(i2_2 b b)
+=?= (x a b)?b (x a b)?(i2_2 a b)
+=?= (x a b)?a (x a b)?(i2_2 b a)
+
+=?= (a b c)&a (a b c)&(i1_3 a b c)
+=?= (a b c)&b (a b c)&(i1_3 b a c)
+=?= (a b c)&c (a b c)&(i1_3 c c b)
+
+=?= (a b c)&a (a b c)&(i2_3 b a c)
+=?= (a b c)&b (a b c)&(i2_3 a b c)
+=?= (a b c)&c (a b c)&(i2_3 a c b)
+
+=?= (a b c)&a (a b c)&(i3_3 a b a)
+=?= (a b c)&b (a b c)&(i3_3 a c b)
+=?= (a b c)&c (a b c)&(i3_3 b a c)
+
+
+;;; Same, but with explicit inline application ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(f1_2 x y)=x
+(f2_2 x y)=y
+(f1_3 x y z)=x
+(f2_3 x y z)=y
+(f3_3 x y z)=z
+
+=?= (x a b)?a (x a b)?(**f1_2 a a)
+=?= (x a b)?b (x a b)?(**f1_2 b b)
+=?= (x a b)?a (x a b)?(**f1_2 a b)
+=?= (x a b)?b (x a b)?(**f1_2 b a)
+
+=?= (x a b)?a (x a b)?(**f2_2 a a)
+=?= (x a b)?b (x a b)?(**f2_2 b b)
+=?= (x a b)?b (x a b)?(**f2_2 a b)
+=?= (x a b)?a (x a b)?(**f2_2 b a)
+
+=?= (a b c)&a (a b c)&(**f1_3 a b c)
+=?= (a b c)&b (a b c)&(**f1_3 b a c)
+=?= (a b c)&c (a b c)&(**f1_3 c c b)
+
+=?= (a b c)&a (a b c)&(**f2_3 b a c)
+=?= (a b c)&b (a b c)&(**f2_3 a b c)
+=?= (a b c)&c (a b c)&(**f2_3 a c b)
+
+=?= (a b c)&a (a b c)&(**f3_3 a b a)
+=?= (a b c)&b (a b c)&(**f3_3 a c b)
+=?= (a b c)&c (a b c)&(**f3_3 b a c)
+
+
+;;; Basic Let-Binding Cases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(**K x y)=x
+
+=?= a&9 (a & (x@9)(K x) 8)
+=?= a&a (a & (x@9)(K a) 8)
+
+
+;;; Basic Multi-Inline Cases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(**const x _)=x
+
+(k0 x)=(const x)
+(**k1 x)=(const x)
+
+=?= a&3 | a&(**k0 3 a)
+=?= a&3 | a&(**k1 3 a)
+=?= a&3 | a&(k1 3 a)
+
+
+;;; Basic Multi-Inline Cases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(**const x _)=x
+
+(k0 x)=(const x)
+(**k1 x)=(const x)
+
+=?= a&(4 3)
+  & a
+  @ z 3
+  @ x z
+  @ fa (**f a ? a x)
+  @ y 4
+  | fa y
+
+=?= a&(4 3)
+  & a
+  @ z 3
+  @ x z
+  @ fa (f a ? a x)
+  @ y 4
+  | **fa y
+
+=?= a&(4 2 3)
+  & a
+  @ z 3
+  @ x z
+  @ fa (f a l ? l a x)
+  @ fa2 (**fa 2)
+  @ y 4
+  | fa2 y
+
+
+;;; Letrec Edge-Cases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Cannot inline recursive references, and cannot inline through recursive
+;;; binders.  Without this check, the inliner would enter an infinite loop.
+
+=?= a&3
+  & _
+  @ fa (**f x ? x)
+  | fa 3
+
+=?=   & _
+      | (f x)?(4 | f 3-x) 9
+  & _
+  | ? (**f x) (4 (f 3-x))
+  | 9
+
+=?=   & _
+     @@ (fa = (f c d ? c d) fa)
+      | fa 3
+  & _
+ @@ (fa = (**f x ? fa x))
+  | fa 3
+
+=?=   & _
+     @@ (f3 = (fa c d e ? c d) f3 3)
+      | f3 9
+  & _
+ @@ (f3 = ((**fa n o ? f3 n) 3))
+  | f3 9
+
+
+;;; Legal Inlining with LETREC ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Inlining letrec bound *arguments* is fine, we just can't inline
+;;; *through* recursive bindings.
+
+=?=   & a
+      | 1 0 0 const 0
+      | (@@(b = 0 b))b
+  & _
+  | 1 0 0 const 0
+  @ k_ (i2_2 10)
+ @@ (zs = 0 zs)
+  | k_ zs
+
+
+;;; Mutual Recursion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (car x)  | 1 (_ & 4) (n a _ & 0 n a) (h _ & h) (_ & 0) x
+= (cdr x)  | 1 (i & i) (_ _ b & b)     (_ t & t) (_ & 0) x
+= (cadr x) | car | cdr | x
+
+=?=   | 0 0 1                      ; & $1
+      | 1 (0 (0 2-0 2) (0 cdr 3))  ; @ $2 (2 $2 (cdr $3))
+      | 1 (0 (0 2-0 2) 4)          ; @ $3 (0 $2 $4)
+      | 1 (0 (0 2-1 4) 2)          ; @ $4 (1 $4 $2)
+      | 0 | 0 (2 1)                ; 1 (cadr $3) (cdr $3)
+              (0 cadr 3)
+      | (0 cdr 3)
+  & _
+ @@ = zo
+    @@ = z @ o (cdr zo)
+           | (0 z o)
+     @@ o=(1 o z)
+      | (0 z o)
+  @ z (cadr zo)
+  @ o (cdr zo)
+  | (1 z o)
+
+=?=   & a
+      @ b (a 3)
+      @ c (a 4)
+      | 1 b b c c
+  & a
+ @@ = b (a 3)
+    = c (a 4)
+   | 1 b b c c
+
+=?=   & a
+     @@ b=(b 3)
+      @ c (b 4)
+      | 1 b b c c
+  & a
+  @@ (b = b 3)(c = b 4)
+   | 1 b b c c
+
+=?=   | 0 0 1
+      | 1 ( 0 3   2-3 )
+      | 1 ( 0 2   4   )
+      | 0 ( 0 2-1 2   ) 3
+  & a
+  @@ (b = c 3)(c = b 4)
+   | 1 b c
+
+=?= 3
+  @ b 3
+  @ c b
+  | b
+
+;; LETREC bindings don't optimize-out constant bindings.
+
+=?=   | 0 0 1
+      | 1 (0 4 3)
+      | 1 (const 1)
+      | 1 (0 2 3)
+      | (0 2 4)
+  & a
+ @@ = p (const 1)
+    = q (r p)
+    = r (q p)
+  | (q r)
+
+;; LETREC bindings don't optimize-out constant bindings.
+
+=?=   | 0 0 1
+      | 1 (0 4 3)
+      | 1 (const 1)
+      | 1 (0 2 3)
+      | (0 2 4)
+  & a
+ @@ = p (const 1)
+    = q (r p)
+    = r (q p)
+  | (q r)
+
+;; LETREC bindings don't optimize-out trivial rebindings.
+
+=?=   | 0 0 1
+      | 1 (const 1)
+      | 1 2
+      | (0 (0 3 3) 2)
+  & a
+ @@ = p (const 1)
+    = s p
+  | (s s p)
+
+;; LETREC bindings *do* optimize out unused bindings and single-use
+;; bindings.
+
+=?=   | 0 0 1
+      | 1 (const 1)
+      | (0 2 2)
+  & a
+ @@ = a (0 1 2 3)
+    = p (const 1)
+    = s p
+  | (s s)
+
+
+;;; Inlining Functions that use LETREC ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(const x y)=x
+(ignore y x)=x
+
+= (silly f)
+@@   = x (0 y)
+     = y (1 x)
+ | f (car x) (car y)
+
+= (serious n)
+@ x (**silly ignore)
+@ y (**silly const)
+| 2 x y
+
+(serious 2)=?=(2 1 0)

@@ -1,0 +1,294 @@
+name: plunder
+version: 0.1.0.0
+license: BSD3
+author: "Plunder Authors"
+copyright: "2023 Plunder Authors"
+
+# ghc-options: -O2 -j
+ghc-options: -O -j
+
+cc-options: -Wall -O3
+
+library:
+  source-dirs: lib
+  c-sources:
+    - cbits/jets.c
+    - cbits/base58.c
+    - cbits/blake3.c
+    - cbits/blake3_dispatch.c
+    - cbits/blake3_portable.c
+    - cbits/seed.c
+    - cbits/jets.c
+    - cbits/xxhash.c
+  when:
+    - condition: arch(aarch64)
+      then:
+        c-sources:
+          - cbits/blake3_neon.c
+      else:
+        c-sources:
+          - cbits/xxh_x86dispatch.c
+          - cbits/blake3_avx2_x86-64_unix.S
+          - cbits/blake3_avx512_x86-64_unix.S
+          - cbits/blake3_sse2_x86-64_unix.S
+          - cbits/blake3_sse41_x86-64_unix.S
+
+pkgconfig-depends:
+  - gmp
+
+extra-source-files:
+  - cbits/*.h
+  - cbits/*.c
+  - cbits/*.S
+
+include-dirs:
+  - cbits
+
+executables:
+  rex:
+    main: Main.hs
+    source-dirs: exe/rex
+    dependencies:
+      - plunder
+
+  plock:
+    main: Main.hs
+    source-dirs: exe/plock
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+      - bytestring
+
+  pallas:
+    main: Main.hs
+    source-dirs: exe/plunder
+    ghc-options: -threaded -rtsopts "-with-rtsopts=-N -Iw60"
+    dependencies:
+      - plunder
+
+  localhost-router:
+    main: Main.hs
+    source-dirs: exe/localhost-router
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+      - network
+      - network-run
+
+  localhost-client:
+    main: Main.hs
+    source-dirs: exe/localhost-client
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+      - network
+      - network-run
+
+  pc:
+    main: Main.hs
+    source-dirs: exe/portcat
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+      - conduit-extra
+      - network
+      - network-run
+
+tests:
+  server-tests:
+    source-dirs: exe/server-tests
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - base
+      - plunder
+
+  seed-tests:
+    source-dirs: exe/seed-tests
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - base
+      - plunder
+
+  sorted-tests:
+    source-dirs: exe/sorted-tests
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - base
+      - plunder
+
+  nat-tests:
+    source-dirs: exe/nat-tests
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - base
+      - bytestring
+      - plunder
+      - QuickCheck
+      - text
+      - vector
+
+  rex-tests:
+    source-dirs: exe/rex-tests
+    main: Main.hs
+    dependencies:
+      - plunder
+
+  loot-tests:
+    source-dirs: exe/loot-tests
+    main: Main.hs
+    dependencies:
+      - plunder
+
+  sire-tests:
+    source-dirs: exe/sire-tests
+    main: Main.hs
+    dependencies:
+      - plunder
+
+benchmarks:
+  nat-bench:
+    source-dirs: exe/nat-bench
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+
+  sorted-bench:
+    source-dirs: exe/sorted-bench
+    main: Main.hs
+    ghc-options: "-threaded -rtsopts -with-rtsopts=-N"
+    dependencies:
+      - plunder
+
+dependencies:
+  - aeson
+  - async
+  - base
+  - base16-bytestring
+  - base58-bytestring
+  - binary
+  - bytestring
+  - bytestring-mmap
+  - case-insensitive
+  - classy-prelude
+  - conduit
+  - containers
+  - criterion
+  - deepseq
+  - deque
+  - directory
+  - ed25519
+  - entropy
+  - exceptions
+  - filepath
+  - focus
+  - ghc-bignum
+  - ghc-prim
+  - hashable
+  - hashtables
+  - heap
+  - http-client
+  - http-client-tls
+  - http-types
+  - integer-gmp
+  - kazura-queue
+  - largeword
+  - lmdb
+  - memory
+  - mono-traversable
+  - mtl
+  - network
+  - network-run
+  - optics
+  - optparse-applicative
+  - parallel
+  - pretty-show
+  - primitive
+  - process
+  - QuickCheck
+  - random
+  - random-shuffle
+  - resourcet
+  - serialise
+  - servant
+  - servant-client
+  - servant-server
+  - stm
+  - stm-chans
+  - stm-containers
+  - stm-delay
+  - tasty
+  - tasty-golden
+  - tasty-quickcheck
+  - terminal-size
+  - text
+  - text-builder
+  - time
+  - transformers
+  - unboxed-ref
+  - unix
+  - unix-time
+  - unliftio
+  - unordered-containers
+  - utf8-string
+  - vector
+  - vector-algorithms
+  - wai
+  - wai-app-static
+  - wai-websockets
+  - warp
+  - websockets
+
+default-extensions:
+  - ApplicativeDo
+  - BangPatterns
+  - BlockArguments
+  - ConstraintKinds
+  - DataKinds
+  - DefaultSignatures
+  - DeriveAnyClass
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveGeneric
+  - DeriveTraversable
+  - DerivingStrategies
+  - DuplicateRecordFields
+  - EmptyCase
+  - EmptyDataDecls
+  - FlexibleContexts
+  - FlexibleInstances
+  - FunctionalDependencies
+  - GADTs
+  - GeneralizedNewtypeDeriving
+  - ImplicitParams
+  - LambdaCase
+  - MagicHash
+  - MultiParamTypeClasses
+  - MultiWayIf
+  - NamedFieldPuns
+  - NoImplicitPrelude
+  - NumericUnderscores
+  - OverloadedLabels
+  - OverloadedRecordDot
+  - OverloadedStrings
+  - PartialTypeSignatures
+  - PatternSynonyms
+  - QuasiQuotes
+  - Rank2Types
+  - RankNTypes
+  - RecordWildCards
+  - RecursiveDo
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TemplateHaskell
+  - TupleSections
+  - TypeApplications
+  - TypeFamilies
+  - TypeOperators
+  - UndecidableInstances
+  - UnicodeSyntax
+  - ViewPatterns

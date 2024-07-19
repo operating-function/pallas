@@ -1,0 +1,235 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_runcog_site <- demo_cog_stop
+
+:| sire
+:| kern
+:| hitch
+:| demo_timer
+:| json
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; First thing, we're going to write a minimal program which just reacts to
+;; HTTP PUT to `/spin`.
+
+# datatype CogStatus
+; The start state
+* STARTED sandboxChannel:Nat reapTid:Nat
+; The raw cog state of the final
+* STOPPED stopped:Any
+
+# record KernelState
+| KERNEL_STATE
+* cogStatus  : Tab Nat CogStatus
+* servThread : ThreadId
+* files      : (HMap Str (ContentType, Pin Bar))
+
+= jsonContentType [(b#{content-type}, b#{application/json})]
+
+> ThreadId > KernelState
+= (newState servThread)
+| KERNEL_STATE
+* emptyTab
+* servThread
+* hmEmpty largeConfig
+
+= (updateCogStatus vSt cogid status return)
+: (PIN old) < readRef vSt
+@ new | setCogStatus
+      * tabIns cogid status | getCogStatus old
+      * old
+: _   < writeRef vSt | PIN new
+| return ()
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(bindMaybe mVal k)=(**maybeCase mVal NONE k)
+
+> Bar > Maybe (Tab Str Json)
+= (jsonMap jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| if (res || leftover) NONE
+# datacase json
+* JMAP|m | SOME m
+* _      | NONE
+
+> Bar > Maybe Nat
+= (parseCogidBody jsonBS)
+: jm < **bindMaybe (jsonMap jsonBS)
+: js < **bindMaybe (tabLookup %cogid jm)
+# datacase js
+* JSTR|n | getNatStr (barNat n) NONE SOME
+* _      | NONE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Ref KernelState > Nat > Cog ()
+= (listenForReap vSt cogid return)
+| trk [%waiting cogid]
+: ??(reap_cog cogState) < syscall (**COG_REAP cogid)
+# datacase cogState
+* NONE | return ()
+* (SOME state)
+    | trk [%reaped state]
+    : _ < updateCogStatus vSt cogid (STOPPED state)
+    | return ()
+
+> Ref KernelState > Cog () > Cog Nat
+= (startCog vSt cog return)
+; Generate a random number for the channel
+: bar     < syscall (**RAND_BYTE 1)
+@ channel | barNat bar
+;
+; TODO: Add the channel id to the wrapper we'll put around the cog.
+: ??(spun cogid) < syscall (COG_SPIN cog)
+: reapTid        < fork (listenForReap vSt cogid)
+: _              < updateCogStatus vSt cogid (STARTED channel reapTid)
+| return cogid
+
+> Ref KernelState > Nat > Cog ()
+= (stopCog vSt cogid return)
+: (PIN st) < readRef vSt
+# datacase | tabGet (getCogStatus st) cogid
+* (STARTED channel reapTid)
+    ; cancel the reaping thread for this cog so it doesn't write over the entry
+    ; in cog status once we stopped the cog.
+    : _            < cancel reapTid
+    : ??(stop val) < syscall (COG_STOP cogid)
+    # datacase val
+    * NONE | return ()
+    * (SOME state)
+        : _ < updateCogStatus vSt cogid (STOPPED state)
+        | return ()
+* (STOPPED _)
+    | return ()
+
+(emptyFileServer req)=NONE
+
+= (fileServer (PIN st) [method path headers (PIN body)])
+# switch method
+* _ | NONE
+* GET
+  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
+  & [type (PIN content)]
+  @ head | [(b#{content-type}, type)]
+  [200 b#gotcha head content]
+
+> Ref KernelState
+> (KernelState > KernelState)
+> Cog ()
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ srv       | **getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
+| return ()
+
+> Ref KernelState > HttpReq > Cog ()
+= (handleReq vSt request return)
+;| trk [%req request]
+@ [rid method path headers pBody@(PIN body)] request
+# switch method
+* POST
+  # switch path
+  * b#{/spin}
+    ; todo: until we have seed handling in sire committed, we don't actually
+    ; parse the incoming as a program to run. Instead, we'll just start a copy
+    ; of the timer demo.
+    @ cog | runCog-(timeDemo 10)
+    : ??(cog_started cogid) < startCog vSt cog
+    ; return the new cogid to the caller.
+    ;
+    @ resultBS | printJson | JMAP #[cogid=(JSTR | natBar | showNat cogid)]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok jsonContentType resultBS))
+    | return ()
+  * b#{/stop}
+    | trk [%body body]
+    # datacase | parseCogidBody body
+    * NONE
+      : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+      | return ()
+    * SOME|cogid
+      | trk [%cogid cogid]
+      : _ < stopCog vSt cogid
+      : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
+      | return ()
+  * b#{/remove}
+    ; TODO: removes a stopped or crashed cog
+    | return ()
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+    | return ()
+* GET
+  # switch path
+  * b#{/status}
+    ; Builds a JSON blob of all the details for the UI on the other side.
+    : (PIN st) < readRef vSt
+    @ kvs | tabToPairs | **getCogStatus st
+    @ jval
+        | JVEC
+        : [cogid status] < foreach kvs
+        | JMAP
+        ## =cogid (JSTR | natBar | showNat cogid)
+        ## =status
+            # datacase status
+            * (STARTED _ _) | JMAP #[Spinning=JNULL]
+            * (STOPPED a)
+                 @ tag | idx 0 a
+                 | if | eql 0 tag
+                     ; TODO: Technically not correct. Stopped and could maybe
+                     ; be restarted somehow if not for the cogid being dead now
+                     | JMAP #[Finished=JNULL]
+                 | if | eql 1 tag
+                     | JMAP #[Finished=JNULL]
+                 | if | eql 2 tag
+                     ; TODO: print the values out and send them.
+                     | JMAP #[Crashed=(JMAP #[op={op} arg={arg}])]
+                 | else
+                     | JMAP #[TimedOut=(JSTR | natBar | showNat | idx 1 a)]
+    @ resultBS | printJson jval
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok jsonContentType resultBS))
+    | return ()
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+    | return ()
+* PUT
+  ; TODO: having the webserver in the "kernel" is actually really weird. It
+  ; should live in a process and communicate with the kernel over a normalish
+  ; privileged API that it's allowed to access via the sandbox.
+  ;
+  @ barType | **fromSome b#{text/plain}
+            | tabLookup b#{content-type}
+            | tabFromPairs headers
+  : (PIN st) < readRef vSt
+  @ files (**getFiles st)
+  @ files | hmInsert (barNat path) [barType pBody] files
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done [] b#{}))
+  : _ < modifyState vSt & st
+                        | setFiles files
+                        | st
+  | return ()
+* _
+  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+  | return ()
+
+
+> Ref KernelState > Cog Void
+= (runHttpServer vSt return)
+: ??(rhs_heard req) < syscall HTTP_HEAR
+: _                 < handleReq vSt req
+| runHttpServer vSt return
+
+> Cog ()
+= (launchKernel return)
+: servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+: vSt         < newRef (PIN | newState servThread)
+: httpThread1 < fork (runHttpServer vSt)
+| return ()
+
+main=(runCog launchKernel)

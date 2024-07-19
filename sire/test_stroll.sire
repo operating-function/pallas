@@ -1,0 +1,283 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### test_stroll <- test_datom
+
+:| sire
+:| datom
+:| stroll
+:| stew
+
+
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= notesDB
+^ assertTransactStrollDb _ | emptyStrollDb 42
+++ ## ={:db/id} %[{plunder page}]
+   ## ={:page/title} {Plunder}
+   ## ={:block/uid} {TtzFH-Ym1}
+   ## ={:block/children}
+      ++ ## ={:block/string} {Members}
+         ## ={:block/uid} {r0wrZ2qQL}
+         ## ={:block/order} 0
+         ## ={:block/page} %[{plunder page}]
+         ## ={:block/children}
+            ++ ## ={:block/string} {[[Iceman]]}
+               ## ={:block/uid} {3LKryaGyF}
+               ## ={:block/order} 0
+               ## ={:block/page} %[{plunder page}]
+               ## ={:block/refs} %[{iceman page}]
+               ## ={:block/children}
+                  ++ ## ={:block/string} {((b2fdrwjXZ))}
+                     ## ={:block/uid} {D_fFfQNlb}
+                     ## ={:block/order} 0
+                     ## ={:block/page} %[{plunder page}]
+                     ## ={:block/refs} %[{b2fdrwjXZ}] ; ref
+            ++ ## ={:block/string} {[[Sol]]}
+               ## ={:block/uid} {o-_aIaa83}
+               ## ={:block/order} 1
+               ## ={:block/page} %[{plunder page}]
+               ## ={:block/refs} %[{sol page}]
+               ## ={:block/children}
+                  ++ ## ={:block/string} {((16M_lgxfk))}
+                     ## ={:block/uid} {xYAA9mPYv}
+                     ## ={:block/order} 0
+                     ## ={:block/page} %[{plunder page}]
+                     ## ={:block/refs} %[{16M_lgxfk}]
+++ ## ={:db/id} %[{iceman page}]
+   ## ={:page/title} {Iceman}
+   ## ={:block/uid} {pnKunZ4If}
+   ## ={:block/children}
+      ++ ## ={:block/string} {Currently working on}
+         ## ={:block/uid} {5COIJVctB}
+         ## ={:block/order} 0
+         ## ={:block/page} %[{iceman page}]
+         ## ={:block/children}
+            ++ ## ={:db/id} %[{b2fdrwjXZ}]
+               ## ={:block/string} {Datom}
+               ## ={:block/uid} {b2fdrwjXZ}
+               ## ={:block/order} 0
+               ## ={:block/page} %[{iceman page}]
+++ ## ={:db/id} %[{sol page}]
+   ## ={:page/title} {Sol}
+   ## ={:block/uid} {1NLcDwisF}
+   ## ={:block/children}
+      ++ ## ={:block/string} {Currently working on}
+         ## ={:block/uid} {yzo5F7CVd}
+         ## ={:block/order} 0
+         ## ={:block/page} %[{sol page}]
+         ## ={:block/children}
+            ++ ## ={:db/id} %[{16M_lgxfk}]
+               ## ={:block/string} {Compiler}
+               ## ={:block/uid} {16M_lgxfk}
+               ## ={:block/order} 0
+               ## ={:block/page} %[{sol page}]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Conceptual demo:
+;
+; Here we try to break down the workflow of reading and writing.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;
+;; Case 1: Grab blocks under the main Plunder page.
+;
+
+; Gets the toplevel block for the Plunder page.
+= plunderPage
+| assertRight | findPageBlock {Plunder} notesDB
+
+; Gets the one "Members" block that's on the Plunder page.
+= membersBlock
+@ q | makeOrderedChildrenQuery plunderPage
+| idx 0 | assertRight | findBlocksContent q notesDB
+
+; Gets the two blocks under Members in sorted order.
+= (memberBlockContents membersBlock db)
+@ q | makeOrderedChildrenQuery membersBlock
+| assertRight | findBlocksContent q db
+
+=?= (memberBlockContents membersBlock notesDB)
+ ++  ## ={:block/uid} {3LKryaGyF}
+     ## ={:block/string} {[[Iceman]]}
+     ## ={:block/children}
+        [#[{:block/uid}={D_fFfQNlb} {:block/order}=0]]
+ ++  ## ={:block/uid} {o-_aIaa83}
+     ## ={:block/string} {[[Sol]]}
+     ## ={:block/children}
+        [#[{:block/uid}={xYAA9mPYv} {:block/order}=0]]
+
+; Notes: Not entirely happy with the above. Doing this as a bunch of
+; separate lookups seems questionable and likely to result in inconsistent
+; views if the database is modified mid-read. A real implementation also needs
+; to do binding of an entity to a UI element with subscriptions.
+;
+
+;
+;; Case 2: Get the "linked references" section of a page.
+;
+; Roam's big idea is that for every item (page or block) that you view, you can
+; see all things which reference it in context. So find out all the blocks which
+; reference the Iceman page, their uid and the title of the page they are on.
+;
+
+= icemanPage
+| assertRight | findPageBlock {Iceman} notesDB
+
+= referencingBlocks
+| findPageBlocksReferencing icemanPage notesDB
+
+=?=    referencingBlocks
+    ++  1
+    ++  ## ={:block/refs}
+            ++  ## ={:block/uid} {3LKryaGyF}
+                ## ={:block/page}
+                   [#[{:block/uid}={TtzFH-Ym1} {:page/title}=[%Plunder]]]
+
+; Notes: The referencing blocks query above really would work better as a
+; :query
+
+;
+;; Case 3: Inserting a new bullet under an item.
+;
+; So you're cursor is on a bullet, but now you want a NEW bullet after
+; that. Whoah!
+;
+; Test that we move all bullet points around correctly
+
+; Insert at beginning
+=?=    | sortRowTabByOrder
+       | findBlocksChildrenUnsorted {r0wrZ2qQL}
+       | assertRight
+       | insertEmptyBlock {r0wrZ2qQL} 0 notesDB
+    @ [_ nextUid] | genUid | idx 0 notesDB
+    ++ #[{:block/uid}=nextUid {:block/order}=0]
+    ++ #[{:block/uid}={3LKryaGyF} {:block/order}=1]
+    ++ #[{:block/uid}={o-_aIaa83} {:block/order}=2]
+
+; Middle
+=?=    | sortRowTabByOrder
+       | findBlocksChildrenUnsorted {r0wrZ2qQL}
+       | assertRight
+       | insertEmptyBlock {r0wrZ2qQL} 1 notesDB
+    @ [_ nextUid] | genUid | idx 0 notesDB
+    ++ #[{:block/uid}={3LKryaGyF} {:block/order}=0]
+    ++ #[{:block/uid}=nextUid {:block/order}=1]
+    ++ #[{:block/uid}={o-_aIaa83} {:block/order}=2]
+
+; End
+=?=    | sortRowTabByOrder
+       | findBlocksChildrenUnsorted {r0wrZ2qQL}
+       | assertRight
+       | insertEmptyBlock {r0wrZ2qQL} 2 notesDB
+    @ [_ nextUid] | genUid | idx 0 notesDB
+    ++ #[{:block/uid}={3LKryaGyF} {:block/order}=0]
+    ++ #[{:block/uid}={o-_aIaa83} {:block/order}=1]
+    ++ #[{:block/uid}=nextUid {:block/order}=2]
+
+;
+;; Case 4: Write some text in that block
+;
+; When we set the text of a block, we have to parse it and do bookkeeping
+; around references between them. Tests that we update these correctly.
+;
+
+; Change uid "D_fFfQNlb" from "((b2fdrwjXZ))" to "[[Iceman]] ((b2fdrwjXZ))".
+= changedSubIcemanRefDB
+| setBlockText {D_fFfQNlb} {[[Iceman]] ((b2fdrwjXZ))} notesDB
+
+; Ensure we added a reference to {pnKunZ4If}
+=?=     [{pnKunZ4If} {b2fdrwjXZ}]
+    | findAllRefUids {D_fFfQNlb} changedSubIcemanRefDB
+
+; Change the text again to remove the block reference.
+= changed2SubIcemanRefDB
+| setBlockText {D_fFfQNlb} {[[Iceman]]} changedSubIcemanRefDB
+
+=?=     [{pnKunZ4If}]
+    | findAllRefUids {D_fFfQNlb} changed2SubIcemanRefDB
+
+; Change it again so it now points to an invalid uid.
+= changed3SubIcemanRefDB
+| setBlockText {D_fFfQNlb} {((AAAAAAAAA))} changed2SubIcemanRefDB
+
+=?=     []
+    | findAllRefUids {D_fFfQNlb} changed3SubIcemanRefDB
+
+;
+;; Case 5: Move a bullet from one parent to another.
+;
+
+= reorderingTestDB
+^ assertTransactStrollDb _ | emptyStrollDb 42
+++ ## ={:db/id} %[{reorder testing}]
+   ## ={:page/title} {Reorder}
+   ## ={:block/uid} {Mkd32lJAn}
+   ## ={:block/children}
+      ++ ## ={:block/string} {Source}
+         ## ={:block/uid} {ohlsan321}
+         ## ={:block/order} 0
+         ## ={:block/page} %[{reorder testing}]
+         ## ={:block/children}
+            ++ ## ={:block/string} {A}
+               ## ={:block/uid} {xh8spvba1}
+               ## ={:block/order} 0
+               ## ={:block/page} %[{reorder testing}]
+            ++ ## ={:block/string} {B}
+               ## ={:block/uid} {492kcn1sl}
+               ## ={:block/order} 1
+               ## ={:block/page} %[{reorder testing}]
+            ++ ## ={:block/string} {C}
+               ## ={:block/uid} {wdf1297fD}
+               ## ={:block/order} 2
+               ## ={:block/page} %[{reorder testing}]
+      ++ ## ={:block/string} {Destination}
+         ## ={:block/uid} {ck20LBq8I}
+         ## ={:block/order} 0
+         ## ={:block/page} %[{reorder testing}]
+         ## ={:block/children}
+            ++ ## ={:block/string} {1}
+               ## ={:block/uid} {AnLk21dYd}
+               ## ={:block/order} 0
+               ## ={:block/page} %[{reorder testing}]
+            ++ ## ={:block/string} {2}
+               ## ={:block/uid} {ssk209jkD}
+               ## ={:block/order} 1
+               ## ={:block/page} %[{reorder testing}]
+            ++ ## ={:block/string} {3}
+               ## ={:block/uid} {ui3d9vvaa}
+               ## ={:block/order} 2
+               ## ={:block/page} %[{reorder testing}]
+++ ## ={:db/id} %[{other reorder page}]
+   ## ={:page/title} {Reorder Dest}
+   ## ={:block/uid} {me29jsdfN}
+
+; Moves `Reorder > Source > B` to between `Reorder > Destination > (1) and (2)`.
+= reparentedSamePageDB
+| reparent {492kcn1sl} {ck20LBq8I} 1 reorderingTestDB
+
+; Checks that the source's parent was reordered correctly
+=?=     | sortRowTabByOrder
+        | findBlocksChildrenUnsorted {ohlsan321} reparentedSamePageDB
+    ++ #[{:block/uid}={xh8spvba1} {:block/order}=0]
+    ++ #[{:block/uid}={wdf1297fD} {:block/order}=1]
+
+; Checks that the bullet arrived at the correct destination and reordered the
+; bullets after it:
+=?=     | sortRowTabByOrder
+        | findBlocksChildrenUnsorted {ck20LBq8I} reparentedSamePageDB
+    ++ #[{:block/uid}={AnLk21dYd} {:block/order}=0]
+    ++ #[{:block/uid}={492kcn1sl} {:block/order}=1]
+    ++ #[{:block/uid}={ssk209jkD} {:block/order}=2]
+    ++ #[{:block/uid}={ui3d9vvaa} {:block/order}=3]
+
+; Move the whole source block to a block on the Reorder page.
+= reparentedDifferentPageDB
+| reparent {ohlsan321} {me29jsdfN} 0 reorderingTestDB
+
+; Checks that we change the {:block/page} of our children, by comparing it with
+; the eid of a toplevel node we moved to.
+=?=     ^ getPageByEid _ reparentedDifferentPageDB
+        | getEidOf {xh8spvba1} reparentedDifferentPageDB
+    | getEidOf {me29jsdfN} reparentedDifferentPageDB

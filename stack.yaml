@@ -1,0 +1,6 @@
+resolver: lts-21.25
+
+packages: ["."]
+
+nix:
+  packages: [lmdb, zlib]

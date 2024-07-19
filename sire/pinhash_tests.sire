@@ -1,0 +1,29 @@
+#### pinhash_tests <- quickcheck
+
+:| sire
+:| blake3
+:| quickcheck
+:| pinhash
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (pinItemHash plan)
+| eql | planHash plan
+| pinHash PIN-plan
+
+!! propJet planHash [1=3 5=2 7=8]
+!! propJet planHash %[4 6 1 0 10]
+!! propJet planHash [1 2 3 4 5 6]
+!! propJet planHash c4
+!! propJet planHash x#deadbeef
+!! propJet planHash 42
+!! propJet planHash (0 42)
+!! propJet planHash pinItem-add
+!! propJet planHash PIN-42
+
+!! qc_jet 42 planHash arbPlan
+!! qc_jet 42 pinHash arbPlan
+!! qc1_pass 42 {pinHash equals inner planHash} prop1-pinItemHash arbPlan
+
+(^-^)

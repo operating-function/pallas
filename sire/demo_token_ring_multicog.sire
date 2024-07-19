@@ -1,0 +1,46 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_token_ring_multicog <- prelude
+
+:| prelude
+
+
+;;; Talker ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (talker ourName us them white theMsg k)
+; trk [%talker ourName us them theMsg]
+: sendThread
+    < fork
+    & done
+    : now < syscall (**PORT_SEND us them theMsg)
+    | trk [ourName %sent theMsg] ;;; %at now]
+    | done 0
+: response < syscall (**PORT_RECV us white)
+@ respBody (idx 2 response)
+| trk [ourName %got respBody]
+| talker ourName us them white theMsg k
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ali_seed=39436861167592927902948995832898162469300291311158096958423061705363581239110
+ali_addr=42318351687558922463985110039750348423447121533062066010708878065560339580181
+
+bob_seed=15488387961878952233937608813815664971630253971784863019867455244632295645532
+bob_addr=105962300523223997221052313627545631707180236166600624718177866214868183059397
+
+chr_seed=52976751534160209956333130898579376098249339062778942485773840894118951066106
+chr_addr=103591720051388974245721626122938885281617477279315808997977838168198714501849
+
+ali_white=(setSing chr_addr)
+bob_white=(setSing ali_addr)
+chr_white=(setSing bob_addr)
+
+ali_msg=(b#{Hi, bob.  What's good?})
+bob_msg=(b#{Life is good.  Charlie?})
+chr_msg=(b#{Life is good.  Alice?})
+
+ali=(runCog (talker %ali ali_seed bob_addr ali_white ali_msg))
+bob=(runCog (talker %bob bob_seed chr_addr bob_white bob_msg))
+chr=(runCog (talker %chr chr_seed ali_addr chr_white chr_msg))

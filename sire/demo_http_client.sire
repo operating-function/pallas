@@ -1,0 +1,26 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_http_client <- demo_full_tag_site
+
+:| prelude
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= main
+: exit < runCog
+@ m b{GET}                            ;; GET request
+@ u b{http://ifconfig.me}             ;; HTTPS url
+@ h [[b{Content-Type} b{text/plain}]] ;; one header
+@ b b{}                               ;; no body
+@ r 1                                 ;; no redirects
+@ t 1000000                           ;; 1s timeout
+: resp@[code msg headers (PIN body)] < syscall (HTTP_REQ m u h b r t)
+| trk [request=(HTTP_REQ m u h b r t)]
+| trk [response=resp]
+| trk
+    | if (isNat-resp || gth code 1000) "ERROR"
+    | [responseBody=body]
+| exit 0

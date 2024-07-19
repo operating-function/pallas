@@ -1,0 +1,430 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### quickcheck <- pq
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| splitmix [mkSMGen nextWord64 splitSMGen]
+:| prelude
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(**debug m v)=v
+
+; uncomment to get debug output
+;(**debug m v)=(trk m v)
+
+# abstype StdGen
+
+# datatype (Result a)
+* OK
+    * good : Nat     ;  {good} is the number successful tests
+    * drop : Nat     ;  {drop} is the number discards
+* FAIL
+    * gen  : StdGen  ;  {gen} is the generator (for replay)
+    * size : Nat     ;  The {size} (for replay)
+    * good : Nat     ;  {good} is the number of successful tests
+    * drop : Nat     ;  {drop} is the number discards
+    * fail : a       ;  {fail} is the failing value (shrunk)
+* GAVE_UP
+    * good : Nat     ;  {good} is the number of successful tests
+    * drop : Nat     ;  {drop} is the number discards
+
+#* # typedef (Gen a)    (StdGen > Nat > a)
+#* # typedef (Shrink a) (a > List a)
+#* # typedef PropResult (Maybe Bit)
+
+# record Args
+| ARGS
+* replay          : Maybe (StdGen, Nat)
+* maxSuccess      : Nat
+* maxDiscardRatio : Nat
+* maxSize         : Nat
+* maxShrinks      : Nat
+
+> Args
+= stdArgs (ARGS NONE 100 100 100 10000)
+
+# record State
+| STATE
+* successCount       : Nat
+* totalDiscardCount  : Nat
+* recentDiscardCount : Nat
+
+; infix 4 ===
+; (===) :: Eq a => a -> a -> PropResult
+; x === y = SOME (x == y)
+
+; infix 4 =/=
+; (=/=) :: Eq a => a -> a -> PropResult
+; x =/= y = SOME (x /= y)
+
+> (a -> Bit) > a > PropResult
+(prop1 fun x)=(SOME | fun x)
+
+> (a > b > Bit) > a > b > PropResult
+(prop2 fun x y)=(SOME | fun x y)
+
+> PropResult
+discardRes=NONE
+
+> a > a > PropResult
+= qcEql | prop2 eql
+
+> a > a > PropResult
+= qcNeq | prop2 neq
+
+> Bit > PropResult
+qcIs=SOME
+
+> (a > b) > a > Bit
+(propJet f x)=(eql f-x pinItem-f-x)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; quickCheck
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(roundTo n m)=(mul (div n m) m)
+
+> StdGen
+> Args
+> Gen a
+> Shrink a
+> (a -> PropResult)
+> Result a
+= (quickCheck sgSeed args gen shrink prop)
+;
+@ stInit | STATE 0 0 0
+@ sgInit | maybeCase (getReplay args) sgSeed idx-0
+;
+@ (at0 f s n d)
+    | if (and (eql 0 n) (eql 0 d))
+        | s
+    | else
+        | f n d
+;
+@ (computeSize_ n d)
+    @ msz (getMaxSize args)
+    @ msc (getMaxSuccess args)
+    ;; e.g. with maxSuccess = 250, maxSize = 100, goes like this:
+    ;; 0, 1, 2, ..., 99, 0, 1, 2, ..., 99, 0, 2, 4, ..., 98.
+    @ tst
+        | lte (add (roundTo n msz) msz) msc
+        | gte n msc
+        | eql 0 (mod msc msz)
+    | if tst
+        | min msz
+        | add
+            | mod n msz
+            | div d 10
+    | else
+        | min msz
+        | div | mul
+                  | mod n msz
+                  | msz
+              | add
+                  | mod (getMaxSuccess args) msz
+                  | div d 10
+;
+@ computeSize
+    # datacase (getReplay args)
+    * NONE         | computeSize_
+    * (SOME [_ s]) | at0 computeSize_ s
+;
+@ (runShrinks count lastGood shrinks)
+    # datacase shrinks
+    * NIL
+        | lastGood
+    * (CONS v nextShrinks)
+        | if (debug [{shrink: } v] (prop v == SOME FALSE))
+            | runShrinks (inc count) v        (shrink v)
+        | else
+            | runShrinks count       lastGood nextShrinks
+;
+@ (go st sg)
+    | if (gte (getSuccessCount st) (getMaxSuccess args))
+        | OK getSuccessCount-st getTotalDiscardCount-st
+    | if | gte (getTotalDiscardCount st)
+         | mul (getMaxDiscardRatio args) (getMaxSuccess args)
+        | GAVE_UP getSuccessCount-st getTotalDiscardCount-st
+    @ sg2,sg1 | splitSMGen sg
+    @ size    | computeSize getSuccessCount-st getRecentDiscardCount-st
+    @ v       | gen sg2 size
+    # datacase (debug [{go: } v] (prop v))
+    * (SOME res)
+        | if res
+            | go (setSuccessCount (inc | getSuccessCount st) st) sg1
+        | FAIL sgInit size getSuccessCount-st getTotalDiscardCount-st
+        | runShrinks 0 v (shrink v)
+    * NONE
+        ^ (go _ sg1)
+        | setTotalDiscardCount (add 1 getTotalDiscardCount-st)
+        | setRecentDiscardCount (add 1 getRecentDiscardCount-st)
+        | st
+;
+| go stInit sgInit
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Gen
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Gen a
+> (a -> Gen b)
+> Gen b
+= (bindGen m k r n)
+@ [r1 r2] | splitSMGen r
+| k (m r1 n) r2 n
+
+> a > Gen a
+(pureGen x r n)=x
+
+> (Nat -> Gen a) > Gen a
+(sized f r n)=(f n r n)
+
+> Gen Nat
+getSize=(sized pureGen)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; generators
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Gen Word64
+(genU64 r n)=(fst | nextWord64 r)
+
+> Word64 > Word64 > Gen Word64
+= (chooseW64 lo hi r n)
+@ val (fst (nextWord64 r))
+| add lo (mod val (sub hi lo))
+
+> Row (Gen a) > Gen a
+= (oneof gs)
+| bindGen | chooseW64 0 (dec len-gs)
+| get gs
+
+> Gen a > Gen b > Gen (a, b)
+= (gen2 genA genB)
+: vA < bindGen genA
+: vB < bindGen genB
+| pureGen (vA, vB)
+
+> Nat > Gen a > Gen (List a)
+= (genListLen len gen)
+| if (lte len 0)
+    | pureGen ~[]
+: v  < bindGen gen
+: vs < bindGen (genListLen (sub len 1) gen)
+| pureGen (v :: vs)
+
+> Nat > Gen a > Gen (List a)
+= (genListLenMax maxLen gen)
+: len < bindGen genU64
+@ len | mod len maxLen
+| genListLen len gen
+
+> Gen a > Gen (List a)
+= (genList gen)
+: n < sized
+: k < bindGen (chooseW64 0 n)
+| genListLen k gen
+
+(genMap f gen r n)=(f | gen r n)
+
+genU8=(genMap w8 genU64)
+
+= (genPlan r n)
+^ _ r n
+| oneof
+++ genMap PIN genPlan
+++ : n < bindGen genU64
+   : a < bindGen | genMap inc genU64
+   : b < bindGen genPlan
+   | pureGen | LAW n a b
+++ : a < bindGen genPlan
+   | if (lte arity-a 1) | pureGen a
+   : b < bindGen genPlan
+   | pureGen (a b)
+++ genU64
+++ genList genU64
+++ oneof [c0 c1 c2 c3 c4 c5 c6 c7 c8 c9]
+++ genMap listToRow (genListLenMax 5 genPlan)
+++ genMap (compose setFromRow listToRow) (genListLenMax 5 genPlan)
+++ genMap tabFromPairsList (genListLenMax 5 | gen2 genU64 genPlan)
+; ++ genMap natBar genU8 ; TODO why does this perform so poorly?
+
+
+;;; shrinkers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; shrink lists should be in *ascending* order. we try the smallest first. if
+;;; the prop passes, we keep going "up" the list.
+
+> (a -> List a)
+> (b -> List b)
+> (a, b)
+> List (a, b)
+= (shrink2 shrA shrB (x, y))
+| listWeld
+    | listMap xx&[xx y] (shrA x)
+| listMap yy&[x yy] (shrB y)
+
+> Nat > List Nat
+= (shrinkNat x)
+| listNub
+| listTakeWhile (gth x)
+^ (0 :: _)
+| listMap (sub x)
+| listDrop 1 (listIterate v&(div v 2) x)
+
+> Bit > List Bit
+(shrinkBool b)=(if b ~[FALSE] ~[])
+
+> (a > List a) > List a > List (List a)
+= (shrinkList shr xs)
+@ n
+    | listLen xs
+@ (shrinkOne xs)
+    # datacase xs
+    * NIL | NIL
+    * (CONS x xs)
+    | listWeld
+        | listMap x&(x::xs)  (shr x)
+    | listMap xs&(x::xs) (shrinkOne xs)
+@ (removes k n xs)
+    @ xs1 | listTake k xs
+    @ xs2 | listDrop k xs
+    | if (gth k n)         | NIL
+    | if (listIsEmpty xs2) | ~[NIL]
+    ^ (xs2 :: listMap (listWeld xs1) _)
+    | removes k (sub n k) xs2
+| listWeld
+    | listCat
+    | listMap k&(removes k n xs)
+    | listTakeWhile (v&(gth v 0))
+    | listIterate (v&(div v 2)) n
+| shrinkOne xs
+
+; TODO shrink tabs, sets, rows, cows and bars separately
+> Any > List Any
+= (shrinkPlan plan)
+| if isPin-plan | ~[pinItem-plan]
+| if isLaw-plan | ~[lawName-plan lawArgs-plan lawBody-plan]
+| if isApp-plan | ~[car-plan cdr-plan]
+| if isNat-plan | shrinkNat plan
+| else          | die {shrinkPlan impossible case}
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; test helpers / pretty-printers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (showResult name seed result)
+# datacase result
+* (OK passed dropped)
+    `
+    | $(TEXT name 0) SUCCESS
+   ## =passed  $(WORD showNat-passed 0)
+   ## =dropped $(WORD showNat-dropped 0)
+* (FAIL gen size passed dropped failed)
+   `
+   | $(TEXT name 0) FAILURE
+   | =parameters
+      ## =seed    $(WORD showNat-seed 0)
+      ## =stdgen  $(EMBD gen)
+      ## =size    $(WORD showNat-size 0)
+      ## =passed  $(WORD showNat-passed 0)
+      ## =dropped $(WORD showNat-dropped 0)
+   | {counter example:}
+   | $(EMBD failed)
+* (GAVE_UP passed dropped)
+   `
+   | $(TEXT name 0) GAVE UP
+  ## =passed  $(WORD showNat-passed 0)
+  ## =dropped $(WORD showNat-dropped 0)
+
+= (qc_exec1 seed name prop [gen shrink] isExpectedResult)
+@ sg        | mkSMGen seed
+@ result    | quickCheck sg stdArgs gen shrink prop
+@ resultRex | showResult name seed result
+| ifNot (isExpectedResult result) resultRex
+| trk resultRex 1
+
+= (resultIsOk result)
+# datacase result
+* (OK _ _) | TRUE
+* _        | FALSE
+
+= (resultIsFail result)
+# datacase result
+* (FAIL _ _ _ _ _) | TRUE
+* _                | FALSE
+
+= (qc_jet seed f arb)
+@ name | strWeld {Fuzzing jet }
+       | if isPin-f | lawName pinItem-f
+       | lawName f
+| qc_exec1 seed name x&(SOME | propJet f x) arb resultIsOk
+
+(qc1_pass seed name prop arb)=(qc_exec1 seed name prop arb resultIsOk)
+(qc1_fail seed name prop arb)=(qc_exec1 seed name prop arb resultIsFail)
+
+= (qc2_pass seed name fun [genA shrinkA] [genB shrinkB])
+@ genAB      | gen2 genA genB
+@ shrinkAB   | shrink2 shrinkA shrinkB
+@ fun        | uncurry fun
+| qc1_pass seed name fun [genAB shrinkAB]
+
+= (qc2_fail seed name fun [genA shrinkA] [genB shrinkB])
+@ genAB      | gen2 genA genB
+@ shrinkAB   | shrink2 shrinkA shrinkB
+@ fun        | uncurry fun
+| qc1_fail seed name fun [genAB shrinkAB]
+
+= arbU8      | (genU8, shrinkNat)
+= arbU8List  | (genList genU8, shrinkList shrinkNat)
+
+= arbU64     | (genU64, shrinkNat)
+= arbU64List | (genList genU64, shrinkList shrinkNat)
+
+= arbPlan    | (genPlan, shrinkPlan)
+
+= (isList x)
+^ (isZero x || _)
+| (isRow x && (len x == 2) && isList (snd x))
+
+= (isW64 x)       | lte x wMax64
+= (isW32 x)       | lte x wMax32
+= (isListOf ck x) | (isList x && listAll ck x)
+= (subNeg x y)    | eql (iSub64 x y)    | iNeg64 (iSub64 y x)
+= (revRev ls)     | eql ls              | listRev (listRev ls)
+= (palindrome ls) | eql ls              | listRev ls
+
+!! qc1_pass 42 {w64 is a w64} (prop1 isW64)          arbU64
+!! qc1_pass 42 {w64 is not 0} (prop1 neq-0)          arbU64
+!! qc1_fail 42 {w64 is a w32} (prop1 isW32)          arbU64
+!! qc1_pass 42 {list is list} (prop1 isList)         arbU64List
+!! qc1_pass 42 {list is list} (prop1 isListOf-isW64) arbU64List
+!! qc1_fail 42 {palindrome}   (prop1 palindrome)     arbU64List
+!! qc2_fail 42 {eq pair}      (prop2 eql)            arbU64 arbU64
+!! qc1_pass 42 {sub neg}      (prop2 subNeg)         arbU64
+!! qc1_pass 42 {rev rev}      (prop1 revRev)         arbU64List
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ ARGS
+^-^ prop1 prop2 discardRes qcEql qcNeq qcIs propJet
+^-^ quickCheck
+^-^ bindGen pureGen sized getSize
+^-^ genU64 chooseW64 gen2 genListLen genListLenMax genList genMap
+^-^ shrink2 shrinkNat shrinkBool shrinkList
+^-^ qc1_pass qc1_fail qc2_pass qc_jet
+^-^
+^-^ arbU8 arbU8List
+^-^ arbU64 arbU64List
+^-^ arbPlan

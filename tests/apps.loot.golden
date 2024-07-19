@@ -1,0 +1,7 @@
+(K a b)=a
+(S a b c)=(a c b-c)
+(I a)=(S K K a)
+_=[0-1 1-2 4 0 0 (K S-I)]
+
+_hash=(x#d3143353724a5ab77b27e2edd2741b9c0565b162c876c154e49795738ecad5c6)
+

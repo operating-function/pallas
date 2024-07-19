@@ -1,0 +1,47 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_port_localhost_ali <- demo_port_localhost
+
+:| kern
+:| prelude
+:| demo_port_localhost
+
+= usSeed
+| idx-0-ali_seed_addr
+
+= themAddr
+| idx-1-bob_seed_addr
+
+= ourName
+| {ali}
+
+= whitelist
+| setSing idx-1-bob_seed_addr
+
+; TODO show how whitelisting works
+= (staticHandler portRqst)
+| PORT_SR_DYNO (idx 3 portRqst) emptyBar
+
+= (chatter cogExit)
+: servThread < fork
+                  & done
+                  | trk [ourName {registered SERV}]
+                  : ??(p_serv _) < syscall (**PORT_SERV usSeed staticHandler)
+                  | done 0
+: ??(p_dyno serverPort) < syscall (**PORT_DYNO usSeed)
+@ [spFrom spPayload portId] | serverPort
+^ _ (barNat spPayload)
+? (loop count)
+@ payload | natBar count
+: ??(p_send now) < syscall (**PORT_SEND portId payload)
+| trk [ourName %sent payload {on port} portId %at now]
+: ??(p_recv [recvWhen (PIN recvBody)]) < syscall (**PORT_RECV portId)
+| trk [ourName %recvd recvBody %at recvWhen]
+@ count (barNat recvBody)
+| if (lte count 0)
+  | cogExit ()
+| loop (sub count 1)
+
+main=(runCog chatter)

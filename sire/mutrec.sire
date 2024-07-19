@@ -1,0 +1,341 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### mutrec <- w64
+
+;;;; Mutually Recursive Functions
+;;;; ============================
+;;;;
+;;;; Example Input:
+;;;;
+;;;;     = (foo x)
+;;;;     # mutrec %even_odd (even 9)
+;;;;     * (even x)
+;;;;         | ifNot x TRUE  (odd dec-x)
+;;;;     * (odd x)
+;;;;         | ifNot x FALSE (even dec-x)
+;;;;
+;;;; Example Output:
+;;;;
+;;;;      = (foo x)
+;;;;     #@ _core1
+;;;;         #? (_core1 _tag2 _g3)
+;;;;         #@ even (x #& _core1 0 x)
+;;;;         #@ odd  (x #& _core1 1 x)
+;;;;         #| switch _tag2 0
+;;;;         #|      **v2
+;;;;             #@ n _g3
+;;;;              | ifNot n TRUE (**odd dec-n)
+;;;;         #@ m _g3
+;;;;          | ifNot m FALSE (**even dec-m)
+;;;;     #@ even (n & _core1 0 n)
+;;;;     #@ odd  (m & _core1 1 m)
+;;;;      (**even x)
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+:| sire_21_switch [unrollSlip2Rune unrollSlip2Tis]
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (readCoreBody rune readExp rex err ok)
+: clauses
+  < ^ unrollSlip2Rune rune rex _ err
+    ? (nonMatchingTail x err ret)
+    | err x {Not a core arm}
+^ rowTraverse _ clauses ok
+& (sigBody ret)
+@ [sigRex bodyRex] sigBody
+: sym mark binds < readDestroyer sigRex err
+: body           < readExp bodyRex err
+| if mark        | err sigRex {can't inline mutually-recursive functions}
+| ret [sym binds body]
+
+=?= [[%f [[%v %x]] 'x] [%g [[%v %y]] '0]]
+  | readCoreBody {=} readRex '((f x = x)(g y = 0)) v2 id
+
+=?= [[%f [[%r [[%v %x] [%v %y]]]] 'x]]
+  | readCoreBody {=} readRex '((f [x y] = x)) v2 id
+
+=?= ['(*) {Not a core arm}]
+  | readCoreBody {=} readRex '((f x = x)(g y = 0)(*)) v2 id
+
+=?= ['(= f) {= node expects two parameters}]
+  | readCoreBody {=} readRex '((= f|x x)(= f)) v2 id
+
+=?= ['(**f x) {can't inline mutually-recursive functions}]
+  | readCoreBody {=} readRex '((**f x = x)(g y = 0)) v2 id
+
+= (readMutRecExp readExp rex err ok)
+: _ coreTag letBody coreBody
+    < ^ rexParseKids rex _ err
+      | (readRex, readAtomLit, readExp, readCoreBody {*} readExp)
+| ok coreTag letBody coreBody
+
+= (genCoreBody arms st ok)
+^ rowTraverseState st _ arms ok
+& (st [sym binds body] ret)
+| trk #[=sym =binds =body]
+: st sig bod < makeDestroyer st binds body
+| ret st [sym sig bod]
+
+=?=  ++ [5]
+     ++ ++ [%f [%x] 'x]
+        ++ [%g [%y] '0]
+  ^ genCoreBody _ [5] v2
+  | [[%f [[%v %x]] 'x] [%g [[%v %y]] '0]]
+
+=?=  ++ [7]
+     ++  ++  ++ {f}
+             ++ [{_g5}]
+             ++ ` #@ _g6 _g5
+                  #@ x (#| $$(idx 0) _g6)
+                  #@ y (#| $$(idx 1) _g6)
+                   x
+  ^ genCoreBody _ [5] v2
+  | [[%f [[%r [[%v %x] [%v %y]]]] 'x]]
+
+; TODO Move this to `17-exp.sire`
+= (taggedLamE nam tag args body)
+@ sig (NEST {|} (rowCons (varE nam) args) 0)
+| OPEN {#?} [(litE tag) sig] body
+
+=?= (taggedLamE %f 2 ['x 'y 'z] 'x)
+  ' #? 2 (f x y z)
+     x
+
+= (matchE x wildExp patExps)
+| OPEN {#|}
+       ++ cnsE switch
+       ++ appE (cnsE (idx 0), x)
+       ++ wildExp
+| bowE patExps
+
+=?= (matchE '[0 1 2] '0 ['1 '2 '3])
+  `
+ #| $$switch (#| $$(idx 0) [0 1 2]) 0
+ #| $$(cow 3) 3 2 1
+
+(maxRow x)=(foldl max (idx 0 x) x)
+
+=?= 3 | maxRow [0 3 2]
+=?= 4 | maxRow [0 3 4]
+=?= 5 | maxRow [5 3 4]
+=?= 0 | maxRow []
+
+= (genMutRecE st coreTag letBody coreBody ok)
+;
+: st coreNam     < generateTempName {core} st
+: st sigExpPairs < genCoreBody coreBody st
+;
+@ arms | listZip listEnumFrom-0 listFromRow-sigExpPairs
+@ maxArgs
+    | maxRow
+    : [_ [_ args _]] < foreach (listToRow arms)
+    | len args
+@ (bindArms body arms)
+    | listCase arms body
+    & (item rest)
+    @ [key arm] item
+    @ [fun args _] arm
+    @ extras  (sub maxArgs | len args)
+    | letE fun
+        | inlinedLamE fun args
+        | appE
+        | weld (varE coreNam, cnsE key)
+        | weld (map varE args)
+        | rep (cnsE 0) extras
+    | bindArms body rest
+: st coreArgs
+    < ^ rowTraverseState st _ (rep 0 maxArgs)
+      & (st item pure)
+      : st varExp < generateVarE {arg} st
+      | pure st varExp
+: st tagArgExp < generateVarE {tag} st
+@ coreArgs
+    | rowCons tagArgExp coreArgs
+@ branches
+    : foo < foreach (listToRow arms)
+    @ [key [fun args body]] foo
+    ^ listFoldr _ body
+        | listDrop 1 | listIndexed | CONS fun | listFromRow args
+    & ([ix var] rest)
+    | letE var (idx ix coreArgs) rest
+@ coreBody
+    | OPEN {#|} (cnsE switch, tagArgExp, cnsE 0)
+    | bowE branches
+| ok st
+| letE coreNam
+    | taggedLamE coreNam coreTag coreArgs
+    | bindArms coreBody arms
+| bindArms letBody arms
+
+= ({#mutrec} st rex err ok)
+: coreTag letBody coreBody < readMutRecExp readRex rex err
+: st rex                   < genMutRecE st coreTag letBody coreBody
+| ok st rex
+
+; =?= 1
+;         @ e
+;                 '
+;                 # mutrec %loop (**loop start)
+;                 * (loop xx)
+;                     | ifNot xx 0 (**loop 0)
+;         (.{#mutrec} 3 3 3 e v2 v4)
+
+
+; =?= 1
+;         @ e
+;                 ' (#mutrec %loop (f 3) (f x = x)(g a e = g a e))
+;         (.{#mutrec} 3 3 3 e v2 v4)
+
+= (foo x)
+# mutrec %even_odd
+    (and (even x 8) (odd x))
+* (even x y)
+    | ifNot x TRUE  (odd dec-x)
+* (odd x)
+    | ifNot x FALSE (even dec-x 9)
+
+= (looper start)
+# mutrec %loop (loop start)
+* (loop xx)
+    | ifNot xx 0 (loop 0)
+
+= loopFun
+? (looper start)
+^ _ 0 start
+? (loop b x)
+| switch b 0
+++ ifNot x 0 (loop 0 0)
+
+=?= (car looper)     4
+=?= (cdr looper)     loopFun
+=?= (pinItem looper) loopFun
+=?= looper           (PIN loopFun)
+
+= [even odd]
+# mutrec %even_odd [even odd]
+* (even x)
+    | ifNot x TRUE  (**odd dec-x)
+* (odd x)
+    | ifNot x FALSE (**even dec-x)
+
+!! even 0
+!! even 2
+!! even 20
+!! odd 1
+!! odd 3
+!! odd 21
+
+
+;;; #mutual ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= ({#mutual} st rex err ok)
+: _ coreSymbol sigRex < rexParseKids rex [readRex readRex readRex] err
+: arms                < readCoreBody {=} readRex sigRex err
+: st sigExpPairs      < genCoreBody arms st
+: coreName            < readSymbol coreSymbol err
+: st tagIdn           < generateVarE {tag} st
+@
+    = coreIdn | varE coreName
+    = arms    | listZip listEnumFrom-0 listFromRow-sigExpPairs
+    = maxArgs | maxRow
+              : [_ [fun args _]] < foreach (listToRow arms)
+              | len args
+@
+    (bindArms body arms)
+        | listCase arms body
+        & (item rest)
+        @ key,arm item
+        @ [fun args _] arm
+        @ extras (sub maxArgs | len args)
+        | letE fun
+                | inlinedLamE fun args
+                | appE
+                | weld (coreIdn, cnsE key)
+                | weld (map varE args)
+                | gen extras (const | cnsE 0)
+        | bindArms body rest
+: st coreArgIdns
+        < ^ rowTraverseState st _ (gen maxArgs | const 0)
+          & (st _item pure)
+          : st idn < (generateVarE {arg} st)
+          | pure st idn
+: st armDefuns
+        ; TODO: This does not actually need to traverse with state,
+        ; we never change anything.
+        < ^ listTraverseState st _ arms
+          & (st [key [armName argNames exp]] pure)
+          @
+              = armIdn     | varE armName
+              = armArgIdns | map varE argNames
+              = numArgs    | len armArgIdns
+              = extraArgs  | sub maxArgs numArgs
+          | pure st
+          | OPEN {#=}
+             ++ NEST {|} (rowCons armIdn armArgIdns) 0
+             ++ | appE
+                | weld (coreIdn, cnsE key)
+                | weld armArgIdns
+                | rep cnsE-0 extraArgs
+          | 0
+@
+    = coreSig
+        | rowCons tagIdn coreArgIdns
+    = branches
+        : foo < foreach (listToRow arms)
+        @ [key [branchArm branchArgs body]] foo
+        ^ listFoldr _ body
+            | listDrop 1
+            | listIndexed
+            | CONS branchArm
+            | listFromRow branchArgs
+        & ([ix var] rest)
+        | letE var (idx ix coreSig) rest
+    = coreBody
+        | OPEN {#|} (cnsE switch, tagIdn, cnsE 0)
+        | bowE branches
+| ok st
+| OPEN {#=}
+       ++ NEST {|} (rowCons coreIdn coreSig) 0
+       ++ bindArms coreBody arms
+| bloodline armDefuns
+
+# mutual even_odd
+= (even x)
+    | ifNot x TRUE  (**odd dec-x)
+= (odd x)
+    | ifNot x FALSE (**even dec-x)
+
+!! even 0
+!! even 2
+!! even 20
+!! odd 1
+!! odd 3
+!! odd 21
+
+; Inspect the output of this by hand, lgtm.
+# mutual foo_bar
+= (foo [x !y])
+    | add x x
+= (bar x)
+    | foo [x x]
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ unrollSlip2Tis
+^-^ readSignature
+^-^ bloodline
+^-^
+^-^ readMutRecExp genMutRecE
+^-^
+^-^ {#mutual}
+^-^ {#mutrec}
+^-^

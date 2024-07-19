@@ -1,0 +1,1015 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_07_dat <- sire_06_rex
+
+;;;; Data Structures
+;;;; ===============
+;;;;
+;;;; Rows (vectors), lists, maybe, either, and operations on these
+;;;; datatype.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan
+:| sire_02_bit [if ifz else ifNot and or not bit TRUE FALSE]
+:| sire_03_nat [dec sub add lsh rsh div roundUp mod mul]
+:| sire_03_nat [even odd]
+:| sire_03_nat [LT GT EQ]
+:| sire_05_row [head arity len idx get mut]
+:| sire_04_cmp [eql neq cmp lth gth lte gte min isZero]
+:| sire_05_row
+:| sire_06_rex
+
+
+;;; Fake Typing Syntax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= ({>} st rex err ok)
+@ heir (rexHeir rex)
+| ifz heir
+    | err rex {> annotations require an heir to annotate}
+| ok st heir
+
+= ({\} st _ err ok)
+| ok st '(#*)
+
+= ({#typedef} st _ err ok)
+| ok st '(#*)
+
+
+;;; Basic Row Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(rowIndexed row)=(gen len-row i&(v2 i | idx i row))
+
+= (rep i n)         | gen n (const i)
+= (rowAnd v)        | foldr and TRUE v
+= (rowOr v)         | foldr or FALSE v
+= (sum v)           | foldr add 0 v
+= (sumOf f v)       | foldr (x acc & add acc (f x)) 0 v
+= (all f v)         | rowAnd (map f v)
+= (any f v)         | rowOr (map f v)
+= (cat vs)          | foldr weld v0 vs
+= (catMap f r)      | cat (map f r)
+= (zipWith f a b)   | gen (min len-a len-b) i&(f idx-i-a idx-i-b)
+= (zip a b)         | zipWith v2 a b
+= (has ele row)     | any (eql ele) row
+= (slash v s e)     | gen (sub e s) i&(get v | add s i)
+= (slice v s e)     | slash v s (min e | len v)
+= (drop n v)        | slice v n (len v)
+= (take n v)        | slice v 0 n
+= (splitAt i r)     | v2 (take i r) (drop i r)
+
+= (foldr1 f xs)
+| if (null xs)
+    | die {fold1: empty row}
+@ las (dec len-xs)
+| foldr f (idx las xs) (take las xs)
+
+= (chunks sz row)
+| gen | div (roundUp len-row sz) sz
+& ix
+@ start (mul ix sz)
+| slice row start (add start sz)
+
+= (intersperse sep row)
+| gen | dec | mul 2 | len row
+& ix
+| if odd-ix sep
+| get row (div ix 2)
+
+(strictRow a)=(foldl const a a)
+
+= (insert ix val row)
+| gen (inc len-row)
+& i
+| switch (cmp i ix) 0
+| v3 (idx i row) val (idx dec-i row)
+
+=?= (v2 9 0)   | insert 0 9 (v1 0)
+=?= (v2 0 9)   | insert 1 9 (v1 0)
+=?= (v2 0 0)   | insert 2 9 (v1 0)
+=?= (v3 9 0 1) | insert 0 9 (v2 0 1)
+=?= (v3 0 9 1) | insert 1 9 (v2 0 1)
+=?= (v3 0 1 9) | insert 2 9 (v2 0 1)
+=?= (v3 0 1 0) | insert 3 9 (v2 0 1)
+
+
+;;; Generating Basic Sire Expressions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (appE exps)
+| if (eql 1 (len exps))
+    | idx 0 exps
+| NEST {#|} exps 0
+
+; Same as `appE` but formatted in open mode.
+= (bopE exps)
+| if (eql 1 (len exps))
+    | idx 0 exps
+| OPEN {#|} exps 0
+
+; Same as `appE` but formatted in open mode with last argument as heir.
+= (bapE exps)
+@ siz (len exps)
+@ las (dec siz)
+| if (eql 1 siz) (idx 0 exps)
+| OPEN {#|} (take las exps) (idx las exps)
+
+= (rowE exps)
+@ widt (len exps)
+| appE
+| rowCons (EMBD (cow widt))
+| rev exps
+
+; Same as `rowE` but formatted in open mode.
+= (bowE exps)
+@ widt (len exps)
+| bopE
+| rowCons (EMBD (cow widt))
+| rev exps
+
+
+;;; Row Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= ({,} st rex err ok)
+| ok st (rowE | rexKids rex)
+
+=?= []    v0
+=?= [3]   (v1 3)
+=?= [3 4] (v2 3 4)
+=?= 3,4   (v2 3 4)
+
+
+;;; Maybe ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO NONE=0 (SOME x)=[x]
+
+= NONE       | 0
+= (**SOME x) | 0 x
+
+= (**maybeCase mb non som)
+| if isNat-mb non
+| **som cdr-mb
+
+(maybe non som mb)=(maybeCase mb non som)
+
+(isNone x)=(isZero x)
+(isSome x)=(neq 0 x)
+
+(fromSome n x)=(maybeCase x n id)
+
+(unpackSome x)=(**fromSome (die {Unexpected NONE}) x)
+
+> Bit > Maybe a > Maybe a
+(**maybeGuardNot check cont)=(if check NONE cont)
+
+> Bit > Maybe a > Maybe a
+(**maybeGuard check cont)=(maybeGuardNot (not check) cont)
+
+=?= 1 | maybeCase SOME-0 0 inc
+=?= 1 | maybeCase SOME-1 0 id
+=?= 1 | maybeCase SOME-2 0 dec
+=?= 1 | maybeCase NONE   1 die
+
+= (fmapMaybe myb fun)
+| maybeCase myb NONE
+& v
+| SOME | fun v
+
+=?= SOME-1 | fmapMaybe SOME-0 inc
+=?= NONE   | fmapMaybe NONE   inc
+
+=?= 1 | isSome (SOME 0)
+=?= 0 | isSome NONE
+=?= 0 | isNone (SOME 0)
+=?= 1 | isNone NONE
+
+
+;;; Unfolding ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: Would it be better to just use the list version and then generate
+; a row from that?  This is a very natural function on lazy lists.
+
+= (unfoldr f seed)
+^ _ 0 seed
+? (go idx seed)
+| maybeCase (f seed) (cow idx)
+& valSeed
+| go (inc idx) (snd valSeed) (fst valSeed)
+
+=?= [0 1 2 3 4 5]
+  ^ unfoldr _ 0
+  & x
+  | if (lte x 5) (SOME [x (inc x)]) NONE
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= [0 1 2] (v3 0 1 2)
+
+=?= 1 | not (has 1 [2 3 4])
+=?= 1 | not (has 1 [2 3 4])
+=?= 1 | has 2 [2 3 4]
+=?= 1 | has 3 [2 3 4]
+=?= 1 | has 4 [2 3 4]
+=?= 1 | not (has 5 [2 3 4])
+
+=?= (slash [3 4 5] 0 5) | [3 4 5 0 0]
+=?= (slash [3 4 5] 1 4) | [4 5 0]
+=?= (slash [3 4 5] 2 3) | [5]
+=?= (slash [3 4 5] 3 2) | []
+
+=?= (slice [3 4 5] 0 5) | [3 4 5]
+=?= (slice [3 4 5] 1 4) | [4 5]
+=?= (slice [3 4 5] 2 3) | [5]
+=?= (slice [3 4 5] 3 2) | []
+
+(ADD x y k)=(k x y)
+
+=?= [5 4 3] | rev ([3 4 5])
+=?= []      | rev ([])
+
+=?= 12                  | sum [3 4 5]
+=?= 24                  | sumOf (mul 2) [3 4 5]
+=?= [1 2 3 4 5 6 7 8 9] | cat [[] [1] [2 3] [4 5 6] [7 8] [9] []]
+
+=?= [1 2 3] (rowCons 1 [2 3])
+
+=?= []        | take 0  [1 2 3 4]
+=?= [1]       | take 1  [1 2 3 4]
+=?= [1 2 3 4] | take 4  [1 2 3 4]
+=?= [1 2 3 4] | take 20 [1 2 3 4]
+=?= [1 2 3 4] | drop 0  [1 2 3 4]
+=?= [2 3 4]   | drop 1  [1 2 3 4]
+=?= [4]       | drop 3  [1 2 3 4]
+=?= []        | drop 4  [1 2 3 4]
+=?= []        | drop 20 [1 2 3 4]
+
+=?= [1 2 3 4]     | drop 0 [1 2 3 4]
+=?= []            | drop 10 [1 2 3 4]
+=?= []            | chunks 3 []
+=?= [[1]]         | chunks 3 [1]
+=?= [[1 2 3]]     | chunks 3 [1 2 3]
+=?= [[1 2 3] [4]] | chunks 3 [1 2 3 4]
+
+=?= [0,1,2 3,4,5 6,7,8 [9]] | chunks 3 [0 1 2 3 4 5 6 7 8 9]
+
+=?= 1 | has {aa} [{aa} {bb}]
+=?= 1 | not (has {aa} [{bb} {cc}])
+
+
+;;; Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= NIL           | 0
+= (**CONS x xs) | [x xs]
+
+;; TODO: should {listCase} always be inlined?
+;; TODO: Should {listCase} use {isZero} or {isNat} as a termination check?
+
+= (**listCase xs nil cons)
+| if isNat-xs nil
+| **cons idx-0-xs idx-1-xs
+
+;; TODO s/([a-z])Singleton/\1Sing/g
+
+(listSing x)=(CONS x 0)
+
+= (listMap f l)
+| listCase l NIL
+& (x xs)
+| CONS f-x listMap-f-xs
+
+(**listForEach l f)=(listMap f l)
+
+= (listHead l)
+| listCase l NONE
+& (h _)
+| SOME h
+
+= (listSafeHead fb l)
+| listCase l fb
+& (x _)
+| x
+
+(listUnsafeHead l)=(fst l)
+(listUnsafeTail l)=(snd l)
+
+=?= NONE       | listHead NIL
+=?= SOME-3     | listHead (CONS 3 (CONS 4 NIL))
+=?= 3          | listUnsafeHead (CONS 3 (CONS 4 NIL))
+=?= CONS-4-NIL | listUnsafeTail (CONS 3 (CONS 4 NIL))
+=?= 0          | listUnsafeHead NIL
+=?= 5          | fromSome 4 (SOME 5)
+=?= 5          | unpackSome (SOME 5)
+=?= 4          | fromSome 4 NONE
+
+= (listIdxCps i xs not_found found)
+| listCase xs not_found
+& (x xs)
+| ifz i (found x)
+| listIdxCps (dec i) xs not_found found
+
+(listIdxMb fb i xs)=(listIdxCps i xs NONE SOME)
+(listIdxOr fb i xs)=(listIdxCps i xs fb id)
+(listIdx i xs)=(listIdxCps i xs 0 id)
+
+= (listLastOr fallback xs)
+| listCase xs fallback
+& (x xs)
+| listLastOr x xs
+
+(listUnsafeLast l)=(listLastOr 0 l)
+
+= (listLast l)
+| listCase l NONE
+& (h t)
+| SOME | listLastOr h t
+
+=?= NONE   | listLast NIL
+=?= SOME-3 | listLast (CONS 3 NIL)
+=?= SOME-4 | listLast (CONS 3 (CONS 4 NIL))
+
+
+;;; Operations With Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (listFoldl f z l)
+| listCase l z
+& (x xs)
+@ fzx (f z x)
+| seq fzx
+| listFoldl f fzx xs
+
+= (listFoldr f z l)
+| listCase l z
+& (x xs)
+| f x (listFoldr f z xs)
+
+> (a -> a) > List a > a
+= (listFoldl1 f xs)
+| listCase xs {listFoldl1}|{empty list}
+& (x xs)
+| listFoldl f x xs
+
+= (listUnfoldr f seed)
+| maybeCase (f seed) NIL
+& valSeed
+| CONS (fst valSeed)
+| listUnfoldr f (snd valSeed)
+
+=?= (, 0 , 1 , 2 , 3 , 4 , 5 0)
+  ^ listUnfoldr _ 0
+  & x
+  | if (lte x 5) (SOME [x (inc x)]) NONE
+
+= (listMap f l)
+| listCase l NIL
+& (x xs)
+| CONS f-x listMap-f-xs
+
+= (listLen l)      | listFoldr (x acc & inc acc) 0 l
+= (listSum l)      | listFoldr add 0 l
+= (listFromRow v)  | foldr CONS NIL v
+= (listAnd v)      | listFoldr and TRUE v
+= (listOr v)       | listFoldr or 0 v
+= (listAll f v)    | listAnd listMap-f-v
+= (listAny f v)    | listOr listMap-f-v
+= (listHas e xs)   | listAny eql-e xs
+= (listEnumFrom n) | CONS n (listEnumFrom inc-n)
+= (listRepeat n)   | CONS n listRepeat-n
+= (listAllEql xs)  | listCase xs TRUE (x xs)&(listAll (eql x) xs)
+
+= (listWeld a b)
+| listCase a b
+& (x xs)
+| CONS x (listWeld xs b)
+
+> List (List a) > List a
+= (listCat ls)
+| listCase ls NIL
+& (x xs)
+| listWeld x
+| listCat xs
+
+(listCatMap f r)=(listCat | listMap f r)
+
+= (listTake num lis)
+| ifNot num NIL
+| listCase lis NIL
+& (x xs)
+| CONS x
+| listTake dec-num xs
+
+= (listDrop num lis)
+| ifNot num lis
+| listCase lis NIL
+| (x xs & listDrop dec-num xs)
+
+= (listTakeWhile f lis)
+| listCase lis NIL
+& (x xs)
+| if f-x (CONS x | listTakeWhile f xs)
+| NIL
+
+= (listDropWhile f lis)
+| listCase lis NIL
+& (x xs)
+| if f-x listDropWhile-f-xs
+| lis
+
+=?= [2 [3 0]]     | listTakeWhile id [2 [3 [0 [4 [5 0]]]]]
+=?= [0 [4 [5 0]]] | listDropWhile id [2 [3 [0 [4 [5 0]]]]]
+
+= (_SizedListToRow sz l)
+| listFoldr supply cow-sz
+| listTake sz (listWeld l listRepeat-0)
+
+= (_SizedListToRowRev sz l)
+| listFoldl apply cow-sz
+| listTake sz (listWeld l listRepeat-0)
+
+= sizedListToRow    | _SizedListToRow
+= sizedListToRowRev | _SizedListToRowRev
+= (listToRow l)     | sizedListToRow listLen-l l
+= (listToRowRev l)  | sizedListToRowRev listLen-l l
+
+=?= [1 2 3] | sizedListToRow      3 [1 [2 [3 [4 [5 0]]]]]
+=?= [1 2 0] | sizedListToRow      3 [1 [2 0]]
+=?= []      | sizedListToRow      0 [1 [2 [3 0]]]
+=?= [0 0 0] | sizedListToRow      3 NIL
+=?= [3 2 1] | sizedListToRowRev 3 [1 [2 [3 [4 [5 0]]]]]
+=?= [0 2 1] | sizedListToRowRev 3 [1 [2 0]] ; TODO is this behavior good?
+=?= []      | sizedListToRowRev 0 [1 [2 [3 0]]]
+=?= [0 0 0] | sizedListToRowRev 3 NIL
+=?= [1 2 3] | listToRow           [1 [2 [3 0]]]
+=?= []      | listToRow           NIL
+=?= [1 2 3] | listToRowRev        [3 [2 [1 0]]]
+=?= []      | listToRowRev        NIL
+
+= (listZipWith f al bl)
+| listCase al NIL
+& (a as)
+| listCase bl NIL
+& (b bs)
+| CONS f-a-b
+  (listZipWith f as bs)
+
+(listZip a b)=(listZipWith (0 0 3 0) b a)
+
+=?= | CONS [3 4] | CONS [4 5] NIL
+  | listZip listFromRow-[3 4] listFromRow-[4 5]
+
+= (listFilter f lis)
+| listCase lis NIL
+& (x xs)
+| if f-x (CONS x | listFilter f xs)
+| listFilter f xs
+
+(listIsEmpty xs)=(isNat xs)
+
+= (listMinimumOn f a bs)
+| listCase bs a
+& (x xs)
+| listMinimumOn f
+    | if (lth f-x f-a) x a
+| xs
+
+= (listGen n f)
+^ _ 0
+? (loop i)
+| if (eql i n) NIL
+| CONS (f i)
+| loop (inc i)
+
+=?= (listGen 3 id) [0 [1 [2 0]]]
+
+(listRep i n)=(listGen n (const i))
+
+=?= (listRep 9 3) [9 [9 [9 0]]]
+=?= (listRep 9 3) (listFromRow | rep 9 3)
+
+;; {listSortBy}, {listSort}, {sortBy}, {sort} etc are simple
+;; implementations meant to be used in jets.  If you want a proper
+;; quicksort or mergesort, implement them yourself.
+
+= (listInsertBy cmp x lis)
+| listCase lis (listSing x)
+& (y ys)
+| if (cmp x y)
+    | CONS y (listInsertBy cmp x ys)
+| CONS x lis
+
+;; {listUniq} removes duplicate values that appear next to each-other.
+;; If the input is sorted, then the output will have no duplicates.
+
+= (listUniq xs)
+| ifz xs NIL
+^ _ (fst xs) (snd xs)
+? (go x ys)
+| listCase ys (listSing x)
+& (y ys)
+| if (eql x y) (go y ys)
+| CONS x (go y ys)
+
+= (listNub xs)
+| listCase xs NIL
+& (x xs)
+| CONS x (listNub (listFilter neq-x xs))
+
+= (listIterate f x)
+| (CONS x (listIterate f (f x)))
+
+= (listSortBy cmp xs) | listFoldr (listInsertBy cmp) NIL xs
+= (listSort xs)       | listSortBy cmp xs
+= (listSortUniq xs)   | listUniq (listSort xs)
+= (comparing f x y)   | cmp (f x) (f y)
+
+= (listSortOn f lis)
+| listMap snd
+| listSortBy (comparing fst)
+| listMap x&(y @ f x)(seq y (y, x))
+| lis
+
+;; {rowPort} converts from a list operation to a row operation.
+
+= (rowPort op row) | listToRow (op | listFromRow row)
+= (uniq row)       | rowPort listUniq         row
+= (sortOn f row)   | rowPort (listSortOn f)   row
+= (sortBy cmp row) | rowPort (listSortBy cmp) row
+= (sort row)       | rowPort listSort         row
+= (sortUniq row)   | rowPort listSortUniq     row
+
+=?= [0 3 3 4 5] | sort               | [0 3 4 3 5]
+=?= [0 3 3 4 5] | sortBy cmp         | [0 3 4 3 5]
+=?= [5 4 3 3 0] | sortBy (flip cmp)  | [0 3 4 3 5]
+=?= [0 3 4 3 5] | sortBy _&EQ        | [0 3 4 3 5]
+=?= [5 4 3 3 0] | sortOn x&(sub 5 x) | [0 3 4 3 5]
+=?= [5 3 4 3 0] | sortOn not         | [0 3 4 3 5]
+=?= [0 5 3 4 3] | sortOn bit         | [0 3 4 3 5]
+=?= [0 5 0]     | uniq [0 0 5 5 0 0]
+=?= [0 5]       | sortUniq [0 0 5 5 0 0]
+
+
+;;; Searching ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(listIndexed l)=(listZip (listEnumFrom 0) l)
+
+= (listIsPrefixOf xs ys)
+| listCase xs TRUE
+& (x xs)
+| listCase ys FALSE
+& (y ys)
+| and (eql x y)
+| listIsPrefixOf xs ys
+
+; > (List a > Bool)
+; > List a
+; > List (Int, List a)
+= (listSearch f xs)
+^ (_ 0 xs)
+? (go off xs)
+| seq off
+@ rest | listCase xs NIL
+       & (_ xs)
+       | go (inc off) xs
+| if (f xs) | CONS [off xs] rest
+| else      | rest
+
+; > List a > List a > List (Int, List a)
+= (listSubstringSearch needle haystack)
+| listSearch (listIsPrefixOf needle) haystack
+
+= (listFindIndex pred xs notFound found)
+^ listFoldr _ notFound (listIndexed xs)
+& (idxVal rest)
+| ifNot (pred | snd idxVal) rest
+| found (fst idxVal)
+
+= (listElemIndex e xs not_found found)
+| listFindIndex (eql e) xs not_found found
+
+= (findIdx p row nf f) | listFindIndex p (listFromRow row) nf f
+= (elemIdx e row nf f) | findIdx (eql e) row nf f
+
+= (span pred row)
+| findIdx (compose not pred) row (row,[]) (flip splitAt row)
+
+= (filter f row)   | rowPort (listFilter f) row
+= (delete val row) | filter (neq val) row
+
+= (findIdxMany f row)
+^ listFoldr _ NIL (listIndexed | listFromRow row)
+& (idxVal rest)
+| ifNot (f | snd idxVal) rest
+| CONS (fst idxVal) rest
+
+(elemIdxMany key row)=(findIdxMany (eql key) row)
+
+=?= (| listToRow | listIndexed | listFromRow [{a} {b} {c}])
+  [[0 {a}] [1 {b}] [2 {c}]]
+
+=?= SOME-0 | elemIdx 5 [5 6 7] NONE SOME
+=?= SOME-1 | elemIdx 6 [5 6 7] NONE SOME
+=?= SOME-2 | elemIdx 7 [5 6 7] NONE SOME
+=?= NONE   | elemIdx 8 [5 6 7] NONE SOME
+
+=?= ( [],        [2 4 5 6] ) | span lte-9 [2 4 5 6]
+=?= ( [2 4 5 6], []        ) | span gth-9 [2 4 5 6]
+=?= ( [2],       [4 5 6]   ) | span eql-2 [2 4 5 6]
+=?= ( [2 4],     [5 6]     ) | span even  [2 4 5 6]
+=?= ( [],        [2 4 5 6] ) | span odd   [2 4 5 6]
+
+=?= (0 0) | listElemIndex 0 (, 0 , 1 , 2 , 3 0) NONE SOME
+=?= (0 1) | listElemIndex 1 (, 0 , 1 , 2 , 3 0) NONE SOME
+=?= (0 2) | listElemIndex 2 (, 0 , 1 , 2 , 3 0) NONE SOME
+=?= (0 3) | listElemIndex 3 (, 0 , 1 , 2 , 3 0) NONE SOME
+=?= 0     | listElemIndex 4 (, 0 , 1 , 2 , 3 0) NONE SOME
+
+=?= [0 2]
+  | listToRow | elemIdxMany 5 [5 0 5]
+
+=?= [2 0]
+  | listMap fst
+  | listSubstringSearch (, 2 , 3 0) (listTake 10 | listEnumFrom 0)
+
+=?= 0
+  | listSubstringSearch (, 3 , 2 0) (listTake 10 | listEnumFrom 0)
+
+=?= (listTake 11 | listEnumFrom 0)
+  | listMap fst
+  | listSearch (const TRUE) (listTake 10 | listEnumFrom 0)
+
+=?= 0
+  | listSearch (const FALSE) (listTake 10 | listEnumFrom 0)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (listIntersperse sep xs)
+| listCase xs xs
+& (x xs)
+^ CONS x (_ xs)
+? (go xs)
+    | listCase xs xs
+    & (x xs)
+    | CONS sep
+    | CONS x
+    | go xs
+
+=?= []          | listToRow | listIntersperse 0 | listFromRow []
+=?= [1]         | listToRow | listIntersperse 0 | listFromRow [1]
+=?= [1 0 2]     | listToRow | listIntersperse 0 | listFromRow [1 2]
+=?= [1 0 2 0 3] | listToRow | listIntersperse 0 | listFromRow [1 2 3]
+
+=?= []          | intersperse 0 []
+=?= [1]         | intersperse 0 [1]
+=?= [1 0 2]     | intersperse 0 [1 2]
+=?= [1 0 2 0 3] | intersperse 0 [1 2 3]
+
+(listRev xs)=(listFoldl (flip CONS) NIL xs)
+
+= (listSnoc xs e)
+| listCase xs (CONS e NIL)
+& (x xs)
+| CONS x
+| listSnoc xs e
+
+=?= (, 3 , 4 , 5 NIL)
+  | listRev (, 5 , 4 , 3 NIL)
+
+=?= (listSnoc [0 [1 0]] 2)
+  | [0 [1 [2 0]]]
+
+= (listProd xs ys)
+| listCat
+^ listFoldl _ NIL listRev-xs
+& (acc x)
+^ CONS (listFoldl _ NIL listRev-ys) acc
+& (acc y)
+| CONS (x, y) acc
+
+=?= (listProd [1 [2 0]] [3 [4 0]])
+  | [[1 3] [[1 4] [[2 3] [[2 4] 0]]]]
+
+
+;;; Either ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (**LEFT x)  [0 x]
+= (**RIGHT x) [1 x]
+
+= (**eitherCase x l r)     (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
+= (fromRight l x)          (eitherCase x l id)
+= (unpackRight x)          (**fromRight (die {Unexpected LEFT}) x)
+= (**eitherCaseLeft x r l) (if (idx 0 x) (**r idx-1-x) (**l idx-1-x))
+= (eitherOpen x r)         (eitherCase x _&x r)
+= (eitherOpenLeft x l)     (eitherCase x l _&x)
+= (fromLeft r x)           (eitherCase x id r)
+= (unpackLeft x)           (**fromLeft (die {Unexpected RIGHT}) x)
+= (eitherGetRight x k)     (eitherCase x _&x k)
+= (eitherGetLeft x k)      (eitherCase x k _&x)
+= (eitherMap f val)        (eitherCase val 0 (x & 1 f-x))
+= (eitherBind val f)       (eitherCase val _&val f)
+
+=?= 1 | eitherCase RIGHT-0 const-0 inc
+=?= 1 | eitherCase RIGHT-1 const-0 id
+=?= 1 | eitherCase RIGHT-2 const-0 dec
+=?= 1 | eitherCase LEFT-9  const-1 die
+=?= 1 | eitherCase LEFT-1  id      die
+=?= 1 | eitherCase LEFT-0  inc     die
+
+=?= 1 | unpackRight (RIGHT 1)
+=?= 1 | unpackLeft (LEFT 1)
+
+> Row (Eat a b) > (Row a, Row b)
+= (partition r)
+^ map listToRow (foldr _ [NIL NIL] r)
+& (x i)
+@ lefts  | fst i
+@ rights | snd i
+| if (fst x)
+    | (lefts, CONS (snd x) rights)
+| else
+    | (CONS (snd x) lefts, rights)
+
+=?= [[0 3] [1 2]]
+  | partition [LEFT-0 RIGHT-1 RIGHT-2 LEFT-3]
+
+
+;;; Maybe utils that depend on list ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (listCatMaybes top)
+| listCase top NIL
+& (mX xs)
+| maybeCase mX (listCatMaybes xs)
+& x
+| CONS x (listCatMaybes xs)
+
+= (mapMaybe law row)
+^ _ NIL 0 len-row
+? (go acc kept remain)
+| ifz remain
+    | sizedListToRow kept acc
+@ ix (dec remain)
+| maybeCase (law | idx ix row)
+    | go acc kept ix
+& item
+| go (CONS item acc) (inc kept) ix
+
+= (catMaybes lis)       | listToRow (listCatMaybes (listFromRow lis))
+= (listMapMaybe f lis)  | listCatMaybes (listMap f lis)
+
+=?= [1 [2 0]] | listCatMaybes [SOME-1 [SOME-2 0]]
+=?= [1 [2 0]] | listCatMaybes [SOME-1 [SOME-2 [NONE 0]]]
+=?= [1 [2 0]] | listCatMaybes [SOME-1 [NONE [SOME-2 [NONE 0]]]]
+=?= [1 [2 0]] | listCatMaybes [NONE [SOME-1 [NONE [SOME-2 [NONE 0]]]]]
+
+=?= [1 2] | catMaybes ( SOME 1 , SOME 2 )
+=?= [1 2] | catMaybes ( SOME 1 , SOME 2 , NONE )
+=?= [1 2] | catMaybes ( SOME 1 , NONE   , SOME 2 , NONE )
+=?= [1 2] | catMaybes ( NONE   , SOME 1 , NONE   , SOME 2 )
+
+=?= [2 4 6] | (mapMaybe _ [1 2 3 4 5 6])^(x & if (even x) SOME-x NONE)
+=?= [1 4 5] | catMaybes [SOME-1 NONE SOME-4 SOME-5 NONE]
+
+
+;;; Tall-Form Row Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+openRowExpect={Expected something like (++ x), (++ f x y), etc}
+
+= (readOpenRow readExp rex err ok)
+@ topRune (rexRune rex)
+^ _ NIL rex
+? (go acc rex)
+@ sons (rexSons rex)
+@ heir (rexHeir rex)
+@ rune (rexRune rex)
+| ifz rex
+    | ok (listToRowRev acc)
+| if (neq topRune rune)
+    | readExp rex err exp&(go (CONS exp acc) 0)
+| if (null sons)
+    | err rex openRowExpect
+@ itemRex
+    | if (eql 1 | len sons) (idx 0 sons)
+    | OPEN {|} sons 0
+| readExp itemRex err
+& exp
+@ acc (CONS exp acc)
+| seq acc
+| go acc heir
+
+(readRex rex err ok)=(ok rex)
+
+= ({++} st rex err ok)
+| readOpenRow readRex rex err
+& res
+| ok st (rowE res)
+
+=?= [3 4 5] (++ 3)(++ 4)(++ 5)
+=?= [3 4 5] (++ 3)(++ 4)5
+=?= [3 4 5] (++3)(++ 3 3)5
+
+=?= [3 4 5]
+ ++ 3
+ ++ 4
+ ++ 5
+
+=?= [3 4 5]
+ ++ 3
+ ++ 4
+ ++ 5
+
+
+;;; Binary Search ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; {bsearch} finds the index of an item within a "row set".  The input
+;; row is presumed to be in ascending order and without duplciates.
+;;
+;; {bsearch} finds the index of an item equal to the target, or the
+;; index of the smallest item larger than the target, or it returns the
+;; length of the array, if no such item exists.
+;;
+;; The result is tagged to indicate if the result is a match or not.
+;; Tagging works by left-shifting the resuilt by one, and then setting the
+;; low bit only if there was a match.
+;;
+;; The index returned in the "not found" case is always the index where
+;; this item could be inserted without breaking the "row set" invariants.
+;;
+;; {lsearch} has the same behavior as {bsearch}, and mostly just exists
+;; as a test case.
+
+(**found ix)=(inc | lsh ix 1)
+(**not_found ix)=(lsh ix 1)
+
+> Any > Row Any > Nat > Nat > Nat
+= (lsearch_ key row low end)
+| if (gte low end) (not_found low)
+| switch (cmp key | get row low) 0
+++ not_found low                  ; LT
+++ found low                      ; EQ
+++ lsearch_ key row (inc low) end ; GT
+
+> Any > Row Any > Nat
+= (bsearch_ key row low end)
+| if (gte low end) (not_found low)
+@ index (rsh (add low end) 1)
+| switch (cmp key | get row index) 0
+++ bsearch_ key row low index       ; LT
+++ found index                      ; EQ
+++ bsearch_ key row (inc index) end ; GT
+
+(lsearch key row)=(lsearch_ key row 0 (len row))
+(bsearch key row)=(bsearch_ key row 0 (len row))
+
+= (search_chk row assoc)
+^ foldr _ TRUE assoc
+& (kv continue)
+@ k (fst kv)
+@ e (snd kv)
+@ lr (lsearch k row)
+@ br (bsearch k row)
+| if (neq e lr) [{lsearch mismatch} [{for key} k] [e {!=} lr]]
+| if (neq e br) [{bsearch mismatch} [{for key} k] [e {!=} br]]
+| continue
+
+N=not_found
+F=found
+
+=?= 1 | search_chk []        | rowIndexed [N|0 N|0 N|0]
+=?= 1 | search_chk [1]       | rowIndexed [N|0 F|0 N|1]
+=?= 1 | search_chk [1 3 5]   | rowIndexed [N|0 F|0 N|1 F|1 N|2 F|2 N|3 N|3]
+=?= 1 | search_chk [1 3 5 7] | rowIndexed [N|0 F|0 N|1 F|1 N|2 F|2 N|3 F|3 N|4]
+=?= 1 | search_chk [1 3 5 6] | rowIndexed [N|0 F|0 N|1 F|1 N|2 F|2 F|3 N|4 N|4]
+
+
+;;; Traversing Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> (a > (b>r)) > Row a > m (Row b)
+= (traverseList f xs return)
+^ _ NIL xs
+? (go acc remain)
+| listCase remain
+    (return (listRev acc))
+& (head tail)
+| f head
+& newHead
+| go (CONS newHead acc) tail
+
+=?= 0         | traverseList (x ret)&(if even-x ret-x 0) [3 [4 0]] id
+=?= 0         | traverseList (x ret)&(if even-x ret-x 0) [4 [5 0]] id
+=?= [4 [6 0]] | traverseList (x ret)&(if even-x ret-x 0) [4 [6 0]] id
+
+> st
+> (st > b > r)
+> List a
+> m st (List b)
+= (listTraverseState st f xs return)
+^ _ st NIL xs
+? (go st acc remain)
+| listCase remain (return st (listRev acc))
+& (head tail)
+| f st head
+& (st newHead)
+@ acc (CONS newHead acc)
+| go st acc tail
+
+=?= 17,(, 3 , 4 , 5 0)
+  ^ listTraverseState 5 _ [3 [4 [5 0]]] v2
+  ? (step st item pure)
+  | pure (add st item) item
+
+
+;;; Traversing Rows ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> (a > (b>r)) > Row a > m (Row b)
+= (rowTraverse f xs return)
+| traverseList f (listFromRow xs)
+& out
+| return (listToRow out)
+
+=?= 0     | rowTraverse (x ret)&(if even-x ret-x 0) [3 4] id
+=?= 0     | rowTraverse (x ret)&(if even-x ret-x 0) [4 5] id
+=?= [4 6] | rowTraverse (x ret)&(if even-x ret-x 0) [4 6] id
+
+
+> st > (a > (st>b>r)) > Row a > m st (Row b)
+= (rowTraverseState st f xs return)
+| listTraverseState st f (listFromRow xs)
+& (st out)
+| return st (listToRow out)
+
+=?= 17,[4 5 6]
+  ^ rowTraverseState 5 _ [3 4 5] v2
+  ? (step st item pure)
+  | pure (add st item) (inc item)
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ slash slice chunks rep rowCons rowSnoc
+^-^ rowIndexed findIdx elemIdx has
+^-^ rowAnd rowOr sum sumOf all any zip zipWith
+^-^ cat catMap
+^-^ take drop rev
+^-^ unfoldr span splitAt foldr1 strictRow insert
+^-^
+^-^ bopE bapE bowE appE rowE
+^-^ {,}
+^-^
+^-^ NONE SOME maybeCase maybe
+^-^ fromSome unpackSome
+^-^ isSome isNone fmapMaybe
+^-^ maybeGuard maybeGuardNot
+^-^
+^-^ mapMaybe catMaybes
+^-^ listMapMaybe listCatMaybes
+^-^
+^-^ NIL CONS
+^-^ listCase
+^-^ listSing
+^-^ listMap listForEach
+^-^ listHead listSafeHead listUnsafeHead listUnsafeTail
+^-^ listIdxCps listIdxOr listIdx
+^-^ listLastOr listUnsafeLast listLast
+^-^
+^-^ listFoldl listFoldl1
+^-^ listFoldr
+^-^ listLen listToRow sizedListToRow sizedListToRowRev
+^-^ listToRowRev listFromRow
+^-^ listAnd listOr listSum listAll listAllEql listAny
+^-^ listHas listEnumFrom listWeld listCat listCatMap listTake listDrop
+^-^ listTakeWhile listDropWhile
+^-^ listZipWith listZip listFilter listIsEmpty listMinimumOn listSortOn
+^-^ listNub listIterate
+^-^ listGen listRep listFindIndex listElemIndex
+^-^ listIsPrefixOf listSearch listSubstringSearch
+^-^ listIndexed
+^-^ intersperse listIntersperse
+^-^ listRev listSnoc listProd
+^-^
+^-^ LEFT RIGHT
+^-^ fromLeft unpackLeft
+^-^ fromRight unpackRight
+^-^ eitherCase eitherOpen
+^-^ eitherOpenLeft eitherCaseLeft
+^-^ eitherGetRight eitherGetLeft
+^-^ eitherMap eitherBind partition
+^-^
+^-^ sort sortBy sortOn sortUniq
+^-^ filter delete
+^-^ findIdxMany elemIdxMany
+^-^
+^-^ readRex
+^-^ readOpenRow
+^-^ {++}
+^-^
+^-^ lsearch lsearch_
+^-^ bsearch bsearch_
+^-^
+^-^ traverseList listTraverseState
+^-^ rowTraverse rowTraverseState
+^-^
+^-^ {>} {#typedef} {\}
+^-^

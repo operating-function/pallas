@@ -1,0 +1,712 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_17_sug <- sire_16_bar
+
+;;;; Syntactic Sugar
+;;;; ===============
+;;;;
+;;;; This module is a collection of convenience macros.
+;;;;
+;;;; - `:` is convenient syntax for continuation-passing.
+;;;;
+;;;; - `~` and `~~` implement list-literals.
+;;;;
+;;;;
+;;;; The Col Macro
+;;;; -------------
+;;;;
+;;;; `:` is a shorthand for a function call where the last argument is
+;;;; a callback lambda.
+;;;;
+;;;; This pattern comes up quite a lot since we don't have do notation.
+;;;;
+;;;; You write something like:
+;;;;
+;;;;     : (x y z) < foo x y
+;;;;     | add x
+;;;;     | add y z
+;;;;
+;;;; And that expands to:
+;;;;
+;;;;     - foo x y
+;;;;     & (x y z)
+;;;;     | add x
+;;;;     | add y z
+;;;;
+;;;; (Remember that `-` is function application, just like `|`)
+;;;;
+;;;;
+;;;; List Literals
+;;;; -------------
+;;;;
+;;;; Wide form:
+;;;;
+;;;;     ~[3 4 5]
+;;;;
+;;;; Tall form:
+;;;;
+;;;;    ~~ 3
+;;;;    ~~ 4
+;;;;    ~~ 5
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan
+:| sire_02_bit [if ifz ifNot ifNonZero and or not else]
+:| sire_02_bit [TRUE FALSE]
+:| sire_03_nat [add div inc dec]
+:| sire_05_row [idx put len null switch fst snd head]
+:| sire_05_row [weld map foldr v1 v2 v3 v4]
+:| sire_04_cmp [eql neq lth isZero]
+:| sire_06_rex [rexRune rexSons rexHeir rexKids]
+:| sire_06_rex [rexIsNode rexIsEmbd rexIsLeaf]
+:| sire_06_rex [rexGetNode rexEmbd {'}]
+:| sire_06_rex [PREF NEST EMBD OPEN WORD TEXT]
+:| sire_06_rex [rexGetNodeWithRune]
+:| sire_06_rex [rexStyle rexText]
+:| sire_06_rex [rexSetRune rexSetHeir rexSetSons]
+:| sire_07_dat [{,} {++} {>} take drop]
+:| sire_07_dat [NONE SOME maybeCase]
+:| sire_07_dat [CONS NIL listToRowRev listCase listFromRow]
+:| sire_07_dat [LEFT RIGHT eitherCase]
+:| sire_07_dat [rowTraverse listForEach listFoldr rowCons]
+:| sire_07_dat [readRex]
+:| sire_10_str [strWeld strIsCapitalized]
+:| sire_11_set [{%}]
+:| sire_12_tab [{#}]
+:| sire_13_exp [readSymbol rexParseKids]
+:| sire_13_exp [rowE natE letE cnsE txtE appE varE tmpName]
+:| sire_13_exp [lamE wutE]
+:| sire_13_exp [bloodline]
+:| sire_14_hax []
+:| sire_15_pad []
+:| sire_16_bar []
+
+
+;;; Parsing Signatures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= sigExpect } Expected `x` or signature `(x y z)`
+= sigNoHeir } name-sequence cannot have an heir
+
+= (readSignature rex err ok)
+| ifNonZero (rexHeir rex)
+        | err rex sigNoHeir
+| if (rexIsNode rex)
+        | if (neq {|} rexRune-rex)
+                | (err rex sigExpect)
+        ^ rowTraverse _ (rexSons rex) ok
+        ? (step son ret)
+        | readSymbol son err ret
+| readSymbol rex err (compose ok v1)
+
+=?= [%a %b %c]          | readSignature '(a b c) v2 id
+=?= [%a]                | readSignature '(a)     v2 id
+=?= [%a]                | readSignature 'a       v2 id
+=?= ['[a b] sigExpect]  | readSignature '[a b]   v2 id
+=?= ['([][]) sigNoHeir] | readSignature '([][])  v2 id
+
+
+;;; The Col Macro ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= cbExpect | {Expected a < node in : binder}
+
+= (readColBinder readExp rex err ok)
+@ rune (rexRune rex)
+| if (neq {<} rune)
+    | err rex cbExpect
+| if (null | rexKids rex)
+    | err rex {Empty bind expression}
+| readExp (rexSetRune {|} rex) err ok
+
+= (rexIsCapsSymbol rex)
+| and (neq 0 rex)
+| and (eql %WORD rexStyle-rex)
+      (strIsCapitalized rexText-rex)
+
+=?= 1 | rexIsCapsSymbol 'Foo
+=?= 0 | rexIsCapsSymbol 'foo
+=?= 0 | rexIsCapsSymbol '{Foo}
+=?= 0 | rexIsCapsSymbol '0
+=?= 0 | rexIsCapsSymbol '(hi there)
+
+= colSigExpect
+} Expected something like one of these:
+}
+}     arg
+}     &(arg ...)
+}     ?(fun arg ...)
+}     ??(fun arg ...)
+
+; ?(f x y) | ??(f x y) | (x y) | .*
+> Rex > Read (Bit, Maybe Text, Row Rex)
+= (readColSig readPat rex err ok)
+@ fail   (err rex colSigExpect)
+@ rune   (rexRune rex)
+@ heir   (rexHeir rex)
+@ sons   (rexSons rex)
+@ nSon   (len sons)
+@ item   (fst sons)
+@ params (rexKids item)
+;
+@ isPinned (eql {??} rune)
+@ isExplicit
+    | or (eql {&} rune)
+    | or (eql {?} rune)
+    | isPinned
+;
+| if not-isExplicit
+    ;
+    | readPat rex err
+    & pat
+    | ok NONE [pat]
+;
+@ isOkay
+    | and (eql 1 nSon)
+    | and (eql 0 heir)
+    | and (not | null params)
+          (or (eql {&} rune) not-(null params))
+| if (not isOkay) fail
+| if (eql {&} rune)
+    | rowTraverse (flip readPat err) params
+    & params
+    | ok NONE params
+| readSymbol (idx 0 params) err
+& funName
+| rowTraverse (flip readPat err) (drop 1 params)
+& params
+| ok (SOME funName,isPinned) params
+
+(tryColSig x)=(readColSig readSymbol x id v2)
+
+=?= ( NONE                , [%Foo %x]    ) | tryColSig '(&(Foo x))
+=?= ( NONE                , [%Foo %x %y] ) | tryColSig '(&(Foo x y))
+=?= ( SOME ({Foo}, FALSE) , [%x]         ) | tryColSig '(?(Foo x))
+=?= ( SOME ({Foo}, FALSE) , [%x %y]      ) | tryColSig '(?(Foo x y))
+=?= ( SOME ({Foo}, TRUE)  , [%x]         ) | tryColSig '(??(Foo x))
+
+= (readColSigSeq readPat sigRexes err ok)
+| if (eql 1 | len sigRexes)
+    | readColSig readPat (idx 0 sigRexes) err ok
+| else
+    | rowTraverse (flip readPat err) sigRexes (ok NONE)
+
+(tryColSigSeq xs)=(readColSigSeq readSymbol xs id v2)
+
+=?= ( NONE                , [%Foo %x]    ) | tryColSigSeq ['Foo 'x]
+=?= ( NONE                , [%Foo %x]    ) | tryColSigSeq ['(&(Foo x))]
+=?= ( NONE                , [%Foo %x %y] ) | tryColSigSeq ['(&(Foo x y))]
+=?= ( SOME ({Foo}, FALSE) , [%x]         ) | tryColSigSeq ['(?(Foo x))]
+=?= ( SOME ({Foo}, FALSE) , [%x %y]      ) | tryColSigSeq ['(?(Foo x y))]
+=?= ( SOME ({Foo}, TRUE)  , [%x]         ) | tryColSigSeq ['(??(Foo x))]
+
+= colNeedsHeir } Heir is required
+= colTwoSons   } Expected at least two sons
+
+= (readColExp readPat readExp rex err ok)
+@ sons     (rexSons rex)
+@ nSon     (len sons)
+@ lastIdx  (dec nSon)
+@ sigRexes (take lastIdx sons)
+@ valRex   (idx lastIdx sons)
+@ bodyRex  (rexHeir rex)
+;
+| ifz bodyRex     | err rex colNeedsHeir
+| if (lth nSon 2) | err rex colTwoSons
+;
+| readExp bodyRex err
+& bodyExp
+;
+| readColBinder readExp valRex err
+& valExp
+;
+| readColSigSeq readPat sigRexes err
+& (oFunName pats)
+;
+| ok valExp oFunName pats bodyExp
+
+= (colExpE valRex oFunName argNames bodyRex)
+| maybeCase oFunName
+    | appE (valRex, lamE argNames bodyRex)
+& nameAndPinned
+@ funName (fst nameAndPinned)
+@ pinned  (snd nameAndPinned)
+^ appE (valRex, _)
+| wutE pinned 0 funName argNames bodyRex
+
+= ({:} st rex err ok)
+| readColExp readSymbol readRex rex err
+& (valExp oFunName pats bodyExp)
+| ok st (colExpE valExp oFunName pats bodyExp)
+
+= (rexGetRune rex fall ok)
+: rune kids heir < rexGetNode rex fall
+| **ok rune
+
+=?=   [{+} {+}]
+  : rune < **rexGetRune '(3 + 4) 99
+  , rune rune
+
+=?= ['(<* f) cbExpect]
+  | (.{:} 0 '((: x <* f)(, 3)) v2 v2)
+
+
+;;; Fancy Function Application ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (unwrapTarSeq rex err ok)
+^ _ NIL rex
+? (loop acc rex)
+@ sons (rexSons rex)
+@ rune (rexRune rex)
+| ifz rex           | ok | listToRowRev acc
+| if (neq {*} rune) | loop (CONS rex acc) 0
+| if (null sons)
+    | err rex {Empty * item (not okay)}
+@ item
+    | if (eql 1 | len sons)
+        (idx 0 sons)
+    | else
+        | rexSetRune {|}
+        | rexSetHeir 0
+        | rex
+| loop (CONS item acc) (rexHeir rex)
+
+=?=     ^ unwrapTarSeq _ v2 v1
+        ' * add
+          * 2
+          * inc 2
+    ,
+   ++ ' add
+   ++ ' 2
+   ++ ' | inc 2
+
+= (readFancyApp readExp rex err ok)
+@ sons    | rexSons rex
+@ heir    | rexHeir rex
+@ kids    | rexKids rex
+@ isFancy | and (neq 0 heir) (eql {*} rexRune-heir)
+: params
+  < & ret
+    | if not-isFancy ret-kids
+    : extras < unwrapTarSeq heir err
+    ; trk #[=extras]
+    | ret (weld sons extras)
+: params < rowTraverse (flip readExp err) params
+| ok params
+
+= ({|} st rex err ok)
+: params < readFancyApp readRex rex err
+| ok st
+| if null-params (cnsE 0) (appE params)
+
+{-}=(.{|})
+
+=?= 3                 | (| add)(* 2)(* 1)
+=?= 5                 | (| add)(* inc 2)(* inc 1)
+=?= 5                 | (- add)(* inc 2)(* inc 1)
+=?= 3                 | (| add)(* 2)(| add 0 1)
+=?= [2 7]             | (| v2)(* 2)(| add 3)(* 4)
+=?= [1,2 1,2 1,2 1,2] | (| v4)(* v2 1 2)(* v2 1 2)(* v2 1 2)(| v2 1)(| 2)
+=?= 3                 | (|)(* add)(* 2)(* 1)
+=?= 3                 | ()(* add)(* 2)(* 1)
+
+
+;;; Closed List Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(consE x xs)=(rowE [x xs])
+nilE=(cnsE NIL)
+
+> List Rex > Rex
+(listE xs)=(listFoldr consE nilE xs)
+
+sigExpect={~ expects to be wrapped around a tuple literal: `~[3 4 5]`}
+
+= (readWideListLit readExp rex err ok)
+@ fail      | err rex sigExpect
+@ kids      | rexKids rex
+@ firstKid  | idx 0 kids
+@ itemRexes | rexKids firstKid
+;
+| if (neq 1 | len kids) fail
+| if (neq {~} | rexRune rex) fail
+| if (neq {,} | rexRune firstKid) fail
+;
+| rowTraverse (flip readExp err) itemRexes
+& items
+| ok (listFromRow items)
+
+= ({~} st rex err ok)
+| readWideListLit readRex rex err
+& items
+| ok st (listE items)
+
+=?= ~[3 4 5] | [3 [4 [5 0]]]
+=?= ~[3]     | [3 0]
+=?= ~[]      | 0
+
+
+;;; Open List Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (readItemized rune readItem readUnmatchingHeir rex err ok)
+^ _ rex ok
+? (go rex ret)
+; trk {go},rex
+| ifz rex (ret NIL)
+| if (neq rune | rexRune rex)
+    : final < readUnmatchingHeir rex err
+    | ret (CONS final NIL)
+@ sons (rexSons rex)
+@ itemRex
+    | if (eql 1 | len sons) (idx 0 sons)
+    | OPEN {|} sons 0
+| if (null sons)
+    | err (rexSetHeir 0 rex) {Expected non-empty line}
+: item < readItem itemRex err
+; trk #[=item]
+: tail < go (rexHeir rex)
+| ret (CONS item tail)
+
+= (readTallListLit readItem rex err ok)
+| readItemized {~~} readItem readItem rex err ok
+
+= ({~~} st rex err ok)
+: items < readTallListLit readRex rex err
+; trk {items},items,{->},(listE items)
+| ok st (listE items)
+
+=?= ~[3 4 5] | [3 [4 [5 0]]]
+=?= ~[3]     | ~~ 3
+=?= ~[3 4 5]
+       ~~ 3
+       ~~ 4
+       ~~ 5
+
+
+;;; Quasi Quotation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; {readQuasiTree} reads a quasi-quoted rex input and returns a Rex
+;; node with the quasi-quoted parts stored as embedded values.
+;;
+;; There are two types of splices, $$(expression splices) and $valueSlices.
+;;
+;; The details of how that is stored is left up to `readVal` and `readExp`,
+;; but the point is this reads a rex tree (without embeded values and with
+;; splices) into a rex tree (with embeded values).
+;;
+;; It's slightly confusing, but works out cleanly.  It's simpler than
+;; building our own representation for the same structure.
+
+= (readQuasiTree readVal readExp rex err ok)
+@ rune | rexRune rex
+@ heir | rexHeir rex
+@ kids | rexKids rex
+@ nKid | len kids
+| if (rexIsEmbd rex)
+    | err rex {quasi-quotation contains unexpected PLAN embed}
+| if (eql {$$} rune)
+    | if (neq 1 nKid)
+        | err rex {Too many/few sons for $$ in ` macro}
+    | readVal (fst kids) err (compose ok EMBD)
+| if (eql {$} rune)
+    | if (neq 1 nKid)
+        | err rex {Too many/few sons for $ in ` macro}
+    | readExp (fst kids) err (compose ok EMBD)
+: heir
+    < & ret
+      | ifz heir (ret 0)
+      | readQuasiTree readVal readExp heir err ret
+| if (rexIsLeaf rex)
+    | ok (rexSetHeir heir rex)
+| else
+    : sons
+        < ^ rowTraverse _ (rexSons rex)
+          & (r k)
+          | readQuasiTree readVal readExp r err k
+    | ok | rexSetHeir heir | rexSetSons sons rex
+
+quasiExpected={Expected something like: `rex}
+
+> (Rex > Read Rex) ; val
+> (Rex > Read Rex) ; exp
+> Rex
+> Read Rex
+= (readQuasiQuotedRex readVal readExp rex err ok)
+@ rune | rexRune rex
+@ kids | rexKids rex
+@ tree | fst kids
+| if (or (neq {`} rune) (neq 1 | len kids))
+    | err rex quasiExpected
+| readQuasiTree readVal readExp tree err ok
+
+four=(WORD {4} 0)
+
+;; {splicedE} takes a rex whose embded values represent splices.
+;; Each splice is either a expression that should be interpreted as
+;; constant value or an expressions that should be evaluated to a rex tree.
+;;
+;; We take that rex input, and we produce rex *output* that is a sire
+;; expression that *evalutes to* the final rex tree.
+;;
+;; This is all very confusing, but it can be worked through, and the
+;; resulting interface is intuitive.
+
+> RexEmbed (Either Rex Rex) > Rex
+= (splicedE rex)
+@ sons | rexSons rex
+@ heir | rexHeir rex
+@ rune | rexRune rex
+@ text | rexText rex
+@ cnsr | head rex
+| if (rexIsEmbd rex)
+    | eitherCase (rexEmbd rex)
+        (l & appE (cnsE EMBD, l))
+        (r & r)
+| if (rexIsLeaf rex)
+    | appE
+   ++ cnsE cnsr
+   ++ cnsE (rexText rex)
+   ++ ifz heir (cnsE 0) (splicedE heir)
+| else
+    | appE
+   ++ cnsE cnsr
+   ++ cnsE (rexRune rex)
+   ++ rowE (map splicedE sons)
+   ++ ifz heir (cnsE 0) (splicedE heir)
+
+; $$ splices in a constant value
+; $ splices in an expression
+;
+; TODO: Reverse these runes?
+
+= ({`} st rex err ok)
+@ readVal (rex err ok & ok (LEFT rex))
+@ readExp (rex err ok & ok (RIGHT rex))
+: quoted < readQuasiQuotedRex readVal readExp rex err
+| ok st (splicedE quoted)
+
+four=(WORD {4} 0)
+
+=?= '(3 4 5) | `(3 4 5)
+=?= '(3 4 5) | `($(WORD {3} 0) 4 5)
+
+=?= `(3 $(cnsE four) 5)
+    `(3 $$four 5)
+
+(**BNODE x y)=[x y]
+(**BLEAF x)=[x]
+
+> (a > a > a) > BinTree a > a
+= (binTreeFold f node)
+| if (eql 1 len-node) (idx 0 node)
+| f
+* binTreeFold f (fst node)
+* binTreeFold f (snd node)
+
+= (**readInfixValidate rune rex err ok)
+@ kids (rexKids rex)
+@ nKid (len kids)
+| if (neq rune rexRune-rex)
+    | err rex | strWeld {expected rune: } rune
+| ifz nKid
+    | err rex {binary operator requries 2+ args}
+| **ok kids nKid
+
+= (readInfixLeft readExp rune rex err ok)
+: kids nKid < readInfixValidate rune rex err
+^ _ nKid kids
+? (go nKid kids)
+: lastItem < readExp (idx (dec nKid) kids) err
+| if (eql nKid 1)
+    | ok (BLEAF lastItem)
+| else
+    @ nKid (dec nKid)
+    : head < go nKid (take nKid kids)
+    | ok (BNODE head (BLEAF lastItem))
+
+= (readInfixRight readExp rune rex err ok)
+: kids nKid < readInfixValidate rune rex err
+^ _ nKid kids ok
+? (go nKid kids ok)
+: fstItem < readExp (idx 0 kids) err
+| if (eql nKid 1)
+    | ok (BLEAF fstItem)
+| else
+    @ nKid (dec nKid)
+    : rest < go nKid (drop 1 kids)
+    | ok (BNODE (BLEAF fstItem) rest)
+
+= (andE x y) | `($$and $x $y)
+= (orE x y)  | `($$or $x $y)
+
+= ({&&} st rex err ok)
+: tree < readInfixRight readRex {&&} rex err
+| ok st (binTreeFold andE tree)
+
+= ({||} st rex err ok)
+: tree < readInfixRight readRex {||} rex err
+| ok st (binTreeFold orE tree)
+
+= ({::} st rex err ok)
+: tree < readInfixRight readRex {::} rex err
+| ok st (binTreeFold consE tree)
+
+=?= ~[3 4]   (3 :: 4 :: ~[])
+=?= ~[3 4 5] (3 :: 4 :: ~[5])
+=?= ~[3 4]   (:: 3)(:: 4)(:: ~[])
+
+=?= 1 | (@ one 1)(@ zero 0)(one && not zero)
+=?= 1 | not (1 && 0)
+=?= 1 | not (0 && 1)
+=?= 1 | not (0 && 0)
+=?= 1 | ((0 && 1) || (1 && 1))
+=?= 3 | ||3
+=?= 3 | &&3
+
+=?= 1 | (1 && 1 && 1)
+=?= 0 | (0 && die 3 && die 4)
+=?= 0 | (1 && 0 && die 4)
+
+=?= 1 | (1 || die 0 || 0)
+=?= 1 | (0 || 1 || die 0)
+=?= 1 | (0 || 0 || 1)
+=?= 0 | (0 || 0 || 0)
+
+
+;;; Short-Hand Assertion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (readAssert more rex err ok)
+@ kids (rexKids rex)
+| if (null kids) (ok more)
+| ok (appE kids :: more)
+
+= (assertE exps)
+| ifz exps '(#*)
+| bloodline
+: exp < listForEach exps
+| OPEN {#=?=} (natE 1, exp) 0
+
+=?=   | assertE
+     ~~ '(eql 3 (add 1 2))
+     ~~ '(eql 4 (add 3 1))
+  '
+  #=?= 1 (eql 3 (add 1 2))
+  #=?= 1 (eql 4 (add 3 1))
+
+= ({!!} st rex err ok)
+^ : exps < _ rex
+  | ok st (assertE exps)
+? (loop rex ret)
+@ heir     | rexHeir rex
+@ heirRune | rexRune heir
+| if (isZero heir || neq {!!} heirRune)
+    : exps < readAssert NIL rex err
+    | ret exps
+: more < loop heir
+: exps < readAssert more (rexSetHeir 0 rex) err
+| ret exps
+
+!! add 0 1
+!!
+!! add 1 0
+!!
+!! not (add 0 0)
+
+!! eql 3
+ | 3
+
+
+;;; Equality ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (readBinOpRow expectMsg rune readExp rex err ok)
+@ fail | err rex expectMsg
+@ kids | rexKids rex
+@ nKid | len kids
+| if (neq rune | rexRune rex) fail
+| if (lth kids 2) fail
+: vals < rowTraverse (flip readExp err) kids
+| ok vals
+
+> (Rex > Read a) > Rex > Read (Row a)
+= (readEqlExp readExp rex err ok)
+@ eqlExpect {Expected something like (x==y), (x==y==z), etc}
+| readBinOpRow eqlExpect {==} readExp rex err ok
+
+> (Rex > Read a) > Rex > Read2 a a
+= (readNotEqlExp readExp rex err ok)
+@ fail | err rex {Expected something like (x /= y)}
+@ kids | rexKids rex
+@ nKid | len kids
+| if (neq nKid 2) fail
+| if (neq {/=} | rexRune rex) fail
+: x < readExp (fst kids) err
+: y < readExp (snd kids) err
+| ok x y
+
+(notEqlE x y)=(appE (cnsE neq, x, y))
+
+> Nat > Row Rex > (Nat, Rex)
+= (multiEqlE st exps)
+@ numExps (len exps)
+| if (lth numExps 2)
+    | {multiEqlE needs 2+ expressions} exps
+| if (eql numExps 2)
+    | (st, appE (cnsE eql, fst exps, snd exps))
+@ nextKey  | idx 0 st
+@ tmpVar   | tmpName {g} nextKey
+@ st       | put st 0 (inc nextKey)
+@ tmpRef   | varE tmpVar
+@ fstExp   | fst exps
+@ restExps | drop 1 exps
+^ (st, _)
+^ | letE tmpVar fstExp
+  | _ (listFromRow restExps)
+? (loop more)
+: x xs < listCase more (die {impossible})
+: y ys < listCase xs (appE (cnsE eql, tmpRef, x))
+^ appE (cnsE and, _, loop xs)
+| appE (cnsE eql, tmpRef, x)
+
+= ({==} st rex err ok)
+: items < readEqlExp readRex rex err
+@ stRex (multiEqlE st items)
+| ok (fst stRex) (snd stRex)
+
+= ({/=} st rex err ok)
+: x y < readNotEqlExp readRex rex err
+| ok st (notEqlE x y)
+
+=?= 1 (3 /= 4)
+=?= 0 (3 /= 3)
+=?= 1 (3 == 3)
+=?= 1 (3 == 3 == 3)
+=?= 0 (4 == 3 == 3)
+=?= 0 (3 == 4 == 3)
+=?= 0 (3 == 3 == 4)
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ rexGetRune
+^-^ readSignature
+^-^ readItemized
+^-^ readFancyApp
+^-^ readTallListLit readWideListLit
+^-^ readNotEqlExp
+^-^ readQuasiQuotedRex splicedE
+^-^ binTreeFold
+^-^ readInfixRight readInfixLeft
+^-^
+^-^ readEqlExp multiEqlE
+^-^ readColExp colExpE
+^-^
+^-^ {|}
+^-^ {:}
+^-^ {~} {~~} {::}
+^-^ {`}
+^-^ {&&} {||}
+^-^ {==} {/=}
+^-^ {!!}
+^-^

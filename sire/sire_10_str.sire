@@ -1,0 +1,220 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_10_str <- sire_07_dat
+
+;;;; Characters and Strings
+;;;; ======================
+;;;;
+;;;; This module defines a bunch of functions for working with ASCII
+;;;; strings and characters encoded as nats.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan ;
+:| sire_02_bit [if ifNot and or not]
+:| sire_03_nat [add sub lsh roundUp met mul mod div]
+:| sire_05_row []
+:| sire_04_cmp [eql gth lte gte]
+:| sire_05_row [foldl]
+:| sire_06_rex []
+:| sire_07_dat [CONS NIL listFoldl listToRow listDrop listMap listLen listAll]
+:| sire_07_dat [all {,} {>}]
+
+
+;;; Characters ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(isDigit c)=(and (gte c {0}) (lte c {9}))
+(isUpper c)=(and (gte c {A}) (lte c {Z}))
+(isLower c)=(and (gte c {a}) (lte c {z}))
+(isAlpha c)=(or isUpper-c isLower-c)
+(isPrint c)=(and (gte c { }) (lte c {~}))
+
+= (isHexDigit c)
+| or (isDigit c)
+| or (and (gte c {A}) (lte c {F}))
+     (and (gte c {a}) (lte c {f}))
+
+(isAlphaNum c)=(or isAlpha-c isDigit-c)
+
+(toLower c)=(if (isUpper c) (add 32 c) c)
+(toUpper c)=(if (isLower c) (sub c 32) c)
+
+(chr c)=(add c 48)
+(ord c)=(sub c 48)
+
+newlineChar=10
+tabChar=9
+spaceChar=32
+
+
+;;; Utilities ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; {listDigits} converts a nat into a list of digits.
+= (listDigits num)
+| ifNot num (CONS {0} 0)
+^ _ num NIL
+? (loop mor acc)
+| seq acc
+| ifNot mor acc
+@ char (add (mod mor 10) {0})
+@ left (div mor 10)
+| loop left (CONS char acc)
+
+;; {digits} converts a nat into a row of digits.
+= (digits num) (listToRow listDigits-num)
+
+
+;;; Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(strWeld x y)=(| add x | lsh y | roundUp met-x 8)
+(strCat vs)=(foldl strWeld 0 vs)
+
+= (strToList s)
+| ifNot s NIL
+| CONS (mod s 256)
+| strToList (div s 256)
+
+(strFromList cs)=(listFoldl strWeld 0 cs)
+(explode str)=(listToRow strToList-str)
+(implode cs)=(strCat cs)
+
+= (strLen s)       | listLen (strToList s)
+= (strMap f str)   | strFromList | listMap f | strToList str
+= (strToUpper str) | strMap toUpper str
+= (strToLower str) | strMap toLower str
+
+= (strCapitalize str)
+@ hed (mod str 256)
+@ cap (toUpper hed)
+| add cap (sub str hed)
+
+(strIsCapitalized str)=(isUpper (mod str 256))
+
+;; {loadDecimal} parses a decimal number without validating, instead
+;; assuming that each character is in the appropriate range.
+
+> Str > Nat
+= (loadDecimal n)
+^ listFoldl _ 0 (strToList n)
+& (acc c)
+| if (eql c {_}) acc
+| add (mul 10 acc) (ord c)
+
+;; {loadHexLit} does the same, but for hexidecimal literals (which are
+;; expected to start with {0x}).
+
+> Str > Nat
+= (loadHexLit n)
+^ listFoldl _ 0 (listDrop 2 | strToList n)
+& (acc c)
+| if (eql {_} c) acc
+| add (mul 16 acc)
+| if isDigit-c (sub c {0})
+| add 10
+| sub toLower-c {a}
+
+=?= 255 | loadHexLit {0xff}
+=?= 255 | loadHexLit {0x_f_f_}
+=?= 14  | loadHexLit {0x0e}
+=?= 15  | loadHexLit {0x0f}
+=?= 15  | loadHexLit {0xf}
+=?= 240 | loadHexLit {0xf0}
+=?= 0   | loadHexLit {0x}
+
+;; {loadKeyWord} parses something that is either a decimal literal or
+;; a string.  It either parses the decimal number or casts the input string
+;; to a number.
+
+= (isDecimalLit str)
+| and str
+| listAll x&(or eql-x-{_} isDigit-x)
+| strToList str
+
+= (isHexLit str)
+| and (gth str {0x})
+| and (eql {0x} | mod str 65536)
+| listAll c&(or (eql c {_}) isHexDigit-c)
+| listDrop 2 strToList-str
+
+=?= 1 | isHexLit {0xff}
+=?= 1 | isHexLit {0x0e}
+=?= 1 | isHexLit {0x0f}
+=?= 1 | isHexLit {0xF0}
+=?= 0 | isHexLit {0x}
+=?= 0 | isHexLit {0xg}
+
+> Str > Nat
+= (loadKeyWord str)
+| if isDecimalLit-str | loadDecimal str
+| if isHexLit-str     | loadHexLit str
+| str
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= {fdsa} (strWeld {} {fdsa})
+=?= {fdsa} (strWeld {f} {dsa})
+=?= {fdsa} (strWeld {fd} {sa})
+=?= {fdsa} (strWeld {fds} {a})
+=?= {fdsa} (strWeld {fdsa} {})
+
+=?= [{f}]     (explode {f})
+=?= [255]     (explode 255)
+=?= [{f} {d}] (explode {fd})
+
+=?= 0 | strLen {}
+=?= 1 | strLen {a}
+=?= 2 | strLen {ab}
+=?= 3 | strLen {abc}
+
+=?= 1 | eql 1   (ord {1})
+=?= 1 | eql {3} (chr 3)
+=?= 1 | eql 5   (ord (chr 5))
+=?= 1 | eql {9} (chr (ord {9}))
+
+=?= 1 | isLower {c}
+=?= 1 | isUpper {C}
+=?= 1 | not (isAlpha {0})
+=?= 1 | isDigit {0}
+=?= 1 | not (isDigit {a})
+=?= 1 | all isHexDigit [{0} {9} {a} {A} {f} {F}]
+=?= 1 | not (isHexDigit {g})
+
+=?= 1 (isPrint {a})
+=?= 0 (isPrint 1)
+
+=?= [{0} 0]                   | listDigits 0
+=?= [{0}]                     | digits 0
+=?= [{1} [{2} [{3} [{4} 0]]]] | listDigits 1234
+=?= [{1} {2} {3} {4}]         | digits     1234
+=?= [{1} [{2} [{3} [{4} 0]]]] | listDigits 01234
+=?= [{1} {2} {3} {4}]         | digits     01234
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ ord chr
+^-^ isDigit isHexDigit
+^-^ isUpper isLower isAlpha isPrint
+^-^ isAlphaNum
+^-^ toLower toUpper
+^-^
+^-^ newlineChar tabChar spaceChar
+^-^
+^-^ listDigits digits
+^-^
+^-^ strLen
+^-^ strWeld strCat
+^-^ strToList strFromList
+^-^ explode implode
+^-^ strToUpper strToLower strCapitalize strIsCapitalized
+^-^ strMap
+^-^
+^-^ isDecimalLit loadDecimal
+^-^ isHexLit     loadHexLit
+^-^ loadKeyWord
+^-^

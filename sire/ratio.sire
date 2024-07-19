@@ -1,0 +1,122 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### ratio <- prelude
+
+;;;; Ratio Syntax
+;;;; ============
+;;;;
+;;;; f-x is function application
+;;;;
+;;;; +234     -- is positive (signed) integer.
+;;;; -234     -- is negative (signed) integer.
+;;;; +(23/5)  -- is negative ratio.
+;;;; -(23/5)  -- is negative ratio.
+;;;; -(234.0) -- is a negative float (64 bit)
+;;;; +(234.0) -- is a positive float (64 bit)
+;;;;
+;;;; After the prefix/infix precedence swap:
+;;;;
+;;;; +234   -- is positive (signed) integer.
+;;;; -234   -- is negative (signed) integer.
+;;;; +23/5  -- is negative ratio.
+;;;; -23/5  -- is negative ratio.
+;;;; -234.0 -- is a negative float (64 bit)
+;;;; +234.0 -- is a positive float (64 bit)
+;;;;
+;;;;
+;;;; Representing Integers and Rationals
+;;;; ===================================
+;;;;
+;;;; Positive integers are represented directly as naturals, negative
+;;;; integers are wrapped in a box.
+;;;;
+;;;; Rational numbers that could be represented as integers are always
+;;;; reduced to their integer representations.  Otherwise, rationals are
+;;;; represented as fractions.  An extra zero is added to negative ratios
+;;;; so that the length can be used to discriminate.
+;;;;
+;;;; Summary:
+;;;;
+;;;;     +5    ->  5
+;;;;     -5    ->  [5]
+;;;;     +3/5  ->  [3 5]
+;;;;     -3/5  ->  [3 5 0]
+;;;;
+;;;; This representation is compact, and it makes it possible to
+;;;; distinguish between representations by switching on the length
+;;;; (which is part of the pointer tag)
+;;;;
+;;;;
+;;;; Ordering
+;;;; --------
+;;;;
+;;;; The built-in ordering on integers and rationals is probably not what
+;;;; you want.
+;;;;
+;;;;     Positive Integers are less than:
+;;;;     Negative Integers, which are less than:
+;;;;     Positive Fractions, which are less than:
+;;;;     Negative fractions.
+;;;;
+;;;; Positive and negative fractions are compared lexicographically,
+;;;; numerator first.  Use specialized comparison functions to get the
+;;;; mathematical ordering.
+;;;;
+;;;;
+;;;; TODO: How should things like ordered sets of rationals be represented?
+;;;; ----------------------------------------------------------------------
+;;;;
+;;;; Is there some way to re-use the set operations with a different
+;;;; ordering function?
+;;;;
+;;;;
+;;;; TODO: Document my thoughts on slices
+;;;; ------------------------------------
+;;;;
+;;;; Small bignums, bar, and rows should be represented without an extra
+;;;; word for the, the length should be included in the pointer tag.
+;;;;
+;;;; As a consequence, these type should generally not support O(1)
+;;;; slicing.  On the surface, slicing should be possible by simply
+;;;; re-using the same memory with a different pointer and length.
+;;;; However, this causes problems with GC.
+;;;;
+;;;; Let's say we a buffer that contains 64 0-bytes.  And we have two
+;;;; bar references to that buffer, one is a 32 bytes slice and the other
+;;;; is the full 64 bytes.
+;;;;
+;;;; During garbage collection, we encounter the 32 bytes slice first.
+;;;; We do not know that the buffer is 64 bytes wide, so we copy the 32
+;;;; bytes and we mark the data structure to indicate that it has been
+;;;; moved  Oh wait!  We need some place to mark this.  Ok, so we need
+;;;; a size, ok so the slicing doesn't work without an extra redirection.
+;;;;
+;;;; This ended up being an example of something else.  All indirect
+;;;; non-pointer data (bars and nats) on the EVAL heap require a length
+;;;; word (so that the length can be used as a redirect during GC).
+;;;; However, on disk this is not needed (because data is not moved).
+;;;;
+;;;; Different example, let's say we an array of 64 atoms.  And we have two
+;;;; rows that point into that array.  One is 32 wide, and the other is
+;;;; the full 64 items.
+;;;;
+;;;; During garbage collection, we encounter the 32 bytes slice first.
+;;;; We do not know that the array is 64 bytes wide, so we copy the 32
+;;;; values to the new heap, and we mark the structure to indicate that
+;;;; it has been moved.  We write this mark into the first word.  Now we
+;;;; hit the 64-long version, and we see that is has already been moved!
+;;;; Wrong.
+;;;;
+;;;; Solution: slicing is an O(n) copy, and O(1) slicing is supported
+;;;; only explicitly, through explicit data structures.
+;;;;
+;;;; Conclusion: all operations on rows/sets/tabs should be
+;;;; slice-efficient.  This way, an external slice representation can
+;;;; still use all of the jets.
+;;;;
+;;;;     ^ | and (setHas [off=2 len=4] 5 _ == TRUE)
+;;;;       | and (setHas [off=2 len=4] 6 _ == FALSE)
+;;;;             (setHas [off=2 len=4] 0 _ == FALSE)
+;;;;     | %[0 1 2 3 4 5 6 7 8]

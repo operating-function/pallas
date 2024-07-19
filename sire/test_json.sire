@@ -1,0 +1,115 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### test_json <- test_datom
+
+:| sire
+:| json
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (jsonLexAll bar)
+| RIGHT (listToRow | lexJson bar)
+
+= example
+# b
+}  {
+}      "type": "application",
+}      "source-directories": [
+}          "src"
+}      ],
+}      "elm-version": "0.19.1",
+}      "dependencies": {
+}          "direct": {
+}              "elm/browser": "1.0.2",
+}              "elm/core": "1.0.5",
+}              "elm/html": "1.0.0",
+}              "elm/json": "1.1.3",
+}              "elm/random": "1.0.0",
+}              "elm/time": "1.0.0"
+}          },
+}          "indirect": {
+}              "elm/url": "1.0.0",
+}              "elm/virtual-dom": "1.0.3"
+}          }
+}      },
+}      "test-dependencies": {
+}          "direct": {},
+}          "indirect": {}
+}      }
+}  }
+}
+
+= exampleMinified
+| barCat
+, b#} {"type":"application","elm-version":"0.19.1","dependencies":
+  b#} {"direct":{"elm/time":"1.0.0","elm/core":"1.0.5","elm/html":
+  b#} "1.0.0","elm/json":"1.1.3","elm/random":"1.0.0","elm/browser
+  b#} ":"1.0.2"},"indirect":{"elm/url":"1.0.0","elm/virtual-dom":"
+  b#} 1.0.3"}},"test-dependencies":{"direct":{},"indirect":{}},"so
+  b#} urce-directories":["src"]}
+
+%start
+
+=?= 116 (| len | unpackRight | jsonLexAll | barCat | rep example 1)
+
+%did_1
+
+=?= exampleMinified (| printJson | idx 0 | parseJson example)
+
+%did_round_trip
+
+=?= 231 (| len | unpackRight | jsonLexAll | barCat | rep example 2)
+
+%did_2
+
+}
+} ++ %1mb_is
+} ++ mul 1024 1024
+} ++ %bytes
+}
+} ++ %ex_3_is
+} ++ (| barLen | barCat | rep example 1817)
+} ++ %bytes
+}
+} =?= 208956 (| len | unpackRight | jsonLexAll | barCat | rep example 1817)
+}
+} %did_3
+}
+
+
+;;; SmallCheck Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (listAlternate aInput bInput)
+: a as < listCase aInput bInput
+: b bs < listCase bInput aInput
+| CONS a
+| CONS b
+| listAlternate as bs
+
+= (allJSON _)
+| CONS JNULL
+| CONS JTRUE
+| CONS JFALSE
+| CONS (JNUM 0)
+| CONS (JSTR b#{})
+| CONS (JVEC [])
+| CONS (JMAP #[])
+| listAlternate
+    : x < listForEach (allJSON _)
+    | JVEC [x]
+: x < listForEach (allJSON _)
+| JMAP [=x]
+
+= (chk x)
+@ val   | parseJson x
+@ round | printJson idx-0-val
+| if (neq round x)
+    | die [[x {!=} round] x]
+| 1
+
+!! (| rowAnd | map chk | map printJson | listToRow | listTake 100 | allJSON 0)
+;; (| rowAnd | map chk | map printJson | listToRow | listTake 1000 | allJSON 0)

@@ -1,0 +1,470 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### blake3 <- stew
+
+:| sire
+:| stew
+:| w32
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+#* # abstype CV
+#* # abstype Chunk
+#* # abstype HashState
+#* # abstype Hasher
+
+
+;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (gulf f t)
+| gen (sub (inc t) f) (add f)
+
+; Constants
+b3OutLen=32
+b3KeyLen=32
+b3BlockLen=64
+b3ChunkLen=1024
+b3ChunkStart=(lsh 1 0)
+b3ChunkEnd=(lsh 1 1)
+b3Parent=(lsh 1 2)
+b3Root=(lsh 1 3)
+b3KeyedHash=(lsh 1 4)
+b3DeriveKeyContext=(lsh 1 5)
+b3DeriveKeyMaterial=(lsh 1 6)
+
+= b3Iv
+++ 0x6A09E667
+++ 0xbb67ae85
+++ 0x3C6ef372
+++ 0xA54ff53a
+++ 0x510E527F
+++ 0x9B05688C
+++ 0x1F83D9ab
+++ 0x5be0cd19
+
+= b3MsgPermutation
+, 2 6 3 10 7 0 4 13 1 11 12 5 9 14 15 8
+
+= (b3G S a b c d mx my)
+@ S | put S a | add32 (add32 (get S a) (get S b)) mx
+@ S | put S d | ror32 (xor32 (get S d) (get S a)) 16
+@ S | put S c | add32 (get S c) (get S d)
+@ S | put S b | ror32 (xor32 (get S b) (get S c)) 12
+@ S | put S a | add32 (add32 (get S a) (get S b)) my
+@ S | put S d | ror32 (xor32 (get S d) (get S a)) 8
+@ S | put S c | add32 (get S c) (get S d)
+@ S | put S b | ror32 (xor32 (get S b) (get S c)) 7
+S
+
+= (b3Round st m)
+; Mix the columns
+@ st | b3G st 0 4  8 12 (get m 0) (get m 1)
+@ st | b3G st 1 5  9 13 (get m 2) (get m 3)
+@ st | b3G st 2 6 10 14 (get m 4) (get m 5)
+@ st | b3G st 3 7 11 15 (get m 6) (get m 7)
+;
+; Mix the diagonals
+@ st | b3G st 0 5 10 15 (get m 8)  (get m 9)
+@ st | b3G st 1 6 11 12 (get m 10) (get m 11)
+@ st | b3G st 2 7  8 13 (get m 12) (get m 13)
+@ st | b3G st 3 4  9 14 (get m 14) (get m 15)
+st
+
+= (b3Permute m)
+: i < gen 16
+| get m (get b3MsgPermutation i)
+
+= (u32FromBytesLSB a b c d)
+| add32 a
+| add32 (lsh32 b 8)
+| add32 (lsh32 c 16)
+        (lsh32 d 24)
+
+> Row Word8 > Row Word32
+= (bytesToWords bytes)
+@ numBytes | len bytes
+| if (mod numBytes 4)
+    | die {byte-row length not a multiple of 4}
+: wix < gen (div numBytes 4)
+@ bix (mul 4 wix)
+| u32FromBytesLSB
+    (get bytes | bix)
+    (get bytes | add bix 1)
+    (get bytes | add bix 2)
+    (get bytes | add bix 3)
+
+; breaks a nat that represents a word into
+; its little-endian component bytes
+(wordToBytes a)=(gen 4 i&(con 0xff (rsh a (mul 8 i))))
+
+; Little Endian Byte order
+> Row Word32 > Row Word8
+(wordsToBytes wv)=(catMap wordToBytes wv)
+
+> (Row8 Word32, Row16 Word32, Word64, Word32, Word32)
+> Row16 Word32
+= (b3Compress [chainingValue blockWords counter blockLen flags])
+@ st ++ get chainingValue 0
+     ++ get chainingValue 1
+     ++ get chainingValue 2
+     ++ get chainingValue 3
+     ++ get chainingValue 4
+     ++ get chainingValue 5
+     ++ get chainingValue 6
+     ++ get chainingValue 7
+     ++ get b3Iv 0
+     ++ get b3Iv 1
+     ++ get b3Iv 2
+     ++ get b3Iv 3
+     ++ chop32 counter
+     ++ chop32 (rsh counter 32)
+     ++ blockLen
+     ++ flags
+@ block blockWords
+@ st    | b3Round st block         ;;; round 1
+@ block | b3Permute block
+@ st    | b3Round st block         ;;; round 2
+@ block | b3Permute block
+@ st    | b3Round st block         ;;; round 3
+@ block | b3Permute block
+@ st    | b3Round st block         ;;; round 4
+@ block | b3Permute block
+@ st    | b3Round st block         ;;; round 5
+@ block | b3Permute block
+@ st    | b3Round st block         ;;; round 6
+@ block | b3Permute block
+@ st    | b3Round st block         ;;; round 7
+;
+^ _ 0 st
+? (loop i st)
+| if (eql i 8)
+  st
+@ st | put st i
+     | xor32 (get st (add i 8))
+     | get st i
+@ st | put st (add i 8)
+     | xor32 (get st (add i 8))
+     | get chainingValue i
+| loop (inc i) st
+
+(first8words v)=(slice v 0 8)
+
+= (b3OutputNew inChain blockWords counter len flags)
+| (inChain, blockWords, counter, len, flags)
+
+(b3OutputGetInputChainingValue o)=(get o 0)
+(b3OutputGetBlockWords o)=(get o 1)
+(b3OutputGetCounter o)=(get o 2)
+(b3OutputGetBlockLen o)=(get o 3)
+(b3OutputGetFlags o)=(get o 4)
+
+= (b3OutputChainingValue output)
+| first8words
+| b3Compress output
+
+; Modification to the previous way the rust
+; version worked: the rust version took a
+; buffer called outSlice, which got filled
+; instead of returning a buffer of the
+; right size.
+= (b3OutputRootOutputBytes o outSize)
+@ outChunkLen
+    | mul 2 b3OutLen
+@ wid
+    | div (roundUp outSize outChunkLen) outChunkLen
+^ cat (gen wid _)
+& outputBlockCounter
+@ words
+    | b3Compress
+   ++ b3OutputGetInputChainingValue o
+   ++ b3OutputGetBlockWords o
+   ++ outputBlockCounter
+   ++ b3OutputGetBlockLen o
+   ++ or32 (b3OutputGetFlags o) b3Root
+@ usedBytes | mul outChunkLen outputBlockCounter
+@ remBytes  | sub outSize usedBytes
+@ need      | min outChunkLen remBytes
+| take need (wordsToBytes words)
+
+
+; = ChunkState
+; , chainingVal
+; , chunkCounter
+; , block
+; , blockLen
+; , blocksCompressed
+; , flags
+
+(b3ChunkstGetChainingVal c)=(get c 0)
+(b3ChunkstGetChunkCounter c)=(get c 1)
+(b3ChunkstGetBlock c)=(get c 2)
+(b3ChunkstGetBlockLen c)=(get c 3)
+(b3ChunkstGetBlocksCompressed c)=(get c 4)
+(b3ChunkstGetFlags c)=(get c 5)
+(b3ChunkstPutChainingVal c)=(put c 0)
+(b3ChunkstPutChunkCounter c)=(put c 1)
+(b3ChunkstPutBlock c)=(put c 2)
+(b3ChunkstPutBlockLen c)=(put c 3)
+(b3ChunkstPutBlocksCompressed c)=(put c 4)
+(b3ChunkstPutFlags c)=(put c 5)
+
+= (b3ChunkstNew keyWords chunkCounter flags)
+++ keyWords
+++ chunkCounter
+++ rep 0 b3BlockLen
+++ 0
+++ 0
+++ flags
+
+= (b3ChunkstLen c)
+| add (b3ChunkstGetBlockLen c)
+| mul b3BlockLen
+| b3ChunkstGetBlocksCompressed c
+
+= (b3ChunkstStartFlag c)
+| ifz (b3ChunkstGetBlocksCompressed c)
+* b3ChunkStart
+* 0
+
+> Chunk > Row u8 > Chunk
+= (b3ChunkstUpdate c input)
+| ifz (len input) c
+@ c | if
+    * neq b3BlockLen (b3ChunkstGetBlockLen c)
+    * c
+    ; If the block buffer is full, compress it and clear it.
+    @ blockWords
+        | bytesToWords
+        | b3ChunkstGetBlock c
+    @ c | b3ChunkstPutChainingVal c
+        | first8words
+        | b3Compress
+       ++ b3ChunkstGetChainingVal c
+       ++ blockWords
+       ++ b3ChunkstGetChunkCounter c
+       ++ b3BlockLen
+       ++ | or32
+          * b3ChunkstGetFlags c
+          * b3ChunkstStartFlag c
+    @ c | b3ChunkstPutBlocksCompressed c
+        | inc (b3ChunkstGetBlocksCompressed c)
+    @ c | b3ChunkstPutBlock c
+        | rep 0 b3BlockLen
+    @ c | b3ChunkstPutBlockLen c 0
+    c
+@ want | sub b3BlockLen (b3ChunkstGetBlockLen c)
+@ need | min want (len input)
+@ c | b3ChunkstPutBlock c
+    : i < gen (len | b3ChunkstGetBlock c)
+    @ blockLen | b3ChunkstGetBlockLen c
+    | if (lth i blockLen || gte i (add need blockLen))
+    * get (b3ChunkstGetBlock c) i
+    * get input (sub i blockLen)
+@ c | b3ChunkstPutBlockLen c
+    | add (b3ChunkstGetBlockLen c) need
+| b3ChunkstUpdate c (drop need input)
+
+= (b3ChunkstOutput c)
+@ blockWords
+    | bytesToWords | b3ChunkstGetBlock c
+| b3OutputNew
+* b3ChunkstGetChainingVal c
+* blockWords
+* b3ChunkstGetChunkCounter c
+* b3ChunkstGetBlockLen c
+| or32
+* or32 (b3ChunkstGetFlags c) (b3ChunkstStartFlag c)
+* b3ChunkEnd
+
+= (b3ParentOutput lChildCv rChildCv keyWords flags)
+@ blockWords
+    | weld (take 8 lChildCv) (take 8 rChildCv)
+| b3OutputNew
+* keyWords
+* blockWords
+* 0
+* b3BlockLen
+* or32 b3Parent flags
+
+= (b3ParentCv lChildCv rChildCv keyWords flags)
+| b3OutputChainingValue
+| b3ParentOutput
+* lChildCv
+* rChildCv
+* keyWords
+* flags
+
+; (Modifying cvStack,cvStackLen to just use
+; a list in this port.)
+;
+; = Hasher
+; , chunkState/ChunkState
+; , keyWords/(u32*8)
+; , cvStack/(List)
+; , flags
+
+(b3HasherGetChunkst h)=(get h 0)
+(b3HasherGetKeyWords h)=(get h 1)
+(b3HasherGetCvStack h)=(get h 2)
+(b3HasherGetFlags h)=(get h 3)
+
+(b3HasherPutChunkst h st)=(put h 0 st)
+(b3HasherPutCvStack h cv)=(put h 2 cv)
+
+= (b3HasherNewInternal keyWords flags)
+| ifNot (eql 8 | len keyWords)
+    | die {Incorrect length of keyWords}
+++ b3ChunkstNew keyWords 0 flags
+++ keyWords
+++ NIL
+++ flags
+
+= b3HasherNew
+| b3HasherNewInternal b3Iv 0
+
+; Punting: newKeyed, newDeriveKey.
+
+> h > CV > h
+= (b3HasherPushStack h cv)
+@ st | CONS cv (b3HasherGetCvStack h)
+| b3HasherPutCvStack h st
+
+> HashState > [CV HashState]
+= (b3HasherPopStack hSt)
+| listCase (b3HasherGetCvStack hSt)
+    | die } Trying to pop empty stack
+& (top res)
+| (top, b3HasherPutCvStack hSt res)
+
+; "Section 5.1.2 of the blake3 spec explains
+; this algorithm in more detail."
+;
+; Returns h
+= | b3HasherAddChunkChainingValue
+    h
+    newCv
+    totalChunks
+^ _ h newCv totalChunks
+? (go h newCv totalChunks)
+| ifNot (and32 totalChunks 1)
+    @ [leftCv h]
+        | b3HasherPopStack h
+    @ newCv
+        | b3ParentCv
+        * leftCv
+        * newCv
+        * b3HasherGetKeyWords h
+        * b3HasherGetFlags h
+    @ totalChunks
+        | rsh totalChunks 1
+    | go h newCv totalChunks
+| b3HasherPushStack h newCv
+
+= (b3HasherUpdate h input)
+@ final
+    & (h input)
+    @ want  | sub b3ChunkLen
+            | b3ChunkstLen
+            | b3HasherGetChunkst h
+    @ need  | min want (len input)
+    @ temp  | b3ChunkstUpdate
+            * b3HasherGetChunkst h
+            * take need input
+    @ h     | b3HasherPutChunkst h temp
+    @ input | drop need input
+    | b3HasherUpdate h input
+| ifNot (len input) h
+| if    | neq b3ChunkLen
+        | b3ChunkstLen
+        | b3HasherGetChunkst h
+    | final h input
+@ chunkCv
+    | b3OutputChainingValue
+    | b3ChunkstOutput
+    | b3HasherGetChunkst h
+@ totalChunks
+    | inc
+    | b3ChunkstGetChunkCounter
+    | b3HasherGetChunkst h
+@ h | b3HasherAddChunkChainingValue
+    * h
+    * chunkCv
+    * totalChunks
+@ h | b3HasherPutChunkst h
+    | b3ChunkstNew
+    * b3HasherGetKeyWords h
+    * totalChunks
+    * b3HasherGetFlags h
+| final h input
+
+> Hasher > Nat > Row Word8
+= (b3Finalize h outHashSize)
+@ out (b3ChunkstOutput | b3HasherGetChunkst h)
+^ _ out (b3HasherGetCvStack h)
+? (go output stack)
+| listCase stack
+  | b3OutputRootOutputBytes output outHashSize
+& (top res)
+@ output
+    | b3ParentOutput
+    * top
+    * b3OutputChainingValue output
+    * b3HasherGetKeyWords h
+    * b3HasherGetFlags h
+| go output res
+
+; One-function convenience method that
+; handles entire operation for one row.
+
+= (blake3_row byt)
+| b3Finalize (b3HasherUpdate b3HasherNew byt) 32
+
+= (_Blake3 x)
+^ bytesBar (b3Finalize _ 32)
+^ listFoldl _ b3HasherNew (barTreeToList x)
+| (h x)&(b3HasherUpdate h barBytes-x)
+
+blake3=_Blake3
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= | barCat
+   ++ x#7470ea5654831e01ffc04ee0e43a32fb
+   ++ x#90227162dc0faaa14f9627d8f5c718f7
+  | blake3 b#fdsafdsa
+
+= testData
+^ _ (barGen 4096 id) 3
+? (loop remaining size)
+| if (barIsEmpty remaining) NIL
+| CONS (barTake size remaining)
+| loop (barDrop size remaining) (mul 2 size)
+
+=?= | blake3 testData
+  | blake3 (barFlat testData)
+
+!! | listAllEql
+  ~~ pinItem blake3 b#foobarbaz
+  ~~ pinItem blake3 ~[b#foo b#bar b#baz]
+  ~~ pinItem blake3 (1 b#baz b#bar b#foo)
+  ~~ pinItem blake3 (add (1 2 b#baz b#bar (0 b#foo)))
+  ~~ blake3 b#foobarbaz
+  ~~ blake3 ~[b#foo b#bar b#baz]
+  ~~ blake3 (1 b#baz b#bar b#foo)
+  ~~ blake3 (add (1 2 b#baz b#bar (0 b#foo)))
+
+=?= | blake3 [testData b#foo]
+  | blake3 (barFlat [testData b#foo])
+
+=?= | blake3 [[b#foo testData b#bar] b#baz]
+  | blake3 (barFlat [[b#foo testData b#bar] b#baz])
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^ blake3
+^-^ blake3_row

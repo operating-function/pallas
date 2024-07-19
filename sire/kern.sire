@@ -1,0 +1,524 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### kern <- json
+
+;;;; Cog MicroKernel
+;;;; ===============
+;;;;
+;;;; Simple OS Kernel based on the Haskell IO Monad.
+;;;;
+;;;; This is probably not the ideal kernel paradigm in the long run,
+;;;; since there's no good way to upgrade running code, but it works great
+;;;; for demos.
+;;;;
+;;;;
+;;;; Kernel State
+;;;; ------------
+;;;;
+;;;; This implementation is in continuation passing style, where each step
+;;;; passes around six values:
+;;;;
+;;;; -  `end`: What to do when this thread is done executing for now?
+;;;;
+;;;; -  `me`: What is the thread-id of the current thread?
+;;;;
+;;;; -  `fr`: A list of unused slots in the `sl` array.
+;;;;
+;;;; -  `kl`: A list of slots that house canceled requests.  They are not
+;;;;          re-used until the next event.  Each event has multiple
+;;;;          syscall responses.  If a slot was re-used before it's response
+;;;;          was handled, then it will be handled by the wrong handler.
+;;;;
+;;;; -  `sl`: An array of "state slots", used for paused threads, Refs, etc.
+;;;;
+;;;; -  `rq`: An array of live requests to the runtime system.  These
+;;;;          corespond 1-1 with the callbacks in `sl`.  For values in
+;;;;          `sl` that are not pending syscalls, rq[key]=0
+;;;;
+;;;; This sequence of arguments is easy to remember with the mnemonic:
+;;;; "End me for-real, kill self real-quick."  Don't actually do that,
+;;;; though.
+;;;;
+;;;;
+;;;; TODO: Strictness
+;;;; ----------------
+;;;;
+;;;; In theory, we should be using strictness annotations everywhere in
+;;;; this code.  We are accumulating lazy state, and that creates a lot
+;;;; of useless thunks that need to be forced at the end of the event.
+;;;;
+;;;; However, the these space leaks are small and short-lived (because
+;;;; each event is short-lived).  Using strictness annotations actually
+;;;; slows things down.
+;;;;
+;;;; Eventually, when the interpreter is smarter, strictness annotations
+;;;; should have negative overhead.  At that point, this code should be
+;;;; made fully strict.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+:| stew
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+typedef#ThreadId#Nat
+
+abstype#(Call a)
+
+; A "running process".  This never returns, always invoking a callback instead.
+# typedef Action
+    > List Nat ; Free Slots
+    > List Nat ; Killed Threads (will become free at the end of the event)
+    > Row Any  ; Slots (Refs, Vars, blocked threads, syscall callbacks)
+    > Row Any  ; Syscalls.  The corresponding "slot" is the continuation.
+    > Void
+
+# typedef Thread
+    > Action    ;; What should we do when we're done?
+    > ThreadId  ;; What thread is this?
+    > Action
+
+; An IO Action.  Returns a value by invoking a continuation.  Can be
+; strung together to form a compound action by binding it's continuation
+; to something.
+# typedef (Cog a)
+    > (a > Thread) > Thread
+
+abstype#PausedCog
+
+} abstype#CogInput
+}
+} ; internally does (if (isTab e) ({cog_event} e) ({cog_crash} (cdr e)))
+} case CogInput of
+}     COG_EVENT e:(Tab Nat Any)
+}     COG_CRASH e:(Tab Nat Any)
+}
+} # newtype PausedCog
+} | PAUSED_COG m:(CogInput > PausedCog)
+
+
+;;; Basic Control Flow ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> a > Thread
+= (DONE _ end me fr kl sl rq)
+| end [me fr] kl sl rq
+; This is called when a thread reaches the end of its program.  This does
+; nothing and never returns, it simply yields control back to the kernel.
+;
+; The rest of the kernel enforces the invariant that
+; requests/continuations are zeros as soon as they are used/canceled.
+; So, this doesn't need to do any of that.
+
+; allocateSlot does not follow the convention.
+> List Nat > List Nat > Row Any > Row Any > (Nat > Thread)
+= (allocateSlot fr kl sl rq k)
+| if (0 == fr)
+    @ key (len sl)
+    @ sl  (rowSnoc sl 0)
+    @ rq  (rowSnoc rq 0)
+    | k key fr kl sl rq
+@ [key fr] | fr
+| k key fr kl sl rq
+
+> Cog ThreadId
+= (myThreadId k end me fr kl sl rq)
+| k me end me fr kl sl rq
+
+abstype#KernelState ; TODO
+
+> Cog KernelState
+= (getKernelState k end me fr kl sl rq)
+| k (end,me,fr,kl,sl,rq) end me fr kl sl rq
+
+> Cog a > Cog ThreadId
+= (fork act k end me fr kl sl rq)
+: tid fr kl sl rq < allocateSlot fr kl sl rq
+| act DONE (k tid end me) tid fr kl sl rq
+
+> Cog ThreadId
+= (prepareFork k end me fr kl sl rq)
+: tid fr kl sl rq < allocateSlot fr kl sl rq
+| k tid end me fr kl sl rq
+
+> ThreadId > Cog a > Cog ()
+= (finalizeFork tid act k end me fr kl sl rq)
+| act DONE (k 0 end me) tid fr kl sl rq
+
+> ThreadId > Cog () > Cog ()
+= (cancelFork tid act k end me fr kl sl rq)
+| if (tid == me)
+    | todo {cancelfork should support canceling the current thread}
+@ sl | put sl tid 0
+@ rq | put rq tid 0
+| act DONE (k 0 end me) tid fr kl sl rq
+; Replaces a running thread with a new action.  This is equivalent to
+; (cancel+fork) except that the new code is run on the same thread as
+; the old code (this is unsafe in the case where the current event has
+; a response in-flight on this thread.  Only use this if that case
+; is impossible).
+
+> ThreadId > Cog ()
+= (cancel tid k end me fr kl sl rq)
+@ sl (put sl tid 0)
+@ rq (put rq tid 0)
+@ kl [tid kl]
+| if (tid == me)                                      ; If we cancel ourselves,
+    | end fr kl sl rq                                 ; do not continue.
+| k 0 end me fr kl sl rq                              ; Otherwise, continue
+;
+; Note that canceling a thread adds the slot to the "killed" list instead
+; of the free list.  Because we have multiple syscall returns per-event,
+; a canceled thread may receive a syscall response.  We need to make sure that
+; these response are dropped, instead of being sent to the wrong thread.
+;
+
+
+;;; Refs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+abstype#(Ref a)
+
+> a > Cog (Ref a)
+= (newRef val k end me fr kl sl rq)
+| if (0 == fr)
+    @ key (len sl)
+    @ sl  (rowSnoc sl val)
+    @ rq  (rowSnoc rq 0)
+    | k key end me fr kl sl rq
+@ [key fr] | fr
+@ sl       | put sl key val
+| k key end me fr kl sl rq
+
+> Ref a > Cog a
+= (readRef key k end me fr kl sl rq)
+| k (get sl key) end me fr kl sl rq
+
+> Ref a > a > Cog ()
+= (writeRef key val k end me fr kl sl rq)
+@ sl (put sl key val)
+| k 0 end me fr kl sl rq
+
+> Ref a > (a > a) > Cog ()
+= (modifyRef key fun k end me fr kl sl rq)
+@ sl (| put sl key | fun | get sl key)
+| k 0 end me fr kl sl rq
+
+> Ref a > Cog ()
+= (freeRef key k end me fr kl sl rq)
+@ sl (put sl key 0)
+@ fr [key fr]
+| k 0 end me fr kl sl rq
+
+
+;;; MVar ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+abstype#(MVar a) ; TODO: #datatype should create this
+
+# datatype (MVar a)
+* FULL
+  * val     : a
+  * writers : (Row (ThreadId, a))
+* EMPTY
+  * readers : Row ThreadId
+
+> a > Cog (MVar a)
+(newMVar val)=(newRef (**FULL val []))
+
+> Cog (MVar a)
+newEmptyMVar=(newRef (**EMPTY []))
+
+> MVar a > a > Cog ()
+= (putMVar key newVal k end me fr kl sl rq)
+# datacase (get sl key)
+* (FULL existingVal writers)
+    @ writers | rowSnoc writers [me newVal]
+    @ sl      | put sl key (**FULL existingVal writers)
+    @ sl      | put sl me k
+    | end fr kl sl rq
+* (EMPTY readers)
+    | if (null readers)
+        @ sl (put sl key (**FULL newVal []))
+        | k 0 end me fr kl sl rq
+    | else
+        @ mvSt | (**EMPTY (drop 1 readers))
+        @ sl   | put sl key mvSt
+        @ them | get readers 0
+        @ !exe | get sl them
+        | exe newVal (k 0 end me) them fr kl sl rq
+
+> MVar a > Cog a
+= (takeMVar key k end me fr kl sl rq)
+# datacase (get sl key)
+* (EMPTY readers)
+    @ mvSt | (**EMPTY (rowSnoc readers me))
+    @ sl   | put sl key mvSt
+    @ sl   | put sl me  k
+    | end fr kl sl rq
+* (FULL val writers)
+    | if (null writers)                               ; no writers, empty it
+        @ mvSt | (**EMPTY [])
+        @ sl   | put sl key mvSt
+        (k val end me fr kl sl rq)
+    | else                                            ; writers, pop first in
+        @ them,vl | idx 0 writers                     ; queue
+        @ writers | drop 1 writers
+        @ mvSt    | (**FULL vl writers)
+        @ sl      | put sl key mvSt
+        @ !exe    | get sl them
+        | exe 0 (k val end me) them fr kl sl rq
+
+
+;;; The Kernel ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Call a > Cog a
+= (syscall request k end me fr kl sl rq)
+@ rq (put rq me request)
+@ sl (put sl me k)
+| end fr kl sl rq
+
+;; {fullyReplaceCog} totally nukes the current cog, completely replacing
+;; it with this new value.
+;;
+;; Danger!  Danger!  Danger!
+;;
+;; This will kill all running threads, cancel all syscall, and delete
+;; all data.  If you want to preserve any of that, you need the new
+;; state to include that information.
+
+
+> PausedCog > Cog b
+(fullyReplaceCog newCogValue k end me fr kl sl rq)=newCogValue
+
+; To trace the kernel state at the end of each event, replace every
+; reference to `KERNEL` below with a reference to `TRACED KERNEL`.
+= (TRACED KERNEL fr kl sl rq)
+@ cog (KERNEL fr kl sl rq)
+; trk #[=cog]
+cog
+
+# typedef Kernel
+  > List Nat
+  > List Nat
+  > Row Any
+  > Row Any
+  > Tab Nat Any
+  > Void
+
+; The final act of processing an event is to call this with three
+; arguments.  That will yield control to the runtime system, which will
+; then supply the final argument (`event`).
+;
+; TODO: Should `kl` be merged into `fr` at the end of `loop`?  I think
+; I did it after the yield, just to make debugging simpler?
+;
+> List Nat
+> List Nat
+> Row Any
+> Row Any
+> Tab Nat Any  ;;  The event
+> Void
+= (KERNEL fr kl sl rq event)
+| ifNot (isTab event)
+    ; TODO: Remove this. This is no longer relevant.
+    | die [{TODO: Crash handling is not implemented} event]
+@ fr | listWeld kl fr
+@ kl | ~[]
+;
+^ _ (tabToPairList event) fr kl sl rq
+? (kernel_loop stream fr kl sl rq)
+| ifz stream                                   ; no more events, yield to
+    | KERNEL fr kl sl rq                       ; the runtime
+@ [[key response] stream] stream
+@ exe | get sl key
+@ rq  | put rq key 0
+@ sl  | put sl key 0
+| ifz exe                                      ; call thread was canceled
+     | kernel_loop stream fr kl sl rq          ; earlier in this event, ignore
+@ end | kernel_loop stream
+@ me  | key                                    ; Give the syscall response to
+| exe response end me fr kl sl rq              ; its callback.
+
+> Cog a > Cog b
+= (forever action return)
+: () < action
+| forever action return
+
+> Cog () > PausedCog
+= (runCog startUp)
+@ k   | DONE
+@ end | KERNEL
+@ me  | 0
+@ fr  | ~[]
+@ kl  | ~[]
+@ sl  | [0]
+@ rq  | [0]
+| startUp k end me fr kl sl rq
+; We run the startup action on thread 0, and when it's done it will
+; call (KERNEL fr kl sl rq) which will give control back to
+; the runtime system.
+
+
+;;; Sys Calls ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (EVAL tim exp)        | weld [%eval tim] exp
+= (EVAL1 tim f p)       | [%eval tim f p]
+= (EVAL2 tim f p q)     | [%eval tim f p q]
+= (EVAL3 tim f p q r)   | [%eval tim f p q r]
+= (EVAL4 tim f p q r s) | [%eval tim f p q r s]
+= (COG_SPIN f)          | [%cog %spin f]
+= (COG_REAP c)          | [%cog %reap c]
+= (COG_STOP c)          | [%cog %stop c]
+= (COG_WAIT c)          | [%cog %wait c]
+= (COG_ASK d c v)       | [%cog %ask d c v]
+= (COG_TELL c f)        | [%cog %tell c f]
+= COG_WHO               | [%cog %who]
+= (WHAT c)              | [%what c]
+= (RAND_BYTE x)         | [%rand 0 %byte x]
+= (HTTP_SERV ss)        | [%http 0 %serv ss]
+= (HTTP_HEAR)           | [%http 0 %hear]
+= (HTTP_HOLD n)         | [%http 0 %hold n]
+= (HTTP_ECHO r c m h b) | [%http 0 %echo r c m h b]
+= (SOCK_OPEN)           | [%sock 0 %open]
+= (SOCK_KILL h)         | [%sock 0 %kill h]
+= (SOCK_WAIT h)         | [%sock 0 %wait h]
+= (SOCK_RECV h)         | [%sock 0 %recv h]
+= (SOCK_SEND h b)       | [%sock 0 %send h b]
+= (WOCK_OPEN)           | [%wock 0 %open]
+= (WOCK_KILL h)         | [%wock 0 %kill h]
+= (WOCK_WAIT h)         | [%wock 0 %wait h]
+= (WOCK_RECV h)         | [%wock 0 %recv h]
+= (WOCK_SEND h b)       | [%wock 0 %send h b]
+= (TIME_WHEN)           | [%time 0 %when]
+= (TIME_WAIT x)         | [%time 0 %wait x]
+= (PORT_SIRE)           | [%port 0 %sire]
+= (PORT_SERV s g)       | [%port 0 %serv s g]
+= (PORT_RQST s p)       | [%port 0 %rqst s p]
+= (PORT_DYNO s)         | [%port 0 %dyno s]
+= (PORT_HOLD i)         | [%port 0 %hold i]
+= (PORT_SEND i m)       | [%port 0 %send i m]
+= (PORT_RECV i)         | [%port 0 %recv i]
+= (PORT_RCLL i c)       | [%port 0 %rcll i c]
+
+= (HTTP_REQ m u h b r t) | [%http 0 %req m u h b r t]
+
+typedef#TimeStamp#Nat
+typedef#HttpReqId#Nat
+typedef#HttpStatusCode#Nat
+typedef#HttpStatusMsg#Bar
+typedef#HttpHeader#(Row (Bar, Bar))
+
+abstype#ServReq
+abstype#ServResp
+abstype#HttpReq ; TODO Define using #record
+
+abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
+                       ; length-coding first)
+
+#* # backfill EVAL1     > Nat > (a>b) > a > Call (EvalResult b)
+#* # backfill EVAL2     > Nat > (a>b>c) > a > b > Call (EvalResult b)
+#* # backfill EVAL3     > Nat > (a>b>c>d) > a > b > c > Call (EvalResult b)
+#* # backfill RAND_BYTE > Nat > Call Bar
+#* # backfill TIME_WHEN > Call TimeStamp
+#* # backfill TIME_WAIT > TimeStamp > Call ()
+#* # backfill HTTP_SERV > (ServReq > Maybe ServResp) > Call Void
+#* # backfill HTTP_HEAR > Call HttpReq
+#* # backfill HTTP_HOLD > HttpReqId > Call ()
+
+# backfill HTTP_ECHO
+> HttpReqId > HttpStatusCode > HttpStatusMsg > HttpHeader > Bar > Call ()
+
+
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: Hack: This doesn't belong here.
+= (forceUnpackEvalResult ctx res)
+# switch (len res)
+* 0 (die ({eval-timeout} ctx))
+* 1 (idx 0 res)
+* 2 (die ({eval-crash} ctx))
+
+; parallel map (using the EVAL syscall)
+> Nat > (a > b) > Row a > Cog (Row b)
+= (pmap ms f args return)
+;
+: resultMVars
+    < ^ rowTraverse _ args
+      & (arg stepReturn)
+      : var < newEmptyMVar
+      : tid < fork & threadExit
+                   : myTid < myThreadId
+                   : eRes < syscall (EVAL1 ms f arg)
+                   @ !res | forceUnpackEvalResult {pmap} eRes
+                   : _    < putMVar var res
+                   | threadExit ()
+      | stepReturn var
+;
+: results
+    < ^ rowTraverse _ resultMVars
+      & (var stepReturn)
+      : val < takeMVar var
+      | stepReturn val
+;
+| return results
+
+; PORT static response sum-type constructors
+=  PORT_SR_DROP             | 0
+= (PORT_SR_HOLD tm)         | [0 tm]
+= (PORT_SR_RESP tm payload) | [1 tm payload]
+= (PORT_SR_DYNO x y)        | [2 x y]
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ MVar
+^-^ FULL EMPTY
+^-^ newMVar newEmptyMVar putMVar takeMVar
+^-^
+^-^ Cog PausedCog
+^-^ KERNEL DONE
+^-^ forever
+^-^ runCog syscall fullyReplaceCog
+^-^ allocateSlot getKernelState
+^-^
+^-^ Ref
+^-^ newRef readRef writeRef modifyRef freeRef
+^-^
+^-^ ThreadId
+^-^ fork prepareFork finalizeFork
+^-^ cancelFork cancel
+^-^ myThreadId
+^-^
+^-^ pmap
+^-^
+^-^ EvalResult
+^-^ EVAL EVAL1 EVAL2 EVAL3 EVAL4
+^-^ forceUnpackEvalResult
+^-^
+^-^ COG_SPIN COG_REAP COG_STOP COG_WAIT COG_ASK COG_TELL COG_WHO
+^-^
+^-^ WHAT
+^-^
+^-^ RAND_BYTE
+^-^
+^-^ Call
+^-^
+^-^ ServReq ServResp
+^-^ HttpReq HttpReqId HttpStatusCode HttpStatusMsg HttpHeader
+^-^ HTTP_SERV HTTP_HEAR HTTP_HOLD HTTP_ECHO HTTP_REQ
+^-^
+^-^ SOCK_OPEN SOCK_KILL SOCK_WAIT SOCK_RECV SOCK_SEND
+^-^
+^-^ WOCK_OPEN WOCK_KILL WOCK_WAIT WOCK_RECV WOCK_SEND
+^-^
+^-^ TimeStamp
+^-^ TIME_WHEN TIME_WAIT
+^-^
+^-^ PORT_SIRE PORT_SERV PORT_RQST PORT_DYNO PORT_HOLD
+^-^ PORT_SEND PORT_RECV PORT_RCLL
+^-^ PORT_SR_DROP PORT_SR_HOLD PORT_SR_RESP PORT_SR_DYNO
+^-^

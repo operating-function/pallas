@@ -1,0 +1,663 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_16_bar <- sire_15_pad
+
+;;;; Bars
+;;;; ====
+;;;;
+;;;; Bars are data-jetted byte arrays.
+;;;;
+;;;; The data-jet has the noun-shape (0 1 1 PAD) where PAD is a bit-array
+;;;; whose width is a multiple of 8.
+;;;;
+;;;;     REPL> inspect b#{foo}
+;;;;     [0 1 1 24080230]
+;;;;
+;;;;     REPL> natPad %foo 24
+;;;;     24080230
+;;;;
+;;;;     REPL> (0 1 1 (natPad %foo 24))
+;;;;     b#foo
+;;;;
+;;;;     REPL> (0 1 1 (natPad %foo 32))
+;;;;     x#666f6f00
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan [isLaw isApp isNat lawBody lawName lawArgs trk]
+:| sire_01_fan [seq inc die]
+:| sire_01_fan [id compose]
+:| sire_02_bit [bit not if ifz else ifNot or and]
+:| sire_03_nat
+:| sire_05_row [len get idx]
+:| sire_04_cmp [eql neq gte lte min isZero]
+:| sire_05_row [map foldl foldr gen weld v1 v2 v4]
+:| sire_05_row [fst snd]
+:| sire_06_rex [SHUT TEXT WORD]
+:| sire_06_rex [rexKids rexHeir rexText rexStyle {'}]
+:| sire_06_rex [rexGetLeaf]
+:| sire_07_dat
+:| sire_10_str [chr isPrint ord toLower newlineChar]
+:| sire_10_str [explode strCat strWeld strFromList]
+:| sire_11_set [{%}]
+:| sire_12_tab []
+:| sire_13_exp [cnsE]
+:| sire_14_hax [{#}]
+:| sire_15_pad [padLen padWeld]
+
+
+;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;
+;;; TODO Should bars be defined in terms of pad operations?
+;;;
+
+= (isBar b)
+@ bod (lawBody b)
+| rowAnd
+++ isLaw b
+++ eql 1 lawName-b
+++ eql 1 lawArgs-b
+++ isNat bod
+++ neq 0 bod
+++ isZero (mod padLen-bod 8)
+
+= (byteWidth n)
+^ _ 0 n
+? (loop acc n)
+| seq acc
+| ifNot n acc
+| loop (inc acc) (rsh n 8)
+
+= (barTrail n)
+^ _ 0 n
+? (loop acc num)
+| seq acc
+| if (or eql-1-num isZero-num)
+        | acc
+@ nex | rsh num 8
+@ nac | ifNot mod-num-8 (inc acc) 0
+| loop nac nex
+
+= (barEnc xtr bits)
+| add bits
+| bex | mul 8 | add xtr byteWidth-bits
+
+= (barDec n)
+| sub n | bex | mul 8 (dec byteWidth-n)
+
+= (_Bar pad)       | 0 1 1 pad
+= (mkBar xtr bits) | _Bar (barEnc xtr bits)
+= (natBar n)       | mkBar 0 n
+= (barSing byt)    | mkBar not-byt byt
+= (barDuo x y)     | natBar (add x | lsh y 8)
+= (barNat n)       | barDec (lawBody n)
+= (barLen bar)     | div (padLen lawBody-bar) 8
+= (barIsEmpty bar) | eql 1 (lawBody bar)
+
+barNewline=(barSing 10)
+barSpace=(barSing { })
+
+= (padBar pad)
+@ wid      (padLen pad)
+@ overflow (mod wid 8)
+@ newSize  (add wid (sub 8 overflow))
+| _Bar
+| ifNot overflow pad
+| setBit newSize
+| clearBit wid pad
+
+;; TODO: should {_NatToSizedBar} truncate it's input, or should it just
+;; fallback to the legal behavior if given an input that is too large?
+
+= (_NatToSizedBar sz nat)
+@ highBit (bex | mul 8 sz)
+| _Bar (add highBit nat)
+
+= (barIdx i bar)
+^ _ i (barNat bar)
+? (loop i n)
+| ifNot i (mod n 256)
+| ifNot n 0
+| loop (dec i) (div n 256)
+
+; Number of zeros at the end of a row.
+= (zEnd r)
+@ len (len r)
+| ifNot len 0
+@ las (dec len)
+^ _ 0 las
+? (loop n ix)
+@ vl | get r ix
+| if vl n
+| ifNot ix inc-n
+| loop inc-n dec-ix
+
+= (barHas byt bar)
+@ wid (barLen bar)
+^ _ 0
+? (loop i)
+| if (eql i wid) 0
+| if (eql byt barIdx-i-bar) 1
+| loop (inc i)
+
+; Strip zeros from the end of a row.
+= (stripZEnd r)
+| take (sub len-r zEnd-r) r
+
+= (w8 b) | mod b 256
+
+= (bytesBar row)
+@ siz | len row
+@ pad | zEnd row
+@ byt | map w8 | take (sub siz pad) row
+@ fun (x acc)&(add x lsh-acc-8)
+@ bit | foldr fun 0 byt
+| mkBar pad bit
+
+=?= (bytesBar [])      | 0 1 1 | 1
+=?= (bytesBar [0])     | 0 1 1 | 256
+=?= (bytesBar [255])   | 0 1 1 | 511
+=?= (bytesBar [0 0])   | 0 1 1 | 65536
+=?= (bytesBar [0 255]) | 0 1 1 | add 65536 (mul 255 256)
+=?= (bytesBar [255 0]) | 0 1 1 | add 65536 255
+
+= (barGen n f)     | bytesBar (gen n f)
+= (barRep n v)     | barGen n (_ & v)
+= (barGet bar idx) | barIdx idx bar
+= (barBytes b)     | gen (barLen b) (barGet b)
+
+rowFromBar=barBytes
+barToRow=barBytes
+
+;; TODO Find other places that would benefit from pad operations.
+(barWeld x y)=(0 1 1 (padWeld lawBody-x lawBody-y))
+
+emptyBar=(0 1 1 1)
+
+(barCat bs)=(foldr barWeld emptyBar bs)
+
+(barCatList bs)=(barCat (listToRow bs))
+
+= (barTake n b) | barGen (min n barLen-b) (barGet b)
+= (barDrop n b) | barGen (sub barLen-b n) (i & barGet b (add i n))
+
+(barSlice off wid bar)=(barTake wid (barDrop off bar))
+
+(_BarSliceToNat off wid bar)=(barNat | barSlice off wid bar)
+
+= (barCountHeadMatching match b)
+@ n | barLen b
+^ _ 0
+? (loop i)
+| seq i
+| if (eql i n) | NONE
+| ifNot (match (barIdx i b)) | SOME i
+| loop (inc i)
+
+(barDropWhile f b)=(barDrop (fromSome barLen-b | barCountHeadMatching f b) b)
+(barTakeWhile f b)=(barTake (fromSome barLen-b | barCountHeadMatching f b) b)
+
+= (barToList b)       | listGen (barLen b) (barGet b)
+= (barFoldl f z b)    | listFoldl f z (barToList b)
+= (barFoldr f z b)    | listFoldr f z (barToList b)
+= (barAll f b)        | listAll f (barToList b)
+= (barAny f b)        | listAny f (barToList b)
+= (barFindIndex f b)  | listFindIndex f (barToList b) NONE SOME
+= (barElemIndex e b)  | listElemIndex e (barToList b) NONE SOME
+= (barSplitAt i b)    | [(barTake i b) (barDrop i b)]
+= (barFromRow r)      | barGen (len r) (get r)
+= (barFromList bs)    | barFromRow (listToRow bs)
+= (barFromListRev bs) | barFromRow (listToRowRev bs)
+= (barFilter f b)     | barFromRow | filter f (barToRow b)
+= (barMap f b)        | barGen (barLen b) (compose f barGet-b)
+= (barCatMap f b)     | barCat | gen (barLen b) (compose f barGet-b)
+
+rowToBar=barFromRow
+
+; TODO: barElemIndex doesn't have a SOME/NONE interface, but should? There are
+; a lot of methods in the stdlib where the haskell version returns a Maybe but
+; the sire version always returns a value.
+= (barElemIndexEnd e b)
+| if (barIsEmpty b) NONE
+^ _ (dec | barLen b)
+? (loop i)
+| if (eql (barIdx i b) e) | SOME i
+| ifz i NONE
+| loop (dec i)
+
+= (barSplitOneWith fun b)
+| maybeCase (barFindIndex fun b) [b emptyBar]
+& i
+| [(barTake i b) (barDrop (inc i) b)]
+
+= (barSplitWith fun bar)
+| if (barIsEmpty bar) NIL
+^ _ bar
+? (loop bar)
+| maybeCase (barFindIndex fun bar) (CONS bar NIL)
+& i
+| CONS (barTake i bar)
+| loop (barDrop (inc i) bar)
+
+(barSplitOne e b)=(barSplitOneWith (eql e) b)
+(barSplit ele bar)=(barSplitWith (eql ele) bar)
+
+;;; TODO use (barCatList (listIntersperse sep barList))
+= (barIntercalateList sep barList)
+^ _ emptyBar barList
+? (go acc res)
+| listCase res acc
+& (x xs)
+| listCase xs (barWeld acc x)
+& (_ _)
+| go (barCat acc,x,sep) xs
+
+= (barIntercalate sep barRow)
+| barIntercalateList sep (listFromRow barRow)
+
+= (hexCharToNat v)
+| if (lte v %9) (sub v %0)
+@ v (toLower v)
+| add 10 (sub (min v %f) %a)
+
+
+; {barFromHex}  presumes valid input and just returns nonsense if given
+; anything else.
+;
+; TODO: Be strict about input and report errors.
+
+> Str > Bar
+= (barFromHex nat)
+@ dig | map hexCharToNat | filter neq-newlineChar explode-nat
+@ pad | if (even len-dig) [] [0]
+@ buf | listFromRow cat-[pad dig [0 1]]
+^ _ 0 buf 1
+? (loop acc lis pos)
+| seq acc
+| listCase lis (0 1 1 acc)
+& (a as)
+| listCase as (die %impossible)
+    ; ^ This will always succeed because the input was manipulated to
+    ; guarentee an even-length character sequence.
+& (b bs)
+@ acc | add acc | add mul-pos-b | mul-pos | mul 16 a
+@ pos | mul 256 pos
+| loop acc bs pos
+
+(barPad bar)=(lawBody bar)
+
+= blWantText } Bar literals require a text parameter, for example: b#asdf
+= blTwoKids  } Bar literals need two kids, for example: b#adsf
+= blBadHeir  } Bar literals may not have heirs.
+= blBadMacro } Bar literals must look like b#... or x#...
+
+= (foldMultiLine rex err ok)
+@ topStyle (rexStyle rex)
+| if (neq {LINE} topStyle)
+    | err rex {non-line-string contains heir.  What?}
+^ (_ NIL rex)
+? (go acc rex)
+| ifz rex
+    | ok | strFromList | listIntersperse 10 | listRev acc
+@ style (rexStyle rex)
+| if (neq style topStyle)
+    | err rex {Each line of a multiline-string must be a leaf of the same style}
+@ acc (CONS (rexText rex) acc)
+| go acc (rexHeir rex)
+
+
+> Rex > Read Bar
+= (readBarLit rex err ok)
+@ kids rexKids-rex
+@ text rexText-(idx 0 kids)
+| if (neq 2 len-kids) | err rex blTwoKids
+| if (and (neq {b} text) (neq {x} text))
+    | err rex blBadMacro
+@ mk     | if (eql {b} text) natBar barFromHex
+@ valRex | idx 1 kids
+| rexGetLeaf valRex
+    | err valRex blWantText
+& (text heir)
+| if (neq 0 heir)
+    | foldMultiLine valRex err
+    & txt
+    | ok (mk txt)
+| ok (mk text)
+
+= ({#x} st rex err ok)
+| readBarLit rex err
+& bar
+| ok st (cnsE bar)
+
+{#b}=(.{#x})
+
+allHexChars=(b#{0123456789abcdefABCDEF})
+
+hexAlphabet=(b#{0123456789abcdef})
+(hexChar n)=(barGet hexAlphabet n)
+
+(charIsHex c)=(barHas c allHexChars) ;; TODO faster
+
+; Byt > Bar
+= (byteToHex n)
+| barDuo
+    (hexChar | mod (rsh n 4) 16)
+    (hexChar | mod n 16)
+
+; Bar > Bar
+(barToHex val)=(barCatMap byteToHex val)
+
+= (getHexBar bar fall ret)
+| if not-(barAll charIsHex bar) fall
+^ ret (snd _)
+^ barFoldr _ [1 0] bar
+& (char placeAcc)
+@ place | fst placeAcc
+@ acc   | snd placeAcc
+@ acc   | add acc | mul place (hexCharToNat char)
+@ place | mul 16 place
+| [place acc]
+
+=?= 0xff  | getHexBar b#{ff} 0 id
+=?= 0xff  | getHexBar b#{FF} 0 id
+=?= 0x123 | getHexBar b#{123} 0 id
+=?= 0     | getHexBar b#{1z3} 0 id
+
+; {barLoadDecimal} parses a decimal number without validating, instead
+; assuming that each character is in the appropriate range.
+= (barLoadDecimal bar)
+^ foldl _ 0 (barBytes bar)
+& (acc c)
+| add (mul 10 acc) (ord c)
+
+=?= 2     | barLoadDecimal b#2
+=?= 19    | barLoadDecimal b#19
+=?= 293   | barLoadDecimal b#293
+=?= 4760  | barLoadDecimal b#4760
+=?= 12345 | barLoadDecimal b#12345
+
+; {barShowDecimal} renders a nat to a decimal number.
+= (barShowDecimal n)
+^ bytesBar (_ n)
+? (loop n)
+@ q (div n 10)
+@ r (mod n 10)
+@ rec | if (eql q 0)
+        | []
+      | loop q
+| weld rec [(chr r)]
+
+=?= b#2     | barShowDecimal 2
+=?= b#19    | barShowDecimal 19
+=?= b#293   | barShowDecimal 293
+=?= b#4760  | barShowDecimal 4760
+=?= b#12345 | barShowDecimal 12345
+
+; TODO: {showBarLit} should use bare-words where possible (instead of
+; always quoting everyting with TEXT)
+
+; Bar > Rex
+= (showBarLit bar)
+^ SHUT {#} _ 0
+| if (barAll isPrint bar)
+   ++ WORD {b} 0
+   ++ TEXT (barNat bar) 0
+| else
+   ++ WORD {x} 0
+   ++ TEXT (barNat | barToHex bar) 0
+
+=?= (natBar-{asdf})       | readBarLit '(b#asdf) v2 id
+=?= ['(#b)    blTwoKids]  | readBarLit '(#b)     v2 id
+=?= ['(b#b#b) blTwoKids]  | readBarLit '(b#b#b)  v2 id
+=?= ['[]      blWantText] | readBarLit '(b#[])   v2 id
+
+=?= (barFromHex {asdf})   | readBarLit '(x#asdf) v2 id
+=?= ['(#x)    blTwoKids]  | readBarLit '(#x)     v2 id
+=?= ['(x#x#x) blTwoKids]  | readBarLit '(x#x#x)  v2 id
+=?= ['[]      blWantText] | readBarLit '(x#[])   v2 id
+
+=?= b#{deadbeef}    | barToHex x#deadbeef
+=?= '(x#{deadbeef}) | showBarLit x#deadbeef
+=?= '(b#{deadbeef}) | showBarLit b#deadbeef
+=?= '(b#{})         | showBarLit x#{}
+
+= (barTreeToList x)
+| if isBar-x | CONS x 0
+| if isApp-x | listCatMap barTreeToList (listFromRow x)
+| NIL
+
+=?= NIL                       | barTreeToList barTreeToList
+=?= [b#foo [b#bar [b#zaz 0]]] | barTreeToList (0 [[b#foo] b#bar b#zaz])
+=?= [b#foo [b#bar [b#zaz 0]]] | barTreeToList [b#foo b#bar b#zaz]
+
+(barFlat x)=(barCatList | barTreeToList x)
+
+= (barFindIndexOff pred off bar)
+@ len (barLen bar)
+^ _ off
+? (loop ix)
+| if (gte ix len) len
+| if (pred | barIdx ix bar) ix
+| loop (inc ix)
+
+(barElemIndexOff byte off bar)=(barFindIndexOff (eql byte) off bar)
+
+=?= 0 (barElemIndexOff {c} 0 b#{caca})
+=?= 2 (barElemIndexOff {c} 1 b#{caca})
+=?= 2 (barElemIndexOff {c} 2 b#{caca})
+=?= 4 (barElemIndexOff {c} 3 b#{caca})
+=?= 4 (barElemIndexOff {c} 4 b#{caca})
+=?= 4 (barElemIndexOff {c} 5 b#{caca})
+
+=?= 1 (barElemIndexOff {c} 0 b#{acac})
+=?= 1 (barElemIndexOff {c} 1 b#{acac})
+=?= 3 (barElemIndexOff {c} 2 b#{acac})
+=?= 3 (barElemIndexOff {c} 3 b#{acac})
+=?= 4 (barElemIndexOff {c} 4 b#{acac})
+=?= 4 (barElemIndexOff {c} 5 b#{acac})
+
+= (barLinesList bar)
+@ wid (barLen bar)
+^ (_ 0)
+? (go off)
+| if (gte off wid) NIL
+@ end (barElemIndexOff newlineChar off bar)
+| CONS (barSlice off (sub end off) bar)
+| go (inc end)
+
+(barLines bar)=(listToRow | barLinesList bar)
+
+=?=   | barLinesList
+      # b
+      } hi
+      } how
+      } are
+      } you?
+  | CONS b#hi
+  | CONS b#how
+  | CONS b#are
+  | CONS b#{you?}
+  | NIL
+
+= (barUnlinesList lines)
+| barCatList
+^ listFoldr _ NIL lines
+& (x xs)
+| [x [newlineChar xs]]
+
+(barUnlines lines)=(barUnlinesList | listFromRow lines)
+
+> Bar > Bar > Nat > Bit
+= (barIsPrefixOf needle haystack off)
+| eql needle
+| barSlice off (barLen needle) haystack
+
+> Bar > Bar > List Int
+= (barSubstringSearch needle haystack)
+@ needleWidth   (barLen needle)
+@ haystackWidth (barLen haystack)
+| if (not needleWidth)
+    | listTake haystackWidth (listEnumFrom 0)
+@ firstByte     (barIdx 0 needle)
+^ (_ 0)
+? (go off)
+@ found (barElemIndexOff firstByte off haystack)
+| if (gte found haystackWidth) NIL
+@ isMatch (barIsPrefixOf needle haystack found)
+@ more    (go | inc found)
+| if isMatch (CONS found more)
+| else more
+
+=?= [0 [1 [2 0]]] | barSubstringSearch b#{} b#bba
+=?= [2 [6 0]]     | barSubstringSearch b#aa b#bbaabbaa
+=?= [0 [4 0]]     | barSubstringSearch b#aa b#aabbaabb
+=?= [0 [1 0]]     | barSubstringSearch b#aa b#aaa
+=?= [0 [1 [2 0]]] | barSubstringSearch b#a b#aaa
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= [%a [%b [%c 0]]] (barToList b#abc)
+=?= [%a %b %c]       (barToRow b#abc)
+
+=?= b#fdsafdsa (barWeld b#fds b#afdsa)
+
+= (checkBar expect pad nat)
+@ actual (barEnc pad nat)
+@ actNat (barDec actual)
+@ actPad (barTrail actual)
+| and eql-actual-expect
+| and eql-pad-actPad
+      eql-nat-actNat
+
+=?= 0 (barTrail 0x1ff)
+=?= 1 (barTrail 0x100ff)
+=?= 2 (barTrail 0x10000ff)
+=?= 3 (barTrail 0x1000000ff)
+=?= 0 (barTrail 0x2000000ff)
+
+=?= 1 | bit (barHas %a b#{abc})
+=?= 1 | bit (barHas %b b#{abc})
+=?= 1 | bit (barHas %c b#{abc})
+=?= 1 | not (barHas %d b#{abc})
+
+=?= 1 | bit (barHas 16 x#{102030})
+=?= 1 | bit (barHas 32 x#{102030})
+=?= 1 | bit (barHas 48 x#{102030})
+=?= 1 | not (barHas 45 x#{102030})
+
+=?= 1 | checkBar 1     0 0
+=?= 1 | checkBar 257   0 1
+=?= 1 | checkBar 511   0 255
+=?= 1 | checkBar 65792 0 256
+=?= 1 | checkBar 256   1 0
+=?= 1 | checkBar 65791 1 255
+=?= 1 | checkBar 65536 2 0
+
+=?= 1 | barIsEmpty b#{}
+
+=?= [b#a b#zn]           | barSplitAt 1 b#azn
+=?= [b#a b#n]            | barSplitOne %z b#azn
+=?= [b#a b#aba b#n]      | listToRow | barSplit { } b#{a aba n}
+=?= [b#a b#aba b#n b#{}] | listToRow | barSplit { } b#{a aba n }
+
+=?= b#{}     | barDropWhile (eql %a) b#{}
+=?= b#bcd    | barDropWhile (eql %a) b#bcd
+=?= b#bcd    | barDropWhile (eql %a) b#aaabcd
+=?= b#{}     | barDropWhile (eql %a) b#aaa
+=?= b#{}     | barDropWhile (neq %x) b#abcd
+=?= b#abcdef | barDropWhile (lte %f) b#abcdef
+=?= b#{}     | barTakeWhile (eql %a) b#{}
+=?= b#{}     | barTakeWhile (eql %a) b#bcd
+=?= b#aaa    | barTakeWhile (eql %a) b#aaabcd
+=?= b#aaa    | barTakeWhile (eql %a) b#aaa
+=?= b#abcd   | barTakeWhile (neq %x) b#abcd
+=?= b#{}     | barTakeWhile (lte %f) b#abcdef
+=?= b#bcd    | barSlice 1 3 b#abcde
+=?= b#bc     | barSlice 1 5 b#abc
+=?= NONE     | barElemIndexEnd {/} b#{}
+=?= (SOME 0) | barElemIndexEnd {/} b#{/}
+=?= (SOME 1) | barElemIndexEnd {/} b#{//}
+=?= b#abc    | barFromRow [%a %b %c]
+=?= b#bc     | barFilter (neq %a) b#abc
+=?= b#ac     | barFilter (neq %b) b#abc
+=?= b#bcd    | barMap inc b#abc
+=?= b#aabbcc | barCatMap (x & barFromRow [x x]) b#abc
+=?= b#x      | barSing %x
+=?= x#00     | barSing 0
+=?= b#xy     | barDuo  %x %y
+
+=?= x#deadbeef
+  # x } dead
+      } beef
+
+=?= x#{}
+  # x }
+      }
+
+
+;;; Testing Juxtaposition AutoHax ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= x{11223344} x#11223344
+=?= b{hi}       b#hi
+
+
+;;; Test _BarSliceToNat ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= 0x11 | _BarSliceToNat 0 1 x#11223344
+=?= 0x22 | _BarSliceToNat 1 1 x#11223344
+=?= 0x33 | _BarSliceToNat 2 1 x#11223344
+=?= 0x44 | _BarSliceToNat 3 1 x#11223344
+=?= 0x00 | _BarSliceToNat 4 1 x#11223344
+
+=?= 0x2211 | _BarSliceToNat 0 2 x#11223344
+=?= 0x3322 | _BarSliceToNat 1 2 x#11223344
+=?= 0x4433 | _BarSliceToNat 2 2 x#11223344
+=?= 0x0044 | _BarSliceToNat 3 2 x#11223344
+=?= 0x0000 | _BarSliceToNat 4 2 x#11223344
+
+=?= 0x44332211   | _BarSliceToNat 0 4 x#11223344
+=?= 0x0044332211 | _BarSliceToNat 0 5 x#11223344
+=?= 0x0000443322 | _BarSliceToNat 1 5 x#11223344
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+natToSizedBar=_NatToSizedBar
+
+barSliceToNat=_BarSliceToNat
+
+^-^ isBar padBar
+^-^ emptyBar barIsEmpty
+^-^ byteWidth barTrail barEnc barDec mkBar natBar barNat barLen barIdx
+^-^ natToSizedBar
+^-^ barSing barDuo
+^-^ zEnd stripZEnd w8 bytesBar barGen barRep barGet barBytes barFoldl barFoldr
+^-^ barAny barAll
+^-^ barWeld barCat barCatList barCatMap
+^-^ barIntercalate barIntercalateList
+^-^ barFromHex barPad
+^-^ barTake barDrop barSlice barSliceToNat
+^-^ barTreeToList barFlat barHas
+^-^ barBytes barToRow rowFromBar barToList
+^-^ barFromRow barFromList barFromListRev rowToBar
+^-^ barMap barFilter
+^-^ barFindIndex barFindIndexOff
+^-^ barElemIndex barElemIndexOff barElemIndexEnd
+^-^ barSplitAt barSplitOne barSplitOneWith barSplitWith barSplit
+^-^ barCountHeadMatching barDropWhile barTakeWhile
+^-^
+^-^ hexAlphabet hexChar byteToHex barToHex
+^-^ readBarLit showBarLit
+^-^ getHexBar barLoadDecimal barShowDecimal
+^-^
+^-^ {#b} {#x} {#}
+^-^
+^-^ barLinesList barUnlinesList
+^-^ barLines barUnlines
+^-^ barIsPrefixOf barSubstringSearch
+^-^ barNewline barSpace

@@ -1,0 +1,403 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_06_rex <- sire_05_row
+
+;;;; Rex Syntax Trees
+;;;; ================
+;;;;
+;;;; This defines the representation for rex trees that is used by Sire.
+;;;;
+;;;; This is important because this representation is used for macro
+;;;; inputs and outputs.  That's why this is defined so early in the
+;;;; bootstrap sequence: because we need this in order to write macros.
+;;;;
+;;;; This module defines the representation of Rex trees, defines a
+;;;; number of utilities for working with those, and defines the {'}
+;;;; macro, for quoting rex expressions.
+;;;;
+;;;;
+;;;; The Rex Representation
+;;;; ----------------------
+;;;;
+;;;; Rex trees are represented as partially applied (pinned) laws.
+;;;; The laws are very peculiar, both in their names and definitions.
+;;;; The Loot printer recognizes this pattern and prints them as rex.
+;;;; The peculiarity is important so that we don't accidentally create
+;;;; normal definitions that happen to have this structure.
+;;;;
+;;;; Anyways, here's how the representation works:
+;;;;
+;;;;     ('x =?= (WORD {x} 0))
+;;;;
+;;;; Where WORD is:
+;;;;
+;;;;     WORD=(4 (0 {##WORD} 3 0))
+;;;;
+;;;; So, the whole noun-tree is:
+;;;;
+;;;;     ('x =?= 4 (0 {##WORD} 3 0) {x} 0)
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan [pinItem lawName lawBody trk]
+:| sire_02_bit [if ifz ifNot or else and not nor]
+:| sire_03_nat [dec rsh]
+:| sire_04_cmp
+:| sire_05_row
+
+
+;;; Rex Representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+({##EMBD} value _)=(.{##EMBD})
+
+({##WORD} text heir _)=(.{##WORD})
+({##TEXT} text heir _)=(.{##TEXT})
+({##LINE} text heir _)=(.{##LINE})
+
+({##OPEN} rune sons heir _)=(.{##OPEN})
+({##NEST} rune sons heir _)=(.{##NEST})
+({##INFX} rune sons heir _)=(.{##INFX})
+({##PREF} rune sons heir _)=(.{##PREF})
+({##SHUT} rune sons heir _)=(.{##SHUT})
+
+EMBD=(.{##EMBD})
+WORD=(.{##WORD})
+TEXT=(.{##TEXT})
+LINE=(.{##LINE})
+OPEN=(.{##OPEN})
+NEST=(.{##NEST})
+INFX=(.{##INFX})
+PREF=(.{##PREF})
+SHUT=(.{##SHUT})
+
+;;;;;;;;;;
+
+= (rexRune rex)
+| if (neq 3 | len rex) 0
+| idx 2 rex
+
+= (rexSetRune newRune rex)
+| if (neq 3 | len rex) rex
+| mut 2 newRune rex
+
+("|" =?= rexRune (OPEN "|" v0 0))
+(0   =?= rexRune (WORD "hi" 0))
+
+(WORD "hi" 0   =?= rexSetRune "," (WORD "hi" 0))
+(EMBD "hi"     =?= rexSetRune "," (EMBD "hi"))
+(OPEN "," v0 0 =?= rexSetRune "," (OPEN "|" v0 0))
+
+;;;;;;;;;;
+
+= (rexHeir rex)
+| if (gte 1 len-rex) 0
+| fst rex
+
+= (rexSetHeir newHeir rex)
+| if (gte 1 len-rex) rex
+| mut 0 newHeir rex
+
+(5 =?= rexHeir (OPEN "|" v0 5))
+(5 =?= rexHeir (WORD "hi" 5))
+(0 =?= rexHeir (EMBD "hi"))
+
+(WORD "hi" 5   =?= rexSetHeir 5 (WORD "hi" 0))
+(EMBD "hi"     =?= rexSetHeir 5 (EMBD "hi"))
+(OPEN "|" v0 5 =?= rexSetHeir 5 (OPEN "|" v0 0))
+
+;;;;;;;;;;
+
+= (rexText rex)
+| if (neq 2 | len rex) 0
+| idx 1 rex
+
+= (rexSetText newText rex)
+| if (neq 2 | len rex) rex
+| mut 1 newText rex
+
+(0             =?= rexText (OPEN "|" v0 5))
+("hi"          =?= rexText (WORD "hi" 5))
+(0             =?= rexText (EMBD "hi"))
+(WORD "yep" 0  =?= rexSetText "yep" (WORD "hi" 0))
+(EMBD "hi"     =?= rexSetText "yep" (EMBD "hi"))
+(OPEN "|" v0 0 =?= rexSetText "yep" (OPEN "|" v0 0))
+
+;;;;;;;;;;
+
+= (rexSons rex)
+| if (neq 3 | len rex) 0
+| idx 1 rex
+
+= (rexSetSons newSons rex)
+| if (neq 3 | len rex) rex
+| mut 1 newSons rex
+
+(v0                =?= rexSons (OPEN "|" v0 5))
+(0                 =?= rexSons (WORD "hi" 5))
+(0                 =?= rexSons (EMBD "hi"))
+(WORD "hi" 0       =?= rexSetSons (v1 5) (WORD "hi" 0))
+(EMBD "hi"         =?= rexSetSons (v1 5) (EMBD "hi"))
+(OPEN "|" (v1 5) 0 =?= rexSetSons (v1 5) (OPEN "|" v0 0))
+
+;;;;;;;;;;
+
+= (rexEmbd rex)
+| if (neq 1 | len rex) 0
+| idx 0 rex
+
+= (rexSetEmbd newVal rex)
+| if (neq 1 | len rex) rex
+| EMBD newVal
+
+(0             =?= rexEmbd (OPEN "|" v0 5))
+(0             =?= rexEmbd (WORD "hi" 5))
+("hi"          =?= rexEmbd (EMBD "hi"))
+(WORD "hi" 0   =?= rexSetEmbd "hoe" (WORD "hi" 0))
+(EMBD "hoe"    =?= rexSetEmbd "hoe" (EMBD "hi"))
+(OPEN "|" v0 0 =?= rexSetEmbd "hoe" (OPEN "|" v0 0))
+
+;;;;;;;;;;
+
+(rexIsEmbd rex)=(eql 1 len-rex)
+(rexIsLeaf rex)=(eql 2 len-rex)
+(rexIsNode rex)=(eql 3 len-rex)
+
+
+;;; Basic Shape Queries ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+types=(v3 {EMBD} {LEAF} {NODE})
+
+(rexType rex)=(get types | dec len-rex)
+
+= (**rexGetNode rex fallback ok)
+| ifNot (rexIsNode rex) fallback
+| **ok (idx 2 rex) (idx 1 rex) (idx 0 rex)
+
+= (**rexGetLeaf rex fallback ok)
+| ifNot (rexIsLeaf rex) fallback
+| **ok (idx 1 rex) (idx 0 rex)
+
+= (**rexGetEmbd rex fallback ok)
+| ifNot (rexIsEmbd rex) fallback
+| **ok (idx 0 rex)
+
+
+;;; Rex Style ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (rexStyle rex)
+^ rsh _ 16
+| lawName | pinItem (head rex)
+
+({NEST} =?= rexStyle (NEST "," v0 0))
+({OPEN} =?= rexStyle (OPEN "x" (v1 | WORD "x" 0) 0))
+({WORD} =?= rexStyle (WORD {hi} 0))
+({TEXT} =?= rexStyle (TEXT {""} 0))
+({LINE} =?= rexStyle (LINE {} 0))
+
+
+;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (rexStyle rex)
+^ rsh _ 16
+| lawName | pinItem (head rex)
+
+({WORD} =?= rexStyle (WORD "hi" 0))
+
+= (**rexGetWord rex fall ok)
+| if (neq {WORD} rexStyle-rex) fall
+| rexGetLeaf rex fall ok
+
+= (**rexGetWordNoHeir rex fall ok)
+| if (neq {WORD} rexStyle-rex) fall
+| rexGetLeaf rex fall
+& (text heir)
+| if (neq 0 heir) fall
+| **ok text
+
+= (**rexGetText rex fall ok)
+| if (neq {TEXT} rexStyle-rex) fall
+| rexGetLeaf rex fall ok
+
+= (**rexGetAnyText rex fall ok)
+@ style (rexStyle rex)
+| if (nor (eql {TEXT} style) (eql {LINE} style)) fall
+| rexGetLeaf rex fall ok
+
+= (**rexGetNodeWithRune rune rex fall ret)
+| rexGetNode rex fall
+& (r s h)
+| if (neq r rune) fall
+| **ret s h
+
+= (**rexGetKidsOfNodeWithRune rune rex fall ok)
+| rexGetNodeWithRune rune rex fall
+& (s h)
+| **ok
+| ifz h s (rowSnoc s h)
+
+= (rexKids rex)
+@ sons (rexSons rex)
+@ heir (rexHeir rex)
+| ifz heir sons
+| rowSnoc sons heir
+
+(rexHasNoHeir rex)=(isZero | rexHeir rex)
+
+(rexHasHeir rex)=(neq 0 (rexHeir rex))
+
+
+;;; Equality ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;
+; Applies a function to every node (including leaves and embeded
+; fan values) of a Rex tree.  The function is applied to leaves first,
+; then to the nodes containing them.
+;
+; The fan values contained in EMBD nodes are not traversed.
+;
+= (rexEvery f rex)
+; trk (v4 rexEvery rex {->} _) _
+| ifz rex 0
+@ embdCase
+    | f rex
+@ leafCase
+    | f
+    @ heir (idx 0 rex)
+    | ifz heir rex
+    | mut 0 (rexEvery f heir) rex
+@ nodeCase
+    @ heir (idx 0 rex)
+    @ sons (idx 1 rex)
+    | if (and (null sons) (isZero heir)) rex
+    @ sons (map (rexEvery f) sons)
+    @ heir (rexEvery f heir)
+    | f | mut 1 sons | mut 0 heir | rex
+| idx (dec len-rex)
+| v3 embdCase leafCase nodeCase
+
+; Changes the layout-style of a rex tree to closed-form by converting
+; every OPEN node into a NEST node.
+= (rexClose topRex)
+^ rexEvery _ topRex
+& rex
+@ sty (rexStyle rex)
+| if (eql {LINE} sty) | TEXT rexText-rex rexHeir-rex
+| if (neq {OPEN} sty) | rex
+| else                | NEST (rexRune rex) (rexSons rex) (rexHeir rex)
+
+
+;;; Quoting ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= ({'} st rex err ok)
+@ args (rexKids rex)
+| if (neq 1 len-args)
+    | err rex {Expected 1 Parameter}
+| ok st
+| EMBD (idx 0 args)
+
+({TEXT} =?= rexStyle '{#})
+(0      =?= rexHasHeir '(0 1 2))
+(1      =?= rexHasHeir '((0 1 2)9))
+('{foo} =?= '"foo")
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= | OPEN {&} v0 0
+  ' &
+
+=?= | OPEN {*} v0 0
+  | rexSetRune {*}
+  ' -
+
+=?= ' (f [x y])[z]
+  | rexClose
+  ' | f , x y
+    , z
+
+wx=(WORD {x} 0)
+w9=(WORD {9} 0)
+hi=(TEXT {hi} 0)
+rw=(NEST {,} v0 0)
+e6=(EMBD 6)
+sx=(OPEN {=} (v2 wx w9) 0)
+
+(0 =?= rexIsNode hi)
+(0 =?= rexIsNode e6)
+(1 =?= rexIsNode sx)
+(1 =?= rexIsNode rw)
+(0 =?= rexIsEmbd hi)
+(0 =?= rexIsEmbd sx)
+(1 =?= rexIsEmbd e6)
+(1 =?= rexIsLeaf hi)
+(1 =?= rexIsLeaf wx)
+(0 =?= rexIsLeaf e6)
+(0 =?= rexIsEmbd sx)
+(0 =?= rexIsEmbd sx)
+
+(w x)=(WORD x 0)
+
+= (nestAnd rune sons heir) | NEST rune sons heir
+= (nestNod rune sons)      | NEST rune sons 0
+
+
+=?= 1 | eql '3        | (w {3})
+=?= 1 | eql '(3 4)    | nestNod {|} (v2 (w {3}) (w {4}))
+=?= 1 | eql '([a][b]) | nestAnd {,} (v1 (w {a}))
+                      | nestNod {,} (v1 (w {b}))
+
+=?= 1
+  | eql
+      | NEST {*} (v2 (WORD {hi} 0) (WORD {yo} 0))
+      | WORD {}
+      | WORD {heh}
+      | 0
+  | NEST {*} (v2 (WORD {hi} 0) (WORD {yo} 0))
+  | WORD {}
+  | WORD {heh}
+  | 0
+
+=?= {NEST} | rexStyle ' []
+=?= {OPEN} | rexStyle ' | x
+=?= {WORD} | rexStyle ' hi
+=?= {TEXT} | rexStyle ' {""}
+=?= {TEXT} | rexStyle ' }"}"
+=?= {LINE} | rexStyle ' }
+
+=?= (TEXT {foobar} 0) | rexClose (LINE "foobar" 0)
+
+=?= '{foobar} | rexClose ' } foobar
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ EMBD
+^-^ WORD TEXT LINE
+^-^ OPEN NEST INFX PREF SHUT
+^-^
+^-^ rexIsNode rexIsLeaf rexIsEmbd
+^-^
+^-^ rexRune rexSetRune
+^-^ rexHeir rexSetHeir
+^-^ rexText rexSetText
+^-^ rexSons rexSetSons
+^-^ rexEmbd rexSetEmbd
+^-^ rexKids
+^-^
+^-^ rexHasNoHeir rexHasHeir
+^-^
+^-^ rexType rexStyle
+^-^ rexGetEmbd rexGetLeaf rexGetNode
+^-^ rexGetWord rexGetWordNoHeir
+^-^ rexGetText rexGetAnyText
+^-^ rexGetNodeWithRune
+^-^ rexGetKidsOfNodeWithRune
+^-^
+^-^ rexEvery rexClose
+^-^
+^-^ {'}
+^-^

@@ -1,0 +1,301 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_21_switch <- sire_20_prp
+
+;;;; Atomic Switch
+;;;; =============
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan
+:| sire_02_bit
+:| sire_03_nat
+:| sire_04_cmp
+:| sire_05_row
+:| sire_06_rex
+:| sire_07_dat
+:| sire_10_str
+:| sire_11_set
+:| sire_12_tab
+:| sire_13_exp
+:| sire_14_hax []
+:| sire_15_pad []
+:| sire_16_bar
+:| sire_17_sug
+:| sire_18_pat
+:| sire_19_bst
+
+
+;;; Switch Patterns ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= cenOneKid } % literals must have one kid
+= cenWord   } % literals expect a word (and no heir)
+
+= (readFanLit rex err ret)
+| ifNonZero (rexHeir rex)
+        | err rex {Unexpected heir}
+| if (rexIsEmbd rex)
+        | ret (rexEmbd rex)
+| if (rexIsLeaf rex)
+        | if (eql {WORD} (rexStyle rex))
+                | readKey rex err ret
+        | else
+                | ret (rexText rex)
+; Here, we know that the value is a node.
+@ kids (rexKids rex)
+@ ryn  (rexRune rex)
+| if (eql ryn {%})
+        @ [kid] kids
+        | if (neq 1 len-kids)      | err rex cenOneKid
+        | if (eql {,} rexRune-kid) | err rex {TODO: Support set and tab literals}
+        | rexGetWord kid (err rex cenWord)
+        & (text heir)
+        | if (neq 0 heir) (err rex cenWord)
+        | ret text
+| if (eql ryn {#})
+        | readBarLit rex err ret
+| if (eql ryn {,})
+        : vals < ^ rowTraverse _ kids
+                 & (kid ret)
+                 | readFanLit kid err ret
+        | ret vals
+| else
+        | err rex (strWeld {Unexpected rune: } ryn)
+
+(try x)=(readFanLit x v2 v1)
+=?= [%x]      | try '(%x)
+=?= [[%x %y]] | try '[{x} {y}]
+
+= (readSwitchPat pat err set lit)
+| if (and (eql {_} rexText-pat) (eql %WORD rexStyle-pat))
+        | set
+| readFanLit pat err lit
+
+= rnNumb } Invalid number literal
+
+=?= %_          | readSwitchPat '_        v2 {_} v1
+=?= [%x]        | readSwitchPat '(%x)     v2 {_} v1
+=?= [[%x]]      | readSwitchPat '[%x]     v2 {_} v1
+=?= [[%x %y]]   | readSwitchPat '[%x {y}] v2 {_} v1
+=?= [%x]        | readSwitchPat '{x}      v2 {_} v1
+=?= [3]         | readSwitchPat '3        v2 {_} v1
+=?= [%a]        | readSwitchPat 'a        v2 {_} v1
+
+
+;;; Parsing Switch Patterns ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;
+; This parses the generial pattern-match form with a sequence of = nodes,
+; one per match.
+;
+; TODO: Come up with a better name for this.
+;
+; `parseAlien` is a parser to handle heirs that are not `=` nodes.
+;
+; See the tests for examples of what syntax is supported.
+;
+= (unrollSlip2Rune rune rex parseAlien err ok)
+^ _ NIL rex
+? (loop acc form)
+: kids heir
+        < rexGetNodeWithRune rune form
+                : end < parseAlien form err
+                | ok (listToRowRev (CONS end acc))
+@ size (len kids)
+| if (and (eql 1 size) (neq 0 heir))
+        ; = foo
+        ; body
+        @ [kid] kids
+        | ok (listToRowRev (CONS [kid heir] acc))
+| if (neq 2 size)
+        | err form (strWeld rune { node expects two parameters})
+; = foo body
+@ acc (CONS kids acc)
+| ifz heir | ok (listToRowRev acc)
+| loop acc heir
+
+unrollSlip2Tis=(unrollSlip2Rune {=})
+unrollSlip2Tar=(unrollSlip2Rune {*})
+
+foo=(x e o & o (varE {_}, x))
+(try x)=(unrollSlip2Tis x foo v2 id)
+
+=?= [['x 'y] ['_ '9]]
+        | try ' = x y
+                9
+
+=?= [['x 'y]]
+        | try ' = x y
+
+=?= [['x 'y]]
+        | try ' = x
+                y
+
+=?= [['3 '4] ['5 '6] ['_ '_]]
+        | try ' = 3 4
+                = 5 6
+                = _ _
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: Make the value-parser configurable
+
+; TODO: readSwitchExp should produce a maybe for the fallback
+
+> (Rex > Read exp)
+> Rex
+> Read (exp, Tab Any exp)
+= (readSwitchPats readExp rex err ok)
+: defaultFallback
+    < readExp '0 err
+: clauses
+    < ^ unrollSlip2Tar rex _ err
+      ? (onNonMatchingTail x err ret)
+      | ret (varE {_}, x)
+: cases
+    < ^ rowTraverse _ clauses
+      & ([key exp] ret)
+      : exp < readExp exp err
+      : nat < & pure
+              | readSwitchPat key err
+              * pure NONE
+              * compose pure SOME
+      | ret [nat exp]
+^ ok (foldl _ (defaultFallback, #[]) cases)
+& ([wild acc] [mKey exp])
+: key < maybeCase mKey [exp acc]
+| [wild (tabPut acc key exp)]
+
+= (readSwitchExp readExpr rex err ok)
+: _ exp [fallback arms]
+  < ^ rexParseKids rex _ err
+    | (readRex, readExpr, readSwitchPats readExpr)
+| ok exp fallback arms
+
+=?= ['0 [3=('4) 5=('6)]]
+        | readSwitchPats readRex '((* 3 4)(* 5 6)) v2 id
+
+=?= ['7 [3=('4) 5=('6)]]
+        | readSwitchPats readRex '((* 3 4)(* 5 6)7) v2 id
+
+=?= ['x [3=('4) 5=('6)]]
+        | readSwitchPats readRex '((* 3 4)(* 5 6)(x)) v2 id
+
+=?= ['x (tabIns [3 3] '6 [3=('4)])]
+        | readSwitchPats readRex '((* 3 4)(* [3 3] 6)(x)) v2 id
+
+
+;;; Atomic Switch ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (switchE expr wild pats)
+@ canUseRowIndex
+        | listAnd
+        | listZipWith eql (listEnumFrom 0)
+        | tabKeysList pats
+| if canUseRowIndex
+        | bopE (cnsE switch,    expr, wild, bowE (tabValsRow pats))
+| else
+        | bopE (cnsE tabSwitch, expr, wild, tabE pats)
+
+= ({#switch} st rex err ok)
+: exp fallback arms < readSwitchExp readRex rex err
+| ok st
+| switchE exp fallback arms
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (switchTest x)
+# switch x
+* 346    b#346
+* 345    b#345
+* derp   b#dur
+* %hi    b#hi
+* {yop}  b#yop
+| b#hur
+
+!! eql b#346 switchTest-346
+!! eql b#345 switchTest-345
+!! eql b#hi  switchTest-(%hi)
+!! eql b#yop switchTest-{yop}
+!! eql b#hur switchTest-45
+!! eql b#dur switchTest-{derp}
+
+= (switchTest2 x)
+# switch x
+* _ %Other
+* 0 %Zero
+* 1 %One
+* 2 %Two
+* 3
+| barNat b#Three
+
+!! eql %Three switchTest2-3
+!! eql %Two   switchTest2-2
+!! eql %Other switchTest2-9
+
+= (switchTest3 x)
+# switch x
+* 1              | %One
+* [0 0]          | %ZeroZero
+* [%a {b}]       | %AyeBee
+* [c d]          | %CeeDee
+* [{GET} b#{/p}] | %GetPee
+* [b#a]          | %AyeBar
+* [[[%a]]]       | %Ayyye
+* 9              | %Nine
+%Fallback
+
+!! eql %One      | switchTest3 1
+!! eql %ZeroZero | switchTest3 [0 0]
+!! eql %AyeBee   | switchTest3 [{a} %b]
+!! eql %CeeDee   | switchTest3 [{c} {d}]
+!! eql %GetPee   | switchTest3 [{GET} b#{/p}]
+!! eql %AyeBar   | switchTest3 [b#a]
+!! eql %Ayyye    | switchTest3 [[[%a]]]
+!! eql %Nine     | switchTest3 9
+!! eql %Fallback | switchTest3 8
+
+
+;;; Getting that tag from an object ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: OP1 {_DataTag}
+
+;; {_DataTag} either returns a nat, the first element of a row/tab/closure,
+;; or 0 (for pins and law).  This is the conventional way to get the
+;; "tag" from a tagged union.
+;;
+;; Note that, while `if` only returns true on non-zero naturals, but
+;; (fst 0) evaluates to 0.  Also note that `fst` returns zero for laws
+;; and pins.
+
+(_DataTag x)=(if x x fst-x)
+
+dataTag=_DataTag
+
+(0     =?= dataTag 0)
+(1     =?= dataTag 1)
+(2     =?= dataTag 2)
+({foo} =?= dataTag {foo})
+({bar} =?= dataTag [{bar} 9])
+(0     =?= dataTag [0 1 2 3])
+([3 4] =?= dataTag [a=3 b=4])
+(2     =?= dataTag (0 1 2))
+([]    =?= dataTag #[])
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ unrollSlip2Rune
+^-^ unrollSlip2Tis
+^-^ unrollSlip2Tar
+^-^ readSwitchExp
+^-^ switchE
+^-^ {#switch}
+^-^ {_DataTag} {dataTag}
+^-^

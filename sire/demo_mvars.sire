@@ -1,0 +1,80 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_mvars <- prelude
+
+:| prelude
+
+
+;;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Cog a > Cog b > Cog (a, b)
+= (concurrently leftAction rightAction return)
+: xMVar   < newEmptyMVar
+: yMVar   < newEmptyMVar
+: xThread < fork & ret : x < leftAction
+                       : r < putMVar xMVar x
+                       | ret r
+: yThread < fork & ret : x < rightAction
+                       : r < putMVar yMVar x
+                       | ret r
+: xVal < takeMVar xMVar
+: yVal < takeMVar yMVar
+| return [xVal yVal]
+
+> (a > Cog b) > Row a > Cog (Row b)
+= (mapConcurrently f xs return)
+: pending
+  < ^ rowTraverse _ xs
+    & (x return)
+    : xMVar   < newEmptyMVar
+    : xThread < fork & ret : fx < f x
+                           : rs < putMVar xMVar fx
+                           | ret rs
+    | return xMVar
+: results
+    < rowTraverse takeMVar pending
+| return results
+
+= (yieldDemo return)
+: var < newEmptyMVar
+: bob < fork & done : val < takeMVar var
+                    : val < takeMVar var
+                    | done 0
+: _ < putMVar var {Hey Bob, do your thing first.}
+: _ < putMVar var {You done over there, Bob?}
+| trk {Control is returned to Alice}
+;
+: [tx ty] < concurrently (syscall TIME_WHEN) (syscall TIME_WHEN)
+;
+; One at a time
+;
+: forTime
+  < ^ rowTraverse _ [2 1 0 1 2]
+    & (off return)
+    | trk [%TIME_WHEN [=off]]
+    : tim < syscall TIME_WHEN
+    : _   < syscall (**TIME_WAIT (add off tim))
+    | return tim
+;
+; All at the same time
+;
+: forPar
+  < ^ mapConcurrently _ [2 1 0 1 2]
+    & (off return)
+    | trk [%TIME_WHEN [=off]]
+    : tim < syscall TIME_WHEN
+    : _   < syscall (**TIME_WAIT (add off tim))
+    | return tim
+;
+| trk
+   ++ [=tx =ty]
+   ++ [=forTime]
+   ++ [=forPar]
+| return ()
+
+
+;;; Export For Boot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+main=(runCog yieldDemo)

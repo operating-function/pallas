@@ -1,0 +1,333 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_03_nat <- sire_02_bit
+
+;;;; Natural Numbers
+;;;; ===============
+;;;;
+;;;; This module defines the core operations on natural numbers.
+;;;;
+;;;;
+;;;; Jetting
+;;;; -------
+;;;;
+;;;; Many of these operations require jets.  These functions will be very
+;;;; slow without jet:
+;;;;
+;;;; - _Add
+;;;; - _Mul
+;;;; - _Sub
+;;;; - _Div
+;;;; - _Pow
+;;;; - _Bitwise
+;;;; - _NatFold
+;;;;
+;;;; These operations are defined in terms of other jets, and can function
+;;;; without jets, but still benefit greatly from optimization:
+;;;;
+;;;; - _Bex
+;;;; - _Bix
+;;;; - _Lsh
+;;;; - _Rsh
+;;;; - _Mod
+;;;; - _Dis
+;;;; - _Con
+;;;; - _Mix
+;;;; - _PopCount
+;;;; - _Met
+;;;;
+;;;; These operations do not need jets, but may be worth jetting anyways:
+;;;;
+;;;; - _ToNat
+;;;; - _Dec
+;;;; - _Times
+;;;; - _OrdWeld
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan [seq isNat cdr die id const isZero isOne]
+:| sire_02_bit [TRUE FALSE]
+:| sire_02_bit [if ifz ifNot else]
+:| sire_02_bit [not bit and or xor]
+
+
+;;; Basic Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+inc=3
+
+= toNat ( _ToNat x     ?? 2 0 3 x               )
+= dec   ( _Dec x       ?? 2 0 id x              )
+= times ( _Times f z x ?? 2 z (_Times f f-z) x  )
+= add   ( _Add x y     ?? times inc (toNat x) y )
+= mul   ( _Mul x y     ?? times (add x) 0 y     )
+= sub   ( _Sub x y     ?? times dec (toNat x) y )
+= pow   ( _Pow b p     ?? times (mul b) 1 p     )
+= bex   ( _Bex p       ?? pow 2 p               )
+
+
+;;; Ordering ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; data Ord = LT | EQ | GT
+
+LT=0
+EQ=1
+GT=2
+
+= ordWeld ( _OrdWeld x y ?? if (isOne x) y x )
+
+
+;;; Comparison ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Nat comparisons are not jetted.  These are just building blocks for
+;;; the full PLAN comparisons, use those instead.
+;;;
+;;; Note that {natCmp} returns an {Ord} value in line with the definitions
+;;; above.
+
+= (natLte x y) | not (sub x y)
+= (natLth x y) | natLte inc-x y
+= (natGte x y) | natLte y x
+= (natGth x y) | natLth y x
+= (natEql x y) | and natLte-y-x natLte-x-y
+= (natMin x y) | if natLte-x-y x y
+= (natMax x y) | if natGte-x-y x y
+= (natCmp x y) | natMin 2 (sub inc-x y)
+
+
+;;; Operations Involving Division ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (_Div x y)
+| if (natLth x y) 0
+| inc (_Div (sub x y) y)
+
+div=_Div
+
+= mod    ( _Mod x y    ?? sub x (mul y | div x y) )
+= divMod ( _DivMod x y ?? 0 (div x y) (mod x y)   )
+= lsh    ( _Lsh v n    ?? mul (bex n) v           )
+= rsh    ( _Rsh v n    ?? div v (bex n)           )
+= bix    ( _Bix i n    ?? mod (rsh n i) 2         )
+
+
+;;; Bitwise Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= bitwise
+   ?? (_Bitwise f x y)
+    ^ _ x y 0 0
+    ? (go a b off acc)
+    | ifNot (add a b) acc
+    @ bit | f (mod a 2) (mod b 2)
+    @ acc | add acc (lsh bit off)
+    | seq acc
+    | go (div a 2) (div b 2) (inc off) acc
+
+= natFold
+   ?? (_NatFold f z n)
+    | if (not n) z
+    @ z (f z | mod n 2)
+    | seq z
+    | _NatFold f z (rsh n 1)
+
+= dis      ( _Dis x y    ?? bitwise or  x y           )
+= con      ( _Con x y    ?? bitwise and x y           )
+= mix      ( _Mix x y    ?? bitwise xor x y           )
+= popCount ( _PopCount n ?? natFold add 0 n           )
+= met      ( _Met n      ?? natFold (m _ & inc m) 0 n )
+
+= trunc    ( _Trunc w n      ?? mod n (bex w)                          )
+= bitSlice ( _BitSlice o w n ?? trunc w (rsh n o)                      )
+= setBit   ( _SetBit i nat   ?? dis nat bex-i                          )
+= testBit  ( _TestBit i nat  ?? mod (rsh nat i) 2                      )
+= clearBit ( _ClearBit i nat ?? if (testBit i nat) (mix nat bex-i) nat )
+
+1=?=(setBit 0 0)
+2=?=(setBit 1 0)
+4=?=(setBit 2 0)
+1=?=(setBit 0 1)
+3=?=(setBit 1 1)
+5=?=(setBit 2 1)
+3=?=(setBit 0 3)
+3=?=(setBit 1 3)
+7=?=(setBit 2 3)
+
+0=?=(testBit 0 0)
+1=?=(testBit 0 1)
+1=?=(testBit 0 5)
+0=?=(testBit 1 5)
+1=?=(testBit 2 5)
+0=?=(testBit 3 5)
+
+5=?=(setBit 0 5)
+7=?=(setBit 1 5)
+5=?=(setBit 2 5)
+13=?=(setBit 3 5)
+
+4=?=(clearBit 0 5)
+5=?=(clearBit 1 5)
+1=?=(clearBit 2 5)
+5=?=(clearBit 3 5)
+
+0=?=(trunc 0 5)
+1=?=(trunc 1 5)
+1=?=(trunc 2 5)
+5=?=(trunc 3 5)
+5=?=(trunc 4 5)
+
+(1  =?= bitSlice 0 2 13)
+(5  =?= bitSlice 0 3 13)
+(13 =?= bitSlice 0 4 13)
+(2  =?= bitSlice 1 2 13)
+(6  =?= bitSlice 1 3 13)
+(3  =?= bitSlice 2 2 13)
+(1  =?= bitSlice 3 2 13)
+
+
+;;; Misc ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (odd n)  | mod n 2
+= (even n) | not (odd n)
+
+= (roundUp n f)
+@ x (mod n f)
+| ifNot (and f x) n
+| sub (add n f) x
+
+=?= 1 (even 4)
+=?= 0 (even 5)
+=?= 0 (odd 4)
+=?= 1 (odd 5)
+
+=?= 0  (roundUp 0  3)
+=?= 3  (roundUp 1  3)
+=?= 3  (roundUp 2  3)
+=?= 3  (roundUp 3  3)
+=?= 6  (roundUp 4  3)
+=?= 6  (roundUp 5  3)
+=?= 6  (roundUp 6  3)
+=?= 9  (roundUp 7  3)
+=?= 21 (roundUp 19 3)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= FALSE (bix 0 8)
+=?= FALSE (bix 1 8)
+=?= FALSE (bix 2 8)
+=?= TRUE  (bix 3 8)
+=?= FALSE (bix 4 8)
+
+=?= 7 (con 7 7)
+=?= 5 (con 5 7)
+=?= 1 (con 1 7)
+=?= 1 (con 7 1)
+=?= 7 (dis 7 7)
+=?= 7 (dis 1 7)
+=?= 7 (dis 7 1)
+
+=?= 1 (popCount 1)
+=?= 1 (popCount 2)
+=?= 1 (popCount 4)
+=?= 2 (popCount 5)
+=?= 2 (popCount 6)
+=?= 3 (popCount 7)
+
+=?= 0 (met 0)
+=?= 1 (met 1)
+=?= 2 (met 2)
+=?= 3 (met 4)
+=?= 3 (met 7)
+=?= 4 (met 8)
+=?= 9 (met 256)
+
+=?= 256 (bex 8)
+=?= 81  (pow 3 4)
+
+=?= 1 | inc ( add 0   0   )
+=?= 1 | inc ( add 0   0-0 )
+=?= 1 | inc ( add 0-0 0   )
+=?= 1 | inc ( add 0-0 0-0 )
+=?= 1 | add 0 1
+=?= 1 | add 1 0
+
+=?= 1 | natEql 5 5
+=?= 1 | natEql 6 mul-2-3
+=?= 1 | natEql 2 sub-4-2
+=?= 1 | natGth 4 3
+=?= 1 | natGte 4 3
+=?= 1 | natGte 4 4
+=?= 1 | natEql 0 (sub 3 4)
+=?= 1 | natEql 0 (sub 3 3)
+=?= 1 | natEql 1 (sub 3 2)
+=?= 1 | natEql 3 (sub 3 0)
+
+=?= 1 | natEql 1 (mix 0 1)
+=?= 1 | natEql 1 (mix 1 0)
+=?= 1 | natEql 3 (mix 2 1)
+=?= 1 | natEql 1 (mix 2 3)
+
+=?= 1 | natEql 0 (roundUp 0 4)
+=?= 1 | natEql 4 (roundUp 3 4)
+=?= 1 | natEql 8 (roundUp 5 4)
+
+= (checkOrd x y)
+@ ord (natCmp x y)
+| ifz ord ; LT
+    | and (bit | natLth x y)
+    | and (bit | natLte x y)
+    | and (not | natEql x y)
+    | and (not | natGte x y)
+    | and (not | natGth x y)
+    | and (natEql x | natMin x y)
+          (natEql y | natMax x y)
+| if (isOne ord) ; EQ
+    | and (not | natLth x y)
+    | and (bit | natLte x y)
+    | and (bit | natEql x y)
+    | and (bit | natGte x y)
+          (not | natGth x y)
+| else ; GT
+    | and (not | natLth x y)
+    | and (not | natLte x y)
+    | and (not | natEql x y)
+    | and (bit | natGte x y)
+    | and (bit | natGth x y)
+    | and (natEql y | natMin x y)
+          (natEql x | natMax x y)
+
+=?= 1 (checkOrd 0 0)
+=?= 1 (checkOrd 0 1)
+=?= 1 (checkOrd 1 0)
+=?= 1 (checkOrd 1 1)
+
+=?= 1 (checkOrd 1 4)
+=?= 1 (checkOrd 2 4)
+=?= 1 (checkOrd 3 4)
+=?= 1 (checkOrd 4 4)
+=?= 1 (checkOrd 5 4)
+=?= 1 (checkOrd 6 4)
+=?= 1 (checkOrd 7 4)
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ isNat ; re-export
+^-^
+^-^ toNat times inc dec add sub mod mul div divMod isOne
+^-^ lsh rsh con mix dis pow bex bix
+^-^
+^-^ LT EQ GT ordWeld
+^-^
+^-^ natEql natCmp ; (warning: not jetted, only use to define jets)
+^-^
+^-^ bitwise natFold
+^-^ met popCount
+^-^
+^-^ trunc bitSlice
+^-^ setBit clearBit testBit
+^-^
+^-^ roundUp even odd
+^-^

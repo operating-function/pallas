@@ -1,0 +1,43 @@
+;;;;;;;;;;;;;;;;;;;;;;;;
+;; Some Configuration ;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Some Config
+= config
+~~ %% image              """circleci/python:3.9.0-node
+   %% environment
+      %% POSTGRES_DB     """database
+      %% POTGRES_PASSWOD """pass
+      %% POTGRES_USER    """user
+~~ %% image              """circleci/python:3.9.0-node
+   %% environment
+      %% API_URL          """http://localhost:5000
+      %% APP_DB_URL       """postgresql://user:user@localhost:5
+      %% CYPRESS_BASE_URL """http://localhost:3000
+
+; Table of names for the first four atoms.
+= atomNames
+| mapFromList
+~~ ,, 0
+   ,, :zero
+~~ ,, 1
+   ,, :one
+~~ ,, 2
+   ,, :two
+~~ ,, 3
+   ,, :three
+
+
+;;;;;;;;;;;;;;;;;;;;
+;; Part of a Poem ;;
+;;;;;;;;;;;;;;;;;;;;
+
+= poem
+""" Once upon a midnight dreary,
+""" While I pondered, weak and weary,
+""" Over many a quaint and curious
+""" Volume of forgotten lore-
+""" While I nodded, nearly napping,
+""" Suddenly there came a tapping,
+""" As of some one gently rapping,
+""" Rapping at my chamber door.

@@ -1,0 +1,30 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_poke <- demo_pmap_eval
+
+;;;; This is an example of a raw program.  This runs directly against
+;;;; the Cog interface without even using the `kern.sire` exokernel.
+;;;;
+;;;; This program just sits and echos the values poked at it on the `listen`
+;;;; path.
+;;;;
+;;;; Once this cog is spinning, try running
+;;;; `plunder poke pokedemo listen sire/loop-val.sire`
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (PokeLoop calls response)
+@ val | tabGet response 0
+| trk [=val]
+| PokeLoop [[%poke 0 %poke [%listen]]]
+
+main=(PokeLoop [[%poke 0 %poke [%listen]]])

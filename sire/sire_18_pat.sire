@@ -1,0 +1,1065 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_18_pat <- sire_17_sug
+
+;;;; Pattern Matching
+;;;; ================
+;;;;
+;;;; Extends `@` to support destructuring on:
+;;;;
+;;;; - Rows
+;;;; - Tabs
+;;;; - Pins
+;;;; - Laws
+;;;;
+;;;; Also supports strictness annotations on bindings.
+;;;;
+;;;;
+;;;; TODOs
+;;;; -----
+;;;;
+;;;; -   TODO: Don't output `_` bindings.
+;;;;
+;;;; -   TODO: Don't output trivial rebindings (x=y).
+;;;;
+;;;; -   TODO: Implement LAW/PIN patterns in a principled way.
+;;;;
+;;;;     We should register some sort of "destructuror" against the PIN /
+;;;;     LAW bindings in `01_fan.sire`. You should be able to shaddow
+;;;;     (or not import) these like anything else.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan
+:| sire_02_bit [if ifz else ifNot ifNonZero not and or TRUE FALSE]
+:| sire_03_nat [add div inc]
+:| sire_05_row [len null idx get put fst]
+:| sire_04_cmp [eql neq gte lth isZero]
+:| sire_05_row [weld map foldl foldr v1 v2 v3 v4]
+:| sire_06_rex
+:| sire_07_dat
+:| sire_10_str [strWeld strCat]
+:| sire_11_set [readKey {%}]
+:| sire_12_tab [{##} tabToPairs tabFromPairs tabIdx tabToList tabIns]
+:| sire_12_tab [isTabSugar readWideTabLit]
+:| sire_13_exp
+:| sire_14_hax [{#}]
+:| sire_15_pad []
+:| sire_16_bar []
+:| sire_17_sug [{`} {:} {~} {::} {~~} {==}]
+:| sire_17_sug [readColExp colExpE]
+
+
+;;; Pattern Matching On Rows ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: Rebuild this as a call to (sequenceBinds >=> bindSeqE).
+
+= (destructureRowE tmpVar lhs rowExpr bodyExpr)
+@ isVar  | eql rowExpr varE-(rexText rowExpr)
+@ tmpVar | if isVar (rexText rowExpr) tmpVar
+@ go
+        ? (go binds)
+        : bind binds < listCase binds bodyExpr
+        @ bindVar (idx 1 bind)
+        | if (eql {_} bindVar) (go binds)
+        | letE bindVar
+                | appE
+               ++ cnsE (idx (idx 0 bind))
+               ++ varE tmpVar
+        | go binds
+| if isVar id (letE tmpVar rowExpr)
+| go (listIndexed | listFromRow lhs)
+
+=?= (destructureRowE %_g1 [%x %y %z] '(a b) (appE ['x 'y]))
+       `
+       #@ _g1 (a b)
+       #@ x (#| $$(idx 0) _g1)
+       #@ y (#| $$(idx 1) _g1)
+       #@ z (#| $$(idx 2) _g1)
+        (#| x y)
+
+=?= (destructureRowE %_g1 [%x %y %z] 'yo (appE ['x 'y]))
+       `
+       #@ x (#| $$(idx 0) yo)
+       #@ y (#| $$(idx 1) yo)
+       #@ z (#| $$(idx 2) yo)
+        (#| x y)
+
+
+;;; Parsing Binders in General ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; # datatype Pat
+; * PVAR=v n:Sym
+; * PSEQ=s p:Sym
+; * PALI=a n:Sym p:Pat
+; * PROW=r x:(Row Pat)
+; * PTAB=t x:(Tab Any Pat)
+;
+; First parse patterns into data structures.
+;
+;   @ [x [y z] [a=b c=d e=f]] (foo foo)
+;   body
+;
+;     =>
+;
+;   | ROW
+;  ++ VAR 1 {x}
+;  ++ ROW
+;      ++ VAR 2 {y}
+;      ++ VAR 3 {z}
+;  ++ TAB
+;      ## =a (VAR 4 {b})
+;      ## =c (VAR 5 {d})
+;      ## =e (VAR 6 {f})
+;
+; Then generate code from that:
+;
+; #@ _g0  (foo foo)
+; #@ x    (idx-0      _g0)
+; #@ _g1  (idx-1      _g0)
+; #@ y    (idx-0      _g1)
+; #@ z    (idx-1      _g1)
+; #@ _g2  (idx-2      _g0)
+; #@ b    (tabIdx-{a} _g2)
+; #@ d    (tabIdx-{c} _g2)
+; #@ f    (tabIdx-{e} _g2)
+;  body
+;
+; This same process should work more-or-less verbatim in other contexts:
+; functions, lambdas, etc.
+;
+
+= sbBadForm } seq-patterns must be a single banged symbol: !x
+= sbBadHeir } seq-patterns may not have an heir
+
+= (parseSeqBinder rex err ok)
+@ sons | rexSons rex
+@ expr | idx 0 sons
+| if (not (rexIsNode rex))   | err rex sbBadForm
+| if (neq (rexRune rex) {!}) | err rex sbBadForm
+| if (neq (len sons) 1)      | err rex sbBadForm
+| if (neq (rexHeir rex) 0)   | err rex sbBadHeir
+: sym < readSymbol expr err
+| ok [%s sym]
+
+= rbBadForm } Row-Patterns must be a row of symbols [x y z]
+= rbBadHeir } Row-Patterns may not have an heir
+
+= (parseRowBinder parseBinder rex err ok)
+| if (not (rexIsNode rex))   | err rex rbBadForm
+| if (neq (rexRune rex) {,}) | err rex rbBadForm
+| if (neq (rexHeir rex) 0)   | err rex rbBadHeir
+: elems < rowTraverse (son ret & parseBinder son err ret) (rexSons rex)
+| ok [%r elems]
+
+= (parseTabBinder parseBinder rex err ok)
+: tab < readWideTabLit parseBinder rex err
+| ok [%t tab]
+
+;; @x
+;; x@[a b c]
+;; TODO: support x@y@z, just for completeness (zero, one, or many)
+
+= (parseAliasedBinder parseBinder rex err ok)
+: kids < readNodeWithoutHeirButWithRune {@} rex err
+| if (eql 1 len-kids)
+    | parseBinder (idx 0 kids) err ok
+| if (neq 2 len-kids)
+    | err rex {Alias-Patterns expect two kids: x=y}
+: foo < parseBinder (idx 0 kids) err
+: bar < parseBinder (idx 1 kids) err
+| ok [%a foo bar]
+
+
+; =(PIN x)
+= (parsePinBinder parseBinder rex err ok)
+: kids < readNodeWithoutHeirButWithRune {|} rex err
+| if (neq 2 len-kids)
+    | err rex {Pin-Pattern expects two kids: (PIN x)}
+| ifNot (eql `PIN | idx 0 kids)
+    | err rex {Pin-Pattern expects rex-head to be `PIN}
+: item < parseBinder (idx 1 kids) err
+| ok [%pin item]
+
+
+; @(LAW n a b)
+= (parseLawBinder parseBinder rex err ok)
+: kids < readNodeWithoutHeirButWithRune {|} rex err
+| if (neq 4 len-kids)
+    | err rex {Law-Pattern expects four kids: (LAW n a b)}
+| ifNot (eql `LAW | idx 0 kids)
+    | err rex {Law-Pattern expects rex-head to be `LAW}
+: n < parseBinder (idx 1 kids) err
+: a < parseBinder (idx 2 kids) err
+: b < parseBinder (idx 3 kids) err
+| ok [%law n a b]
+
+= (parseBinder rex err ok)
+@ heir (rexHeir rex)
+| if (rexIsLeaf rex)
+    : sym < readSymbol (rexSetHeir 0 rex) err
+    | ifz heir
+        | ok [%v sym]
+    | ifNot (eql {..} | rexRune heir)
+        | err rex
+        ^ strWeld _ (rexRune heir) ; wrong rune
+        } expected something like CONSTR(..)
+    | ifNot (null | rexKids heir)
+        | err rex ; has kids
+        } expected something like CONSTR(..)
+    | ok [%o sym]
+@ rune (rexRune rex)
+| if (eql rune {.})
+    : sym < readSymbol rex err
+    | ok [%v sym]
+| if (eql rune {!})
+    | parseSeqBinder rex err ok
+| if (eql rune {,})
+    | if (isTabSugar rex)
+        | parseTabBinder parseBinder rex err ok
+    | parseRowBinder parseBinder rex err ok
+| if (eql rune {#})
+    | parseTabBinder parseBinder rex err ok
+| if (eql rune {@})
+    | parseAliasedBinder parseBinder rex err ok
+| if (eql rune {|})
+    ;
+    ; TODO: Gnarly hack, don't keep
+    ;
+    ; This just makes any unknown constror pattern works as if it
+    ; was a row.  This mostly works but is extremely jank.  The right
+    ; way involves looking up meta-information to verify that this
+    ; is a #record, checking the arity, etc.
+    ;
+    ; TODO: Instead, we should just parse this as a constructor pattern,
+    ; and let the code generator handle it.  The code generator in this
+    ; module should ignore it, and a later module should compile these
+    ; down to something more sensible.
+    ;
+    @ sons | rexSons rex
+    @ numb | len sons
+    @ head | idx 0 sons
+    | if (eql head `LAW)
+        | parseLawBinder parseBinder rex err ok
+    | if (eql head `PIN)
+        | parsePinBinder parseBinder rex err ok
+    ^ parseBinder _ err ok
+    | rexSetRune {,}
+    | rexSetSons (drop 1 | rexSons rex)
+    | rex
+| else
+    | err rex {Unknown binding pattern}
+
+=?= (parseBinder `[x y z] v2 id)
+ ++ %r
+ ++  ++ [%v %x]
+     ++ [%v %y]
+     ++ [%v %z]
+
+=?= (parseBinder '[x FOO(..)] v2 id)
+ ++ %r
+ ++  ++ [%v %x]
+     ++ [%o %FOO]
+
+=?= (parseBinder '[x y !z] v2 id)
+ ++ %r
+ ++  ++ [%v %x]
+     ++ [%v %y]
+     ++ [%s %z]
+
+=?= (parseBinder '(#[=x y=b]) v2 id)
+ ++ %t
+ ++  ## =x [%v %x]
+     ## =y [%v %b]
+
+=?= (parseBinder '[=x y=b] v2 id)
+ ++ %t
+ ++  ## =x [%v %x]
+     ## =y [%v %b]
+
+=?= (parseBinder '[#[=x] [y]] v2 id)
+ ++ %r
+ ++  ++ [%t #[x=[%v %x]]]
+     ++ [%r [[%v %y]]]
+
+=?= (parseBinder '(foo@[#[=x] [y]]) v2 id)
+ ++ %a
+ ++ [%v {foo}]
+ ++  ++ %r
+     ++  ++ [%t #[x=[%v {x}]]]
+         ++ [%r [[%v {y}]]]
+
+=?= (parseBinder '[x y] v2 id)
+ ++ %r
+ ++  ++ [%v %x]
+     ++ [%v %y]
+
+
+;;; Sequence Binds ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;
+; Then, generate a binder sequence from this:
+;
+;   @ [x [y z] #[a=b c=d e=f]] (foo foo)
+;   body
+;
+;     =>
+;
+; ~~ [ {x}     '(idx-0      _g0) ]
+; ~~ [ {_g1}   '(idx-1      _g0) ]
+; ~~ [ {y}     '(idx-0      _g1) ]
+; ~~ [ {z}     '(idx-1      _g1) ]
+; ~~ [ {_g2}   '(idx-2      _g0) ]
+; ~~ [ {b}     '(tabIdx-{a} _g2) ]
+; ~~ [ {d}     '(tabIdx-{c} _g2) ]
+; ~~ [ {f}     '(tabIdx-{e} _g2) ]
+;
+
+= (sequenceBindPair ss bindSpec exp)
+^ _ exp bindSpec ss NIL
+        & (ss acc)
+        @ row (listToRowRev acc)
+        | [ss (map (take 3) row) (cat | map idx-3 row)]
+? (go exp bindSpec ss acc ok)
+@ typ (idx 0 bindSpec)
+| if (eql {o} typ)
+        | todo
+        } No codegen for record-wildcard patterns:
+        }
+        } We don't know how to handle these yet, higher-level code should
+        } compile them away before calling this codegen routine.
+| if (eql {v} typ)
+        @ var (idx 1 bindSpec)
+        | ok ss [0 var exp []]::acc
+| if (eql {s} typ)
+        @ var (idx 1 bindSpec)
+        | ok ss [0 var exp [var]]::acc
+: ss tmp < generateTempName {g} ss
+| if (eql {a} typ)
+        @ acc [0 tmp exp []]::acc
+        : ss acc < go (varE tmp) (idx 1 bindSpec) ss acc
+        : ss acc < go (varE tmp) (idx 2 bindSpec) ss acc
+        | ok ss acc
+| if (eql {pin} typ)
+        @ acc [0 tmp exp []]::acc
+        @ exp (appE (cnsE pinItem, varE tmp))
+        : ss acc < go exp (idx 1 bindSpec) ss acc
+        | ok ss acc
+| if (eql {law} typ)
+        @ acc [0 tmp exp []]::acc
+        : ss acc < go appE-(cnsE lawName, varE tmp) (idx 1 bindSpec) ss acc
+        : ss acc < go appE-(cnsE lawArgs, varE tmp) (idx 2 bindSpec) ss acc
+        : ss acc < go appE-(cnsE lawBody, varE tmp) (idx 3 bindSpec) ss acc
+        | ok ss acc
+@ dat (idx 1 bindSpec)
+@ acc [0 tmp exp []]::acc
+@ res
+        | if (eql {t} typ)
+                ^ foldl _ [ss acc] (tabToPairs dat)
+                & (st elem)
+                @ ss  (idx 0 st)
+                @ acc (idx 1 st)
+                @ key (idx 0 elem)
+                @ pat (idx 1 elem)
+                @ exp (appE (cnsE tabIdx-key, varE tmp))
+                : ss acc < go exp pat ss acc
+                | [ss acc]
+        | if (eql {r} typ)
+                ^ listFoldl _ [ss acc] (listIndexed | listFromRow dat)
+                & (st elem)
+                @ ss  (idx 0 st)
+                @ acc (idx 1 st)
+                @ i   (idx 0 elem)
+                @ pat (idx 1 elem)
+                @ exp (appE (cnsE idx-i, varE tmp))
+                : ss acc < go exp pat ss acc
+                | [ss acc]
+        | else
+            | die [{bad bind spec} bindSpec]
+@ ss  (idx 0 res)
+@ acc (idx 1 res)
+| ok ss acc
+
+= (sequenceBinds ss bindSpecs)
+; trk #[=bindSpecs]
+^ foldl _ [ss [] []] bindSpecs
+& (acc item)
+;
+@ ss    (idx 0 acc)
+@ soFar (idx 1 acc)
+@ deps  (idx 2 acc)
+;
+; trk #[=soFar =deps]
+;
+@ bind  (idx 0 item)
+@ exp   (idx 1 item)
+;
+@ res    (sequenceBindPair ss bind exp)
+@ ss     (idx 0 res)
+@ extra  (idx 1 res)
+@ depend (idx 2 res)
+;
+; trk #[=extra =depend]
+;
+| [ss (weld soFar extra) (weld deps depend)]
+
+=?=    ++ 5
+       ++ [[0 %y ('x)]]
+       ++ []
+    | sequenceBinds 5 [[[%v %y] 'x]]
+
+=?=    ++ 5
+       ++ [[0 %y ('x)]]
+       ++ [{y}]
+    | sequenceBinds 5 [[[%s %y] 'x]]
+
+=?=    ++ [8]
+       ++  ++ [0 {_g5}  `(foo foo)]
+           ++ [0 {_g6}  `(#| $$(idx 0) _g5)]
+           ++ [0 %x     `(#| $$(idx 0) _g6)]
+           ++ [0 {_g7}  `(#| $$(idx 1) _g5)]
+           ++ [0 %y     `(#| $$(idx 0) _g7)]
+       ++  [%x %y]
+    | sequenceBinds [5]
+    | v1
+   ++   | v2 %r
+       ++ [%r [[%s %x]]]
+       ++ [%r [[%s %y]]]
+   ++ '(foo foo)
+
+=?=
+       ++ [8]
+       ++  ++ [0 {_g5}  `(foo foo)]
+           ++ [0 {_g6}  `(#| $$(idx 0) _g5)]
+           ++ [0 %x     `(#| $$(tabIdx {x}) _g6)]
+           ++ [0 {_g7}  `(#| $$(idx 1) _g5)]
+           ++ [0 %y     `(#| $$(idx 0) _g7)]
+       ++ []
+    | sequenceBinds [5]
+    | v1
+   ++   | v2 %r
+       ++ [%t #[x=[%v %x]]]
+       ++ [%r [[%v %y]]]
+   ++ '(foo foo)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (bindSeqE binds body deps)
+@ addBind
+        & (bind body)
+        @ var (idx 1 bind)
+        @ exp (idx 2 bind)
+        @ sameVar (readSymbol exp (_ _ & FALSE) (eql var))
+        | if (or (eql var {_}) sameVar) body
+        | letE var exp body
+@ addDep
+        & (dep body)
+        | bapE (cnsE seq, varE dep, body)
+@ depBody
+    | foldr addDep body deps
+| foldr addBind depBody binds
+
+=?=    `
+       #@ _g5  (foo foo)
+       #@ _g6  (#| $$(idx 1)     _g5)
+       #@ y    (#| $$(idx 0)     _g6)
+       #@ _g7  (#| $$(idx 0)     _g5)
+       #@ x    (#| $$(tabIdx %x) _g7)
+       #| $$seq $(varE %_g5)
+       #| $$seq $(varE %y)
+       #| $$seq $(varE %z)
+        x
+   | bindSeqE
+          ++ [5 {_g5}  `(foo foo)]
+          ++ [6 {_g6}  `(#| $$(idx 1) _g5)]
+          ++ [1 %y     `(#| $$(idx 0) _g6)]
+          ++ [7 {_g7}  `(#| $$(idx 0) _g5)]
+          ++ [2 %x     `(#| $$(tabIdx {x}) _g7)]
+       | 'x
+   | [%_g5 %y %z]
+
+
+;;; Multi Binders ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (isMultiBinder rex)
+| eql {=} (rexRune rex)
+
+= mbNeedsTwo | {Each multi-bind needs at least two son}
+
+= (readMultiBinder readExp rex err ok)
+| ifz rex ok-[]
+: sons heir < readNodeWithRune {=} rex err
+| if (lth len-sons 2) (err rex mbNeedsTwo)
+: bind < parseBinder (idx 0 sons) err
+: exp  < readExp (appE | drop 1 sons) err
+: more < readMultiBinder readExp heir err
+| ok
+| rowCons RIGHT-[bind exp] more
+
+=?= (readMultiBinder readRex '((= x 3)(= y 3 4)) v2 id)
+        [RIGHT-[[%v %x] '3] RIGHT-[[%v %y] '(#| 3 4)]]
+
+
+;;; Lambda Binders ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (isInlineMarkedHead rex)
+@ kids (rexKids rex)
+| and (eql {**} | rexRune rex)
+| and (eql 1    | len kids)
+| rexIsSymbol (fst kids)
+
+(isLambdaHead rex)=(or rexIsSymbol-rex isInlineMarkedHead-rex)
+
+= (isLambdaBinder rex)
+| and (rexIsNode rex)
+| and (eql {|} (rexRune rex))
+| and (rexHasNoHeir rex)
+@ sons (rexSons rex)
+| and (gte (len sons) 2)
+| isLambdaHead (fst sons)
+
+=?= 1 | isLambdaBinder '(f x)
+=?= 1 | isLambdaBinder '(**f x)
+=?= 1 | isLambdaBinder '((** f) x)
+=?= 1 | isLambdaBinder '((**)f x)
+=?= 0 | isLambdaBinder '((** f x) x)
+=?= 0 | isLambdaBinder 'f
+=?= 0 | isLambdaBinder '(f)
+=?= 0 | isLambdaBinder '(| f)
+=?= 1 | isLambdaBinder '(f a b c)
+=?= 0 | isLambdaBinder '[]
+
+
+;;; Pattern Matching on Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: Rebuild this as a call to (sequenceBinds >=> bindSeqE).
+= (destructureTabE nex bindings tabExp bodyExp ok)
+@ tmp (tmpName {g} nex)
+@ go
+        ? (go bind)
+        | listCase bind
+                | bodyExp
+        & (kv more)
+        @ key (idx 0 kv)
+        @ val (idx 1 kv)
+        | letE val
+                | appE (cnsE tabIdx, cnsE key, varE tmp)
+        | go more
+| ok (inc nex)
+| letE tmp tabExp
+| (go (tabToList bindings))
+
+=?= (destructureTabE 9 #[x=(%y) p=(%q)] 'tabby '(add y q) v2)
+        | v2 10
+        `
+       #@ _g9 tabby
+       #@ q (#| $$tabIdx $(cnsE %p) _g9)
+       #@ y (#| $$tabIdx $(cnsE %x) _g9)
+        (add y q)
+
+=?= (destructureTabE 9 #[] 'tabby '(add y q) v2)
+        | v2 10
+        `
+       #@ _g9 tabby
+        (add y q)
+
+
+;;; Read Signatures with Support for Destructuring ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= sigExpect } Expected `x` or signature `(x y z)`
+= sigNoHeir } name-sequence cannot have an heir
+
+= (readBindSig rex err ok)
+@ rune (rexRune rex)
+| if (eql rune {|})
+    | if (neq 0 (rexHeir rex))
+        | err rex sigNoHeir
+    @ sons (rexSons rex)
+    | ifz (len sons)
+        | err rex sigExpect
+    ^ rowTraverse _ sons ok
+    ? (step son ret)
+    | parseBinder son err ret
+| else
+    : bin < parseBinder rex err
+    | ok [bin]
+
+=?= ,[[%v %a] [%v %b] [%v %c]]
+        | readBindSig '(a b c) v2 v1
+
+=?= [[[%r [[%v %x] [%s %a]]] [%v %y] [%s %z]]]
+        | readBindSig '([x !a] y !z) v2 v1
+
+= symSigExpect } Expected `x` or signature `(x y z)`
+= symSigNoHeir } name-sequence cannot have an heir
+
+= sigExpect
+} function/datatype signatures must be something like:
+}
+}     x
+}     (x y...)
+}     (**x y...)
+}     x-x-...
+
+;; {readDestroyer} parsing something with the same shape as a function
+;; signature:
+;;
+;;     (| Key Pat*)
+
+> Rex > RexParser3 Bit Key (Row Pat)
+= (readDestroyer rex err ok)
+;
+| if (rexIsLeaf rex)
+    : sym < readKey rex err
+    | ok sym FALSE []
+;
+@ rune (rexRune rex)
+@ sons (rexSons rex)
+@ heir (rexHeir rex)
+;
+| if (and (neq rune {|}) (neq rune {-}))
+    | err rex sigExpect
+| ifNonZero heir
+    | err rex symSigNoHeir
+| if (null sons)
+    | err rex symSigExpect
+: sym marked
+  < & ret
+    @ hed (fst sons)
+    | if (eql {**} | rexRune hed)
+        @ hedKids (rexKids hed)
+        | if (neq 1 | len hedKids)
+            | err rex sigExpect
+        : sym < readKey (fst hedKids) err
+        | ret sym TRUE
+    | else
+        : sym < readKey hed err
+        | ret sym FALSE
+: binds
+  < ^ rowTraverse _ (drop 1 sons)
+    ? (step son ret)
+    | parseBinder son err ret
+| ok sym marked binds
+
+
+(tryRBSS x)=(readDestroyer x v2 v3)
+
+=?= [%a 0 [[%v %b] [%v %c]]]                | tryRBSS '(a b c)
+=?= [%a 1 [[%v %b] [%v %c]]]                | tryRBSS '(**a b c)
+=?= [%a 0 [[%v %b] [%r [[%v %c] [%v %d]]]]] | tryRBSS '(a b [c d])
+=?= [%a 0 []]                               | tryRBSS 'a
+=?= [%a 0 []]                               | tryRBSS '(a)
+=?= [%a 0 []]                               | tryRBSS '(| a)
+=?= ['[a b] sigExpect]                      | tryRBSS '[a b]
+=?= ['([][]) sigExpect]                     | tryRBSS '([][])
+=?= ['((|)[]) sigNoHeir]                    | tryRBSS '((|)[])
+
+
+;;; Generic Pattern Matching ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (makeDestroyer ss binds bodyExpr pure)
+: ss sig
+        < ^ rowTraverseState ss _ binds
+          & (ss bind ret)
+          | if (eql %v (idx 0 bind))
+                  | ret ss (idx 1 bind)
+          : ss nam < generateTempName {g} ss
+          | ret ss nam
+; trk #[=sig]
+@ binder | zip binds (map varE sig)
+@ res    | sequenceBinds ss binder
+@ ss     | idx 0 res
+@ bSeq   | idx 1 res
+@ deps   | idx 2 res
+| pure ss sig
+| bindSeqE bSeq bodyExpr deps
+
+# typedef (SugaredBinder e)
+| Either (Sym, Row Pat, e) (Pat, e)
+
+> (Rex > Read e) > Rex > Read2 (Row | SugaredBinder e) e
+= (readLet readExp rex err ok)
+@ kids (rexKids rex)
+@ nKid (len kids)
+| if (and (neq 3 nKid) (neq 2 nKid))
+    | err rex {@ requires 2 or 3 kids}
+| if (eql 2 nKid)
+    : binds      < readMultiBinder readExp (idx 0 kids) err
+    : letBodyExp < readExp                 (idx 1 kids) err
+    | ok binds letBodyExp
+| if (isLambdaBinder | idx 0 kids)
+    : sym mark args < readDestroyer (idx 0 kids) err
+    : lamBodyExp    < readExp       (idx 1 kids) err
+    : letBodyExp    < readExp       (idx 2 kids) err
+    @ bind          | LEFT (sym, mark, args, lamBodyExp)
+    | ok [bind] letBodyExp
+| else
+    : bind       < parseBinder (idx 0 kids) err
+    : valExp     < readExp     (idx 1 kids) err
+    : letBodyExp < readExp     (idx 2 kids) err
+    @ bind       | RIGHT (bind, valExp)
+    | ok [bind] letBodyExp
+
+> Nat > SugaredBinder Rex > Cont2 Nat (Pat, Rex)
+= (desugarBinder ss sweetBind ok)
+^ eitherCase sweetBind _ (ok ss)
+& nameArgsBody
+@ lawName (idx 0 nameArgsBody)
+@ marker  (idx 1 nameArgsBody)
+@ argPats (idx 2 nameArgsBody)
+@ lawBody (idx 3 nameArgsBody)
+: ss argList lawBody < makeDestroyer ss argPats lawBody
+| ok ss
+| ([%v lawName], wutE 0 marker lawName argList lawBody)
+
+> Nat > Row (SugaredBinder Rex) > Rex > Cont2 Nat Rex
+= (multiLetE ss sugaredBinds bodyExpr ok)
+: ss binds < rowTraverseState ss desugarBinder sugaredBinds
+@ tuple    | sequenceBinds ss binds
+@ ss       | idx 0 tuple
+@ bindSeq  | idx 1 tuple
+@ deps     | idx 2 tuple
+| ok ss
+| bindSeqE bindSeq bodyExpr deps
+
+= (showState ss)
+^ put _ 2 {scope}
+^ put _ 4 {allbinds}
+| ss
+
+= ({@} ss rex err ok)
+: binds body   < readLet readRex rex err
+: ss resultRex < multiLetE ss binds body
+| ok ss resultRex
+
+=?= 7
+       @ [x y z] [3 4]
+       | (add x (add y z))
+
+=?= 7
+       @ [!x !y !z] [3 4]
+       | (add x (add y z))
+
+=?= 7
+       @ #[=x =y =z] #[y=4 z=3]
+       | (add x (add y z))
+
+=?= 7
+       @ #[x=(!x) =y =z] #[y=4 z=3]
+       | (add x (add y z))
+
+=?= [5 3 0 3 4 3]
+        @ t       | 3
+        @ [x y z] | [t 4 5]
+        | [z x 0 x y x]
+
+=?= [[0 3 5 4 0] 3 4]
+        @ f 5
+        @ [p q r s]  [3 4 f]
+        @ #[x=a =y]  #[x=3 y=4]
+        | [[s p r q s] a y]
+
+=?= 5
+        @ (addTwo x) (add x 2)
+        | addTwo 3
+
+=?= 5
+        @ (uncurry f [x y]) (f x y)
+        | uncurry add [2 3]
+
+=?= [4 3]
+        @   = x     | 3
+            = y     | x
+            = z     | [x (inc y)]
+            = [a b] | z
+        [b a]
+
+=?= [500 200 1001]
+        @ #[pos=[px py pz] vel=[vx vy vz]]
+               ## =pos [500 200 1]
+               ## =vel [0 0 1000]
+       ++ add px vx
+       ++ add py vy
+       ++ add pz vz
+
+=?=  [11 22 33]
+    @ (addV3 [x1 y1 z1] [x2 y2 z2])
+        ++ add x1 x2
+        ++ add y1 y2
+        ++ add z1 z2
+    | addV3 [1 2 3] [10 20 30]
+
+
+;;; Named Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: Lambda binders should have binder-identities
+;
+= (wutMacro ss rex err ok)
+: sigRex bodyExpr < rexParseKids rex [readRex readRex] err
+: sym mark binds  < readDestroyer sigRex err
+: ss sig bodyExpr < makeDestroyer ss binds bodyExpr
+| ok ss
+| wutE (rexRune rex == {??}) mark sym sig
+| bodyExpr
+
+{?}=wutMacro
+{??}=wutMacro
+
+k=(**k a b ?? a)
+k9=(a & k 9 a)
+
+=?= 5           | (uncurry f [x y] ? f x y) add [2 3]
+=?= (a & k 9 a) | (a&9)
+=?= ~[0 0 0]    | listTake 3 @@ z=(0::z) z
+
+
+;;; Anon Lambdas with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= ({&} ss rex err ok)
+: sigRex bodyExpr < rexParseKids rex [readRex readRex] err
+: binds           < readBindSig sigRex err
+: ss sig bodyExpr < makeDestroyer ss binds bodyExpr
+| ok ss
+| lamE sig
+| bodyExpr
+
+=?= 5 | [x y]&(add x y) [2 3]
+
+=?= 5 | (f [x y] & f x y) add [2 3]
+
+=?= #[x=0 y=1 z=2]
+     | foldr ([k v] t & tabIns k v t) #[] [[%x 0] [%y 1] [%z 2]]
+
+
+;;; Col Sugar with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= ({:} ss rex err ok)
+: valExp oFunName binds bodyExp
+    < readColExp parseBinder readRex rex err
+: ss sig bodyExp
+    < makeDestroyer ss binds bodyExp
+| ok ss
+| colExpE valExp oFunName sig bodyExp
+
+
+;;; Top-Level Definitions with Destroy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (keyE k)
+| if (strIsSymbol k) (varE k) (txtE k)
+
+= (sogE f marker rs)
+^ NEST {|} _ 0
+| rowCons
+    ^ if marker (PREF {**} [_] 0) _
+    | keyE f
+| map varE rs
+
+= (parseDefine rex err ok)
+@ kids            | rexKids rex
+@ nKids           | len kids
+| if (eql 3 nKids)
+    @ [keyRex sigRex bodRex] | kids
+    @ sigRune                | rexRune sigRex
+    : key < readKey keyRex err
+    | if (eql {|} sigRune)
+        : sym marker binds < readDestroyer sigRex err
+        | ok (key, sym, marker, binds, bodRex)
+    | else
+        : bind < parseBinder sigRex err
+        | ok (key, bind, bodRex)
+| if (eql 2 nKids)
+    @ [sigRex bodRex] | kids
+    @ sigRune         | rexRune sigRex
+    | if (eql {|} sigRune)
+        : sym marker binds < readDestroyer sigRex err
+        | ok (0, sym, marker, binds, bodRex)
+    | else
+        : bind < parseBinder sigRex err
+        | ok (0, bind, bodRex)
+| else
+    | err rex {Expected two kids}
+
+=?=  ++ 0
+     ++ [%v %x]
+     ++ '3
+  ^ parseDefine _ v2 id
+  ' = x 3
+
+=?=  ++ 99
+     ++ [%v %x]
+     ++ '3
+  ^ parseDefine _ v2 id
+  ' = 99 x 3
+
+=?=  ++ 0
+     ++ [%r [%v %x],[%v %y]]
+     ++ '3
+  ^ parseDefine _ v2 id
+  ' = [x y] 3
+
+;; TODO: Should there be a %f binder for the binding of a function?
+;;
+;;     That way these two cases would slot right together, and we must
+;;     do something like that already with `@ (f x) ...` patterns?
+
+=?=  ++ 0
+     ++ %f
+     ++ FALSE
+     ++ ([%v %x], [%r ([%v %y], [%v %z])])
+     ++ 'y
+  ^ parseDefine _ v2 id
+  ' = (f x [y z]) y
+
+=?=  ++ 0
+     ++ %f
+     ++ TRUE
+     ++ ([%v %x], [%r ([%v %y], [%v %z])])
+     ++ 'y
+  ^ parseDefine _ v2 id
+  ' = (**f x [y z]) y
+
+= (unrollTis rex)
+@ heir (rexHeir rex)
+| ifz heir                    | ~[rex]
+| if (neq (rexRune heir) {=}) | ~[rex]
+| CONS (rexSetHeir 0 rex)
+| unrollTis heir
+
+=?=  ~~ ' = x     3
+     ~~ ' = (f x) 3
+     ~~ ' = [x y]
+          , 1 2
+  | unrollTis
+  ' = x 3
+    = (f x) 3
+    = [x y]
+    , 1 2
+
+;; {mkDefsC} input must be non-empty
+
+= (mkDefsC ss defBinds)
+^ listFoldr _ (ss, 0) defBinds
+& (def [ss acc])
+| if (len def == 5)
+    @ [key sym marker binds bodRex] def
+    : ss sig bod < makeDestroyer ss binds bodRex
+    ^ [ss (OPEN {#=} _ acc)]
+    | if key
+        | (natE key, sogE sym marker sig, bod)
+    | else
+        | (sogE sym marker sig, bod)
+| else
+    @ [key bind bodRex] def
+    @ [ss bSeq] (sequenceBinds ss [[bind bodRex]])
+    ^ foldr _ [ss acc] bSeq
+    & ([_ var exp] [ss acc])
+    ^ (ss, OPEN {#=} _ acc)
+    | if key
+        | (natE key, keyE var, exp)
+    | else
+        | (keyE var, exp)
+
+= ({=} ss rex err ok)
+: defBinds
+  < ^ traverseList _ (unrollTis rex)
+    ? (step defRex ret)
+    | parseDefine defRex err ret
+@ [ss rex]
+    | mkDefsC ss defBinds
+| ok ss rex
+
+= (weird [[[x]] #[=y a=z]]) [x y z]
+
+=?= [3 9 8] (weird [[[3]] #[y=9 a=8]])
+
+[x y]=[3 4]
+[a b]=[3 4]
+
+=?= x 3
+=?= y 4
+=?= a 3
+=?= b 4
+
+= [x y] [3 4]
+= [a b] [3 4]
+
+=?= x 3
+=?= y 4
+=?= a 3
+=?= b 4
+
+= x@[a b c] [9 8 7]
+
+=?= x [9 8 7]
+=?= a 9
+=?= b 8
+=?= c 7
+
+= (!p)@[q r s] [9 8 7]
+
+=?= p [9 8 7]
+=?= q 9
+=?= r 8
+=?= s 7
+
+= [n o _]@[_ _ w] [9 8 7]
+
+=?= [n o w] [9 8 7]
+
+=?= 1
+    : ?(self x) < (k & k {self})
+    | and (eql x {self})
+          (eql x lawName-self)
+
+=?= 1
+    : ??(self x) < (k & k {self})
+    | and (eql x {self})
+          (| eql x | lawName | pinItem self)
+
+* = (**k x y) | x
+  = (k9 x)    | k 9 x
+* (9 =?= lawBody (pinItem k9))
+
+;; TODO: consider removing the law-binding pattern: @ (f x) x ...
+
+=?= 5
+        @ @(PIN five)  (4 5)
+        | five
+
+=?= ({f}, 1, 1)
+        @ @(LAW n a b)  (f x ? x)
+        [n a b]
+
+=?= [6 5]
+        @ @(CELL x y)  [5 6]
+        [y x]
+
+= (foo x)
+@ (**k a b)=a
+@ (k9 a)=(k 9 a)
+| **k9 x
+
+=?= foo (foo a ?? 9)
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ readBindSig parseBinder
+^-^ readDestroyer makeDestroyer
+^-^
+^-^ sequenceBinds bindSeqE
+^-^
+^-^ mkDefsC
+^-^ destructureRowE
+^-^ destructureTabE  ;;  TODO: Don't export these, export a more general
+^-^                  ;;  API instead.
+^-^
+^-^ readLet
+^-^
+^-^ {@} {?} {??} {&} {=} {:}
+^-^

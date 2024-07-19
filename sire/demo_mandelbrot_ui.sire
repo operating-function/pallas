@@ -1,0 +1,205 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_mandelbrot_ui <- demo_parallel_mandelbrot
+
+:| sire
+:| kern
+:| hitch
+:| json
+:| stew
+
+:| demo_parallel_mandelbrot [mandelbrotLine]
+
+
+;;; mandelbrot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Nat > Nat > Cog Bar
+= (mandelbrotDemo width height cogExit)
+@ rowIds | gen height id
+: ??(pmapDone rowBars)
+    < pmap 5000 (mandelbrotLine width height) rowIds
+: eRes < syscall (EVAL1 600000 barCat rowBars)
+@ !fractBar | forceUnpackEvalResult {barCat rowBars} eRes
+| cogExit fractBar
+
+= (trkTimer name cogFn cogExit)
+: ??(td_got_time startTime) < syscall TIME_WHEN
+: res < cogFn
+: ??(td_got_time endTime) < syscall TIME_WHEN
+@ delta (sub endTime startTime)
+| trk [name {took} delta {seconds}]
+| cogExit res
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Design:
+;
+; Has one big HTTP server which just receives posts and gets. All GETs perform
+; lookups in a cache of file for PUT.
+;
+; - POST /fract -> arraybuffer back. generates mandelbrot set for given
+;                  JSON-encoded dimensions. each 3 bytes in the buffer
+;                  are the [r,g,b] values for a pixel.
+;
+; - GET / -> frontpage
+
+> Pin Bar
+= favicon
+| PIN
+| barCat
+, x#{0000010001002020100001000400e80200001600000028000000200000004000}
+  x#{0000010004000000000000000000000000000000000000000000000000000000}
+  x#{00000000060001000f000000170000002b0000003b0000004200000151000100}
+  x#{6c0000007a0000008a000000940001038c000000a0000200a7000000aa000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{067760000057760000057760000000000cffc00000affb00001affb000000000}
+  x#{0affc00000affc000009ffb0000000000cffc00000affb00000aefb000000000}
+  x#{0cffc00000affc00000affb0000000000cfec00000cffb00001affb000000000}
+  x#{0cffb00000affb000009ffb0000000000cffc00000affc00000aefb000000000}
+  x#{0cffc00000affb00000affb0000000000cffc00000afec00001affb000000000}
+  x#{0cffc00000affb000009ffb0000000000cffc00000affc00001affb000000000}
+  x#{0cffc00000cffb000009ffb0000000000cffc00000cffc00000affb000000000}
+  x#{0cffc00000cffb00000affb0000000000cffc00000cffc000019ffb000000000}
+  x#{0cffc00000cffb000019ffb0000000000cffc00010cffc00010affb000000000}
+  x#{0affb00011dffd10001dffc0000000000cfff80017ffff91017fff8000000000}
+  x#{0affffebdffffffdbdffff50000000000cff99ffffefd6fffffffc1000000000}
+  x#{0cff829ffffd405bffff92000000000000000003564100014653000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{000000000000000000000000000000000000000000000000000000000000c000}
+  x#{0003000000010000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{0000000000000000000000000000000000000000000000000000000000000000}
+  x#{000000000000000000000000000000000000000000008000000040000001}
+
+# typedef ContentType Bar
+
+> HMap Str (ContentType, Pin Bar)
+= startingFiles
+; TODO: Figure out tuned config for files.
+| hmSingleton
+* largeConfig
+* {/favicon.ico}
+* [b#{image/x-icon} favicon]
+
+# record CogState
+| COG_STATE
+* files      : (HMap Str (ContentType, Pin Bar))
+* fileBytes  : Nat
+* servThread : ThreadId
+
+> ThreadId > CogState
+= (newState servThread)
+| COG_STATE
+* startingFiles
+* 0
+* servThread
+
+
+;;; JSON Handling ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (asJsonRow m)
+# datacase m
+* JVEC|v | SOME v
+* _      | NONE
+
+= (asJsonNum m)
+# datacase m
+* JNUM|n | SOME n
+* _      | NONE
+
+(bindMaybe mVal k)=(maybeCase mVal NONE k)
+
+
+;;; Website ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(emptyFileServer req)=NONE
+
+= (fileServer (PIN st) [method path headers (PIN body)])
+# switch method
+* _ | NONE
+* GET
+  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
+  & [type (PIN content)]
+  @ head | [(b#{content-type}, type)]
+  [200 b#gotcha head content]
+
+; `modifyState` modifies the vSt ref and reboots the static server
+; in-place (keeping the same ThreadId).
+> Ref CogState
+> (CogState > CogState)
+> Cog ()
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ srv       | **getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
+| return ()
+
+= (parseFract jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+: rw < **bindMaybe (asJsonRow json)
+: w < **bindMaybe (asJsonNum idx-0-rw)
+: h < **bindMaybe (asJsonNum idx-1-rw)
+| SOME [w h]
+
+> Ref CogState > HttpReq > Cog ()
+= (handleReq vSt request return)
+@ [rid method path headers pBody@(PIN body)] request
+# switch method
+* POST
+  # switch path
+  * b#{/fract}
+    # datacase (parseFract body)
+    * NONE
+      : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+      | return ()
+    * (SOME dims)
+      @ [w h] dims
+      : !fractBar < trkTimer {mandelbrotDemo} (mandelbrotDemo w h)
+      : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] fractBar))
+      | return ()
+* PUT
+  @ barType | **fromSome b#{text/plain}
+            | tabLookup b#{content-type}
+            | tabFromPairs headers
+  : (PIN st) < readRef vSt
+  @ newTotalSize | add (barLen body) | getFileBytes st
+  ; TODO: Currently inserting paths as nats instead of bars because bars put in
+  ; don't get looked up later despite showing up with hmKeys? Somehow? wat?
+  @ files (**getFiles st)
+  @ files | hmInsert (barNat path) [barType pBody] files
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done [] b#{}))
+  : _ < modifyState vSt & st
+                        | setFileBytes newTotalSize
+                        | setFiles files
+                        | st
+  | return ()
+* _
+  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+  | return ()
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Ref CogState > Cog Void
+= (runHttpServer vSt return)
+: ??(rhs_heard req) < syscall HTTP_HEAR
+: _                 < handleReq vSt req
+| runHttpServer vSt return
+
+> Cog ()
+= (launchDemo return)
+: servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+: vSt         < newRef (PIN | newState servThread)
+: _           < modifyState vSt id
+: httpThread1 < fork (runHttpServer vSt)
+: httpThread2 < fork (runHttpServer vSt)
+| return ()
+
+> PausedCog
+main=(runCog launchDemo)

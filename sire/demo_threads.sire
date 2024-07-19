@@ -1,0 +1,62 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_threads <- demo_telnet_hello_listen
+
+:| prelude
+
+
+;;; Demo ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; This will generate a random byte, get the current time,
+;;; wait for $byte seconds, and repeat
+;;;
+> Ref Nat > Cog ()
+= (randomWait vCount k)
+: tid < myThreadId
+: bar < syscall (**RAND_BYTE 1)
+: now < syscall TIME_WHEN
+@ off (mod (barIdx 0 bar) 5)
+@ then (add now off)
+: kd < : cb < fork
+       : me < myThreadId
+       : _  < syscall (**TIME_WAIT then)
+       | trk [%kid_waited_also then [tid=me]]
+       | cb 0
+: x < syscall (**TIME_WAIT then)
+: n < readRef vCount
+: _ < (@ x inc-n | seq x | writeRef vCount x)
+: s < getKernelState
+| trk [%STATE s]
+| trk [%waited_until then [tid=tid child=kd count=n]]
+| k x
+
+= threadDemoTwice
+| runCog
+& return
+: vCount < newRef 0
+: ()     < forever (randomWait vCount)
+| return 0
+
+
+;;; Manual Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: This is probably stale, since this has been ported from io.sire
+;; to kern.sire without updating this.
+
+; threadDemoTwice %zod ;;; Boot Machine
+; _ 1 x#11             ;;; Got a random byte.
+; _ 1 234234234        ;;; Got the current time.
+; _ 1 0                ;;; Finished waiting.
+; _ 1 x#11             ;;; Got a random byte.
+; _ 1 234234234        ;;; Got the current time.
+; _ 1 0                ;;; Finished waiting.
+; _ 2 0                ;;; First forked thread finishes waiting.
+; _ 3 0                ;;; Second forked Thread finishes waiting.
+; _ 1 x#11             ;;; Invalid response to trigger logging.
+
+
+;;; Export For Boot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+main=threadDemoTwice

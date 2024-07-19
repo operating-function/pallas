@@ -1,0 +1,346 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_15_pad <- sire_14_hax
+
+;;;; Pads
+;;;; ====
+;;;;
+;;;; A pad is a bit-string encoded as a non-zero nat.
+;;;;
+;;;; Pads are not data-jetted, since the direct nat works perfectly.
+;;;;
+;;;; Pads are encoded least-significant-bit-first, with the high bit used
+;;;; to indicate the end of the bit-array.
+;;;;
+;;;;     p#{}       = 0b1
+;;;;     p#{00}     = 0b100
+;;;;     p#{01}     = 0b110
+;;;;     p#{111000} = 0b1000111
+;;;;
+;;;; All of the pad operations coerce their inputs into pads, and always
+;;;; return pads.
+;;;;
+;;;; toPad: Coerces a value into a non-zero natural number.
+;;;;
+;;;; padNat: Convert a pad to a nat (dropping all trailing zeros).
+;;;;
+;;;; natPad: Convert a nat into a pad with a specific minimum bit-width.
+;;;;
+;;;; padWeld: Concatenate two pads
+;;;;
+;;;; padCat: Concatenate a row of pads
+;;;;
+;;;; padIdx: Returns the nth bit from a pad
+;;;;
+;;;; padGet: padIdx but flipped
+;;;;
+;;;; padSet: Set the nth bit in a pad using a Bit
+;;;;
+;;;; padMap: Map a function over the bits in a pad, coercing outputs to bits
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan [die seq isNat const]
+:| sire_02_bit [if ifz ifNot else not or bit]
+:| sire_03_nat [inc add mul sub bex dec met lsh rsh mod dis con mix even]
+:| sire_05_row [idx len]
+:| sire_04_cmp [eql neq lte isZero]
+:| sire_05_row [map weld foldl]
+:| sire_06_rex [rexKids rexHeir rexText rexIsLeaf SHUT WORD TEXT {'}]
+:| sire_07_dat [{,} {++}]
+:| sire_07_dat [listCase listSnoc NIL CONS]
+:| sire_10_str [spaceChar tabChar]
+:| sire_10_str [explode strToList strFromList strLen strWeld]
+:| sire_11_set []
+:| sire_12_tab []
+:| sire_13_exp [cnsE]
+:| sire_14_hax [{#}]
+
+
+;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+emptyPad=1
+
+(toPad x)=(if x x 1)
+
+= (padNat x)
+@ x toPad-x
+| sub x
+| bex | dec met-x
+
+= (padWeld x y)
+@ x toPad-x
+@ y toPad-y
+@ wid (dec met-x)
+| add (sub x bex-wid)
+| lsh y wid
+
+= (padCat val)
+| foldl padWeld emptyPad val
+
+= (padFlat val)
+| if isNat-val val
+| padCat (map padFlat val)
+
+= (natPad n wid)
+@ pid met-n
+| padWeld (add n (bex met-n))
+| bex (sub wid (met n))
+
+(padLen p)=(dec met-p)
+
+= (padIdx idx pad)
+@ pad toPad-pad
+| if (lte padLen-pad idx) | 0
+| con 1 rsh-pad-idx
+
+(padGet pad idx)=(padIdx idx pad)
+
+= (padSet pad idx val)
+@ pad toPad-pad
+| if (lte padLen-pad idx) | pad
+@ mask | lsh 1 idx
+@ ones | dec | lsh 2 padLen-pad
+| if val | dis pad mask
+| else   | con pad mix-mask-ones
+
+= (padMapWithKey fun pad)
+@ pad | toPad pad
+^ _ pad 0 0
+? (go in out pos)
+| if (eql in emptyPad) | dis out bex-pos
+@ newBit | bit | fun pos con-1-in
+@ newPad | dis out lsh-newBit-pos
+| go rsh-in-1 newPad inc-pos
+
+(padMap f pad)=(padMapWithKey _&f pad)
+
+padComplement=(padMap not)
+
+;;; Parsing Pad Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (padSplitAt i pad)
+| ifNot i [emptyPad pad]
+@ remain (rsh pad i)
+@ looted (add bex-i (mod pad bex-i))
+| ifNot remain [pad emptyPad]
+| [looted remain]
+
+; Rex > Str > Read Pad
+= (readPadStr rex str err ok)
+@ lis (listSnoc (strToList str) {1})
+^ _ 0 lis 1
+? (loop acc lis pos)
+| listCase lis (ok acc)
+& (b bs)
+@ nextPos (mul 2 pos)
+| seq nextPos
+| if (eql {0} b)
+    | loop acc bs nextPos
+| if (eql {1} b)
+    @ acc (add pos acc)
+    | seq acc
+    | loop acc bs nextPos
+| if | or (eql spaceChar b) (eql tabChar b)
+    | loop acc bs pos
+| else
+    | err rex {pad literals must contain only zeros and ones}
+
+; Pad -> Str
+= (showPadStr pad)
+| strFromList
+^ _ pad
+? (go rem)
+| if (lte rem 1) NIL
+| CONS (if (mod rem 2) {1} {0})
+| go (rsh rem 1)
+
+;;; The `#p` Macro ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= hpBadShape } Expcted two kids
+= hpBadType  } Bar literal expects a text parameter
+
+= (showPadLit pad)
+^ SHUT {#} _ 0
+++ WORD {p} 0
+++ @ padStr | showPadStr pad
+   | ifNot strLen-padStr | TEXT padStr 0
+   | WORD padStr 0
+
+; Rex > Read Bar
+= (readPadLit rex err ok)
+@ kids   | rexKids rex
+@ strRex | idx 1 kids
+| if (neq 2 len-kids)      | err rex hpBadShape
+| ifNot (rexIsLeaf strRex) | err strRex hpBadType
+^ readPadStr rex (_ strRex) err ok
+? (collect strings)
+| strWeld rexText-strings
+| ifz (rexHeir strings) rexHeir-strings
+| collect rexHeir-strings
+
+= ({#p} st rex err ok)
+| readPadLit rex err
+& pad
+| ok st (cnsE pad)
+
+=?= {}   (showPadStr 0)
+=?= {}   (showPadStr 1)
+=?= {0}  (showPadStr p#0)
+=?= {1}  (showPadStr p#1)
+=?= {11} (showPadStr p#11)
+=?= {10} (showPadStr p#10)
+=?= {01} (showPadStr p#01)
+=?= {00} (showPadStr p#00)
+
+=?= '(p#{}) | showPadLit p#{}
+=?= '(p#00) | showPadLit p#00
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= 1 (toPad 0)
+=?= 1 (toPad 1)
+=?= 1 (toPad toPad)
+=?= 3 (toPad 3)
+
+=?= 01 p#{}
+=?= 02 p#0
+=?= 04 p#00
+=?= 08 p#000
+=?= 16 p#0000
+=?= 17 p#1000
+=?= 18 p#0100
+=?= 20 p#0010
+=?= 24 p#0001
+=?= 19 p#1100
+=?= 21 p#1010
+=?= 25 p#1001
+=?= 22 p#0110
+=?= 26 p#0101
+=?= 28 p#0011
+=?= 23 p#1110
+=?= 27 p#1101
+=?= 29 p#1011
+=?= 30 p#0111
+
+=?= 30 p#{0111 }
+=?= 30 p#{ 0111}
+=?= 30 p#{01 11}
+=?= 30 p#{01	11}
+=?= 30 p#{ 0	1 1	1}
+=?= 30 # p } 01
+           } 11
+=?= 30 # p } 01
+           }
+           } 11
+
+=?= p#101 | padWeld p#101 0
+=?= p#101 | padWeld p#101 const
+=?= p#101 | padWeld 0     p#101
+=?= p#101 | padWeld const p#101
+
+=?= p#0000 (padWeld p#00 p#00)
+=?= p#1000 (padWeld p#10 p#00)
+=?= p#0100 (padWeld p#01 p#00)
+=?= p#0010 (padWeld p#00 p#10)
+=?= p#0001 (padWeld p#00 p#01)
+=?= p#1100 (padWeld p#11 p#00)
+=?= p#1010 (padWeld p#10 p#10)
+=?= p#1001 (padWeld p#10 p#01)
+=?= p#0110 (padWeld p#01 p#10)
+=?= p#0101 (padWeld p#01 p#01)
+=?= p#0011 (padWeld p#00 p#11)
+=?= p#1110 (padWeld p#11 p#10)
+=?= p#1101 (padWeld p#11 p#01)
+=?= p#1011 (padWeld p#10 p#11)
+=?= p#0111 (padWeld p#01 p#11)
+
+=?= (padSplitAt 0 p#1111) [ p#{}   p#1111 ]
+=?= (padSplitAt 1 p#1111) [ p#1    p#111  ]
+=?= (padSplitAt 2 p#1111) [ p#11   p#11   ]
+=?= (padSplitAt 3 p#1111) [ p#111  p#1    ]
+=?= (padSplitAt 4 p#1111) [ p#1111 p#{}   ]
+=?= (padSplitAt 5 p#1111) [ p#1111 p#{}   ]
+=?= (padSplitAt 9 p#1111) [ p#1111 p#{}   ]
+
+=?= p#{}   | padCat []
+=?= p#1100 | padCat [p#1100]
+=?= p#1100 | padCat [p#11 p#00]
+=?= p#1011 | padCat [p#10 p#11]
+=?= p#1011 | padCat [p#1 p#0 p#1 p#1]
+=?= p#1011 | padCat [p#1 p#0 p#11]
+=?= p#1011 | padCat [p#1 p#0 p#11 p#{}]
+
+=?= p#{}   | padFlat []
+=?= p#{}   | padFlat [[[]] []]
+=?= p#1100 | padFlat [p#1100]
+=?= p#1100 | padFlat (const p#1100)
+=?= p#1100 | padFlat [[p#1100]]
+=?= p#1100 | padFlat [p#11 p#00]
+=?= p#1011 | padFlat [p#10 p#11]
+=?= p#1011 | padFlat [[p#1 p#0] [p#1 p#1]]
+=?= p#1011 | padFlat [[p#1 p#0] p#11]
+=?= p#1011 | padFlat [[p#1 [] p#0] p#11 p#{}]
+
+=?= 0 | padIdx 0 p#{}
+=?= 0 | padIdx 1 p#1
+=?= 1 | padIdx 0 p#1
+=?= 0 | padIdx 0 p#0
+=?= 1 | padIdx 3 p#0001000
+=?= 0 | padIdx 4 p#1111011
+=?= 1 | padIdx 6 p#0000001
+=?= 0 | padIdx 6 p#1111110
+=?= 0 | padIdx 9 p#0000000
+=?= 0 | padIdx 9 p#1111111
+
+=?= p#{}   | padSet p#{}   0 1
+=?= p#{}   | padSet p#{}   0 0
+=?= p#1    | padSet p#0    0 1
+=?= p#0    | padSet p#0    0 0
+=?= p#1    | padSet p#1    0 1
+=?= p#0    | padSet p#1    0 0
+=?= p#1000 | padSet p#0000 0 1
+=?= p#0111 | padSet p#1111 0 0
+=?= p#0010 | padSet p#0000 2 1
+=?= p#1101 | padSet p#1111 2 0
+=?= p#0001 | padSet p#0000 3 1
+=?= p#1110 | padSet p#1111 3 0
+=?= p#0000 | padSet p#0000 4 1
+=?= p#1111 | padSet p#1111 4 0
+
+=?= p#{}   | padMapWithKey (k b & if even-k b not-b) p#{}
+=?= p#0    | padMapWithKey (k b & if even-k b not-b) p#0
+=?= p#1    | padMapWithKey (k b & if even-k b not-b) p#1
+=?= p#0101 | padMapWithKey (k b & if even-k b not-b) p#0000
+=?= p#1010 | padMapWithKey (k b & if even-k b not-b) p#1111
+
+=?= p#{}   | padMap not p#{}
+=?= p#{}   | padMap x&x p#{}
+=?= p#0    | padMap not p#1
+=?= p#1    | padMap not p#0
+=?= p#0    | padMap x&x p#0
+=?= p#1    | padMap x&x p#1
+=?= p#1000 | padMap not p#0111
+=?= p#0111 | padMap x&x p#0111
+=?= p#1111 | padMap not p#0000
+=?= p#1111 | padMap inc p#1111
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^ emptyPad
+^-^ toPad padNat natPad padLen
+^-^ padWeld padCat padFlat
+^-^ padSplitAt
+^-^ padIdx padGet padSet
+^-^ padMapWithKey padMap
+^-^ padComplement
+^-^
+^-^ readPadStr showPadStr
+^-^ readPadLit showPadLit
+^-^
+^-^ {#p}

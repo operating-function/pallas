@@ -1,0 +1,15 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_hw_what <- demo_timer
+
+:| prelude
+:| demo_timer
+
+= (whatDemo cur return)
+: ??(what_got_hw hw) < syscall (WHAT cur)
+| trk [%hardware hw]
+| whatDemo hw return
+
+main=(runCog | whatDemo %[])

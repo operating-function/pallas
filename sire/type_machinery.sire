@@ -1,0 +1,117 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### type_machinery <- type_syntax
+
+;;;; This module has to do with the representation of types within
+;;;; the Sire interpreter state.
+;;;;
+;;;; {FORALL} is the constructor for a type.  (FORALL 3 e) means
+;;;; (forall a b c. e).
+;;;;
+;;;; In Hindley-Milner, the forall can only occur on the outside of a type,
+;;;; so there is no forall in the actual TypeExp structure, only at the
+;;;; onset, in FORALL.
+;;;;
+;;;; {TCON} and {TVAR} are the constructors for type-expressions.
+;;;;
+;;;; TVAR references a type-variable (by index).
+;;;;
+;;;; TCON references a abstract type by binding-key, along with 0-or-more
+;;;; type parameters.
+;;;;
+;;;; For example:
+;;;;
+;;;;     forall a. List (Either a a)
+;;;;
+;;;; Is represented as:
+;;;;
+;;;;      | FORALL 1
+;;;;      | TCON getBinderKey#List
+;;;;      ,   | TCON getBinderKey#Either
+;;;;         ++ TVAR 0
+;;;;         ++ TVAR 0
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+:| type_syntax
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Nat > SireBind > Row (TNode a) > TNode a
+(TCON root params)=(rowApply root params)
+
+> a > TNode a
+(TVAR key)=key
+
+# record Type
+| FORALL vars:Nat typ:(TNode Nat)
+
+tnodeParams=rev
+
+= (tnodeMapParams f cn)
+| ifz (isApp cn) cn
+| rowRepel head-cn (map f cn)
+
+
+;;; Generating New Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (bindTypeAlias key name scheme ss@[k c bs ms])
+^ [inc-k c _ ms]
+| tabPut bs name
+| PIN [k scheme [%K scheme] c name (btSing %isType 1)]
+
+= (mkNewType name arity ss@[key ctx bs ms])
+@ rootKey  | key
+@ !typeKey | add 1 key
+@ !nextKey | add 2 key
+@ rootVal  | PIN (0 name inc-arity typeKey)
+@ typeVal  | FORALL arity (TCON rootVal | gen arity TVAR)
+@ typeBind | PIN [typeKey typeVal [%K typeVal] ctx name (btSing %isType 1)]
+^ [inc-key ctx _ ms]
+| tabPut bs name typeBind
+
+; Previously, we represented types as:
+;
+;     [key params]
+;
+; Now, I guess we should instead represent them as:
+;
+;     [key bind params]?
+;
+; This is basically equivalent to:
+;
+;     [bind params]
+;
+; Except that we "cache" the key, to make it faster to grab.
+
+= (lookupType name ss err ok)
+@ [_ _ scope _]           | ss
+@ rex                     | WORD name 0
+@ bind                    | tabGet scope name
+@ [k v _e nm _c ps]       | pinItem bind
+| ifz bind                | err rex {undefined type}
+| ifz (btHas {isType} ps) | err rex {binding is not a type}
+| ok v
+
+= (lookupTypeOf ss name rex err ok)
+: _ _ bind   < getBind name ss rex err
+@ scheme     | getProp bind {type}
+| ifz scheme | err rex {binding is untyped}
+| ok scheme
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ TCON TVAR
+^-^ FORALL
+^-^
+^-^ tnodeParams tnodeMapParams
+^-^ bindTypeAlias
+^-^ mkNewType
+^-^ lookupType lookupTypeOf
+^-^

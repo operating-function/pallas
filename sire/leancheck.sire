@@ -1,0 +1,220 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### leancheck <- pq
+
+:| pq      [pqSort]
+:| prelude ;
+
+(**debug m v)=v
+
+; uncomment to get debug output
+;(**debug m v)=(trk m v)
+
+> List (List a) > List a
+listToTiers=listCat
+
+> List (List a) > List (List a)
+(delay ls)=(~[] :: ls)
+
+=?= (delay ~[~[0]])
+  | ~[~[] ~[0]]
+
+> List (List a) > List (List a) > List (List a)
+= (tierSum xss_ yss_)
+: ys yss < listCase yss_ xss_
+: xs xss < listCase xss_ yss_
+| (listWeld xs ys :: tierSum xss yss)
+
+=?=   | tierSum ~[~[1]]
+                ~[~[2] ~[3]]
+ ~~ ~[1 2]
+ ~~ ~[3]
+
+=?=   | tierSum ~[~[1] ~[2]]
+                ~[~[3]]
+ ~~ ~[1 3]
+ ~~ ~[2]
+
+=?=   | tierSum ~[~[1 2] ~[3 4]]
+                ~[~[5 6] ~[7 8]]
+ ~~ ~[1 2 5 6]
+ ~~ ~[3 4 7 8]
+
+> List (List a) > List (List b) > List (List (a, b))
+= (tierProd xss yss)
+:  _   _ < listCase yss ~[]
+: xs xss < listCase xss ~[]
+| tierSum
+    | listMap (ys & listProd xs ys) yss
+| debug [{tierProd: xss + yss:} xss yss]
+| delay (tierProd xss yss)
+
+=?= (tierProd ~[~[1]] ~[~[2] ~[3]])
+  | ~[~[1,2] ~[1,3]]
+
+=?= (tierProd ~[~[1] ~[2]] ~[~[3]])
+  | ~[~[1,3] ~[2,3]]
+
+=?= (tierProd ~[~[1 2] ~[3 4]] ~[~[5 6] ~[7 8]])
+  | :: ~[(1,5) (1,6) (2,5) (2,6)]
+    :: ~[(1,7) (1,8) (2,7) (2,8) (3,5) (3,6) (4,5) (4,6)]
+    :: ~[(3,7) (3,8) (4,7) (4,8)]
+    :: 0
+
+> (a > b) > List (List a) > List (List b)
+(mapT f)=(listMap | listMap f)
+
+> List (List (List (List a))) > List (List a)
+= (concatT ls)
+@ (f xss yss)
+    | tierSum xss (delay yss)
+| listFoldr f ~[]
+| listMap (listFoldr tierSum ~[]) ls
+
+=?= (concatT ~[~[~[~[1 2] ~[3]] ~[~[4]]]])
+  | ~[~[1 2 4] ~[3]]
+
+=?= (concatT ~[~[~[~[1 2] ~[3]] ~[~[4] ~[5 6]]]])
+  | ~[~[1 2 4] ~[3 5 6]]
+
+> (a > List (List b)) > List (List a) > List (List b)
+(concatMapT f xss)=(concatT | mapT f xss)
+
+=?= (concatMapT (x & (~[~[(x,9)]])) ~[~[1] ~[2]])
+  | ~[~[(1,9)] ~[(2,9)]]
+
+=?= (concatMapT (x & (~[~[(x,9)]])) ~[~[1 2] ~[3]])
+  | ~[~[(1,9) (2,9)] ~[(3,9)]]
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; constructor helpers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> a > List (List a)
+(cons0 x)=(~[~[x]])
+
+> (a > b) > List (List a) > List (List b)
+(cons1 f tiers)=(delay | mapT f tiers)
+
+> (a > b > c)
+> List (List (a, b))
+> List (List c)
+= (cons2 f tiers)
+| delay (mapT (uncurry f) tiers)
+
+> (a > b > c > d)
+> List (List (a, b, c))
+> List (List d)
+= (cons3 f tiers)
+@ (uncurry3 f (x, y, z)) | f x y z
+| delay (mapT (uncurry3 f) tiers)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; tiers for core types
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; ignored argument avoids the infinite lists hanging the REPL
+
+> Any > List (List Bit)
+= (tiersBool _)
+| ~[~[0 1]]
+
+> Any > List (List Nat)
+= (tiersNat _)
+| tierSum (cons0 0)
+| cons1 (add 1) (tiersNat 0)
+
+=?= (listTake 5 (tiersNat 0))
+  | ~[~[0] ~[1] ~[2] ~[3] ~[4]]
+
+> List (List a) > List (List b) > List (List (a, b))
+tiersPair=tierProd
+
+> List (List a)
+> List (List b)
+> List (List c)
+> List (List (a, b, c))
+= (tiersTriple as bs cs)
+| mapT ( ((x,y),z) & (x,y,z) )
+| tiersPair as
+| tiersPair bs cs
+
+> List (List a)
+> List (List (List a))
+= (tiersList tiers)
+| tierSum (cons0 ~[])
+| cons2 CONS (tiersPair tiers (tiersList tiers))
+
+=?= (listTake 4 (tiersList (tiersNat 0)))
+  | :: ~[~[]]
+    :: ~[~[0]]
+    :: ~[~[0 0] ~[1]]
+    :: ~[~[0 0 0] ~[0 1] ~[1 0] ~[2]]
+    :: 0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; results
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# typedef Result (Any, Bit)
+
+> (a > Bit) > List (List a) > List Result
+= (getResults p tiers)
+@ (mapFst f (x,y)) | (f x, y)
+@ (resultiersFor x)
+    | ~[~[(x, p x)]]
+| listCat (concatMapT resultiersFor tiers)
+
+> Nat > List Result > List Any
+= (counterExamples n rs)
+| listMap fst
+| listFilter (p & (snd p == FALSE))
+| listTake n rs
+
+=?=   | counterExamples 6
+      | getResults ([x y] & x==y)
+      | tiersPair tiersNat-0 tiersNat-0
+ ~~ (0,1)
+ ~~ (1,0)
+ ~~ (0,2)
+ ~~ (2,0)
+
+= (showResult name n ces)
+# datacase ces
+* NIL
+    ` | $(TEXT name 0) SUCCESS
+     ## =passed  $(WORD showNat-n 0)
+* (CONS ce _)
+    ` | $(TEXT name 0) FAILURE
+     ## =counterexample $(EMBD ce)
+
+= (lc_exec name n p tiers shouldPass)
+@ ces       | counterExamples n (getResults p tiers)
+@ didPass   | listIsEmpty ces
+@ resultRex | showResult name n ces
+| if (shouldPass /= didPass) resultRex
+| trk resultRex 1
+
+(lc_pass name n p tiers)=(lc_exec name n p tiers TRUE)
+(lc_fail name n p tiers)=(lc_exec name n p tiers FALSE)
+
+= (isList x)
+^ (isZero x || _)
+| (isRow x && (len x == 2) && isList (snd x))
+
+= (isListOf ck x) | (isList x && listAll ck x)
+= (subNeg (x,y))  | eql (iSub64 x y)    | iNeg64 (iSub64 y x)
+= (revRev ls)     | eql ls              | listRev (listRev ls)
+= (pqSortRev ls)  | eql (pqSort cmp ls) | listRev (pqSort flip-cmp ls)
+= (palindrome ls) | eql ls              | listRev ls
+
+!! lc_fail {nat eql 1}    50 (eql 1)       (tiersNat 0)
+!! lc_pass {list is list} 50 isList        (tiersList (tiersNat 0))
+!! lc_fail {palindrome}   50 palindrome    (tiersList (tiersNat 0))
+!! lc_fail {eq pair}      50 (uncurry eql) (tiersPair (tiersNat 0) (tiersNat 0))
+!! lc_pass {sub neg}      50 subNeg        (tiersPair (tiersNat 0) (tiersNat 0))
+!! lc_pass {rev rev}      50 revRev        (tiersList (tiersNat 0))
+!! lc_pass {pqSort rev}   50 pqSortRev     (tiersList (tiersNat 0))

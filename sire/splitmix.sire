@@ -1,0 +1,134 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### splitmix <- prelude
+
+;;;; SplitMix
+;;;; ========
+;;;;
+;;;; Implementation of SplitMix, as described in:
+;;;;
+;;;; Guy L. Steele, Jr., Doug Lea, and Christine H. Flood. 2014.
+;;;; Fast splittable pseudorandom number generators.
+;;;; In Proceedings of the 2014 ACM International Conference on Object
+;;;; Oriented Programming Systems Languages & Applications (OOPSLA '14).
+;;;; ACM, New York, NY, USA, 453-472.
+;;;; DOI: https://doi.org/10.1145/2660193.2660195
+;;;;
+;;;; Implementation follows the choices made in
+;;;; https://hackage.haskell.org/package/splitmix-0.1.0.4
+;;;; concerning bugs in the code samples of the paper.
+;;;;
+;;;; All tests were generated from a build of the Haskell splitmix package,
+;;;; specifically git revision d2692c3c87189f663e350b0148060f9e51c66ae7.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| prelude
+:| stew
+
+
+;;; Bit Mixing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (shiftXor n w)
+| xor64 w
+| rsh64 w n
+
+= (shiftXorMultiply n k w)
+| mul64 (shiftXor n w) k
+
+; MurmurHash3Mixer
+> Word64 > Word64
+= (mix64 z0)
+@ z1 (shiftXorMultiply 33 0xff51afd7ed558ccd z0)
+@ z2 (shiftXorMultiply 33 0xc4ceb9fe1a85ec53 z1)
+@ z3 (shiftXor 33 z2)
+| z3
+
+> Word64 > Word64
+= (mix64variant13 z0)
+@ z1 (shiftXorMultiply 30 0xbf58476d1ce4e5b9 z0) ; MurmurHash3 mix constants
+@ z2 (shiftXorMultiply 27 0x94d049bb133111eb z1)
+@ z3 (shiftXor 31 z2)
+| z3
+
+> Word64 > Word64
+= (mixGamma z0)
+@ z1 (or64 (mix64variant13 z0) 1) ; force to be odd
+@ n (popCount (xor64 z1 (rsh64 z1 1)))
+; see: http://www.pcg-random.org/posts/bugs-in-splitmix.html
+; let's trust the text of the paper, not the code.
+| if (gte64 n 24)
+  | z1
+| xor64 z1 0xaaaaaaaaaaaaaaaa
+
+> Word64
+= goldenGamma 0x9e3779b97f4a7c15
+
+=?= goldenGamma (w64 goldenGamma)
+
+> Word64 > Word64 > (Word64, Word64)
+= (seedSMGen seed gamma)
+| [seed (or64 gamma 1)]
+
+=?= [98 1] (w64 98, w64 1)
+
+=?= 99 (or64 98 1)
+
+=?= [12 99]
+  | seedSMGen 12 98
+
+> Word64 > (Word64, Word64)
+= (mkSMGen s)
+@ sd (mix64 s)
+@ gm (mixGamma (add64 s goldenGamma))
+| [sd gm]
+
+=?= [12994781566227106604 10451216379200822465]
+  | mkSMGen 1
+
+=?= [9297814886316923340 13679457532755275413]
+  | mkSMGen 42
+
+=?= [1422812216395489287 1866550240620900529]
+  | mkSMGen 103
+
+> (Word64, Word64)
+> (Word64, (Word64, Word64))
+= (nextWord64 [seed gamma])
+@ seed0 (add64 seed gamma)
+@ seed1 (mix64 seed0)
+| [seed1 [seed0 gamma]]
+
+=?= 12272466492853246065
+  | idx 0 (nextWord64 (mkSMGen 1110))
+
+=?= 13163465088654347079
+  | idx 0 (nextWord64 (mkSMGen 4242))
+
+> (Word64, Word64)
+> ((Word64, Word64), (Word64, Word64))
+= (splitSMGen [seed gamma])
+@ seed1 (add64 seed  gamma)
+@ seed2 (add64 seed1 gamma)
+@ g1 [seed2 gamma]
+@ g2 [(mix64 seed1) (mixGamma seed2)]
+| [g1 g2]
+
+=?=  ++ [7497164887529747682 5395234354446855067]
+     ++ [8265398869455334575 7487842928164508357]
+  | splitSMGen (mkSMGen 0xdeadbeef)
+
+= (randoms g0)
+@ (r, g1) (nextWord64 g0)
+| CONS r (randoms g1)
+
+=?= 100105756969645151604
+  | listSum (listTake 10 (randoms (mkSMGen 23)))
+
+^-^
+^-^ nextWord64 randoms
+^-^ splitSMGen seedSMGen mkSMGen
+^-^

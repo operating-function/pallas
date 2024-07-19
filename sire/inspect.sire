@@ -1,0 +1,67 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### inspect <- sire
+
+;;;; Noun Inspection
+;;;; ===============
+;;;;
+;;;; Utilities for inspecting PLAN values.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+
+
+;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (unApply f args)
+| if isApp-f
+    | unApply car-f
+    | CONS cdr-f args
+| CONS f args
+
+= (inspect x)
+| if isApp-x (| listToRow | unApply car-x | CONS cdr-x NIL)
+| if isPin-x [PIN pinItem-x]
+| if isLaw-x [LAW lawName-x lawArgs-x lawBody-x]
+| x
+
+= (fullInspection x)
+@ res inspect-x
+| if isNat-res res
+| map fullInspection res
+
+= (runVec exp)
+@ hed idx-0-exp
+@ tel drop-1-exp
+| rowApply hed tel
+
+= (reconstruct spec)
+| if isNat-spec spec
+| runVec map-reconstruct-spec
+
+
+;;; Printing Pinned Structures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (showPins t)
+| if (isApp t)
+    | showPins (car t) (showPins | cdr t)
+| if (isLaw t)
+    | car t (showPins | lawBody t)
+| if (isPin t)
+    ({PIN}, showPins (pinItem t))
+| t
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ inspect
+^-^ fullInspection
+^-^ reconstruct
+^-^ unApply
+^-^ showPins
+^-^

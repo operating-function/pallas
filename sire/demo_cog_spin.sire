@@ -1,0 +1,20 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_cog_spin <- demo_timer
+
+:| sire
+:| kern
+:| demo_timer
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (spinDemo return)
+: ??(spin_got_id id) < syscall (COG_SPIN (runCog-(timeDemo 5)))
+| trk [%cogId id]
+| return ()
+
+main=(runCog spinDemo)

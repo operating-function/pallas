@@ -1,0 +1,379 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### plan <- types
+
+;;;; This is an implementation of PLAN in PLAN, implementing lazy
+;;;; evaluation via explicit graph reduction.  This is mostly useful
+;;;; because it gives us a way to catch exceptions in pure code.
+;;;;
+;;;; This implementation represent the state of the evaluation graph as
+;;;; an array, and perform does explicit graph reduction in a state monad.
+;;;;
+;;;; This code is intended to be jetted, the PLAN code here is simple
+;;;; and naive.  It's too slow to run on larger examples.  In particular
+;;;; all state-updates are O(n) on the state array, and the state
+;;;; array grows quickly because we don't do garbage collection.
+;;;;
+;;;; ### Public Functions
+;;;;
+;;;; {_Try} and {_TryExp} run PLAN code and catch errors.  The error results
+;;;; are deterministic, so runtime must be careful not to reorder
+;;;; evaluation in cases where evaluation may crash.
+;;;;
+;;;; This prohibits many optimizations, but those optimizations can
+;;;; still be used when evaluation code that is not running within an
+;;;; exception handler.
+;;;;
+;;;; {plan} converts from a an explicit evalution graph into a normal
+;;;; PLAN value.  If the explicit graph is in normal form, then this is
+;;;; a safe operation that will never crash.  However, if the graph has
+;;;; not been normalized, this will produce a PLAN value that is also
+;;;; not in normal form.
+;;;;
+;;;; ### Graph Representation
+;;;;
+;;;; A {VL} is always fully normalized, an {AP} is an unevaluated
+;;;; application of a function to an argument, both are indicies into
+;;;; an evaluation state (a graph of unevaluated values).
+;;;;
+;;;; The {loc} field in {AP} and {HL} simply refers to the slot in the
+;;;; state where the value is located, this is used for updates.
+
+:| sire
+:| mutrec
+:| types
+
+
+;;; Graph Representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# datatype Plan
+* VL=VL val:Any
+* AP=AP loc:Nat fun:Plan arg:Plan
+* RF=RF idx:Nat
+* HL=HL loc:Nat
+
+> Row Plan > Plan > Any
+= (plan st v)
+# datacase v
+* VL-x     | x
+* AP-i-f-x | (plan st f) (plan st x)
+* RF-i     | plan st (get st i)
+* HL-i     | die {<<loop>>}
+
+= (apply f x st ok)
+@ i (len st)
+| ok (rowSnoc st | AP i f x) RF-i
+
+= (blackhole st ok)
+@ i (len st)
+| ok (rowSnoc st | HL i) RF-i
+
+
+;;; Graph Reduction ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (A v st)
+# datacase v
+* VL-x     | arity x
+* AP-i-f-x | dec (A f st)
+* RF-i     | A (get st i) st
+* HL-i     | die {<<loop>>}
+
+;; {collect} sets up the calling environment and finds the function to
+;; run against that environment.  This is a combination of S and X from
+;; the spec.
+
+= (collect x st)
+^ (_ NIL x)
+? (go acc x)
+# datacase x
+* HL-i     | die {<<loop>>}
+* RF-i     | go acc (get st i)
+* AP-i-f-x | go (x::acc) f
+* VL-v     | if isPin-v
+               @ item (pinItem v)
+               | if isLaw-item | [item listToRow-(VL v :: acc)]
+               | else          | go acc VL-item
+           | if isApp-v
+               @ acc (VL-(cdr v) :: acc)
+               | go acc VL-(car v)
+           | else
+               | [v listToRow-(VL v :: acc)]
+
+;; {update} updates a thunk to take on the value of another thunk.
+;; Essentially, this overwrites a node in the evaluation graph.
+
+= (update old new st ok)
+# datacase old
+* RF-i     | update (get st i) new st ok
+* VL-i     | die {internal error: updating constant}
+* HL-i
+    # datacase new
+    * HL-i     | die {<<loop>>}
+    * RF-i     | update old (get st i) st ok
+    * VL-_     | ok (put st i new) new
+    * AP-_-f-x @ new (AP i f x)
+               | ok (put st i new) new
+* AP-i-f-x
+    # datacase new
+    * HL-i     | die {<<loop>>}
+    * RF-i     | update old (get st i) st ok
+    * VL-_     | ok (put st i new) new
+    * AP-_-f-x @ new (AP i f x)
+               | ok (put st i new) new
+
+;; {P} does PLAN pattern-matching, this is the logic for the {1} primop.
+
+= (P p l a n x st ok)
+# datacase x
+* HL-i | die {<<loop>>}
+* RF-i | P p l a n (get st i) st ok
+* AP-i-f-x
+    : st af  < apply a  f st
+    : st afx < apply af x st
+    | ok st afx
+* VL-x
+    | if isNat-x
+        | apply n (VL x)         st ok
+    | if isPin-x
+        | apply p (VL pinItem-x) st ok
+    | if isApp-x
+        : st af  < apply a  VL-(car x) st
+        : st afx < apply af VL-(cdr x) st
+        | ok st afx
+    | else
+        : st ln   < apply l   VL-(lawName x) st
+        : st lna  < apply ln  VL-(lawArgs x) st
+        : st lnab < apply lna VL-(lawBody x) st
+        | ok st lnab
+
+;; {C} does nat pattern-matching, this is the logic for the {2} primop.
+
+= (C z p n st ok)
+| ifz n (ok st z)
+| apply p (VL | dec n) st ok
+
+;; This mostly just a translation of the PLAN spec.
+;;
+;; -   {F} is force, which normalized a node.
+;;
+;; -   {E} is eval, which evalutes a node to WHNF.
+;;
+;; -   {N} is toNat, which evalutes a value and casts it to a nat.
+;;
+;; -   {R} is {run law}, which expands a law-invokation.
+;;
+;; -   {X} is {execute}, which performs a single evaluation step.
+
+# mutual evaluator
+= (F v st ok)
+    : st v < E v st
+    # datacase v
+    * HL-i     | die {<<loop>>}
+    * RF-i     | F (get st i) st ok
+    * VL-_     | ok st v
+    * AP-i-f-x : st f < F f st
+               : st x < F x st
+               | ok st v
+= (E v st ok)
+    # datacase v
+    * HL-i     | die {<<loop>>}
+    * RF-i     | E (get st i) st ok
+    * VL-_     | ok st v
+    * AP-i-f-x : st f < E f st
+               | if (A f st /= 1) (ok st v)
+               : st v2 < X v st
+               : st v  < update v v2 st
+               : st v  < E v st
+               | ok st v
+= (N v st ok)
+    : st v < E v st
+    ^ ok st (_ v)
+    ? (go v)
+    # datacase v
+    * HL-i     | die {<<loop>>}
+    * RF-i     | go (get st i)
+    * VL-x     | toNat x
+    * AP-_-_-_ | 0
+= (L env !nex x st ok)
+    | if (1 /= caar x) (R env x st ok)
+    : st var < R env cdar-x st
+    : st _   < update (get env nex) var st
+    | L env inc-nex cdr-x st ok
+= (B maxArg env body st ok)
+    ^ _ 0 NIL body st ok
+    ? (go !n acc x st ok)
+    | if (1 == caar x)
+        : st slot < blackhole st
+        | go inc-n (slot::acc) cdr-x st ok
+    ^ L _ inc-maxArg body st ok
+    | weld env (sizedListToRowRev n acc)
+= (R env b st ok)
+    | ifNot (isApp b)
+        | ok st
+        | if (isNat b && lth b len-env) | get env b
+        | else                          | VL b
+    @ hb  (car b)
+    @ tb  (cdr b)
+    | if (hb==2)     | ok st VL-tb
+    | ifNot isApp-hb | ok st VL-b
+    @ hhb (car hb)
+    @ thb (cdr hb)
+    | if (hhb==0)
+        : st f < R env thb st
+        : st x < R env tb  st
+        : st res < apply f x st
+        | ok st res
+    | ok st VL-b
+= (X e st ok)
+    @ [fun env] | collect e st
+    | if isLaw-fun
+        | B lawArgs-fun env lawBody-fun st ok
+    # switch fun
+    * 0
+        @ [_ n a b] env
+        : st n < N n st
+        : st a < N a st
+        : st b < F b st
+        | if (a == 0) LEFT-(0, 0)
+        @ !law (0 n a | plan st b)
+        | ok st (VL law)
+    * 1
+        @ [_ p l a n x] env
+        : st x < E x st
+        : st r < P p l a n x st
+        | ok st r
+    * 2
+        @ [_ z p n] env
+        : st n < N n st
+        | C z p n st ok
+    * 3
+        @ [_ x] env
+        : st n < N x st
+        | ok st (VL inc-n)
+    * 4
+        @ [_ x] env
+        : st x < F x st
+        @ !v (4 | plan st x)
+        | ok st VL-v
+    * _
+        @ [_ x] env
+        : st x < F x st ; normalize error arg
+        | LEFT (fun, plan st x)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= 1         | plan [VL-1]                                       RF-0
+=?= 1-1       | plan [VL-1 AP-1-(RF 0)-(RF 0)]                    RF-1
+=?= 1         | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)] RF-0
+=?= 1-1       | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)] RF-1
+=?= (1 1-1)   | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 0)-(RF 1)] RF-2
+=?= (1-1 1-1) | plan [VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)] RF-2
+
+ex=[VL-add AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 0) AP-3-(RF 2)-(RF 0)]
+
+2=?=(A RF-0 ex)
+1=?=(A RF-1 ex)
+0=?=(A RF-2 ex)
+0=?=(A RF-3 ex)
+
+ex=[VL-1 AP-1-(RF 0)-(RF 0) AP-2-(RF 1)-(RF 1)]
+
+=?= [1 [VL-1 VL-2 VL-3]] | collect VL-(1 2 3) ex
+=?= [1 [VL-1 RF-0 RF-1]] | collect RF-2       ex
+
+
+;;; Convenience Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# datatype PlanExp
+* VALUE=VALUE _:Any
+* APPLY=APPLY _:(Row PlanExp)
+
+= (loadExp x st ok)
+# datacase x
+* VALUE-v | ok st (VL v)
+* APPLY-xs
+    # switch len-xs
+    * 0 | ok st (VL 0)
+    * 1 | loadExp (idx 0 xs) st ok
+    * 2 : st f < loadExp fst-xs st
+        : st x < loadExp snd-xs st
+        | apply f x st ok
+    * _ ^ loadExp _ st ok
+        | foldl (x y & APPLY [x y]) fst-xs (drop 1 xs)
+
+= (_TryExp x)
+| deepseq x
+: st top < loadExp x []
+: st res < F top st
+| RIGHT (plan st res)
+
+= (_Try row)
+| if null-row 0
+| _TryExp | APPLY | map VALUE row
+
+
+;;; More Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+A=APPLY
+V=VALUE
+
+(eat x)=eat
+
+=?= 0                     | _Try 99
+=?= RIGHT-99              | _Try [99]
+=?= RIGHT-(0 1 2)         | _Try [0 1 2]
+=?= RIGHT-(0 1 2)         | _Try (1 2 1 0)
+=?= RIGHT-(0 1 2 3)       | _Try [0 1 2 3]
+=?= RIGHT-(PIN 4)         | _TryExp | A (A (V 3, V 3), A (V 3, V 3))
+=?= RIGHT-[]              | _Try [0 0 1 0]
+=?= RIGHT-(0 0)           | _Try [0 0]
+=?= RIGHT-(0 0 0)         | _Try [0 0 0]
+=?= LEFT-[0 0]            | _Try [0 0 0 0]
+=?= LEFT-[0 0]            | _Try [0 0 0 0 0]
+=?= RIGHT-[]              | _Try [[] []]
+=?= RIGHT-3               | _Try [0 0 1 3 0]
+=?= RIGHT-3               | _Try [const 3 4]
+=?= RIGHT-eat             | _Try [eat 3 4 5]
+=?= RIGHT-5               | _Try [1 0 0 0 3 4]
+=?= RIGHT-(1 2 3)         | _Try [1 0 0 1 0 2-3]
+=?= RIGHT-(1 pinItem-add) | _Try [1 1 0 0 0 add]
+=?= RIGHT-(1 0 1 0)       | _Try [1 0 1 0 0 []]
+=?= RIGHT-(1 0 4 0)       | _Try [1 0 1 0 0 (cow 3)]
+=?= RIGHT-6               | _Try [mul 2 3]
+=?= RIGHT-3               | _Try [force 3]
+=?= RIGHT-9               | _Try [seq 8 9]
+=?= RIGHT-1               | _Try [isNat 9]
+=?= RIGHT-1               | _Try [compose not not TRUE]
+=?= RIGHT-0               | _Try [eql 3 4]
+=?= RIGHT-1               | _Try [eql 4 4]
+
+
+;;; Test Mutual Recursion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (silly n)
+@@   = x (2 :: y)
+     = y (3 :: x)
+ | (listTake n x, listTake n y)
+
+=?= (_Try [silly 3])
+  | RIGHT
+ ++ ~[2 3 2]
+ ++ ~[3 2 3]
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+try=_Try
+tryExp=_TryExp
+main=try
+
+^-^
+^-^ PlanExp VALUE APPLY
+^-^
+^-^ _Try _TryExp
+^-^ try tryExp
+^-^ main
+^-^

@@ -1,0 +1,71 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_multi_effect_html <- demo_mandelbrot
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= multi_demo_index_html
+| PIN
+# b
+} <!DOCTYPE HTML>
+} <html>
+}
+} <body>
+}
+}   <p>Before the script...</p>
+}
+}   <script>
+}     alert( 'Hello, world!' );
+}     const host = window.location.host;
+}     console.log(host);
+}     const url  = "ws://" + host + "/ws";
+}     console.log(url);
+}     const srv = new WebSocket(url);
+}     console.log(srv);
+}
+}    srv.onopen = (event) => {
+}      document.write("WEBSOCKET OPENED<br>");
+}      srv.send("Hello");
+}      document.write("WEBSOCKET GREETING SENT<br>");
+}    };
+}
+}    srv.onclose = (event) => {
+}      document.write("WEBSOCKET CLOSED");
+}      console.log(event);
+}    };
+}
+}    srv.onerror = (event) => {
+}      console.log("WEBSOCKET ERROR");
+}      console.log(event);
+}    };
+}
+}    srv.onmessage = (event) => {
+}      const blob = event.data;
+}      const reader = new FileReader(blob);
+}      reader.onload = () => {
+}          document.write(reader.result + "<br>");
+}      }
+}      reader.readAsText(blob);
+}   }
+}   </script>
+}
+}   <p>...After the script.</p>
+}
+} </body>
+}
+} </html>
+}
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^ multi_demo_index_html

@@ -1,0 +1,148 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_14_hax <- sire_13_exp
+
+;;;; The Hax Rune
+;;;; ============
+;;;;
+;;;; This defines the `#` rune, which is a way to define named macros.
+;;;;
+;;;; For example, `quote#x` expands by passing `(# x)` to the `#quote`
+;;;; function.
+;;;;
+;;;; This module also defines a handeful of such named macros:
+;;;;
+;;;; -   `#quote` is the same as {'}
+;;;;
+;;;; -   `#getenv` returns the current global symbol table (as a tab).
+;;;;
+;;;;
+;;;; * * *
+;;;;
+;;;;
+;;;; Here's a quick walk through of what happens when we expand `quote#`:
+;;;;
+;;;;     quote#x
+;;;;
+;;;; Expands the by passing `(# x)` to the `#quote` function.  Let's say that:
+;;;;
+;;;;    (v2 x y)=[x y]
+;;;;    ({#quote} e n kids heir)=(| RIGHT | v2 0 | EBED | idx 0 kids)
+;;;;
+;;;; Then quote#[3 4] is expanded by calling:
+;;;;
+;;;;     (.{#quote} env nextGensym [[0 {,} [[1 {3}] [1 {4}]]]] 0)
+;;;;
+;;;; Which expands to this rex:
+;;;;
+;;;;     (1 [0 [4 [0 {,} [[1 {3}] [1 {4}]]]]])
+;;;;
+;;;; Which evaluates to:
+;;;;
+;;;;     [0 {,} [[1 {3}] [1 {4}]]]
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan [die trk pinItem isZero const]
+:| sire_02_bit [if ifz ifNot not and]
+:| sire_03_nat []
+:| sire_05_row [len idx]
+:| sire_04_cmp [eql neq]
+:| sire_05_row [v1 v2 v4 null weld]
+:| sire_06_rex [rexKids rexGetWord {'} rexRune EMBD]
+:| sire_07_dat [{,}]
+:| sire_10_str [strWeld isDecimalLit loadDecimal isHexLit loadHexLit]
+:| sire_11_set [{%}]
+:| sire_12_tab [{#}]
+:| sire_12_tab [tabGet tabKeysSet isTab tabIsEmpty]
+:| sire_13_exp [cnsE varE]
+
+
+;;; Definitions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; TODO Handle cases where `x` is not a valid identifier (use one of
+;;; these forms: (.{asdf} .234).
+= (showSymbol x)
+| x
+
+= haxNeedKid | {# Macros needs at least on kid}
+= haxFstWord | {First parameter to # must be a symbol.}
+= haxBadSymb | (key & strWeld {Undefined Symbol: } showSymbol-key)
+
+oldHax=(.{#})
+
+= (**getBind ss name err ok)
+@ scope (idx 2 ss)
+@ bind  (tabGet scope name)
+| ifz bind
+    | err | strWeld {undefined symbol: } name
+| **ok (pinItem bind)
+
+= ({#} st rex err ok)
+@ kids     | rexKids rex
+@ firstKid | idx 0 kids
+@ numKids  | len kids
+| if (null kids)
+    | err rex haxNeedKid
+| if (eql (1,{,}) (numKids, rexRune firstKid))
+    | oldHax st rex err ok
+| **rexGetWord firstKid
+    | err rex haxFstWord
+& (name heir)
+| if (and (eql 1 numKids) isHexLit-name)
+    | ok st (EMBD loadHexLit-name)
+| if (and (eql 1 numKids) isDecimalLit-name)
+    | ok st (EMBD loadDecimal-name)
+@ key     | strWeld {#} name
+@ scope   | idx 2 st
+| getBind st key (const | err rex haxBadSymb-key)
+& funBind
+@ funVal | idx 1 funBind
+| funVal st rex err ok
+
+=?= 255    | #0xff
+=?= 123123 | #123_123
+=?= 123123 | 123_123
+=?= 255    | 0xff
+
+= ({#foo} st rex err ok)
+| ok st (cnsE rex)
+
+= ({#quote} st rex err ok)
+@ kids rexKids-rex
+| if (neq 1 len-kids)
+    | err rex {#foo expects exactly one kid (or heir)}
+| ok st (cnsE idx-0-kids)
+
+= ({#getenv} st rex err ok)
+@ e (idx 2 st)
+| ok st (cnsE e)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+=?= 1 | isTab #[1=2]
+
+=?= 1 | isTab #getenv
+
+=?= 1 | not (tabIsEmpty #getenv)
+
+=?= '((foo#bar)zaz) (foo#bar)zaz
+
+^-^ {#} {%} eql {#quote} tabKeysSet {#getenv}
+
+=?= (tabKeysSet #getenv)
+  | %[{#} {%} {eql} {#quote} {tabKeysSet} {#getenv}]
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ {#}
+^-^ {#quote}
+^-^ {#getenv}
+^-^

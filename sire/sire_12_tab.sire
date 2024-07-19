@@ -1,0 +1,581 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_12_tab <- sire_11_set
+
+;;;; Tabs
+;;;; ====
+;;;;
+;;;; A tab is a data-jetted map from noun to noun.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan [lawBody trk isLaw inc seq const id]
+:| sire_01_fan [car cdr]
+:| sire_02_bit [if ifz ifNot and or not nor]
+:| sire_03_nat [add toNat rsh mod even]
+:| sire_04_cmp [eql neq lth lte gte gth isZero]
+:| sire_05_row
+:| sire_06_rex [rexSons rexHeir rexKids rexRune rexGetNodeWithRune]
+:| sire_06_rex [OPEN EMBD PREF]
+:| sire_07_dat
+:| sire_10_str [strWeld]
+:| sire_11_set [isSet emptySet setLen setHas setMin setToList]
+:| sire_11_set [setToRow setFromRowAsc]
+:| sire_11_set [setPop]
+:| sire_11_set [{%} readKey]
+
+
+;;; Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; This assumes that the keys are assending and unique.
+= (_MkTab keys vals)
+| setFromRowAsc keys vals
+
+= emptyTab      | _MkTab []  []
+= (tabSing k v) | _MkTab [k] [v]
+
+= (isTab tab)
+@ keysSet (car tab)
+@ valsRow (cdr tab)
+| and (isSet keysSet)
+| and (isRow valsRow)
+      (eql setLen-keysSet len-valsRow)
+
+(_TabKeys tab)=(car tab)
+(_TabVals tab)=(cdr tab)
+
+= (_TabKeysRow tab)  | setToRow    | _TabKeys tab
+= (_TabKeysList tab) | setToList   | _TabKeys tab
+= (tabValsList tab)  | listFromRow | _TabVals tab
+
+
+;;; Tab Lookup ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(_TabLen tab)=(len | _TabVals tab)
+
+;; {tabSearchCase} is an inline function that finds the "index" of a
+;; key within a tab.  0 is the first key, 1 is the second, etc.
+;;
+;; The continuation is given a the associated value, but since the
+;; continuation is inlined, the code for the associated value will be
+;; eliminated if not used.
+;;
+;; TODO this should likely be implemented in in terms of some
+;; type of primitive jet on tabs or sets.  Using `bsearch_` directly
+;; means that the runtime system cannot take advantage of the knowledge
+;; that the tab is always sorted (and unique).
+
+= (**tabSearchCase key tab not_found found)
+@ keys (_TabKeysRow tab)
+@ vals (_TabVals tab)
+@ size (len keys)
+@ res (bsearch_ key keys 0 size)
+@ ix  (rsh res 1)
+| ifNot (mod res 2) not_found
+| **found ix (get vals ix)
+
+=?= {nf}  (tabSearchCase 0 (tabSing 1 3) {nf} (ix v & [ix v]))
+=?= [0 3] (tabSearchCase 1 (tabSing 1 3) {nf} (ix v & [ix v]))
+=?= {nf}  (tabSearchCase 2 (tabSing 1 3) {nf} (ix v & [ix v]))
+
+= (tabIdx key tab)
+@ keys (_TabKeysRow tab)
+| elemIdx key keys 0 (get | _TabVals tab)
+
+(**tabGet tab key)=(tabIdx key tab)
+
+ex=(_MkTab [1 2 3] [4 5 6])
+
+=?= 4 | tabGet ex 1
+=?= 5 | tabGet ex 2
+=?= 6 | tabGet ex 3
+
+
+;;; Basic Quations about Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (_TabIsEmpty tab) | null (_TabVals tab)
+= (_TabHas k t)     | setHas k (_TabKeys t)
+= (_TabLookup k t)  | if (_TabHas k t) (SOME | tabIdx k t) NONE
+
+
+;;; Tab Insertion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (findInsIdx key keysRow)
+| findIdx (lte key) keysRow (len keysRow) id
+
+=?= 0 (findInsIdx 0 [1 2 3])
+=?= 0 (findInsIdx 1 [1 2 3])
+=?= 1 (findInsIdx 2 [1 2 3])
+=?= 2 (findInsIdx 3 [1 2 3])
+=?= 3 (findInsIdx 4 [1 2 3])
+
+= (tabIns key val tab)
+@ keysSet | _TabKeys tab
+@ keysRow | setToRow keysSet
+@ valsRow | _TabVals tab
+@ notFound
+    @ ix (findInsIdx key keysRow)
+    | _MkTab (insert ix key keysRow) (insert ix val valsRow)
+@ found
+    & ix
+    | keysSet (put valsRow ix val)
+| elemIdx key keysRow notFound found
+
+(tabPut x k v)=(tabIns k v x)
+
+; `tabInsWith f key newval tab` will insert the pair (key, newval)
+; into `tab` if key does not exist in the tab. If the key does exist,
+; the function will insert the pair `(key, f newval oldval)`.
+
+= (tabInsWith f key newval tab)
+@ m_oldval (_TabLookup key tab)
+^ tabIns key _ tab
+| maybeCase m_oldval newval (f newval)
+
+= ex1 (_MkTab [1 5] [5 1])
+
+=?= ( _MkTab [1 2 5] [5 6 1] ) | tabIns 2 6 | ex1
+=?= ( _MkTab [0 1 5] [6 5 1] ) | tabIns 0 6 | ex1
+=?= ( _MkTab [1 5 9] [5 1 6] ) | tabIns 9 6 | ex1
+=?= ( _MkTab [1 5]   [9 1]   ) | tabIns 1 9 | ex1
+=?= ( _MkTab [1 5]   [5 9]   ) | tabIns 5 9 | ex1
+=?= ( _MkTab [1 5]   [8 9]   ) | tabIns 1 8 | tabIns 5 9 | ex1
+=?= ( _MkTab [1 3 5] [8 7 9] ) | tabIns 3 7 | tabIns 1 8 | tabIns 5 9 | ex1
+=?= ( _MkTab [1 3 5] [8 7 9] ) | tabIns 1 8 | tabIns 3 7 | tabIns 5 9 | ex1
+=?= ( _MkTab [1 3 5] [8 7 9] ) | tabIns 5 9 | tabIns 3 7 | tabIns 1 8 | ex1
+=?= ( _MkTab [1 2 5] [5 6 1] ) | tabInsWith add 2 6 | ex1
+=?= ( _MkTab [1 5]   [11 1]  ) | tabInsWith add 1 6 | ex1
+=?= ( _MkTab [1 5]   [5 7]   ) | tabInsWith add 5 6 | ex1
+=?= ( _MkTab [1 5 9] [5 1 3] ) | tabInsWith add 9 3 | ex1
+
+
+;;; Switching on Tabs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (tabSwitch key fal tab)
+| ifNot (_TabHas key tab) fal
+| tabIdx key tab
+
+
+;;; Raw Table Construction from Ordered Pairs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (tabFromAscPairs pairs)
+@ keys | map fst pairs
+@ vals | map snd pairs
+| _MkTab keys vals
+
+= (tabToPairs tab)
+@ ks | listFromRow (_TabKeysRow tab)
+@ vs | listFromRow (_TabVals tab)
+| listToRow (listZip ks vs)
+
+par=[[1 4] [2 5] [3 6]]
+tab=(tabFromAscPairs par)
+
+=?= 4   | tabGet ex 1
+=?= 5   | tabGet ex 2
+=?= 6   | tabGet ex 3
+=?= 6   | tabGet ex 3
+=?= par | tabToPairs tab
+
+
+;;; Table Construction from unique pairs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: Implementing {tabFromPairs} with sort+uniq is faster.
+; TODO: Or maybe use some kinda of "multi-insert" routine?
+
+= (tabFromPairs pairs)
+| foldl (t p & tabIns (fst p) (snd p) t) emptyTab pairs
+
+= (tabFromPairsList pairs)
+| listFoldl (t p & tabIns (fst p) (snd p) t) emptyTab pairs
+
+= (tabToPairList tab)
+| listForEach (_TabKeysList tab)
+& i
+| (i, tabGet tab i)
+
+(tabToList tab)=(listFromRow | tabToPairs tab)
+
+=?= (_MkTab [3 5] [8 9]) | tabFromPairs [[3 8] [5 9]]
+=?= (_MkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 8]]
+=?= (_MkTab [3 5] [8 9]) | tabFromPairs [[3 7] [3 8] [5 9]]
+=?= (_MkTab [3 5] [8 9]) | tabFromPairs [[5 9] [3 7] [3 8]]
+
+=?= 0             | tabToPairList | tabFromPairs []
+=?= [3,8 0]       | tabToPairList | tabFromPairs [[3 8]]
+=?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 8] [5 9]]
+=?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 8]]
+=?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[3 7] [3 8] [5 9]]
+=?= [3,8 [5,9 0]] | tabToPairList | tabFromPairs [[5 9] [3 7] [3 8]]
+
+
+;;; Treating a Tab like an Array ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (tabElemIdx i tab)
+@ pairs (tabToPairs tab)
+| if (gte i len-pairs) 0
+| idx i pairs
+
+
+;;; Deletion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: Avoid using tabFromPairs for everything
+
+= (tabDel key tab)
+| tabFromPairs
+| filter kv&(neq (idx 0 kv) key)
+| tabToPairs
+| tab
+
+; TODO Callbacks for empty case.
+= (tabPop tab)
+@ keysSet  | _TabKeys tab
+@ valsRow  | _TabVals tab
+@ fstRest  | setPop keysSet
+@ fstKey   | fst fstRest
+@ fstVal   | fst valsRow
+@ moreVals | drop 1 valsRow
+@ moreKeys | snd fstRest
+@ remain   | moreKeys moreVals
+| [fstKey fstVal remain]
+
+= (tabSplitAt idx a)
+@ pairs | tabToPairs a
+@ head  | take idx pairs
+@ tails | drop idx pairs
+| (tabFromAscPairs head, tabFromAscPairs tails)
+
+> Nat > Tab v > (Tab v, Tab v)
+= (tabSplitLT key t)
+@ pairs | tabToPairs t
+@ s | span p&(lth (idx 0 p) key) pairs
+@ head | fst s
+@ tail | snd s
+| (tabFromPairs head, tabFromPairs tail)
+
+= (tabAlter fun key tab)
+@ keysSet | _TabKeys tab
+@ keysRow | setToRow keysSet
+@ valsRow | _TabVals tab
+;
+@ notFound
+    | maybeCase (fun NONE) tab
+    & val
+    | tabFromPairs
+    | rowCons [key val]
+    | tabToPairs tab
+;
+@ found
+    & ix
+    @ prev (idx ix valsRow)
+    | maybeCase (fun | SOME prev)
+        | tabDel key tab
+    & newVal
+    | keysSet (put valsRow ix newVal)
+;
+| elemIdx key keysRow notFound found
+
+> (Nat > v > v) > Tab v > Tab v
+= (tabMapWithKey fun tab)
+@ pairs | tabToPairs tab
+@ do
+  ? (do p)
+  @ k | fst p
+  @ v | snd p
+  @ nv | fun k v
+  [k nv]
+| tabFromPairs | map do pairs
+
+> (Nat > v > v) > Tab v > Tab v
+(tabMap fun tab)=(tabMapWithKey (k v & fun v) tab)
+
+> (a > a > a) > Tab a > Tab a > Tab a
+= (tabUnionWith fun ar br)
+@ a | tabToList ar
+@ b | tabToList br
+| tabFromPairs
+| listToRow
+^ _ a b NIL
+? (loop a b xs)
+| if (listIsEmpty a) (listWeld (listRev xs) b)
+| if (listIsEmpty b) (listWeld (listRev xs) a)
+@ ap  (fst a)
+@ ak  (fst ap)
+@ av  (snd ap)
+@ axs (snd a)
+@ bp  (fst b)
+@ bk  (fst bp)
+@ bv  (snd bp)
+@ bxs (snd b)
+| if (eql ak bk) | loop axs bxs (CONS [ak (fun av bv)] xs)
+| if (lth ak bk) | loop axs b (CONS ap xs)
+| loop a bxs (CONS bp xs)
+
+; left-biased
+(tabWeld ar br)=(tabUnionWith const ar br)
+
+tabUnion=tabWeld
+
+; left biased
+(tabCatRow tabs)=(foldr tabWeld emptyTab tabs)
+
+= (tabMinKey t)
+@ pairs | tabToPairs t
+| idx 0 | idx 0 pairs
+
+> (a > Nat > b > a) > a > Tab b > a
+= (tabFoldlWithKey fun start tab)
+@ do
+  ? (do i pair)
+  | fun i (fst pair) (snd pair)
+| foldl do start | tabToPairs tab
+
+
+;;; Parsing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pairExpect={Expected something like =x or x=3}
+
+; TODO Parse decimal
+; TODO Should we support 0xHEX?
+; TODO Validate identifiers
+= (readTabPair readVal rex err ok)
+@ rune   | rexRune rex
+@ kids   | rexKids rex
+@ nKid   | len kids
+@ keyRex | idx 0 kids
+@ valRex | idx 1 kids
+@ valRex | if (eql 2 nKid) valRex keyRex
+| if (neq {=} rune)
+    | err rex pairExpect
+| if (nor (eql 1 nKid) (eql 2 nKid))
+    | err rex pairExpect
+| readKey keyRex err
+& key
+| readVal valRex err
+& val
+| ok key val
+
+tabExpect={Expected something like [], [x=1 ...], [=x ...]}
+
+= (readTabBracket readVal rex err ok)
+| if (neq {,} | rexRune rex)
+    | err rex tabExpect
+| ^ rowTraverseState emptyTab _ (rexKids rex)
+  & (acc kid yield)
+  | seq acc
+  | readTabPair readVal kid err
+  & (key val)
+  | if (_TabHas key acc)
+      | err kid {duplicate key}
+  | yield (tabIns key val acc) 0
+& (acc _)
+| ok acc
+
+outerExpect={Expected something like #[x=1], [x=1], etc}
+
+= (readWideTabLit readVal rex err ok)
+@ rune | rexRune rex
+@ kids | rexKids rex
+@ nKid | len kids
+| if (eql {#} rune)
+    | if (neq 1 nKid)
+        | err rex outerExpect
+    @ kid (idx 0 kids)
+    | readTabBracket readVal kid err ok
+| readTabBracket readVal rex err ok
+
+= (parseTallKey rex err ok)
+@ rune   (rexRune rex)
+@ kids   (rexKids rex)
+@ keyRex (idx 0 kids)
+| if (or (neq {=} rexRune-rex) (neq 1 len-kids))
+    | err rex {Expected something like: =key}
+| readKey keyRex rex
+& key
+| ok keyRex key
+
+tallExpect={Expected something like (## =key val ...)(...)}
+
+= (readTallTabLit readVal rex err ok)
+^ _ emptyTab rex
+? (go acc rex)
+| ifz rex (ok acc)
+@ rune     | rexRune rex
+@ sons     | rexSons rex
+@ nSons    | len sons
+@ firstSon | idx 0 sons
+@ moreSons | drop 1 sons
+@ heir     | rexHeir rex
+| if (or (neq {##} rune) (isZero nSons))
+    | err rex tallExpect
+| parseTallKey firstSon err
+& (keyRex newKey)
+@ valRex
+    | if (eql 1 nSons) keyRex
+    | OPEN {|} moreSons 0
+| readVal valRex err
+& newVal
+| if (_TabHas newKey acc)
+    | err firstSon {duplicate key}
+@ acc (tabIns newKey newVal acc)
+| seq acc
+| go acc heir
+
+
+;;; Expansion ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Tab Exp > Exp
+= (tabE tab)
+| appE
+++ EMBD (_TabKeys tab)
+++ rowE (_TabVals tab)
+
+
+;;; Rune Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= ({#} ss rex err ok)
+| readWideTabLit readRex rex err
+& res
+| ok ss (tabE res)
+
+= ({##} ss rex err ok)
+| readTallTabLit readRex rex err
+& res
+| ok ss (tabE res)
+
+= (isTabSugar rex)
+@ kids (rexKids rex)
+| and (not null-kids)
+      (| eql {=} | rexRune | idx 0 kids)
+
+; This extends the basic row syntax to support tab literals (if theh
+; elements are = nodes).
+= ({,} ss rex err ok)
+| if (isTabSugar rex)
+   | readWideTabLit readRex rex err
+   & res
+   | ok ss (tabE res)
+| ok ss (rowE | rexKids rex)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= 1 | isTab #[]
+=?= 1 | isTab #[0=0]
+=?= 1 | isTab #[x=3]
+=?= 1 | isTab #[x=3 y=4]
+=?= 1 | isTab [x=3 y=4]
+=?= 1 | isTab [=isTab]
+
+=?= 0 | isTab []
+=?= 0 | isTab %[] ;; sets are not tabs
+=?= 0 | isTab %[x y]
+=?= 0 | isTab (%[x y] 3)
+=?= 1 | isTab (%[x y] [3 4])
+
+=?= [a=0]     | #[97=0]
+=?= [a=0]     | #[{a}=0]
+=?= [a=0 b=1] | #[98=1 97=0]
+=?= [a=0 b=1] | #[{b}=1 {a}=0]
+
+=?= 0 | _TabLen #[]
+=?= 1 | _TabLen #[x=0]
+=?= 2 | _TabLen #[x=0 y=1]
+
+=?= #[x=0 y=1] | (%[x y] [0 1])
+=?= %[x y]     | (0 1 2 [%x %y])
+=?= [%x %y]    | ((0 0 3 0) %y %x)
+=?= #[x=0 y=1] | 0 1 2 (0 0 3 0 %y %x) (0 0 3 0 1 0)
+
+=?= 8 | tabIdx 0 #[0=8]
+=?= 9 | tabIdx %aa #(bb=8, aa=9)
+
+=?= 1 | _TabHas %aa #(bb=8, aa=9)
+=?= 1 | not | _TabHas %cc #(bb=8, aa=9)
+
+=?= %[3 4] | _TabKeys #[3=3 4=4]
+=?= %[]    | _TabKeys #[]
+=?= [3 4]  | _TabKeysRow #[3=3 4=4]
+=?= []     | _TabKeysRow #[]
+
+=?= #[3=3]     | tabIns 3 3 #[3=4]
+=?= #[3=4 4=4] | tabIns 4 4 #[3=4]
+=?= #[0=0]     | tabIns 0 0 #[]
+=?= #[0=0]     | tabIns 0 0 #[]
+
+=?= #[a=(0 1)] | (## =a 0 1)
+
+= (_TabFilterWithKey f tab)
+| tabFromPairsList
+| listFilter (kv & f fst-kv snd-kv)
+| tabToPairList tab
+
+=?= #[=2 =4]
+  | _TabFilterWithKey (k v & even k) #[=1 =2 =3 =4]
+
+;
+; TODO Support things like:
+;
+; ## x=3 y=4
+; ## p=0 q=1 r=2
+; ## =s
+;    | strToBar
+;    | renderNat
+;    | bex
+;    | add 3 4
+;
+
+=?= [{a}=1 b=2 {c}=3] | (## =b 2)(## ={a} 1)(## ={c} 3)
+
+=?= [1]              | idx 0 #[a=1]
+=?= 0                | idx 1 #[a=1]
+=?= #[a=2]           | mut 0 [2]     #[a=1]
+=?= (%[a] 3)         | mut 0 3       #[a=1]
+=?= #[a=1 b=2]       | mut 1 [3 4]   #[a=1 b=2]
+=?= #[a=3 b=4]       | mut 0 [3 4]   #[a=1 b=2]
+=?= (%[a b] [3 4 5]) | mut 0 [3 4 5] #[a=1 b=2]
+
+
+;;; Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= tabLookup        | _TabLookup
+= tabKeysSet       | _TabKeys
+= tabKeysRow       | _TabKeysRow
+= tabKeysList      | _TabKeysList
+= tabValsRow       | _TabVals
+= tabHas           | _TabHas
+= tabLen           | _TabLen
+= tabIsEmpty       | _TabIsEmpty
+= tabFilterWithKey | _TabFilterWithKey
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ tabSing _MkTab isTab
+^-^
+^-^ tabSearchCase
+^-^
+^-^ tabLen tabIdx tabKeysSet tabKeysRow tabKeysList tabHas tabGet
+^-^ tabValsRow tabValsList tabSwitch
+^-^ tabFromPairs tabFromAscPairs tabToPairs tabToPairList tabToList tabPut
+^-^ tabFromPairsList
+^-^ tabIns tabIsEmpty tabDel tabPop tabSplitAt tabSplitLT tabAlter
+^-^ tabMapWithKey tabMap
+^-^ tabUnionWith tabUnion tabWeld tabCatRow
+^-^ tabLookup tabMinKey tabFoldlWithKey tabElemIdx emptyTab tabInsWith
+^-^ tabFilterWithKey
+^-^
+^-^ readRex
+^-^
+^-^ readTabPair readTabBracket readWideTabLit readTallTabLit
+^-^ isTabSugar
+^-^
+^-^ tabE
+^-^
+^-^ {,} {#} {##}
+^-^

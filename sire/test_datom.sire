@@ -1,0 +1,256 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### test_datom <- stroll
+
+:| sire
+:| stew
+:| datom
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= postDB
+^ assertTransact _ emptyDB
+++ #[{:db/ident}={:b/post} {:db/cardinality}={one}]
+++ #[{:db/ident}={:b/author} {:db/cardinality}={one}]
+++ #[{:db/ident}={:b/title} {:db/cardinality}={one}]
+
+
+; Check that map form and a list form of adds are equivalent.
+=?=     ^ assertTransact _ postDB
+        ++ [%add %[{newpost}] {:b/post} {mai poast}]
+        ++ [%add %[{newpost}] {:b/author} {Iceman}]
+        ++ [%add %[{other}] {:b/post} {Other post}]
+        ++ [%add %[{other}] {:b/author} {Sol}]
+   ^ assertTransact _ postDB
+   ++ #[{:b/post}={mai poast} {:b/author}={Iceman}]
+   ++ #[{:b/post}={Other post} {:b/author}={Sol}]
+
+= emptyContactsDB
+^ assertTransact _ emptyDB
+++ ## ={:db/ident} {:c/name}
+   ## ={:db/indexed} TRUE
+   ## ={:db/cardinality} {one}
+   ## ={:db/unique} TRUE
+; In this contrived testing scenario, you can have many emails, but only one
+; phone number and that phone number can be shared between people.
+++ ## ={:db/ident} {:c/email}
+   ## ={:db/unique} TRUE
+   ## ={:db/cardinality} {many}
+++ ## ={:db/ident} {:c/phone}
+   ## ={:db/indexed} TRUE
+   ## ={:db/unique} FALSE
+   ## ={:db/cardinality} {one}
+
+= contactsDB
+  ^ assertTransact _ emptyContactsDB
+  ++ #[{:c/name}={Iceman} {:c/email}={iceman@plunder.tech}]
+  ++ #[{:c/name}={Sol} {:c/email}={sol@plunder.tech}]
+
+; Lookup by nonexistent attributes fail.
+=?=   | LEFT [(LOOKUP_NO_ATTRIBUTE {:d/blah})]
+    ^ transact _ emptyContactsDB
+    ++ [%add [{:d/blah} {51}] {:c/email} {blah@plunder.tech}]
+
+; Lookup by nonexistent values fail.
+=?=   | LEFT [(LOOKUP_NO_MATCH {:c/name} {Bob})]
+    ^ transact _ emptyContactsDB
+    ++ [%add [{:c/name} {Bob}] {:c/email} {bob@plunder.tech}]
+
+; NEWENTITY with nonexistent attributes fails.
+=?=   | LEFT [(LOOKUP_NO_ATTRIBUTE {:bad/b}) (LOOKUP_NO_ATTRIBUTE {:bad/a})]
+    ^ transact _ emptyContactsDB
+    ++ #[{:bad/a}={bad} {:bad/b}={bad}]
+
+; ADD with nonexistent attributes fails.
+=?=   | LEFT [(LOOKUP_NO_ATTRIBUTE {:bad/a})]
+    ^ transact _ emptyContactsDB
+    ++ [%add 5 {:bad/a} {bad}]
+
+; Transaction which tries to duplicate a unique value fail. (Tries to add sol's
+; email to iceman's entity).
+=?=    @ icemanEid | setMin
+                   | lookupByAV {:c/email} {iceman@plunder.tech} contactsDB
+       @ solEid    | setMin
+                   | lookupByAV {:c/email} {sol@plunder.tech} contactsDB
+       | LEFT ++ | UNIQUE_VIOLATION {:c/email} {sol@plunder.tech}
+                                     solEid icemanEid
+    ^ transact _ contactsDB
+    ++ [%add [{:c/email} {iceman@plunder.tech}] {:c/email} {sol@plunder.tech}]
+
+; If we try set the contacts up so you can reference entities by their email,
+; we should be able to set someone's phone number by their email.
+= phoneDB
+  ^ assertTransact _ contactsDB
+  ++ [%add [{:c/email} {iceman@plunder.tech}] {:c/phone} {(555) 555}]
+
+=?=     %[{(555) 555}]
+    | lookupByIdentA {:c/email} {iceman@plunder.tech} {:c/phone} phoneDB
+
+; Can't lookup by non-unique attributes:
+=?=    | LEFT [(LOOKUP_ATTRIBUTE_NOT_UNIQUE {:c/phone})]
+    ^ transact _ phoneDB
+    ++ [%add [{:c/phone} {(555) 555}] {:c/email} {other@plunder.tech}]
+
+; For cardinality one attributes, setting the attribute twice should change the
+; singular attribute value.
+= changedPhoneDB
+  ^ assertTransact _ contactsDB
+  ++ [%add [{:c/email} {iceman@plunder.tech}] {:c/phone} {(111) 111}]
+
+=?=     %[{(111) 111}]
+    | lookupByIdentA {:c/email} {iceman@plunder.tech} {:c/phone} changedPhoneDB
+
+; Cardinality many interacts with the ave table: make sure in cardinality one
+; scenarios, the old value isn't retrievable from the ave table.
+=?=     %[]
+    | lookupByAV {:c/phone} {(555) 555} changedPhoneDB
+
+= changedEmailDB
+  ^ assertTransact _ contactsDB
+  ++ [%add [{:c/email} {iceman@plunder.tech}] {:c/email} {alias@example.com}]
+
+; For cardinality many attributes, setting the attribute twice should add
+; another value.
+=?=     %[{iceman@plunder.tech} {alias@example.com}]
+    | lookupByIdentA {:c/email} {iceman@plunder.tech} {:c/email} changedEmailDB
+
+; Retract removes the data from the tables:
+=?=     %[]
+    | lookupByIdentA {:c/email} {iceman@plunder.tech} {:c/phone}
+    ^ assertTransact _ phoneDB
+    ++ [%rm [{:c/email} {iceman@plunder.tech}] {:c/phone} {(555) 555}]
+
+; We should be able to lookup an entity by indexed attribute.
+=?=   %[9]
+    | lookupByAV {:c/name} {Iceman} contactsDB
+
+
+;; Test the mutual reference case in map form:
+;;
+;; [{:db/id {bobid}
+;;   :person/name {Bob}
+;;   :person/spouse {aliceid}}
+;;  {:db/id {aliceid}
+;;   :person/name {Alice}
+;;   :person/spouse {bobid}}]
+
+= emptySpouseDB
+  ^ assertTransact _ emptyDB
+  ++ ## ={:db/ident} {:person/name}
+     ## ={:db/cardinality} {one}
+     ## ={:db/indexed} TRUE
+  ++ ## ={:db/ident} {:person/spouse}
+     ## ={:db/cardinality} {one}
+     ## ={:db/valueType} {ref}
+  ++ ## ={:db/ident} {:person/alias}
+     ## ={:db/cardinality} {many}
+
+= aliceAndBob
+  ^ assertTransact _ emptySpouseDB
+  ++ ## ={:db/id} %[{bobid}]
+     ## ={:person/name} {Bob}
+     ## ={:person/spouse} %[{aliceid}]
+  ++ ## ={:db/id} %[{aliceid}]
+     ## ={:person/name} {Alice}
+     ## ={:person/spouse} %[{bobid}]
+
+; Test that the mutual references in value position were resolved:
+=?=    | lookupByAV {:person/name} {Alice} aliceAndBob
+     @ bobSet | lookupByAV {:person/name} {Bob} aliceAndBob
+     : bobId < **fromSingletonSet bobSet ({failed to find Bob} 0)
+     : aid   < **fromSingletonSet
+                  (lookupByAidV dbIdentId {:person/spouse} aliceAndBob)
+                | {unknown attr} 0
+     | lookupByVAid bobId aid aliceAndBob
+
+
+; Test that setting a person's alias with a list works.
+= aliasDB
+    ^ assertTransact _ emptySpouseDB
+    ++ ## ={:db/id} 500
+       ## ={:person/name} {Bob}
+       ## ={:person/alias} [{Bobby} {Robert}]
+
+; Both aliases recorded.
+=?=    %[{Bobby} {Robert}]
+    | lookupByEA 500 {:person/alias} aliasDB
+
+
+; Test that we can resolve complex many/ref cases.
+= emptyOrderDB
+  ^ assertTransact _ emptyDB
+  ++ ## ={:db/ident} {:order/name}
+     ## ={:db/cardinality} {one}
+     ## ={:db/indexed} TRUE
+  ++ ## ={:db/ident} {:order/lineItems}
+     ## ={:db/cardinality} {many}
+     ## ={:db/valueType} {ref}
+  ++ ## ={:db/ident} {:item/product}
+     ## ={:db/cardinality} {one}
+     ## ={:db/indexed} TRUE
+  ++ ## ={:db/ident} {:item/quantity}
+     ## ={:db/cardinality} {one}
+
+= orders
+  ^ assertTransact _ emptyOrderDB
+  ++ ## ={:order/name} {Bob}
+     ## ={:order/lineItems} ## ={:item/product} {Hamburger}
+
+; Who ordered the hamburger?
+=?=     | lookupByAV {:order/name} {Bob} orders
+    @ tendiesEid | setMin | lookupByAV {:item/product} {Hamburger} orders
+    | lookupByVA tendiesEid {:order/lineItems} orders
+
+= multiOrders
+  ^ assertTransact _ emptyOrderDB
+  ++ ## ={:order/name} {Bob}
+     ## ={:order/lineItems} ++ ## ={:item/product} {Hamburger}
+                               ## ={:item/quantity} 1
+                            ++ ## ={:item/product} {Guinness}
+                               ## ={:item/quantity} 1
+  ++ ## ={:order/name} {James}
+     ## ={:order/lineItems} ++ ## ={:item/product} {Tendies}
+                               ## ={:item/quantity} 1
+                            ++ ## ={:item/product} {Kirin}
+                               ## ={:item/quantity} 1
+
+; Who ordered the tendies?
+=?=     | lookupByAV {:order/name} {James} multiOrders
+    @ tendiesEid | setMin | lookupByAV {:item/product} {Tendies} multiOrders
+    | lookupByVA tendiesEid {:order/lineItems} multiOrders
+
+
+;;; Pull ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?=    | RIGHT [{:item/product}={Hamburger} {:item/quantity}=1]
+    | pull [{:item/product} {:item/quantity}] 11 multiOrders
+
+=?=    | RIGHT [{:person/alias}=[{Bobby} {Robert}] {:person/name}={Bob}]
+    | pull [{:person/alias} {:person/name}] 500 aliasDB
+
+; What was Bob's order?
+=?=    | RIGHT ## ={:order/name} {Bob}
+               ## ={:order/lineItems} ++ ## ={:item/product} {Hamburger}
+                                         ## ={:item/quantity} 1
+                                      ++ ## ={:item/product} {Guinness}
+                                         ## ={:item/quantity} 1
+    @ bobId | setMin | lookupByAV {:order/name} {Bob} multiOrders
+    ^ pull _ bobId multiOrders
+    ++ {:order/name}
+    ++ ## ={:order/lineItems} ++ {:item/product}
+                              ++ {:item/quantity}
+
+; Test backwards lookups, ie whose orders included tendies?
+=?=    | RIGHT ## ={:order/lineItems} ++ ## ={:order/name} {James}
+    @ tendiesId | setMin | lookupByAV {:item/product} {Tendies} multiOrders
+    ^ pull _ tendiesId multiOrders
+    ++ ## ={:order/_lineItems} ++ {:order/name}
+
+; Test backwards lookup to database entity
+=?=    | RIGHT ## ={:order/lineItems} ++ ## ={:db/id} 13
+    @ tendiesId | setMin | lookupByAV {:item/product} {Tendies} multiOrders
+    ^ pull _ tendiesId multiOrders
+    ++ ## ={:order/_lineItems} ++ {:db/id}

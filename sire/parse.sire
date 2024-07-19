@@ -1,0 +1,274 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### parse <- prelude
+
+:| prelude
+:| stew
+
+
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (showChar c)
+| if (gte c 33 && lte c 126) (barSing c)
+# switch c
+* 0  | {null}
+* 9  | {tab}
+* 10 | {newline}
+* 13 | {carriage return}
+* 32 | {space}
+* _  | barWeld {byte=} | natBar | showNat c
+
+
+;;; Parsers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# typedef (Parser r a)
+> Bar
+> Nat
+> (Bar > r)
+> (Bar > r)
+> (a > r)
+> r
+
+= (anyChar buf off err fail ok)
+| if (gte off | barLen buf) (**fail b#more)
+@ !chr (barIdx off buf)
+@ !off (inc off)
+| **ok off chr
+
+;; TODO: else should auto-inline but it does not!  What gives?
+
+= (satisfies expected f buf off err fail ok)
+| if (gte off | barLen buf)
+    | **fail b#more
+@ chr (barIdx off buf)
+| if (f chr)
+    @ !off (inc off)
+    | **ok off chr
+| **else
+    | **fail expected
+
+= (char c buf off err fail ok)
+| **satisfies (showChar c) (eql c) buf off err fail ok
+
+= (try x buf off err fail ok)
+| x buf off fail fail ok ; backtrack to here even the parser calls `err`.
+
+= (andThen x y buf off err fail ok)
+: off _ < **x buf off err fail
+| **y buf off err err ok
+    ;; if the first succeds, we are commited,
+    ;; no backtracking!
+
+= (parserPure val buf off err fail ok)
+| ok off val
+
+= (parserFail msgBar buf off err fail ok)
+| fail msgBar
+
+= (parserMap f p buf off err fail ok)
+: off res < p buf off err fail
+| ok off (f res)
+
+= (parserMap2 f p q buf off err fail ok)
+: off pRes < p buf off err fail
+: off qRes < q buf off err fail
+| ok off (f pRes qRes)
+
+= (andThenLeft x y buf off err fail ok)
+: off r < **x buf off err fail
+: off o < **y buf off err err
+| ok off r
+    ;; if the first succeds, we are commited,
+    ;; no backtracking!
+
+= (bind x y buf off err fail ok)
+: off xRes < **x buf off err fail
+| **y xRes buf off err err ok
+    ;; if the first succeds, we are commited,
+    ;; no backtracking!
+
+;; TODO: stew: support inline annotations on nested lambdas.
+
+= (optional x buf off err fail ok)
+@ (xFail _)       | ok off NONE
+@ (xOkay off res) | ok off (SOME res)
+| **x buf off err xFail xOkay
+
+= (choice x y buf off err fail ok)
+@ (xFails xMsg)
+    @ (yFails yMsg) (fail [xMsg yMsg])
+    | **y buf off err yFails ok
+| **x buf off err xFails ok
+
+= (choices1 o1 os)
+# datacase os
+* NIL          | o1
+* (CONS o2 os) | choice o1 (choices1 o2 os)
+
+= (choices os buf off err fail ok)
+# datacase os
+* NIL         | fail {empty choices}
+* (CONS o os) | choices1 o os buf off err fail ok
+
+= (many item)
+| choice
+    : first < bind (try item)
+    | parserMap (CONS first) (many item)
+| parserPure NIL
+
+= (some item)
+: first < bind item
+| parserMap (CONS first) (many item)
+
+= (eof buf off err fail ok)
+@ atEof (gte off | barLen buf)
+| if atEof | **ok off ()
+| **else   | **fail b#EOF
+
+(pcons x y)=(parserMap2 CONS x y)
+
+xy=(choice (char {x}) (char {y}))
+
+= (xys buf off err fail ok)
+^ (_ buf off err fail ok)
+| choice eof
+| pcons (choice (char %x) (char %y))
+| xys
+
+# datatype (ParserResult e a)
+* FAIL=FAIL _:e
+* OKAY=OKAY _:a
+
+= (runParser parser buffer)
+: off res < **parser buffer 0 FAIL FAIL
+| OKAY res
+
+; Commits after the first character; this exists just to test backtracing.
+= (_string bar buf off err fail ok)
+^ (_ (barToList bar) buf off err fail ok)
+? (go cs buf off err fail ok)
+# datacase cs
+* NIL         | ok off bar
+* (CONS c cs) | andThen (char c) (go cs) buf off err fail ok
+
+; Commits after the first character, just to test backtracing.
+= (string bar buf off err fail ok)
+@ wid (barLen bar)
+| if (bar /= barSlice off wid buf)
+    | fail bar
+@ !off (add off wid)
+| ok off bar
+
+= (parserGetOffset buf off err fail ok)
+| ok off off
+
+> Parser r Nat
+= (parserGetLineOffset buf topOff err fail ok)
+^ _ 0 topOff
+? (loop !count off)
+| if ((off == 0) || (newlineChar == barIdx off buf))
+    | ok topOff count
+| loop (inc count) (dec off)
+
+; Commits after the first character, just to test backtracing.
+= (stringOf chk buf startOff err fail ok)
+^ _ startOff
+? (go off)
+@ byt      (barIdx off buf)
+@ inBuffer (lth off | barLen buf)
+| if (inBuffer && chk byt)
+    | go (inc off)
+@ wid (sub off startOff)
+| ok off (barSlice startOff wid buf)
+
+; Commits after the first character, just to test backtracing.
+= (stringOf1 chk buf startOff err fail ok)
+: off res < stringOf chk buf startOff err fail
+| if (off == startOff)
+    | fail {stringOf1}
+| ok off res
+
+= (parserTakeRest buf off err fail ok)
+| ok (barLen buf) (barDrop off buf)
+
+= (pmap f parser buf off err fail ok)
+: off res < parser buf off err fail
+| ok off (f res)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: Add support for #infixl and #infixr to `stew`.  We don't need
+;; full macro support in order to be able to define new operators!
+
+;; TODO: inlining should trigger here, but it does not!
+
+= (parse_eof bar)     | **runParser eof bar
+= (parse_x bar)       | **runParser (**char {x}) bar
+= (parse_y bar)       | **runParser (**char {y}) bar
+= (parse_xy bar)      | **runParser (**andThen (char {x}) (char {y})) bar
+= (parse_xx bar)      | **runParser (**bind (char {x}) char) bar
+= (parse_x_y bar)     | **runParser (**choice (char {x}) (char {y})) bar
+= (parse_xys bar)     | **runParser xys bar
+= (parse_many_xy bar) | **runParser (many xy) bar
+= (parse_some_xy bar) | **runParser (some xy) bar
+
+= (parse_xy_yx bar)
+^ **runParser _ bar
+| choice (_string b#xy) (_string b#yx)
+
+= (parse_xy_xx bar)
+^ **runParser _ bar
+| choice (_string b#xy) (_string b#xx)
+
+= (parse_xy_xx_bt bar)
+^ **runParser _ bar
+| choice (try | _string b#xy) (_string b#xx)
+
+= (parse_xy_xx_str bar)
+^ **runParser _ bar
+| choice (string b#xy) (string b#xx)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= OKAY-()       | parse_eof b#{}
+=?= FAIL-(b#EOF)  | parse_eof b#{x}
+=?= FAIL-(b#EOF)  | parse_eof b#{xy}
+=?= FAIL-(b#more) | parse_x b#{}
+=?= OKAY-{x}      | parse_x b#{x}
+=?= OKAY-{x}      | parse_x b#{xy}
+=?= FAIL-(b#y)    | parse_y b#{xy}
+=?= OKAY-{y}      | parse_xy b#{xy}
+=?= FAIL-(b#more) | parse_xy b#{x}
+=?= FAIL-(b#x)    | parse_xy b#{y}
+=?= FAIL-(b#x)    | parse_xx b#{xy}
+=?= OKAY-{x}      | parse_xx b#{xx}
+
+=?= OKAY-(CONS %x 0)         | parse_xys b#x
+=?= OKAY-NIL                 | parse_xys b#{}
+=?= OKAY-(~[%x %y])          | parse_xys b#xy
+=?= OKAY-(~[%y %x %y])       | parse_xys b#yxy
+=?= OKAY-(~[%y %y])          | parse_xys b#yy
+=?= FAIL-[(b#EOF) [b#x b#y]] | parse_xys b#z
+
+=?= OKAY-(~[%x %y %x]) | parse_many_xy b#xyxz
+=?= OKAY-(~[])         | parse_many_xy b#{}
+=?= OKAY-(~[])         | parse_many_xy b#{a}
+=?= OKAY-(~[%x])       | parse_many_xy b#{xa}
+
+=?= OKAY-(~[%x %y %x])   | parse_some_xy b#xyxz
+=?= FAIL-[b#more b#more] | parse_some_xy b#{}
+=?= FAIL-[b#x b#y]       | parse_some_xy b#{a}
+=?= OKAY-(~[%x])         | parse_some_xy b#{xa}
+
+=?= OKAY-(b#xy) | parse_xy_xx b#{xy_}
+=?= FAIL-(b#y)  | parse_xy_xx b#{xx_}      ;;  LL(1), no back tracking
+=?= OKAY-(b#xy) | parse_xy_yx b#{xy_}
+=?= OKAY-(b#yx) | parse_xy_yx b#{yx_}      ;;  LL(1) is okay
+=?= OKAY-(b#xy) | parse_xy_xx_bt b#{xy_}
+=?= OKAY-(b#xx) | parse_xy_xx_bt b#{xx_}   ;;  explicit back-tracking (try)
+=?= OKAY-(b#xy) | parse_xy_xx_str b#{xy_}
+=?= OKAY-(b#xx) | parse_xy_xx_str b#{xx_}  ;;  LL(k), bar-slice matching

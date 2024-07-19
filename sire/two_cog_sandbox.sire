@@ -1,0 +1,372 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### two_cog_sandbox <- kern
+
+:| sire
+:| kern
+:| mutrec
+:| stew
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+abstype#Request
+abstype#Response
+
+
+;;; Sandbox ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; The sandbox takes two cog functions: the container and the item. Both use the
+; virtual `%sandbox` hardware to talk to the sandbox, which are zeroed
+; externally. All other requests from container and item are concatenated
+; together for external requesting, with the item's requests being filtered
+; with a request filter.
+;
+; The idea is that the container should be able to filter and modify outgoing
+; requests and their incoming responses. This makes `withSandbox` a general
+; piece of infrastructure.
+;
+; A container cog can provide any or none of the following requests:
+;
+;    [%sandbox 0 %response (Request > Response > Response)]
+;        : IO (Tab Nat Response)
+;    [%sandbox 0 %request (Request > Maybe Request)]
+;        : IO (Row (Either Response Response))
+;
+; When there is a `%request` request, it provides a filtering and modification
+; function to run on the request row to filter the requests. The output of that
+; function is returned as a response to the container function before releasing
+; it to the outside world, where LEFT items were deleted and RIGHT items were
+; values returned.
+;
+; When there is a `%response` request, it provides a modification function to
+; run on each item in the incoming responses. The output of that function is
+; returned as a response to the container function (along with any other
+; external responses to container requests) before using it as the response tab
+; passed to the item cog.
+;
+; These two facilities mean that a container can perform any modification or
+; interception of outgoing requests and incoming responses.
+
+> Nat > Cog Any > Any
+= (getFirstFuncMatching name containerFun)
+@ reqs | idx 0 containerFun
+@ l | len reqs
+^ _ 0
+? (loop i)
+@ r | idx i reqs
+| if | eql i l
+    NONE
+| if (eql [%sandbox 0 name] | take 3 r)
+    | SOME [i (idx 3 r)]
+| loop (inc i)
+
+> Cog Any > Maybe [Nat (Request > Response > Response)]
+= (getFirstResponseFunc containerFun)
+| getFirstFuncMatching %response containerFun
+
+> Cog Any > Maybe [Nat (Request > Maybe Request)]
+= (getFirstRequestFunc containerFun)
+| getFirstFuncMatching %request containerFun
+
+; During the first phase of a run, if the container cog has a response function,
+; run that against all the item responses, and then respond the ccontainer's
+; %response request with the output of the function.
+> Cog Any
+> Row Request
+> Tab Nat Response
+> Tab Nat Response
+> [(Cog Any) (Tab Nat Response)]
+= (runFirstResponseFunc containerFun requests containerRespTab itemRespTab)
+@ [containerRespTab itemRespTab]
+    # datacase | getFirstResponseFunc containerFun
+    * NONE
+        ++ containerRespTab
+        ++ itemRespTab
+    * (SOME [i respFun])
+        @ filteredTab
+            ^ tabMapWithKey _ itemRespTab
+            & (i resp)
+            @ req | idx i requests
+            | respFun req resp
+        ++ tabIns i filteredTab containerRespTab
+        ++ filteredTab
+| if (tabIsEmpty containerRespTab)
+    [containerFun itemRespTab]
+++ containerFun containerRespTab
+++ itemRespTab
+
+; If the container cog provided a %request filter, run it, and pass the results
+; back to the cog, returning the filtered results. Otherwise, no op and return
+; the inputs.
+> Cog Any > Row Request > [(Cog Any) reqRow]
+= (runFirstRequestFunc containerFun reqRow)
+# datacase | getFirstRequestFunc containerFun
+* NONE
+    [containerFun reqRow]
+* (SOME [i reqFun])
+    @ pairs
+        : req < foreach reqRow
+        # datacase | reqFun req
+        * NONE     [(LEFT req) 0]
+        * SOME|req [(RIGHT req) req]
+    ++ containerFun | tabSing i | map (idx 0) pairs
+    ++ map (idx 1) pairs
+
+; Note: this assumes that `fun` won't change the relative ordering of keys.
+> Nat > Tab Nat Any > Tab Nat Any
+= (tabMapKeys fun t)
+| tabFromAscPairs
+| map [k v]&[(fun k) v]
+| tabToPairs
+
+# mutual sandbox_impl
+= (sandboxReceiveResponses containerFun itemFun reqs incomingFullResp)
+    ; Step 1: we censored %sandbox from external %what requests, so we need to
+    ; add it back to any responses from either the container or the item.
+    @ incomingFullResp
+        ^ tabMapWithKey _ incomingFullResp
+        & (k resp)
+        | if | eql %what | idx 0 | idx k reqs
+            | setIns %sandbox resp
+        resp
+    ;
+    ; Step 2: separate the incoming responses into responses for the container
+    ; and for the item.
+    @ itemReqRow | idx 0 itemFun
+    @ itemReqLen | len itemReqRow
+    @ [incomingItemResp offsetContainerResp]
+        | tabSplitLT itemReqLen incomingFullResp
+    @ containerResp | tabMapKeys k&(sub k itemReqLen) offsetContainerResp
+    ;
+    ; Step 3: process the incoming responses according to the response filter, if
+    ; one was provided at the time of request filtering. This will run the
+    ; containerFun if either a response filter was given or if
+    ;
+    ; This is batched into a single call to the container cog where we possibly
+    ; handle both incoming responses and the synthetic response because doing
+    ; more than one call could change the response indexes.
+    @ [containerFun itemResp]
+        | runFirstResponseFunc containerFun reqs containerResp incomingItemResp
+    ;
+    ; Step 4: run the item cog a turn, if it was given any external responses.
+    @ itemFun
+        | if (tabIsEmpty itemResp) itemFun
+        | itemFun itemResp
+    ;
+    ; Only now, after possibly running the cogs, do we attempt to run the
+    ; filter functions. The incoming responses were generated from request rows
+    ; filtered with the filter from the previous run. Possibly changing the
+    ; filter means we might be canceling some requests which we currently have
+    ; responses for, which could break semantics.
+    | sandboxPerformFilter containerFun itemFun
+;
+; Performs the filter and then returns a cog function that waits for responses
+; to the concatenated, filtered items.
+= (sandboxPerformFilter containerFun itemFun)
+    @ [containerFun itemReqs]
+        | runFirstRequestFunc containerFun
+        | idx 0 itemFun
+    ;
+    @ requests
+        | weld itemReqs
+        | idx 0 containerFun
+    ;
+    @ requests
+        ; filter out the %sandbox requests, and censors the %sandbox from
+        ; outbound `%what`s.
+        : req < foreach requests
+        | if | eql %what | idx 0 req
+            [%what (setDel %sandbox)]
+        | if | eql %sandbox | idx 0 req
+            0
+        req
+    ;
+    | sandboxReceiveResponses containerFun itemFun requests
+
+= (withSandbox container item)
+; (`withSandbox` is just an alias to the second half of the recursive loop.)
+| sandboxPerformFilter container item
+
+
+;;; allowAll ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; A sandbox policy cog which performs no filtering at all. This is mostly for
+; demonstration.
+
+= allowAll
+^ _ []
+? (allowAllCog req resp)
+| allowAllCog req
+
+
+;;; Filter Tools ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Filter tools are a set of generic tools for building a very simple filtering
+; mechanism for c with `withSandbox`. From a row of request prefixes, we build
+; a matcher tree which is then used during the match.
+
+= (insertMatch tab row)
+@ l | len row
+| ifz l tab
+@ h | idx 0 row
+| if (eql 1 l) | tabIns h NONE tab
+^ tabAlter _ h tab
+& in
+# datacase in
+* NONE
+    ; we have no value for h yet.
+    | SOME | SOME | insertMatch #[] (drop 1 row)
+* (SOME prevval)
+    # datacase prevval
+    * NONE
+        ; if we already have a shorter match, don't insert the longer one.
+        in
+    * (SOME subtab)
+        | SOME | SOME | insertMatch subtab (drop 1 row)
+
+=?= #[eval=NONE]             | insertMatch #[] [%eval]
+=?= #[eval=(SOME #[3=NONE])] | insertMatch #[] [%eval 3]
+
+; Given a list of rows which are treated as prefix
+(buildMatcher rows)=(foldl insertMatch #[] rows)
+
+=?= #[eval=NONE]                    | buildMatcher [[%eval 3] [%eval]]
+=?= #[eval=NONE]                    | buildMatcher [[%eval] [%eval 3]]
+=?= #[eval=(SOME #[3=NONE 4=NONE])] | buildMatcher [[%eval 4] [%eval 3]]
+
+; Returns true if the request is "allowed" by the passed in matcher tree.
+;
+= (requestMatches matcher request)
+| ifz (len request) TRUE
+@ h | idx 0 request
+# datacase | tabLookup h matcher
+* NONE FALSE
+* SOME|m
+    # datacase m
+    * NONE TRUE
+    * SOME|rest | requestMatches rest | drop 1 request
+
+=?= TRUE  | requestMatches (buildMatcher [[%eval]])
+                           [%eval 3]
+=?= FALSE | requestMatches (buildMatcher [[%eval 4] [%eval 5]])
+                           [%eval 2]
+
+
+;;; Filter Container ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; A basic, non-updatable container which takes in a list of prefix patterns,
+; rejects anything that doesn't match them, prevents talking to cogs which
+; weren't spun by this cog and propagates itself on %spin.
+
+= (makeRespRequest responseFun)
+| [%sandbox 0 %response responseFun]
+
+# mutual cog_static_filter_sandbox_impl
+= (withRequestContainer rowPrefix)
+  @ patterns | buildMatcher rowPrefix
+  | withHandleRequest %[] patterns (makeReqRequest %[] patterns)
+;
+= (withHandleRequest cogids patterns requests responses)
+  @ rawRequests | fromSome ({impossible: bad response}) | tabLookup 0 responses
+  ; we have to perform the
+  @ requests
+    : req < foreach rawRequests
+    # datacase req
+    * LEFT|r 0
+    * RIGHT|r r
+  | withHandleResponse requests cogids patterns (makeRespRequest responseFun)
+;
+= (withHandleResponse itemRequests cogids patterns containerRequests responses)
+  @ responses | fromSome ({impossible: bad responses}) | tabLookup 0 responses
+  @ cogids | updateOwnedCogs cogids itemRequests responses
+  | withHandleRequest cogids patterns (makeReqRequest cogids patterns)
+;
+= (makeReqRequest cogids patterns)
+  ++ [%sandbox 0 %request (requestFun cogids patterns)]
+;
+= (requestFun cogids patterns req)
+  | ifNot | requestMatches patterns req
+        NONE
+  | if | isCogSpin req
+      @ container | withHandleRequest %[] patterns (makeReqRequest %[] patterns)
+      | SOME [%cog %spin (withSandbox container (idx 2 req))]
+  | ifNot | isCogReapOrStop req
+      | SOME req
+  @ i | idx 2 req
+  | if | setHas i cogids
+      | SOME req
+  NONE
+;
+; Given a response for a %reap or %stop, assume that the value was wrapped in
+; `requestFun` and return the wrapped value so that the sandbox is transparent
+; to the cog.
+= (responseFun req resp)
+    ;
+    ; If this isn't a response to a [%cog %reap/%stop], just return the response
+    ; unaltered.
+    | ifNot (isCogReapOrStop req) resp
+    ;
+    ; Unsandbox the (Maybe CogState).
+    | maybeCase resp resp
+    & cogstate
+    | if | eql 0 | idx 0 cogstate
+        | SOME | (put cogstate 1 (idx 1 | idx 1 cogstate))
+    | if | eql 1 | idx 0 cogstate
+        | SOME | (put cogstate 3 (idx 1 | idx 3 cogstate))
+    | if | eql 2 | idx 0 cogstate
+        | SOME | (put cogstate 2 (idx 1 | idx 2 cogstate))
+    | NONE
+;
+= (findNewCogids reqs resp)
+    | setFromRow
+    | listToRow
+    | listCatMaybes
+    | listMap k&(tabLookup k resp)
+    | findIdxMany isCogSpin reqs
+;
+= (findDeadCogids reqs resp)
+    | setFromRow
+    | listToRow
+    | listCatMaybes
+    : k < listForEach (findIdxMany isCogReapOrStop reqs)
+    # datacase | tabLookup k resp
+    * NONE NONE
+    * (SOME _)
+        ; x is data in the response
+        | SOME | idx 2 | idx k reqs
+;
+= (updateOwnedCogs cogids reqs resp)
+    @ add | findNewCogids reqs resp
+    @ rm  | findDeadCogids reqs resp
+    @ sum | setUnion add cogids
+    | setDifference sum rm
+;
+= (isCogSpin r)
+    | ifNot | isRow r
+        FALSE
+    | ifNot | eql %cog | idx 0 r
+        FALSE
+    | eql %spin | idx 1 r
+;
+= (isCogReapOrStop r)
+    | ifNot | isRow r
+        FALSE
+    | ifNot | eql %cog | idx 0 r
+        FALSE
+    | or (eql %reap (idx 1 r)) (eql %stop (idx 1 r))
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ withSandbox
+^-^
+^-^ allowAll
+^-^
+^-^ buildMatcher requestMatches
+^-^
+^-^ withRequestContainer
+^-^

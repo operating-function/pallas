@@ -1,0 +1,65 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_port_localhost_big_bob <- demo_port_localhost_big_ali
+
+:| kern
+:| prelude
+:| demo_port_localhost
+
+= usSeed
+| idx-0-bob_seed_addr
+
+= usAddr
+| idx-1-bob_seed_addr
+
+= themAddr
+| idx-1-ali_seed_addr
+
+= ourName
+| {bob}
+
+= whitelist
+| setSing idx-1-ali_seed_addr
+
+= (mkBar len)
+@ chunkSize | 256
+@ chunk | barGen chunkSize x&(mod x 256)
+@ r | mod len chunkSize
+@ q | div len chunkSize
+| barWeld
+  | barCat (gen q _&chunk)
+| barTake r chunk
+
+= (go return)
+@ payload | mkBar 100_000
+| trk [{sent payload len is} (barLen payload)]
+@ portRqst [usAddr themAddr NONE payload]
+: ??(p_rqst [cpThem (PIN cpPayload) cpMbPortId]) < syscall (**PORT_RQST usSeed portRqst)
+| trk [%cpThem cpThem %cpMbPortId cpMbPortId]
+| trk [{recvd payload len is} (barLen cpPayload)]
+| maybeCase cpMbPortId
+  | trk {no client port, exiting}
+  | return ()
+& portId
+;
+| trk {now beginning in-port section}
+; lens just need to be >4096 to split into multiple chunks
+@ barLens | [1_000 5_000 10_000 100_000 200_000 500_000 1_000_000 2_000_000 5_000_000 10_000_000]
+^ _ barLens []
+? (loop bLs results)
+| if (null bLs)
+  | trk [{final equality results:} results {for lens:} barLens]
+  | return ()
+@ payload | mkBar (idx 0 bLs)
+: ??(p_send now) < syscall (**PORT_SEND portId (natBar (barLen payload)))
+: ??(p_send now) < syscall (**PORT_SEND portId payload)
+| trk [ourName {sent payload w/ blake3 hash} (blake3 payload) {on port} portId %at now]
+;; receive file choice bytes
+: fileBar < recvFileBar portId
+@ tst | eql payload fileBar
+| trk [{roundtrip equality:} tst]
+| loop (drop 1 bLs) (weld results [tst])
+
+main=(runCog go)

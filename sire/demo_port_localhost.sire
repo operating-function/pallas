@@ -1,0 +1,98 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_port_localhost <- demo_full_tag_site
+
+:| prelude
+
+abstype#Seed
+abstype#Addr
+
+= (genSeedAddrs cogExit)
+;
+: ??(p_sire_1 ali_seed_addr)    < syscall PORT_SIRE
+: ??(p_sire_2 bob_seed_addr)    < syscall PORT_SIRE
+: ??(p_sire_3 ali_ul_seed_addr) < syscall PORT_SIRE
+| trk [{ali_seed_addr} ali_seed_addr]
+| trk [{bob_seed_addr} bob_seed_addr]
+| trk [{ali_ul_seed_addr} ali_ul_seed_addr]
+| cogExit ()
+
+; used to generate
+main=(runCog genSeedAddrs)
+
+> [Seed Addr]
+= ali_seed_addr
+++ 46672811652978187635701476968644079104306474096326997507516244829600700953955
+++ 50430935688763393736507892600132401748281405403404496427106007611588071457755
+
+> [Seed Addr]
+= bob_seed_addr
+++ 87180684623439744888577538611651342906265931694365611981787749558150934552670
+++ 104384994914265786790366052540560489712190281185302232869335753067981076596230
+
+> [Seed Addr]
+= ali_ul_seed_addr
+++ 100166229446509481416845086764808074115280413707373284216926716107883109451405
+++ 44432278236719067428893167763207022809724264707211980053420701651917683951304
+
+
+;;; Bar Helpers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (u64Bar v)
+@ l | natBar (w64 v)
+| barWeld l
+| barGen (sub 8 (barLen l)) (_&0)
+
+; encode a bar as a 8-byte (w64) length, followed by the bar
+= (barSer x)
+| barWeld (u64Bar (barLen x)) x
+
+; decode a bar by reading the bar tag, pulling that many bytes, and returning
+; that, plus the unconsumed remainder.
+= (barDeser x)
+@ [l_b b_b] | barSplitAt 8 x
+@ l | barNat l_b
+| barSplitAt l b_b
+
+; example usage:
+;
+; barDeser (barCat (map barSer [b#hello b#world]))
+; [b#hello x#05000000776f726c64]
+
+; decode a list of bars by invoking barDeser multiple times.
+= (barDeserMultiList x)
+| if (barIsEmpty x)
+  | NIL
+@ [next rest] | barDeser x
+| CONS next
+| barDeserMultiList rest
+
+; decode a row of bars by invoking barDeser multiple times.
+= (barDeserMultiRow x)
+| listToRow
+| barDeserMultiList x
+
+; example usage:
+;
+; barDeserMultiRow (barCat (map barSer [b#hello b#world]))
+; [b#hello b#world]
+
+= (recvFileBar portId return)
+: ??(p_recv [recvWhen (PIN recvBody)]) < syscall (**PORT_RECV portId)
+@ fileBarBytes | barNat recvBody
+| if (eql 0 fileBarBytes)
+  | return emptyBar
+| trk [{fileBarBytes:} fileBarBytes %recvd %at recvWhen]
+: ??(p_recv [recvWhen (PIN fileContents)]) < syscall (**PORT_RCLL portId fileBarBytes)
+| return fileContents
+
+= (recvFileBarU64 portId return)
+: ??(p_recv [recvWhen (PIN recvBody)]) < syscall (**PORT_RCLL portId 8)
+@ fileBarBytes | barNat recvBody
+| if (eql 0 fileBarBytes)
+  | return emptyBar
+| trk [{fileBarBytes:} fileBarBytes %recvd %at recvWhen]
+: ??(p_recv [recvWhen pinFileContents]) < syscall (**PORT_RCLL portId fileBarBytes)
+| return pinFileContents

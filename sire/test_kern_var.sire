@@ -1,0 +1,234 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### test_kern_var <- test_json
+
+:| sire
+:| kern
+:| stew
+
+
+;;; ThreadIDs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (checkThreadId expected return)
+: tid < myThreadId
+| ifNot (tid == expected)
+    | die [{You failed the test} tid {!=} expected]
+| return ()
+
+= (checkIds return)
+: _  < checkThreadId 0
+: t0 < myThreadId
+: t1 < fork (checkThreadId 1)   ; These have the same tid because
+: t2 < fork (checkThreadId 1)   ; each thread runs to completion
+: t3 < fork (checkThreadId 1)   ; before the next one spawns.
+| ifNot ([t0 t1 t2 t3] == 0,1,1,1)
+    | die {You failed the test!}
+| return ()
+
+=?= (runCog checkIds)
+    | KERNEL ~[0 1] 0 [0 0] [0 0]
+
+= (checkIds_v2 return)
+: _   < checkThreadId 0
+: t0  < myThreadId
+: t1  < fork & pure
+             : _   < checkThreadId 1
+             : key < newMVar 9        ; This uses slot=2
+             | putMVar key 10 pure     ; Block to avoid releasing this tid.
+: t2 < fork (checkThreadId 3)
+: t3 < fork (checkThreadId 3)
+| ifNot ([t0 t1 t2 t3] == [0 1 3 3])
+    | die {You failed the test!}
+| return ()
+
+=?= (runCog checkIds_v2)
+    | KERNEL ~[0 3] 0 [0 DONE (FULL 9 [(1,10)]) 0] [0 0 0 0]
+
+
+;;; getKernelState ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; TODO: Write an #assert macro
+= (assert chk exp ok)
+| ifNot chk (die [{assertion failed} exp])
+| ok
+
+= (checkKernelState return)
+: [end me fr kl sl rq] < getKernelState
+| assert (end == KERNEL)      '(end == KERNEL)
+| assert (me  == 0)           '(me == 0)
+| assert (fr  == ~[])         '(fr == ~[])
+| assert (kl  == ~[])         '(kl == ~[])
+| assert (sl  == [0])         '(sl == [0])
+| assert (rq  == [0])         '(rq == [0])
+| return ()
+
+=?= (runCog checkKernelState)
+    | KERNEL ~[0] 0 [0] [0]
+
+
+;;; Allocate 9 Refs ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (justAlloc i return)
+| trk [{justAlloc} i]
+| if (i == 9) (return ())
+: v < newRef i
+| justAlloc (inc i) return
+
+=?= (runCog justAlloc-0)
+   | KERNEL ~[0]
+            ~[]
+            [0 0 1 2 3 4 5 6 7 8]
+            [0 0 0 0 0 0 0 0 0 0]
+
+
+;;; Allocate 9 Refs and then release them all. ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (freeLoop i return)
+| trk [{freeLoop} i]
+: _ < freeRef i
+| if (0 == i) (return ())
+| freeLoop (dec i) return
+
+= (allocLoop i return)
+| trk [{allocloop} i]
+| if (i == 9) (freeLoop 9 return)
+: v < newRef i
+| allocLoop (inc i) return
+
+=?= (runCog allocLoop-0)
+    | KERNEL ~[0 0 1 2 3 4 5 6 7 8 9]
+             ~[]
+             [0 0 0 0 0 0 0 0 0 0]
+             [0 0 0 0 0 0 0 0 0 0]
+
+
+;;; Allocate an empty MVar and try to read it. ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (starvedReader return)
+: key < newEmptyMVar
+| takeMVar key return
+
+=?= (runCog starvedReader)
+    | KERNEL ~[] ~[] (DONE, EMPTY [0]) [0 0]
+
+
+;;; Pass a value via an MVar ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (satedReader return)
+: key < newEmptyMVar
+: val < readRef key
+: ___ < fork (pure & putMVar key 9 pure)
+: val < readRef key
+| takeMVar key return
+
+=?= (runCog satedReader)
+    | KERNEL ~[0 2] ~[] (0, EMPTY [], 0) [0 0 0]
+
+
+;;; Pass a value via an MVar, leave full ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (satedReader return)
+: key < newEmptyMVar
+: val < readRef key
+: ___ < fork (pure & putMVar key 9 pure)
+: val < readRef key
+: nin < takeMVar key
+| putMVar key (inc nin)
+| return
+
+=?= (runCog satedReader)
+    | KERNEL ~[0 2] ~[] (0, FULL 10 [], 0) [0 0 0]
+
+
+;;; Starved Writer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (starvingWriters return)
+: key < newMVar 9
+: ___ < fork (putMVar key 8)
+: ___ < fork (putMVar key 7)
+: ___ < fork (fork (fork (done & done 0)))
+| putMVar key 6
+| return
+
+=?= (runCog starvingWriters)
+    | KERNEL ~[4 5 6]
+             ~[]
+             (DONE, FULL 9 [2,8 3,7 0,6], DONE, DONE, 0, 0, 0)
+             [0 0 0 0 0 0 0]
+
+
+;;; Sated Writers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (satedWriters return)
+: key < newMVar 9
+: foo < fork (putMVar key 8)
+: bar < fork (putMVar key 7)
+: v9  < takeMVar key
+: v8  < takeMVar key
+: v7  < takeMVar key
+| return ()
+
+=?= (runCog satedWriters)
+    | KERNEL ~[0 3 2] ~[] (0, EMPTY [], DONE, DONE) [0 0 0 0]
+
+
+;;; Canceled threads are not reused until the next input. ;;;;;;;;;;;;;;;;;;;;;;
+
+= (canceledCalls return)
+: foo < fork (syscall HTTP_HEAR)
+: srv < fork (syscall HTTP_HEAR)
+: ___ < cancel foo
+: bar < fork (syscall HTTP_HEAR)
+: zaz < fork (syscall HTTP_HEAR)
+: ___ < cancel bar
+: ___ < cancel zaz
+| return ()
+
+=?= (runCog canceledCalls)
+    | KERNEL ~[0] ~[4 3 1] [0 0 DONE 0 0] [0 0 [%http 0 %hear] 0 0]
+
+=?= ((runCog canceledCalls) [2={fake response}])
+    | KERNEL ~[2 4 3 1 0]
+             ~[]           ;; Canceled list merged into free list
+             [0 0 0 0 0]
+             [0 0 0 0 0]
+
+
+;;; Compond Events ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (compoundEvents return)
+: foo < fork (syscall HTTP_HEAR)
+: sr1 < fork (syscall HTTP_HEAR)
+: ___ < cancel foo
+: bar < fork (syscall HTTP_HEAR)
+: sr2 < fork (syscall HTTP_HEAR)
+: zaz < fork (syscall HTTP_HEAR)
+: ___ < cancel bar
+: ___ < cancel zaz
+| return ()
+
+=?= (runCog compoundEvents)
+    | KERNEL ~[0]
+             ~[5 3 1]
+             [0 0 DONE 0 DONE 0]
+             [0 0 [%http 0 %hear] 0 [%http 0 %hear] 0]
+
+=?= ((runCog compoundEvents) [2={fake}])
+    | KERNEL ~[2 5 3 1 0]
+             ~[]           ;; Canceled list merged into free list
+             [0 0 0 0 DONE 0]
+             [0 0 0 0 [%http 0 %hear] 0]
+
+=?= ((runCog compoundEvents) [2={fake}] [4={response}])
+    | KERNEL ~[4 2 5 3 1 0]
+             ~[]             ;; Canceled list merged into free list
+             [0 0 0 0 0 0]
+             [0 0 0 0 0 0]
+
+=?= ((runCog compoundEvents) [2={fake} 4={response}])
+    | KERNEL ~[4 2 5 3 1 0]
+             ~[]             ;; Canceled list merged into free list
+             [0 0 0 0 0 0]
+             [0 0 0 0 0 0]

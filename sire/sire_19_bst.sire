@@ -1,0 +1,270 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_19_bst <- sire_18_pat
+
+;;;; This library implements an unbalanced binary search tree and flat
+;;;; sorted tables.
+;;;;
+;;;; These are intended to be used for symbol tables in Sire.  Since this
+;;;; internal representation is exposed to macros via the "scope" field
+;;;; of the Sire state, all implementations of Sire need to implement this
+;;;; functionality in an identical way.  That's why it's so important that
+;;;; this code be short and straightforward.
+;;;;
+;;;; Tables are represented like this:
+;;;;
+;;;;     [k1 v1 k2 v2 k3 v3]
+;;;;
+;;;; And trees are represented like this:
+;;;;
+;;;;     [k2 v2 [k1 v1 0 0] [k3 v3 0 0]]
+;;;;
+;;;; # Design Rationale
+;;;;
+;;;; Unbalanced binary search trees have degenerate performance with
+;;;; certain usage patterns, however:
+;;;;
+;;;; -   Symbol tables generally do not exhibit the usage-patterns that
+;;;;     lead to worst-case performance (for example, strictly defining
+;;;;     short names before long names).
+;;;;
+;;;; -   The namespaces that Sire works with are mostly small, and
+;;;;     never huge.
+;;;;
+;;;; -   Sire namespaces are also somewhat short-lived.  Even if one
+;;;;     module hits a degenerate usage pattern, the next module will
+;;;;     have a fresh namespaces, so the effect will not build up
+;;;;     over time.
+;;;;
+;;;; -   The lack of any balancing means less work on insert, so there
+;;;;     is some performance upside as well.
+;;;;
+;;;; Another design goal, is that this library have usable performance
+;;;; for "new" runtime systems that are not yet optimized and implement
+;;;; few jets.  In this case, the lack of balancing logic is likely to
+;;;; have an even more significant upside.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan
+:| sire_02_bit
+:| sire_03_nat
+:| sire_05_row
+:| sire_04_cmp
+:| sire_05_row
+:| sire_06_rex
+:| sire_07_dat
+:| sire_10_str
+:| sire_11_set
+:| sire_12_tab
+:| sire_12_tab
+:| sire_13_exp
+:| sire_14_hax
+:| sire_15_pad
+:| sire_16_bar
+:| sire_17_sug
+:| sire_17_sug
+:| sire_18_pat
+
+
+;;; Binary Search Trees ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= bstEmpty        | 0
+= (**bstSing k v) | [k v 0 0]
+
+= (bstWalk x@[_ _ l r]) | ifz-x NIL (listWeld (bstWalk l) x::(bstWalk r))
+= (bstPairsList tree)   | listMap [k v _ _]&[k v] (bstWalk tree)
+= (bstKeysList tree)    | listMap [k _ _ _]&k (bstWalk tree)
+= (bstValsList tree)    | listMap [_ v _ _]&v (bstWalk tree)
+
+= (bstSize x)
+^ _ 0 x NIL
+? (go n x@[_ _ l r] xs)
+| ifz x
+    | listCase xs n (x xs & go n x xs)
+@ !n (inc n)
+| go n l (r::xs)
+
+= (bstSearch k x@[xk xv l r])
+| ifz x NONE
+@ LT | bstSearch k l
+@ EQ | SOME xv
+@ GT | bstSearch k r
+| switch (cmp k xk) GT [LT EQ]
+
+;; This {merge} function always uses the root of the left tree as the
+;; new root.  This has a bad effect on balance, but this is only needed
+;; for deletion, which is not something that Sire does a lot of.
+
+= (merge x@[xk xv xl xr] y@[yk yv yl yr])
+| ifz x y
+| ifz y x
+| [yk yv (merge x yl) yr]
+
+= (bstAlter k f x@[xk xv l r])
+| ifz x | maybeCase (f NONE) 0 (bstSing k)
+@ LT | [xk xv (bstAlter k f l) r]
+@ EQ | maybeCase (f SOME-xv) (merge l r) nv&[k nv l r]
+@ GT | [xk xv l (bstAlter k f r)]
+| switch (cmp k xk) GT [LT EQ]
+
+
+;;; Sorted Tables ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+btEmpty=[]
+
+(btSing k v)=[k v]
+
+;; {bstLoad} always produces a balanced tree, and it produces the
+;; tree lazily.
+
+= (bstLoad table)
+^ _ 0 (div (len table) 2)
+? (go off end)
+@ wid      | sub end off
+@ zeroCase | bstEmpty
+@ oneCase  @ i (mul 2 off)
+           | bstSing (idx i table) (idx inc-i table)
+^ switch wid _ [zeroCase oneCase]
+@ mid   | add off (div wid 2)
+@ i     | mul 2 mid
+@ k     | idx i table
+@ v     | idx inc-i table
+@ l     | go off mid
+@ r     | go inc-mid end
+| [k v l r]
+
+= (bstSave x)
+| sizedListToRow (mul 2 bstSize-x)
+| listCatMap ([k v] & ~[k v]) (bstWalk x)
+
+= (btSearch key table)
+^ _ 0 (div len-table 2)
+? (loop low end)
+| if (gte low end) NONE
+@ mid  | rsh (add low end) 1
+@ ix   | mul mid 2
+@ k    | get table ix
+@ v    | get table inc-ix
+@ LT   | loop low mid
+@ EQ   | SOME v
+@ GT   | loop inc-mid end
+| switch (cmp key k) GT [LT EQ]
+
+;; This implementation of {bstFilterWithKey} has naive performance,
+;; but it is used rarely.  The result is always balanced.
+
+= (bstFilterWithKey f x)
+| bstLoad | listToRow | listFilter uncurry-f bstPairsList-x
+
+
+;;; Convenience ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (bstIns k v t)        | bstAlter k const-(SOME v) t
+= (bstPut t k v)        | bstAlter k const-(SOME v) t
+= (bstDel k t)          | bstAlter k const-NONE t
+= (bstHas k t)          | isApp (bstSearch k t)
+= (bstIdx k t)          | maybeCase (bstSearch k t) 0 id
+= bstIsEmpty            | isZero
+= (bst xs)              | foldl     (t [k v]     & bstIns k v t) 0 xs
+= (bstFromPairsList xs) | listFoldl (t [k v]     & bstIns k v t) 0 xs
+= (bstUnion x y)        | listFoldl (t [k v _ _] & bstIns k v t) y bstWalk-x
+
+= (bt pairs)  | bstSave (bst pairs)
+= (btHas k t) | isApp (btSearch k t)
+= (btGet t k) | maybeCase (btSearch k t) 0 id
+= (btIdx k t) | maybeCase (btSearch k t) 0 id
+
+;; {btPut is *very slow*, use only in extremely minor cases.
+
+(btPut t k v)=(bstSave | bstPut bstLoad-t k v)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+Z=0
+(O n)=[n n Z Z]
+(N x l r)=[x x l r]
+
+lef=(N 5 (N 4 O-3 Z) Z)
+mid=(N 5 O-4 O-6)
+ryt=(N 4 Z (N 5 Z O-6))
+
+=?= O-5         | bstIns 5 5 bstEmpty
+=?= (N 5 O-4 Z) | bstIns 4 4 | bstIns 5 5 bstEmpty
+=?= lef         | bstIns 3 3 | bstIns 4 4 | bstIns 5 5 bstEmpty
+=?= mid         | bstIns 6 6 | bstIns 4 4 | bstIns 5 5 bstEmpty
+=?= ryt         | bstIns 6 6 | bstIns 5 5 | bstIns 4 4 bstEmpty
+
+=?= NONE   | bstSearch 3 Z
+=?= SOME-4 | bstSearch 3 (bstSing 3 4)
+=?= NONE   | bstSearch 3 mid
+=?= SOME-4 | bstSearch 4 mid
+=?= SOME-5 | bstSearch 5 mid
+=?= SOME-6 | bstSearch 6 mid
+=?= NONE   | bstSearch 7 mid
+
+=?= mid         | bstDel 3 mid
+=?= (N 5 Z O-6) | bstDel 4 mid
+=?= (N 6 O-4 Z) | bstDel 5 mid
+=?= (N 5 O-4 Z) | bstDel 6 mid
+=?= mid         | bstDel 7 mid
+
+big=(foldl (t n)&(bstIns n n t) Z [4 2 3 1 6 5 7])
+lef=(foldl (t n)&(bstIns n n t) Z [4 2 3 1 6])
+ryt=(foldl (t n)&(bstIns n n t) Z [4 1 6 5 7])
+
+=?= SOME-7 | bstSearch 7 big
+=?= SOME-7 | bstSearch 7 ryt
+=?= NONE   | bstSearch 7 lef
+
+=?= (bstDel 4 ryt) | (N 6 (N 5 O-1 Z) O-7)
+=?= (bstDel 4 lef) | (N 6 (N 2 O-1 O-3) Z)
+=?= (bstDel 4 big) | (N 6 (N 5 (N 2 O-1 O-3) Z) O-7)
+
+(ex n)=(| bstLoad | cat | listToRow | listDrop 1 | listGen inc-n i&[i i])
+
+=?= (ex 0) | Z
+=?= (ex 1) | O-1
+=?= (ex 2) | N 2 O-1 Z
+=?= (ex 3) | N 2 O-1 O-3
+=?= (ex 4) | N 3 (N 2 O-1 Z) O-4
+=?= (ex 5) | N 3 (N 2 O-1 Z) (N 5 O-4 Z)
+=?= (ex 6) | N 4 (N 2 O-1 O-3) (N 6 O-5 Z)
+=?= (ex 7) | (N 4 (N 2 O-1 O-3) (N 6 O-5 O-7))
+
+= (chk table tree)
+| ((bstSave tree == table) && (tree == bstLoad table))
+
+!! chk [3 3 4 4 5 5 6 6] | N 5 (N 4 O-3 Z) O-6
+!! chk [3 3 4 4 5 5]     | N 4 O-3 O-5
+!! chk [3 3 4 4]         | N 4 O-3 Z
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^ bst
+^-^ bstAlter
+^-^ bstDel
+^-^ bstEmpty
+^-^ bstFilterWithKey
+^-^ bstFromPairsList
+^-^ bstHas
+^-^ bstIdx
+^-^ bstIns
+^-^ bstIsEmpty
+^-^ bstKeysList
+^-^ bstWalk
+^-^ bstPairsList
+^-^ bstPut
+^-^ bstSearch
+^-^ bstSing
+^-^ bstUnion
+^-^ bstValsList
+^-^
+^-^ bt btEmpty btSing
+^-^ btSearch btHas btGet btIdx
+^-^ bstSave bstLoad btPut

@@ -1,0 +1,167 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_port_localhost_streamer_ali <- demo_port_localhost
+
+:| prelude             ;
+:| demo_port_localhost ;
+:| demo_full_tag_site  [CogState]
+
+= usSeed
+| idx-0-ali_seed_addr
+
+= themAddr
+| idx-1-bob_seed_addr
+
+= us_ul_seed
+| idx-0-ali_ul_seed_addr
+
+= ourName
+| {ali}
+
+= whitelist
+| setSing idx-1-bob_seed_addr
+
+; TODO show how whitelisting works
+= (staticHandler portRqst)
+| PORT_SR_DYNO 0 emptyBar
+
+> Ref CogState
+> (CogState > CogState)
+> Cog ()
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+| return ()
+
+# record CogState
+| COG_STATE
+* files      : (Tab Bar (ContentType, Pin Bar))
+* fileBytes  : Nat
+
+> CogState
+= (newState)
+| COG_STATE
+* emptyTab
+* 0
+
+> Cog ()
+= (handleFileRequests portId vSt return)
+^ _ ()
+? (loop _)
+;; recv file name choice
+: ??(p_recv [recvWhen (PIN recvBody)]) < syscall (**PORT_RECV portId)
+; trk [{handleFileRequests:} ourName %recvd recvBody %at recvWhen]
+@ recvBars (barDeserMultiRow recvBody)
+; trk [{recvBars:} recvBars]
+@ [maybeFileName mbStart mbEnd]
+    # switch (len recvBars)
+    * 1 [(SOME (idx 0 recvBars)) NONE]
+    * 2 [(SOME (idx 0 recvBars)) (SOME (barLoadDecimal (idx 1 recvBars)))]
+    * 3 [(SOME (idx 0 recvBars)) (SOME (barLoadDecimal (idx 1 recvBars))) (SOME (barLoadDecimal (idx 2 recvBars)))]
+    * _ [NONE NONE]
+| maybeCase maybeFileName
+  | trk [{handleFileRequests: bad request} recvBody]
+  : ??(p_send now) < syscall (**PORT_SEND portId x#0)
+  | trk [ourName {sent zero len for bad request}]
+  | loop ()
+& fileName
+; trk [{valid fileName:} fileName]
+;; send file payload
+: (PIN st) < readRef vSt
+| maybeCase (tabLookup fileName (getFiles st))
+  : ??(p_send now) < syscall (**PORT_SEND portId x#0)
+  | trk [ourName {sent zero len for invalid file}]
+  | loop ()
+& [fileContentType (PIN payload)]
+@ [fileBar mbRangeDescr]
+    | maybeCase mbStart
+      ; trk {no byteRange}
+      | [payload NONE]
+    & start
+    | maybeCase mbEnd
+      ; trk [{only start} start]
+      @ chunkLen | 8_000_000
+      @ fileBar | barTake chunkLen (barDrop start payload)
+      @ rangeDescr | barCat [b#{bytes } (barShowDecimal start) b#{-} (barShowDecimal (add start chunkLen)) b#{/} (barShowDecimal (barLen payload))]
+      | [fileBar (SOME rangeDescr)]
+    & end
+    ; trk [{start & end:} start end]
+    @ fileBar | barTake (sub end start) (barDrop start payload)
+    @ rangeDescr | barCat [b#{bytes } (barShowDecimal start) b#{-} (barShowDecimal end) b#{/} (barShowDecimal (sub end start))]
+    | [fileBar (SOME rangeDescr)]
+; trk [{mbRangeDescr:} mbRangeDescr]
+@ bars | weld [fileContentType fileBar] (maybeCase mbRangeDescr emptyBar (x&[x]))
+@ payload | barCat (map barSer bars)
+@ bL | barLen payload
+; trk [{fileBar len} bL]
+: ??(p_send now) < syscall (**PORT_SEND portId (natBar bL))
+; trk [{sent natBar bL at} now]
+: ??(p_send now) < syscall (**PORT_SEND portId payload)
+; trk [{sent payload w/ blake3 hash} (blake3 payload)]
+| loop ()
+
+= (handleClient vSt return)
+: ??(p_dyno serverPort) < syscall (**PORT_DYNO usSeed)
+: _ < fork
+         & done
+         | handleClient vSt done
+@ [spFrom _spPayload portId] | serverPort
+: (PIN st) < readRef vSt
+@ tks | tabKeysRow (getFiles st)
+;; send available files
+@ payload | barCat (map barSer tks)
+: ??(p_send now) < syscall (**PORT_SEND portId payload)
+| trk [ourName %sent payload {on port} portId %at now]
+;
+| handleFileRequests portId vSt return
+
+= (pinBarLen (PIN bar))
+| barLen bar
+
+= (handleUpload vSt return)
+: ??(p_dyno serverPort) < syscall (**PORT_DYNO us_ul_seed)
+; fork ourselves so that multiple clients can connect
+: _ < fork
+         & done
+         | handleUpload vSt done
+@ [spFrom _spPayload portId] | serverPort
+: (PIN st) < readRef vSt
+: (PIN filePath) < recvFileBarU64 portId
+: (PIN fileContentType) < recvFileBarU64 portId
+: pFileBody@(PIN fileBody) < recvFileBarU64 portId
+| trk [{fileBody barLen} (barLen fileBody)]
+@ newTotalSize | add (barLen fileBody) | getFileBytes st
+@ files (**getFiles st)
+@ files | tabIns filePath [fileContentType pFileBody] files
+: _ < modifyState vSt & st
+                      | setFileBytes newTotalSize
+                      | setFiles files
+                      | st
+; ; printouts to check we got them
+; : (PIN st) < readRef vSt
+; | trk [ {after setting vSt files: keys:} (tabKeysRow (getFiles st)) {| content types:} (map (idx 0) (tabValsRow (getFiles st))) {| sizes} (map (x&(pinBarLen (idx 1 x))) (tabValsRow (getFiles st))) {| filebytes:} (getFileBytes st) ]
+| return ()
+
+> Cog ()
+= (launchDemo return)
+: vSt         < newRef (PIN | newState)
+: servThread1 < fork
+                   & done
+                   | trk [ourName {registered SERV to handle file uploads}]
+                   : ??(p_serv _) < syscall (**PORT_SERV us_ul_seed staticHandler)
+                   | done 0
+: servThread2 < fork
+                   & done
+                   | trk [ourName {registered SERV to handle clients}]
+                   : ??(p_serv _) < syscall (**PORT_SERV usSeed staticHandler)
+                   | done 0
+: ulThread < fork
+                & done
+                | handleUpload vSt done
+| handleClient vSt return
+
+> PausedCog
+main=(runCog launchDemo)

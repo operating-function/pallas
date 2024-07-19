@@ -1,0 +1,90 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sieve <- quickcheck
+
+;;;; Sieve of Eratosthenes
+;;;; =====================
+;;;;
+;;;; This module defines a list of prime numbers, computed in the final approach
+;;;; outlined in:
+;;;;
+;;;; 'The Genuine Sieve of Eratosthenes' by Melissa E. O’Neill
+;;;; (https://www.cs.hmc.edu/~oneill/papers/Sieve-JFP.pdf)
+;;;;
+;;;; The core of the approach is to maintain a priority queue (PQ) of 'next
+;;;; known composite numbers', and then to check each input number for
+;;;; key-membership in the PQ. Membership indicates composite-ness.
+;;;; Non-membership indicates primality.
+;;;;
+;;;; In the composite case, we reinsert the 'next composite', which corresponds
+;;;; to a 'stepping' of the current composite by a factor, or multiple of a
+;;;; factor. This is accomplished by maintaining, inside of the PQ, an infinite
+;;;; list of successor values for each known composite.
+;;;;
+;;;; This approach also uses a 'wheel', which filters down the numerical search
+;;;; space by only generating numbers which are known not to be composites of
+;;;; certain factors (in this case 2, 3, 5, 7).
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| prelude ;
+:| stew    ;
+:| pq      [pqInsert pqEmpty pqDelMin pqMin]
+
+
+;;; Sieve ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (spin ls n)
+: x xs < listCase ls NIL
+| CONS n (spin xs (add n x))
+
+= (spinWheel n)
+@@   = wheel2357 ; \/ split up to avoid long line
+        :: 2 4 2 4 6 2 6 4 2 4 6 6 2 6 4 2 6 4 6 8
+        :: 4 2 4 2 4 8 6 4 6 2 4 6 2 6 6 4 2 4 6 2
+        :: 6 4 2 4 2 10 2 10 wheel2357
+ | spin wheel2357 n
+
+= (cmpPairNatKey [k1 _] [k2 _])
+| cmp k1 k2
+
+= (adjust y pq)
+^ _ pq
+? (go pq)
+@ [n ns] (maybeCase (pqMin pq) (die {adjust: bad}) id)
+| listCase ns
+  | die {adjust: invariant violation: empty list}
+& (n0 ns)
+| if (lte n y)
+  @ pq0 (idx 1 (pqDelMin cmpPairNatKey pq))
+  | go (pqInsert cmpPairNatKey [n0 ns] pq0)
+| pq
+
+= (insertPrime p ls pq)
+| pqInsert cmpPairNatKey [(mul p p) (listMap (mul p) ls)] pq
+
+= (sieve xs)
+| listCase xs
+  | NIL
+& (x xs)
+| CONS x
+^ _ xs (insertPrime x xs pqEmpty)
+? (go ys pq)
+| listCase ys
+  | NIL
+& (y ys)
+@ nextComposite (maybeCase (pqMin pq) (die {nextComposite: bad}) (idx 0))
+| if (lte nextComposite y)
+  | go ys (adjust y pq)
+| CONS y (go ys (insertPrime y ys pq))
+
+= (primes_sieve count)
+| listTake count
+| 2::3::5::7::(sieve (spinWheel 11))
+
+=?=   24133 | listSum (primes_sieve  100)
+=?=  824693 | listSum (primes_sieve  500)
+=?= 3682913 | listSum (primes_sieve 1000)

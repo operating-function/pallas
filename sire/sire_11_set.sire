@@ -1,0 +1,391 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_11_set <- sire_10_str
+
+;;;; Sets
+;;;; ====
+;;;;
+;;;; Data jetted sets of nouns.
+;;;;
+;;;; Sets are represented as a law of the form:
+;;;;
+;;;;     (0 1 2 row)
+;;;;
+;;;; Where the row has no duplicate elements, and all elements are stored
+;;;; in ascending order.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_01_fan
+:| sire_02_bit [if ifz else ifNot and or not]
+:| sire_03_nat [add sub mul dec]
+:| sire_03_nat [even odd]
+:| sire_05_row [idx get len]
+:| sire_04_cmp [eql neq lte lth gth gte isZero]
+:| sire_05_row [null weld v2 isRow map foldl foldr fst snd]
+:| sire_06_rex
+:| sire_07_dat
+:| sire_10_str [isDigit ord chr]
+:| sire_10_str [strToList strWeld loadKeyWord loadDecimal]
+
+
+;;; Sets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; {_MkSet} is an internal routine that expects to be given a
+;; "row set" a sorted row with no duplicates.
+
+= (_MkSet x)       | 0 1 2 x
+= (_SetToRow set)  | lawBody set
+= setFromRowAsc    | _MkSet
+= emptySet         | _MkSet []
+= (setSing x)      | _MkSet [x]
+= (setIsEmpty set) | null (_SetToRow set)
+
+=?= 1 | setIsEmpty emptySet
+=?= 1 | not (setIsEmpty | setSing {a})
+
+= (setLen set)    | len (_SetToRow set)
+= (setToList set) | listFromRow (_SetToRow set)
+= (setHas k set)  | has k (_SetToRow set)
+= (setMin set)    | idx 0 (_SetToRow set)
+= (setMax set)    | idx (dec | setLen set) (_SetToRow set)
+
+;; {setPort} ports a row operation to a set.  For this to work, the row
+;; operation must always return a result that is in ascending order and
+;; contains no duplicates.
+
+= (setPort op set) | _MkSet | op | _SetToRow set
+
+;; {setPortSplit} ports a row splitting function (Row a > (Row a, Row a))
+;; to sets.  Like {setPort}, {setPortSplit} expects both of the rows
+;; returned by the splitting function to be in ascending order and contain
+;; no duplicates.
+
+= (setPortSplit op set)
+@ xy | op (_SetToRow set)
+| (_MkSet (fst xy), _MkSet (snd xy))
+
+= (setFromRow row)  | _MkSet (sortUniq row)
+= (setIns itm c)    | setFromRow (rowCons itm | _SetToRow c)
+= (setDel itm c)    | _MkSet (delete itm | _SetToRow c)
+= (setWeld a b)     | setFromRow (weld (_SetToRow a) (_SetToRow b))
+= (setCatList l)    | listFoldl setWeld emptySet l
+= (setCatRow r)     | foldl setWeld emptySet r
+= (setCatRowAsc cs) | _MkSet (catMap _SetToRow cs)
+
+;; {setCatRowAsc} expects a row of sets, each strictly ascending (the
+;; greatest element of each set is smaller than all elements of the next
+;; set in the sequence).  If this invariant is violated, the result will
+;; not be a set.
+
+= (isOrderedWith chk row)
+@ wid (len row)
+^ _ (idx 0 row) 1
+? (go las i)
+| or (gte i wid)
+@ cur (idx i row)
+| and (chk las cur)
+| go cur (inc i)
+
+=?= 1 | isOrderedWith lth [0 1 2]
+=?= 1 | isOrderedWith lte [0 0 1]
+=?= 1 | isOrderedWith gth [3 2 1]
+=?= 1 | isOrderedWith gte [3 3 2]
+=?= 1 | isOrderedWith eql [3 3 3]
+=?= 1 | isOrderedWith neq [3 4 2]
+
+=?= 1 | isOrderedWith lth []
+=?= 1 | isOrderedWith lth [0]
+=?= 1 | isOrderedWith lth [0 1]
+=?= 1 | isOrderedWith lth [0 1 [0]]
+=?= 1 | isOrderedWith lth [0 1 2]
+=?= 1 | isOrderedWith lth [1]
+=?= 1 | isOrderedWith lth [1 2]
+=?= 1 | isOrderedWith lth [1 2 3 4 5 999]
+=?= 1 | isOrderedWith lth [1 2 const]
+=?= 1 | isOrderedWith lth [1 2 const (0 0)]
+=?= 1 | isOrderedWith lth [1 const]
+=?= 1 | isOrderedWith lth [2]
+
+=?= 0 | isOrderedWith lth [0 0]
+=?= 0 | isOrderedWith lth [0 0 [0]]
+=?= 0 | isOrderedWith lth [1 1]
+=?= 0 | isOrderedWith lth [1 2 0]
+=?= 0 | isOrderedWith lth [2 1]
+=?= 0 | isOrderedWith lth [2 1 (die {never evaluated})]
+=?= 0 | isOrderedWith lth [1 1 (die {never evaluated})]
+=?= 1 | isOrderedWith lth []
+
+= (isSet set)
+@ head (car set)
+@ body (cdr set)
+| and (eql (0 1 2) head)
+| and (isRow body)
+      (isOrderedWith lth body)
+
+= (setElem i c)         | idx i (_SetToRow c)
+= (setFoldl f z c)      | foldl f z (_SetToRow c)
+= (setFoldr f z c)      | foldr f z (_SetToRow c)
+= (setDrop n c)         | setPort (drop n) c
+= (setTake n c)         | setPort (take n) c
+= (setFilter f c)       | setPort (filter f) c
+= (setSplitAt idx c)    | setPortSplit (splitAt idx) c
+= (setSpan p c)         | setPortSplit (span p) c
+= (setIntersect a b)    | setFilter (flip setHas a) b
+= (setSub a b)          | setFoldl (flip setDel) a b
+= (setSplitLT key c)    | setSpan (gth key) c
+= (setPop c)            | (setMin c, setDrop 1 c)
+
+
+;;; % Rune: Atoms, Tabs, and Sets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (readKey rex err ok)
+| if (neq 0 | rexHeir rex)
+    | err rex (strWeld {Unexpected heir on key})
+@ style (rexStyle rex)
+| if (eql {WORD} style)
+    | ok (loadKeyWord rexText-rex)
+| if    | or (eql {TEXT} style) (eql {LINE} style)
+    | ok (rexText rex)
+| if (eql {EMBD} style)
+    @ fan (rexEmbd rex)
+    | ifNot (isNat fan)
+        | err rex {Invalid Key: Embeded fan value is not a natural}
+    | ok fan
+| err rex {Invalid Key: Expected a word, text, or an embeded natural}
+
+=?= {a} (readKey '{a}     v2 x&x)
+=?= {a} (readKey 'a       v2 x&x)
+=?= 9   (readKey '9       v2 x&x)
+=?= 9   (readKey (EMBD 9) v2 x&x)
+
+
+;;; %% Rune: Tall-Form Tabs and Sets ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (readSetLine rex err ok)
+| rexGetNodeWithRune {%%} rex
+    | err rex {Expected a %% node (in a tall-form set literal)}
+& (sons heir)
+^ rowTraverse _ sons (keys & ok keys heir)
+? (step son pure)
+| readKey son err pure
+
+= (readTallSet rex err ok)
+^ _ emptySet rex
+? (go acc rex)
+| ifz rex (ok acc)
+| **readSetLine rex err
+& (newKeys heir)
+^ go _ heir
+^ foldl _ acc newKeys
+? (step acc key)
+| if (setHas key acc) (err rex {duplicate key})
+| setIns key acc
+
+= ({%%} st rex err ok)
+| readTallSet rex err
+& set
+| ok st (EMBD set)
+
+= cenExpect
+} % expects something like %foo or %[...]
+
+= setKeyExpect
+} A set key literal must be one of:
+}
+} -   String ({}, {x}, {text}, ...)
+} -   Number number (0, 3, 12341234, ...)
+} -   Identifier (x, _Y_3, ...)
+
+= (readSetKey rex err ok)
+@ style | rexStyle rex
+@ text  | rexText rex
+@ embed | rexEmbd rex
+| if (eql {WORD} style)
+    | ok (loadKeyWord text)
+| if (and (eql {EMBD} style) (isNat embed))
+    | ok embed
+| if (rexIsLeaf rex)
+    | ok text
+| err rex setKeyExpect
+
+= (readCenBracket rex err ok)
+| if (neq {,} | rexRune rex)
+    | err rex cenExpect
+| ^ rowTraverseState emptySet _ (rexKids rex)
+  & (acc kid yield)
+  | seq acc
+  | readSetKey kid err
+  & key
+  | if (setHas key acc) (err kid {duplicate key})
+  | yield (setIns key acc) key
+& (acc keys)
+| ok acc
+
+=?= (setFromRow [{a} {b} {c}]) | readCenBracket '[a b c] v2 id
+=?= (setFromRow [{a} {b} {c}]) | readCenBracket '[c b a] v2 id
+=?= ['(a b c) cenExpect]       | readCenBracket '(a b c) v2 id
+=?= ['c {duplicate key}]       | readCenBracket '[c b c] v2 id
+
+= (readCenLit rex err ok)
+@ kids (rexKids rex)
+@ nKid (len kids)
+@ kid  (idx 0 kids)
+| if (neq nKid 1) (err rex cenExpect)
+| ifNot (rexIsNode kid)
+    | if (eql {WORD} rexStyle-kid)
+        | ok (LEFT | rexText kid)
+    | err rex cenExpect
+| readCenBracket kid err
+| set&(ok RIGHT-set)
+
+=?= (LEFT {a})                   | readCenLit '(%a)     v2 id
+=?= (LEFT {1})                   | readCenLit '(%1)     v2 id
+=?= ['1 cenExpect]               | readCenLit '1        v2 id
+=?= (RIGHT emptySet)             | readCenLit '(%[])    v2 id
+=?= (RIGHT setSing-{a})          | readCenLit '(%[a])   v2 id
+=?= (RIGHT setFromRow-[{a} {b}]) | readCenLit '(%[a b]) v2 id
+
+= ({%} st rex err ok)
+| readCenLit rex err
+& eRes
+@ val (eitherCase eRes id id)
+| trk [rex val]
+| ok st (EMBD val)
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= %[a]   | setFromRow [%a %a]
+=?= %[a b] | setFromRow [%a %b]
+=?= %[a b] | setFromRow [%b %a]
+=?= %[a b] | setFromRow [%b %a %b]
+
+=?= 1 | isSet %[]
+=?= 1 | isSet %[1]
+=?= 1 | isSet %[1 a]
+=?= 1 | isSet %[a 9 1]
+=?= 1 | isSet (0 1 2 [])
+=?= 1 | isSet (0 1 2 [1])
+=?= 1 | isSet (0 1 2 [1 2])
+=?= 0 | isSet (0 1 2 [2 1])
+=?= 0 | isSet (0 2 2 [])
+=?= 0 | isSet (0 1 1 [])
+
+=?= %a   | {a}
+=?= %3   | {3}
+=?= %x_x | {x_x}
+
+=?= %[]    | %[]
+=?= %[a]   | %[97]
+=?= %[a]   | %[{a}]
+=?= %[a b] | %[98 97]
+=?= %[a b] | %[{b} {a}]
+
+=?= %[]        | emptySet
+=?= %[{x}]     | setIns {x} emptySet
+=?= %[x]       | setIns {x} emptySet
+=?= %[3]       | setIns 3   emptySet
+=?= %[3]       | setSing 3
+=?= %[3]       | setIns 3  %[]
+=?= %[0 1 2 3] | setIns 3  %[0 1 2]
+=?= %[a b c]   | setIns %c %[a b]
+=?= %[0 1 2 3] | setIns 3  %[0 1 2 3]
+=?= %[a b c]   | setIns %c %[a b c]
+=?= %[0 1 2]   | setDel 3 %[0 1 2 3]
+=?= %[0 1 3]   | setDel 2 %[0 1 2 3]
+=?= %[0 2 3]   | setDel 1 %[0 1 2 3]
+=?= %[1 2 3]   | setDel 0 %[0 1 2 3]
+=?= %[0 1 2]   | setDel 3 %[0 1 2]
+=?= %[0 1 2 3] | setWeld %[0 2]   %[1 3]
+=?= %[a b c]   | setWeld %[a c]   %[b]
+=?= %[a b c]   | setWeld %[a c]   %[b c]
+=?= %[a b c]   | setWeld %[a c]   %[a b c]
+=?= %[a b c]   | setWeld %[a b c] %[a b c]
+
+=?= %[0 2 4]   | setFilter even %[0 1 2 3 4 5]
+=?= %[1 3 5]   | setFilter odd  %[0 1 2 3 4 5]
+
+=?= %[a]       | setIntersect %[a b c] %[a d]
+=?= %[a b]     | setIntersect %[a b c] %[a b d]
+=?= %[]        | setIntersect %[a b c] %[d e f]
+
+=?= %[]        | setCatRowAsc []
+=?= %[a]       | setCatRowAsc [%[a]]
+=?= %[a b c]   | setCatRowAsc [%[a] %[b] %[c]]
+=?= %[a b]     | setCatRowAsc [%[a] %[] %[b]]
+
+=?= %[3]       | setSub %[3 5] %[5 7]
+=?= %[5]       | setSub %[3 5] %[1 3]
+=?= %[3 5]     | setSub %[3 5] %[4 7]
+=?= %[]        | setSub %[3 5] %[3 5]
+=?= %[]        | setSub %[] %[3 5]
+
+; setCatRowAsc deopt behaviour
+=?= (0 1 2 [7 9 8])
+  | setCatRowAsc [%[7 9] %[8]]
+
+=?= %[3]       | %% 3
+=?= %[3 4 {a}] | (%%3)(%%4)(%% {a})
+=?= %[3 4 {a}] | (%%3)(%%4)(%% {a})
+
+=?= %[3 4 {a}]
+ %% 3
+ %% 4
+ %% a
+
+=?= %[3 4 {a}]
+ %% 3
+ %% 4
+ %% } a
+
+=?= %[3 4 {a}]
+ %% 3 4 } a
+
+=?= %[3 4 {a}]
+ %% 3
+ %% 4 } a
+
+=?= %[a b c] | setCatRow [%[a] %[b] %[c]]
+=?= %[a b c] | setCatList [%[a] [%[b] [%[c] 0]]]
+
+=?= (%[0 1], %[2 3]) | setSplitLT 2 %[0 1 2 3]
+
+
+;;; Aliases ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+setUnion=setWeld
+setDifference=setSub
+setSubtract=setSub
+setInsert=setIns
+setIntersection=setIntersect
+setToRow=(_SetToRow)
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ isSet
+^-^
+^-^ emptySet setIsEmpty
+^-^
+^-^ setSing setFromRow setFromRowAsc
+^-^ setToRow setLen setToList
+^-^ setFoldl setFoldr
+^-^
+^-^ setIns setDel setHas
+^-^ setUnion setWeld setCatRow setCatList setCatRowAsc
+^-^ setMin setMax setPop setDrop setTake setSplitAt setSplitLT
+^-^ setIntersect setSub setElem
+^-^
+^-^ setUnion setDifference setInsert setSubtract setIntersection
+^-^
+^-^ readKey
+^-^ readTallSet
+^-^ readSetKey readCenBracket readCenLit
+^-^
+^-^ {%} {%%}
+^-^

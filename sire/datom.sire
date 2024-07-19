@@ -1,0 +1,764 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### datom <- sandbox
+
+;;;; Datom
+;;;; =====
+;;;;
+;;;; Embeddable Entity/Attribute/Value datastore.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+:| hitch
+:| mutrec
+:| stew
+
+
+;;; Utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (fromSingletonSet opt bad gud)
+| if (neq 1 | setLen opt) bad
+| **gud (setMin opt)
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; for v0, all trees are Tabs and Sets, not hitch stuff. doing all the hitch
+;; stuff will require adding a `Multimap a b c -> Map a (Map b (MapSet c))`
+;; typw.
+
+# datatype Error
+* UNIQUE_VIOLATION attrName:Any attrVal:Any oldEid:Nat newEid:Nat
+* LOOKUP_NO_ATTRIBUTE attrName:Any
+* LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName:Any
+* LOOKUP_NO_MATCH attrName:Any val:Any
+;
+* INVALID_ROW row:(Row Any)
+* INVALID_ROW_OP op:Any
+;
+* BAD_MAP_VAL val:Any
+;
+* PULL_NOT_ROW val:Any
+* BAD_PULL_TERM val:Any
+
+;; The toplevel DB type.
+;;
+;; for v0, all tables are (Tab Any (Tab Any (Set Any))).
+# record Db
+| DB
+* eav    : Any
+* aev    : Any
+* ave    : Any
+* vae    : Any
+* maxEid : Nat
+
+; raw operation to add a resolved tuple to the database
+> Nat > Nat > Any > Bit > Bit > Bit > Db > Db
+= (rawAdd e a v writeAve many isRef db)
+@ DB(..) db
+; only usable for tuples which end in [v] (eav, aev)
+@ (alterEndVal c in)
+    | SOME
+    : set < maybeCase in (setSing c)
+    | if many | setIns c set
+    | setSing c
+; only usable for tuples whose middle is not v (eav, aev)
+@ (alterNotVal b c in)
+    | SOME
+    : tab
+        < maybeCase in
+        | tabSing b (setSing c)
+    | tabAlter (alterEndVal c) b tab
+; only usable for tuples whose middle IS v (ave)
+@ (alterEndNonV c in)
+    | SOME
+    : set < maybeCase in (setSing c)
+    | setIns c set
+; only usable for tuples whose middle IS v (ave)
+@ (alterMiddleEndNonV b c in)
+    | SOME
+    : tab < maybeCase in
+          | tabSing b (setSing c)
+    | tabAlter (alterEndNonV c) b tab
+@ eav | tabAlter (alterNotVal a v) e eav
+@ aev | tabAlter (alterNotVal e v) a aev
+@ ave
+     | ifNot writeAve ave
+     | tabAlter (alterMiddleEndNonV v e) a ave
+@ vae
+    | ifNot isRef vae
+    | tabAlter (alterMiddleEndNonV a e) v vae
+| DB eav aev ave vae maxEid
+
+; raw remove
+> Nat > Nat > Any > Db > Db
+= (rawRm e a v db)
+@ DB(..) db
+@ (alter2 c in)
+    : set < maybeCase in NONE
+    @ rmed | setDel c set
+    | if (setIsEmpty rmed) NONE
+    | SOME rmed
+@ (alter b c in)
+    : tab < maybeCase in NONE
+    @ rmed | tabAlter (alter2 c) b tab
+    | if (tabIsEmpty rmed) NONE
+    | SOME rmed
+@ eav | tabAlter (alter a v) e eav
+@ aev | tabAlter (alter e v) a aev
+; always try to purge values from the ave table; the user might have changed
+; the value of :db/unique between add and retract.
+@ ave | tabAlter (alter v e) a ave
+| DB eav aev ave vae maxEid
+
+= dbIdentId 0
+= dbIdentStr {:db/ident}
+= dbCardinalityId 1
+= dbCardinalityStr {:db/cardinality}
+= dbUniqueId 2
+= dbUniqueStr {:db/unique}
+= dbIndexedId 3
+= dbIndexedStr {:db/indexed}
+= dbValueTypeId 4
+= dbValueTypeStr {:db/valueType}
+= dbDocId 5
+= dbDocStr {:db/doc}
+
+= dbIdId 100  ; TODO: should be 0
+= dbIdStr {:db/id}
+
+= emptyDB
+@ db
+    @ eav    #[]  ;  tab
+    @ aev    #[]  ;  tab
+    @ ave    #[]  ;  tab
+    @ vae    #[]  ;  tab
+    @ maxEid 6
+    | DB eav aev ave vae maxEid
+@ (baseAdd e a v db)
+    | rawAdd e a v TRUE TRUE FALSE db
+; an "empty" db still needs to have some "built-in" tuples to allow for
+; attribute resolution. each attribute still has an eid.
+;
+; :db/ident is the name identity of an attribute. in the eav tuple
+; `[5 {:my/attr} {str}], we will first do an attribute/value lookup on
+; [{:db/ident} {:my/attr}] and will use the entity number in storage.
+;
+; TODO: Must validate that incoming data type is a cord when I add value types.
+| baseAdd dbIdentId dbIdentId dbIdentStr
+| baseAdd dbIdentId dbUniqueId TRUE
+;
+; :db/unique is whether values for this attribute must be unique. It defaults
+; to false. When true, and a transaction attempts to commit an already existing
+; value, errors to the user.
+| baseAdd dbUniqueId dbIdentId dbUniqueStr
+;
+; :db/indexed is whether values for this attribute are indexed, ie, whether you
+; can look up an eid by their attribute and value. :db/unique implies
+; :db/indexed.
+| baseAdd dbIndexedId dbIdentId dbIndexedStr
+;
+; :db/cardinality is "one" or "many". When adding a tuple whose attribute has
+; cardinality "one", the value is overwritten. When "many", multiple values
+; accumulate.
+;
+; TODO: validate the values "one" or "many" once I implement :db/attr.preds.
+| baseAdd dbCardinalityId dbIdentId dbCardinalityStr
+;
+; :db/valueType is a string describing the type. For now, the values are nat,
+; any and ref.
+| baseAdd dbValueTypeId dbIdentId dbValueTypeStr
+;
+; :db/doc is a user visible documentation string.
+| baseAdd dbDocId dbIdentId dbDocStr
+db
+
+# datatype EntIdent
+; Specific numeric entity
+* ENT entityId:Any
+; New entity referred to multiple times by this value
+* TMP val:Any
+; Entity id based on an attribute lookup.
+* LOOKUP attr:Any val:Any
+
+# datatype TxnAction
+* ACTADD eid:Nat aid:Nat attrName:Any val:Any writeAve:Bit unique:Bit
+         many:Bit isRef:Bit
+* ACTRM  eid:Any aid:Any val:Any
+
+; Return a new entity id and record the new max in the database.
+> Db > [Nat Db]
+= (allocEntity db)
+@ DB(..) db
+++ maxEid
+++ | DB eav aev ave vae (inc maxEid)
+
+= (singletonSetDefault opt missing next)
+| **next
+| if (neq 1 | setLen opt) missing
+| setMin opt
+
+; Internal functions on
+> Nat > Nat > Db > Set Any
+= (lookupByEidAid eid aid db)
+@ DB(..) db
+: av < maybeCase (tabLookup eid eav) %[] ; result is set
+: v  < maybeCase (tabLookup aid av) %[]  ; result is set
+| v
+
+> Nat > Nat > Db > Set Any
+= (lookupByAidEid aid eid db)
+@ DB(..) db
+: ev < maybeCase (tabLookup aid aev) %[]  ; result is set
+: v  < maybeCase (tabLookup eid ev) %[]   ; result is set
+| v
+
+> Nat > Nat > Db > Set Nat
+= (lookupByAidV aid val db)
+@ DB(..) db
+: ve < maybeCase (tabLookup aid ave) %[] ; result is set
+: e  < maybeCase (tabLookup val ve) %[]  ; result is set
+| e
+
+> Any > Nat > Db > Set Nat
+= (lookupByVAid val aid db)
+@ DB(..) db
+: ae < maybeCase (tabLookup val vae) %[] ; result is set
+: e  < maybeCase (tabLookup aid ae) %[]  ; result is set
+e
+
+; Given a user level attribute name, translate that to a numeric attribute
+; number and an 'indexed' boolean which is whether we can use the ave table to
+; lookup data related to this attribute.
+;
+> Str > Db > Either Error [Nat Bit Bit Bit Bit]
+= (resolveAttrName attrName db)
+;| trk [%resolve attrName]
+@ attrsSet | lookupByAidV dbIdentId attrName db
+: attrEid
+    < **fromSingletonSet attrsSet
+    | LEFT | **LOOKUP_NO_ATTRIBUTE attrName
+@ isIndex
+    @ attrIndexed | lookupByAidEid dbIndexedId attrEid db
+    : indexed < **singletonSetDefault attrIndexed FALSE
+    indexed
+@ isUnique
+    @ attrUniq | lookupByAidEid dbUniqueId attrEid db
+    : uniq     < **singletonSetDefault attrUniq FALSE
+    uniq
+@ isMany
+    @ attrMany | lookupByAidEid dbCardinalityId attrEid db
+    : many     < **singletonSetDefault attrMany {many}
+    # switch many
+    * one  FALSE
+    * many TRUE
+    * _    | {unknown many value: } many
+@ isRef
+    @ attrValType | lookupByAidEid dbValueTypeId attrEid db
+    : t           < **singletonSetDefault attrValType {any}
+    # switch t
+    * ref TRUE
+    * _   FALSE
+| RIGHT [attrEid isIndex isUnique isMany isRef]
+
+; User level manual lookup
+> Nat > Any > Db > Set Any
+= (lookupByEA eid attr db)
+: aid
+    < **fromSingletonSet (lookupByAidV dbIdentId attr db)
+    | {unknown attr} attr
+| lookupByEidAid eid aid db
+
+> Any > Nat > Db > Set Any
+= (lookupByAE attr eid db)
+: aid
+    < **fromSingletonSet (lookupByAidV dbIdentId attr db)
+    | {unknown attr} attr
+| lookupByAidEid aid eid db
+
+> Any > Any > Db > Set Nat
+= (lookupByAV attr val db)
+# datacase (resolveAttrName attr db)
+* (LEFT errs) | {could not lookup. errors: } errs
+* (RIGHT [aid indexed unique _])
+    | ifNot (or indexed unique)
+        | {cannot lookup unindexed attr/val} attr
+    | lookupByAidV aid val db
+
+> Any > Any > Db > Set Nat
+= (lookupByVA val attr db)
+# datacase (resolveAttrName attr db)
+* (LEFT errs)
+    | {could not lookup. errors: } errs
+* (RIGHT [aid _ _ _ ref])
+    | ifNot ref
+        | {cannot lookup non-ref values} attr
+    | lookupByVAid val aid db
+
+> Any > Any > Nat > Db > Set Nat
+= (lookupByIdentA identAttr identVal attr db)
+# datacase | resolveAttrName identAttr db
+* (LEFT err)
+    | {could not lookup. error: } err
+* (RIGHT [aid _ unique _])
+    | ifNot unique | {cannot lookup unindexed attribute } identAttr
+    @ eidSet | lookupByAidV aid identVal db
+    : eid < **fromSingletonSet eidSet | {invalid eid for aid?! } aid
+    | lookupByEA eid attr db
+
+
+;;; User Transact Parsing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Resolve a lookup ref into an eid or error.
+;
+> Str > Any > Db > Either Error Nat
+= (performLookup attrName val db)
+# datacase | resolveAttrName attrName db
+* (LEFT err) | LEFT err
+* (RIGHT [aid _ unique _ _])
+    | ifNot unique
+        | LEFT | **LOOKUP_ATTRIBUTE_NOT_UNIQUE attrName
+    @ eids | lookupByAidV aid val db
+    @ l | setLen eids
+    | ifz l
+        | LEFT | **LOOKUP_NO_MATCH attrName val
+    | RIGHT | setMin eids
+
+; Immediately resolves an entity to a numeric entity id.
+;
+; 5               -> RIGHT [5 ...]
+; [{:b/first} 5]  -> RIGHT [9 ...] (assuming underlying LOOKUP succeeds)
+; [{:b/second} 6] -> LEFT err (assuming lookup fails)
+; %[{tmpid}]      -> RIGHT [2 ...] (assigns a tmpid and adds it to the map)
+;
+> Tab Str Nat > Db > Any > Either Error [Nat (Tab Str Nat) Db]
+= (parseEntityId txnTmpIds db i)
+| if (isNat i)
+    | RIGHT [i txnTmpIds db]
+| if (and (isRow i) (eql 2 | len i))
+    # datacase | performLookup (idx 0 i) (idx 1 i) db
+    * (LEFT l)    | LEFT l
+    * (RIGHT eid) | RIGHT [eid txnTmpIds db]
+; temporarily, we're going to wrap temporary identifiers in sets for ease of
+; typing
+| if | rowAnd ++ isSet i
+              ++ eql 1 | setLen i
+              ++ isNat | setMin i
+    @ val | setMin i
+    : eid
+        < maybeCase (tabLookup val txnTmpIds)
+        @ [eid db] | allocEntity db
+        | RIGHT [eid (tabIns val eid txnTmpIds) db]
+    | RIGHT [eid txnTmpIds db]
+| LEFT [{Couldn't parse} i]
+
+; Given a map, parse it into a series of actions and return the numeric eid
+; parsed or assigned.
+;
+; We have to perform all numeric entity resolution immediately since we want to
+; pass the eid upwards to participate in other parts of the transaction.
+;
+; TODO: Rewrite and reflow this function to the new 4 space standard. As is, the
+; deep nesting makes editing most of this hard.
+;
+> Tab Any Any > Db > (Maybe Nat, Row Error, Row TxnAction, Tab Any Any, Db)
+= (parseMapForm txnTmpIds db tab)
+; if there's a :db/id, than use that. But if there's not, we have to assign
+; a new temporary id.
+@ eitherEident
+  : entVal
+      < maybeCase (tabLookup dbIdStr tab)
+      @ [eid db] | allocEntity db
+      | RIGHT [eid txnTmpIds db]
+  | parseEntityId txnTmpIds db entVal
+;
+# datacase eitherEident
+* (LEFT l)
+  [NONE (LEFT | CONS l NIL) NIL txnTmpIds db]
+* (RIGHT [eid txnTmpIds db])
+  | rowCons (SOME eid)
+  ^ foldl _ [NIL NIL txnTmpIds db] | tabToPairs | tabDel dbIdStr tab
+  & ([errs actions txnTmpIds db] [aVal vVal])
+  ;
+  # datacase (resolveAttrName aVal db)
+  * (LEFT err)
+    [(CONS err errs) actions txnTmpIds db]
+  * (RIGHT [aid indexed unique isMany isRef])
+    @ writeAve | or indexed unique
+    | if isRef
+      ; TODO: This is super complex code. It's ugly, it's long, and I don't
+      ; know how to effectively factor this in sire.
+      | if (rowAnd [isMany (not | isSet vVal) (isRow vVal)])
+        ; we have a list here, each value needs to be treated as a map form.
+        @ [suberrs subactions subeids txnTmpIds db]
+          ^ foldl _ [NIL NIL NIL txnTmpIds db] vVal
+          & ([errs actions eids txnTmpIds db] i)
+          | ifNot | isTab i
+            ++ (CONS (BAD_MAP_VAL i) errs)
+            ++ actions
+            ++ eids
+            ++ txnTmpIds
+            ++ db
+          ; we need to reparse map errors
+          @ [mybEid suberrs subactions txnTmpIds db]
+            | parseMapForm txnTmpIds db i
+          ++ | listWeld suberrs errs
+          ++ | listWeld subactions actions
+          ++ : eid < maybeCase mybEid eids
+             | CONS eid eids
+          ++ txnTmpIds
+          ++ db
+        @ newActions
+          : subeid < listForEach subeids
+          (ACTADD eid aid aVal subeid writeAve unique isMany isRef)
+        ++ (listWeld suberrs errs)
+        ++ (listWeld newActions | listWeld subactions actions)
+        ++ txnTmpIds
+        ++ db
+      | if ((isTab vVal) && (not | isSet vVal))
+        @ [mybEid suberrs subactions txnTmpIds db]
+          | parseMapForm txnTmpIds db vVal
+        : subeid < maybeCase mybEid
+                   ++ | listWeld suberrs errs
+                   ++ | listWeld subactions actions
+                   ++ txnTmpIds
+                   ++ db
+        @ topAdd | ACTADD eid aid aVal subeid writeAve unique isMany isRef
+        ++ | listWeld suberrs errs
+        ++ | CONS topAdd | listWeld subactions actions
+        ++ txnTmpIds
+        ++ db
+      ; we have one entity id as the rhs.
+      # datacase | parseEntityId txnTmpIds db vVal
+      * (LEFT err)
+        ++ (CONS err errs)
+        ++ actions
+        ++ txnTmpIds
+        ++ db
+      * (RIGHT [rightEid txnTmpIds db])
+        ++ errs
+        ++ | CONS (ACTADD eid aid aVal rightEid writeAve unique isMany isRef)
+                  actions
+        ++ txnTmpIds
+        ++ db
+    | if isMany
+      ; many, but not references. So if this is a row, parse each item as a
+      ; value, otherwise
+      @ adds
+        | if | isRow vVal
+          : v < listForEach (listFromRow vVal)
+          | ACTADD eid aid aVal v writeAve unique isMany isRef
+        | CONS | ACTADD eid aid aVal vVal writeAve unique isMany isRef
+          NIL
+      ++ errs
+      ++ listWeld adds actions
+      ++ txnTmpIds
+      ++ db
+    ; sometimes a val is just a val
+    ++ errs
+    ++ | CONS (ACTADD eid aid aVal vVal writeAve unique isMany isRef)
+              actions
+    ++ txnTmpIds
+    ++ db
+
+> Db > Tab Any Any > (Row Error, Row TxnAction, Tab Any Any, Db)
+= (parseListForm txnTmpIds db row)
+; rows are a tuple of [op espec attr val]
+| ifNot | eql 4 | len row
+    ++ (CONS (INVALID_ROW row) NIL)
+    ++ NIL
+    ++ txnTmpIds
+    ++ db
+@ op | idx 0 row
+| if | and | neq %add op
+           | neq %rm op
+   ++ (CONS (INVALID_ROW_OP op) NIL)
+   ++ NIL
+   ++ txnTmpIds
+   ++ db
+# datacase | parseEntityId txnTmpIds db (idx 1 row)
+* (LEFT err)
+    ++ (CONS err NIL)
+    ++ NIL
+    ++ txnTmpIds
+    ++ db
+* (RIGHT [eid txnTmpIds db])
+    ; todo: in list form, attr is not just an attrName, but can also be a
+    ; raw eid or a lookupref. we completely punt on this: it should be easy
+    ; to add back later when there's a more complete type system and we
+    ; aren't going to use this for now.
+    @ attrName | idx 2 row
+    # datacase (resolveAttrName attrName db)
+    * (LEFT err)
+        [(CONS err NIL) NIL txnTmpIds db]
+    * (RIGHT [aid indexed unique isMany isRef])
+        @ writeAve | or indexed unique
+        ; In list form, we don't do arity resolution. We treat the value
+        ; literally.
+        @ val | idx 3 row
+        | if (eql op %rm)
+            ++ NIL
+            ++ | CONS | ACTRM eid aid val
+            ++ txnTmpIds
+            ++ db
+        ++ NIL
+        ++ @ a | ACTADD eid aid attrName val writeAve unique isMany isRef
+           | CONS a NIL
+        ++ txnTmpIds
+        ++ db
+
+; Given a user-level structure of rows and tabs, parse it into a series of adds
+; and retracts.
+;
+; Parsing depends on a database value because the query has attributes in it
+; and we have to lookup the properties of those attributes to know how to parse
+; them.
+;
+> Tab Any Any > Db > Any > (Row Error, Row TxnAction, Tab Any Any, Db)
+= (parseItem txnTmpIds db item)
+| if (isTab item)
+    | drop 1 | parseMapForm txnTmpIds db item
+| if (isRow item)
+    | parseListForm txnTmpIds db item
+;
+| LEFT {1) What}
+
+> Db > Row Any > Either (Row Error) (Row TxnAction, Db)
+= (parseAllItems db items)
+^ foldl _ [NIL NIL #[] db] items
+& ([errs actions txnTmpIds db] i)
+@ [newErrs newActions txnTmpIds db] | parseItem txnTmpIds db i
+++ | listWeld newErrs errs
+++ | listWeld newActions actions
+++ txnTmpIds ; Tab Any Any
+++ db
+
+; User transaction function. Given transaction items, resolve any pending
+; entity numbers in them and then apply them to the database.
+;
+> Row Any > Db > Either (Row Error) Db
+= (transact items db)
+@ [errs actions _ db] | parseAllItems db items
+| ifNot (listIsEmpty errs) | LEFT | listToRow errs
+@ [errs newDB]
+    ^ listFoldl _ [errs db] actions
+    & ([errs db] item)
+    # datacase item
+    * (ACTADD eid aid attrName val writeAve unique many isRef)
+        | ifNot unique
+            ; simple case, cannot error
+            [errs (rawAdd eid aid val writeAve many isRef db)]
+        ;
+        ; check for uniqueness violations.
+        @ oldEidSet | lookupByAidV aid val db
+        | if (setIsEmpty oldEidSet)
+            ; no previous value
+            [errs (rawAdd eid aid val writeAve many isRef db)]
+        ++ | CONS (UNIQUE_VIOLATION attrName val (setMin oldEidSet) eid) errs
+        ++ db
+    * (ACTRM eid attr val)
+        [errs (rawRm eid attr val db)]
+| ifNot (listIsEmpty errs) | LEFT | listToRow errs
+| RIGHT newDB
+
+> Row TxnAction > Db > Db
+= (assertTransact items db)
+# datacase (transact items db)
+* (LEFT l)  | {datom transaction failed: } [errors=l =db]
+* (RIGHT r) | r
+
+;;; Pull ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; AttrExpr, an "attribute expression", the parsed version of trying to represent
+; the way of specifying an attribute in a pull, in either direction, subject to
+; a set of options which controls how the results from the attribute match will
+; be returned.
+# datatype AttrExpr
+* ATTR_EXPR name:String options:(Tab String Any)
+* ATTR_BACKWARDS name:String options:(Tab String Any)
+* ATTR_EID options:(Tab String Any)
+
+# datatype ParsedPull
+* PULL_WILDCARD
+* PULL_ATTR expr:AttrExpr
+* PULL_MAP spec:(Row [AttrExpr (Row ParsedPull)])
+
+; cps
+> Row (Either (Row e) a) > (Row a > Either (Row e) b) > Either (Row e) b
+= (collectErrors vals cont)
+@ [errs parsedVals] | partition vals
+| if (len errs)
+    | LEFT errs
+| cont parsedVals
+
+; On error, return the error and don't progress further.
+> Either e a > (a > Either e b) > Either e b
+= (doRight val cont)
+# datacase val
+* (LEFT l)  | LEFT l
+* (RIGHT r) | cont r
+
+; If nat is a backwards lookup, return the real attribute name in a SOME.
+;
+; Datomic and its descendants represent backward lookups by just changing the
+; last component of the attribute name to start with a {_}. We should find a
+; better way to represent this, but for now, literally clone.
+;
+> Nat > Maybe Nat
+= (isBackwardsAttribute n)
+@ bar | natBar n
+: lastIdx < maybeCase (barElemIndexEnd {/} bar) NONE
+@ [first last] | barSplitAt (inc lastIdx) bar
+| if (neq {_} | barGet last 0)
+    | NONE
+| SOME
+| barNat
+| barWeld first
+| barDrop 1 last
+
+> Db > Any > Either (Row Error) ParsedPull
+= (parse db val)
+| if | isRow val
+    ; TODO: all non simple list forms.
+    | LEFT {todo: any map term}
+| if | isTab val
+    : specs
+        < collectErrors
+        : [k v]  < foreach (tabToPairs val)
+        : parsed < doRight | parse db k
+        # datacase parsed
+        * (PULL_ATTR keyExpr)
+            : parsedVals < collectErrors | map (parse db) v
+            | RIGHT [keyExpr parsedVals]
+        * _ | LEFT | **BAD_MAP_VAL parsed
+    | RIGHT | PULL_MAP specs
+| if (val == {*})
+    | RIGHT PULL_WILDCARD
+| if (val == dbIdStr)
+    | RIGHT | **PULL_ATTR | ATTR_EID #[] ; ATTR_EID takes a tab
+| if (isNat val)
+    | RIGHT
+    | **PULL_ATTR
+    : realName
+        < maybeCase | isBackwardsAttribute val
+        | ATTR_EXPR val #[]        ;  ATTR_EXPR takes tab
+    | ATTR_BACKWARDS realName #[]  ;  ATTR_BACKWARDS takes a tab
+| LEFT | **BAD_PULL_TERM val
+
+> Db
+> Nat
+> Either Error [Str (Set Any) [Bit Bit Bit Bit]]
+= (lookupAttr db eid expr)
+;
+@ (handleOptions name options attrType rawSet)
+  @ outputKey | fromSome name | tabLookup {:as} options
+  ; TODO: handle limits in rawSet.
+  | RIGHT [outputKey rawSet attrType]
+# datacase expr
+* (ATTR_EXPR name options)
+    : [aid indexed unique isMany isRef] < doRight | resolveAttrName name db
+    @ rawSet | lookupByEidAid eid aid db
+    | handleOptions name options [indexed unique isMany isRef] rawSet
+* (ATTR_BACKWARDS name options)
+    : [aid indexed unique isMany isRef] < doRight | resolveAttrName name db
+    @ rawSet | lookupByVAid eid aid db
+    | handleOptions name options [indexed unique isMany isRef] rawSet
+* (ATTR_EID options)
+    | handleOptions dbIdStr options [TRUE TRUE FALSE TRUE] (setSing eid)
+
+> Nat
+> Db
+> ParsedPull
+> Either Error [Any Any]
+= (lookupSpec eid db item)
+# datacase item
+* PULL_WILDCARD
+    ; We have to return a map of all attributes to their values, including
+    ; recursively, which is hard. We need to already have individual
+    | {pull wildcard unimplemented} 0
+* (PULL_ATTR expr)
+    : [outputKey set [indexed unique isMany isRef]]
+        < doRight | lookupAttr db eid expr
+    | if | setIsEmpty set
+        | trk [%empty]
+        | RIGHT []
+    | if isMany
+        | RIGHT [outputKey (setToRow set)]
+    ;
+    | RIGHT [outputKey (setMin set)]
+* (PULL_MAP spec)
+    ; Need to process the map here. This is a key from a eid ref to all the
+    ; values which match it.
+    : result
+        < collectErrors
+        : [k v] < foreach spec
+        : [outputKey set [indexed unique isMany isRef]]
+            < doRight | lookupAttr db eid k
+        : result
+            < collectErrors
+            : ?(lookupSubEid subeid) < foreach (setToRow set)
+            : result
+                < collectErrors
+                | map (lookupSpec subeid db) v
+            | RIGHT | tabFromPairs result
+        | RIGHT [outputKey result]
+    | RIGHT | cat result
+
+; General lookup function which returns information starting at an entity.
+;
+; Given an entity number, produces a tab with attributes as keys as described
+; by `pullSpec`. This tab can recurse downwards into linked attributes, but
+; does cannot do arbitrary higher complexity queries.
+;
+> Any > Any > Db > Either (Row Error) (Tab Any Any)
+= (pull pullSpec eidSpec db)
+# datacase | parseEntityId #[] db eidSpec ; parseEntityId takes a tab
+* (LEFT l) (LEFT [l])
+* (RIGHT [eid _ _ _])
+| ifNot | isRow pullSpec
+    | LEFT [(**PULL_NOT_ROW pullSpec)]
+: specs  < collectErrors | map (parse db) pullSpec
+: result < collectErrors | map (lookupSpec eid db) specs
+| RIGHT | tabFromPairs result
+
+; General lookup function which returns information for multiple entities.
+;
+> Any > Row Any > Db > Either (Row Error) (Row | Tab Any Any)
+= (pullMany pullSpec rowEidSpec db)
+: eids
+    < collectErrors
+    : eidSpec   < foreach rowEidSpec
+    : [eid _ _] < doRight | parseEntityId #[] db eidSpec
+    ;;;;;;;;;;;;;;;;;;;;;;;; parseEntityId takes a tab
+    | RIGHT eid
+: specs
+    < collectErrors | map (parse db) pullSpec
+: results
+    < collectErrors
+    : eid    < foreach eids
+    : result < collectErrors | map (lookupSpec eid db) specs
+    | RIGHT | tabFromPairs result
+| RIGHT results
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ fromSingletonSet
+^-^
+^-^ UNIQUE_VIOLATION LOOKUP_NO_ATTRIBUTE LOOKUP_ATTRIBUTE_NOT_UNIQUE
+^-^ LOOKUP_NO_MATCH INVALID_ROW INVALID_ROW_OP BAD_MAP_VAL BAD_PULL_TERM
+^-^
+^-^ Db DB emptyDB
+^-^
+^-^ lookupByEA lookupByAE lookupByAV lookupByVA transact assertTransact
+^-^ pull pullMany
+^-^
+^-^ ; These shouldn't be exported, but are for testing. Remove these
+^-^ ; when there's a proper complete pull api implementation.
+^-^ lookupByAidV lookupByVAid lookupByIdentA dbIdentId
+^-^

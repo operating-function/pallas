@@ -1,0 +1,197 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### pq <- splitmix
+
+;;;; Priority Queues
+;;;; ===============
+;;;;
+;;;; This implementation is based on section 4.16 of the book 'ML for the
+;;;; Working Programmer' by Larry C. Paulson (Cambridge University Press
+;;;; [1996]).
+;;;;
+;;;; It is modified to support a customizeable comparator function (`cmp`,
+;;;; below) which is passed as an argument to many `pq.*` functions. This
+;;;; allows similar functionality to, for example, a Haskell `Ord`
+;;;; instance. `cmp` takes 2 arguments and outputs a LT/EQ/GT value
+;;;; (see 03_nat.sire) indicating their relation to each other.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire_02_bit [if and TRUE FALSE]
+:| sire_03_nat [LT EQ GT div sub]
+:| sire_04_cmp [eql cmp neq]
+:| sire_07_dat [listLen listUnsafeHead listDrop NIL listRev listFoldr]
+:| sire_07_dat [SOME NONE maybeCase]
+:| prelude     ;
+:| stew        ;
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+# datatype (Pq a)
+* LF
+* BR x:a l:Pq r:Pq
+
+= (pqCase t lf br)
+# datacase t
+* LF         lf
+* (BR a l r) (**br a l r)
+
+=?= 7 | pqCase (BR 7 LF LF) 3 (x l r & x)
+=?= 3 | pqCase LF 3 (x l r & x)
+
+= pqEmpty LF
+
+= (pqNull t)
+| (t == pqEmpty)
+
+=?= 1 | pqNull LF
+=?= 0 | pqNull (BR 7 LF LF)
+
+= (pqInsert cmp w t)
+^ _ w t
+? (go w t)
+# datacase t
+* LF (BR w LF LF)
+* (BR v t1 t2)
+| if (cmp w v == GT)
+    | (BR v (go w t2) t1)
+| else
+    | (BR w (go v t2) t1)
+
+= (leftRem cmp t)
+# datacase t
+* LF [NONE t]
+* (BR w t1 t2)
+| if (pqNull t1 && pqNull t2)
+    | (SOME w, LF)
+| else
+    @ [mbW t] (leftRem cmp t1)
+    | (mbW, BR w t2 t)
+
+= test1 | pqInsert cmp 0 pqEmpty
+= test2 | pqInsert cmp 1 test1
+= test3 | leftRem cmp test2
+
+= (siftDown cmp w t1 t2)
+^ _ w t1 t2
+? (go w t1 t2)
+# datacase t1
+* LF
+    # datacase t2
+    * LF (BR w LF LF)
+    * _  (go w t2 t1)
+* (BR v1 t1L t1R)
+# datacase t2
+* LF
+    | if (and (pqNull t1L) (pqNull t1R))
+        | if (cmp w v1 == GT)
+            | BR v1 (BR w LF LF) LF
+        | else
+            | BR w t1 LF
+    | die {siftDown: wat}
+* (BR v2 t2L t2R)
+    | if ((GT /= cmp w v1) && (GT /= cmp w v2))
+        | BR w t1 t2
+    | if (GT == cmp v1 v2)
+        | BR v2 t1 (go w t2L t2R)
+    | else
+        | BR v1 (go w t1L t1R) t2
+
+= (pqDelMin cmp t)
+# datacase t
+* LF [NONE LF]
+* (BR v t1 t2)
+    @ [mbW t] (leftRem cmp t1)
+    : w < maybeCase mbW (SOME v, LF)
+    | (SOME v, siftDown cmp w t2 t)
+
+= (pqMin t)
+# datacase t
+* LF NONE
+* (BR w _ _) (SOME w)
+
+=?= (SOME 7) | pqMin (BR 7 LF LF)
+
+= (heapify cmp ls)
+^ _ (listLen ls) ls
+? (go n vs)
+| if (0 == n) [LF vs]
+@ v (listUnsafeHead vs)
+@ vs (listDrop 1 vs)
+@ [t1 vs1] | go (div n 2) vs
+@ [t2 vs2] | go (div (sub n 1) 2) vs1
+| (siftDown cmp v t1 t2, vs2)
+
+= (pqFromList cmp vs)
+| idx 0 (heapify cmp vs)
+
+= (pqFromList0 cmp vs)
+| listFoldl (acc x & pqInsert cmp x acc) pqEmpty vs
+
+= (pqToList cmp t)
+^ _ NIL t
+? (go acc t)
+@ [mbW t1] (pqDelMin cmp t)
+: w < maybeCase mbW (listRev acc)
+| go (w::acc) t1
+
+= (pqSort cmp xs)
+| pqToList cmp
+| pqFromList cmp
+| xs
+
+= (pqSort0 cmp xs)
+| pqToList cmp
+| pqFromList0 cmp
+| xs
+
+=?= ~[0 1 2 3 5 7 9 9]
+  | pqSort  cmp ~[1 9 7 5 2 0 9 3]
+
+=?= ~[0 1 2 3 5 7 9 9]
+  | pqSort0 cmp ~[1 9 7 5 2 0 9 3]
+
+;; more sophisticated tests, examining laziness of pq values.
+;; we ensure that infinite values at position 1 of a tuple can pass in/out of
+;; pqs, provided they are not touched.
+
+= (cmpPairNatKey p1 p2)
+| cmp idx-0-p1 idx-0-p2
+
+= (repeat n)
+@@ z=(n::z)
+ z
+
+=?= 9
+  # datacase
+      | pqMin
+      | pqInsert cmpPairNatKey (9, repeat 3) pqEmpty
+  * NONE     7
+  * (SOME x) (idx 0 x)
+
+; insert in ascending order of key
+=?= 110
+  @ ls0 : x < listGen 11
+        | (x, repeat x)
+  @ pq (pqFromList0 cmpPairNatKey ls0)
+  @ ls1 (pqToList cmpPairNatKey pq)
+  | listSum : p < listForEach ls1
+            | add idx-0-p (listUnsafeHead idx-1-p)
+
+; insert in descending order of key
+=?= 110
+  @ ls0 : x < listGen 11
+        | (sub 10 x, repeat (sub 10 x))
+  @ pq (pqFromList0 cmpPairNatKey ls0)
+  @ ls1 (pqToList cmpPairNatKey pq)
+  | listSum : p < listForEach ls1
+            | add idx-0-p (listUnsafeHead idx-1-p)
+
+^-^
+^-^ pqCase pqEmpty pqInsert pqDelMin pqMin pqNull
+^-^ pqFromList pqToList pqSort
+^-^

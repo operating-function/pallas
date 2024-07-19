@@ -1,0 +1,362 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_laws <- demo_http_hello
+
+;;;; This is just a big pile of stuff that hasn't been moved into other
+;;;; modules yet.
+
+:| sire
+:| w32
+:| w48
+:| blake3
+:| mutrec
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(gulf f t)=(gen (sub inc-t f) add-f)
+
+= (mkInput y)
+| map (x & mod x 256)
+| gulf 0 dec-y
+
+hexAlphabet=(natBar {0123456789abcdef})
+
+(hexChar n)=(barGet hexAlphabet n)
+
+(showByte n)=(barWeld b#0x byteToHex-n)
+
+= (showHash v)
+| strWeld {0x}
+| barCat
+| map byteToHex v
+
+= (hexCharToNat v)
+| if (lte v %9) (sub v %0)
+| add 10 (sub (min v %f) %a)
+
+= (barFromHex nat)
+@ dig | map hexCharToNat explode-nat
+@ pad | if (even len-dig) [] [0]
+@ buf | listFromRow cat-[pad dig [0 1]]
+^ _ 0 buf 1
+? (loop acc lis pos)
+| seq acc
+: a as < listCase lis (0 1 1 acc)
+: b bs < listCase as (die %impossible)
+@ acc (| add acc | add mul-pos-b | mul-pos | mul 16 a)
+| loop acc bs (mul 256 pos)
+
+!! eql (add 1  0     ) | lawBody | barFromHex }
+!! eql (add 1  bex-8 ) | lawBody | barFromHex } 1
+!! eql (add 16 bex-8 ) | lawBody | barFromHex } 10
+!! eql (add 1  bex-16) | lawBody | barFromHex } 100
+!! eql (add 16 bex-16) | lawBody | barFromHex } 1000
+!! eql 0xfe            | barNat  | barFromHex } fe
+!! eql 0xfe00          | barNat  | barFromHex } 00fe
+!! eql 0xfe00          | barNat  | barFromHex } 00fe
+!! eql 0xfe0011        | barNat  | barFromHex } 1100fe
+
+!! eql  | barCat
+       ++ x#7470ea5654831e01ffc04ee0e43a32fb
+       ++ x#90227162dc0faaa14f9627d8f5c718f7
+    | blake3 b#fdsafdsa
+
+; All pins referenced by a val.
+= (refs top)
+| listToRowRev
+@ ini (if isPin-top pinItem-top top)
+^ _ NIL ini
+? (go set non)
+| if isPin-non
+    | if (listHas non set) set
+    | CONS non set
+| if isApp-non
+    @ set go-set-(car non)
+    @ set go-set-(cdr non)
+    | set
+| if isLaw-non
+    | go-set-(lawBody non)
+| set
+
+; All the pins reference in the body of a pin.
+= (pinRefs top)
+| listToRowRev
+^ _ NIL (pinItem top)
+? (go set non)
+| if isPin-non
+    | if (listHas non set) set
+    | CONS non set
+| if isApp-non
+    @ set go-set-(car non)
+    @ set go-set-(cdr non)
+    | set
+| if isLaw-non
+    | go-set-(lawBody non)
+| set
+
+; Lookup into a map encoded as a list
+; of [k v] pairs.
+= (listLookup key l)
+: x xs < listCase l NONE
+@ [k v] x
+| if (eql k key) (SOME v)
+| listLookup key xs
+
+= (dropHighBit x)
+| sub x
+| bex | dec met-x
+
+= (mat nat)
+| ifNot nat p#1
+@ aSz met-nat
+@ sSz met-aSz
+@ wid (add aSz dec-(add sSz sSz))
+@ bod | dropHighBit
+      | mix
+      * mod aSz (bex | dec sSz)
+      * lsh nat (dec sSz)
+| add (bex wid)
+| add (bex sSz)
+| lsh bod (inc sSz)
+
+=?= (mat 0) | p#1
+=?= (mat 1) | p#01
+=?= (mat 2) | p#00100
+=?= (mat 3) | add (bex 5) 20
+=?= (mat 4) | add (bex 6) 12
+=?= (mat 5) | add (bex 6) 28
+=?= (mat 6) | add (bex 6) 44
+=?= (mat 7) | add (bex 6) 60
+=?= (mat 8) | add (bex 9) 8
+=?= (mat 9) | add (bex 9) 72
+
+
+;;; Some Monadic Operations on `Maybe` ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Row (Maybe a)
+> Maybe (Row a)
+= (maybeRowSequence results)
+^ _ NIL listFromRow-results
+? (loop acc rest)
+: mX more < listCase rest SOME-(listToRowRev acc)
+: x < maybeCase mX NONE
+| loop (CONS x acc) more
+
+(maybeRowTraverse f xs)=(maybeRowSequence map-f-xs)
+
+!! | eql NONE
+   | maybeRowSequence [SOME-3 SOME-4 NONE]
+
+!! | eql SOME-[3 4 5]
+   | maybeRowSequence [SOME-3 SOME-4 SOME-5]
+
+
+;;; Parsing Nat Literals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Char > Maybe Nat
+= (readDigit char)
+| tabSwitch char NONE
+## ={0} SOME 0
+## ={1} SOME 1
+## ={2} SOME 2
+## ={3} SOME 3
+## ={4} SOME 4
+## ={5} SOME 5
+## ={6} SOME 6
+## ={7} SOME 7
+## ={8} SOME 8
+## ={9} SOME 9
+
+> Nat > Maybe Nat
+= (readNat n)
+@ mDigits (maybeRowTraverse readDigit explode-n)
+: nums < maybeCase mDigits NONE
+@ f
+    & (elem rest)
+    @ [pos acc] rest
+    (mul 10 pos, add acc mul-pos-elem)
+| ifNot len-nums NONE
+| SOME (idx 1)(foldr f [1 0] nums)
+
+!! eql SOME-1   readNat-{1}
+!! eql SOME-12  readNat-{12}
+!! eql SOME-123 readNat-{123}
+!! eql NONE     readNat-{}
+!! eql NONE     readNat-{a}
+
+
+;;; Printing Rex Expressions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= ({>=} ss rex err ok)
+@ heir  | rexHeir rex
+@ sons  | rexSons rex
+@ [x y] | sons
+| if (neq 0 heir)     | err rex {unexpected heir}
+| if (neq 2 len-sons) | err rex {Expected two sons}
+| ok ss
+| appE (cnsE gte, x, y)
+
+=?= 0 (3 >= 4)
+=?= 1 (4 >= 4)
+=?= 1 (4 >= 3)
+
+
+;;; Scratch Pad: Pronouncing Numbers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (natWords n)
+# switch n
+* 0 %Zero
+^ _ n
+? (loop n)
+# switch n
+* 0 {}
+* 1 %One
+* 2 %Two
+* 3 %Three
+* 4 %Four
+* 5 %Five
+* 6 %Six
+* 7 %Seven
+* 8 %Eight
+* 9 %Nine
+| strCat
+++ loop (div n 10)
+++ natWords (mod n 10)
+
+=?= %ThreeFourFive natWords-345
+=?= %Zero          natWords-0
+=?= %OneZero       natWords-10
+
+
+;;; Serialization ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (jam external top)
+@ pos | len external
+@ tab | tabFromPairs (gen len-external i&(idx i external, i))
+# mutrec %loop
+    @ [_ _ buf] (**go pos tab top)
+    | padFlat buf
+* (nat p t atm)
+    | (p, t, [p#11 (mat atm)])
+* (backref p t ref)
+    | (p, t, [p#10 (mat ref)])
+* (cel p t hed tel)
+    @ [p t hBits] (**go (inc p) t hed)
+    @ [p t tBits] (**go (inc p) t tel)
+    | (p, t, [p#0 hBits tBits])
+* (go p t noun)
+    : ref
+        < maybeCase (tabLookup noun t)
+            @ t (tabIns noun p t)
+            | if isNat-noun (**nat p t noun)
+            | if isApp-noun (**cel p t car-noun cdr-noun)
+            @ hed (0 lawName-noun lawArgs-noun)
+            @ tel (lawBody noun)
+            | **cel p t hed tel
+    | if | and isNat-noun
+         | lte met-noun met-ref
+      (**nat p t noun)
+    (**backref p t ref)
+
+= (jarMemo cache pin)
+| maybeCase (tabLookup pin cache)
+    @ depz | pinRefs pin
+    : cache head
+        < ^ rowTraverseState cache _ depz
+          & (cache item pure)
+          @ [cache res] | jarMemo cache item
+          @ [hash _ _]  | res
+          @ cache       | tabIns item res cache
+          | pure cache hash
+    @ pack | jam depz pinItem-pin
+    @ byts | natBar pack
+    @ sepr | barRep 32 0
+    @ cHed | barCat head
+    @ comb | barCat (cHed, sepr, byts)
+    @ hash | blake3 comb
+    | [cache [hash depz byts]]
+& entry
+| [cache entry]
+
+= (jar val)
+| idx 1
+| jarMemo #[]
+| if isPin-val val PIN-val
+
+= (niceJar val)
+@ [hash deps byts] jar-val
+## =hash hash
+## =deps deps
+## =bits byts
+
+(pinHash val)=(| idx 0 | jar val)
+(pinBytz val)=(| idx 2 | jar val)
+
+=?= pinBytz-0       | x#0f
+=?= pinBytz-1       | x#1b
+=?= pinBytz-2       | x#93
+=?= pinBytz-3       | x#d3
+=?= pinBytz-(0 0)   | x#fe
+=?= pinBytz-(2 0 3) | x#4c3e0d
+=?= pinBytz-toNat   | x#f8c0f745f5e614462f67f2e906
+
+=?= x{d117f9cd69c91e50b44f517a1c71219c8c6924f695b5a6375fd5921bd637b408}
+  | pinHash add
+
+=?= x{0812f87c0613ea2c72f73e2f25fcd9af79a512015007b495caaea19aee21b87e}
+  | pinHash mul
+
+=?= x{39deac7b88921ca453f4a2eedbb179c49071d8a6d63f8b05e7433b697106ed4c}
+  | pinHash cmp
+
+= (refsTable pin)
+| tabFromPairs
+: r < foreach (refs pin)
+| ++ lawName pinItem-r
+  ++ pinHash r
+
+
+;;; Macro: Value Recursion (Knots) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (readBindPairs rex err ok)
+^ _ NIL rex
+? (loop acc rex)
+| ifz rex
+        | ok | listToRowRev acc
+| if (neq {=} (rexRune rex))
+        | err rex {Knot patterns must be = nodes}
+: sym rhs
+        < rexParseKids (rexSetHeir 0 rex) [readSymbol readRex] err
+@ acc (CONS [sym rhs] acc)
+| loop acc (rexHeir rex)
+
+
+=?= [[%hi 'there] [%bye 'here]]
+  ^ readBindPairs _ v2 id
+  ' ((hi=there)(bye=here))
+
+;;;
+;;; TODO Broken macro.  Unit test the SHIT out of all of this macro code.
+;;;
+;;; = ({#knot} env nex xs mK)
+;;; . env nex xs mK
+;;; | gensymMacro {#knot} [readBindPairs RIGHT]
+;;; & (nex bindPairs body)
+;;; @ knotRef  | gensymE nex
+;;; @ bindSymz | map idx-0 bindPairs
+;;; @ bindVals | map idx-1 bindPairs
+;;; | RIGHT
+;;; , 1
+;;; | letE knotRef
+;;;    | opnE bindSymz knotRef vecE-bindVals
+;;; | opnE bindSymz knotRef body
+;;;
+;;; !! | listTake 3
+;;;    # knot = x (CONS 3 y)
+;;;           = y (CONS 4 x)
+;;;    | x
+;;;

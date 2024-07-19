@@ -1,0 +1,35 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_cog_stop <- demo_cog_spin
+
+:| sire
+:| kern
+:| demo_timer
+:| stew
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (stopDemo return)
+; first test stopping invalid ids works
+: ??(stop_bad_id_is_zero val) < syscall (COG_STOP 111111111)
+| if | isSome val
+  | {COG_STOP returned a value for an invalid cog: } val
+: ??(spin_got_id id) < syscall (COG_SPIN (runCog-(timeDemo 5)))
+| trk [%cogId id]
+;
+; wait a second for the other cog to do something
+: ??(td_got_time now) < syscall TIME_WHEN
+| trk [current_time=now]
+: ??(td_waited _) < syscall (**TIME_WAIT (inc now))
+;
+; stop and steal that cog's value.
+: ??(stop_get_val val) < syscall (COG_STOP id)
+| if | isNone val
+  | {COG_STOP did not return the val for cog: } val
+| trk [%stopVal (fromSome 0 val)]
+| return ()
+
+main=(runCog stopDemo)

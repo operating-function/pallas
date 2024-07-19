@@ -1,0 +1,44 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_port_localhost_big_ali <- demo_port_localhost
+
+:| kern
+:| prelude
+:| demo_port_localhost
+
+= usSeed
+| idx-0-ali_seed_addr
+
+= themAddr
+| idx-1-bob_seed_addr
+
+= ourName
+| {ali}
+
+= whitelist
+| setSing idx-1-bob_seed_addr
+
+= (staticHandler portRqst)
+| PORT_SR_DYNO 0 (idx 3 portRqst)
+
+= (go cogExit)
+: servThread < fork
+                  & done
+                  | trk [ourName {registered SERV}]
+                  : ??(p_serv _) < syscall (**PORT_SERV usSeed staticHandler)
+                  | done 0
+: ??(p_dyno serverPort) < syscall (**PORT_DYNO usSeed)
+| trk [{we got a serverPort:} serverPort]
+@ [spFrom _spPayload portId] | serverPort
+^ _ 0
+? (loop _)
+;; receive file choice bytes
+: fileBar < recvFileBar portId
+| trk [{fileBar len} (barLen fileBar) {, blake3 hash} (blake3 fileBar)]
+: ??(p_send now) < syscall (**PORT_SEND portId (natBar (barLen fileBar)))
+: ??(p_send now) < syscall (**PORT_SEND portId fileBar)
+| loop 0
+
+main=(runCog go)

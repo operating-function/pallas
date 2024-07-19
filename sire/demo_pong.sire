@@ -1,0 +1,150 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_pong <- demo_poke
+
+;;;; This code does not run anymore since the Cog system has replaced
+;;;; the fake in-sire effects system.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| stew
+
+; :| sire
+; :| blake3
+; :| switch [{#switch}]
+;
+; (snoc row e)=(weld row [e])
+;
+; = (addEf free fx ef)
+; | listCase free (len fx, NIL, snoc fx ef )
+; & (f fs)
+; | (f, fs, put fx f ef)
+;
+; = (delEf free fx idx)
+; | if (eql len-fx inc-idx)
+;    ++ free
+;    ++ take idx fx
+; ++ CONS idx free
+; ++ put fx idx 0
+;
+; (secs n)=(lsh n 32)
+;
+; !!  | eql [3 NIL 5,4,3,2]
+;     | addEf NIL 5,4,3 2
+; !!  | eql (1, CONS 2 NIL, [5 9 0])
+;     | addEf (CONS 1)(CONS 2 NIL) 5,0,0 9
+;
+; ; (Addr > (Addr > Key > Ship))
+; = (pong pater pub key)
+; . NIL [[%recv key [pater]]]
+; ? (loop free fx reqId response)
+; | if (neq 0 reqId)
+;     * free,fx | delEf free fx reqId
+;     | loop free fx
+; * _,msg  | response
+; | if (eql msg %die)
+;     | loop NIL [] ;shutdown
+; * _,free,fx | addEf free fx [%send key pater msg]
+; | loop free fx
+;
+; = (echoEveryMs ms msg)
+; . [[%when]]
+; ? (loop _ _ now)
+; @ later | add now | mul ms 1_000_000
+; | trk msg
+; . [[%wait later]]
+; & (_ _ _)
+; . [[%when]]
+; | loop
+;
+; [i r]<[[%fork (echoEveryMs 500 %wake_up)]]
+;
+; (_,sireResp < [[%kgen]])
+; sirePub=(get sireResp 0)
+; sireKey=(get sireResp 1)
+; (_,pongResp < [[%kgen]])
+; pongPub=(get pongResp 0)
+; pongKey=(get pongResp 1)
+;
+; ++ [%pongKey pongKey]
+; ++ [%pongPub pongPub]
+; ++ [%sireKey sireKey]
+; ++ [%sirePub sirePub]
+;
+; = replyBot
+; . [[%recv pongKey sirePub]]
+; ? (listen x i r)
+; | trk %listen
+; * _,msg r
+; @ ackFx
+;    ++ [%recv pongKey sirePub]
+;    ++ [%send pongKey sirePub msg]
+; . ackFx
+; ? (ack x i r)
+; | trk %ack
+; # switch i
+; * 0 | die {wait to send me more}
+; * 1 | listen [[%recv pongKey sirePub]]
+;
+; [i r]<[[%fork replyBot]]
+; [i r]<[[%send sireKey pongPub %hi]]
+; [i r]<[[%recv sireKey pongPub]]
+; hi=(get r 1)
+; !!(eql %hi hi)
+;
+; [i r]<[[%send sireKey pongPub %bye]]
+; [i r]<[[%recv sireKey pongPub]]
+; bye=(get r 1)
+; !!(eql %bye bye)
+;
+; [i r]<[[%when]]
+; r=(add r 2_000_000_000)
+; [i r]<[[%wait r]]
+;
+; ; {what time is it?}
+; ; [i r]<[[%when]]
+; ; _=(%when , i , r)
+; ; {waiting}
+; ; [i r]<[[%wait r]]
+; ; {done waiting}
+; ; _=(%wait , i , r)
+; ; {now what time is it?}
+; ; [i r]<[[%when]]
+; ; _=(%when , i , r)
+;
+; ;FX=[0=[%fork pong-ADDR]]
+; ;=>[now reqId response]
+; ;!(eql 0 reqId)
+; ;kid=response
+;
+; ;FX=[1=[%send kid %hi]]
+; ;=>[now reqId response]
+; ;!(eql 1 reqId)
+; ;reply=response
+;
+; ; Requests:
+; ;
+; ; ++ [%send ship data]          ; Send a message.
+; ; ++ [%recv ship ...]           ; Listen for messages.
+; ; ++ [%fish hash]               ; Fetch a hash.
+; ; ++ [%wait time]               ; Wait until a certain time.
+; ; ++ [%serv %library noun hash] ; Serve a static noun.
+; ; ++ [%trak ship %library]      ; Track changes to a remote static noun.
+; ; ++ [%fork seed]               ; Spawn a sub-ship.
+; ; ++ [%rand]                    ; Get random entropy.
+; ; ++ [%when]                    ; Get the current time.
+; ;
+; ; send :: Addr -> Noun               -> IO ()
+; ; recv :: Row Addr                   -> IO (Addr, Noun)
+; ; fish :: Hash                       -> IO (Maybe Noun)
+; ; wait :: Time                       -> IO ()
+; ; serv :: Text -> Noun -> Hash       -> IO ()
+; ; fork :: (PrivKey -> Addr -> IO ()) -> IO PubKey
+; ; rand ::                               IO U128
+; ; when ::                               IO Time
+;
+; ;, %GOT_REPLY_FROM_CHILD
+; ;, reply

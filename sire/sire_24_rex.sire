@@ -1,0 +1,732 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### sire_24_rex <- sire_23_repl
+
+:| sire_01_fan
+:| sire_02_bit
+:| sire_03_nat
+:| sire_05_row
+:| sire_04_cmp
+:| sire_05_row
+:| sire_06_rex
+:| sire_07_dat
+:| sire_10_str
+:| sire_11_set
+:| sire_12_tab
+:| sire_13_exp
+:| sire_14_hax
+:| sire_15_pad
+:| sire_16_bar
+:| sire_17_sug
+:| sire_18_pat
+:| sire_19_bst []
+:| sire_20_prp
+:| sire_21_switch   [_DataTag {#switch}]
+:| sire_22_seed
+:| sire_23_repl     [lineRepl cogMap]
+
+
+;;; Types ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; data Line = LN { fil:Str, num:Nat, bar:Bar }
+;;;
+;;; data Span a = SPAN { lin:a, off:Nat, end:Nat, val:a }
+;;;
+;;; data Lexi a
+;;;   = LRUNE
+;;;   | LWORD
+;;;   | LWYTE
+;;;   | LSEMI
+;;;   | LLINE multi:(List (Span ()))
+;;;   | LTEXT
+;;;   | LNEST isBracket:Bit xs:a
+;;;   | LFAIL
+;;;   | LTERM
+;;;
+;;; type Lexeme = Span (Lexi (List Lexeme))
+;;; type Elem   = Span (Lexi (List Clump))
+;;; type Clump  = Span (List Elem)
+
+(**LN fil num bar)=[fil num bar]
+(**SPAN lin off end val)=[lin off end val]
+
+(**getLineBar (LN _ _ bar))=bar
+(**getSpanVal (SPAN _ _ _ val))=val
+(**setSpanVal val (SPAN lin off end _))=(SPAN lin off end val)
+
+LRUNE={rune}
+LWORD={word}
+LWYTE={wyte}
+LSEMI={semi}
+LTEXT={text}
+LFAIL={fail}
+LTERM={term}
+(**LLINE multi)=[{line} multi]
+(**LNEST isBracket xs)=[{nest} isBracket xs]
+
+= (**getLexiLine x fallback ok)
+| if (fst x /= {line}) fallback
+| **ok (snd x)
+
+= (**getLexiNest x fallback ok)
+| if (fst x /= {nest}) fallback
+| **ok (snd x) (thr x)
+
+(lexiType x)=(_DataTag x)
+
+
+;;; Basic Lexing + Nesting ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (lexMany lexOne ln off ctx bar)
+@ lexeme@[_ off end tok] (lexOne ln off ctx bar)
+^ (lexeme :: _)
+| if (tok == LTERM) NIL
+| lexMany lexOne ln end ctx bar
+
+= (lexNest lexMany lexOne ln typ ctx off bar)
+@ ts  | lexMany lexOne ln (inc off) ctx bar
+@ [_ _ end _] | listUnsafeLast ts
+| (ln, off, end, **LNEST typ ts)
+
+; ASCII is [0-9]..[A..Z]..[_]..[a-z]
+> Char > Bit
+= (wordy c)
+&& (gte c {0}) (lte c {z})
+|| (gte c {a}) (lte c {9}) (eql {_} c)
+&& (gte c {A}) (lte c {Z})
+
+> Set Char
+= runeChars
+| setFromRow
+| barBytes
+| b#{!#$%&*+,-./:<=>?@\^`|~'}
+
+> Char > Bit
+(runic c)=(setHas c runeChars)
+
+> Bar > Nat > Nat > Nat
+= (eatCurly bar o d)
+| ifz d o
+@ next (eatCurly bar inc-o)
+# switch (barIdx o bar)
+* 0    | o
+* }_{_ | next inc-d
+* }_}_ | next dec-d
+* _    | next d
+
+> Bar > Nat > Nat > Nat
+= (eatCord bar o)
+^ min (barLen bar) (inc _) ; return barLen if unterminated
+| barElemIndexOff {"} inc-o bar
+
+> Line > Nat > Char > Bar > Bar > Lexeme
+= (lexUgly ln off bar)
+@ start   | inc-off
+@ delim   | barIdx start bar
+@ lineStr | [ln off barLen-bar LLINE-NIL]
+# switch delim
+* 0   | lineStr
+* { } | lineStr
+* _   ^ [ln off _ LTEXT]
+      ^ min (barLen bar) (inc _)     ; return barLen if unterminated
+      | barElemIndexOff delim (inc start) bar
+
+= (lexOne ln o ctx bar)
+@ eat | barFindIndexOff
+@ c   | barIdx o bar
+# switch c
+* }_(_       | lexNest lexMany lexOne ln FALSE {)} o bar
+* }_[_       | lexNest lexMany lexOne ln TRUE  {]} o bar
+* }_}_       | lexUgly ln o bar
+* }_{_       | (ln, o, eatCurly bar inc-o 1,      LTEXT)
+* 0          | (ln, o, barLen bar,                LTERM)
+* }_;_       | (ln, o, barLen bar,                LSEMI)
+* }_"_       | (ln, o, eatCord bar o,             LTEXT)
+* }_ _       | (ln, o, eat (neq 32)        o bar, LWYTE)
+| if wordy-c | (ln, o, eat c&(not wordy-c) o bar, LWORD)
+| if runic-c | (ln, o, eat c&(not runic-c) o bar, LRUNE)
+| if ctx==c  | (ln, o, inc o,                     LTERM)
+| else       | (ln, o, inc o,                     LFAIL)
+
+(lexLine ln)=(lexMany lexOne ln 0 0 (getLineBar ln))
+
+
+;;; Merge Multi-Line Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> List Lexeme > List Lexeme
+= (multiLine topLs)
+: a@(SPAN aLin aOff aEnd aTok) ls < listCase topLs NIL
+@ fb (a :: multiLine ls)
+: b@(SPAN ____ bOff bEnd bTok) ls < listCase ls    fb
+: aExtra < **getLexiLine aTok fb
+| if (bTok /= LTERM) fb
+@ (onMatch newTok more)
+    @ aTok | LLINE (setSpanVal () newTok :: aExtra)
+    | multiLine (SPAN aLin aOff aEnd aTok)::more
+: c@(SPAN _ cOff cEnd cTok) ls < listCase ls fb
+# switch (lexiType cTok)
+* _      | fb
+* {line} | ifNot (aOff==cOff) fb
+         | onMatch c ls
+* {wyte} : d@(SPAN _ dOff dEnd dTok) ls < listCase ls fb
+         : _ < **getLexiLine dTok fb
+         | ifNot (aOff==dOff) fb
+         | onMatch d ls
+
+
+;;; Clump Juxtaposed Tokens ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> Row Elem > Clump
+= (mkClump xs)
+@ [lin off _   _] (fst xs)
+@ [_   _   end _] (last xs)
+| (**SPAN lin off end xs)
+
+> (a -> b) > Lexi a > Lexi b
+= (lexiMap f lx)
+: t xs < getLexiNest lx lx
+| **LNEST t (f xs)
+
+> Lexeme > Elem
+= (lexemeToElem clump span@(SPAN l o e x))
+| **SPAN l o e (lexiMap clump x)
+
+> Set (Lexi a)
+spaceToks=(setFromRow [LWYTE LSEMI LTERM])
+
+> Lexi a > Bit
+(lexiIsSpace tok)=(setHas tok spaceToks)
+
+> Elem > Bit
+(elemIsSpace elem)=(**lexiIsSpace (getSpanVal elem))
+
+> List Elem > Bit
+= (isEndOfCluster ls)
+: l ls < listCase ls FALSE
+| or (elemIsSpace l)
+| and (getSpanVal l == LRUNE)
+: l ls < listCase ls TRUE
+| elemIsSpace l
+
+> List Elem > List Elem > List Clump
+= (clumpLoop acc remain)
+: next more < listCase remain | if acc==NIL NIL
+                              | listSing mkClump-(listToRowRev acc)
+| if (acc==NIL && elemIsSpace next)
+    | clumpLoop acc more
+| if (acc/=NIL && isEndOfCluster remain)
+    | **CONS mkClump-(listToRowRev acc)
+    | clumpLoop ~[] remain
+| clumpLoop next::acc more
+
+> List Lexeme > Row Clump
+= (clump lexemes)
+| listToRow
+| clumpLoop ~[]
+| listMap (lexemeToElem clump) lexemes
+
+
+;;; Layout Engine (Understand Structure Implied by Indentation) ;;;;;;;;;;;;;;;;
+
+;; data Tree
+;;   = TLEAF Clump
+;;   | TNODE Bar (Row Tree) (Maybe Tree)
+
+(**TLEAF clump)=[clump]
+(**TNODE rune sons heir)=[rune sons heir]
+
+= (**treeCase x onLeaf onNode)
+@ [_1 _2 _3] x
+| if (len x == 1)
+* **onLeaf _1
+* **onNode _1 _2 _3
+
+;; data Frag a = WOLF Bar a | LAMB a
+
+(**WOLF rune item)=[rune item]
+(**LAMB item)=[item]
+
+= (**fragCase frag onLamb onWolf)
+@ [_1 _2] frag
+| if (len frag == 2)
+* **onWolf _1 _2
+* **onLamb _1
+
+(**getWolf frag fallback onWolf)=(fragCase frag _&fallback onWolf)
+(**getLamb frag fallback onLamb)=(fragCase frag onLamb (_ _ & fallback))
+
+;; data Item = I Bar (List Tree) (Maybe Tree)
+(**I rune items heir)=[rune items heir]
+
+> Span a > Bar
+= (spanBar s@(SPAN lin off end _))
+| barSlice off (sub end off) (getLineBar lin)
+
+> Span (Lexi a) > Frag (Span | Lexi a)
+= (spanFrag s@(SPAN lin off end val))
+| if (val /= LRUNE) (LAMB s)
+| WOLF (spanBar s) s
+
+> Clump > (Nat, Frag Clump)
+= (clumpFrag c@(SPAN _ off _ es))
+@ lamb | (off, LAMB c)
+| if (len es /= 1) lamb
+: rune _ < getWolf (spanFrag fst-es) lamb
+| ++ dec (add off | barLen rune)
+  ++ WOLF rune c
+
+> Span a > Bar
+= (spanBar s@(SPAN lin off end _))
+| barSlice off (sub end off) (getLineBar lin)
+
+lol=(SPAN (LN {file} 1 b#{ lol }) 1 4 LWORD)
+lus=(SPAN (LN {file} 1 b#{ + }) 1 2 LRUNE)
+
+> Frag Clump > Tree
+= (fTree frag)
+| fragCase frag
+* ? (onLamb c)   | **TLEAF c
+* ? (onWolf b _) | **TNODE b [] NONE
+
+> Item > Tree
+= (iTree item@(I t x k))
+| ifz t ({invalid item} item)
+| **TNODE t (listToRowRev x) k
+
+> (Nat, Tree) > (Nat, Item) > (Nat, Item)
+= (merge [rp r] [ip i@(I t cs mHeir)])
+@ noneCase
+    | if (rp == ip) | ( ip, I t cs    SOME-r )
+    | else          | ( ip, I t r::cs NONE   )
+: k < maybeCase mHeir noneCase
+| (ip, I t (k::cs) (SOME r))
+
+(pairMap f [x y])=[x (f y)]
+
+> Nat > List (Nat, Item) > List (Nat, Item)
+= (close pos stk)
+: i more
+    < listCase stk NIL
+| if (gte pos | fst i) stk
+: j k
+    < listCase more
+        | die {indent too small.  Bug in block splitter}
+| close pos
+    | (merge (pairMap iTree i) j :: k)
+
+> List (Nat, Item) > (Nat, Frag Clump) > List (Nat, Item)
+= (pushOnto stk (fragPos, frag))
+@ stk@[i is] (close fragPos stk)
+: r _ < getWolf frag
+      | (merge (fragPos, fTree frag) i :: is)
+| ((fragPos, I r ~[] NONE) :: stk)
+
+> (Nat, Item) > List (Nat, Frag Clump) > List (Nat, Item)
+(pushAll pf fs)=(listFoldl pushOnto ~[pf] fs)
+
+> (Nat, Item) > (Nat, Item) > (Nat, Item)
+(forceMerge a b)=(merge (pairMap iTree a) b)
+
+> List (Nat, Frag Clump) > List Tree
+= (layout frags)
+: f@[pos frag] fs < listCase frags NIL
+| fragCase frag
+* ? (onLamb _)   | (fTree frag :: layout fs)
+* ? (onWolf r _) ^ listSing | iTree | snd | listFoldl1 forceMerge _
+                 | pushAll (pos, I r ~[] NONE) fs
+
+> List (Nat, Frag Clump) > List Tree
+= (layout frags)
+: f@[pos frag] fs < listCase frags NIL
+: r _             < getWolf frag (fTree frag :: layout fs)
+^ listSing | iTree | snd | listFoldl1 forceMerge _
+| pushAll (pos, I r ~[] NONE) fs
+
+
+;;; Splitting Blocks ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; A {BlockBuffer} represents the state of the block reader.  It's a list
+;; of pending lines, pre-lexed, and the type of block that is being read.
+;;
+;;     data BlockBuffer
+;;         = WOODS
+;;         | TEXTY (List (List Lexeme)) depth:Nat
+;;         | BLOCK (List (List Lexeme)) depth:Nat
+;;
+;; - {WOODS} means that we have not yet started to read a block.
+;; - {TEXTY} means that this block is a multi-line strings.
+;; - {BLOCK} means that this is a runic block.
+
+WOODS=0
+(**TEXTY lines depth)=[1 lines depth]
+(**BLOCK lines depth)=[2 lines depth]
+
+= (**blockBufferCase x onWoods onTexty onBlock)
+@ _1 (snd x)
+@ _2 (thr x)
+# switch (_DataTag x)
+* 0 | onWoods
+* 1 | **onTexty _1 _2
+* 2 | **onBlock _1 _2
+
+> BlockBuffer > List (List (List Lexeme))
+= (blockBufferOutput x)
+| ifz x NIL
+| ~[(listRev | idx 1 x)]
+
+;; A {LineCat} is a categorization of a line, an empty line is {CVOID},
+;; a line containin only a comment is {CNOTE}, a line starting with an
+;; open-form rune is {COPEN}, a line containing just a line-string
+;; is {CQUOT}, and a line that begins with a closed form is a {CSING}.
+;;
+;; For closed-forms, open-form runes, and line-strings, we record
+;; the depth that the first form occured.
+;;
+;;     data LineCat
+;;         = CVOID
+;;         | CNOTE
+;;         | COPEN offset:Nat
+;;         | CQUOT offset:Nat
+;;         | CSING offset:Nat
+
+CVOID={void}
+CNOTE={note}
+(**COPEN depth)=[{open} depth]
+(**CQUOT depth)=[{quot} depth]
+(**CSING depth)=[{sing} depth]
+
+= (**lineCatCase x onVoid onNote onOpen onQuot onSing)
+@ depth (snd x)
+# switch (_DataTag x)
+* {void} | onVoid
+* {note} | onNote
+* {open} | onOpen **depth
+* {quot} | onQuot **depth
+* {sing} | onSing **depth
+
+= (**getLineCatQuot x fallback onQuot)
+| if ({quot} /= fst x) fallback
+| **onQuot (snd x)
+
+typedef#FilePath#Str
+
+; data BlockState = BS FilePath lineNum:Nat BlockBuffer
+
+(**BS pax lino bb)=[pax lino bb]
+
+> List Lexeme > LineCat
+= (lineCat lexemes)
+: @(SPAN _ lOff lEnd x) ls < listCase lexemes CVOID
+# switch (lexiType x)
+* {term} | CVOID
+* {semi} | CNOTE
+* {line} | **CQUOT lOff
+* {rune} : (**SPAN _ _ _ yTok) ys < listCase ls (**CSING lOff)
+         | if (setHas yTok spaceToks)
+             | **COPEN (dec lEnd)
+         | **CSING lOff
+* {wyte} | lineCat ls
+* _      | **CSING lOff
+
+> BlockState
+> Maybe (List Lexeme)
+> (BlockState, (| List | List | List Lexeme))
+= (blockStep bs@(BS fn lno st) mInp)
+: l < maybeCase mInp (BS fn lno WOODS, blockBufferOutput st)
+@ c       | lineCat l
+@ (x s o) | (BS fn (inc lno) s, o)
+@ (fb ls)
+    @ (st2, out) (blockStep (BS fn lno WOODS) mInp)
+    | (st2, (listRev ls :: out))
+| blockBufferCase st
+* ; WOODS
+    | lineCatCase c
+    *                | x WOODS ~[] ; void
+    *                | x WOODS ~[] ; note
+    * ? (onOpen d)   | x (**BLOCK ~[l] d) ~[]
+    * ? (onQuot d)   | x (**TEXTY ~[l] d) ~[]
+    * ? (onSing _)   | x WOODS ~[~[l]]
+* ? (onTexty ls deep) ; TEXT
+    : d < getLineCatQuot c (fb ls)
+    | ifNot d==deep fb-ls
+    | x (**TEXTY l::ls deep) ~[]
+* ? (onBlock ls deep)
+    | lineCatCase c
+    *             | fb ls                        ; CVOID
+    *             | (x (**BLOCK l::ls deep) ~[]) ; CNOTE
+    * ? (COPEN d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
+    * ? (CQUOT d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
+    * ? (CSING d) | if (lth d deep) fb-ls | else (x (**BLOCK l::ls deep) ~[])
+
+> BlockState > Maybe Bar > (BlockState, List (Nat, List Tree))
+= (treeStep st@(BS fil num _) mInp)
+@ er@(st2, out)
+    | blockStep st
+    | fmapMaybe mInp (byt & lexLine (**LN fil num byt))
+@ treeOut
+    : blockLines < listForEach out
+    @ blockLexes (listCat blockLines)
+    @ [(SPAN (LN _ firstLineNumber _) _ _ _) _] blockLexes
+   ++ firstLineNumber
+   ++ ^ layout | listMap clumpFrag | listFromRow | clump _
+      | multiLine | listCat blockLines
+| (st2, treeOut)
+
+
+> FilePath > BlockState
+(blockState fn)=(**BS fn 1 WOODS)
+
+
+;;; Policy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+> (a, List a) > List a
+(nonEmptyToList [x xs])=(**CONS x xs)
+
+;; A {SubLayout} is a categorization of the "layout" of a cluster
+;; of lexemes.  This applies to juxtaposed sequence {+x+3} and also to
+;; nested sequence.
+;;
+;; Because these two contexts have a slightly different interpretation,
+;; this doesn't parse the entire sequence, only categories the head of
+;; the sequence.  The code that works with this will perform
+;; categorization multiple times to interpret the whole sequence.
+;;
+;;     data SubLayout a
+;;         = PREFX Bar (List (Frag a))
+;;         | SEQUE (List a)
+;;         | INFIX (a, List a) Bar (SubLayout a)
+
+(**SEQUE items)=[items]
+(**PREFX rune more)=[rune more]
+(**INFIX befo rune more)=[befo rune more]
+
+= (**subLayoutCase x onSeque onPrefx onInfix)
+@ [_1 _2 _3] x
+# switch (dec (len x))
+* 0 | **onSeque _1
+* 1 | **onPrefx _1 _2
+* 2 | **onInfix _1 _2 _3
+
+> List (Frag a) > (Maybe (Bar, List (Frag a)), (List a))
+= (lambs fs)
+: f more < listCase fs (NONE, ~[])
+| fragCase f
+* ? (onLamb x)   | pairMap (CONS x) (lambs more)
+* ? (onWolf r _) | (**SOME [r more], ~[])
+
+> List (Frag a) > SubLayout a
+= (subLayout frags)
+: f fs < listCase frags (SEQUE ~[])
+@ (onWolf r _) (PREFX r fs)
+@ (onLamb x)
+    @ [rest hed] (lambs fs)
+    : (ryn, more) < maybeCase rest (SEQUE x::hed)
+    | INFIX [x hed] ryn (subLayout more)
+| fragCase f onLamb onWolf
+
+> Rex > Rex > Rex
+= (rexAddHeir rex c)
+@ heir (rexHeir rex)
+^ rexSetHeir _ rex
+| ifz heir c
+| rexAddHeir heir c
+
+= (spanQuotedStr span)
+| barNat
+@ bar (spanBar span)
+| if (barIdx 0 bar == }_}_)
+    | barSlice 2 (sub (barLen bar) 3) bar
+| else
+    | barSlice 1 (sub (barLen bar) 2) bar
+
+= (lineRex acc spans)
+: span spans < listCase spans acc
+@ str | barNat | barDrop 2 | spanBar span
+| lineRex (LINE str acc) spans
+
+> Row Clump > Row Clump
+= (onlyLambs clumps)
+| catMaybes
+: clump < foreach clumps
+@ (depth, frag) (clumpFrag clump)
+: x < getLamb frag NONE
+| **SOME x
+
+typedef#(NonEmpty a)#(a, List a)
+
+> (Clump -> Rex) > NonEmpty Clump > Rex
+= (paraSeq clumpRex all@[c cs])
+| if ((all /= NIL) && (cs == NIL))
+    | clumpRex c
+| else
+    ^ NEST {|} _ 0
+    | listToRow (listMap clumpRex all)
+
+(mkInfix rune acc)=(INFX (barNat rune) (listToRowRev acc) NONE)
+
+> (Clump -> Rex) > Bar > List (Frag Clump)
+= (paraPrefix clumpRex rune frags)
+^ _ rune NIL frags
+? (go rune acc frags)
+: f fs < listCase frags (NEST (barNat rune) (listToRowRev acc) NONE)
+| fragCase f
+* ? (onLamb cl)   | go rune (clumpRex cl  :: acc) fs
+* ? (onWolf rx _) | go rune (go rx NIL fs :: acc) ~[]
+
+= (paraInfix parenPolicy clumpRex rune initial slay)
+^ _ rune ~[initial] slay
+? (go rune acc slay)
+| subLayoutCase slay
+* ? (onSeque _)    | mkInfix rune (parenPolicy clumpRex slay :: acc)
+* ? (onPrefx r xs) | mkInfix rune (paraPrefix clumpRex r xs :: acc)
+* ? (onInfix es r xs)
+  @ rx (paraSeq clumpRex es)
+  | if r==rune | go rune rx::acc xs
+  | else       | go r ~[(mkInfix rune rx::acc)] xs
+
+> (Clump -> Rex) > SubLayout Clump > Rex
+= (parenPolicy clumpRex slay)
+| subLayoutCase slay
+* ? (_seq xs)      | paraSeq clumpRex xs
+* ? (_pre r xs)    | paraPrefix clumpRex r xs
+* ? (_inf es r xs) | paraInfix parenPolicy clumpRex r (paraSeq clumpRex es) xs
+
+(spanStr e)=(barNat | spanBar e)
+
+> Elem > Rex
+= (elemRex clumpRex e@(SPAN ln off end l))
+# switch (lexiType l)
+* {word} | WORD (spanStr e) 0
+* {fail} | elemRex clumpRex (**SPAN ln off end LRUNE)
+* {rune} | NEST (spanStr e) [] 0
+* {text} | TEXT (spanQuotedStr e) 0
+* {line} @ [_ ts] l
+         | lineRex 0 (listSnoc ts e)
+* {nest} @ [_ brack xs] l
+         | if brack
+             | NEST {,} (map clumpRex | onlyLambs xs) 0
+         ^ parenPolicy clumpRex (subLayout _)
+         | listMap compose-snd-clumpFrag (listFromRow xs)
+* _      | {elemRex case not handled challenge (impossible)}
+         | l
+
+> Any > (Elem, List Elem) > Rex
+= (heirSeq clumpRex wut@[x xs])
+| ifz wut | die {heirSeq.what}
+| listFoldl rexAddHeir (elemRex clumpRex x)
+| listMap (elemRex clumpRex) xs
+
+> Bar > List Rex > Rex
+= (ifix rune acc)
+| **SHUT (barNat rune) (listToRowRev acc) NONE
+
+> Bar > List Rex > SubLayout Elem
+= (eatInfix clumpRex tightPolicy rune acc slay)
+| subLayoutCase slay
+* ? (_seq _)       | ifix rune (tightPolicy clumpRex slay :: acc)
+* ? (_pre _ _)     | die {impossible: double tight rune}
+* ? (_inf es r xs) ^ eatInfix clumpRex tightPolicy r _ xs
+                   | if r==rune | (heirSeq clumpRex es :: acc)
+                   | else       | ~[(ifix rune (heirSeq clumpRex es :: acc))]
+
+
+> (Clump -> Rex) > SubLayout Elem > Rex
+= (tightPolicy clumpRex slay)
+| subLayoutCase slay
+* ? (_seq xs)      | if null-xs (die {impossible: empty tight sequence})
+                   @ [x xs] xs
+                   | heirSeq clumpRex [x xs]
+* ? (_pre r xs)    | if (xs == 0) (NEST barNat-r [] 0)
+                   | PREF barNat-r [tightPolicy-clumpRex-(subLayout xs)] 0
+* ? (_ifx es r xs) | eatInfix clumpRex tightPolicy r ~[heirSeq-clumpRex-es] xs
+
+> Clump > Rex
+= (clumpRex clump@(SPAN _ _ _ elems))
+| tightPolicy clumpRex | subLayout | listMap spanFrag | listFromRow elems
+
+= (treeRex t)
+@ (onLeaf c)     | clumpRex c
+@ (onNode r s h) | OPEN (barNat r) (map treeRex s) (maybeCase h 0 x&(treeRex x))
+| treeCase t onLeaf onNode
+
+> List Tree > Rex
+= (treesRex trees)
+: t ts < listCase trees (die {treesRex: empty block})
+| if (ts == NIL) | treeRex t
+| else           | treeRex (**TNODE b#{|} (listToRow trees) NONE)
+
+= (testRex input)
+@ toks
+    | listCat
+    : [ln bar] < listForEach (listIndexed | barLinesList input)
+    | lexLine (**LN {file} ln bar)
+@ toks | multiLine toks
+@ clmp | clump toks
+| treesRex
+| layout (listMap clumpFrag | listFromRow clmp)
+
+> Row Any > b > b
+= (trkEachList xs k)
+: x xs < listCase xs k
+| trk x (trkEachList xs k)
+
+(simpleCog f x)=(f x, simpleCog f)
+
+; data MaybePair a b = NoPair | SomePair a b
+
+> Cog (MaybePair Nat Rex) o > BlockState > Cog (Maybe Bar) (List o)
+= (rexCog cog st mLine)
+@ (st, output)
+    | treeStep st mLine
+@ (output, cog)
+    ^ listFoldl _ (NIL, cog) output
+    & ([acc cog] [lineNum trees])
+    @ (out, cog) cog-(lineNum, treesRex trees)
+    | (CONS out acc, cog)
+@ (output, cog)
+    | if (NONE /= mLine) (output, cog)
+    @ (out, cog) cog-NONE
+    | ifz out (output, cog)
+    | (CONS out output, cog)
+++ listRev output
+++ rexCog cog st
+
+listMonoid=(NIL, listWeld)
+
+
+;;; Main (Entry Point) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= main
+| cogMap (outs & trkEachList outs b#{})
+^ lineRepl listMonoid _ b#{}
+^ rexCog _ (blockState {REPL})
+| simpleCog-([lineNum rex] & rex)
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^
+^-^ LRUNE LWORD LWYTE LSEMI LLINE LTEXT LNEST LFAIL LTERM
+^-^ lexiType
+^-^
+^-^ SPAN
+^-^ LAMB WOLF fragCase
+^-^ TLEAF TNODE treeCase
+^-^ BS
+^-^ WOODS TEXTY BLOCK
+^-^ PREFX INFIX SEQUE
+^-^
+^-^ rexAddHeir
+^-^ spanQuotedStr
+^-^ multiLine layout subLayout clump lambs treeStep
+^-^ spanBar spanFrag clumpFrag elemRex clumpRex testRex
+^-^
+^-^ wordy runic
+^-^ LN
+^-^ lexLine
+^-^ simpleCog rexCog listMonoid
+^-^ blockState
+^-^ main
+^-^

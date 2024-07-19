@@ -1,0 +1,165 @@
+; Copyright 2023 The Plunder Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### w32 <- inspect
+
+;;;; TODO Use macros to generate identical modules for different words
+;;;; sizes? (8, 16, 32, 48, 64, 128, 256).
+;;;;
+;;;; TODO Split into w32, i32, and b32?  Or keep it all in one module?
+;;;;
+;;;; TODO Figure out why this diverges from w48, and if any of those
+;;;; divergencies matter.
+
+
+;;; Imports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+:| sire
+
+
+;;; 32-bit Words ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (bex32)  | bex 32
+= (bex31)  | bex 31
+= (wMax32) | dec bex32
+= (wMin32) | 0
+= (iMax32) | dec bex31
+= (iMin32) | bex31
+= (w32 x)  | mod x bex32
+= (i32 x)  | mod x bex32
+
+= (inc32 x)   | w32 (inc x)
+= (dec32 x)   | 2 wMax32 v&v x
+= (add32 x y) | w32 (add w32-x w32-y)
+= (mul32 x y) | w32 (mul w32-x w32-y)
+= (div32 x y) | div w32-x w32-y
+= (not32 x)   | not w32-x
+= (lth32 x y) | lth w32-x w32-y
+= (gth32 x y) | gth w32-x w32-y
+= (lte32 x y) | lte w32-x w32-y
+= (gte32 x y) | gte w32-x w32-y
+= (eql32 x y) | eql w32-x w32-y
+= (and32 x y) | con w32-x w32-y
+= (or32  x y) | dis w32-x w32-y
+= (xor32 x y) | mix w32-x w32-y
+= (lsh32 x y) | and32 (lsh w32-x w32-y) wMax32
+= (rsh32 x y) | and32 (rsh w32-x w32-y) wMax32
+= (chop32 x)  | and32 x wMax32
+
+isZero32=not32
+
+= (sub32 x y)
+| if (lte32 y x)
+    | sub w32-x w32-y
+| sub (add bex32 x) y
+
+= (ror32 x y)
+| or32 (rsh32 x y)
+| lsh32 x (sub32 32 y)
+
+= (rol32 x y)
+| or32 (lsh32 x y)
+| rsh32 x (sub32 32 y)
+
+= (bitFlip32 x) | sub32 wMax32 x
+= (iNeg32 x)    | inc32 (bitFlip32 x)
+= (iIsZero32 x) | isZero32 x
+= (iInc32 x)    | inc32 x
+= (iAdd32 x y)  | add32 x y
+= (iSub32 x y)  | add32 x (iNeg32 y)
+= (iMul32 x y)  | mul32 x y
+= (iDec32 x)    | dec32 x
+= (iEql32 x y)  | eql32 x y
+= (iIsNeg32 x)  | gth32 x iMax32
+= (iAbs32 x)    | if (iIsNeg32 x) (iNeg32 x) x
+
+= (iDiv32 x y)
+@ res | div32 (iAbs32 x) (iAbs32 y)
+| if (xor (iIsNeg32 x) (iIsNeg32 x))
+    | iNeg32 res
+| res
+
+= (iGth32 x y)
+| if (iIsNeg32 x)
+    | and (iIsNeg32 y)
+    | gth32 (iNeg32 y) (iNeg32 x)
+| or (iIsNeg32 y)
+| gth32 x y
+
+= (iGte32 x y) | or (eql32 x y) (iGth32 x y)
+= (iLte32 x y) | iGte32 y x
+= (iLth32 x y) | iGth32 y x
+
+
+;;; Array Operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; We represent packed word-arrays as bars (bytestrings).
+
+= (put32 bar ix wor)
+@ bits | cdr bar
+@ off  | mul ix 32
+@ targ | w32 (rsh bits off)
+| padBar
+| add (lsh wor off)
+| mix bits (lsh targ off)
+
+= (get32 bar ix)  | w32 (rsh cdr-bar mul-ix-32)
+= (idx32 ix bar)  | get32 bar ix
+= (zer32 wid)     | padBar bex-(mul 32 wid)
+= (sing32 w)      | padBar (add bex32 w32-w)
+= (fromRow32 row) | padBar (foldr (x p & add w32-x lsh-p-32) 1 row)
+= (gen32 n f)     | fromRow32 (gen n f)
+= (mut32 i w b)   | put32 b i w
+
+
+;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+=?= (gen32 3 (mul 0x11111111))
+  | x#000000001111111122222222
+
+=?= 0x00000000 | idx32 0 x#000000001111111122222222
+=?= 0x11111111 | idx32 1 x#000000001111111122222222
+=?= 0x22222222 | idx32 2 x#000000001111111122222222
+
+=?= 1      | w32 | inc | bex 32
+=?= 0      | w32 | bex 32
+=?= bex-31 | w32 | bex 31
+
+=?= 0x1222222221111111100000000 | lawBody x#000000001111111122222222
+=?= 0x00000000                  | w32 (lawBody x#000000001111111122222222)
+
+=?= (fromRow32 [%helo %howR %yogh])
+  | b#helohowRyogh
+
+=?= x#0000000000000000000000000000000000000000 (zer32 5)
+
+=?= (put32 (zer32 5) 0 0xffffffff)
+  | x#ffffffff00000000000000000000000000000000
+
+=?= (put32 (zer32 5) 3 0xffffffff)
+  | x#000000000000000000000000ffffffff00000000
+
+=?= x#ffffffff (sing32 0xffffffff)
+=?= x#55555555 (sing32 0x55555555)
+=?= x#55550000 (sing32 0x5555)
+
+
+;;; Exports ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+^-^ w32 wMax32 wMin32
+^-^ inc32 dec32 add32 mul32 div32
+^-^ lth32 gth32 lte32 gte32 eql32
+^-^ not32 and32 or32 xor32 lsh32 rsh32
+^-^ chop32 isZero32 sub32 ror32 rol32
+^-^ bitFlip32
+^-^
+^-^ i32 iMax32 iMin32
+^-^ iIsZero32 iIsNeg32 iNeg32 iAbs32
+^-^ iGth32 iLth32 iGte32 iLte32 iEql32
+^-^ iInc32 iDec32 iAdd32 iSub32
+^-^ iMul32 iDiv32
+^-^
+^-^ zer32 fromRow32
+^-^ sing32 gen32
+^-^ get32 idx32 put32
