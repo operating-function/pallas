@@ -36,7 +36,8 @@ advertised, but other areas of the repo are less complete, including:
 
 - Prototype Haskell runtime
 - Sire type system
-- TODO: call out other areas
+- Native networking
+- IO and hardware interface
 
 ## Installation
 
