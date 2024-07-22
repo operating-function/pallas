@@ -14,6 +14,8 @@ An open source Solid State Interpreter exokernel and runtime
 
 ## Introduction
 
+
+Pallas is a purely functional exokernel and library OS, designed to radically simplify the modern networked computing stack. We call the libOS an "operating function" because it is defined as a pure function of its event input stream.
 The Pallas [SSI](https://wiki.vaporware.network/solid-state%20interpreter) programming environment is written in a purely functional, rune-based language called Sire. Sire is a sort of Lispy-Haskell with a visual resemblance to Hoon.
 
 Pallas provides the following features out of the box, without any special configuration or external libraries:
