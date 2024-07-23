@@ -1,0 +1,17 @@
+; Copyright 2024 OPFN
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### demo_count_up <- prelude
+
+:| prelude
+
+;;; Count Up ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+= (countLoop count k)
+: now < syscall TIME_WHEN
+| trk [{counter is at}=count]
+: _ < syscall (**TIME_WAIT (add now 1))
+| countLoop (inc count) k
+
+main=(runCog | countLoop 0)
