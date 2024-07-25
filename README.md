@@ -171,7 +171,34 @@ $ stack run pallas sire sire/prelude.sire
 
 ## Getting Started
 
-_COMING SOON_: Quick start instructions for a todo list app with automatic persistence.
+A Pallas machine consists of a set of persistent processes known as Cogs.  
+
+Navigate to the root of this repository and run the commands below to see
+a simple demonstration of running a Pallas machine.
+
+(The following demo uses `/tmp` as the location on the host filesystem
+to create a directory named `counter` to hold the event log of the machine.
+Feel free to use a different directory if you'd like.)
+
+```console
+pallas boot /tmp/counter sire/demo_count_up.sire
+pallas start /tmp/counter
+```
+
+Take note of the final counter value and then `Ctrl-C` to kill the machine.
+
+```console
+++ [%trk {2020-09-21T10:15:00.729241178Z}]
+++ [{counter is at}=7]
+```
+
+Now run `pallas start /tmp/counter` again. The counter picks up where it
+left off. Later on you'll be invited to explore the source code of this
+simple demo and you'll notice that there is no explicit saving or
+writing to disk or a database. You get persistence for free by writing
+application code.
+
+(For more on how Pallas machines work, see [the documentation](https://opfn.gitbook.io/pallas/overview/overview#ships)).
 
 ## Example
 
@@ -243,6 +270,8 @@ row=[10 64 42]
 
 _COMING SOON_: An `/examples` filled with more complex Sire procedures.
 
+Follow along with the comments in `sire/demo_count_up.sire` to see an
+explanation of how the simple counter cog works.
 
 ## Contributing
 

@@ -2,16 +2,27 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
+; inline 'prelude' before 'demo_count_up'
 #### demo_count_up <- prelude
 
+; import 'prelude.sire'
 :| prelude
 
 ;;; Count Up ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Bind a top-level function named countLoop that takes a 'count' parameter
+; (and a 'k' parameter that we don't need to worry about now)
 = (countLoop count k)
+; Do a time syscall for the current time, bind it to 'now'
 : now < syscall TIME_WHEN
+; Print out the current count to the console
 | trk [{counter is at}=count]
+; Add 1 second to the current time and do a time syscall to wait until
+; that future moment (bind to '_' and discard the result of the syscall)
 : _ < syscall (**TIME_WAIT (add now 1))
+; after waiting 1 second, recurr and pass an incremented value for 'count'
 | countLoop (inc count) k
 
+; run a cog with the infinite 'countLoop' function,
+; passing 0 as the initial count value.
 main=(runCog | countLoop 0)
