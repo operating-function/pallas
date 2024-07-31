@@ -51,8 +51,7 @@ This project is a fork of [Plunder](https://sr.ht/~plan/plunder/).
 ## Caveats
 
 Pallas has been in development for over four years but is still considered to be a prototype implementation.
-Anything explicitly mentioned in this README or the documentation does work as
-advertised, but other areas of the repo are less complete, including:
+If you follow the user guides or read the documentation, all explicitly described features do work as advertised, but other areas of the project are less complete, including:
 
 - Prototype Haskell runtime
 - Sire type system
