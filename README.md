@@ -16,15 +16,35 @@ An open source Solid State Interpreter exokernel and runtime
 
 
 Pallas is a purely functional exokernel and library OS, designed to radically simplify the modern networked computing stack. We call the libOS an "operating function" because it is defined as a pure function of its event input stream.
-The Pallas [SSI](https://wiki.vaporware.network/solid-state%20interpreter) programming environment is written in a purely functional, rune-based language called Sire. Sire is a sort of Lispy-Haskell with a visual resemblance to Hoon.
+The Pallas [SSI](https://wiki.vaporware.network/solid-state%20interpreter) programming environment is a virtual machine which is also a database engine. Databases are created by writing pure functions which fold their streams of incoming events, at each step returning an output event and possibly an upgraded version of the function itself.
 
-Pallas provides the following features out of the box, without any special configuration or external libraries:
+Let's pick that apart. The foundation of Pallas is untyped, but conceptually we can say that a database is a function of the type `DB`:
+
+```haskell
+type DB = Input -> (Output, DB)
+```
+
+If a user supplies such a function, the Pallas runtime will create a database using a snapshot-and-event-log system. The user can write their programs as if they were keeping their data "in memory", without any need for manual persistence or other forms of cache management.
+
+The recursive part of the type above might seem strange. You can think of it almost as a normal stateful function:
+
+```haskell
+type OtherDB = (State, Input) -> (State, Output)
+```
+
+The difference is that instead of changing the state value, the recursive version would change itself. The current version of the function *is* the state. In other words: programs can upgrade themselves dynamically. Code can construct code. Because of this, we can put an entire compiler toolchain inside the system; the programs it generates have zero dependencies on the outside world.
+
+New compilers can and should be written, but at the moment the only practical language on Pallas is Sire. Sire is purely functional and can be thought of as a sort of Lispy-Haskell whose syntax is slightly more readable and flexible than S-expressions, without sacrificing regularity or metaprogramming capabilities. Sire is designed primarily to be useful when bootstrapping more advanced compilers, but its extensibility together with the power of composing pure functions makes it quite capable and fun to use even on its own. Sire is untyped, but by importing a macro it can be given a type system.
+
+For all programs written in Sire, Pallas provides the following features out of the box, without any special configuration or external libraries:
 
 - Automatic orthogonal persistence
-- Extreme portability with zero external dependencies
-- Merkleized state and content-addressable memory pages (data, code, running programs)
+- Code portability across space (physical machine independence) and time (backwards and forwards compatible instruction set)
+- The only dependency is the Pallas runtime
+- Merkleized and deduplicated state consisting of content-addressable memory pages (data, code, running programs)
 - Natively networked with public keys as endpoints
 - Serializable closures that can be transferred over the network
+- Parallel execution
 
 This project is a fork of [Plunder](https://sr.ht/~plan/plunder/).
 
