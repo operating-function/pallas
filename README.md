@@ -1,24 +1,31 @@
 # Pallas
 
-An open source Solid State Interpreter exokernel and runtime
+An event sourced, purely functional operating system.
 
 ## Index
 
 1. [Introduction](#introduction)
-2. [Caveats](#caveats)
-3. [Installation](#installation)
-4. [Getting Started](#getting-started)
-5. [Example](#example)
-6. [Contributing](#contributing)
+2. [Installation](#installation)
+3. [Getting Started](#getting-started)
+4. [Example](#example)
+5. [Contributing](#contributing)
+6. [Caveats](#caveats)
 7. [Additional Resources](#additional-resources)
 
 ## Introduction
 
+Pallas is an event sourced, purely functional operating system, called an operating function. 
 
-Pallas is a purely functional exokernel and library OS, designed to radically simplify the modern networked computing stack. We call the libOS an "operating function" because it is defined as a pure function of its event input stream.
-The Pallas [SSI](https://wiki.vaporware.network/solid-state%20interpreter) programming environment is a virtual machine which is also a database engine. Databases are created by writing pure functions which fold their streams of incoming events, at each step returning an output event and possibly an upgraded version of the function itself.
+Pallas provides an entirely unique set of features, but is inspired by a long history of systems and language research, including MIT’s exokernel. Pallas collapses the distinction between database, virtual machine, and language platform, creating a stable, simple, and extensible programming environment.
 
-Let's pick that apart. The foundation of Pallas is untyped, but conceptually we can say that a database is a function of the type `DB`:
+The cost to this design is a clean break with legacy systems, including Unix and most popular programming languages. In return, Pallas offers a set of features that are found nowhere else:
+- All application code is automatically persisted, without imports or boilerplate. To create a database, you write a pure function. System calls are included in persisted state, and so are restarted on reboot.
+- Partially applied functions can be serialized and stored on-disk, or sent over the wire. Programs in mid-execution can be paused, moved to a new machine, and resumed with no impact.
+- Program execution can be parallelized via a process model. A single machine can spawn and manage multiple processes.
+- The system’s language blends features from both Lisp and Haskell, but uses a more readable and flexible syntax than S-expressions. Pallas supports metaprogramming, hot reload, and macro-based type systems. 
+- Data and code is deduplicated, merkleized, and stored in content-addressable memory pages. This creates a global referentially-transparent content store, which naturally complements protocols like BitTorrent.
+
+The foundation of Pallas is untyped, but conceptually we can say that a database is a function of the type 
 
 ```haskell
 type DB = Input -> (Output, DB)
@@ -32,31 +39,9 @@ The recursive part of the type above might seem strange. You can think of it alm
 type OtherDB = (State, Input) -> (State, Output)
 ```
 
-The difference is that instead of changing the state value, the recursive version would change itself. The current version of the function *is* the state. In other words: programs can upgrade themselves dynamically. Code can construct code. Because of this, we can put an entire compiler toolchain inside the system; the programs it generates have zero dependencies on the outside world.
-
-New compilers can and should be written, but at the moment the only practical language on Pallas is Sire. Sire is purely functional and can be thought of as a sort of Lispy-Haskell whose syntax is slightly more readable and flexible than S-expressions, without sacrificing regularity or metaprogramming capabilities. Sire is designed primarily to be useful when bootstrapping more advanced compilers, but its extensibility together with the power of composing pure functions makes it quite capable and fun to use even on its own. Sire is untyped, but by importing a macro it can be given a type system.
-
-For all programs written in Sire, Pallas provides the following features out of the box, without any special configuration or external libraries:
-
-- Automatic orthogonal persistence
-- Code portability across space (physical machine independence) and time (backwards and forwards compatible instruction set)
-- The only dependency is the Pallas runtime
-- Merkleized and deduplicated state consisting of content-addressable memory pages (data, code, running programs)
-- Natively networked with public keys as endpoints
-- Serializable closures that can be transferred over the network
-- Parallel execution
+The difference is that instead of changing the state value, the recursive version would change itself. The current version of the function is the state. In other words: programs can upgrade themselves dynamically. Code can construct code. Because of this, we can put an entire compiler toolchain inside the system and the programs it generates have zero dependencies on the outside world.
 
 This project is a fork of [Plunder](https://sr.ht/~plan/plunder/).
-
-## Caveats
-
-Pallas has been in development for over four years but is still considered to be a prototype implementation.
-If you follow the user guides or read the documentation, all explicitly described features do work as advertised, but other areas of the project are less complete, including:
-
-- Prototype Haskell runtime
-- Sire type system
-- Native networking
-- IO and hardware interface
 
 ## Installation
 
@@ -87,11 +72,12 @@ On MacOS, [Homebrew](https://brew.sh/) is a good option (assumes you have Homebr
 brew install gmp lmdb zlib
 ```
 
-2. Get a prebuilt binary:
+2. Get a pre-built binary:
 
 Currently we provide the following prebuilt binaries:
 - Linux x86_64: [https://pallas-binaries.nyc3.cdn.digitaloceanspaces.com/linux_x86_64/pallas](https://pallas-binaries.nyc3.cdn.digitaloceanspaces.com/linux_x86_64/pallas)
-- Mac arm64/aarch64 (M1 macs): [https://pallas-binaries.nyc3.cdn.digitaloceanspaces.com/apple_m1_arm64/pallas](https://pallas-binaries.nyc3.cdn.digitaloceanspaces.com/apple_m1_arm64/pallas)
+- Apple arm64/aarch64 (M1/M2 Macs): [https://pallas-binaries.nyc3.cdn.digitaloceanspaces.com/apple_m1_arm64/pallas](https://pallas-binaries.nyc3.cdn.digitaloceanspaces.com/apple_m1_arm64/pallas)
+- Apple x86_64 (Intel Macs): https://pallas-binaries.nyc3.cdn.digitaloceanspaces.com/apple_x86_64/pallas
 
 Your browser may not prompt to download these files, in which case you can use `cURL`:
 
@@ -124,30 +110,9 @@ Available commands:
   boot                     Boot a machine.
 ```
 
-4. Get a Sire REPL:
-
-Clone this repository and navigate to its root. Then run:
-
-```console
-$ pallas sire sire/prelude.sire
-...
-...
-("prelude","LOADED FROM CACHE!")
-
-}
-} ==== Sire REPL ====
-}
-} Since input is multi-line, there is currently no input-prompt.
-} Just type away!
-}
-
-```
-
-(Ctrl-C to get out of the REPL)
-
 ### Get a Development Environment
 
-Using Nix is the most straightfoward way to install Pallas at this time. 
+Using Nix is the most straightforward way to install Pallas at this time. 
 If your system doesn't support Nix or if you need further
 instruction (including instructions for Docker), refer to
 [the documentation](https://vaporware.gitbook.io/vaporware/installation/installation).
@@ -173,22 +138,27 @@ This will take some time. Perhaps upwards of 15 minutes, depending on your syste
 stack build
 ```
 
-
-4. Confirm everything is working by dropping into a Sire REPL:
+4. Confirm everything is working:
 
 ```console
-$ stack run pallas sire sire/prelude.sire
-...
-...
-("prelude","LOADED FROM CACHE!")
+$ pallas
 
-}
-} ==== Sire REPL ====
-}
-} Since input is multi-line, there is currently no input-prompt.
-} Just type away!
-}
+Run a Pallas machine
 
+Usage: pallas COMMAND
+
+  Pallas
+
+Available options:
+  -h,--help                Show this help text
+
+Available commands:
+  sire                     Run a standalone Sire repl.
+  save                     Load a sire file and save a seed.
+  show                     Print a seed file.
+  repl                     Interact with a seed file.
+  start                    Resume an idle machine.
+  boot                     Boot a machine.
 ```
 
 ## Getting Started
@@ -226,74 +196,19 @@ application code.
 
 Sire is the programming language of Pallas.
 
-Here is a brief look at Sire. The
+The source code for the counter cog will provide a brief look at Sire. The
 [documentation](https://vaporware.gitbook.io/vaporware/sire/intro) covers the
 language more fully, but we want you to get a sense of it now.
 
-If you are following along, use the instructions above to get a Sire REPL.
+![Sire source code for simple "count up" cog](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/pallas-example.png)
 
-### Top-level binding
+Open the /sire/demo_count_up.sire file yourself to see more elaborate comments explaining the syntax in detail.
 
-```sire
-; This is a comment.
-
-; Top-level binding of 3 to x:
-x=3
-```
-
-### Function application
-
-```sire
-(add 1 3)
-; ^ function name (add)
-;    ^ first argument (1)
-;      ^ second argument (3)
-
-4 ; return value
-```
-
-```sire
-| add 1 3
-4   ; return value
-```
-
-```sire
-add-1-3
-4
-```
-
-```sire
-; Binding a named function
-= (addTwo input)
-| add 2 input
-
-
-; Applying it
-(addTwo 4)
-6
-```
-
-### Rows
-
-```sire
-row=[10 64 42]
-
-; idx is a function that returns a particular index in a row
-
-(idx 0 row)
-10
-; the zeroth item in the row
-
-(idx 2 row)
-42
-```
+Get into a live REPL with pallas sire sire/prelude.sire and refer to the Sire documentation for a full tour of the syntax.
 
 ### Demo Examples
 
 _COMING SOON_: An `/examples` filled with more complex Sire procedures.
-
-Follow along with the comments in `sire/demo_count_up.sire` to see an
-explanation of how the simple counter cog works.
 
 ## Contributing
 
@@ -309,6 +224,18 @@ That said, we encourage you to dive even deeper and submit PRs beyond these
 suggestions.
 
 [CONTRIBUTING.md](https://github.com/operating-function/pallas/blob/master/CONTRIBUTING.md)
+
+## Caveats
+
+Pallas is still considered to be a prototype implementation, though some core features are close to done. It currently requires an underlying OS and file system, but has been designed such that these dependencies can eventually be removed.
+
+Planned features not yet complete:
+- Haskell and C runtimes
+- Macro-based Hindley–Milner type system
+- Native networking with cryptographic keys as network addresses 
+- Standardized syscall hardware interface
+- Capability-based process security model
+
 
 ## Additional Resources
 

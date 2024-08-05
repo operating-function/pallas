@@ -13,16 +13,85 @@
 ; Bind a top-level function named countLoop that takes a 'count' parameter
 ; (and a 'k' parameter that we don't need to worry about now)
 = (countLoop count k)
-; Do a time syscall for the current time, bind it to 'now'
-: now < syscall TIME_WHEN
-; Print out the current count to the console
-| trk [{counter is at}=count]
-; Add 1 second to the current time and do a time syscall to wait until
-; that future moment (bind to '_' and discard the result of the syscall)
-: _ < syscall (**TIME_WAIT (add now 1))
-; after waiting 1 second, recurr and pass an incremented value for 'count'
+;
+; 1. Print out the current count to the console with the "trk" function from the
+; standard library.
+; (Remember we received "count" as an argument to our current countLoop function)
+; the bar | at the start of this line is one style of function application.
+; It says "apply the function 'trk' to the arguments after it"
+;
+| trk [{counter is at} count]
+;
+; "trk" is a function that takes two arguments:
+; - the message to log to the terminal
+; - the remainder of the program (a "continuation")
+; This "continuation pipeline" is a common pattern you will encounter often.
+;
+; 2. Next, we want to do a clock system call for the current time.
+;
+; the 'syscall' function takes two arguments:
+; - a request type of TIME_WHEN ("give me the current system time" in this case)
+; - a continuation function
+; we want to pass an argument to **the continuation** also, so
+; we use & to define an anonymous lambda with one argument, "now" which
+; is the result of the TIME_WHEN current time system call.
+;
+| syscall TIME_WHEN
+& now
+;
+; We are in the body of the continuation function here and have the "now"
+; binding included in scope. Once again we're seeing the continuation-passing
+; style here.
+;
+; 3. Now we want to wait 1 second. We'll use this opportunity to show an
+; alternative style that you'll come across often in Pallas code.
+; We're going to use the TIME_WAIT syscall. TIME_WAIT itself takes a single
+; argument - the amount of time to wait. We want to wait 1 second, which is
+; the current time plus 1 (remember at this point we have "now" in scope).
+; The "inc" function takes a value and returns the result of adding 1 to it.
+; You'll see "inc" applied to "now" below by wrapping both in parenthesis.
+;
+; Rather than using the & anonymous lambda style, we're now using the
+; "col macro". You can think of this as _sort of_ like a "do block". It is
+; a method of writing continuation-passing style in a way that feels
+; like assignment.
+; On the right side of the < we're doing the syscall and the result of
+; that call gets bound to 'resultOfTimeWait'. As with the previous syscall,
+; the next argument is a continuation - which again is the rest of the code
+; below the col macro line.
+;
+: resultOfTimeWait < syscall (TIME_WAIT (inc now))
+;
+; Our goal with TIME_WAIT was just to wait 1 second. We don't actually use
+; the "result" of the TIME_WAIT syscall (bound to 'resultOfTimeWait'). In this
+; case we could have bound it to "_" to denote this.
+;
+; 4. Finally, after waiting 1 second, we recurr and pass an incremented
+; value for 'count'
+;
 | countLoop (inc count) k
 
-; run a cog with the infinite 'countLoop' function,
-; passing 0 as the initial count value.
-main=(runCog | countLoop 0)
+; That ends our infinite-looping single-second counter.
+; Now that we have this function written we'll start a process that will be
+; responsible for running this function and handling any threads or syscalls
+; that are involved.
+; These processes are called "cogs" and are initiated with the "runCog" function.
+;
+; We bind a top-level "main" function that will call runCog.
+;
+= (main)
+;
+; When we pass countLoop to runCog as its "job", we also need to provide
+; the starting count of zero:
+| runCog (countLoop 0)
+
+; example output:
+; ++ [%trk {2024-08-02T17:05:48.468929096Z}]
+; ++ [{counter is at} 1]
+;
+; ++ [%trk {2024-08-02T17:05:49.470040565Z}]
+; ++ [{counter is at} 2]
+;
+; ++ [%trk {2024-08-02T17:05:50.471186301Z}]
+; ++ [{counter is at} 3]
+
