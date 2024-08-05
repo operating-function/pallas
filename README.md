@@ -16,7 +16,7 @@ An event sourced, purely functional operating system.
 
 Pallas is an event sourced, purely functional operating system, called an operating function. 
 
-Pallas provides an entirely unique set of features, but is inspired by a long history of systems and language research, including MIT’s exokernel. Pallas collapses the distinction between database, virtual machine, and language platform, creating a stable, simple, and extensible application environment.
+Pallas provides an entirely unique set of features, but is inspired by a long history of systems and language research, including MIT’s exokernel. Pallas collapses the distinction between database, virtual machine, and language platform, creating a stable, simple, and extensible programming environment.
 
 The cost to this design is a clean break with legacy systems, including Unix and most popular programming languages. In return, Pallas offers a set of features that are found nowhere else:
 - All application code is automatically persisted, without imports or boilerplate. To create a database, you write a pure function. System calls are included in persisted state.
