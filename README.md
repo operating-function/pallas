@@ -25,8 +25,6 @@ The cost to this design is a clean break with legacy systems, including Unix and
 - The system’s language blends features from both Lisp and Haskell, but uses a more readable and flexible syntax than S-expressions. Pallas supports metaprogramming, hot reload, and macro-based type systems. 
 - Data and code is deduplicated, merkleized, and stored in content-addressable memory pages. This creates a global referentially-transparent content store, which naturally complements protocols like BitTorrent.
 
-By reading our documentation and examples, you can prove to yourself that these claims are true.
-
 The foundation of Pallas is untyped, but conceptually we can say that a database is a function of the type 
 
 ```haskell
