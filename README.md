@@ -19,7 +19,7 @@ Pallas is an event sourced, purely functional operating system, called an operat
 Pallas provides an entirely unique set of features, but is inspired by a long history of systems and language research, including MIT’s exokernel. Pallas collapses the distinction between database, virtual machine, and language platform, creating a stable, simple, and extensible programming environment.
 
 The cost to this design is a clean break with legacy systems, including Unix and most popular programming languages. In return, Pallas offers a set of features that are found nowhere else:
-- All application code is automatically persisted, without imports or boilerplate. To create a database, you write a pure function. System calls are included in persisted state.
+- All application code is automatically persisted, without imports or boilerplate. To create a database, you write a pure function. System calls are included in persisted state, and so are restarted on reboot.
 - Partially applied functions can be serialized and stored on-disk, or sent over the wire. Programs in mid-execution can be paused, moved to a new machine, and resumed with no impact.
 - Program execution can be parallelized via a process model. A single machine can spawn and manage multiple processes.
 - The system’s language blends features from both Lisp and Haskell, but uses a more readable and flexible syntax than S-expressions. Pallas supports metaprogramming, hot reload, and macro-based type systems. 
