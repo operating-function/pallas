@@ -22,7 +22,7 @@ The cost to this design is a clean break with legacy systems, including Unix and
 - All application data is automatically persisted, without the need for imports or boilerplate. To create a database, you write a pure function. Open system calls are included in persisted state, and so are resumed on reboot.
 - Partially applied functions can be serialized and stored on-disk, or sent over the wire. Programs in mid-execution can be paused, moved to a new machine, and resumed with no impact.
 - Program execution can be parallelized via a process model. A single machine can spawn and manage multiple processes.
-- The system’s default language blends features from both Lisp and Haskell, but uses a more readable and flexible syntax than S-expressions without loss of regularity or metaprogramming capabilities such as hot reload, zero-overhead virtualization, macro-based type systems, all the way up to custom compilers.
+- The system’s default language blends features from both Lisp and Haskell, with a syntax that is more readable and flexible than S-expressions without sacrificing regularity or homoiconicity. Metaprogramming capabilities include hot reload, zero-overhead virtualization, macro-based type systems, all the way up to custom compilers.
 - Data and code is deduplicated, merkleized, and stored in content-addressable memory pages. This creates a global referentially-transparent content store, which is naturally complemented by protocols like BitTorrent.
 
 The foundation of Pallas is untyped, but conceptually we can say that a database is a function of the type 
