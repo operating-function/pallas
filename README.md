@@ -19,11 +19,11 @@ Pallas is an event sourced, purely functional operating system, called an operat
 Pallas provides an entirely unique set of features, but is inspired by a long history of systems and language research, including MIT’s exokernel. Pallas collapses the distinction between database, virtual machine, and language platform, creating a stable, simple, and extensible programming environment.
 
 The cost to this design is a clean break with legacy systems, including Unix and most popular programming languages. In return, Pallas offers a set of features that are found nowhere else:
-- All application code is automatically persisted, without imports or boilerplate. To create a database, you write a pure function. System calls are included in persisted state, and so are restarted on reboot.
+- All application data is automatically persisted, without the need for imports or boilerplate. To create a database, you write a pure function. Open system calls are included in persisted state, and so are resumed on reboot.
 - Partially applied functions can be serialized and stored on-disk, or sent over the wire. Programs in mid-execution can be paused, moved to a new machine, and resumed with no impact.
 - Program execution can be parallelized via a process model. A single machine can spawn and manage multiple processes.
-- The system’s language blends features from both Lisp and Haskell, but uses a more readable and flexible syntax than S-expressions. Pallas supports metaprogramming, hot reload, and macro-based type systems. 
-- Data and code is deduplicated, merkleized, and stored in content-addressable memory pages. This creates a global referentially-transparent content store, which naturally complements protocols like BitTorrent.
+- The system’s default language blends features from both Lisp and Haskell, but uses a more readable and flexible syntax than S-expressions without loss of regularity or metaprogramming capabilities such as hot reload, zero-overhead virtualization, macro-based type systems, all the way up to custom compilers.
+- Data and code is deduplicated, merkleized, and stored in content-addressable memory pages. This creates a global referentially-transparent content store, which is naturally complemented by protocols like BitTorrent.
 
 The foundation of Pallas is untyped, but conceptually we can say that a database is a function of the type 
 
