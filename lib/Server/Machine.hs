@@ -98,9 +98,11 @@ data Machine = MACHINE {
   runnerAsync      :: Async (),
   loggerAsync      :: Async (),
   snapshotAsync    :: Async (),
+  workersAsyncs    :: TVar CogWorkers,
 
   -- Signal to shut down all the asyncs. After setting this, you should wait on
   -- all three in order.
+  shutdownWorkers  :: TVar Bool,
   shutdownLogger   :: TVar Bool,
   shutdownSnapshot :: TVar Bool,
 
@@ -173,7 +175,7 @@ getCurrentDbNoun :: Fan -> Fan
 getCurrentDbNoun = fromMaybe (NAT 0) . fromEndOfClosure 2
 
 getCurrentReadsNoun :: Fan -> Fan
-getCurrentReadsNoun = fromMaybe (NAT 0) . fromEndOfClosure 1 -- TODO maybe an invalid primop would be better than 0
+getCurrentReadsNoun = fromMaybe (NAT 42) . fromEndOfClosure 1 -- TODO we should have something other than 42 but this is nice for now because it crashes and is recognizable
 
 fromEndOfClosure :: Int -> Fan -> Maybe Fan
 fromEndOfClosure idx = \case
@@ -200,7 +202,7 @@ startWorkerThread worker = do
   pure $ worker { thread = handle }
 
 data Worker
-  = EXEC { seal :: Fan }
+  = EXEC { pump :: Fan }
   | EVAL { fun :: Fan, args :: Vector Fan }
 
 instance FromNoun Worker where
@@ -215,7 +217,7 @@ instance FromNoun Worker where
 
 
 data LiveWorker
-  = LIVE_EXEC { seal :: Fan, reads :: TQueue ReadRequest, writes :: TQueue WriteRequest, thread :: LiveWorkerThread }
+  = LIVE_EXEC { pump :: Fan, reads :: TQueue ReadRequest, writes :: TQueue WriteRequest, thread :: LiveWorkerThread }
   | LIVE_EVAL { fun :: Fan, args :: Vector Fan, writes :: TQueue WriteRequest, thread :: LiveWorkerThread }
 
 
@@ -248,6 +250,7 @@ data Runner = RUNNER
     { ctx      :: MachineContext
     , vMoment  :: TVar Moment          -- ^ Current value + cumulative CPU time
     , vWorkers :: TVar CogWorkers      -- ^ Current active workers
+    , shutdown :: TVar Bool
     }
 
 -- -----------------------------------------------------------------------
@@ -451,6 +454,7 @@ replayAndCrankMachine cache ctx replayFrom = do
           vMoment  <- newTVar moment
           vWorkers <- newTVar mempty
           reads    <- newTBQueue receiptQueueMax
+          shutdown <- newTVar False
 
           pure RUNNER{..}
 
@@ -471,6 +475,9 @@ replayAndCrankMachine cache ctx replayFrom = do
           handle (onErr "runner") $
             runnerFun initialFlows machine processName runner
 
+        let workersAsyncs = runner.vWorkers
+        let shutdownWorkers = runner.shutdown
+
         let machine = MACHINE{..}
         pure machine
 
@@ -484,6 +491,8 @@ replayAndCrankMachine cache ctx replayFrom = do
 -- | Synchronously shuts down a machine and wait for it to exit.
 shutdownMachine :: Machine -> IO ()
 shutdownMachine machine@MACHINE{..} = do
+  atomically $ writeTVar shutdownWorkers True
+  readTVarIO workersAsyncs >>= traverse_ (killWorkerThread . snd)
   -- Kill the runner to immediately cancel any computation being done.
   cancel runnerAsync
   waitForLogAsyncShutdown machine
@@ -524,7 +533,7 @@ receiveResponse st = pure Nothing -- TODO should we check for writes here?
 -- The Cog Runner --------------------------------------------------------------
 
 runnerFun :: Debug => MVar [Flow] -> Machine -> ByteString -> Runner -> IO ()
-runnerFun initialFlows machine processName st = bracket_ pass pass do
+runnerFun initialFlows machine processName st = do
     -- Process the initial syscall vector
     (flows, onCommit) <- updateRunner st Nothing
 
@@ -538,7 +547,7 @@ runnerFun initialFlows machine processName st = bracket_ pass pass do
 
     readers <- asyncOnCurProcess $ withThreadName "readHandler" $ do
           setThreadSortIndex (-1)
-          handle (onErr "readHandler") $ readHandler
+          handle (onErr "readHandler") readHandler
 
     -- Run the event loop until we're forced to stop.
     machineTick
@@ -561,13 +570,14 @@ runnerFun initialFlows machine processName st = bracket_ pass pass do
         writeTBQueue machine.logReceiptQueue (receipt, onCommit)
 
     machineTick :: IO ()
-    machineTick = do
+    machineTick = unlessM (readTVarIO machine.shutdownWorkers) do
       writeRequests <- atomically do
         workers <- readTVar st.vWorkers
         allWrites <- concat <$> for (mapToList workers) \(i,(_,worker)) -> do
           pendingWrites <- flushTQueue worker.writes
           pure $ zip (repeat $ PROC_ID $ fromIntegral i) pendingWrites
-        allWrites <$ check (not $ null allWrites)
+        check (not $ null allWrites)
+        pure allWrites
       results <- cogTick writeRequests
       atomically do
           mapM_ exportState results
@@ -575,39 +585,39 @@ runnerFun initialFlows machine processName st = bracket_ pass pass do
       machineTick
 
     cogTick :: [(ProcId, WriteRequest)] -> IO [(Receipt, [STM OnCommitFlow])]
-    cogTick writeReq =
+    cogTick writeReqs =
       withProcessName processName $
         withThreadName "CogId" $ do
-          let endFlows = [] -- TODO [writeReq.flow]
-          let traceArg = M.singleton "Request index"
+          let endFlows = [] -- TODO [writeReqs.flow]
+          let traceArg = M.singleton "Request indices"
                        $ Right
-                       $ "writeReq.idx" -- TODO what should the idx here be?
+                       $ "writeReqs.idx" -- TODO parse this out
 
           withTracingFlow "WriteRequest" "cog" traceArg endFlows $ do
-            (flows, receipts) <- runWrites st writeReq
+            (flows, receipts) <- runWrites st writeReqs
             pure (flows, [], receipts)
 
     readHandler :: IO ()
-    readHandler = do
+    readHandler = unlessM (readTVarIO machine.shutdownWorkers) do
       readRequests <- atomically do
         workers <- readTVar st.vWorkers
-        allReads <- concat <$> for workers \(_,worker) -> case worker of
+        concat <$> for workers \(_,worker) -> case worker of
           LIVE_EVAL{}      -> pure []
           LIVE_EXEC{reads} -> flushTQueue reads
-        allReads <$ check (not $ null allReads)
-      moment <- readTVarIO st.vMoment
-      let cogFun = fromMaybe (error "trying to read from a non-spinning cog")
-                 $ cogSpinningFun moment.val
-      runReads cogFun readRequests
+      unless (null readRequests) do
+        moment <- readTVarIO st.vMoment
+        let cogFun = fromMaybe (error "trying to read from a non-spinning cog")
+                   $ cogSpinningFun moment.val
+        runReads cogFun readRequests
       readHandler
 
 runReads :: Debug => Fan -> [ReadRequest] -> IO ()
 runReads cogFun readReqs = do
     let fun = getCurrentReadsNoun cogFun
-    for_ readReqs \(CogRead query (STVAR return)) -> do
+    for_ readReqs \(CogRead idx query (STVAR return)) -> do
         (_, result) <- evalWithTimeout thirtySecondsInMicroseconds [] fun
                         [ getCurrentDbNoun cogFun
-                        , NAT 0 -- TODO should be response id??
+                        , NAT $ fromIntegral idx.int
                         , query ]
 --      traceM $ unlines ["reading from cog: " <> show cogFun
 --                       ,"dbstate: " <> show (getCurrentDbNoun cogFun)
@@ -627,8 +637,9 @@ runWrites st writeReqs = do
     let fun = fromMaybe (error "Trying to run a stopped cog")
             $ cogSpinningFun moment.val
     (runtimeUs, result) <-
-        withAlwaysTrace "Eval" "cog" $
-            evalWithTimeout thirtySecondsInMicroseconds [] fun [toNoun writeReqs]
+        withAlwaysTrace "Eval" "cog" $ do
+            res <- evalWithTimeout thirtySecondsInMicroseconds [] fun [toNoun writeReqs]
+            pure res
 
     let resultReceipt = case result of
           TIMEOUT      -> RECEIPT_TIME_OUT{timeoutAmount=runtimeUs}
@@ -644,11 +655,6 @@ runWrites st writeReqs = do
                  else (CG_FINISHED newCog, NAT 0)
           CRASH op arg     -> (CG_CRASHED op arg fun, NAT 0)
           TIMEOUT          -> (CG_TIMEOUT runtimeUs fun, NAT 0)
-
---  traceM $ unlines
---    [ "writing to cog: " <> show moment.val
---    , "writes: " <> show (toNoun writeReqs)
---    , "new cog: " <> show newCog ]
 
     withAlwaysTrace "Tick" "cog" do
         -- 2) Perform parseRequest and handle all changes that have to be handled

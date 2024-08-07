@@ -5,26 +5,28 @@
 = (**DB_READ query) [1 query]
 = (**DB_WRITE cmd)  [2 cmd]
 
-= (readsFun state _ _)
-^ trk [readRes=_ =state] _
-| len state
+= (readsFun state reqId query)
+;; ^ trk [stateSize=_ =state] _
+| query state
 
 = (step state reads workers inputs)
 ^ (step _ reads workers, [])
-^ trk [newState=_ =inputs] _
-^ weld _ state
-| cat | map snd inputs
+^ trk [newState=_ =inputs oldState=state] _
+^ foldl _ state inputs
+& ((next,st) (pumpId,val))
+| if (pumpId == next)
+* (mod inc-next len-workers, add st val)
+* (next, st)
 
-= (pump i _ reqId input)
-| trk [pump=i =reqId =input]
-| pump i
-++ ((inc reqId), (DB_WRITE | rep input inc-i))
-++ ((add 2 reqId), (DB_READ %readValue))
+= (pump query _ reqId input)
+| pump query
+;; ^ trk [pump=i =reqId =input newReqs=_] _
+| ifNot input [(inc reqId, DB_READ query)]
+++ (inc reqId, DB_WRITE (mod reqId 100))
+++ (add 2 reqId, DB_READ query)
 
 = main
-| step [] readsFun
+| step (0,0) readsFun
 : i < gen 10
-| pump i []
-
-; TODO how do we kick off the loop? start with cog or pumps?
-; ANSWER normally hardware kicks it off so we have to inject stuff into the pumps in the runtime
+@ (myTurn (next,_)) | (i == next)
+| pump myTurn [(0, DB_READ myTurn)]

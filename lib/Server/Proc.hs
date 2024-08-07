@@ -55,10 +55,13 @@ instance ToNoun Response where
     RespWrite _     -> NAT 0
 
 data ReadRequest
-  = CogRead { query :: Fan, state :: CallStateVar }
+  = CogRead { idx :: RequestIdx, query :: Fan, state :: CallStateVar }
 
 data WriteRequest
-  = CogWrite { cmd :: Fan, state :: CallStateVar }
+  = CogWrite { idx :: RequestIdx, cmd :: Fan, state :: CallStateVar }
+
+instance Show WriteRequest where
+  show CogWrite{cmd} = show cmd
 
 instance ToNoun WriteRequest where
   toNoun write = write.cmd
@@ -181,13 +184,13 @@ buildLiveRequest :: Debug => CogHandle -> RequestIdx -> Request -> STM LiveReque
 buildLiveRequest cog reqIdx = \case
     DB_READ query -> do
       callSt <- STVAR <$> newTVar LIVE
-      let lrCall = CogRead query callSt
+      let lrCall = CogRead reqIdx query callSt
       cog.read lrCall
       pure $ LiveDbRead reqIdx lrCall
       -- modifying' #reads $ flip poolRegister lrCall
     DB_WRITE cmd -> do
       callSt <- STVAR <$> newTVar LIVE
-      let lwCall = CogWrite cmd callSt
+      let lwCall = CogWrite reqIdx cmd callSt
       cog.write lwCall
       pure $ LiveDbWrite reqIdx lwCall
 
@@ -235,13 +238,7 @@ runnerFun processName st =
               -- debugText $ "takeReturns: " <> tshow reordered
               atomically . asum $ receiveResponse <$> reordered
       case response of
-        Nothing -> -- TODO procTick $ reset st
-          trace "injecting request 0 into proc" $
-          procTick =<< (withProcessName processName $
-                          withThreadName ("Proc: ") $
-                            runResponse st $
-                              RTUP (RequestIdx 0) (RespRead $ NAT 0))
-
+        Nothing -> procTick $ reset st
         Just response ->
           procTick =<< (withProcessName processName $
                          withThreadName ("Proc: ") $
@@ -315,7 +312,7 @@ parseRequests RUNNER{..} =
   where
     reqFromVal :: Fan -> Maybe (RequestIdx, Request)
     reqFromVal v = do
-        ROW reqFan <- pure v
+        ROW reqFan <- Just v
         let fan = V.fromArray reqFan
         i <- fromNoun $ fan V.! 0
         request <- fromNoun $ fan V.! 1
