@@ -115,12 +115,14 @@ Available commands:
 Using Nix is the most straightforward way to install Pallas at this time. 
 If your system doesn't support Nix or if you need further
 instruction (including instructions for Docker), refer to
-[the documentation](https://vaporware.gitbook.io/vaporware/installation/installation).
+[the documentation](https://opfn.gitbook.io/pallas/installation/installation).
 
 1. Clone this repo. Navigate to the root of it.
 
 ```shell
 git clone git@github.com:operating-function/pallas.git
+```
+```shell
 cd pallas
 ```
 
@@ -197,7 +199,7 @@ application code.
 Sire is the programming language of Pallas.
 
 The source code for the counter cog will provide a brief look at Sire. The
-[documentation](https://vaporware.gitbook.io/vaporware/sire/intro) covers the
+[documentation](https://opfn.gitbook.io/pallas/sire/intro) covers the
 language more fully, but we want you to get a sense of it now.
 
 ![Sire source code for simple "count up" cog](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/pallas-example.png)
@@ -240,6 +242,6 @@ Planned features not yet complete:
 ## Additional Resources
 
 - Pallas is developed by [The Operating Function Company](https://vaporware.network)
-- [Technical Documentation](https://vaporware.gitbook.io/pallas)
+- [Technical Documentation](https://opfn.gitbook.io/pallas)
   - or view the docs source files at the `doc/` git submodule.
 - [OPFN Telegram](https://t.me/vaporwareNetwork)
