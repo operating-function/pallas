@@ -68,7 +68,7 @@
 ;;; & resultOfTimeWait
 ;;; ;; ...the rest of the program
 ;;;
-;;; Col macro is a method of writing continuation-passing style in a way that *feels*
+;;; The col macro is a method of writing continuation-passing style in a way that *feels*
 ;;; like assignment. It feels as if syscall returns `resultOfTimeWait` which can be used
 ;;; in the remainder of the body. It communicates the intent more clearly
 ;;; than the & style seen above.
