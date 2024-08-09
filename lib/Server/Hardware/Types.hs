@@ -74,7 +74,7 @@ data SysCall = SYSCALL
 
 data Device = DEVICE
     { spin     :: ProcId -> IO ()
-    , call     :: SysCall -> STM (Cancel, [Flow])
+    , call     :: SysCall -> STM [Flow]
     , stop     :: ProcId -> IO ()
     , category :: Vector Fan -> Text
     , describe :: Vector Fan -> Text
@@ -126,7 +126,7 @@ getCallResponse call = do
 
 -- TODO: Make this just echo back the incoming Flow so the invalid call
 -- directly flows to the invalid 0 response.
-callHardware :: DeviceTable -> DeviceName -> SysCall -> STM (Cancel, [Flow])
+callHardware :: DeviceTable -> DeviceName -> SysCall -> STM [Flow]
 callHardware db deviceName call = do
     case lookup deviceName.nat db.table of
         Just device -> device.call call
@@ -137,7 +137,7 @@ callHardware db deviceName call = do
     noDevice = do
         traceM ("no such device: " <> show deviceName)
         fillInvalidSyscall call
-        pure (CANCEL pass, [])
+        pure ([])
 
 syscallCategory :: DeviceTable -> DeviceName -> Vector Fan -> Text
 syscallCategory db deviceName params = do

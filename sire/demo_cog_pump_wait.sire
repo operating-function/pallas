@@ -1,0 +1,19 @@
+#### demo_cog_pump_wait <- new_kern
+
+:| new_kern
+
+= (cog state reads workers inputs)
+^ (cog _ reads workers, [])
+^ trk [newState=_ =inputs oldState=state] _
+| weld state inputs
+
+= (pump _ reqId input)
+| pump
+| if odd-reqId [(inc reqId, TIME_WHEN)]
+++ (inc reqId, TIME_WAIT inc-input)
+++ (add 2 reqId, DB_WRITE input)
+
+= main
+| cog [] const-0
+: i < gen 2
+| pump [(0, TIME_WHEN)]

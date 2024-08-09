@@ -47,12 +47,14 @@ thirtySecondsInMicroseconds = 30 * 10 ^ (6::Int)
 data Response
   = RespRead Fan
   | RespWrite Fan -- TODO do we need this?
+  | RespSyscall Fan
   deriving (Show)
 
 instance ToNoun Response where
   toNoun = \case
     RespRead result -> result
     RespWrite _     -> NAT 0
+    RespSyscall result -> result
 
 data ReadRequest
   = CogRead { idx :: RequestIdx, query :: Fan, state :: CallStateVar }
@@ -72,6 +74,8 @@ instance ToNoun ReadRequest where
 data Request
   = DB_READ Fan
   | DB_WRITE Fan
+  | TIME_WHEN
+  | TIME_WAIT Nat
   deriving (Show)
 
 instance FromNoun Request where
@@ -82,6 +86,8 @@ instance FromNoun Request where
   --    0 -> Just $ DB_WAIT
         1 -> Just $ DB_READ (row V.! 1)
         2 -> Just $ DB_WRITE (row V.! 1)
+        3 -> Just TIME_WHEN
+        4 -> TIME_WAIT <$> fromNoun (row V.! 1)
         _ -> Nothing
 
 getCurrentReqNoun :: Fan -> Vector Fan
@@ -89,10 +95,6 @@ getCurrentReqNoun s =
     case s of
         KLO _ xs ->
             let len = sizeofSmallArray xs in
-----          trace (unlines
-----            [ "getCurrentReqNoun: " <> show s
-----            , "closure length: " <> show len
-----            , "closure last: " <> show (xs .! (len-1)) ])
             case (xs .! (len-1)) of
                 ROW x -> V.fromArray x
                 _     -> mempty
@@ -143,22 +145,28 @@ getWriteResult CogWrite{..} = readTVar state.var >>= \case
   DONE _ _ -> toNoun () <$ writeTVar state.var DEAD -- TODO maybe return something? if the Proc should be able to react to error msgs.
   _        -> retry
 
+
 -- | A `LiveRequest` is a handle that could produce a Response to an open
 -- Request.
 data LiveRequest
   = LiveDbRead
-    { lrIdx :: RequestIdx
+    { idx :: RequestIdx
     , lrCall :: ReadRequest
     }
   | LiveDbWrite
-    { lwIdx :: RequestIdx
+    { idx :: RequestIdx
     , lwCall :: WriteRequest
+    }
+  | LiveSyscall
+    { idx :: RequestIdx
+    , lsCall :: SysCall
     }
 
 instance Show LiveRequest where
     show = \case
         LiveDbRead{}  -> "READ"
         LiveDbWrite{} -> "WRITE"
+        LiveSyscall{lsCall} -> intercalate " " ["[SYSCALL", show lsCall.dev, show lsCall.args, "]"]
 
 makeFieldLabelsNoPrefix ''Runner
 
@@ -180,29 +188,50 @@ spawnProc proc cog hw =
 
 -- | Given a Request parsed from the proc, turn it into a LiveRequest that can
 -- produce a value and that we can listen to.
-buildLiveRequest :: Debug => CogHandle -> RequestIdx -> Request -> STM LiveRequest
-buildLiveRequest cog reqIdx = \case
-    DB_READ query -> do
-      callSt <- STVAR <$> newTVar LIVE
-      let lrCall = CogRead reqIdx query callSt
-      cog.read lrCall
-      pure $ LiveDbRead reqIdx lrCall
-      -- modifying' #reads $ flip poolRegister lrCall
-    DB_WRITE cmd -> do
-      callSt <- STVAR <$> newTVar LIVE
-      let lwCall = CogWrite reqIdx cmd callSt
-      cog.write lwCall
-      pure $ LiveDbWrite reqIdx lwCall
+buildLiveRequest :: Debug => DeviceTable -> CogHandle -> RequestIdx -> Request -> STM LiveRequest
+buildLiveRequest hw cog reqIdx req = do
+    callSt <- STVAR <$> newTVar LIVE
+    case req of
+      DB_READ query -> do
+        let lrCall = CogRead reqIdx query callSt
+        cog.read lrCall
+        pure $ LiveDbRead reqIdx lrCall
+        -- modifying' #reads $ flip poolRegister lrCall
+
+      DB_WRITE cmd -> do
+        let lwCall = CogWrite reqIdx cmd callSt
+        cog.write lwCall
+        pure $ LiveDbWrite reqIdx lwCall
+
+      TIME_WHEN -> do
+        let timeDevice = DEV_NAME "time"
+        let syscall = SYSCALL timeDevice (fromList [NAT "when"]) callSt FlowDisabled -- TODO Flow
+        callHardware hw timeDevice syscall
+        pure $ LiveSyscall reqIdx syscall
+
+      TIME_WAIT ns -> do
+        let timeDevice = DEV_NAME "time"
+        let syscall = SYSCALL timeDevice (fromList ["wait", NAT ns]) callSt FlowDisabled
+        callHardware hw timeDevice syscall
+        pure $ LiveSyscall reqIdx syscall
 
 receiveResponse :: (Fan, LiveRequest) -> STM ResponseTuple
 receiveResponse = \case
     (_, LiveDbRead{..}) -> do -- TODO this should probably be a typeclass?
       outcome <- getReadResult lrCall
-      pure RTUP{key=lrIdx, resp=RespRead outcome}
+      pure RTUP{key=idx, resp=RespRead outcome}
 
     (_, LiveDbWrite{..}) -> do
       outcome <- getWriteResult lwCall
-      pure RTUP{key=lwIdx, resp=RespWrite outcome}
+      pure RTUP{key=idx, resp=RespWrite outcome}
+
+    (_, LiveSyscall{..}) -> do
+      getCallResponse lsCall >>= \case
+        Nothing -> retry
+        Just (f,_) -> pure RTUP{key=idx, resp=RespSyscall f}
+
+
+
 
 -- Design point: Why not use optics and StateT in Runner? Because StateT in IO
 -- doesn't have a MonandUnliftIO instance, which means that we can't bracket
@@ -278,37 +307,20 @@ runResponse st@RUNNER{..} resp = do
           -> st{proc=resultFan, reqs=deleteMap resp.key.int reqs}
         _ -> reset st
 
-  final <- withAlwaysTrace "Tick" "proc" do
+  withAlwaysTrace "Tick" "proc" do
       -- Perform parseRequest and handle all changes that have to be handled
       -- atomically.
       newReqs <- atomically $ parseRequests st'
       pure st'{reqs=newReqs}
 
---  traceM $ unlines
---    [ "proc processing response: " <> show resp
---    , "proc before: " <> show st.proc
---    , "proc middle: " <> show st'.proc
---    , "proc after: " <> show final.proc
---    , "reqs before: " <> show st.reqs
---    , "reqs middle: " <> show st'.reqs
---    , "reqs after: " <> show final.reqs ]
-
-  pure final
-
-
 -- | Given a proc in a runner, update the `requests`.
 parseRequests :: Debug => Runner -> STM ProcSysCalls
 parseRequests RUNNER{..} =
-  flip execStateT reqs $ do
---  traceM $ unlines
---    [ "parseRequests, proc: " <> show proc
---    , "parseRequests, reqs: " <> show reqs ]
+  flip execStateT reqs $
     for_ (getCurrentReqNoun proc) \v ->
-      case reqFromVal v of
-        Nothing -> pure ()
-        Just (rIdx, request) -> do
-          liveReq <- lift $ buildLiveRequest cog rIdx request
-          modify $ insertMap rIdx.int (v, liveReq)
+      whenJust (reqFromVal v) \(rIdx, request) -> do
+        liveReq <- lift $ buildLiveRequest hw cog rIdx request
+        modify $ insertMap rIdx.int (v, liveReq)
   where
     reqFromVal :: Fan -> Maybe (RequestIdx, Request)
     reqFromVal v = do

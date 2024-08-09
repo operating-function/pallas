@@ -102,7 +102,6 @@ data Machine = MACHINE {
 
   -- Signal to shut down all the asyncs. After setting this, you should wait on
   -- all three in order.
-  shutdownWorkers  :: TVar Bool,
   shutdownLogger   :: TVar Bool,
   shutdownSnapshot :: TVar Bool,
 
@@ -250,7 +249,6 @@ data Runner = RUNNER
     { ctx      :: MachineContext
     , vMoment  :: TVar Moment          -- ^ Current value + cumulative CPU time
     , vWorkers :: TVar CogWorkers      -- ^ Current active workers
-    , shutdown :: TVar Bool
     }
 
 -- -----------------------------------------------------------------------
@@ -476,7 +474,6 @@ replayAndCrankMachine cache ctx replayFrom = do
             runnerFun initialFlows machine processName runner
 
         let workersAsyncs = runner.vWorkers
-        let shutdownWorkers = runner.shutdown
 
         let machine = MACHINE{..}
         pure machine
@@ -491,7 +488,6 @@ replayAndCrankMachine cache ctx replayFrom = do
 -- | Synchronously shuts down a machine and wait for it to exit.
 shutdownMachine :: Machine -> IO ()
 shutdownMachine machine@MACHINE{..} = do
-  atomically $ writeTVar shutdownWorkers True
   readTVarIO workersAsyncs >>= traverse_ (killWorkerThread . snd)
   -- Kill the runner to immediately cancel any computation being done.
   cancel runnerAsync
@@ -570,14 +566,13 @@ runnerFun initialFlows machine processName st = do
         writeTBQueue machine.logReceiptQueue (receipt, onCommit)
 
     machineTick :: IO ()
-    machineTick = unlessM (readTVarIO machine.shutdownWorkers) do
+    machineTick = do
       writeRequests <- atomically do
         workers <- readTVar st.vWorkers
         allWrites <- concat <$> for (mapToList workers) \(i,(_,worker)) -> do
           pendingWrites <- flushTQueue worker.writes
           pure $ zip (repeat $ PROC_ID $ fromIntegral i) pendingWrites
-        check (not $ null allWrites)
-        pure allWrites
+        allWrites <$ (check . not . null) allWrites
       results <- cogTick writeRequests
       atomically do
           mapM_ exportState results
@@ -598,7 +593,8 @@ runnerFun initialFlows machine processName st = do
             pure (flows, [], receipts)
 
     readHandler :: IO ()
-    readHandler = unlessM (readTVarIO machine.shutdownWorkers) do
+    readHandler = -- unlessM (readTVarIO machine.shutdownWorkers)
+         do
       readRequests <- atomically do
         workers <- readTVar st.vWorkers
         concat <$> for workers \(_,worker) -> case worker of
@@ -772,7 +768,7 @@ updateRunner runner update = do
             let write = writeTQueue writes
             reads <- lift newTQueue
             let read = writeTQueue reads
-            let handle = Left $ spawnProc v COG_HANDLE{..} (DEVICE_TABLE mempty)
+            let handle = Left $ spawnProc v COG_HANDLE{..} runner.ctx.hw
 
             modifying' #workers $ insertMap i (v, LIVE_EXEC v reads writes handle)
       --      modifying' #flows  (++ (f:startedFlows))

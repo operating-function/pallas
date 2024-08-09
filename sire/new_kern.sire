@@ -1,0 +1,8 @@
+#### new_kern <- sire
+
+:| sire
+
+= (**DB_READ query) [1 query]
+= (**DB_WRITE cmd)  [2 cmd]
+= TIME_WHEN         [3]
+= (**TIME_WAIT ns)  [4 ns]

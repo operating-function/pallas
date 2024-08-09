@@ -1,12 +1,8 @@
-#### demo_cog_pump <- sire
+#### demo_cog_pump <- new_kern
 
-:| sire
-
-= (**DB_READ query) [1 query]
-= (**DB_WRITE cmd)  [2 cmd]
+:| new_kern
 
 = (readsFun state reqId query)
-;; ^ trk [stateSize=_ =state] _
 | query state
 
 = (step state reads workers inputs)
@@ -20,7 +16,6 @@
 
 = (pump query _ reqId input)
 | pump query
-;; ^ trk [pump=i =reqId =input newReqs=_] _
 | ifNot input [(inc reqId, DB_READ query)]
 ++ (inc reqId, DB_WRITE (mod reqId 100))
 ++ (add 2 reqId, DB_READ query)

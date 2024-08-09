@@ -28,7 +28,7 @@ import System.Process
 import Server.Hardware.Types (DeviceTable(..))
 -- import System.Random         (randomIO)
 -- ort Server.Hardware.Sock (createHardwareSock)
--- import Server.Hardware.Time (createHardwareTime)
+import Server.Hardware.Time (createHardwareTime)
 -- ort Server.Hardware.Wock (createHardwareWock)
 -- import Server.Hardware.Poke (createHardwarePoke)
 
@@ -567,10 +567,27 @@ withMachineIn storeDir numWorkers enableSnaps machineAction = do
     -- ignoring it, but there's a bunch of things the old system did to catch
     -- Ctrl-C.
 
+    let devTable _ = do
+          --hw1_rand          <- createHardwareRand
+          --(hw4_wock, wsApp) <- createHardwareWock
+          --hw2_http          <- createHardwareHttp storeDir db wsApp
+          --hw3_sock          <- createHardwareSock storeDir
+            hw5_time          <- createHardwareTime
+          --hw6_port          <- createHardwarePort
+            (pure . DEVICE_TABLE . mapFromList) $
+                [--( "rand", hw1_rand )
+                --( "http", hw2_http )
+                --( "sock", hw3_sock )
+                --( "wock", hw4_wock )
+                  ( "time", hw5_time )
+                --( "port", hw6_port )
+                --( "poke", hw_poke  )
+                ]
+
     let machineState = do
             lmdb <- DB.openDatastore storeDir
 --          (pokeHW, _submitPoke) <- createHardwarePoke
-            let hw = DEVICE_TABLE mempty
+            hw <- devTable lmdb
             eval <- evaluator numWorkers
             pure MACHINE_CONTEXT{lmdb,hw,eval,enableSnaps}
     with machineState machineAction
