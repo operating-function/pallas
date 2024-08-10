@@ -24,17 +24,19 @@
 ;;;
 ;;; "trk" is a function that takes two arguments:
 ;;; - the message to log to the terminal
-;;; - the remainder of the program (a "continuation")
-;;; This "continuation pipeline" is a common pattern you will encounter often.
+;;; - a value that it will simply return (often the rest of the program)
 ;;;
 ;;; 2. Next, we want to do a clock system call for the current time.
 ;;;
 ;;; the 'syscall' function takes two arguments:
-;;; - a request type of TIME_WHEN ("give me the current system time" in this case)
-;;; - a continuation function
-;;; we want to pass an argument to **the continuation** also, so
-;;; we use & to define an anonymous lambda with one argument, "now" which
-;;; is the result of the TIME_WHEN current time system call.
+;;; - a request type of TIME_WHEN ("give me the current system time" in this case).
+;;; - a continuation function to use when the syscall completes.
+;;;
+;;; The system call might take a while to complete, but when it does, we'll be
+;;; woken up and the result of the call will be passed as an argument to the
+;;; continuation function that was provided to `syscall`. We use `&` to define
+;;; the continuation function as a lambda. The lambda takes one argument called
+;;; `now`, which will be bound to the result of the `TIME_WHEN` call.
 ;;;
 | syscall TIME_WHEN
 & now
