@@ -80,7 +80,7 @@
 * GET
   | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
   & [type (PIN content)]
-  @ head | [(b#{Content-Type}, type)]
+  @ head | [(b#{Content-Type}, type) (b#{Access-Control-Allow-Origin}, b#{*})]
   [200 b#gotcha head content]
 
 = (modifyState vSt fun return)
@@ -104,7 +104,7 @@
     @ stateJson | buildJson st
     @ stateJsonBS | printJson stateJson
     | trk [%resultJSON stateJsonBS]
-    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok jsonContentType stateJsonBS))
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders stateJsonBS))
     | return ()
   * _
     : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
