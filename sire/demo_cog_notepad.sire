@@ -86,10 +86,11 @@
 = (buildJson st)
 @ COG_STATE(..) st
 | JMAP
-| trk [%note note]
 ## =note  | JVEC note
 ## =files | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
 ## =totalSize | JVEC (map fileBytes) ; this is structured wrong ?
+
+= corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{*}) (b#{Access-Control-Allow-Credentials}, b#{true})]
 
 = (handleReq vSt request return)
 @ [rid method path headers pBody@(PIN body)] request
@@ -104,10 +105,11 @@
     | trk [%st st]
     | trk [%json noteJson]
     @ noteJsonBS | printJson noteJson
-    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] noteJsonBS))
+    | trk [%noteJsonBS noteJsonBS]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders noteJsonBS))
     | return ()
   * _
-    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
     | return ()
 * POST
   # switch path
@@ -122,10 +124,10 @@
     : _ < modifyState vSt & st
                           | setNote | note
                           | st
-    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
     | return ()
   * _
-    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
     | return ()
 * PUT
   : (PIN st) < readRef vSt
@@ -134,17 +136,17 @@
             | tabFromPairs headers
   @ files (**getFiles st)
   @ files | hmInsert (barNat path) [barType pBody] files
-  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done [] b#{}))
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done corsHeaders b#{}))
   : _ < modifyState vSt & st
                         | setFiles files
                         | st
   | return ()
 * OPTIONS
-  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [] b#{}))
+  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
   | return ()
 * _
   | trk [%gotUnknown method]
-  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad [] b#{}))
+  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
   | return ()
 
 
