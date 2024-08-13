@@ -1,0 +1,161 @@
+;;; Copyright 2024 OPFN
+;;; Use of this source code is governed by a BSD-style license that can be
+;;; found in the LICENSE file.
+;;
+#### demo_cog_notepad <- prelude
+
+:| prelude
+:| json
+; :| datatype  [{#record} {#datatype} {#datacase}]
+
+# typedef ContentType Bar
+
+> HMap Str (ContentType, Pin Bar)
+= startingFiles
+| hmSingleton
+* largeConfig
+
+# record CogState
+| COG_STATE
+* note       : Nat
+* files      : (HMap Str (ContentType, Pin Bar))
+* fileBytes  : Nat
+* servThread : ThreadId
+
+> ThreadId > CogState
+= (newCogState servThread)
+| COG_STATE
+* b#{# Pallas Notepad\n\n- Any text entered here will be saved to Pallas.\n- Feel free to delete all of this intial content.\n\n**Enjoy!**}
+* startingFiles
+* 0
+* servThread
+
+(emptyFileServer req)=NONE
+
+= (fileServer (PIN st) [method path query headers (PIN body)])
+| trk [%fileServerRequest method path query headers body]
+# switch method
+* _ | NONE
+* GET
+  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
+  & [type (PIN content)]
+  @ head | [(b#{Content-Type}, type)]
+  [200 b#gotcha head content]
+
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ srv       | **getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
+| return ()
+
+(bindMaybe mVal k)=(maybeCase mVal NONE k)
+
+> Bar > Maybe (Tab Str Json)
+= (jsonMap jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| if (res || leftover) NONE
+# datacase json
+* JMAP|m | SOME m
+* _      | NONE
+
+= (asJsonStr m)
+# datacase m
+* JSTR|s | SOME s
+* _      | NONE
+
+= (asJsonNum m)
+# datacase m
+* JNUM|n | SOME n
+* _      | NONE
+
+= (parseNote jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| trk [%parseNote jsonBS]
+: string < bindMaybe (asJsonStr json)
+| SOME string
+
+= (parseNoteJson jsonBS)
+: map < bindMaybe (jsonMap jsonBS)
+: theNote < bindMaybe (tabLookup %newNote map)
+| SOME (barNat theNote)
+
+(msgToStr m)=(JSTR | natBar m)
+
+= (buildJson st)
+@ COG_STATE(..) st
+| JMAP
+## =note  | JVEC note
+## =files | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
+## =totalSize | JNUM fileBytes ; this is structured wrong ?
+
+= corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{*}) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+= (handleReq vSt request return)
+@ [rid method path headers pBody@(PIN body)] request
+# switch method
+* GET
+  # switch path
+  * b#{/note}
+    : (PIN st) < readRef vSt
+    @ noteJson   | buildJson st
+    @ noteJsonBS | printJson noteJson
+    | trk [%json noteJsonBS]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders noteJsonBS))
+    | return ()
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
+    | return ()
+* POST
+  # switch path
+  * b#{/changed}
+    : (PIN st) < readRef vSt
+    @ noteState | getNote st
+    @ noteNat | fromSome noteState | parseNoteJson body
+    @ note | natBar noteNat
+    : _ < modifyState vSt & st
+                          | setNote | note
+                          | st
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
+    | return ()
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
+    | return ()
+* PUT
+  : (PIN st) < readRef vSt
+  @ barType | **fromSome b#{text/plain}
+            | tabLookup b#{content-type}
+            | tabFromPairs headers
+  @ files (**getFiles st)
+  @ files | hmInsert (barNat path) [barType pBody] files
+  | trk [%newFiles files]
+  @ newTotalSize | add (barLen body) | getFileBytes st
+  | trk [%newSize newTotalSize]
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done corsHeaders b#{}))
+  : _ < modifyState vSt & st
+                        | setFileBytes newTotalSize
+                        | setFiles files
+                        | st
+  | return ()
+* OPTIONS
+  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
+  | return ()
+* _
+  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
+  | return ()
+
+
+= (runHttpServer vSt return)
+: ??(rhs_heard req) < syscall HTTP_HEAR
+: _                 < handleReq vSt req
+| runHttpServer vSt return
+
+= (spinNotes return)
+: servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+: vSt         < newRef (PIN | newCogState servThread)
+: httpThread1 < fork (runHttpServer vSt)
+: httpThread2 < fork (runHttpServer vSt)
+| return ()
+
+main=(runCog spinNotes)
