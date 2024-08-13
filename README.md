@@ -201,9 +201,9 @@ language more fully, but we want you to get a sense of it now.
 
 ![Sire source code for simple "count up" cog](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/pallas-example.png)
 
-Open the /sire/demo_count_up.sire file yourself to see more elaborate comments explaining the syntax in detail.
+Open the `/sire/demo_count_up.sire` file yourself to see more elaborate comments explaining the syntax in detail.
 
-Get into a live REPL with pallas sire sire/prelude.sire and refer to the Sire documentation for a full tour of the syntax.
+Get into a live REPL with `pallas sire sire/prelude.sire` and refer to the Sire documentation for a full tour of the syntax.
 
 ### Demo Examples
 
