@@ -1,0 +1,616 @@
+;;; Copyright 2024 OPFN
+;;; Use of this source code is governed by a BSD-style license that can be
+;;; found in the LICENSE file.
+;;
+#### demo_cog_notepad <- demo_cog_filepad
+
+:| prelude
+:| json
+:| demo_cog_filepad
+; :| datatype  [{#record} {#datatype} {#datacase}]
+
+= htmlStart
+# b
+} <!DOCTYPE html>
+} <html lang="en">
+}   <head>
+}     <meta charset="UTF-8" />
+}     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+}     <title>notepad</title>
+}     <script
+}       src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+}       defer
+}     ></script>
+}     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+}     <style>
+}       body {
+}         font-family: Arial, sans-serif;
+}         max-width: 1200px;
+}         margin: 0 auto;
+}         padding: 20px;
+}       }
+}       .editor-container {
+}         display: flex;
+}         gap: 20px;
+}       }
+}       #editor,
+}       #preview {
+}         width: 50%;
+}         height: 400px;
+}         border: 1px solid #ccc;
+}         padding: 10px;
+}         overflow-y: auto;
+}       }
+}       #preview {
+}         height: 90vw;
+}       }
+}       #editor {
+}         resize: vertical;
+}       }
+}       #status {
+}         font-style: italic;
+}         opacity: 0.25;
+}         margin-top: 10px;
+}       }
+}       .port-input {
+}         margin-bottom: 10px;
+}       }
+}       #context-menu {
+}         position: absolute;
+}         background-color: #f9f9f9;
+}         border: 1px solid #ccc;
+}         padding: 5px;
+}         z-index: 1000;
+}       }
+}       #context-menu a {
+}         display: block;
+}         padding: 5px;
+}         text-decoration: none;
+}         color: #333;
+}       }
+}       #context-menu a:hover {
+}         background-color: #e9e9e9;
+}       }
+}       .context-menu-section {
+}         border-top: 1px solid #ccc;
+}         margin-top: 5px;
+}         padding-top: 5px;
+}       }
+}       .context-menu-section:first-child {
+}         border-top: none;
+}         margin-top: 0;
+}         padding-top: 0;
+}       }
+}       .context-menu-footer {
+}         border-top: 1px solid #ccc;
+}         margin-top: 5px;
+}         padding-top: 5px;
+}       }
+} 
+}       /* Basic Markdown Styles for preview */
+}       #preview h1,
+}       #preview h2,
+}       #preview h3 {
+}         margin-top: 0;
+}       }
+}       #preview strong {
+}         font-weight: bold;
+}       }
+}       #preview em {
+}         font-style: italic;
+}       }
+}       #preview ul,
+}       #preview ol {
+}         padding-left: 20px;
+}       }
+}       #preview code {
+}         background-color: #f0f0f0;
+}         padding: 2px 4px;
+}         border-radius: 3px;
+}       }
+}       #preview img {
+}         max-width: 100%;
+}         height: auto;
+}       }
+}     </style>
+}   </head>
+}   <body>
+}     <div x-data="notepad">
+}       <div style="margin-bottom: 10px;">
+}       <a :href=`http://localhost:${filePort}/index.html` target="_blank">Go to Files</a>
+}       </div>
+}       <div class="editor-container">
+}         <textarea
+}           id="editor"
+}           x-model="noteText"
+}           @input="updateNote"
+}           x-ref="editor"
+}           @contextmenu.prevent="showContextMenu"
+}         ></textarea>
+}         <div id="preview" x-html="renderedMarkdown"></div>
+}       </div>
+}       <div id="status" x-text="status"></div>
+} 
+}       <div
+}         id="context-menu"
+}         x-show="showMenu"
+}         :style="{ top: menuY + 'px', left: menuX + 'px' }"
+}       >
+}         <div class="context-menu-section">
+}           <a href="#" @click.prevent="triggerFileUpload">Upload a file</a>
+}         </div>
+}         <div class="context-menu-section" x-show="files.length > 0">
+}           <template x-for="file in files">
+}             <a
+}               href="#"
+}               @click.prevent="insertExistingFileLink(file)"
+}               x-text="file"
+}             ></a>
+}           </template>
+}         </div>
+}         <div class="context-menu-footer">
+}           <a href="#" @click.prevent="hideContextMenu">Cancel</a>
+}         </div>
+}       </div>
+}       <input
+}         type="file"
+}         x-ref="fileInput"
+}         @change="uploadFile"
+}         style="display: none"
+}       />
+}     </div>
+}     <script>
+}       document.addEventListener("alpine:init", () => {
+}         Alpine.data("notepad", () => ({
+}           noteText: "",
+}           renderedMarkdown: "",
+}           status: "",
+}           debounceTimer: null,
+}
+
+= (interpolateOurPort port)
+| barCat
+@ pre | barCat
+      , b#{        port: "}
+        (natBar (showNat port))
+        b#{",}
+| intersperse barNewline [pre b#{}]
+
+
+= (interpolateFilesPort port)
+| barCat
+@ pre | barCat
+      , b#{        filePort: "}
+        (natBar (showNat port))
+        b#{",}
+| intersperse barNewline [pre b#{}]
+
+= htmlEnd
+# b
+}           isPortValid: false,
+}           isConnected: false,
+}           showMenu: false,
+}           menuX: 0,
+}           menuY: 0,
+}           files: [],
+} 
+}           init() {
+}             this.validatePort();
+}             this.initializeApp();
+}           },
+} 
+}           validatePort() {
+}             this.isPortValid =
+}               this.port.trim() !== "" &&
+}               !isNaN(this.port) &&
+}               this.port > 0 &&
+}               this.port < 65536;
+}           },
+} 
+}           initializeApp() {
+}             if (this.isPortValid) {
+}               this.isConnected = true;
+}               this.fetchNote();
+}               this.fetchFiles();
+}             }
+}           },
+} 
+}           fetchNote() {
+}             if (!this.isConnected) return;
+} 
+}             fetch(`http://localhost:${this.port}/note`)
+}               .then((response) => response.text())
+}               .then((text) => {
+}                 try {
+}                   const data = JSON.parse(text);
+}                   this.noteText = data.note;
+}                   this.renderMarkdown();
+}                   this.status = "Note loaded";
+}                   setTimeout(() => {
+}                     this.status = "";
+}                   }, 2000);
+}                 } catch (e) {
+}                   console.error("Error parsing JSON:", e);
+}                   this.status = "Error parsing note data";
+}                 }
+}               })
+}               .catch((error) => {
+}                 console.error("Error fetching note:", error);
+}                 this.status = "Error loading note";
+}               });
+}           },
+} 
+}           updateNote() {
+}             if (!this.isConnected) return;
+} 
+}             this.renderMarkdown();
+} 
+}             clearTimeout(this.debounceTimer);
+} 
+}             this.debounceTimer = setTimeout(() => {
+}               this.status = "Saving...";
+}               this.saveNote();
+}             }, 1000);
+}           },
+} 
+}           saveNote() {
+}             if (!this.isConnected) return;
+} 
+}             fetch(`http://localhost:${this.port}/changed`, {
+}               method: "POST",
+}               headers: {
+}                 "Content-Type": "application/json",
+}               },
+}               body: JSON.stringify({ newNote: this.noteText }),
+}             })
+}               .then((response) => {
+}                 if (response.ok) {
+}                   this.status = "Saved!";
+}                   setTimeout(() => {
+}                     this.status = "";
+}                   }, 2000);
+}                 } else {
+}                   this.status = "Error saving";
+}                 }
+}               })
+}               .catch((error) => {
+}                 console.error("Error saving note:", error);
+}                 this.status = "Error saving";
+}               });
+}           },
+} 
+}           renderMarkdown() {
+}             this.renderedMarkdown = marked.parse(this.noteText);
+}           },
+} 
+}           showContextMenu(event) {
+}             this.menuX = event.clientX;
+}             this.menuY = event.clientY;
+}             this.showMenu = true;
+}             this.fetchFiles();
+}           },
+} 
+}           hideContextMenu() {
+}             this.showMenu = false;
+}           },
+} 
+}           triggerFileUpload() {
+}             this.hideContextMenu();
+}             this.$refs.fileInput.click();
+}           },
+} 
+}           uploadFile(event) {
+}             const file = event.target.files[0];
+}             if (!file) return;
+} 
+}             const formData = new FormData();
+}             formData.append("file", file);
+} 
+}             fetch(`http://localhost:${this.filePort}/${file.name}`, {
+}               method: "PUT",
+}               body: file,
+}               headers: {
+}                 "Content-Type": file.type,
+}               },
+}             })
+}               .then((response) => {
+}                 if (response.ok) {
+}                   this.status = "File uploaded successfully";
+}                   this.insertFileLink(file.name, file.type);
+}                   this.fetchFiles();
+}                 } else {
+}                   throw new Error("Upload failed");
+}                 }
+}               })
+}               .catch((error) => {
+}                 console.error("Error uploading file:", error);
+}                 this.status = "Error uploading file";
+}               });
+}           },
+} 
+}           fetchFiles() {
+}             fetch(`http://localhost:${this.filePort}/files`)
+}               .then((response) => response.text())
+}               .then((text) => {
+}                 try {
+}                   const data = JSON.parse(text);
+}                   this.files = data.files;
+}                   this.status = "Files loaded";
+}                   setTimeout(() => {
+}                     this.status = "";
+}                   }, 2000);
+}                 } catch (e) {
+}                   console.error("Error parsing JSON:", e);
+}                   this.status = "Error parsing files data";
+}                 }
+}               })
+}               .catch((error) => {
+}                 console.error("Error fetching files:", error);
+}                 this.status = "Error loading files";
+}               });
+}           },
+} 
+}           insertExistingFileLink(filename) {
+}             this.hideContextMenu();
+}             this.insertFileLink(filename);
+}           },
+} 
+}           insertFileLink(filename, filetype) {
+}             if (filename.startsWith("/")) {
+}               filename = filename.slice(1);
+}             } else {
+}               filename = filename;
+}             }
+} 
+}             const link = `http://localhost:${this.filePort}/${filename}`;
+} 
+}             if (!filetype) {
+}               const extension = filename.split(".").pop().toLowerCase();
+}               const imageExtensions = [
+}                 "jpg",
+}                 "jpeg",
+}                 "png",
+}                 "gif",
+}                 "bmp",
+}                 "svg",
+}               ];
+}               filetype = imageExtensions.includes(extension)
+}                 ? "image/"
+}                 : "application/";
+}             }
+} 
+}             if (filetype.startsWith("image/")) {
+}               markdownLink = `![${filename}](${link})`;
+}             } else {
+}               markdownLink = `[${filename}](${link})`;
+}             }
+} 
+}             // Insert the link at the current cursor position
+}             const textarea = this.$refs.editor;
+}             const cursorPos = textarea.selectionStart;
+}             const textBefore = this.noteText.substring(0, cursorPos);
+}             const textAfter = this.noteText.substring(cursorPos);
+}             this.noteText = textBefore + markdownLink + textAfter;
+} 
+}             // Update the preview
+}             this.renderMarkdown();
+} 
+}             // Set cursor position after the inserted link
+}             this.$nextTick(() => {
+}               textarea.focus();
+}               textarea.setSelectionRange(
+}                 cursorPos + markdownLink.length,
+}                 cursorPos + markdownLink.length
+}               );
+}             });
+} 
+}             this.saveNote();
+}           },
+}         }));
+}       });
+}     </script>
+}   </body>
+} </html>
+
+= (indexHtml filesPort ourPort)
+| barCat [htmlStart (interpolateOurPort ourPort) (interpolateFilesPort filesPort) htmlEnd]
+
+
+# typedef ContentType Bar
+
+> HMap Str (ContentType, Pin Bar)
+= startingFiles
+| hmSingleton
+* largeConfig
+
+# record CogState
+| COG_STATE
+* note       : Nat
+* files      : (HMap Str (ContentType, Pin Bar))
+* fileBytes  : Nat
+* servThread : ThreadId
+* filesPort  : Nat
+* ourPort    : Nat
+
+> ThreadId > CogState
+= (newCogState filesPort ourPort servThread)
+| COG_STATE
+* b#{# Pallas Notepad\n\n- Any text entered here will be saved to Pallas.\n- Feel free to delete all of this intial content.\n\n**Enjoy!**}
+* startingFiles
+* 0
+* servThread
+* filesPort
+* ourPort
+
+= corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{*}) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+(emptyFileServer req)=NONE
+
+= (fileServer (PIN st) [method path headers (PIN body)])
+| trk [%fileServerRequest path]
+# switch method
+* _ | NONE
+* GET
+  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
+  & [type (PIN content)]
+  @ head | [(b#{Content-Type}, type)]
+  [200 b#gotcha head content]
+
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ srv       | **getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
+| return ()
+
+(bindMaybe mVal k)=(maybeCase mVal NONE k)
+
+> Bar > Maybe (Tab Str Json)
+= (jsonMap jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| if (res || leftover) NONE
+# datacase json
+* JMAP|m | SOME m
+* _      | NONE
+
+= (asJsonStr m)
+# datacase m
+* JSTR|s | SOME s
+* _      | NONE
+
+= (asJsonNum m)
+# datacase m
+* JNUM|n | SOME n
+* _      | NONE
+
+= (parseNote jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| trk [%parseNote jsonBS]
+: string < bindMaybe (asJsonStr json)
+| SOME string
+
+= (parseNoteJson jsonBS)
+: map < bindMaybe (jsonMap jsonBS)
+: theNote < bindMaybe (tabLookup %newNote map)
+| SOME (barNat theNote)
+
+(msgToStr m)=(JSTR | natBar m)
+
+= (buildJson st)
+@ COG_STATE(..) st
+| JMAP
+## =note      | JVEC note
+## =filesPort | JNUM filesPort
+## =ourPort   | JNUM ourPort
+## =files     | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
+## =totalSize | JNUM fileBytes ; this is structured wrong ?
+
+= (handleReq vSt request return)
+@ [rid method path headers pBody@(PIN body)] request
+# switch method
+* GET
+  # switch path
+  * b#{/index.html}
+    : (PIN st) < readRef vSt
+    @ filesPort | getFilesPort st
+    @ ourPort  | getOurPort st
+    | trk [%filesPort filesPort]
+    | trk [%ourPort ourPort]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [(b#{Content-Type}, b#{text/html})] (indexHtml filesPort ourPort)))
+    | return ()
+  * b#{/note}
+    : (PIN st) < readRef vSt
+    @ noteJson   | buildJson st
+    @ noteJsonBS | printJson noteJson
+    | trk [%json noteJsonBS]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders noteJsonBS))
+    | return ()
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
+    | return ()
+* POST
+  # switch path
+  * b#{/changed}
+    : (PIN st) < readRef vSt
+    @ noteState | getNote st
+    @ noteNat | fromSome noteState | parseNoteJson body
+    @ note | natBar noteNat
+    : _ < modifyState vSt & st
+                          | setNote | note
+                          | st
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
+    | return ()
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
+    | return ()
+* PUT
+  : (PIN st) < readRef vSt
+  @ barType | **fromSome b#{text/plain}
+            | tabLookup b#{content-type}
+            | tabFromPairs headers
+  @ files (**getFiles st)
+  @ files | hmInsert (barNat path) [barType pBody] files
+  | trk [%newFiles files]
+  @ newTotalSize | add (barLen body) | getFileBytes st
+  | trk [%newSize newTotalSize]
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done corsHeaders b#{}))
+  : _ < modifyState vSt & st
+                        | setFileBytes newTotalSize
+                        | setFiles files
+                        | st
+  | return ()
+* OPTIONS
+  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
+  | return ()
+* _
+  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
+  | return ()
+
+
+= (runHttpServer vSt return)
+: ??(rhs_heard req) < syscall HTTP_HEAR
+: _                 < handleReq vSt req
+| runHttpServer vSt return
+
+fileCogChannel=66
+
+= (parseNat bar)
+@ wid (barLen bar)
+@ hed (barIdx 0 bar)
+| maybeGuardNot (isZero wid)
+| maybeGuard    (isDigit hed)
+@ acc (sub hed {0})
+^ (_ acc 1)
+? (go acc ix)
+| if (gte ix wid) (SOME acc)
+@ c (barGet bar ix)
+| maybeGuard (isDigit c)
+@ !acc (add (mul 10 acc) (sub c {0}))
+| go acc inc-ix
+
+= (spinNotes return)
+| trk ["Notepad cog starting..."]
+: filesCogID  < syscall | COG_SPIN (runCog spinFiles)
+| trk ["Asking Files cog for port..."]
+: ??(asker_told maybePort)
+    < syscall (COG_ASK filesCogID fileCogChannel b#{what is your port?})
+# datacase maybePort
+* NONE
+  | trk [%crashedNone]
+  | return ()
+* SOME-port
+  | trk ["Got Files cog port!"]
+  ; TODO: remove:
+  ; | trk [%gotAskFromFiles port]
+  : servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+  : notesPort        < syscall HTTP_PORT
+  : vSt         < newRef (PIN | newCogState port notesPort servThread)
+  : _           < modifyState vSt id
+  : httpThread1 < fork (runHttpServer vSt)
+  : httpThread2 < fork (runHttpServer vSt)
+  | trk ["Notepad cog UI ready " notesPort]
+  | trk [(barCat [b#{Visit http://localhost:} (natBar | showNat notesPort) b#{/index.html}])]
+  | return ()
+
+main=(runCog spinNotes)

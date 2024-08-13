@@ -382,6 +382,7 @@ cog
 = (HTTP_HEAR)           | [%http 0 %hear]
 = (HTTP_HOLD n)         | [%http 0 %hold n]
 = (HTTP_ECHO r c m h b) | [%http 0 %echo r c m h b]
+= HTTP_PORT             | [%http 0 %port]
 = (SOCK_OPEN)           | [%sock 0 %open]
 = (SOCK_KILL h)         | [%sock 0 %kill h]
 = (SOCK_WAIT h)         | [%sock 0 %wait h]
@@ -509,7 +510,7 @@ abstype#(EvalResult a) ; TODO Use #datatype (it needs to do
 ^-^
 ^-^ ServReq ServResp
 ^-^ HttpReq HttpReqId HttpStatusCode HttpStatusMsg HttpHeader
-^-^ HTTP_SERV HTTP_HEAR HTTP_HOLD HTTP_ECHO HTTP_REQ
+^-^ HTTP_SERV HTTP_HEAR HTTP_HOLD HTTP_ECHO HTTP_REQ HTTP_PORT
 ^-^
 ^-^ SOCK_OPEN SOCK_KILL SOCK_WAIT SOCK_RECV SOCK_SEND
 ^-^
