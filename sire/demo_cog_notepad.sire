@@ -152,6 +152,8 @@
 | runHttpServer vSt return
 
 = (spinNotes return)
+: port        < syscall HTTP_PORT
+| trk ["ayy lmao" port]
 : servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
 : vSt         < newRef (PIN | newCogState servThread)
 : httpThread1 < fork (runHttpServer vSt)
