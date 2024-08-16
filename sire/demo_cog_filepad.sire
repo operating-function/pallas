@@ -151,7 +151,8 @@ fileCogChannel=66
 = (spinFiles return)
 : servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
 : port < syscall HTTP_PORT
-| trk ["files port" port]
+; TODO: remove:
+; | trk ["files port" port]
 : ??(files_got [sender port]) < syscall (COG_TELL fileCogChannel reportPort-port)
 : vSt         < newRef (PIN | newCogState servThread)
 : httpThread1 < fork (runHttpServer vSt)

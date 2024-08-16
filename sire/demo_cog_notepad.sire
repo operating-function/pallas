@@ -22,14 +22,16 @@
 * files      : (HMap Str (ContentType, Pin Bar))
 * fileBytes  : Nat
 * servThread : ThreadId
+* filesPort  : Nat
 
 > ThreadId > CogState
-= (newCogState servThread)
+= (newCogState filesPort servThread)
 | COG_STATE
 * b#{# Pallas Notepad\n\n- Any text entered here will be saved to Pallas.\n- Feel free to delete all of this intial content.\n\n**Enjoy!**}
 * startingFiles
 * 0
 * servThread
+* filesPort
 
 (emptyFileServer req)=NONE
 
@@ -87,8 +89,9 @@
 = (buildJson st)
 @ COG_STATE(..) st
 | JMAP
-## =note  | JVEC note
-## =files | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
+## =note      | JVEC note
+## =filesPort  | JNUM filesPort
+## =files     | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
 ## =totalSize | JNUM fileBytes ; this is structured wrong ?
 
 = corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{*}) (b#{Access-Control-Allow-Credentials}, b#{true})]
@@ -154,15 +157,24 @@
 
 fileCogChannel=66
 
+= (parseNat bar)
+@ wid (barLen bar)
+@ hed (barIdx 0 bar)
+| maybeGuardNot (isZero wid)
+| maybeGuard    (isDigit hed)
+@ acc (sub hed {0})
+^ (_ acc 1)
+? (go acc ix)
+| if (gte ix wid) (SOME acc)
+@ c (barGet bar ix)
+| maybeGuard (isDigit c)
+@ !acc (add (mul 10 acc) (sub c {0}))
+| go acc inc-ix
+
 = (spinNotes return)
-: port        < syscall HTTP_PORT
-| trk ["notes port" port]
-: servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
-: vSt         < newRef (PIN | newCogState servThread)
+| trk ["Notepad cog starting..."]
 : filesCogID  < syscall | COG_SPIN (runCog spinFiles)
-| trk ["files Id" filesCogID]
-;: ??(asker_heard [response r]) < syscall (COG_ASK filesCogID fileCogChannel b#{what is your port?})
-;| trk ["notes ask" response r]
+| trk ["Asking Files cog for port..."]
 : ??(asker_told maybePort)
     < syscall (COG_ASK filesCogID fileCogChannel b#{what is your port?})
 # datacase maybePort
@@ -170,9 +182,16 @@ fileCogChannel=66
   | trk [%crashedNone]
   | return ()
 * SOME-port
-  | trk [%gotAskFromFiles port]
+  | trk ["Got Files cog port!"]
+  ; TODO: remove:
+  ; | trk [%gotAskFromFiles port]
+  : servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+  : vSt         < newRef (PIN | newCogState port servThread)
   : httpThread1 < fork (runHttpServer vSt)
   : httpThread2 < fork (runHttpServer vSt)
+  : notesPort        < syscall HTTP_PORT
+  | trk ["Notepad cog UI ready " notesPort]
+  | trk [(barCat [b#{Visit http://localhost:} (natBar | showNat notesPort) b#{/index.html}])]
   | return ()
 
 main=(runCog spinNotes)
