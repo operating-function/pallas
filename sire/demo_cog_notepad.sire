@@ -2,10 +2,11 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 ;;
-#### demo_cog_notepad <- prelude
+#### demo_cog_notepad <- demo_cog_filepad
 
 :| prelude
 :| json
+:| demo_cog_filepad
 ; :| datatype  [{#record} {#datatype} {#datacase}]
 
 # typedef ContentType Bar
@@ -151,13 +152,27 @@
 : _                 < handleReq vSt req
 | runHttpServer vSt return
 
+fileCogChannel=66
+
 = (spinNotes return)
 : port        < syscall HTTP_PORT
-| trk ["ayy lmao" port]
+| trk ["notes port" port]
 : servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
 : vSt         < newRef (PIN | newCogState servThread)
-: httpThread1 < fork (runHttpServer vSt)
-: httpThread2 < fork (runHttpServer vSt)
-| return ()
+: filesCogID  < syscall | COG_SPIN (runCog spinFiles)
+| trk ["files Id" filesCogID]
+;: ??(asker_heard [response r]) < syscall (COG_ASK filesCogID fileCogChannel b#{what is your port?})
+;| trk ["notes ask" response r]
+: ??(asker_told maybePort)
+    < syscall (COG_ASK filesCogID fileCogChannel b#{what is your port?})
+# datacase maybePort
+* NONE
+  | trk [%crashedNone]
+  | return ()
+* SOME-port
+  | trk [%gotAskFromFiles port]
+  : httpThread1 < fork (runHttpServer vSt)
+  : httpThread2 < fork (runHttpServer vSt)
+  | return ()
 
 main=(runCog spinNotes)

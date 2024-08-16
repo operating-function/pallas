@@ -91,6 +91,14 @@
 : _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
 | return ()
 
+fileCogChannel=66
+
+= (reportPort port sender msg)
+; "sender" will be the notepad ID
+; "msg" is the next arg
+; TODO wtf:
+[port]
+
 = (handleReq vSt request return)
 @ [rid method path headers pBody@(PIN body)] request
 # switch method
@@ -142,9 +150,14 @@
 
 = (spinFiles return)
 : servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+: port < syscall HTTP_PORT
+| trk ["files port" port]
+: ??(files_got [sender port]) < syscall (COG_TELL fileCogChannel reportPort-port)
 : vSt         < newRef (PIN | newCogState servThread)
 : httpThread1 < fork (runHttpServer vSt)
 : httpThread2 < fork (runHttpServer vSt)
 | return ()
 
-main=(runCog spinFiles)
+; main=(runCog spinFiles)
+
+^-^ spinFiles
