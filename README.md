@@ -14,8 +14,6 @@ An event sourced, purely functional operating system.
 
 ## Introduction
 
-[![Webserver Demo](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/pallas-persisted-webservers.mov)](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/pallas-persisted-webservers.mov)
-
 Pallas is an event sourced, purely functional operating system, called an operating function. From the perspective of the user, Pallas collapses the distinction between database, virtual machine, and language platform, creating a stable, simple, and extensible programming environment. The cost to this design is a clean break with legacy systems, including Unix and most popular programming languages. In return, Pallas offers a set of features that are found nowhere else:
 
 - All application data is automatically persisted, without the need for imports or boilerplate. To create a database, you write a pure function. Open system calls are included in persisted state, and so are resumed on reboot.
