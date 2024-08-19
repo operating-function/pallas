@@ -264,17 +264,25 @@
 
 fileCogChannel=66
 
-= (reportPort port sender msg)
-; "sender" will be the notepad ID
-; "msg" is the next arg
-; TODO wtf:
-[port]
+= (portResponder return)
+: _ < syscall | COG_TELL fileCogChannel (_ _ & [NONE ()])
+| trk [%portResponder0]
+: port < syscall HTTP_PORT
+| trk [%portResponder1 port]
+: _    < syscall | COG_TELL fileCogChannel (_ _ & (trk %tellFun [SOME-port ()]))
+| portResponder return
 
 = (handleReq vSt request return)
 @ [rid method path headers pBody@(PIN body)] request
 # switch method
 * GET
   # switch path
+  * b#{/}
+    : (PIN st) < readRef vSt
+    @ ourPort  | getOurPort st
+    | trk [%ourPort ourPort]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [(b#{Content-Type}, b#{text/html})] (indexHtml ourPort)))
+    | return ()
   * b#{/index.html}
     : (PIN st) < readRef vSt
     @ ourPort  | getOurPort st
@@ -332,9 +340,9 @@ fileCogChannel=66
 : _           < modifyState vSt id
 ; TODO: remove:
 ; | trk ["files port" port]
-: ??(files_got [sender port]) < syscall (COG_TELL fileCogChannel reportPort-port)
 : httpThread1 < fork (runHttpServer vSt)
 : httpThread2 < fork (runHttpServer vSt)
+: portThread  < fork portResponder
 | return ()
 
 ; main=(runCog spinFiles)
