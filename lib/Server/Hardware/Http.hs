@@ -189,6 +189,7 @@ data Req
     | REQ ClientReq        -- ClientReq -> IO ClientResp
     | HOLD Nat             -- IO ()
     | ECHO DynamicResponse -- IO ()
+    | PORT                 -- IO Nat
 
 --------------------------------------------------------------------------------
 
@@ -211,6 +212,7 @@ decodeHttpRequest top = (dec . toList) top
     dec ["hold", NAT n]     = pure (HOLD n)
     dec ["echo",r,c,m,h,b]  = ECHO <$> echo r c m h b
     dec ["req",m,u,h,b,r,t] = REQ <$> req m u h b r t
+    dec ["port"]            = pure PORT
     dec _                   = Nothing
 
     req m u h b r t = do
@@ -328,8 +330,7 @@ spinCog st cogId = do
     listenSocket <- N.openSocket ainfo
     N.listen listenSocket 5 -- TODO Should this be 5?
     listenPort <- fromIntegral <$> N.socketPort listenSocket
-    debugVal ("_http_port")
-             (fromIntegral listenPort :: Nat)
+    putStrLn $ "http://localhost:" <> pack (show listenPort) <> "/"
 
     let baseName  = (tshow cogId.int) <> ".http.port"
     let portFile = st.mach </> unpack baseName
@@ -602,12 +603,18 @@ runSysCall st syscall = do
             case decodeHttpRequest syscall.args of
                 Nothing        -> fillInvalidSyscall syscall $>
                                   (CANCEL pass, [])
+                Just PORT      -> onPort cog
                 Just (REQ q)   -> onReq cog q
                 Just HEAR      -> onHear cog
                 Just (HOLD r)  -> onHold cog r
                 Just (SERV ss) -> onServ cog ss
                 Just (ECHO r)  -> onEcho cog r syscall.cause
   where
+    onPort :: CogState -> STM (Cancel, [Flow])
+    onPort cog = do
+        flow <- writeResponse syscall $ NAT $ fromIntegral cog.port
+        pure (CANCEL pass, [flow])
+
     onReq :: CogState -> ClientReq -> STM (Cancel, [Flow])
     onReq cog req = do
         key <- poolRegister cog.liveClientReqs (req, syscall)
@@ -711,6 +718,7 @@ runSysCall st syscall = do
                 -- traceM ("</onHold key=" <> show key <> ">")
                 pure (CANCEL (poolUnregister cog.hold key), [])
 
+
 {-
     Acquire a new handle ID.  Add a response TMVar to the `dyno.live`
     table.
@@ -762,6 +770,7 @@ categoryCall args = "%http " <> case decodeHttpRequest args of
   Just REQ{}             -> "%req"
   Just (HOLD _)          -> "%hold"
   Just (ECHO DYN_RESP{}) -> "%echo"
+  Just PORT              -> "%port"
 
 describeCall :: Vector Fan -> Text
 describeCall args = "%http " <> case decodeHttpRequest args of
@@ -771,6 +780,7 @@ describeCall args = "%http " <> case decodeHttpRequest args of
   Just REQ{}                  -> "%req"
   Just (HOLD n)               -> "%hold " <> tshow n
   Just (ECHO DYN_RESP{reqId}) -> "%echo " <> tshow reqId
+  Just PORT                   -> "%port"
 
 createHardwareHttp
     :: Debug

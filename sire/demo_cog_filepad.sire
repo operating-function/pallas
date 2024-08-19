@@ -1,0 +1,350 @@
+;;; Copyright 2024 OPFN
+;;; Use of this source code is governed by a BSD-style license that can be
+;;; found in the LICENSE file.
+;;
+#### demo_cog_filepad <- prelude
+
+:| prelude
+:| json
+; :| datatype  [{#record} {#datatype} {#datacase}]
+
+# typedef ContentType Bar
+
+
+= htmlStart
+# b
+} <!DOCTYPE html>
+} <html lang="en">
+}   <head>
+}     <meta charset="UTF-8" />
+}     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+}     <title>Files</title>
+}     <script
+}       src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+}       defer
+}     ></script>
+}     <style>
+}       body {
+}         font-family: Arial, sans-serif;
+}         max-width: 800px;
+}         margin: 0 auto;
+}         padding: 20px;
+}       }
+}       #file-list {
+}         list-style-type: none;
+}         padding: 0;
+}       }
+}       #file-list li {
+}         margin-bottom: 10px;
+}       }
+}       #status {
+}         font-style: italic;
+}         margin-top: 10px;
+}       }
+}     </style>
+}   </head>
+}   <body>
+}     <div x-data="fileManager">
+}       <h1>Files</h1>
+} 
+}       <div x-show="!isConnected">
+}         <label for="port">Enter Port:</label>
+}         <input type="number" id="port" x-model="port" />
+}         <button @click="connect">Connect</button>
+}       </div>
+} 
+}       <div x-show="isConnected">
+}         <h2>Upload File</h2>
+}         <input type="file" @change="handleFileSelect" />
+}         <button @click="uploadFile">Upload</button>
+} 
+}         <h2>File List</h2>
+}         <ul id="file-list">
+}           <template x-for="file in files">
+}             <li>
+}               <a href="#" @click.prevent="downloadFile(file)" x-text="file"></a>
+}             </li>
+}           </template>
+}         </ul>
+}       </div>
+} 
+}       <div id="status" x-text="status"></div>
+}     </div>
+} 
+}     <script>
+}       document.addEventListener("alpine:init", () => {
+}         Alpine.data("fileManager", () => ({
+
+= (interpolatePort port)
+| barCat
+@ pre | barCat
+      , b#{        port: "}
+        (natBar (showNat port))
+        b#{",}
+| intersperse barNewline [pre b#{}]
+
+= htmlEnd
+# b
+}           isConnected: false,
+}           files: [],
+}           selectedFile: null,
+}           status: "",
+} 
+}           connect() {
+}             this.port = parseInt(this.port);
+}             if (isNaN(this.port) || this.port <= 0 || this.port > 65535) {
+}               this.status = "Invalid port number";
+}               return;
+}             }
+}             this.isConnected = true;
+}             this.fetchFiles();
+}           },
+}
+}           init() {
+}             this.connect();
+}           },
+} 
+}           fetchFiles() {
+}             fetch(`http://localhost:${this.port}/files`)
+}               .then((response) => response.json())
+}               .then((data) => {
+}                 this.files = data.files;
+}                 this.status = "Files loaded";
+}               })
+}               .catch((error) => {
+}                 console.error("Error fetching files:", error);
+}                 this.status = "Error loading files";
+}               });
+}           },
+} 
+}           handleFileSelect(event) {
+}             this.selectedFile = event.target.files[0];
+}           },
+} 
+}           uploadFile() {
+}             if (!this.selectedFile) {
+}               this.status = "No file selected";
+}               return;
+}             }
+} 
+}             const formData = new FormData();
+}             formData.append("file", this.selectedFile);
+} 
+}             fetch(`http://localhost:${this.port}/${this.selectedFile.name}`, {
+}               method: "PUT",
+}               body: this.selectedFile,
+}               headers: {
+}                 "Content-Type": this.selectedFile.type,
+}               },
+}             })
+}               .then((response) => {
+}                 if (response.ok) {
+}                   this.status = "File uploaded successfully";
+}                   this.fetchFiles(); // Refresh the file list
+}                 } else {
+}                   throw new Error("Upload failed");
+}                 }
+}               })
+}               .catch((error) => {
+}                 console.error("Error uploading file:", error);
+}                 this.status = "Error uploading file";
+}               });
+}           },
+} 
+}           downloadFile(filePath) {
+}             fetch(`http://localhost:${this.port}${filePath}`)
+}               .then((response) => response.blob())
+}               .then((blob) => {
+}                 const url = window.URL.createObjectURL(blob);
+}                 const a = document.createElement("a");
+}                 a.style.display = "none";
+}                 a.href = url;
+}                 a.download = filePath.split("/").pop();
+}                 document.body.appendChild(a);
+}                 a.click();
+}                 window.URL.revokeObjectURL(url);
+}                 this.status = "File downloaded";
+}               })
+}               .catch((error) => {
+}                 console.error("Error downloading file:", error);
+}                 this.status = "Error downloading file";
+}               });
+}           },
+}         }));
+}       });
+}     </script>
+}   </body>
+} </html>
+
+= (indexHtml port)
+| barCat [htmlStart (interpolatePort port) htmlEnd]
+
+> HMap Str (ContentType, Pin Bar)
+= startingFiles
+| hmSingleton
+* largeConfig
+
+# record CogState
+| COG_STATE
+* files      : (HMap Str (ContentType, Pin Bar))
+* fileBytes  : Nat
+* servThread : ThreadId
+* ourPort    : Nat
+
+> ThreadId > CogState
+= (newCogState ourPort servThread)
+| COG_STATE
+* startingFiles
+* 0
+* servThread
+* ourPort
+
+(bindMaybe mVal k)=(maybeCase mVal NONE k)
+
+> Bar > Maybe (Tab Str Json)
+= (jsonMap jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| if (res || leftover) NONE
+# datacase json
+* JMAP|m | SOME m
+* _      | NONE
+
+= (asJsonStr m)
+# datacase m
+* JSTR|s | SOME s
+* _      | NONE
+
+= (asJsonNum m)
+# datacase m
+* JNUM|n | SOME n
+* _      | NONE
+
+= (parseNote jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| trk [%parseNote jsonBS]
+: string < bindMaybe (asJsonStr json)
+| SOME string
+
+= (parseNoteJson jsonBS)
+: map < bindMaybe (jsonMap jsonBS)
+: theNote < bindMaybe (tabLookup %newNote map)
+| SOME (barNat theNote)
+
+(msgToStr m)=(JSTR | natBar m)
+
+= (buildJson st)
+@ COG_STATE(..) st
+| JMAP
+## =files     | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
+## =totalSize | JVEC (map fileBytes) ; this is structured wrong
+
+= jsonContentType [(b#{content-type}, b#{application/json})]
+= corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{*}) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+(emptyFileServer req)=NONE
+
+= (fileServer (PIN st) [method path headers (PIN body)])
+| trk [%fileServerRequest method path headers body]
+| trk [%files (**getFiles st)]
+# switch method
+* _ | NONE
+* GET
+  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
+  & [type (PIN content)]
+  @ head | [(b#{Content-Type}, type) (b#{Access-Control-Allow-Origin}, b#{*})]
+  [200 b#gotcha head content]
+
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ srv       | **getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
+| return ()
+
+fileCogChannel=66
+
+= (portResponder return)
+: _ < syscall | COG_TELL fileCogChannel (_ _ & [NONE ()])
+| trk [%portResponder0]
+: port < syscall HTTP_PORT
+| trk [%portResponder1 port]
+: _    < syscall | COG_TELL fileCogChannel (_ _ & (trk %tellFun [SOME-port ()]))
+| portResponder return
+
+= (handleReq vSt request return)
+@ [rid method path headers pBody@(PIN body)] request
+# switch method
+* GET
+  # switch path
+  * b#{/}
+    : (PIN st) < readRef vSt
+    @ ourPort  | getOurPort st
+    | trk [%ourPort ourPort]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [(b#{Content-Type}, b#{text/html})] (indexHtml ourPort)))
+    | return ()
+  * b#{/index.html}
+    : (PIN st) < readRef vSt
+    @ ourPort  | getOurPort st
+    | trk [%ourPort ourPort]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [(b#{Content-Type}, b#{text/html})] (indexHtml ourPort)))
+    | return ()
+  * b#{/files}
+    : (PIN st) < readRef vSt
+    @ files (**getFiles st)
+    @ fileNames (hmKeys files)
+    | trk [%fileNames fileNames]
+    @ stateJson | buildJson st
+    @ stateJsonBS | printJson stateJson
+    | trk [%resultJSON stateJsonBS]
+    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders stateJsonBS))
+    | return ()
+  * _
+    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
+    | return ()
+* PUT
+  : (PIN st) < readRef vSt
+  @ barType | **fromSome b#{text/plain}
+            | tabLookup b#{content-type}
+            | tabFromPairs headers
+  @ newTotalSize | add (barLen body) | getFileBytes st
+  @ files (**getFiles st)
+  @ files | hmInsert (barNat path) [barType pBody] files
+  | trk [%newFiles files]
+  | trk [%newSize newTotalSize]
+  @ stateJson | buildJson st
+  @ stateJsonBS | printJson stateJson
+  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done corsHeaders b#{}))
+  : _ < modifyState vSt & st
+                        | setFileBytes newTotalSize
+                        | setFiles files
+                        | st
+  | return ()
+* OPTIONS
+  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
+  | return ()
+* _
+  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
+  | return ()
+
+
+= (runHttpServer vSt return)
+: ??(rhs_heard req) < syscall HTTP_HEAR
+: _                 < handleReq vSt req
+| runHttpServer vSt return
+
+= (spinFiles return)
+: servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+: port < syscall HTTP_PORT
+: vSt         < newRef (PIN | newCogState port servThread)
+: _           < modifyState vSt id
+; TODO: remove:
+; | trk ["files port" port]
+: httpThread1 < fork (runHttpServer vSt)
+: httpThread2 < fork (runHttpServer vSt)
+: portThread  < fork portResponder
+| return ()
+
+; main=(runCog spinFiles)
+
+^-^ spinFiles
