@@ -330,8 +330,7 @@ spinCog st cogId = do
     listenSocket <- N.openSocket ainfo
     N.listen listenSocket 5 -- TODO Should this be 5?
     listenPort <- fromIntegral <$> N.socketPort listenSocket
-    debugVal ("_http_port")
-             (fromIntegral listenPort :: Nat)
+    putStrLn $ "http://localhost:" <> pack (show listenPort) <> "/"
 
     let baseName  = (tshow cogId.int) <> ".http.port"
     let portFile = st.mach </> unpack baseName
