@@ -14,6 +14,8 @@ An event sourced, purely functional operating system.
 
 ## Introduction
 
+[![Webserver Demo](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/pallas-persisted-webservers.mov)](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/pallas-persisted-webservers.mov)
+
 Pallas is an event sourced, purely functional operating system, called an operating function. 
 
 Pallas provides an entirely unique set of features, but is inspired by a long history of systems and language research, including MIT’s exokernel. Pallas collapses the distinction between database, virtual machine, and language platform, creating a stable, simple, and extensible programming environment.
