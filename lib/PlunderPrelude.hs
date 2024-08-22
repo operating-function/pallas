@@ -8,6 +8,9 @@ module PlunderPrelude
     , writeTBQueue'
     , turn
     , whenJust
+    , guarded
+    , liftMaybe
+    , mapMaybeA
     , pass
     , (!), (.!)
     )
@@ -46,6 +49,18 @@ turn = (<&>)
 whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust Nothing  _   = pure ()
 whenJust (Just x) act = act x
+
+-- From Protolude, Relude, ...
+guarded :: Alternative f => (a -> Bool) -> a -> f a
+guarded p a = if p a then pure a else empty
+
+liftMaybe :: Alternative f => Maybe a -> f a
+liftMaybe Nothing  = empty
+liftMaybe (Just a) = pure a
+
+-- | Applicative 'mapMaybe'.
+mapMaybeA :: Applicative f => (a -> f (Maybe b)) -> [a] -> f [b]
+mapMaybeA f = fmap catMaybes . traverse f
 
 type instance Element (Array a) = a
 type instance Element (SmallArray a) = a

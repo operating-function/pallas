@@ -16,6 +16,7 @@ module Server.Evaluator
     , evaluator
     , getEvalOutcome
     , pleaseEvaluate
+    , Cancel(..)
     )
 where
 
@@ -25,7 +26,6 @@ import Fan.Prof
 import PlunderPrelude
 import Server.Common
 import Server.Debug
-import Server.Hardware.Types (Cancel(CANCEL))
 import Server.Time
 -- import Server.Types.Logging
 
@@ -34,6 +34,8 @@ import Control.Concurrent (threadDelay)
 import qualified Data.Vector as V
 
 -- Types -----------------------------------------------------------------------
+
+newtype Cancel = CANCEL { action :: STM () }
 
 data EvalOutcome
     = OKAY NanoTime Fan -- ^ completed successfully

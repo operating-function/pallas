@@ -103,25 +103,25 @@ data HWState = HW_STATE
     , whenWorker :: ThreadId
     }
 
-runSysCall :: HWState -> SysCall -> STM [Flow]
+runSysCall :: HWState -> SysCall -> STM (Cancel, [Flow])
 runSysCall st kal = do
     case toList kal.args of
         ["when"] -> do
             modifyTVar' st.whens (kal :)
-            pure []
+            pure (CANCEL pass, [])
         ["wait", NAT wakeTime] -> do
             let wen = fromIntegral wakeTime
             if wakeTime /= fromIntegral wen then
                 -- If the wakeTime overflows an Int64, we never return.
-                pure []
+                pure (CANCEL pass, [])
             else do
                 key <- poolRegister st.waitPool kal
                 modifyTVar' st.waits (Heap.insert (wen, key))
-                pure []
+                pure (CANCEL (poolUnregister st.waitPool key), [])
         _ -> do
             --
             fillInvalidSyscall kal
-            pure []
+            pure (CANCEL pass, [])
 
 categoryCall :: Vector Fan -> Text
 categoryCall args = "%time " <> case toList args of
@@ -139,8 +139,7 @@ createHardwareTime :: Debug => Acquire Device
 createHardwareTime = do
     st <- mkAcquire mk release
     pure DEVICE
-        { spin = \_ -> pass -- Don't care which cog makes the calls.
-        , stop = \_ -> pass
+        { stop = pass
         , call = runSysCall st
         , category = categoryCall
         , describe = describeCall

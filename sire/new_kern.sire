@@ -1,8 +1,28 @@
-#### new_kern <- sire
+#### new_kern <- prelude
 
-:| sire
+:| prelude
 
-= (**DB_READ query) [1 query]
-= (**DB_WRITE cmd)  [2 cmd]
-= TIME_WHEN         [3]
-= (**TIME_WAIT ns)  [4 ns]
+= (EVAL f as)            [0 f as]
+= (EXEC pump)            [1 pump]
+
+= (DB_READ query)        [0 %read query]
+= (DB_WRITE cmd)         [0 %write cmd]
+= TIME_WHEN              [%time %when]
+= (TIME_WAIT ns)         [%time %wait ns]
+= (HTTP_REQ m u h b r t) [%http %req m u h b r t]
+= (HTTP_SERV ss)         [%http %serv ss]
+= (HTTP_HEAR)            [%http %hear]
+= (HTTP_HOLD n)          [%http %hold n]
+= (HTTP_ECHO r c m h b)  [%http %echo r c m h b]
+
+
+# abstype | Proc a
+# abstype | Cog a
+# abstype | Call a
+
+> Call a > Proc a
+= (syscall request k end nx sl rq)
+@ rq | rowCons (nx,rq) request
+@ sl | 'row
+@ nx | inc nx
+'syscall

@@ -24,4 +24,4 @@
 | step (0,0) readsFun
 : i < gen 10
 @ (myTurn (next,_)) | (i == next)
-| pump myTurn [(0, DB_READ myTurn)]
+| EXEC | pump myTurn [(0, DB_READ myTurn)]

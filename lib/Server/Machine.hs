@@ -131,6 +131,40 @@ snapshotWorkIntervalInNs = oneSecondInNs * 45
 thirtySecondsInMicroseconds :: Nat
 thirtySecondsInMicroseconds = 30 * 10 ^ (6::Int)
 
+data WriteRequest = COG_WRITE
+  { cmd :: Fan
+  , cause :: Flow
+  }
+
+-- This used to use Maybe but was generalized to f because sometimes we need
+-- STM instead. f should probably always have an Alternative instance though.
+class Effect f c where
+    makeCall :: Eff -> f c
+--  writeResponse :: c ->
+
+instance Effect STM WriteRequest where
+  makeCall eff@EFF{..} = kill eff *> liftMaybe do
+     [NAT 0, NAT "write", cmd] <- sequence [fan V.!? 0, fan V.!? 1, fan V.!? 2]
+     pure COG_WRITE{..}
+
+data ReadRequest = COG_READ
+  { reqIdx :: RequestIdx
+  , query  :: Fan
+  , state  :: CallStateVar
+--, cause  :: Flow
+  }
+
+instance Alternative f => Effect f ReadRequest where
+  makeCall EFF{..} = liftMaybe do
+    [NAT 0, NAT "read", query] <- sequence [fan V.!? 0, fan V.!? 1, fan V.!? 2]
+    pure COG_READ{..}
+
+instance ToNoun WriteRequest where
+  toNoun write = write.cmd
+
+instance ToNoun ReadRequest where
+  toNoun read = read.query
+
 data TellOutcome
     = OutcomeOK Fan TellId
     | OutcomeCrash
@@ -154,7 +188,8 @@ responseToVal (RespEval e)   =
 
 -- TODO separate eval and write
 responseToReceiptItem :: (ProcId, WriteRequest) -> (Int, ReceiptItem)
-responseToReceiptItem (PROC_ID i, CogWrite{cmd}) = (fromIntegral i, ReceiptVal cmd)
+responseToReceiptItem (PROC_ID i, COG_WRITE{cmd})
+  = (fromIntegral i, ReceiptVal cmd)
 
 makeOKReceipt :: [(ProcId, WriteRequest)] -> Receipt
 makeOKReceipt =
@@ -171,10 +206,10 @@ getCurrentWorkerNoun fan = case fromEndOfClosure 0 fan of
     _             -> mempty
 
 getCurrentDbNoun :: Fan -> Fan
-getCurrentDbNoun = fromMaybe (NAT 0) . fromEndOfClosure 2
+getCurrentDbNoun = fromMaybe 0 . fromEndOfClosure 2
 
 getCurrentReadsNoun :: Fan -> Fan
-getCurrentReadsNoun = fromMaybe (NAT 42) . fromEndOfClosure 1 -- TODO we should have something other than 42 but this is nice for now because it crashes and is recognizable
+getCurrentReadsNoun = fromMaybe 42 . fromEndOfClosure 1 -- TODO we should have something other than 42 but this is nice for now because it crashes and is recognizable
 
 fromEndOfClosure :: Int -> Fan -> Maybe Fan
 fromEndOfClosure idx = \case
@@ -190,39 +225,51 @@ hasNonzeroReqs = any (/= NAT 0) . getCurrentWorkerNoun
 data EvalCancelledError = LIVE_EVAL_CANCELLED
   deriving (Exception, Show)
 
-type LiveWorkerThread = Either (IO (Async ())) (Async ())
-
-killWorkerThread :: LiveWorker -> IO ()
-killWorkerThread worker = either (const pass) cancel worker.thread
-
-startWorkerThread :: LiveWorker -> IO LiveWorker
-startWorkerThread worker = do
-  handle <- either (fmap Right) (pure . Right) worker.thread
-  pure $ worker { thread = handle }
-
 data Worker
   = EXEC { pump :: Fan }
   | EVAL { fun :: Fan, args :: Vector Fan }
 
-instance FromNoun Worker where
-  fromNoun v = do
-    (tag :: Word, body :: Fan) <- fromNoun v
-    case tag of
-      0 -> do
-        (fun:args) <- fromNoun body
-        Just $ EVAL fun (fromList args)
-      1 -> Just $ EXEC body
-      _ -> Nothing
+stageWorker :: Debug => DeviceTable -> Worker -> STM (IO LiveWorker)
+stageWorker hw EXEC{pump} = do
+    writes <- newTQueue
+    let write = writeTQueue writes
+    reads <- newTQueue
+    let read = writeTQueue reads
 
+    let call pc = asum [ makeCall pc >>= read  >> pure (CANCEL pass, [])
+                       , makeCall pc >>= write >> pure (CANCEL pass, [])
+                       , makeCall pc >>= callHardware hw
+                       ] `orElse` (kill pc $> (CANCEL pass, []))
+    pure do
+      (thread, inbox) <- spawnProc pump call
+      pure LIVE_EXEC{..}
+
+instance Alternative f => Effect f SysCall where
+  makeCall EFF{..} = liftMaybe $ V.uncons fan >>= \case
+     (NAT i, args) | i /= 0 -> Just SYSCALL{dev=DEV_NAME i, ..}
+     _                      -> Nothing
+
+instance FromNoun Worker where
+  fromNoun v = fromNoun v >>= \case
+    [0,f,as] -> EVAL f <$> fromNoun as
+    [1,pump] -> Just $ EXEC pump
+    _        -> Nothing
 
 data LiveWorker
-  = LIVE_EXEC { pump :: Fan, reads :: TQueue ReadRequest, writes :: TQueue WriteRequest, thread :: LiveWorkerThread }
-  | LIVE_EVAL { fun :: Fan, args :: Vector Fan, writes :: TQueue WriteRequest, thread :: LiveWorkerThread }
+  = LIVE_EXEC { pump :: Fan, reads :: TQueue ReadRequest, writes :: TQueue WriteRequest, inbox :: ResponseTuple -> STM (), thread :: Async () }
+  | LIVE_EVAL { fun :: Fan, args :: Vector Fan, eval :: Evaluation, thread :: Async () }
 
+instance Show LiveWorker where
+  show = \case
+    LIVE_EXEC{pump} -> "LIVE_EXEC{" <> show pump <> "}"
+    LIVE_EVAL{fun,args} -> "LIVE_EVAL{fun=" <> show fun <> ", args=" <> show args <> "}"
 
 -- | A list of parsed out valid requests from `noun`. For every cog, for every
 -- index in that cog's requests table, there is a raw fan value and a
--- `LiveRequest` which contains STM variables to listen
+-- `LiveWorker` which contains STM variables to listen to as well as a thread
+-- handle to kill the worker.
+--
+-- TODO this should be an array/vector instead.
 type CogWorkers = IntMap (Fan, LiveWorker)
 
 -- | All the information needed for both
@@ -261,7 +308,7 @@ data CogReplayEffect
       , tell   :: Fan
       }
     deriving (Show)
-
+{-
 data ResponseTuple = RTUP
     { key  :: RequestIdx
     , resp :: Response
@@ -269,9 +316,11 @@ data ResponseTuple = RTUP
     , flow :: Flow
     }
   deriving (Show)
+-}
 
 data ParseRequestsState = PRS
-    { workers   :: CogWorkers
+    { workers   :: IntMap (Fan, LiveWorker)
+    , newWorkers :: IntMap (Fan, IO LiveWorker)
     , flows     :: [Flow]
     , onPersist :: [STM OnCommitFlow]
     , cancels   :: IO ()
@@ -321,7 +370,7 @@ recomputeEvals m tells tab =
     getEvalFunAt :: Moment -> ProcId -> Maybe (Fan, Vector Fan)
     getEvalFunAt m (PROC_ID procId) = do
         workers <- getCurrentWorkerNoun <$> cogSpinningFun m.val
-        worker <- workers V.!? (fromIntegral procId)
+        worker <- workers V.!? fromIntegral procId
         fromNoun worker >>= \case
             EVAL fun args -> Just (fun, args)
             _             -> Nothing
@@ -346,6 +395,11 @@ performReplay cache ctx replayFrom = do
             -> IO (BatchNum, (Moment, Tells))
     doBatch (_, momentTells) LogBatch{batchNum,executed} =
         loop batchNum momentTells executed
+
+    runEffect :: (Moment, Tells) -> Maybe CogReplayEffect -> (Moment, Tells)
+    runEffect (m, t) = \case
+        Just CTell{..} -> (m, M.insert tellId tell t)
+        _              -> (m, t)
 
     loop :: BatchNum -> (Moment, Tells) -> [Receipt]
          -> IO (BatchNum, (Moment, Tells))
@@ -379,15 +433,7 @@ performReplay cache ctx replayFrom = do
                 (eRes, eWork) <- runStateT (recomputeEvals m t inputs) 0
 
                 let arg = TAb $ mapFromList $ map tripleToPair eRes
-
-                -- TODO why is this in IO..?
-                let runEffect :: (Moment, Tells) -> Maybe CogReplayEffect
-                              -> IO (Moment, Tells)
-                    runEffect (m, t) = \case
-                        Just CTell{..} -> pure $ (m, M.insert tellId tell t)
-                        _              -> pure (m, t)
-
-                (m, t) <- foldlM runEffect (m, t) (map third eRes)
+                let (m, t) = foldl' runEffect (m, t) (map third eRes)
 
                 fun <- case mybCogFun of
                     Nothing  -> throwIO INVALID_COGID_IN_LOGBATCH
@@ -408,6 +454,7 @@ performReplay cache ctx replayFrom = do
 
                 loop bn (updateRunner, t) xs
 
+    
 -- | Main entry point for starting running a Cog.
 replayAndCrankMachine
     :: Debug
@@ -488,7 +535,7 @@ replayAndCrankMachine cache ctx replayFrom = do
 -- | Synchronously shuts down a machine and wait for it to exit.
 shutdownMachine :: Machine -> IO ()
 shutdownMachine machine@MACHINE{..} = do
-  readTVarIO workersAsyncs >>= traverse_ (killWorkerThread . snd)
+  readTVarIO workersAsyncs >>= traverse_ (\(_,worker) -> cancel worker.thread)
   -- Kill the runner to immediately cancel any computation being done.
   cancel runnerAsync
   waitForLogAsyncShutdown machine
@@ -512,12 +559,6 @@ workToReplayEval = \case
     OKAY w _ -> w
     CRASH{}  -> 0
     TIMEOUT  -> 0
--}
-{-
-receiveResponse
-  :: Runner
-  -> STM (Maybe ResponseTuple)
-receiveResponse st = pure Nothing -- TODO should we check for writes here?
 -}
 
 -- Design point: Why not use optics and StateT in Runner? Because StateT in IO
@@ -572,7 +613,7 @@ runnerFun initialFlows machine processName st = do
         allWrites <- concat <$> for (mapToList workers) \(i,(_,worker)) -> do
           pendingWrites <- flushTQueue worker.writes
           pure $ zip (repeat $ PROC_ID $ fromIntegral i) pendingWrites
-        allWrites <$ (check . not . null) allWrites
+        guarded (not . null) allWrites
       results <- cogTick writeRequests
       atomically do
           mapM_ exportState results
@@ -610,7 +651,7 @@ runnerFun initialFlows machine processName st = do
 runReads :: Debug => Fan -> [ReadRequest] -> IO ()
 runReads cogFun readReqs = do
     let fun = getCurrentReadsNoun cogFun
-    for_ readReqs \(CogRead idx query (STVAR return)) -> do
+    for_ readReqs \(COG_READ idx query (STVAR return)) -> do
         (_, result) <- evalWithTimeout thirtySecondsInMicroseconds [] fun
                         [ getCurrentDbNoun cogFun
                         , NAT $ fromIntegral idx.int
@@ -693,35 +734,26 @@ updateRunner runner update = do
     sideEffects $> (flows, onCommit)
   where
 
-    -- TODO check that we use TMVar instead of TVar for all syscalls and such
-
     -- | Given a noun in a runner, update the `workers`
     parseWorkers :: Debug => STM (IO (), [Flow], [STM OnCommitFlow])
     parseWorkers = do
         cogState <- (.val) <$> readTVar runner.vMoment
         oldWorkers <- readTVar runner.vWorkers
 
-        let init = PRS{workers=oldWorkers, flows=[], onPersist=[], cancels=pass}
+        let init = PRS{workers=oldWorkers, newWorkers=mempty, flows=[], onPersist=[], cancels=pass}
         let newWorkers = case cogState of
               CG_CRASHED{}       -> mempty
               CG_TIMEOUT{}       -> mempty
               CG_FINISHED{}      -> mempty
               CG_SPINNING cogFun -> getCurrentWorkerNoun cogFun
 
---      traceM $ unlines
---        ["parseWorkers"
---        ,"cogState: " <> show cogState
---        ,"oldWorkers: " <> show (fmap fst oldWorkers)
---        ,"newWorkers: " <> show newWorkers
---        ]
-
         st <- flip execStateT init do
 
             for_ (mapToList oldWorkers) \(i,(v,_)) ->
                 case newWorkers V.!? i of
-                    Nothing           -> deleteWorker i -- >> traceM "deleting"
-                    Just w | keep v w -> pure ()
-                    Just w            -> deleteWorker i >> addWorker i w -- >> traceM "deleting and adding"
+                    Nothing           -> deleteWorker i
+                    Just w | keep v w -> pass
+                    Just w            -> deleteWorker i >> addWorker i w
 
             for_ (zip [0..] $ toList newWorkers) \(i,v) ->
                 unless (member i oldWorkers) $ addWorker i v
@@ -745,33 +777,25 @@ updateRunner runner update = do
 
         let sideEffects = do
               st.cancels
-              workers <- readTVarIO runner.vWorkers
-                          >>= traverse (traverse startWorkerThread)
-              atomically $ writeTVar runner.vWorkers workers
+              new <- traverse sequence st.newWorkers
+              atomically $ modifyTVar' runner.vWorkers (union new)
 
         pure (sideEffects, st.flows, st.onPersist)
 
       where
         deleteWorker :: MonadState ParseRequestsState m => Int -> m ()
         deleteWorker key = do
---          traceM ("deleteWorker: " <> show key)
             use (#workers % at key) >>= \case
                 Nothing -> error "deleteWorker: impossible"
                 Just (_, worker) -> do
                     modifying' #workers $ deleteMap key
-                    modifying' #cancels (>> killWorkerThread worker)
+                    modifying' #cancels (>> cancel worker.thread)
 
         addWorker :: Int -> Fan -> StateT ParseRequestsState STM ()
-        addWorker i v = do
---          traceM $ "addWorker: " <> show i
-            writes <- lift newTQueue
-            let write = writeTQueue writes
-            reads <- lift newTQueue
-            let read = writeTQueue reads
-            let handle = Left $ spawnProc v COG_HANDLE{..} runner.ctx.hw
-
-            modifying' #workers $ insertMap i (v, LIVE_EXEC v reads writes handle)
-      --      modifying' #flows  (++ (f:startedFlows))
+        addWorker i fan = do
+          whenJust (fromNoun fan) \w -> do
+            staged <- lift $ stageWorker runner.ctx.hw w
+            modifying' #newWorkers $ insertMap i (fan, staged)
 
 
 evalWithTimeout

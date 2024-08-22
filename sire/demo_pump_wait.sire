@@ -16,4 +16,4 @@
 = main
 | cog [] const-0
 : i < gen 2
-| pump [(0, TIME_WHEN)]
+| EXEC | pump [(0, TIME_WHEN)]

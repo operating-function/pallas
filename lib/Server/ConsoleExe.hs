@@ -22,7 +22,7 @@ import System.Environment
 import System.Posix.Signals hiding (Handler)
 import System.Process
 
--- import Server.Hardware.Http  (createHardwareHttp)
+import Server.Hardware.Http  (createHardwareHttp)
 -- import Server.Hardware.Port  (createHardwarePort)
 -- import Server.Hardware.Rand  (createHardwareRand)
 import Server.Hardware.Types (DeviceTable(..))
@@ -567,19 +567,20 @@ withMachineIn storeDir numWorkers enableSnaps machineAction = do
     -- ignoring it, but there's a bunch of things the old system did to catch
     -- Ctrl-C.
 
-    let devTable _ = do
+    let devTable db = do
           --hw1_rand          <- createHardwareRand
           --(hw4_wock, wsApp) <- createHardwareWock
-          --hw2_http          <- createHardwareHttp storeDir db wsApp
+            let wsApp _ws = pure ()
+            hw2_http          <- createHardwareHttp storeDir db wsApp
           --hw3_sock          <- createHardwareSock storeDir
             hw5_time          <- createHardwareTime
           --hw6_port          <- createHardwarePort
             (pure . DEVICE_TABLE . mapFromList) $
                 [--( "rand", hw1_rand )
-                --( "http", hw2_http )
+                  ( "http", hw2_http )
                 --( "sock", hw3_sock )
                 --( "wock", hw4_wock )
-                  ( "time", hw5_time )
+                , ( "time", hw5_time )
                 --( "port", hw6_port )
                 --( "poke", hw_poke  )
                 ]
