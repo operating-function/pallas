@@ -215,7 +215,7 @@ runResponse st@RUNNER{..} rt = let st' = st{reqs=deleteMap rt.key.int reqs} in
             -- Perform parseRequest and handle all changes that have to be handled
             -- atomically.
             newReqs <- atomically $ parseRequests st''
-            pure st'{reqs=newReqs}
+            pure st''{reqs=newReqs}
 
 -- | Update the requests in a runner according to the current proc.
 -- TODO maybe just take the proc Fan value and give back a diff map?
