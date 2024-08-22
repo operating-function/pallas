@@ -15,14 +15,43 @@
 = (HTTP_HOLD n)          [%http %hold n]
 = (HTTP_ECHO r c m h b)  [%http %echo r c m h b]
 
-
-# abstype | Proc a
-# abstype | Cog a
-# abstype | Call a
-
-> Call a > Proc a
 = (syscall request k end nx sl rq)
-@ rq | rowCons (nx,rq) request
-@ sl | 'row
+@ rq | rowCons (nx,request) rq
+@ sl | rowSnoc sl k
 @ nx | inc nx
-'syscall
+| end nx sl rq
+
+= (COG_KERNEL st rs ws inputs)
+'cog_kernel
+
+= (PUMP_KERNEL nx sl rq key input)
+@ exe | get sl key
+@ sl  | put sl key 0
+@ rq  | []                 ; TODO This should be solved in the runtime
+| ifz exe | PUMP_KERNEL nx sl rq
+@ end | PUMP_KERNEL
+| exe input end nx sl rq
+
+= (COG_DONE _ end st rs ws)
+| end st rs ws
+
+= (PUMP_DONE _ end nx sl rq)
+| end nx sl rq
+
+= (work [mode worker] cogK cogEnd st rs ws)
+@ k   | PUMP_DONE
+@ end | PUMP_KERNEL
+@ nx  | 0
+@ sl  | []
+@ rq  | []
+@ w   | worker k end nx sl rq
+@ newWs | rowSnoc ws [mode w]
+| cogK len-ws cogEnd st rs newWs
+
+= (runCog cog)
+@ k   | COG_DONE
+@ end | COG_KERNEL
+@ st  | 0
+@ rs  | (_ _ _ & 0)
+@ ws  | []
+| cog COG_DONE COG_KERNEL st rs ws

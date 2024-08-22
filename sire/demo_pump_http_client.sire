@@ -2,6 +2,13 @@
 
 :| new_kern
 
+= m b{GET}                            ;; GET request
+= u b{http://ifconfig.me}             ;; HTTPS url
+= h [[b{Content-Type} b{text/plain}]] ;; one header
+= b b{}                               ;; no body
+= r 1                                 ;; no redirects
+= t 1000000                           ;; 1s timeout
+
 = (pump _ reqId input@[code msg headers (PIN body)])
 | pump
 ^ trk [%pumping [=reqId outs=_ =input]] _
@@ -15,14 +22,26 @@
   [(inc reqId, TIME_WAIT (add 5 input))]
 | else []
 
-
-= main
-@ m b{GET}                            ;; GET request
-@ u b{http://ifconfig.me}             ;; HTTPS url
-@ h [[b{Content-Type} b{text/plain}]] ;; one header
-@ b b{}                               ;; no body
-@ r 1                                 ;; no redirects
-@ t 1000000                           ;; 1s timeout
+= main2
 ^ _ 0 const-0 [EXEC-(pump [(0, HTTP_REQ m u h b r t)])]
 ? (cog state reads workers inputs)
 | (cog state reads workers, [])
+
+= workers [EXEC-(pump [(0, HTTP_REQ m u h b r t)])]
+
+= (reqWaitLoop return)
+: response@[code msg headers (PIN body)] < syscall | HTTP_REQ m u h b r t
+| trk [=response]
+| trk
+  | if (isNat-response || gth code 1000) "ERROR"
+  | [responseBody=body]
+: now < syscall TIME_WHEN
+: _ < syscall | TIME_WAIT (add 5 now)
+| reqWaitLoop return
+
+= (cog return)
+: wID < work | EXEC reqWaitLoop
+| return wID
+
+= main
+| runCog cog
