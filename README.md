@@ -124,7 +124,9 @@ The [documentation](https://opfn.gitbook.io/pallas/sire/intro) covers the langua
 
 ### Explanation
 
-`#### demo_count_up <- prelude`
+```
+#### demo_count_up <- prelude
+```
 
 Inline 'prelude' before 'demo_count_up'.
 
@@ -134,13 +136,17 @@ Import 'prelude.sire'.
 
 ---
 
-`= (countLoop count k)`
+```
+= (countLoop count k)
+```
 
 `=` declares a top level binding. The function named `countLoop` that takes a 'count' parameter (and a 'k' parameter that we don't need to worry about now).
 
 ---
 
-`| trk [{counter is at} count]`
+```
+| trk [{counter is at} count]
+```
 
 Print out the current count to the console with the `trk` (track) function from the standard library. The bar `|` is function application. It says "apply the function `trk` to the arguments after it."
 
@@ -165,7 +171,9 @@ Next, we want to do a clock system call for the current time. The `syscall` func
 
  ---
 
- `: resultOfTimeWait < syscall (TIME_WAIT (inc now))`
+```
+: resultOfTimeWait < syscall (TIME_WAIT (inc now))
+```
  
  Now we want to wait 1 second. We'll use this opportunity to show an alternative style that you'll come across often in Pallas code.
 
@@ -181,7 +189,9 @@ Our goal with `TIME_WAIT` was just to wait 1 second. We don't actually use the "
 
 ---
 
-`| countLoop (inc count) k`
+```
+| countLoop (inc count) k
+```
 
 After waiting 1 second, we recurr and pass an incremented value for `count`.
 
