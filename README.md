@@ -345,8 +345,7 @@ Take note of the final counter value and then `Ctrl-C` to kill the machine.
 ```
 
 Now run `pallas start /tmp/counter` again. The counter picks up where it
-left off. Later on you'll be invited to explore the source code of this
-simple demo and you'll notice that there is no explicit saving or
+left off. You'll notice that there is no explicit saving or
 writing to disk or a database. You get persistence for free by writing
 application code.
 
