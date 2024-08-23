@@ -70,7 +70,7 @@ Pallas includes both a suitable foundation for the future of computing and an in
 
 TODO: diagram, major components
 
-The foundation of Pallas is untyped, but conceptually we can say that a process is database is a function of the type 
+The foundation of Pallas is untyped, but conceptually we can say that a process is database. Each database is a function of the type 
 
 ```haskell
 type DB = Input -> (Output, DB)
