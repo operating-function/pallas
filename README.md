@@ -133,7 +133,6 @@ Inline 'prelude' before 'demo_count_up'.
 Import 'prelude.sire'.
 
 ---
-<br/>
 
 `= (countLoop count k)`
 
