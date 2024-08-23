@@ -88,7 +88,7 @@ The difference is that instead of changing the state value, the recursive versio
 
 ## Example
 
-Sire is the default programming language of Pallas. A Pallas machine consists of a set of persistent processes known as Cogs.  
+**Sire** is the default programming language of Pallas. A Pallas machine consists of a set of persistent processes known as Cogs.  
 
 This code is for a simple counter cog that gets the time and increments a value. Counter state is persisted through cog restarts.
 
@@ -371,12 +371,17 @@ suggestions.
 
 Pallas is still considered to be a prototype implementation, though some core features are close to done. It currently requires an underlying OS and file system, but has been designed such that these dependencies can eventually be removed.
 
-Planned features not yet complete:
-- Haskell and C runtimes
-- Macro-based Hindley–Milner type system
-- Native networking with cryptographic keys as network addresses 
-- Standardized syscall hardware interface
-- Capability-based process security model
+Planned, but incomplete features:
+- **Sire improvements** - <span style="color:orange">in progress</span>
+   - Pallas supports macro-based type systems. There is a Hindley–Milner implementation that is ~80% complete that needs to be finished before serious applications are produced.
+   - Automatic module linearization will significantly improve LLM integration and reduce onboarding challenges.
+   - Add Sire macros for richer namespacing.
+- **Capability-based process security model** - <span style="color:orange">in progress</span>
+   - Cogs are designed to run hierarchically with a token, or capability-based, security model. The cog development model is under active development, but capabilities have not yet been added.
+- **Native networking** - <span style="color:red">not started</span>
+   - Native networking is the least complete core feature. There are designs for a basic implementation using HTTP, but more sophisticated approaches are possible.
+- **Scalable runtime** - <span style="color:red">not started</span>
+   - The existing Haskell runtime is considered adequate for prototyping and hobbyists in the near term, but cannot scale to our required terabytes of data. The runtime will need to be rewritten in a systems language like C, Rust, or Zig. 
 
 
 ## Additional Resources
