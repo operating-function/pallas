@@ -88,21 +88,121 @@ The difference is that instead of changing the state value, the recursive versio
 
 ## Example
 
-Sire is the programming language of Pallas.
+Sire is the default programming language of Pallas. A Pallas machine consists of a set of persistent processes known as Cogs.  
 
-The source code for the counter cog will provide a brief look at Sire. The
-[documentation](https://opfn.gitbook.io/pallas/sire/intro) covers the
-language more fully, but we want you to get a sense of it now.
+This code is for a simple counter cog that gets the time and increments a value. Counter state is persisted through cog restarts.
 
-![Sire source code for simple "count up" cog](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/pallas-example.png)
+The [documentation](https://opfn.gitbook.io/pallas/sire/intro) covers the language more fully.
 
-Open the `/sire/demo_count_up.sire` file yourself to see more elaborate comments explaining the syntax in detail.
+```
+#### demo_count_up <- prelude
 
-Get into a live REPL with `pallas sire sire/prelude.sire` and refer to the Sire documentation for a full tour of the syntax.
+:| prelude
 
-### Demo Examples
+;;; Count Up ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-_COMING SOON_: An `/examples` filled with more complex Sire procedures.
+= (countLoop count k)
+| trk [{counter is at} count]
+| syscall TIME_WHEN
+& now
+: resultOfTimeWait < syscall (TIME_WAIT (inc now))
+| countLoop (inc count) k
+
+= (main)
+| runCog (countLoop 0)
+
+;;; Example output:
+;;; ++ [%trk {2024-08-02T17:05:48.468929096Z}]
+;;; ++ [{counter is at} 1]
+;;;
+;;; ++ [%trk {2024-08-02T17:05:49.470040565Z}]
+;;; ++ [{counter is at} 2]
+;;;
+;;; ++ [%trk {2024-08-02T17:05:50.471186301Z}]
+;;; ++ [{counter is at} 3]
+```
+
+### Explanation
+
+`#### demo_count_up <- prelude`
+
+Inline 'prelude' before 'demo_count_up'.
+
+`:| prelude`
+
+Import 'prelude.sire'.
+
+---
+<br/>
+
+`= (countLoop count k)`
+
+`=` declares a top level binding. The function named `countLoop` that takes a 'count' parameter (and a 'k' parameter that we don't need to worry about now).
+
+---
+<br/>
+
+`| trk [{counter is at} count]`
+
+Print out the current count to the console with the `trk` (track) function from the standard library. The bar `|` is function application. It says "apply the function `trk` to the arguments after it."
+
+`trk` is a function that takes two arguments: 
+- the message to log to the terminal and 
+- a value that it will simply return (often the rest of the program)
+
+---
+<br/>
+
+```
+| syscall TIME_WHEN
+& now
+```
+
+Next, we want to do a clock system call for the current time. The `syscall` function takes two arguments:
+ - a request type of `TIME_WHEN` ("give me the current system time" in this case).
+ - a continuation to use when the syscall completes.
+
+ The system call might take a while to complete, but when it does, we'll be woken up and the result of the call will be passed as an argument to the continuation function that was provided to `syscall`. We use `&` to define the continuation function as a lambda. The lambda takes one argument called `now`, which will be bound to the result of the `TIME_WHEN` call.
+
+ Pallas syscalls are not like those found in GNU C. Each syscall and response is mapped in an array managed by a small internal micro-kernel. The Pallas runtime is responsible for actually interacting with the external system.
+
+ ---
+<br/>
+
+ `: resultOfTimeWait < syscall (TIME_WAIT (inc now))`
+ 
+ Now we want to wait 1 second. We'll use this opportunity to show an alternative style that you'll come across often in Pallas code.
+
+ We're going to use the `TIME_WAIT` syscall. `TIME_WAIT` itself takes a single argument - the amount of time to wait. We want to wait 1 second, which is the current time plus 1. At this point we are in the body of the continuation and have `now` in scope. The `inc` function takes a value and returns the result of adding 1 to it. `inc` is applied to `now` by wrapping both in parentheses.
+
+ Also note that rather than using the `&` anonymous lambda style, we're now using the col macro, `:` ("col" as in colon).
+
+On the right side of the `<` we're doing the syscall and the result of that call gets bound to `resultOfTimeWait`. As with the previous syscall, the next argument is a continuation, which again, is the rest of the code below the col macro.
+
+The col macro is a method of writing continuation-passing style in a way that *feels* like assignment. It feels as if syscall returns `resultOfTimeWait` which can be used in the remainder of the body. Col macro-expands into the same code as the `&` version above.
+
+Our goal with `TIME_WAIT` was just to wait 1 second. We don't actually use the "result" of the `TIME_WAIT` syscall (bound to `resultOfTimeWait`). In this case, we could also have bound it to "_" to denote this.
+
+---
+<br/>
+
+`| countLoop (inc count) k`
+
+After waiting 1 second, we recurr and pass an incremented value for `count`.
+
+---
+<br/>
+
+```
+= (main)
+| runCog (countLoop 0)
+```
+
+Finally, we'll start a process that will be responsible for running this function and handling any threads or syscalls that are involved. These processes are called "cogs" and are initiated with the `runCog` function.
+
+We bind a top-level `main` function that will call `runCog`. When we pass `countLoop` to `runCog` as its "job", we also need to provide the starting count of zero.
+
+
 
 ## Installation
 
@@ -220,8 +320,6 @@ Available commands:
 ```
 
 ## Getting Started
-
-A Pallas machine consists of a set of persistent processes known as Cogs.  
 
 Navigate to the root of this repository and run the commands below to see
 a simple demonstration of running a Pallas machine.
