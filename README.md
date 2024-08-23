@@ -139,7 +139,6 @@ Import 'prelude.sire'.
 `=` declares a top level binding. The function named `countLoop` that takes a 'count' parameter (and a 'k' parameter that we don't need to worry about now).
 
 ---
-<br/>
 
 `| trk [{counter is at} count]`
 
@@ -150,7 +149,6 @@ Print out the current count to the console with the `trk` (track) function from 
 - a value that it will simply return (often the rest of the program)
 
 ---
-<br/>
 
 ```
 | syscall TIME_WHEN
@@ -166,7 +164,6 @@ Next, we want to do a clock system call for the current time. The `syscall` func
  Pallas syscalls are not like those found in GNU C. Each syscall and response is mapped in an array managed by a small internal micro-kernel. The Pallas runtime is responsible for actually interacting with the external system.
 
  ---
-<br/>
 
  `: resultOfTimeWait < syscall (TIME_WAIT (inc now))`
  
@@ -183,14 +180,12 @@ The col macro is a method of writing continuation-passing style in a way that *f
 Our goal with `TIME_WAIT` was just to wait 1 second. We don't actually use the "result" of the `TIME_WAIT` syscall (bound to `resultOfTimeWait`). In this case, we could also have bound it to "_" to denote this.
 
 ---
-<br/>
 
 `| countLoop (inc count) k`
 
 After waiting 1 second, we recurr and pass an incremented value for `count`.
 
 ---
-<br/>
 
 ```
 = (main)
