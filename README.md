@@ -387,7 +387,7 @@ Planned, but incomplete features:
 ## Additional Resources
 
 - [Technical Documentation](https://opfn.gitbook.io/pallas) 
-- [Operating Function Company](https://vaporware.network)
+- [Operating Function Company](https://blog.vaporware.network/)
 - [Telegram Support](https://t.me/vaporwareNetwork)
 
 _This project is a fork of [Plunder](https://sr.ht/~plan/plunder/)._
