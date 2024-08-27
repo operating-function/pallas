@@ -32,15 +32,16 @@ Pallas makes it possible for small teams of developers to build high quality dis
 Pallas is an event sourced, purely functional application platform, called an **_operating function_**. Every operation inside an operating function is ACID. Pallas is currently instantiated as a VM and can be run on Linux, Mac, or Nix. The platform ships with a minimal bootstrapping language called _Sire_, but includes an efficient axiomatic IR which can be targeted by mainstream functional languages.
 
 ### Problem
-Software complexity has exploded. Our most popular applications require hundreds or thousands of developers to build and maintain. This complexity benefits large corporations who use their dominant capital positions to monopolize and rent seek. The root of this problem is anchored in the continued use of 20th century technologies that were never designed for distributed computing, and so require enormous resources to use.
+_Software is being destroyed by accidental complexity_. Our most popular applications require hundreds or thousands of developers to build and maintain. This complexity benefits large corporations who use their dominant capital positions to monopolize and rent seek. This dynamic increases the cost of software, reduces the set of economically viable programs, and disempowers developers and users alike. LLMs reinforce the existing structures.
 
+This is not an abstract moral problem. Software is the best tool we have for identifying, organizing, and solving societal issues. Instability in software trickles down to every other domain of human activity.
 
 ### Solution
-More composable software systems directly result in more software freedom. The more power individual developers wield, the more that power is distributed. This is true even if "scrolling through silos" is the highest state of computing.
+More composable software systems directly result in more software freedom. The more power individual developers wield, the more that power is widely distributed. This is true even if "scrolling through silos" is the highest state of computing.
 
-To increase developer power and software freedom, your entire computer needs to be inspectable and understandable. It should be composable and made of highly generic, unopinionated, easily understood, reusabe building blocks. 
+To increase developer power and software freedom, your entire computer needs to be inspectable and understandable. It should be composable and made of highly generic, unopinionated, easily understood, reusable building blocks. These properties need to be stable regardless of underlying hardware changes and should guarantee a high degree of backward and forward compatibility.
 
-Pallas includes both a suitable foundation for the future of computing and an initial set of building blocks.
+Pallas is a prototype of such a system.
 
 ## Features
 
@@ -60,7 +61,7 @@ Pallas includes both a suitable foundation for the future of computing and an in
     - VMs and spawned processes are identified by one or more cryptographic keys. The networking protocol is stateless and guarantees at-least-once-delivery. The runtime implements the protocol, allowing transport details to evolve without breaking internal software.
 
 - **Formally specified system calls**
-    - Software breaks at boundaries, so syscalls are specified as pure functions and their spec is designed to be frozen. Runtimes are responsible for matching (_TODO: enforcing semantics?_)
+    - Software breaks at boundaries, so syscalls are specified as pure functions and their spec is designed to be frozen. Runtimes are responsible for matching... (_TODO: enforcing semantics?_)
   
 - **Extensible language platform**
     - Metaprogramming capabilities include hot reload, zero-overhead virtualization, macro-based type systems, all the way up to custom compilers. 
@@ -140,7 +141,7 @@ Import 'prelude.sire'.
 = (countLoop count k)
 ```
 
-`=` declares a top level binding. The function named `countLoop` that takes a 'count' parameter (and a 'k' parameter that we don't need to worry about now).
+`=` declares a top level binding. The function named `countLoop` takes a 'count' parameter (and a 'k' parameter that we don't need to worry about now).
 
 ---
 
