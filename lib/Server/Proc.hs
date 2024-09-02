@@ -17,7 +17,7 @@ where
 
 import PlunderPrelude
 
-import Control.Monad.State   (execStateT, modify)
+import Control.Monad.State   (execStateT, modify, get)
 import Fan                   (Fan(..), PrimopCrash(..), (%%))
 -- import Optics                (set)
 import Server.Convert        ()
@@ -48,10 +48,6 @@ getCurrentReqNoun = \case
           _     -> mempty
   _ -> mempty
   
----- A request noun is empty if it is a row with a nonzero value.
-hasNonzeroReqs :: Fan -> Bool
-hasNonzeroReqs = any (/= NAT 0) . getCurrentReqNoun
-
 data EvalCancelledError = EVAL_CANCELLED
   deriving (Exception, Show)
 
@@ -159,8 +155,7 @@ receiveResponse LIVE_EFF{eff} = readTVar eff.state.var >>= \case
 -- The Proc Runner --------------------------------------------------------------
 
 runnerFun :: Debug => ByteString -> Runner -> IO ()
-runnerFun processName st =
-    flip finally cancelOpenSyscalls do
+runnerFun processName st = flip finally cancelOpenSyscalls do
         -- Process the initial syscall vector
         newReqs <- atomically $ parseRequests st
 
@@ -198,24 +193,18 @@ runnerFun processName st =
         requests.
 -}
 runResponse :: Debug => Runner -> ResponseTuple -> IO Runner
-runResponse st@RUNNER{..} rt = let st' = st{reqs=deleteMap rt.key.int reqs} in
-    case rt.resp of
-      Nothing    -> pure st'
-      Just input -> do
-        (_, result) <- do
-            withAlwaysTrace "Eval" "proc" do
-                evalWithTimeout thirtySecondsInMicroseconds []
-                  (proc %% toNoun rt.key) (toNoun input)
+runResponse st@RUNNER{..} rt = flip execStateT st do
+    modifying' #reqs (deleteMap rt.key.int)
+    whenJust rt.resp \input -> do
+      (_, result) <- lift $ withAlwaysTrace "Eval" "proc" $
+        evalWithTimeout thirtySecondsInMicroseconds []
+          (proc %% toNoun rt.key) (toNoun input)
 
-        let st'' = case result of
-              OKAY _ resultFan | hasNonzeroReqs resultFan -> st'{proc=resultFan}
-              _                                           -> st'{proc=init}
+      assign' #proc case result of
+        OKAY _ resultFan -> resultFan
+        _                -> init
 
-        withAlwaysTrace "Tick" "proc" do
-            -- Perform parseRequest and handle all changes that have to be handled
-            -- atomically.
-            newReqs <- atomically $ parseRequests st''
-            pure st''{reqs=newReqs}
+      assign' #reqs =<< lift . atomically . parseRequests =<< get
 
 -- | Update the requests in a runner according to the current proc.
 -- TODO maybe just take the proc Fan value and give back a diff map?

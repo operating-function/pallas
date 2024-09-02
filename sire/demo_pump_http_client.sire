@@ -29,18 +29,19 @@
 
 = workers [EXEC-(pump [(0, HTTP_REQ m u h b r t)])]
 
-= (reqWaitLoop return)
+= (reqWaitLoop wait return)
+: now < syscall TIME_WHEN
+: _ < syscall | TIME_WAIT (add wait now)
 : response@[code msg headers (PIN body)] < syscall | HTTP_REQ m u h b r t
 | trk [=response]
 | trk
   | if (isNat-response || gth code 1000) "ERROR"
   | [responseBody=body]
-: now < syscall TIME_WHEN
-: _ < syscall | TIME_WAIT (add 5 now)
 | reqWaitLoop return
 
 = (cog return)
-: wID < work | EXEC reqWaitLoop
+: wID < work (EXEC reqWaitLoop-3) (trk {hit bad handler})
+: wID < work (EXEC reqWaitLoop-5) trk-{bad read}
 | return wID
 
 = main

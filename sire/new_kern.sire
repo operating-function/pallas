@@ -15,43 +15,92 @@
 = (HTTP_HOLD n)          [%http %hold n]
 = (HTTP_ECHO r c m h b)  [%http %echo r c m h b]
 
-= (syscall request k end nx sl rq)
-@ rq | rowCons (nx,request) rq
-@ sl | rowSnoc sl k
-@ nx | inc nx
-| end nx sl rq
+= (allocateSlot fr sl rq k)
+| ifz fr
+    @ key (len sl)
+    @ sl  (rowSnoc sl 0)
+    | k key fr sl rq
+@ [key fr] | fr
+| k key fr sl rq
 
-= (COG_KERNEL st rs ws inputs)
-'cog_kernel
+= (getHandler key k end hl st rd ws)
+@ handler | get hl key
+| k handler end hl st rd ws
 
-= (PUMP_KERNEL nx sl rq key input)
+= (COG_DONE _ end hl st rd ws)
+| end hl st rd ws
+
+= (COG_KERNEL hl st rd ws inputs)
+^ _ (listFromRow inputs) hl st rd ws
+? (kernel_loop stream hl st rd ws)
+| ifz stream
+  ^ trk [%cog_kernel_done _] _
+  (COG_KERNEL hl st rd ws, [])
+@ [[key input] stream] stream
+@ exe | get hl key
+| ifz exe
+  | kernel_loop stream hl st rd ws   ; TODO Should maybe cancel the worker too?
+@ k   | COG_DONE
+@ end | kernel_loop stream
+| exe input k end hl st rd ws
+
+; ^ foldl _ COG_DONE inputs
+; & (end (wid, input))
+; ^ trk [%kernel_fold [=wid =input =end res=_]] _
+; : k < getHandler wid
+; | k input const-end
+
+= (syscall request k end me fr sl rq)
+@ rq | rowCons (me,request) rq
+@ sl | put sl me k
+| end fr sl rq
+
+= (PUMP_KERNEL fr sl rq key input)
+; | trk [%pump_kernel_before [=key =input]]
 @ exe | get sl key
 @ sl  | put sl key 0
 @ rq  | []                 ; TODO This should be solved in the runtime
-| ifz exe | PUMP_KERNEL nx sl rq
-@ end | PUMP_KERNEL
-| exe input end nx sl rq
+| ifz exe | trk [{pump ignored input} key] | PUMP_KERNEL [key fr] sl rq
+| trk [{pump used input} key]
+@ end | (fr sl rq & trk [{pump_kernel_done} [=fr =sl =rq]] PUMP_KERNEL fr sl rq)
+@ me  | key
+| exe input end me fr sl rq
 
-= (COG_DONE _ end st rs ws)
-| end st rs ws
+= (PUMP_DONE _ end me fr sl rq)
+| end [me fr] sl rq
 
-= (PUMP_DONE _ end nx sl rq)
-| end nx sl rq
+= (pumpFork act k end me fr sl rq)
+: tid fr sl rq < allocateSlot fr sl rq
+| act PUMP_DONE (k tid end me) tid fr sl rq
 
-= (work [mode worker] cogK cogEnd st rs ws)
-@ k   | PUMP_DONE
-@ end | PUMP_KERNEL
-@ nx  | 0
-@ sl  | []
-@ rq  | []
-@ w   | worker k end nx sl rq
-@ newWs | rowSnoc ws [mode w]
-| cogK len-ws cogEnd st rs newWs
+= (void act k end me fr sl rq)
+: tid fr sl rq < allocateSlot fr sl rq
+| act () (k end me) tid [tid fr] sl rq
 
+= (write x k end hl st rd ws) | k () end hl x      rd ws
+= (state k end hl st rd ws)   | k st end hl st     rd ws
+= (alter f k end hl st rd ws) | k () end hl (f st) rd ws
+
+= (work req@[mode worker] handler k end hl st rd ws)
+@ w
+  @ k   | PUMP_DONE
+  @ end | PUMP_KERNEL
+  @ me  | 0
+  @ fr  | ~[]
+  @ sl  | [0]
+  @ rq  | []
+  | ifz mode | req
+  | [mode (worker k end me fr sl rq)]
+@ ws | rowSnoc ws w
+@ hl | rowSnoc hl handler
+| k len-ws end hl st rd ws
+
+;; TODO this should probably take st and rd as arguments?
 = (runCog cog)
 @ k   | COG_DONE
 @ end | COG_KERNEL
+@ hl  | []
 @ st  | 0
-@ rs  | (_ _ _ & 0)
+@ rd  | (st w q & [st w q])
 @ ws  | []
-| cog COG_DONE COG_KERNEL st rs ws
+| cog k end hl st rd ws

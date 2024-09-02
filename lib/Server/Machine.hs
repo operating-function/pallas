@@ -144,8 +144,8 @@ class Effect f c where
 
 instance Effect STM WriteRequest where
   makeCall eff@EFF{..} = kill eff *> liftMaybe do
-     [NAT 0, NAT "write", cmd] <- sequence [fan V.!? 0, fan V.!? 1, fan V.!? 2]
-     pure COG_WRITE{..}
+    [NAT 0, NAT "write", cmd] <- sequence [fan V.!? 0, fan V.!? 1, fan V.!? 2]
+    pure COG_WRITE{..}
 
 data ReadRequest = COG_READ
   { reqIdx :: RequestIdx
@@ -211,12 +211,10 @@ getCurrentDbNoun = fromMaybe 0 . fromEndOfClosure 2
 getCurrentReadsNoun :: Fan -> Fan
 getCurrentReadsNoun = fromMaybe 42 . fromEndOfClosure 1 -- TODO we should have something other than 42 but this is nice for now because it crashes and is recognizable
 
-fromEndOfClosure :: Int -> Fan -> Maybe Fan
+fromEndOfClosure :: Nat -> Fan -> Maybe Fan
 fromEndOfClosure idx = \case
-  KLO _ xs ->
-    let len = sizeofSmallArray xs
-    in Just $ xs .! (len-(idx+1))
-  _ -> Nothing
+  v@KLO{} -> Just $ fanIdx idx v
+  _       -> Nothing
 
 -- A request noun is empty if it is a row with a nonzero value.
 hasNonzeroReqs :: Fan -> Bool
@@ -683,6 +681,7 @@ runWrites st writeReqs = do
           CRASH op arg -> RECEIPT_CRASHED{..}
           OKAY{}       -> makeOKReceipt writeReqs
 
+    -- TODO pass output to procs
     let (newCog, output) = case result of
           OKAY _ v ->
             let newCog = fanIdx 0 v
@@ -694,14 +693,8 @@ runWrites st writeReqs = do
           TIMEOUT          -> (CG_TIMEOUT runtimeUs fun, NAT 0)
 
     withAlwaysTrace "Tick" "cog" do
-        -- 2) Perform parseRequest and handle all changes that have to be handled
-        -- atomically. This has to happen after we notify the hardware about
-        -- cogs being spun.
-
         (startedFlows, onPersists) <- updateRunner st $ Just (newCog,runtimeUs)
-
         let receiptPairs = [(resultReceipt, onPersists)]
-
         pure (startedFlows, receiptPairs)
 {-
     Hack to avoid comparing workers.
