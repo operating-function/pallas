@@ -34,7 +34,6 @@
 ^ _ (listFromRow inputs) hl st rd ws
 ? (kernel_loop stream hl st rd ws)
 | ifz stream
-  ^ trk [%cog_kernel_done _] _
   (COG_KERNEL hl st rd ws, [])
 @ [[key input] stream] stream
 @ exe | get hl key
@@ -56,13 +55,11 @@
 | end fr sl rq
 
 = (PUMP_KERNEL fr sl rq key input)
-; | trk [%pump_kernel_before [=key =input]]
 @ exe | get sl key
 @ sl  | put sl key 0
 @ rq  | []                 ; TODO This should be solved in the runtime
-| ifz exe | trk [{pump ignored input} key] | PUMP_KERNEL [key fr] sl rq
-| trk [{pump used input} key]
-@ end | (fr sl rq & trk [{pump_kernel_done} [=fr =sl =rq]] PUMP_KERNEL fr sl rq)
+| ifz exe | PUMP_KERNEL [key fr] sl rq
+@ end | PUMP_KERNEL
 @ me  | key
 | exe input end me fr sl rq
 
@@ -96,11 +93,9 @@
 | k len-ws end hl st rd ws
 
 ;; TODO this should probably take st and rd as arguments?
-= (runCog cog)
+= (runCog cog st rd)
 @ k   | COG_DONE
 @ end | COG_KERNEL
 @ hl  | []
-@ st  | 0
-@ rd  | (st w q & [st w q])
 @ ws  | []
 | cog k end hl st rd ws

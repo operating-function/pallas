@@ -2,35 +2,12 @@
 
 :| new_kern
 
-= m b{GET}                            ;; GET request
-= u b{http://ifconfig.me}             ;; HTTPS url
-= h [[b{Content-Type} b{text/plain}]] ;; one header
-= b b{}                               ;; no body
-= r 1                                 ;; no redirects
-= t 1000000                           ;; 1s timeout
-
-= (cog state reads workers inputs)
-^ (cog _ reads workers, [])
-^ trk [newState=_ =inputs oldState=state] _
-| weld state inputs
-
-= (pump _ reqId input)
-| pump
-| if odd-reqId [(inc reqId, TIME_WHEN)]
-++ (inc reqId, TIME_WAIT inc-input)
-++ (add 2 reqId, DB_WRITE input)
-
-= main
-| cog [] const-0
-: i < gen 1
-| EXEC | pump [(0, TIME_WHEN)]
-
-; TODO test what happens if we start doing a DB_WRITE and then do something else..?
-
 = (waitWriteLoop return)
 : now < syscall TIME_WHEN
 | trk %proc_got_now
-| void | syscall (DB_WRITE now)
+: state < syscall | DB_READ ()
+| trk [current_state=state]
+| void | syscall | DB_WRITE now
 : _ < syscall | TIME_WAIT (add 2 now)
 | trk %proc_waited
 | waitWriteLoop return
@@ -39,15 +16,13 @@
 | alter | flip rowSnoc input
 | return
 
-= w0
-| waitWriteLoop PUMP_DONE PUMP_KERNEL 0 ~[] [0] []
-
-= kernel
-| COG_KERNEL [writeInput] [420] trk-{bad read} [w0]
-
-= (init return)
+= (cog return)
 : _ < write []
 : _ < work (EXEC waitWriteLoop) writeInput
 | return ()
 
-main=(runCog init)
+startState=[]
+
+(read state reqId query)=state
+
+main=(runCog cog [] read)
