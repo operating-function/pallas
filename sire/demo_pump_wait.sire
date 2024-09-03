@@ -13,7 +13,7 @@
 | trk %proc_waited
 | waitWriteLoop return
 
-;; Handle read requests from the IO loop proc
+;; Handle write requests from the IO loop proc
 = (writeInput input return)
 : st < state
 | if (gte len-st 5)
