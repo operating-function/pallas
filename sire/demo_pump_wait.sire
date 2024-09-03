@@ -20,7 +20,6 @@
 
 ;; Start everything
 = (cog return)
-: _ < write []
 : _ < work (EXEC waitWriteLoop) writeInput ; Start a worker and its handler.
 | return ()
 
