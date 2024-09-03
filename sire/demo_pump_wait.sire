@@ -2,6 +2,7 @@
 
 :| new_kern
 
+;; Main IO loop
 = (waitWriteLoop return)
 : now < syscall TIME_WHEN
 | trk %proc_got_now
@@ -12,17 +13,19 @@
 | trk %proc_waited
 | waitWriteLoop return
 
+;; Handle read requests from the IO loop proc
 = (writeInput input return)
 | alter | flip rowSnoc input
 | return
 
+;; Start everything
 = (cog return)
 : _ < write []
-: _ < work (EXEC waitWriteLoop) writeInput
+: _ < work (EXEC waitWriteLoop) writeInput ; Start a worker and its handler.
 | return ()
 
 startState=[]
 
 (read state reqId query)=state
 
-main=(runCog cog [] read)
+main=(runCog cog startState read)
