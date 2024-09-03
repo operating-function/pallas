@@ -15,13 +15,15 @@
 
 ;; Handle read requests from the IO loop proc
 = (writeInput input return)
-| alter | flip rowSnoc input
-| return
+: st < state
+| if (gte len-st 5)
+  | trk {state reached 5 entries, pruning}
+  | write [input] return
+| alter (flip rowSnoc input) return
 
 ;; Start everything
-= (cog return)
-: _ < work (EXEC waitWriteLoop) writeInput ; Start a worker and its handler.
-| return ()
+= cog
+| work (EXEC waitWriteLoop) writeInput ; Start a worker and its handler.
 
 startState=[]
 
