@@ -23,7 +23,14 @@
 
 ;; Start everything
 = cog
-| work (EXEC waitWriteLoop) writeInput ; Start a worker and its handler.
+: input return < work (EXEC waitWriteLoop) ; writeInput ; Start a worker and its handler.
+: st < state
+| trk [=st]
+| if (gte len-st 5)
+  | trk {state reached 5 entries, pruning}
+  | write [input] return
+| alter (flip rowSnoc input) return
+
 
 startState=[]
 

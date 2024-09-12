@@ -1,0 +1,29 @@
+#### test_tcp <- new_kern
+
+:| new_kern
+
+= (listener return)
+: mine < syscall | TCP_MINE
+| trk [=mine]
+: hear@(in, ip, port) < syscall | TCP_HEAR
+| trk [heard=hear]
+: data < syscall | TCP_TAKE in
+| trk [took=data]
+: () < syscall | TCP_SHUT in
+| return ()
+
+= (speaker return)
+: open < syscall | TCP_OPEN 16777343 12345 ; 16777343 == 127.0.0.1
+| trk [=open]
+: ack < syscall | TCP_GIVE open b#{Hello, TCP!}
+| trk [=ack]
+: () < syscall | TCP_SHUT open
+| trk %shut
+| return ()
+
+= (cog return)
+: _ < work EXEC-listener id
+: _ < work EXEC-speaker id
+| return ()
+
+main=(runCog cog 0 0)

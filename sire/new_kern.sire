@@ -14,6 +14,13 @@
 = (HTTP_HEAR)            [%http %hear]
 = (HTTP_HOLD n)          [%http %hold n]
 = (HTTP_ECHO r c m h b)  [%http %echo r c m h b]
+= (TCP_OPEN a p)         [%tcp %open a p]
+= (TCP_GIVE h d)         [%tcp %give h d]
+= TCP_HEAR               [%tcp %hear]
+= (TCP_TAKE h)           [%tcp %take h]
+= TCP_MINE               [%tcp %mine]
+= (TCP_SHUT h)           [%tcp %shut h]
+
 
 = (allocateSlot fr sl rq k)
 | ifz fr
