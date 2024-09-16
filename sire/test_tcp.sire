@@ -15,9 +15,10 @@
 = (speaker return)
 : open < syscall | TCP_OPEN 16777343 12345 ; 16777343 == 127.0.0.1
 | trk [=open]
-: ack < syscall | TCP_GIVE open b#{Hello, TCP!}
+: handle < maybeCase open (trk %none return-())
+: ack < syscall | TCP_GIVE handle b#{Hello, TCP!}
 | trk [=ack]
-: () < syscall | TCP_SHUT open
+: () < syscall | TCP_SHUT handle
 | trk %shut
 | return ()
 

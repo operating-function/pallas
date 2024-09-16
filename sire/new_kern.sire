@@ -8,7 +8,7 @@
 = (DB_READ query)        [0 %read query]
 = (DB_WRITE cmd)         [0 %write cmd]
 = TIME_WHEN              [%time %when]
-= (TIME_WAIT ns)         [%time %wait ns]
+= (TIME_WAIT t)          [%time %wait t]
 = (HTTP_REQ m u h b r t) [%http %req m u h b r t]
 = (HTTP_SERV ss)         [%http %serv ss]
 = (HTTP_HEAR)            [%http %hear]

@@ -10,7 +10,7 @@ import PlunderPrelude
 import Server.Hardware.Types
 import Server.Common
 import Network.Socket
-import Network.Socket.ByteString (recv, sendAll)
+import Network.Socket.ByteString (recv, send)
 import qualified Data.ByteString as BS
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
@@ -20,18 +20,18 @@ data TCPState = TCP_STATE
     , port         :: PortNumber
     , connections  :: TVar (IntMap Socket)
     , nextConnId   :: TVar Int
-    , hearPool     :: TVar (Pool SysCall)
-    , openPool     :: TVar (Pool SysCall)
-    , takePool     :: TVar (Pool SysCall)
-    , givePool     :: TVar (Pool SysCall)
-    , shutPool     :: TVar (Pool SysCall)
+    , hearReqs:: TQueue SysCall
+    , openReqs     :: TQueue (SysCall, HostAddress, PortNumber)
+    , takeReqs     :: TQueue (SysCall, Int)
+    , giveReqs     :: TQueue (SysCall, Int, ByteString)
+    , shutReqs     :: TQueue (SysCall, Int)
     }
 
 createHardwareTCP :: Acquire Device
 createHardwareTCP = do
     st <- mkAcquire startup shutdown
     pure DEVICE
-        { stop     = pass -- const $ stopTCP st
+        { stop     = pass -- TODO ??
         , call     = runSysCall st
         , category = categoryCall
         , describe = describeCall
@@ -49,26 +49,23 @@ createHardwareTCP = do
             _                        -> error "couldn't get tcp port"
         connections <- newTVarIO IntMap.empty
         nextConnId <- newTVarIO 0
-        hearPool <- newTVarIO emptyPool
-        openPool <- newTVarIO emptyPool
-        takePool <- newTVarIO emptyPool
-        givePool <- newTVarIO emptyPool
-        shutPool <- newTVarIO emptyPool
+        hearReqs <- newTQueueIO
+        openReqs <- newTQueueIO
+        takeReqs <- newTQueueIO
+        giveReqs <- newTQueueIO
+        shutReqs <- newTQueueIO
         let st = TCP_STATE {..}
-        void $ async $ hearWorker st -- TODO save handles to shut down
-        void $ async $ takeWorker st
-        void $ async $ openWorker st
-        void $ async $ giveWorker st
-        void $ async $ shutWorker st
+        async $ hearWorker st -- TODO save handles to shut down
+        async $ takeWorker st
+        async $ openWorker st
+        async $ giveWorker st
+        async $ shutWorker st
         pure st
 
     shutdown :: TCPState -> IO ()
     shutdown st = do
         close st.listenSocket
         mapM_ close =<< readTVarIO st.connections
-
--- stopTCP :: TCPState -> IO ()
--- stopTCP = shutdown
 
 runSysCall :: TCPState -> SysCall -> STM (Cancel, [Flow])
 runSysCall st syscall = case decodeRequest syscall.args of
@@ -108,28 +105,28 @@ onMine TCP_STATE{port} syscall = do
 
 onHear :: TCPState -> SysCall -> STM (Cancel, [Flow])
 onHear st syscall = do
-    key <- poolRegister st.hearPool syscall
-    pure (CANCEL (poolUnregister st.hearPool key), [])
+    writeTQueue st.hearReqs syscall
+    pure (CANCEL pass, [])
 
 onOpen :: TCPState -> SysCall -> HostAddress -> PortNumber -> STM (Cancel, [Flow])
 onOpen st syscall ip port = do
-    key <- poolRegister st.openPool syscall
-    pure (CANCEL (poolUnregister st.openPool key), [])
+    writeTQueue st.openReqs (syscall, ip, port)
+    pure (CANCEL pass, [])
 
 onTake :: TCPState -> SysCall -> Int -> STM (Cancel, [Flow])
 onTake st syscall handle = do
-    key <- poolRegister st.takePool syscall
-    pure (CANCEL (poolUnregister st.takePool key), [])
+    writeTQueue st.takeReqs (syscall, handle)
+    pure (CANCEL pass, [])
 
 onGive :: TCPState -> SysCall -> Int -> ByteString -> STM (Cancel, [Flow])
 onGive st syscall handle payload = do
-    key <- poolRegister st.givePool syscall
-    pure (CANCEL (poolUnregister st.givePool key), [])
+    writeTQueue st.giveReqs (syscall, handle, payload)
+    pure (CANCEL pass, [])
 
 onShut :: TCPState -> SysCall -> Int -> STM (Cancel, [Flow])
 onShut st syscall handle = do
-    key <- poolRegister st.shutPool syscall
-    pure (CANCEL (poolUnregister st.shutPool key), [])
+    writeTQueue st.shutReqs (syscall, handle)
+    pure (CANCEL pass, [])
 
 categoryCall :: Vector Fan -> Text
 categoryCall args = "%tcp " <> case decodeRequest args of
@@ -153,65 +150,59 @@ describeCall args = "%tcp " <> case decodeRequest args of
 
 hearWorker :: TCPState -> IO Void
 hearWorker st = forever do
-    syscall <- atomically $ poolTakeNext st.hearPool \syscall ->
-        case decodeRequest syscall.args of
-          Just HEAR -> pure syscall
-          _         -> error "Unexpected syscall in hearPool"
+    syscall <- atomically $ readTQueue st.hearReqs
     (socket, SockAddrInet port ip) <- accept st.listenSocket -- TODO IPv6
     atomically do
         connId <- stateTVar st.nextConnId \prev -> (prev, prev+1)
-        modifyTVar st.connections $ IntMap.insert connId socket
+        modifyTVar st.connections $ insertMap connId socket
         void $ writeResponse syscall (NAT $ fromIntegral connId, ip, NAT $ fromIntegral port)
 
 openWorker :: TCPState -> IO Void
 openWorker st = forever do
-    (syscall, ip, port) <- atomically $ poolTakeNext st.openPool $ \syscall ->
-        case decodeRequest syscall.args of
-            Just (OPEN ip port) -> pure (syscall, ip, port)
-            _                   -> error "Unexpected syscall in openPool"
+    (syscall, ip, port) <- atomically $ readTQueue st.openReqs
     socket <- socket AF_INET Stream defaultProtocol
-    connect socket $ SockAddrInet port ip
-    atomically do
-        connId <- readTVar st.nextConnId
-        writeTVar st.nextConnId (connId + 1)
-        modifyTVar st.connections $ insertMap connId socket
-        void $ writeResponse syscall (NAT $ fromIntegral connId)
+    try (connect socket $ SockAddrInet port ip) >>= \case
+        Left (_ :: IOError) -> do -- TODO propagate errors?
+            close socket
+            void $ atomically $ writeResponse syscall (Nothing :: Maybe Nat)
+        Right _ -> do
+            atomically do
+                connId <- stateTVar st.nextConnId \prev -> (prev, prev+1)
+                modifyTVar st.connections $ insertMap connId socket
+                void $ writeResponse syscall (Just $ NAT $ fromIntegral connId)
 
 takeWorker :: TCPState -> IO ()
 takeWorker st = forever do
-    (syscall, socket, connId) <- atomically $ poolTakeNext st.takePool $ \syscall ->
-        case decodeRequest syscall.args of
-            Just (TAKE connId) -> do
-                mconn <- IntMap.lookup connId <$> readTVar st.connections
-                case mconn of
-                    Just socket -> pure (syscall, socket, connId)
-                    Nothing   -> retry
-            _ -> error "Unexpected syscall in takePool"
-    payload <- recv socket 4096
-    atomically do
-        when (BS.null payload) $ modifyTVar st.connections $ deleteMap connId
-        void $ writeResponse syscall payload
+    (syscall, connId) <- atomically $ readTQueue st.takeReqs
+    mconn <- atomically $ IntMap.lookup connId <$> readTVar st.connections
+    case mconn of
+        Just socket -> do
+            payload <- recv socket 4096
+            atomically do
+                when (BS.null payload) $ modifyTVar st.connections $ deleteMap connId
+                void $ writeResponse syscall payload
+        Nothing -> void $ atomically $ writeResponse syscall BS.empty
 
 giveWorker :: TCPState -> IO Void
 giveWorker st = forever do
-    (syscall, socket, payload) <- atomically $ poolTakeNext st.givePool $ \syscall ->
-        case decodeRequest syscall.args of
-            Just (GIVE handle payload) -> do
-                msocket <- IntMap.lookup handle <$> readTVar st.connections
-                case msocket of
-                    Just socket -> pure (syscall, socket, payload)
-                    Nothing     -> retry
-            _ -> error "Unexpected syscall in givePool"
-    sendAll socket payload -- TODO catch exception
-    void $ atomically $ writeResponse syscall ()
+    (syscall, handle, payload, msocket) <- atomically do
+      (syscall, handle, payload) <- readTQueue st.giveReqs
+      msocket <- lookup handle <$> readTVar st.connections
+      pure (syscall, handle, payload, msocket)
+    case msocket of
+      Nothing -> atomically $ writeResponse syscall (Nothing :: Maybe Nat)
+      Just socket -> try (send socket payload) >>= \case
+        Left (_ :: IOError) -> atomically do
+          modifyTVar st.connections $ deleteMap handle
+          writeResponse syscall (Nothing :: Maybe Nat)
+        Right bytesSent -> atomically $
+          writeResponse syscall $ Just $ NAT $ fromIntegral bytesSent
 
 shutWorker :: TCPState -> IO Void
 shutWorker st = forever do
-    (syscall, socket) <- atomically $ poolTakeNext st.shutPool $ \syscall ->
-        case decodeRequest syscall.args of
-            Just (SHUT handle) -> (syscall,) <$>
-                stateTVar st.connections
-                  (updateLookupWithKey (\_ _ -> Nothing) handle)
-            _ -> error "Unexpected syscall in shutPool"
-    mapM_ close socket
+    (syscall, msocket) <- atomically do
+      (syscall, handle) <- readTQueue st.shutReqs
+      (syscall,) <$>
+        stateTVar st.connections (updateLookupWithKey (\_ _ -> Nothing) handle)
+    whenJust msocket close
     void $ atomically $ writeResponse syscall ()
