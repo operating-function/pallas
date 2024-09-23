@@ -1,6 +1,6 @@
-#### test_tcp <- new_kern
+#### test_tcp <- kern
 
-:| new_kern
+:| kern
 
 = (listener return)
 : mine < syscall | TCP_MINE
@@ -27,4 +27,4 @@
 : _ < work EXEC-speaker id
 | return ()
 
-main=(runCog cog 0 0)
+main=(runCog 0 0 cog)
