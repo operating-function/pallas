@@ -179,7 +179,6 @@
 = (findDoubleCRLF bar)
 @ doubleCRLF x#0d0a
 @ results (barSubstringSearch doubleCRLF bar)
-| trk [%res results]
 | listCase results
     NONE
 & (firstMatch _)
@@ -240,11 +239,9 @@
 ; @ headersAndBeyondL | (barLinesList headerBar)
 ; @ justHeadersR | listToRow | listTakeWhile (neq x#0d0a) (listFromRow headersAndBeyondL)
 @ headerLines | (barSubstringLinesList newline headerBar)
-| trk [%headerLines headerLines]
 ^ listFoldr _ emptyTab headerLines
 & (line acc)
 @ [key value] | listToRow | barSubstringLinesList b#{: } line
-| trk [%kv key value]
 | tabIns key value acc
 
 = testHeaderBar | x#486f73743a206578616d706c652e636f6d0d0a436f6e74656e742d547970653a20746578742f68746d6c0d0a436f6e74656e742d4c656e6774683a2031350d0a
@@ -310,7 +307,6 @@ result
 ; to parse the request line yet, and if so, do it and update the buffer
 > Bar > Bar > HTTPBuffer
 = (parseAndSetReqline stream buffer)
-| trk [%setReqlinezzzzz stream buffer]
 | if (getReqLineParsed buffer)
   ; already done, nothing to do.
   buffer
@@ -322,7 +318,6 @@ result
 ; slice from here to the 0d0a
 @ rl | barTake idx stream
 ; put that in reqline
-| trk [%setReqlinezzzzz rl]
 @ buffer | setReqLine rl buffer
 ; mark it parsed
 @ buffer | setReqLineParsed TRUE buffer
@@ -448,7 +443,6 @@ TRUE
 ; Helper for getting the Content-Length
 > HTTPBuffer > Maybe Nat
 = (mayExplainContentLength buffer)
-| trk [%buffer buffer]
 | if | not (haveBodyContent (getHeaders buffer))
   NONE
 @ cl | tabGet (getHeaders buffer) b#{Content-Length}
@@ -480,7 +474,6 @@ parseNat-cl
 ; there is a content length but its worth being careful)
 | maybeCase (mayExplainContentLength buffer) buffer
 & contentLength
-| trk [%contentLengthppppp contentLength]
 ; TODO: glom in body content until we reach the content length
 ;
 ; Find the first double CRLF - this should be the end of the headers
@@ -492,11 +485,8 @@ parseNat-cl
 @ buffer | setReceivedLength newReceivedLength buffer
 | if (lth (barLen body) contentLength)
   ; we don't have all the content yet. allow the processing to continue
-  | trk [%yyyyy %notLongEnoughYet (barLen body) contentLength]
   buffer
 ; TODO: need to handle weird cases where the body is longer than content length?
-| trk [%yyyyy %longEnough (barLen body) contentLength]
-| trk [%bodyyyyyy body]
 @ buffer | setBody body buffer
 @ buffer | setBodyParsed TRUE buffer
 buffer
@@ -529,51 +519,6 @@ buffer
 | trk [%headers (getHeaders buffer)]
 | emptyBuffer 999 8888
 
-; This isn't yet used until we're maybe needing to check on "chunked" stuff in isMessageComplete (below)
-; TODO: might need to make sure this is counting properly, given size of bytes?
-; > Bar > Bar > Bit
-; = (byteAtEnd sought full)
-; ; @ sought   | x#0d0a0d0a
-; @ hits       | barSubstringSearch sought full
-; | trk [%hits hits]
-; | if (isZero hits)
-;   | trk [%isZero]
-;   FALSE
-; @ lastHitIdx | listIdx (dec | listLen hits) hits
-; | trk [%lastHitIdx lastHitIdx]
-; ; @ soughtLen  | mul 4 (barLen sought))
-; @ soughtLen  | barLen sought
-; | trk [%soughtLen soughtLen]
-; @ total      | barLen full
-; | trk [%total total]
-; ; have a sought byte index
-; ; and that index is properly at the end of the entire message
-; | trk [%sub (sub total lastHitIdx)]
-; | trk [%inc (inc (sub total lastHitIdx))]
-; | trk [%soughtLen soughtLen]
-; | trk [%gth (gth lastHitIdx 0)]
-; | and (gth lastHitIdx 0) (eql soughtLen (sub total lastHitIdx))
-; 
-; = findMe | x#0a0a
-; = within | x#0d0d0d0a0a
-; 
-; =?= TRUE | (byteAtEnd findMe within)
-; 
-; = findMe | x#0a
-; = within | x#0d0d0d0a
-; 
-; =?= TRUE | (byteAtEnd findMe within)
-; 
-; = findMe | x#0a
-; = within | x#0d0a0d0d0a
-; 
-; =?= TRUE | (byteAtEnd findMe within)
-; 
-; = findMe | x#0a
-; = within | x#0d0d0d0d
-; 
-; =?= FALSE | (byteAtEnd findMe within)
-
 > HTTPBuffer > Bit
 = (isMessageComplete buffer)
 ; headers are parsed and we don't have a body.
@@ -597,7 +542,6 @@ FALSE
   buffer
 @ [data remainder] | splitAt 1 fakeIn ; consider first item
 @ updatedBuffer | processHttpChunk buffer (idx 0 data)
-| trk [%updatedBuffer updatedBuffer]
 | if (isMessageComplete updatedBuffer)
   ; @ newBuffer | handleCompletedMessage updatedBuffer
   ; | fakeProcessConnection remainder newBuffer
@@ -607,10 +551,8 @@ FALSE
 
 = (processConnection in buffer return)
 : data < syscall | TCP_TAKE in
-| if (barIsEmpty data) ; check to see if we're done with HTTP message
-; ...but that said, see above notes about how to tell if an HTTP message
-; is complete (hint, it's way more than barIsEmpty)
-  | trk [%connectedCloed %dataBarEmpty]
+| if (barIsEmpty data)
+  | trk [%connectionClosed %dataBarEmpty]
   ;| emptyBuffer (TODO: maybe?)
   | todo [%gotEmptyData buffer]
   | return ()
