@@ -528,6 +528,7 @@ b#{thing}
 @ body       | body
 @ contentLength | natBar | showNat | barLen body ; should be zero if not present
 @ headers | tabIns b#{Content-Length} contentLength headers
+@ headers | tabIns b#{Server} b#{Pallas/0.1} headers
 ; TODO: others, maybe:
 ; @ headers | tabIns b#{Content-Encoding}
 ; @ headers | tabIns b#{Content-Type}
@@ -546,9 +547,8 @@ b#{thing}
 * headersList
 * body
 
-
 = appHeaders | tabFromPairs [[b#hello b#world] [b#cookie b#thing]]
-= expectedHeaderList | listFromRow [b#{hello: world} b#{cookie: thing} b#{Content-Length: 3}]
+= expectedHeaderList | listFromRow [b#{hello: world} b#{cookie: thing} b#{Server: Pallas/0.1} b#{Content-Length: 3}]
 
 = expectedRes
 | HTTP_RES
@@ -565,10 +565,36 @@ b#{thing}
 ; take a valid HTTP Response and create an HTTP-1.0-compliant hex array
 > HTTPResponse > Bar
 = (httpResToBar httpRes)
-1
+httpRes
 
-=?= 0 | (httpResToBar [])
+= appHeaders | tabFromPairs [[b#hello b#world] [b#cookie b#thing]]
+= res | appResponseToHTTP appHeaders b#{Nice body} 200
 
+= hexResponse
+  | barCat
+  , b#{HTTP/1.1 200 OK}
+    x#0d0a
+    b#{Date: Tue, 24 Sep 2024 12:00:00 GMT}
+    x#0d0a
+    b#{Server: Pallas/0.1}
+    x#0d0a
+    b#{Content-Type: text/plain; charset=UTF-8}
+    x#0d0a
+    b#{Content-Length: 9}
+    x#0d0a0d0a
+    b#{Nice body}
+
+= inHex
+  | x#485454502F312E3120323030204F4B0d0A446174653A205475652C2032342053657020323032342031323A30303A303020474D540d0A5365727665723A2050616C6C61732F302E310d0A436F6E74656E742D547970653A20746578742F706C61696E3B20636861727365743D5554462D380d0A436F6E74656E742D4C656E6774683A20390d0A0d0a4E69636520626F6479
+
+; Sanity check that our barCat-constructed, human-readable response is equivalent
+; to its proper hex representation:
+=?= inHex | hexResponse
+
+=?= hexResponse
+   | (httpResToBar res)
+
+; TODO: test with no body
 
 ; TODO:
 = (validRequest request)
