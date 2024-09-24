@@ -310,6 +310,7 @@ result
 ; to parse the request line yet, and if so, do it and update the buffer
 > Bar > Bar > HTTPBuffer
 = (parseAndSetReqline stream buffer)
+| trk [%setReqlinezzzzz stream buffer]
 | if (getReqLineParsed buffer)
   ; already done, nothing to do.
   buffer
@@ -321,6 +322,7 @@ result
 ; slice from here to the 0d0a
 @ rl | barTake idx stream
 ; put that in reqline
+| trk [%setReqlinezzzzz rl]
 @ buffer | setReqLine rl buffer
 ; mark it parsed
 @ buffer | setReqLineParsed TRUE buffer
@@ -353,30 +355,6 @@ buffer
 ; TODO: use the good bits from extractHeaders here?
 ; mark it parsed
 @ buffer | setHeadersParsed TRUE buffer
-buffer
-
-;> Bar > Bar > HTTPBUffer
-= (parseAndSetBody stream buffer)
-@ contentLength | getContentLength buffer
-@ doubleCRLF | x#0d0a0d0a
-; TODO: "The presence of an entity body in a request is signaled by the
-; inclusion of a Content-Length header field in the request message headers"
-; That is: if we don't have a Content-Length header we don't need to look
-; for a body.
-| if | not (getHeadersParsed buffer)
-  ; haven't parsed headers yet, stop!
-  buffer
-; Find the first double CRLF - this should be the end of the headers
-| maybeCase (getFirstIdxSubstring doubleCRLF stream) buffer
-& headersEndIdx
-| trk [%pppppEnd headersEndIdx]
-| trk [%ppppp (barDrop headersEndIdx stream)]
-| trk [%pppppLen (barLen doubleCRLF)]
-@ body | barDrop (barLen doubleCRLF) | barDrop headersEndIdx stream
-| trk [%streamxxxx stream]
-| trk [%bodyxxxx body]
-@ buffer | setBody body buffer
-@ buffer | setBodyParsed TRUE buffer
 buffer
 
 ; Helper for determining if the Request Line looks right
@@ -490,20 +468,54 @@ parseNat-cl
 
 =?= SOME-15 | mayExplainContentLength clSome
 
+
+;> Bar > Bar > HTTPBUffer
+= (parseAndSetBody stream buffer)
+@ doubleCRLF | x#0d0a0d0a
+| if | not (getHeadersParsed buffer)
+  ; haven't parsed headers yet, stop!
+  buffer
+; Do we have a content length? (we should already be guarded against this
+; by the fact that this function will not be called in processHttpChunk unless
+; there is a content length but its worth being careful)
+| maybeCase (mayExplainContentLength buffer) buffer
+& contentLength
+| trk [%contentLengthppppp contentLength]
+; TODO: glom in body content until we reach the content length
+;
+; Find the first double CRLF - this should be the end of the headers
+| maybeCase (getFirstIdxSubstring doubleCRLF stream) buffer
+& headersEndIdx
+; TODO: this may be a mistake, putting this so high up
+@ body | barDrop (barLen doubleCRLF) | barDrop headersEndIdx stream
+@ newReceivedLength | (add (getReceivedLength buffer) | barLen body)
+@ buffer | setReceivedLength newReceivedLength buffer
+| if (lth (barLen body) contentLength)
+  ; we don't have all the content yet. allow the processing to continue
+  | trk [%yyyyy %notLongEnoughYet (barLen body) contentLength]
+  buffer
+; TODO: need to handle weird cases where the body is longer than content length?
+| trk [%yyyyy %longEnough (barLen body) contentLength]
+| trk [%bodyyyyyy body]
+@ buffer | setBody body buffer
+@ buffer | setBodyParsed TRUE buffer
+buffer
+
 ; Take an HTTP chunk of any size and help build a buffer.
 ; - append into the assembledData
-; - accumulate receivedLength
 ; - if we have the Request Line completed yet, set it in the buffer
 ; - if we have all the headers completed yet, set them in the buffer
-; - TODO: eventually any HTTP body
+; - if we have a body, set it in the buffer
 = (processHttpChunk buffer chunk)
 @ newAssembledData  | (barWeld (getAssembledData buffer) chunk)
-@ newReceivedLength | (add (getReceivedLength buffer) | barLen chunk)
+; @ newReceivedLength | (add (getReceivedLength buffer) | barLen chunk)
 @ buffer | setAssembledData newAssembledData buffer
-@ buffer | setReceivedLength newReceivedLength buffer
+; @ buffer | setReceivedLength newReceivedLength buffer
 @ buffer | parseAndSetReqline newAssembledData buffer
 @ buffer | parseAndSetHeaders newAssembledData buffer
-@ buffer | parseAndSetBody newAssembledData buffer
+| if (haveBodyContent (getHeaders buffer))
+  @ buffer | parseAndSetBody newAssembledData buffer
+  buffer
 buffer
 
 ; TODO: this doesn't actually do anything yet except print some stuff.
@@ -564,37 +576,13 @@ buffer
 
 > HTTPBuffer > Bit
 = (isMessageComplete buffer)
-; TODO: short-circuiting to handle headers before dealing with all the notes below.
-; For now, just looking for "double crlf" at end of message
-| not | isZero | idx 0 | barSubstringSearch x#0d0a0d0a (getAssembledData buffer)
-;
-; Various ways a message can be inferred to be complete in HTTP 1.0...
-; - if no body is present, the end of the headers (blank line) signifies end
-; - if body is present...
-;   - `Connection: close` header
-;     - might have to wait around for this... when to stop waiting?
-;   - `Content-Length` header
-;
-; All below is old and likely crap now that a lot of other refactors
-; have happened
-;
-; TODO: we don't need chunked for 1.0
-;| trk [%checkIsComplete buffer]
-;@ chunkedFlag | x#0d0a30d0a0d0a
-;@ message     | getAssembledData buffer
-;@ idx | barSubstringSearch x#0d0a0d0a message
-;| trk [%idx idx]
-;| trk [%isChunked (getChunked buffer)]
-;| if (getChunked buffer)
-;  ;; x#0d0a30d0a0d0a - should be end bytes for chunked
-;  | byteAtEnd chunkedFlag message
-;| trk [%notSuffix]
-;| trk [%contentLength (getContentLength buffer)]
-;| maybeCase (getContentLength buffer) | FALSE
-;& expectedLength
-;| trk [%gteThings]
-;| trk [%expectedLength expectedLength]
-;| gte (getReceivedLength buffer) expectedLength
+; headers are parsed and we don't have a body.
+| if (and isNone-(mayExplainContentLength buffer) (getHeadersParsed buffer))
+  TRUE
+; have a body and we've parsed in the full length of it
+| if (and isSome-(mayExplainContentLength buffer) (eql unpackSome-mayExplainContentLength (getReceivedLength buffer)))
+  TRUE
+FALSE
 
 ; TODO:
 ; want to make a fake connection processor that can roughly simulate getting a
@@ -605,7 +593,7 @@ buffer
 = (fakeProcessConnection fakeIn buffer)
 | if (eql 0 (len fakeIn))
   | trk [%ranOuttaIns]
-  ; | todo "what does this case actually mean?"
+  | todo "what does this case actually mean?"
   buffer
 @ [data remainder] | splitAt 1 fakeIn ; consider first item
 @ updatedBuffer | processHttpChunk buffer (idx 0 data)
@@ -709,24 +697,17 @@ buffer
 = emptyBuffer | HTTP_BUF 9999 8888 b#{} FALSE emptyTab FALSE b#{} NONE FALSE 0 b#{} FALSE
 = headersTab
 | tabFromPairs
-, [b#{Host} b#{localhost:52847}]
-  [b#{Cookie} b#{_pk_id.2.1fff=59f431be20169ef3.1717601569.; _pk_id.1.1fff=0ba10378b93b5b83.1717612241.; plundauth-=5495ebe05abda9acf36a067321888f813a3f53f9dad79b30002bd5b7d906e53b; CSRF-Token-52RA5=6PqrUTdPjQqAhTQRhrQgCKuKk5yArbkU}]
+, [b#{Host} b#{google.com}]
   [b#{Accept} b#{*/*}]
-  [b#{Referer} b#{http://localhost:52847/}]
-  [b#{Priority} b#{u=4}]
-  [b#{Connection} b#{keep-alive}]
-  [b#{User-Agent} b#{Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:129.0) Gecko/20100101 Firefox/129.0}]
-  [b#{Sec-Fetch-Mode} b#{cors}]
-  [b#{Sec-Fetch-Site} b#{same-origin}]
-  [b#{Sec-Fetch-Dest} b#{empty}]
-  [b#{Accept-Language} b#{en-US,en;q=0.5}]
-  [b#{Accept-Encoding} b#{gzip, deflate, br, zstd}]
+  [b#{User-Agent} b#{curl/7.71.1}]
+  [b#{Content-Type} b#{text/plain}]
+  [b#{Content-Length} b#{11}]
 
-= httpGetWithBody | x#474554202F6E6F746520485454502F312E310A486F73743A206C6F63616C686F73743A35323834370A557365722D4167656E743A204D6F7A696C6C612F352E3020285831313B205562756E74753B204C696E7578207838365F36343B2072763A3132392E3029204765636B6F2F32303130303130312046697265666F782F3132392E300A4163636570743A202A2F2A0A4163636570742D4C616E67756167653A20656E2D55532C656E3B713D302E350A4163636570742D456E636F64696E673A20677A69702C206465666C6174652C2062722C207A7374640A526566657265723A20687474703A2F2F6C6F63616C686F73743A35323834372F0A436F6E74656E742D4C656E6774683A2031310A436F6F6B69653A205F706B5F69642E322E316666663D353966343331626532303136396566332E313731373630313536392E3B205F706B5F69642E312E316666663D306261313033373862393362356238332E313731373631323234312E3B20706C756E64617574682D3D353439356562653035616264613961636633366130363733323138383866383133613366353366396461643739623330303032626435623764393036653533623B20435352462D546F6B656E2D35325241353D36507172555464506A5171416854515268725167434B754B6B35794172626B550A5365632D46657463682D446573743A20656D7074790A5365632D46657463682D4D6F64653A20636F72730A5365632D46657463682D536974653A2073616D652D6F726967696E0A5072696F726974793A20753D340A0A68656C6C6F20776F726C64
+= httpPostWithBody | x#504f5354202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a436f6e74656e742d547970653a20746578742f706c61696e0d0a436f6e74656e742d4c656e6774683a2031310d0a0d0a68656c6c6f20776f726c64
 
-= splitHTTPRow | splitBarIntoSegments 6 httpGetWithBody
+= splitHTTPRow | splitBarIntoSegments 5 httpPostWithBody
 
-= expectedBuffer | HTTP_BUF 9999 8888 httpGetWithBody TRUE headersTab TRUE b#{GET /note HTTP/1.1} NONE FALSE 600 b#{hello world} FALSE
+= expectedBuffer | HTTP_BUF 9999 8888 httpPostWithBody TRUE headersTab TRUE b#{POST /what-is-life HTTP/1.0} NONE FALSE 600 b#{hello world} FALSE
 
 = assembledBuffer | fakeProcessConnection splitHTTPRow emptyBuffer
 
@@ -745,10 +726,8 @@ buffer
 =?= (getHeadersParsed expectedBuffer)
   | getHeadersParsed assembledBuffer
 
-trk splitHTTPRow
-
 =?= (getBody expectedBuffer)
-  | getBody assembledBuffer
+   | getBody assembledBuffer
 
 ; TODO: use ipToWord?
 = (hydrate return)
