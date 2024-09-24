@@ -516,25 +516,29 @@ FALSE
 = (makeMessage buffer)
 b#{thing}
 
-> (HMap Bar Bar) > Nat > Bar > HTTPResponse
-= (nameMe headers body code)
+> (HMap Bar Bar) > Nat > Bar > Maybe HTTPResponse
+= (appResponseToHTTP headers body code)
+; We're returning a Maybe here in case this function should be the one
+; that catches invalid inputs and tells its consumer to return an error
 ; - check format/validity, re: error codes
-;   - server do whatver else it needs 
+;   - server do whatver else it needs
 @ version    | b#{HTTP/1.0}
 @ statusCode | code
 @ statusText | b#{ok}
-@ headers    | headers
 @ body       | body
-; - from app:
-;   - a list of headers
-;   - body
-;   - response code
-; - from server
-;   - calculate content-length
-;   - other header things
-;   - http version for requestline
-@ headersList | listFromRow | tabMapWithKey (k v & (barCat [k b#{: } v])) headers
-| trk [%headList headersList]
+@ contentLength | natBar | showNat | barLen body ; should be zero if not present
+@ headers | tabIns b#{Content-Length} contentLength headers
+; TODO: others, maybe:
+; @ headers | tabIns b#{Content-Encoding}
+; @ headers | tabIns b#{Content-Type}
+; This concatenation with colons _could_ be done in a subsequent function that
+; is responsible for HTTP_RES -> Hex Bar
+@ headersList
+  | tabValsList
+  | tabMapWithKey
+  (k v & (barCat [k b#{: } v]))
+  headers
+| SOME
 | HTTP_RES
 * version
 * statusCode
@@ -542,8 +546,9 @@ b#{thing}
 * headersList
 * body
 
-= testHeaderMap | tabFromPairs [[b#hello b#world] [b#cookie b#thing]]
-= expectedHeaderList | listFromRow [b#{hello: world} b#{cookie: thing}]
+
+= appHeaders | tabFromPairs [[b#hello b#world] [b#cookie b#thing]]
+= expectedHeaderList | listFromRow [b#{hello: world} b#{cookie: thing} b#{Content-Length: 3}]
 
 = expectedRes
 | HTTP_RES
@@ -553,9 +558,16 @@ b#{thing}
 * expectedHeaderList
 * b#{wut}
 
+=?= SOME-expectedRes
+  | appResponseToHTTP appHeaders b#{wut} 200
 
-=?= expectedRes
-  | nameMe testHeaderMap b#{wut} 200
+; TODO:
+; take a valid HTTP Response and create an HTTP-1.0-compliant hex array
+> HTTPResponse > Bar
+= (httpResToBar httpRes)
+1
+
+=?= 0 | (httpResToBar [])
 
 
 ; TODO:
