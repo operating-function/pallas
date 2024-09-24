@@ -93,25 +93,57 @@
 * 0
 * b#{}
 
-# record CogState
-| COG_STATE
-* buffers    : (HMap ConnectionHandle HTTPBuffer)
-* servThread : ThreadId
+;# record CogState
+;| COG_STATE
+;* buffers    : (HMap ConnectionHandle HTTPBuffer)
+;* servThread : Nat
 
-> ThreadId > CogState
-= (newCogState servThread)
-| COG_STATE
-* emptyTab
-* 0
+;> ThreadId > CogState
+;= (newCogState servThread)
+;| COG_STATE
+;* emptyTab
+;* 0
 
-= (modifyState vSt fun return)
-: (PIN old) < readRef vSt
-@ srv       | getServThread old
-@ pNew      | PIN (fun old)
-: _         < writeRef vSt pNew
-| return ()
+; = (modifyState vSt fun return)
+; : (PIN old) < readRef vSt
+; @ srv       | getServThread old
+; @ pNew      | PIN (fun old)
+; : _         < writeRef vSt pNew
+; | return ()
 
-> Bar > Bar > List Int
+> Bar > Word32
+= (ipToWord ipBar)
+@ octets (listToRow | barSplit 46 ipBar) ; 46 is ASCII for '.'
+| if (neq 4 | len octets)
+  | die {Invalid IP address format}
+^ foldl _ 0 octets
+& (acc octet)
+@ value (barLoadDecimal octet)
+| if (or (lth value 0) (gth value 255))
+  | die {Invalid octet value}
+| add (lsh acc 8) value
+
+> Word32 > Bar
+= (wordToIp ipWord)
+@ octet1 | barShowDecimal (div ipWord 16777216)
+@ octet2 | barShowDecimal (mod (div ipWord 65536) 256)
+@ octet3 | barShowDecimal (mod (div ipWord 256) 256)
+@ octet4 | barShowDecimal (mod ipWord 256)
+| barCat [octet1 b#{.} octet2 b#{.} octet3 b#{.} octet4]
+
+= testIp b#{192.168.1.2}
+= testWord (ipToWord testIp)
+= backToIp (wordToIp testWord)
+
+=?= testIp backToIp
+
+= testIp b#{192.0.0.0}
+= testWord (ipToWord testIp)
+= backToIp (wordToIp testWord)
+
+=?= testIp backToIp
+
+> Bar > Bar > List Nat
 = (barSubstringSearch needle haystack)
 @ needleWidth   (barLen needle)
 @ haystackWidth (barLen haystack)
@@ -308,7 +340,7 @@ buffer
 @ buffer | setHeadersParsed TRUE buffer
 buffer
 
-> Bar > Bar > HTTPBUffer
+;> Bar > Bar > HTTPBUffer
 = (parseAndSetBody stream buffer)
 @ contentLength | getContentLength buffer
 @ doubleCRLF | x#0d0a0d0a
