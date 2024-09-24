@@ -48,11 +48,11 @@
 
 # record HTTPResponse
 | HTTP_RES
-* version    : Bar             ; HTTP version
-* statusCode : Nat             ; Numeric status code
-* statusText : Bar             ; Status text (e.g "OK", "Not Found")
-* headers    : List (Bar, Bar) ; List of key-value pairs
-* body       : Bar             ; Response body
+* version     : Bar             ; HTTP version
+* statusCode  : Nat             ; Numeric status code
+* statusText  : Bar             ; Status text (e.g "OK", "Not Found")
+* headerL     : List (Bar, Bar) ; List of key-value pairs
+* bodyContent : Bar             ; Response body
 
 # typedef SenderIP Bar
 
@@ -522,9 +522,11 @@ b#{thing}
 ; that catches invalid inputs and tells its consumer to return an error
 ; - check format/validity, re: error codes
 ;   - server do whatver else it needs
+; TODO:
+; - status text should come from app, too
 @ version    | b#{HTTP/1.0}
 @ statusCode | code
-@ statusText | b#{ok}
+@ statusText | b#{OK}
 @ body       | body
 @ contentLength | natBar | showNat | barLen body ; should be zero if not present
 @ headers | tabIns b#{Content-Length} contentLength headers
@@ -554,7 +556,7 @@ b#{thing}
 | HTTP_RES
 * b#{HTTP/1.0}
 * 200
-* b#ok
+* b#OK
 * expectedHeaderList
 * b#{wut}
 
@@ -565,14 +567,36 @@ b#{thing}
 ; take a valid HTTP Response and create an HTTP-1.0-compliant hex array
 > HTTPResponse > Bar
 = (httpResToBar httpRes)
-httpRes
+;
+; TODO: I have no idea why getHeaders is returning the body...
+;       weird. getHeaders returned body, but when i renamed it to headerL
+;       (so that it was getHeaderL) it worked.
+;
+@ crlf | x#0d0a
+@ v    | (getVersion    httpRes)
+@ c    | (getStatusCode httpRes)
+@ s    | (getStatusText httpRes)
+@ h    | (getHeaderL    httpRes)
+@ b    | SOME-(getBodyContent  httpRes) ; TODO pretty sure this is wrong
+@ statusLine        | barCat [v x#20 (natBar | showNat c) x#20 s]
+@ headersSeparated  | barIntercalateList crlf h
+@ mBodySeparator    | maybeCase b NIL (barCat [crlf crlf])
+; TODO: body is missing
+@ mBody             | maybeCase b NIL unpackSome-b
+| barCat
+  , statusLine
+    crlf
+    headersSeparated
+    mBodySeparator
+    ; TODO: body is missing
+    mBody
 
-= appHeaders | tabFromPairs [[b#hello b#world] [b#cookie b#thing]]
-= res | appResponseToHTTP appHeaders b#{Nice body} 200
+= appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}] [b#{Content-Type} b#{text/plain; charset=UTF-8}] [b#{Content-Length} b#{9}]]
+= preparedResponse | unpackSome-(appResponseToHTTP appHeaders b#{Nice body} 200)
 
 = hexResponse
   | barCat
-  , b#{HTTP/1.1 200 OK}
+  , b#{HTTP/1.0 200 OK}
     x#0d0a
     b#{Date: Tue, 24 Sep 2024 12:00:00 GMT}
     x#0d0a
@@ -585,14 +609,30 @@ httpRes
     b#{Nice body}
 
 = inHex
-  | x#485454502F312E3120323030204F4B0d0A446174653A205475652C2032342053657020323032342031323A30303A303020474D540d0A5365727665723A2050616C6C61732F302E310d0A436F6E74656E742D547970653A20746578742F706C61696E3B20636861727365743D5554462D380d0A436F6E74656E742D4C656E6774683A20390d0A0d0a4E69636520626F6479
+  | x#485454502F312E3020323030204F4B0A446174653A205475652C2032342053657020323032342031323A30303A303020474D540A5365727665723A2050616C6C61732F302E310A436F6E74656E742D547970653A20746578742F706C61696E3B20636861727365743D5554462D380A436F6E74656E742D4C656E6774683A20390A0A4E69636520626F6479
 
 ; Sanity check that our barCat-constructed, human-readable response is equivalent
 ; to its proper hex representation:
-=?= inHex | hexResponse
+; =?= inHex | hexResponse
 
-=?= hexResponse
-   | (httpResToBar res)
+=?= inHex
+   | (httpResToBar preparedResponse)
+
+= hex2
+  | barCat
+  , b#{HTTP/1.0 204 OK}
+    x#0d0a
+    b#{Date: Tue, 24 Sep 2024 12:00:00 GMT}
+    x#0d0a
+    b#{Server: Pallas/0.1}
+    x#0d0a
+    b#{Content-Length: 0}
+
+= appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}]]
+= prep2 | unpackSome-(appResponseToHTTP appHeaders b#{} 204)
+
+=?= hex2
+   | (httpResToBar prep2)
 
 ; TODO: test with no body
 
