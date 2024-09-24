@@ -509,7 +509,7 @@ buffer
 ; continuous TCP_TAKE stream, by giving it row (which would approximate
 ; the multiple responses TCP_TAKE would provide) made up of an HTTP message
 ; split into an arbitrary number of items in the row
-> Row > HTTPBuffer
+> Row Bar > HTTPBuffer
 = (fakeProcessConnection fakeIn buffer)
 | if (eql 0 (len fakeIn))
   | trk [%ranOuttaIns]
@@ -571,7 +571,7 @@ buffer
 | trk [=in]
 | trk [=ip]
 | trk [=port]
-: tid < fork (serverLoop)
+: tid < pumpFork (serverLoop)
 | processConnection in (emptyBuffer ip port) return
 
 = testIP | b#{192.168.10.10}
@@ -658,18 +658,24 @@ trk splitHTTPRow
 =?= (getBody expectedBuffer)
   | getBody assembledBuffer
 
-= main
-: exit < runCog
-; open a connection for the sake of hydrating with some test packet data
-: mout < syscall | TCP_OPEN testIpWord 9999
+; TODO: use ipToWord?
+= (hydrate return)
+: port < syscall | TCP_MINE
+: mout < syscall | TCP_OPEN 16777343 port ; 16777343 == 127.0.0.1
 | trk [=mout]
-: out  < maybeCase mout | exit ()
+: out  < maybeCase mout | return ()
 | trk [=out]
 : gave < syscall | TCP_GIVE out testPacketHTTPOnly
 | trk [=gave]
 ; now we're done setting up the test data
 ;
-| serverLoop exit
+| return ()
 
-
-
+= main
+: exit < runCog 0 0
+| trk %started
+: _ < work EXEC-hydrate id
+| trk %started_hydrate
+: _ < work EXEC-serverLoop id
+| trk %started_server
+| exit ()
