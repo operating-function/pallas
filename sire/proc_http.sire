@@ -1,0 +1,675 @@
+#### cog_http <- prelude
+
+;;;;;;
+;
+; There are are many comments inline in the functions below that either explain
+; what the functions currently do, what is lacking or not yet finished, etc.
+; Run the cog to see the current machinery work on a simple HTTP message split
+; over many TCP packets (with some of the "is this HTTP 1.0 message definitely
+; complete?" checks sort of short-circuited and faked for now.
+;
+;;;;;;
+;
+; Definite TODOS:
+; - Adjust the "receivedLength" property. This should only be about the request body
+; - Error things:
+;   - "If a request contains an entity body and Content-Length is not specified,
+;     and the server does not recognize or cannot calculate the length from other
+;     fields, then the server should send a 400 (bad request) response."
+;
+; Things that need to happen:
+; - make sure header parsing handles strange things
+; - test with HTTP body included (pretty sure the parsing won't know this
+;   is different than the headers and will likely try to glom the body
+;   into the buffer's headers map
+; - handle all of the "message complete" possibilities for HTTP 1.0
+;   (explained inline in some of the functions below)
+; - make sure request line works properly with other Method types
+; - Pass JSON body in a POST request - probably need to do a bunch after that
+; - Properly handle the server loop / processMessage flow with multiple
+;   connections. re-open / new connections, etc.
+; - What do actually _do_ with a complete HTTP message once we have a whole one
+;   in a buffer?
+; - Haven't yet done anything on the other side: going FROM a "buffer" (which we
+;   likely would have gotten from an app that wants to send a response) to
+;   slicing it up into a pieces to send back to TCP hardware to go out.
+; - The above isn't an exhuastive list, but at least some things that need
+;   to happen next.
+
+
+:| prelude
+
+# record HTTPRequest
+| HTTP_REQ
+* method  : Bar             ; HTTP method
+* path    : Bar             ; Request URI
+* version : Bar             ; HTTP version
+* headers : List (Bar, Bar) ; List of key-value pairs
+* body    : Bar             ; Request body; may be empty
+
+# record HTTPResponse
+| HTTP_RES
+* version    : Bar             ; HTTP version
+* statusCode : Nat             ; Numeric status code
+* statusText : Bar             ; Status text (e.g "OK", "Not Found")
+* headers    : List (Bar, Bar) ; List of key-value pairs
+* body       : Bar             ; Response body
+
+# typedef SenderIP Bar
+
+# typedef ConnectionHandle Bar
+
+; Includes a : between IP and port for legibility
+> Bar > Nat > ConnectionHandle
+= (bufferKey senderIP senderPort)
+| barCat [senderIP b#{:} (natBar | showNat-senderPort)]
+
+# record HTTPBuffer
+| HTTP_BUF
+* senderIP       : SenderIP
+* senderPort     : Nat
+* assembledData  : Bar
+* headersParsed  : Bit
+* headers        : (HMap Bar Bar)
+* reqLineParsed  : Bit
+* reqLine        : Bar
+* contentLength  : Maybe Nat
+* chunked        : Bit ; Don't need for 1.0
+* receivedLength : Nat
+* body           : Bar
+* bodyParsed     : Bit
+
+= (emptyBuffer senderIP senderPort)
+| HTTP_BUF
+* senderIP
+* senderPort
+* b#{}
+* FALSE
+* emptyTab
+* FALSE
+* b#{}
+* NONE
+* FALSE
+* 0
+* b#{}
+
+# record CogState
+| COG_STATE
+* buffers    : (HMap ConnectionHandle HTTPBuffer)
+* servThread : ThreadId
+
+> ThreadId > CogState
+= (newCogState servThread)
+| COG_STATE
+* emptyTab
+* 0
+
+= (modifyState vSt fun return)
+: (PIN old) < readRef vSt
+@ srv       | getServThread old
+@ pNew      | PIN (fun old)
+: _         < writeRef vSt pNew
+| return ()
+
+> Bar > Bar > List Int
+= (barSubstringSearch needle haystack)
+@ needleWidth   (barLen needle)
+@ haystackWidth (barLen haystack)
+| if (not needleWidth)
+    | listTake haystackWidth (listEnumFrom 0)
+@ firstByte     (barIdx 0 needle)
+^ (_ 0)
+? (go off)
+@ found (barElemIndexOff firstByte off haystack)
+| if (gte found haystackWidth) NIL
+@ isMatch (barIsPrefixOf needle haystack found)
+@ more    (go | inc found)
+| if isMatch (CONS found more)
+| else more
+
+; TODO: basically unused now that barSubstringLinesList exists.
+> Bar > Maybe Nat
+= (findDoubleCRLF bar)
+@ doubleCRLF x#0d0a
+@ results (barSubstringSearch doubleCRLF bar)
+| trk [%res results]
+| listCase results
+    NONE
+& (firstMatch _)
+| SOME firstMatch
+
+; Using actual x haxes rather than fake b haxes. mostly for \r \n reasons
+; = testBar | b#{GET /thing HTTP/1.1\nHost: example.com\r\nContent-Type: text/html\r\nContent-Length: 15\r\n\r\nHello, World!}
+= testBar | x#474554202F7468696E6720485454502F312E310A486F73743A206578616D706C652E636F6D0d0A436F6E74656E742D547970653A20746578742F68746D6C0A436F6E74656E742D4C656E6774683A2031350d0A48656C6C6F2C20576F726C6421
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{} NONE FALSE 0 b#{} FALSE
+
+=?= (SOME 37) | (findDoubleCRLF testBar)
+
+; Like barSubstringLines, but allows splitting on arbitrary characters.
+> Bar > Bar > List Bar
+= (barSubstringLinesList seek bar)
+@ indices (barSubstringSearch seek bar)
+@ seekLen (barLen seek)
+@ wid (barLen bar)
+^ listFilter (compose not barIsEmpty) _
+^ _ 0 indices
+? (go start idxList)
+| listCase idxList
+  | CONS (barSlice start (sub wid start) bar) NIL
+& (idx rest)
+| CONS (barSlice start (sub idx start) bar)
+| go (add idx seekLen) rest
+
+(barSubstringLines seek bar)=(listToRow | barSubstringLinesList seek bar)
+
+=?= (listFromRow [x#de x#ad x#20be x#ef])
+    | barSubstringLinesList x#0d x#{de0dad0d20be0def0d0d}
+
+=?= [x#de x#ad x#20be x#ef]
+    | barSubstringLines x#0d x#{de0dad0d20be0def0d0d}
+
+=?= (listFromRow [x#de x#ad x#20be x#ee x#ef])
+    | barSubstringLinesList x#0d x#{de0dad0d20be0dee0def}
+
+=?= (listFromRow [x#de x#ad x#20be x#ef])
+    | barSubstringLinesList x#0d x#{0d0dde0dad0d20be0def0d}
+
+=?= (listFromRow [x#de x#ad x#200dbe x#ef])
+    | barSubstringLinesList x#0d0a0d x#{de0d0a0dad0d0a0d200dbe0d0a0def0d0a0d}
+
+
+;; \r\n\r\n ==
+; (bytesBar [13 10 13 10])
+;;
+
+> Bar > (HMap Bar Bar)
+= (extractHeaders headerBar)
+@ newline | x#0d0a
+; We might need to actually check to see if there is anything BEYOND
+; the headers once we start testing with an HTTP body as well.
+; I believe that'll be a DOUBLE newline to denote the body field.
+; To that end, I'm leaving the next two lines commented here as that will
+; likely be the pattern for discerning headers from body.
+; @ headersAndBeyondL | (barLinesList headerBar)
+; @ justHeadersR | listToRow | listTakeWhile (neq x#0d0a) (listFromRow headersAndBeyondL)
+@ headerLines | (barSubstringLinesList newline headerBar)
+| trk [%headerLines headerLines]
+^ listFoldr _ emptyTab headerLines
+& (line acc)
+@ [key value] | listToRow | barSubstringLinesList b#{: } line
+| trk [%kv key value]
+| tabIns key value acc
+
+= testHeaderBar | x#486f73743a206578616d706c652e636f6d0d0a436f6e74656e742d547970653a20746578742f68746d6c0d0a436f6e74656e742d4c656e6774683a2031350d0a
+= expectedHeaders | tabFromPairs [[b#Host b#{example.com}] [b#{Content-Type} b#{text/html}] [b#{Content-Length} b#15]]
+
+=?= expectedHeaders | (extractHeaders testHeaderBar)
+
+; Helper for directly below function. Likely retarded.
+= (trimBar bar)
+^ _ 0 (barLen bar)
+? (loop start end)
+| if (and (lth start end) (or (eql (barIdx start bar) 32) (eql (barIdx start bar) 9)))
+  | loop (inc start) end
+| if (and (gth end start) (or (eql (barIdx (dec end) bar) 32) (eql (barIdx (dec end) bar) 9)))
+  | loop start (dec end)
+| barSlice start (sub end start) bar
+
+; TODO: as yet unused. Likely to be replaced with something similar to
+; the mayExplainMethod and similar functions.
+; Since the headers are now in a map in the buffer, we don't need to
+; do this very manual parsing here.
+;
+; Don't need chunked for 1.0!
+= (isChunked headers)
+^ foldr _ FALSE headers
+& (header result)
+@ [name value] | header
+| if (and (eql name b#{Transfer-Encoding}) (eql (trimBar value) b#{chunked}))
+  TRUE
+result
+
+> Bar > Bar > Maybe Nat
+= (getFirstIdxSubstring sought full)
+@ l | barSubstringSearch sought full
+| if (eql 0 l)
+  NONE
+| SOME (listIdx 0 l)
+
+; YES, I realize this is an insane function.
+; TODO: don't be insane.
+> Bar > Bar > Maybe Nat
+= (getSecondIdxSubstring sought full)
+@ l | barSubstringSearch sought full
+| if (eql 0 l)
+  NONE
+| SOME (listIdx 1 l)
+
+=?= (0 2) | getFirstIdxSubstring b#x b#aaxaa
+
+=?= (0 2) | getFirstIdxSubstring b#x b#aaxax
+
+=?= (0 0) | getFirstIdxSubstring b#x b#xaaaa
+
+=?= (0 4) | getFirstIdxSubstring b#x b#aaaax
+
+=?= NONE | getFirstIdxSubstring b#x b#aaaaa
+
+=?= (0 2) | getFirstIdxSubstring x#0d x#47470d4747
+
+=?= (0 1) | getFirstIdxSubstring x#0d0a x#470d0a47
+
+; Given an HTTP stream from the beginning, see if its appropriate
+; to parse the request line yet, and if so, do it and update the buffer
+> Bar > Bar > HTTPBuffer
+= (parseAndSetReqline stream buffer)
+| if (getReqLineParsed buffer)
+  ; already done, nothing to do.
+  buffer
+; do we have a first 0d0a?
+; if not, just return buffer
+| maybeCase (getFirstIdxSubstring x#0d0a stream) buffer
+; if so, we have a reqline
+& idx
+; slice from here to the 0d0a
+@ rl | barTake idx stream
+; put that in reqline
+@ buffer | setReqLine rl buffer
+; mark it parsed
+@ buffer | setReqLineParsed TRUE buffer
+buffer
+
+; Given an HTTP stream from the beginning, see if its appropriate
+; to parse the headers yet, and if so, do it and update the buffer
+> Bar > Bar > HTTPBuffer
+= (parseAndSetHeaders stream buffer)
+| if | not (getReqLineParsed buffer)
+  ; haven't even done request line yet, stop!
+  buffer
+; now request line is parsed, so we AT LEAST got the first x#0d0a...
+; so we should wait until we have _all_ the headers, which is denoted by
+; an empty line.
+; TODO: find empty line
+| maybeCase (getFirstIdxSubstring x#0d0a stream) buffer
+; if so, we have a reqline
+& requestLineIdx
+; split at the request line and ignore it
+@ [rl remain] | barSplitAt requestLineIdx stream
+@ remainTrimmed | barDrop 2 remain
+; Again, check to see if we have CRLF yet...
+| maybeCase (getFirstIdxSubstring x#0d0a0d0a remainTrimmed) buffer
+; if so, we have all the headers
+& headersEndIdx
+@ h | barTake headersEndIdx remainTrimmed
+@ headers | (extractHeaders h)
+@ buffer | setHeaders headers buffer
+; TODO: use the good bits from extractHeaders here?
+; mark it parsed
+@ buffer | setHeadersParsed TRUE buffer
+buffer
+
+> Bar > Bar > HTTPBUffer
+= (parseAndSetBody stream buffer)
+@ contentLength | getContentLength buffer
+@ doubleCRLF | x#0d0a0d0a
+; TODO: "The presence of an entity body in a request is signaled by the
+; inclusion of a Content-Length header field in the request message headers"
+; That is: if we don't have a Content-Length header we don't need to look
+; for a body.
+| if | not (getHeadersParsed buffer)
+  ; haven't parsed headers yet, stop!
+  buffer
+; Find the first double CRLF - this should be the end of the headers
+| maybeCase (getFirstIdxSubstring doubleCRLF stream) buffer
+& headersEndIdx
+| trk [%pppppEnd headersEndIdx]
+| trk [%ppppp (barDrop headersEndIdx stream)]
+| trk [%pppppLen (barLen doubleCRLF)]
+@ body | barDrop (barLen doubleCRLF) | barDrop headersEndIdx stream
+| trk [%streamxxxx stream]
+| trk [%bodyxxxx body]
+@ buffer | setBody body buffer
+@ buffer | setBodyParsed TRUE buffer
+buffer
+
+; Helper for determining if the Request Line looks right
+> Bar > Bit
+= (validReqLine reqLine)
+| if (eql reqLine 0)
+  FALSE
+@ split | listToRow | barSplit { } reqLine
+| if (neq 3 (len split))
+  ; we don't have three items
+  FALSE
+| if (any (x & (or (eql x 0) (eql 0 (barLen x)))) split)
+  ; we have three, but some of them are empty?
+  | die [split]
+  FALSE
+TRUE
+
+; Helper for getting the Method
+> HTTPBuffer > Maybe Bar
+= (mayExplainMethod buffer)
+@ reqLine | getReqLine buffer
+| if | not (validReqLine reqLine)
+  NONE
+@ [method uri protocol] | listToRow | barSplit { } reqLine
+| SOME method
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{GET /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+
+=?= (0 b#{GET}) | mayExplainMethod testBuffer
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{POST /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+
+=?= (0 b#{POST}) | mayExplainMethod testBuffer
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{} NONE FALSE 0 b#{} FALSE
+
+=?= NONE | mayExplainMethod testBuffer
+
+; Helper for getting the URI
+> HTTPBuffer > Maybe Bar
+= (mayExplainUri buffer)
+@ reqLine | getReqLine buffer
+| if | not (validReqLine reqLine)
+  NONE
+@ [method uri protocol] | listToRow | barSplit { } reqLine
+| SOME uri
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{GET /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+
+=?= (0 b#{/foo}) | mayExplainUri testBuffer
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{asdfsadfsdf} NONE FALSE 0 b#{} FALSE
+
+=?= NONE | mayExplainUri testBuffer
+
+; Helper for getting the HTTP version
+> HTTPBuffer > Maybe Bar
+= (mayExplainHttpVersion buffer)
+@ reqLine | getReqLine buffer
+| if | not (validReqLine reqLine)
+  NONE
+@ [method uri protocol] | listToRow | barSplit { } reqLine
+| SOME protocol
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{GET /foo HTTP/1.0} NONE FALSE 0 b#{} FALSE
+
+=?= (0 b#{HTTP/1.0}) | mayExplainHttpVersion testBuffer
+
+; Take an HTTP chunk of any size and help build a buffer.
+; - append into the assembledData
+; - accumulate receivedLength
+; - if we have the Request Line completed yet, set it in the buffer
+; - if we have all the headers completed yet, set them in the buffer
+; - TODO: eventually any HTTP body
+= (processHttpChunk buffer chunk)
+@ newAssembledData  | (barWeld (getAssembledData buffer) chunk)
+@ newReceivedLength | (add (getReceivedLength buffer) | barLen chunk)
+@ buffer | setAssembledData newAssembledData buffer
+@ buffer | setReceivedLength newReceivedLength buffer
+@ buffer | parseAndSetReqline newAssembledData buffer
+@ buffer | parseAndSetHeaders newAssembledData buffer
+@ buffer | parseAndSetBody newAssembledData buffer
+buffer
+
+; TODO: this doesn't actually do anything yet except print some stuff.
+; and set up a new buffer with hardcoded, obviously-wrong IP and Port.
+= (handleCompletedMessage buffer)
+| trk [%completeHTTPBuffer buffer]
+| trk [%assembledData (getAssembledData buffer)]
+; For testing fun:
+| trk [%method (unpackSome-(mayExplainMethod buffer))]
+| trk [%uri (unpackSome-(mayExplainUri buffer))]
+| trk [%headers (getHeaders buffer)]
+| emptyBuffer 999 8888
+
+; This isn't yet used until we're maybe needing to check on "chunked" stuff in isMessageComplete (below)
+; TODO: might need to make sure this is counting properly, given size of bytes?
+; > Bar > Bar > Bit
+; = (byteAtEnd sought full)
+; ; @ sought   | x#0d0a0d0a
+; @ hits       | barSubstringSearch sought full
+; | trk [%hits hits]
+; | if (isZero hits)
+;   | trk [%isZero]
+;   FALSE
+; @ lastHitIdx | listIdx (dec | listLen hits) hits
+; | trk [%lastHitIdx lastHitIdx]
+; ; @ soughtLen  | mul 4 (barLen sought))
+; @ soughtLen  | barLen sought
+; | trk [%soughtLen soughtLen]
+; @ total      | barLen full
+; | trk [%total total]
+; ; have a sought byte index
+; ; and that index is properly at the end of the entire message
+; | trk [%sub (sub total lastHitIdx)]
+; | trk [%inc (inc (sub total lastHitIdx))]
+; | trk [%soughtLen soughtLen]
+; | trk [%gth (gth lastHitIdx 0)]
+; | and (gth lastHitIdx 0) (eql soughtLen (sub total lastHitIdx))
+; 
+; = findMe | x#0a0a
+; = within | x#0d0d0d0a0a
+; 
+; =?= TRUE | (byteAtEnd findMe within)
+; 
+; = findMe | x#0a
+; = within | x#0d0d0d0a
+; 
+; =?= TRUE | (byteAtEnd findMe within)
+; 
+; = findMe | x#0a
+; = within | x#0d0a0d0d0a
+; 
+; =?= TRUE | (byteAtEnd findMe within)
+; 
+; = findMe | x#0a
+; = within | x#0d0d0d0d
+; 
+; =?= FALSE | (byteAtEnd findMe within)
+
+> HTTPBuffer > Bit
+= (isMessageComplete buffer)
+; TODO: short-circuiting to handle headers before dealing with all the notes below.
+; For now, just looking for "double crlf" at end of message
+| not | isZero | idx 0 | barSubstringSearch x#0d0a0d0a (getAssembledData buffer)
+;
+; Various ways a message can be inferred to be complete in HTTP 1.0...
+; - if no body is present, the end of the headers (blank line) signifies end
+; - if body is present...
+;   - `Connection: close` header
+;     - might have to wait around for this... when to stop waiting?
+;   - `Content-Length` header
+;
+; All below is old and likely crap now that a lot of other refactors
+; have happened
+;
+; TODO: we don't need chunked for 1.0
+;| trk [%checkIsComplete buffer]
+;@ chunkedFlag | x#0d0a30d0a0d0a
+;@ message     | getAssembledData buffer
+;@ idx | barSubstringSearch x#0d0a0d0a message
+;| trk [%idx idx]
+;| trk [%isChunked (getChunked buffer)]
+;| if (getChunked buffer)
+;  ;; x#0d0a30d0a0d0a - should be end bytes for chunked
+;  | byteAtEnd chunkedFlag message
+;| trk [%notSuffix]
+;| trk [%contentLength (getContentLength buffer)]
+;| maybeCase (getContentLength buffer) | FALSE
+;& expectedLength
+;| trk [%gteThings]
+;| trk [%expectedLength expectedLength]
+;| gte (getReceivedLength buffer) expectedLength
+
+; TODO:
+; want to make a fake connection processor that can roughly simulate getting a
+; continuous TCP_TAKE stream, by giving it row (which would approximate
+; the multiple responses TCP_TAKE would provide) made up of an HTTP message
+; split into an arbitrary number of items in the row
+> Row > HTTPBuffer
+= (fakeProcessConnection fakeIn buffer)
+| if (eql 0 (len fakeIn))
+  | trk [%ranOuttaIns]
+  ; | todo "what does this case actually mean?"
+  buffer
+@ [data remainder] | splitAt 1 fakeIn ; consider first item
+@ updatedBuffer | processHttpChunk buffer (idx 0 data)
+| trk [%updatedBuffer updatedBuffer]
+| if (isMessageComplete updatedBuffer)
+  ; @ newBuffer | handleCompletedMessage updatedBuffer
+  ; | fakeProcessConnection remainder newBuffer
+  updatedBuffer
+| fakeProcessConnection remainder updatedBuffer
+
+
+= (processConnection in buffer return)
+: data < syscall | TCP_TAKE in
+| if (barIsEmpty data) ; check to see if we're done with HTTP message
+; ...but that said, see above notes about how to tell if an HTTP message
+; is complete (hint, it's way more than barIsEmpty)
+  | trk [%connectedCloed %dataBarEmpty]
+  ;| emptyBuffer (TODO: maybe?)
+  | todo [%gotEmptyData buffer]
+  | return ()
+@ updatedBuffer | processHttpChunk buffer data
+| trk [%updatedBuffer updatedBuffer]
+| if (isMessageComplete updatedBuffer)
+  | trk [%processConnectionDone]
+  ; At this point, the message appears to be complete and we should
+  ; do whatever it is we're supposed to do with it, based on what consumers
+  ; might want (handleCompletedMessage):
+  @ newBuffer | handleCompletedMessage updatedBuffer
+  ; Basically starting over:
+  | processConnection in newBuffer
+  ; But really, this should tie together with the server loop and TCP_TAKE
+  ; (and maybe even TCP_OPEN)
+| trk [%processConnectionRecurring]
+| processConnection in updatedBuffer return
+
+= (serverLoop return)
+; - processConnection needs to work continuously until it has a complete message
+; - then ... forward this whole thing away?
+;   - or make available to a consumer or something
+; create a connection handle:
+;
+; WHEN YOU HIT A SYSCALL YOU'RE ALWAYS DONE, THREAD-WISE
+; (but the cog isn't finished because you forked)
+; (add TCP_HEAR to rq row, at the *end* of the event), then continue with k
+;;;; the stack of syscalls is the "events" in the kernel loop stream
+;;;; and the sl and rq is the stack of continuations for those syscalls
+;;;; "exe" is the continuation and "response" is the result from the runtime (kern.sire KERNEL function)
+;;;; "end" is "return"
+;
+; todo: we'll need "infinite of these" / re-create when done / maybe forward on to
+;       next port number forever?
+: [in ip port] < syscall | TCP_HEAR
+; TODO: ip to word
+; ip and port from who connected to us.
+| trk [=in]
+| trk [=ip]
+| trk [=port]
+: tid < fork (serverLoop)
+| processConnection in (emptyBuffer ip port) return
+
+= testIP | b#{192.168.10.10}
+= testIpWord | ipToWord testIP
+
+; Entire TCP packet from WireShark:
+; = testPacket | x#0000000000000000000000000800450002886f6440004006bb097f0000017f000001800ace6f124ebb61a8099d2780180200007d00000101080a75b32e7e75b32db1474554202f6e6f746520485454502f312e310d0a486f73743a206c6f63616c686f73743a35323834370d0a557365722d4167656e743a204d6f7a696c6c612f352e3020285831313b205562756e74753b204c696e7578207838365f36343b2072763a3132392e3029204765636b6f2f32303130303130312046697265666f782f3132392e300d0a4163636570743a202a2f2a0d0a4163636570742d4c616e67756167653a20656e2d55532c656e3b713d302e350d0a4163636570742d456e636f64696e673a20677a69702c206465666c6174652c2062722c207a7374640d0a526566657265723a20687474703a2f2f6c6f63616c686f73743a35323834372f0d0a436f6e6e656374696f6e3a206b6565702d616c6976650d0a436f6f6b69653a205f706b5f69642e322e316666663d353966343331626532303136396566332e313731373630313536392e3b205f706b5f69642e312e316666663d306261313033373862393362356238332e313731373631323234312e3b20706c756e64617574682d3d353439356562653035616264613961636633366130363733323138383866383133613366353366396461643739623330303032626435623764393036653533623b20435352462d546f6b656e2d35325241353d36507172555464506a5171416854515268725167434b754b6b35794172626b550d0a5365632d46657463682d446573743a20656d7074790d0a5365632d46657463682d4d6f64653a20636f72730d0a5365632d46657463682d536974653a2073616d652d6f726967696e0d0a5072696f726974793a20753d340d0a0d0a
+
+; Same as above, but includes "hello world" body I shoved in.
+; = testPacket | x#0000000000000000000000000800450002886f6440004006bb097f0000017f000001800ace6f124ebb61a8099d2780180200007d00000101080a75b32e7e75b32db1474554202f6e6f746520485454502f312e310d0a486f73743a206c6f63616c686f73743a35323834370d0a557365722d4167656e743a204d6f7a696c6c612f352e3020285831313b205562756e74753b204c696e7578207838365f36343b2072763a3132392e3029204765636b6f2f32303130303130312046697265666f782f3132392e300d0a4163636570743a202a2f2a0d0a4163636570742d4c616e67756167653a20656e2d55532c656e3b713d302e350d0a4163636570742d456e636f64696e673a20677a69702c206465666c6174652c2062722c207a7374640d0a526566657265723a20687474703a2f2f6c6f63616c686f73743a35323834372f0d0a436f6e6e656374696f6e3a206b6565702d616c6976650d0a436f6f6b69653a205f706b5f69642e322e316666663d353966343331626532303136396566332e313731373630313536392e3b205f706b5f69642e312e316666663d306261313033373862393362356238332e313731373631323234312e3b20706c756e64617574682d3d353439356562653035616264613961636633366130363733323138383866383133613366353366396461643739623330303032626435623764393036653533623b20435352462d546f6b656e2d35325241353d36507172555464506a5171416854515268725167434b754b6b35794172626b550d0a5365632d46657463682d446573743a20656d7074790d0a5365632d46657463682d4d6f64653a20636f72730d0a5365632d46657463682d536974653a2073616d652d6f726967696e0d0a5072696f726974793a20753d340d0a0d0a68656c6c6f20776f726c64
+
+; An HTTP-only packet (no TCP stuff!), taken from the above wireshark packet.
+; This is more appropriate for testing this cog
+= testPacketHTTPOnly | x#474554202f6e6f746520485454502f312e310d0a486f73743a206c6f63616c686f73743a35323834370d0a557365722d4167656e743a204d6f7a696c6c612f352e3020285831313b205562756e74753b204c696e7578207838365f36343b2072763a3132392e3029204765636b6f2f32303130303130312046697265666f782f3132392e300d0a4163636570743a202a2f2a0d0a4163636570742d4c616e67756167653a20656e2d55532c656e3b713d302e350d0a4163636570742d456e636f64696e673a20677a69702c206465666c6174652c2062722c207a7374640d0a526566657265723a20687474703a2f2f6c6f63616c686f73743a35323834372f0d0a436f6e6e656374696f6e3a206b6565702d616c6976650d0a436f6f6b69653a205f706b5f69642e322e316666663d353966343331626532303136396566332e313731373630313536392e3b205f706b5f69642e312e316666663d306261313033373862393362356238332e313731373631323234312e3b20706c756e64617574682d3d353439356562653035616264613961636633366130363733323138383866383133613366353366396461643739623330303032626435623764393036653533623b20435352462d546f6b656e2d35325241353d36507172555464506a5171416854515268725167434b754b6b35794172626b550d0a5365632d46657463682d446573743a20656d7074790d0a5365632d46657463682d4d6f64653a20636f72730d0a5365632d46657463682d536974653a2073616d652d6f726967696e0d0a5072696f726974793a20753d340d0a0d0a68656c6c6f20776f726c64
+
+= (splitBarIntoSegmentsList segSize bar)
+@ wid (barLen bar)
+^ (_ 0)
+? (go off)
+| if (gte off wid) NIL
+@ end (add off segSize)
+| CONS (barSlice off (sub end off) bar)
+| go end
+
+(splitBarIntoSegments segSize bar)=(listToRow | splitBarIntoSegmentsList segSize bar)
+
+=?= [b#hel b#{lo } b#wor b#{ld.}]
+  | splitBarIntoSegments 3 b#{hello world.}
+
+=?= [b#he b#{ll} b#{o } b#{wo} b#{rl} b#{d!} b#{!}]
+  | splitBarIntoSegments 2 b#{hello world!!}
+
+=?= [b#{hello world.}]
+  | splitBarIntoSegments 1000 b#{hello world.}
+
+7777
+7777
+7777
+7777
+7777
+7777
+
+= emptyBuffer | HTTP_BUF 9999 8888 b#{} FALSE emptyTab FALSE b#{} NONE FALSE 0 b#{} FALSE
+= headersTab
+| tabFromPairs
+, [b#{Host} b#{localhost:52847}]
+  [b#{Cookie} b#{_pk_id.2.1fff=59f431be20169ef3.1717601569.; _pk_id.1.1fff=0ba10378b93b5b83.1717612241.; plundauth-=5495ebe05abda9acf36a067321888f813a3f53f9dad79b30002bd5b7d906e53b; CSRF-Token-52RA5=6PqrUTdPjQqAhTQRhrQgCKuKk5yArbkU}]
+  [b#{Accept} b#{*/*}]
+  [b#{Referer} b#{http://localhost:52847/}]
+  [b#{Priority} b#{u=4}]
+  [b#{Connection} b#{keep-alive}]
+  [b#{User-Agent} b#{Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:129.0) Gecko/20100101 Firefox/129.0}]
+  [b#{Sec-Fetch-Mode} b#{cors}]
+  [b#{Sec-Fetch-Site} b#{same-origin}]
+  [b#{Sec-Fetch-Dest} b#{empty}]
+  [b#{Accept-Language} b#{en-US,en;q=0.5}]
+  [b#{Accept-Encoding} b#{gzip, deflate, br, zstd}]
+
+= httpGetWithBody | x#474554202F6E6F746520485454502F312E310A486F73743A206C6F63616C686F73743A35323834370A557365722D4167656E743A204D6F7A696C6C612F352E3020285831313B205562756E74753B204C696E7578207838365F36343B2072763A3132392E3029204765636B6F2F32303130303130312046697265666F782F3132392E300A4163636570743A202A2F2A0A4163636570742D4C616E67756167653A20656E2D55532C656E3B713D302E350A4163636570742D456E636F64696E673A20677A69702C206465666C6174652C2062722C207A7374640A526566657265723A20687474703A2F2F6C6F63616C686F73743A35323834372F0A436F6E74656E742D4C656E6774683A2031310A436F6F6B69653A205F706B5F69642E322E316666663D353966343331626532303136396566332E313731373630313536392E3B205F706B5F69642E312E316666663D306261313033373862393362356238332E313731373631323234312E3B20706C756E64617574682D3D353439356562653035616264613961636633366130363733323138383866383133613366353366396461643739623330303032626435623764393036653533623B20435352462D546F6B656E2D35325241353D36507172555464506A5171416854515268725167434B754B6B35794172626B550A5365632D46657463682D446573743A20656D7074790A5365632D46657463682D4D6F64653A20636F72730A5365632D46657463682D536974653A2073616D652D6F726967696E0A5072696F726974793A20753D340A0A68656C6C6F20776F726C64
+
+= splitHTTPRow | splitBarIntoSegments 6 httpGetWithBody
+
+= expectedBuffer | HTTP_BUF 9999 8888 httpGetWithBody TRUE headersTab TRUE b#{GET /note HTTP/1.1} NONE FALSE 600 b#{hello world} FALSE
+
+= assembledBuffer | fakeProcessConnection splitHTTPRow emptyBuffer
+
+;;; Integration tests for entire process connection -> set record fields flow
+;;; on simulated re-assembled HTTP message from chunks
+
+=?= (getReqLine expectedBuffer)
+  | getReqLine assembledBuffer
+
+=?= (getReqLineParsed expectedBuffer)
+  | getReqLineParsed assembledBuffer
+
+=?= (getHeaders expectedBuffer)
+  | getHeaders assembledBuffer
+
+=?= (getHeadersParsed expectedBuffer)
+  | getHeadersParsed assembledBuffer
+
+trk splitHTTPRow
+
+=?= (getBody expectedBuffer)
+  | getBody assembledBuffer
+
+= main
+: exit < runCog
+; open a connection for the sake of hydrating with some test packet data
+: mout < syscall | TCP_OPEN testIpWord 9999
+| trk [=mout]
+: out  < maybeCase mout | exit ()
+| trk [=out]
+: gave < syscall | TCP_GIVE out testPacketHTTPOnly
+| trk [=gave]
+; now we're done setting up the test data
+;
+| serverLoop exit
+
+
+
