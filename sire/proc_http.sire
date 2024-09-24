@@ -1,4 +1,4 @@
-#### cog_http <- prelude
+#### proc_http <- prelude
 
 ;;;;;;
 ;
@@ -593,7 +593,7 @@ FALSE
 = (fakeProcessConnection fakeIn buffer)
 | if (eql 0 (len fakeIn))
   | trk [%ranOuttaIns]
-  | todo "what does this case actually mean?"
+  ; | todo "what does this case actually mean?"
   buffer
 @ [data remainder] | splitAt 1 fakeIn ; consider first item
 @ updatedBuffer | processHttpChunk buffer (idx 0 data)
@@ -725,6 +725,46 @@ FALSE
 
 =?= (getHeadersParsed expectedBuffer)
   | getHeadersParsed assembledBuffer
+
+=?= (getBody expectedBuffer)
+   | getBody assembledBuffer
+
+= httpGetNoBody | x#474554202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a0d0a
+
+= splitHTTPRow | splitBarIntoSegments 5 httpGetNoBody
+
+= headersTab
+| tabFromPairs
+, [b#{Host} b#{google.com}]
+  [b#{Accept} b#{*/*}]
+  [b#{User-Agent} b#{curl/7.71.1}]
+
+= expectedBuffer | HTTP_BUF 9999 8888 httpGetNoBody TRUE headersTab TRUE b#{GET /what-is-life HTTP/1.0} NONE FALSE 600 b#{} FALSE
+
+= assembledBuffer | fakeProcessConnection splitHTTPRow emptyBuffer
+
+=?= (getReqLine expectedBuffer)
+  | getReqLine assembledBuffer
+
+=?= (getBody expectedBuffer)
+   | getBody assembledBuffer
+
+= httpHead | x#48454144202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a0d0a
+
+= splitHTTPRow | splitBarIntoSegments 5 httpHead
+
+= headersTab
+| tabFromPairs
+, [b#{Host} b#{google.com}]
+  [b#{Accept} b#{*/*}]
+  [b#{User-Agent} b#{curl/7.71.1}]
+
+= expectedBuffer | HTTP_BUF 9999 8888 httpHead TRUE headersTab TRUE b#{HEAD /what-is-life HTTP/1.0} NONE FALSE 600 b#{} FALSE
+
+= assembledBuffer | fakeProcessConnection splitHTTPRow emptyBuffer
+
+=?= (getReqLine expectedBuffer)
+  | getReqLine assembledBuffer
 
 =?= (getBody expectedBuffer)
    | getBody assembledBuffer
