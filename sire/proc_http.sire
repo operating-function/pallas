@@ -143,6 +143,21 @@
 
 =?= testIp backToIp
 
+> Bar > Maybe Nat
+= (parseNat bar)
+@ wid (barLen bar)
+@ hed (barIdx 0 bar)
+| maybeGuardNot (isZero wid)
+| maybeGuard    (isDigit hed)
+@ acc (sub hed {0})
+^ (_ acc 1)
+? (go acc ix)
+| if (gte ix wid) (SOME acc)
+@ c (barGet bar ix)
+| maybeGuard (isDigit c)
+@ !acc (add (mul 10 acc) (sub c {0}))
+| go acc inc-ix
+
 > Bar > Bar > List Nat
 = (barSubstringSearch needle haystack)
 @ needleWidth   (barLen needle)
@@ -429,6 +444,51 @@ TRUE
 = testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{GET /foo HTTP/1.0} NONE FALSE 0 b#{} FALSE
 
 =?= (0 b#{HTTP/1.0}) | mayExplainHttpVersion testBuffer
+
+> (HMap Bar Bar) > Bit
+= (haveBodyContent headerMap)
+@ haveContentLength | tabGet headerMap b#{Content-Length}
+| ifz haveContentLength
+  ; No Content-Length header at all
+  FALSE
+| ifz unpackSome-(parseNat haveContentLength)
+  ; Content-Length header, but received a 0 for value
+  FALSE
+; Non-zero Content-Length header
+TRUE
+
+= headersSansContentLength    | tabFromPairs [[b#a b#b] [b#c b#d]]
+= headersContentLengthZero    | tabFromPairs [[b#a b#b] [b#{Content-Length} b#0]]
+= headersContentLengthNonZero | tabFromPairs [[b#a b#b] [b#{Content-Length} b#15]]
+
+=?= FALSE | (haveBodyContent headersSansContentLength)
+
+=?= FALSE | (haveBodyContent headersContentLengthZero)
+
+=?= TRUE  | (haveBodyContent headersContentLengthNonZero)
+
+; Helper for getting the Content-Length
+> HTTPBuffer > Maybe Nat
+= (mayExplainContentLength buffer)
+| trk [%buffer buffer]
+| if | not (haveBodyContent (getHeaders buffer))
+  NONE
+@ cl | tabGet (getHeaders buffer) b#{Content-Length}
+parseNat-cl
+
+= headersSansContentLength    | tabFromPairs [[b#a b#b] [b#c b#d]]
+= headersContentLengthZero    | tabFromPairs [[b#a b#b] [b#{Content-Length} b#0]]
+= headersContentLengthNonZero | tabFromPairs [[b#a b#b] [b#{Content-Length} b#15]]
+
+= clSans | HTTP_BUF 9 8888 testBar FALSE headersSansContentLength FALSE b#{GET /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+= clZero | HTTP_BUF 9 8888 testBar FALSE headersContentLengthZero FALSE b#{GET /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+= clSome | HTTP_BUF 9 8888 testBar FALSE headersContentLengthNonZero FALSE b#{GET /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+
+=?= NONE    | mayExplainContentLength clSans
+
+=?= NONE    | mayExplainContentLength clZero
+
+=?= SOME-15 | mayExplainContentLength clSome
 
 ; Take an HTTP chunk of any size and help build a buffer.
 ; - append into the assembledData
