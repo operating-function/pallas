@@ -36,7 +36,6 @@
 ; - The above isn't an exhuastive list, but at least some things that need
 ;   to happen next.
 
-
 :| prelude
 
 # record HTTPRequest
@@ -92,24 +91,6 @@
 * FALSE
 * 0
 * b#{}
-
-;# record CogState
-;| COG_STATE
-;* buffers    : (HMap ConnectionHandle HTTPBuffer)
-;* servThread : Nat
-
-;> ThreadId > CogState
-;= (newCogState servThread)
-;| COG_STATE
-;* emptyTab
-;* 0
-
-; = (modifyState vSt fun return)
-; : (PIN old) < readRef vSt
-; @ srv       | getServThread old
-; @ pNew      | PIN (fun old)
-; : _         < writeRef vSt pNew
-; | return ()
 
 > Bar > Word32
 = (ipToWord ipBar)
@@ -231,13 +212,6 @@
 > Bar > (HMap Bar Bar)
 = (extractHeaders headerBar)
 @ newline | x#0d0a
-; We might need to actually check to see if there is anything BEYOND
-; the headers once we start testing with an HTTP body as well.
-; I believe that'll be a DOUBLE newline to denote the body field.
-; To that end, I'm leaving the next two lines commented here as that will
-; likely be the pattern for discerning headers from body.
-; @ headersAndBeyondL | (barLinesList headerBar)
-; @ justHeadersR | listToRow | listTakeWhile (neq x#0d0a) (listFromRow headersAndBeyondL)
 @ headerLines | (barSubstringLinesList newline headerBar)
 ^ listFoldr _ emptyTab headerLines
 & (line acc)
@@ -258,20 +232,6 @@
 | if (and (gth end start) (or (eql (barIdx (dec end) bar) 32) (eql (barIdx (dec end) bar) 9)))
   | loop start (dec end)
 | barSlice start (sub end start) bar
-
-; TODO: as yet unused. Likely to be replaced with something similar to
-; the mayExplainMethod and similar functions.
-; Since the headers are now in a map in the buffer, we don't need to
-; do this very manual parsing here.
-;
-; Don't need chunked for 1.0!
-= (isChunked headers)
-^ foldr _ FALSE headers
-& (header result)
-@ [name value] | header
-| if (and (eql name b#{Transfer-Encoding}) (eql (trimBar value) b#{chunked}))
-  TRUE
-result
 
 > Bar > Bar > Maybe Nat
 = (getFirstIdxSubstring sought full)
@@ -463,7 +423,7 @@ parseNat-cl
 =?= SOME-15 | mayExplainContentLength clSome
 
 
-;> Bar > Bar > HTTPBUffer
+> Bar > Bar > HTTPBuffer
 = (parseAndSetBody stream buffer)
 @ doubleCRLF | x#0d0a0d0a
 | if | not (getHeadersParsed buffer)
@@ -474,12 +434,9 @@ parseNat-cl
 ; there is a content length but its worth being careful)
 | maybeCase (mayExplainContentLength buffer) buffer
 & contentLength
-; TODO: glom in body content until we reach the content length
-;
 ; Find the first double CRLF - this should be the end of the headers
 | maybeCase (getFirstIdxSubstring doubleCRLF stream) buffer
 & headersEndIdx
-; TODO: this may be a mistake, putting this so high up
 @ body | barDrop (barLen doubleCRLF) | barDrop headersEndIdx stream
 @ newReceivedLength | (add (getReceivedLength buffer) | barLen body)
 @ buffer | setReceivedLength newReceivedLength buffer
@@ -496,11 +453,17 @@ buffer
 ; - if we have the Request Line completed yet, set it in the buffer
 ; - if we have all the headers completed yet, set them in the buffer
 ; - if we have a body, set it in the buffer
+;
+; TODO: this is a sort of crummy pattern. Each of the parseAndSet* things below
+; runs every time, and each of those (see their bodies) have some repeated
+; logic for dealing with the _entire_ assembledData bar.
+; We should  do this more efficiently and in such a way that:
+; - this can return a Maybe (so that a consumer knows that NONE == malformed)
+; - the individual parsers aren't running unnecessarily
+; - the individual parsers don't have logic from othe responsibilities mixed in
 = (processHttpChunk buffer chunk)
 @ newAssembledData  | (barWeld (getAssembledData buffer) chunk)
-; @ newReceivedLength | (add (getReceivedLength buffer) | barLen chunk)
 @ buffer | setAssembledData newAssembledData buffer
-; @ buffer | setReceivedLength newReceivedLength buffer
 @ buffer | parseAndSetReqline newAssembledData buffer
 @ buffer | parseAndSetHeaders newAssembledData buffer
 | if (haveBodyContent (getHeaders buffer))
@@ -508,16 +471,23 @@ buffer
   buffer
 buffer
 
+; Deprecated. Remove.
 ; TODO: this doesn't actually do anything yet except print some stuff.
 ; and set up a new buffer with hardcoded, obviously-wrong IP and Port.
-= (handleCompletedMessage buffer)
-| trk [%completeHTTPBuffer buffer]
-| trk [%assembledData (getAssembledData buffer)]
-; For testing fun:
-| trk [%method (unpackSome-(mayExplainMethod buffer))]
-| trk [%uri (unpackSome-(mayExplainUri buffer))]
-| trk [%headers (getHeaders buffer)]
-| emptyBuffer 999 8888
+; = (handleCompletedMessage io buffer return)
+; | trk [%completeHTTPBuffer buffer]
+; | trk [%io io]
+; | trk [%assembledData (getAssembledData buffer)]
+; ; For testing fun:
+; | trk [%method (unpackSome-(mayExplainMethod buffer))]
+; | trk [%uri (unpackSome-(mayExplainUri buffer))]
+; | trk [%headers (getHeaders buffer)]
+; | trk [%generatingResponseIGuess]
+; @ sendMessage | b#{hello world}
+; | trk [%toSendLen (barLen sendMessage)]
+; : sentLen < syscall | TCP_GIVE io sendMessage
+; | trk [%sentLen sentLen]
+; | return ()
 
 > HTTPBuffer > Bit
 = (isMessageComplete buffer)
@@ -529,11 +499,7 @@ buffer
   TRUE
 FALSE
 
-; TODO:
-; want to make a fake connection processor that can roughly simulate getting a
-; continuous TCP_TAKE stream, by giving it row (which would approximate
-; the multiple responses TCP_TAKE would provide) made up of an HTTP message
-; split into an arbitrary number of items in the row
+; For testing.
 > Row Bar > HTTPBuffer
 = (fakeProcessConnection fakeIn buffer)
 | if (eql 0 (len fakeIn))
@@ -543,58 +509,101 @@ FALSE
 @ [data remainder] | splitAt 1 fakeIn ; consider first item
 @ updatedBuffer | processHttpChunk buffer (idx 0 data)
 | if (isMessageComplete updatedBuffer)
-  ; @ newBuffer | handleCompletedMessage updatedBuffer
-  ; | fakeProcessConnection remainder newBuffer
   updatedBuffer
 | fakeProcessConnection remainder updatedBuffer
 
+; TODO:
+= (makeMessage buffer)
+b#{thing}
 
-= (processConnection in buffer return)
-: data < syscall | TCP_TAKE in
+> (HMap Bar Bar) > Nat > Bar > HTTPResponse
+= (nameMe headers body code)
+; - check format/validity, re: error codes
+;   - server do whatver else it needs 
+@ version    | b#{HTTP/1.0}
+@ statusCode | code
+@ statusText | b#{ok}
+@ headers    | headers
+@ body       | body
+; - from app:
+;   - a list of headers
+;   - body
+;   - response code
+; - from server
+;   - calculate content-length
+;   - other header things
+;   - http version for requestline
+@ headersList | listFromRow | tabMapWithKey (k v & (barCat [k b#{: } v])) headers
+| trk [%headList headersList]
+| HTTP_RES
+* version
+* statusCode
+* statusText
+* headersList
+* body
+
+= testHeaderMap | tabFromPairs [[b#hello b#world] [b#cookie b#thing]]
+= expectedHeaderList | listFromRow [b#{hello: world} b#{cookie: thing}]
+
+= expectedRes
+| HTTP_RES
+* b#{HTTP/1.0}
+* 200
+* b#ok
+* expectedHeaderList
+* b#{wut}
+
+
+=?= expectedRes
+  | nameMe testHeaderMap b#{wut} 200
+
+
+; TODO:
+= (validRequest request)
+; early response for malformed requests - potentially depends on better strategy
+; for _short-circuiting_ message chunk ingesting. See processHTTPChunk.
+TRUE
+
+; TODO:
+= (validResponse response)
+TRUE
+
+= (processConnection io getResponse buffer return)
+: data < syscall | TCP_TAKE io
 | if (barIsEmpty data)
   | trk [%connectionClosed %dataBarEmpty]
-  ;| emptyBuffer (TODO: maybe?)
-  | todo [%gotEmptyData buffer]
+  ; | todo [%gotEmptyData buffer]
   | return ()
 @ updatedBuffer | processHttpChunk buffer data
+; maybe switch to maybeCase on the result above:
 | trk [%updatedBuffer updatedBuffer]
-| if (isMessageComplete updatedBuffer)
-  | trk [%processConnectionDone]
-  ; At this point, the message appears to be complete and we should
-  ; do whatever it is we're supposed to do with it, based on what consumers
-  ; might want (handleCompletedMessage):
-  @ newBuffer | handleCompletedMessage updatedBuffer
-  ; Basically starting over:
-  | processConnection in newBuffer
-  ; But really, this should tie together with the server loop and TCP_TAKE
-  ; (and maybe even TCP_OPEN)
-| trk [%processConnectionRecurring]
-| processConnection in updatedBuffer return
+| ifNot (isMessageComplete updatedBuffer)
+  | trk [%processConnectionRecurring]
+  | processConnection io updatedBuffer return
+| trk [%processConnectionDone]
+; is it a valid request?
+: response < getResponse | makeMessage updatedBuffer
+;            (hed bar code)
+@ response
+  | if (validResponse response) response
+  | b#{internal server error} ; TODO correct format
+^ _ response
+? (sendAndClose response)
+: mBytes < syscall | TCP_GIVE io response
+| trk [%sent mBytes]
+: bytes  < maybeCase mBytes  | syscall (TCP_SHUT io) return
+| if (barLen response == bytes) | syscall (TCP_SHUT io) return
+| sendAndClose | barDrop bytes response
 
-= (serverLoop return)
-; - processConnection needs to work continuously until it has a complete message
-; - then ... forward this whole thing away?
-;   - or make available to a consumer or something
-; create a connection handle:
-;
-; WHEN YOU HIT A SYSCALL YOU'RE ALWAYS DONE, THREAD-WISE
-; (but the cog isn't finished because you forked)
-; (add TCP_HEAR to rq row, at the *end* of the event), then continue with k
-;;;; the stack of syscalls is the "events" in the kernel loop stream
-;;;; and the sl and rq is the stack of continuations for those syscalls
-;;;; "exe" is the continuation and "response" is the result from the runtime (kern.sire KERNEL function)
-;;;; "end" is "return"
-;
-; todo: we'll need "infinite of these" / re-create when done / maybe forward on to
-;       next port number forever?
-: [in ip port] < syscall | TCP_HEAR
-; TODO: ip to word
+= (serverLoop responseHandler return)
+: [io ip port] < syscall | TCP_HEAR
+; TODO: use ipToWord
 ; ip and port from who connected to us.
-| trk [=in]
+| trk [=io]
 | trk [=ip]
 | trk [=port]
-: tid < pumpFork (serverLoop)
-| processConnection in (emptyBuffer ip port) return
+: tid < pumpFork (serverLoop responseHandler)
+| processConnection io responseHandler (emptyBuffer ip port) return
 
 = testIP | b#{192.168.10.10}
 = testIpWord | ipToWord testIP
@@ -692,7 +701,7 @@ FALSE
    | getBody assembledBuffer
 
 = httpHead | x#48454144202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a0d0a
-
+ 
 = splitHTTPRow | splitBarIntoSegments 5 httpHead
 
 = headersTab
@@ -716,19 +725,27 @@ FALSE
 : port < syscall | TCP_MINE
 : mout < syscall | TCP_OPEN 16777343 port ; 16777343 == 127.0.0.1
 | trk [=mout]
-: out  < maybeCase mout | return ()
-| trk [=out]
-: gave < syscall | TCP_GIVE out testPacketHTTPOnly
+: io  < maybeCase mout | return ()
+| trk [=io]
+: gave < syscall | TCP_GIVE io testPacketHTTPOnly
 | trk [=gave]
 ; now we're done setting up the test data
 ;
 | return ()
 
+= (responseHandler msg) | syscall | DB_READ msg
+; DB of the cog below
+
 = main
-: exit < runCog 0 0
+: exit < runCog 0 (_ _ _ & b#success)
+; first zero above: starting (public) state.
+; for the lambda's three arguments being ignored:
+; - the cog's public state (not its private closure)
+; - procID
+; - the actual message (that we are passing in)
 | trk %started
 : _ < work EXEC-hydrate id
 | trk %started_hydrate
-: _ < work EXEC-serverLoop id
+: _ < work EXEC-(serverLoop responseHandler) id
 | trk %started_server
 | exit ()
