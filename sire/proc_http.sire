@@ -469,6 +469,7 @@ buffer
 ; - the individual parsers aren't running unnecessarily
 ; - the individual parsers don't have logic from othe responsibilities mixed in
 = (processHttpChunk buffer chunk)
+; TODO: use
 @ newAssembledData  | (barWeld (getAssembledData buffer) chunk)
 @ buffer | setAssembledData newAssembledData buffer
 @ buffer | parseAndSetReqline newAssembledData buffer
@@ -493,7 +494,7 @@ FALSE
 = (fakeProcessConnection fakeIn buffer)
 | if (eql 0 (len fakeIn))
   | trk [%ranOuttaIns]
-  ; | todo "what does this case actually mean?"
+  ; what does this case actually mean?
   buffer
 @ [data remainder] | splitAt 1 fakeIn ; consider first item
 @ updatedBuffer | processHttpChunk buffer (idx 0 data)
@@ -505,11 +506,67 @@ FALSE
 = (makeMessage buffer)
 b#{thing}
 
+; TODO:
+> HTTPBuffer > Bit
+= (validRequest request)
+; early response for malformed requests - potentially depends on better strategy
+; for _short-circuiting_ message chunk ingesting. See processHTTPChunk.
+; Goes nicely with error400
+TRUE
+
+; TODO:
+> HTTPResponse > Bit
+= (validResponse response)
+; did we get a garbage response from the app?
+; if so, we shouldn't send it out.
+; return either a bar to be sent out, or nothing (maybe)
+; Goes nicely with error500
+;
+; Do the validation work here. call this in appResponseToHTTP
+TRUE
+
+= (error400 msg)
+@ headers | emptyTab
+; TODO: move these thigns to "constants"
+@ headers | tabIns b#{Content-Length} 0 headers
+@ headers | tabIns b#{Server} b#{Pallas/0.1} headers
+@ headersList
+  | tabValsList
+  | tabMapWithKey
+  (k v & (barCat [k b#{: } v]))
+  headers
+| HTTP_RES
+; TODO: move these thigns to "constants"
+* b#{HTTP/1.0}
+* 400
+* msg
+* headersList
+* NIL
+
+= (error500 msg)
+@ headers | emptyTab
+; TODO: move these thigns to "constants"
+@ headers | tabIns b#{Content-Length} 0 headers
+@ headers | tabIns b#{Server} b#{Pallas/0.1} headers
+@ headersList
+  | tabValsList
+  | tabMapWithKey
+  (k v & (barCat [k b#{: } v]))
+  headers
+| HTTP_RES
+; TODO: move these thigns to "constants"
+* b#{HTTP/1.0}
+* 500
+* msg
+* headersList
+* NIL
+
 > (HMap Bar Bar) > Nat > Bar > > Bar > HTTPResponse
 = (appResponseToHTTP headers body code reason)
 ; TODO: check validity of headers/body/code we got from app here
 ; Formulate an HTTPResponse anyway (probably a 500 or whatever)
-;
+| ifz validResponse
+  | error500 b#{cog did a dumb}
 ; We're returning a Maybe here in case this function should be the one
 ; that catches invalid inputs and tells its consumer to return an error
 ; - check format/validity, re: error codes
@@ -555,6 +612,11 @@ b#{thing}
 
 =?= expectedRes
   | appResponseToHTTP appHeaders b#{wut} 200 b#{aight}
+
+= badResponse | b#{nutty thing}
+
+=?= (error500 b#{are you mad?})
+  | appResponseToHTTP emptyTab b#{hell} 9999 b#{wtf}
 
 ; TODO:
 ; take a valid HTTP Response and create an HTTP-1.0-compliant hex array
@@ -638,23 +700,6 @@ b#{thing}
 
 =?= hexNoBod
   | (httpResToBar prepBodless)
-
-; TODO:
-> HTTPBuffer > Bit
-= (validRequest request)
-; early response for malformed requests - potentially depends on better strategy
-; for _short-circuiting_ message chunk ingesting. See processHTTPChunk.
-TRUE
-
-; TODO:
-> HTTPResponse > Bit
-= (validResponse response)
-; did we get a garbage response from the app?
-; if so, we shouldn't send it out.
-; return either a bar to be sent out, or nothing (maybe)
-;
-; Do the validation work here. call this in appResponseToHTTP
-TRUE
 
 = (processConnection io getResponse buffer return)
 : data < syscall | TCP_TAKE io
