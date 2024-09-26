@@ -2,9 +2,9 @@
 ;;; Use of this source code is governed by a BSD-style license that can be
 ;;; found in the LICENSE file.
 ;;
-#### demo_cog_filepad <- prelude
+#### demo_cog_filepad <- proc_http
 
-:| prelude
+:| proc_http
 :| json
 ; :| datatype  [{#record} {#datatype} {#datacase}]
 
@@ -188,10 +188,10 @@
 | COG_STATE
 * files      : (HMap Str (ContentType, Pin Bar))
 * fileBytes  : Nat
-* servThread : ThreadId
+* servThread : Nat
 * ourPort    : Nat
 
-> ThreadId > CogState
+> Nat > CogState
 = (newCogState servThread)
 | COG_STATE
 * startingFiles
@@ -253,85 +253,95 @@
   @ head | [(b#{Content-Type}, type) (b#{Access-Control-Allow-Origin}, b#{*})]
   [200 b#gotcha head content]
 
-= (modifyState vSt fun return)
-: (PIN old) < readRef vSt
-@ srv       | **getServThread old
-@ pNew      | PIN (fun old)
-: _         < writeRef vSt pNew
-: _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
-| return ()
+; = (modifyState vSt fun return)
+; : (PIN old) < readRef vSt
+; @ srv       | **getServThread old
+; @ pNew      | PIN (fun old)
+; : _         < writeRef vSt pNew
+; : _         < cancelFork srv (syscall (**HTTP_SERV | fileServer pNew))
+; | return ()
 
 fileCogChannel=66
 
-= (handleReq vSt request return)
-@ [rid method path headers pBody@(PIN body)] request
-# switch method
-* GET
-  # switch path
-  * b#{/index.html}
-    : (PIN st) < readRef vSt
-    @ ourPort  | getOurPort st
-    | trk [%ourPort ourPort]
-    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [(b#{Content-Type}, b#{text/html})] (indexHtml ourPort)))
-    | return ()
-  * b#{/files}
-    : (PIN st) < readRef vSt
-    @ files (**getFiles st)
-    @ fileNames (hmKeys files)
-    | trk [%fileNames fileNames]
-    @ stateJson | buildJson st
-    @ stateJsonBS | printJson stateJson
-    | trk [%resultJSON stateJsonBS]
-    : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders stateJsonBS))
-    | return ()
-  * _
-    : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
-    | return ()
-* PUT
-  : (PIN st) < readRef vSt
-  @ barType | **fromSome b#{text/plain}
-            | tabLookup b#{content-type}
-            | tabFromPairs headers
-  @ newTotalSize | add (barLen body) | getFileBytes st
-  @ files (**getFiles st)
-  @ files | hmInsert (barNat path) [barType pBody] files
-  | trk [%newFiles files]
-  | trk [%newSize newTotalSize]
-  @ stateJson | buildJson st
-  @ stateJsonBS | printJson stateJson
-  : _ < fork (syscall (**HTTP_ECHO rid 201 b#done corsHeaders b#{}))
-  : _ < modifyState vSt & st
-                        | setFileBytes newTotalSize
-                        | setFiles files
-                        | st
-  | return ()
-* OPTIONS
-  : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
-  | return ()
-* _
-  : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
-  | return ()
+; = (handleReq vSt request return)
+; @ [rid method path headers pBody@(PIN body)] request
+; # switch method
+; * GET
+;   # switch path
+;   * b#{/index.html}
+;     ; TODO
+;     ; : (PIN st) < readRef vSt
+;     @ st | 1
+;     @ ourPort  | getOurPort st
+;     | trk [%ourPort ourPort]
+;     ; : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok [(b#{Content-Type}, b#{text/html})] (indexHtml ourPort)))
+;     | return ()
+;   * b#{/files}
+;     ; TODO
+;     ; : (PIN st) < readRef vSt
+;     @ st | 1
+;     @ files (**getFiles st)
+;     @ fileNames (hmKeys files)
+;     | trk [%fileNames fileNames]
+;     @ stateJson | buildJson st
+;     @ stateJsonBS | printJson stateJson
+;     | trk [%resultJSON stateJsonBS]
+;     ; : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders stateJsonBS))
+;     | return ()
+;   * _
+;     ; : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
+;     | return ()
+; * PUT
+;   ; TODO
+;   ; : (PIN st) < readRef vSt
+;   @ st | 1
+;   @ barType | **fromSome b#{text/plain}
+;             | tabLookup b#{content-type}
+;             | tabFromPairs headers
+;   @ newTotalSize | add (barLen body) | getFileBytes st
+;   @ files (**getFiles st)
+;   @ files | hmInsert (barNat path) [barType pBody] files
+;   | trk [%newFiles files]
+;   | trk [%newSize newTotalSize]
+;   @ stateJson | buildJson st
+;   @ stateJsonBS | printJson stateJson
+;   ; : _ < fork (syscall (**HTTP_ECHO rid 201 b#done corsHeaders b#{}))
+;   ; TODO
+;   ; : _ < modifyState vSt & st
+;   ;                       | setFileBytes newTotalSize
+;   ;                       | setFiles files
+;   ;                       | st
+;   | return ()
+; * OPTIONS
+;   ; : _ < fork (syscall (**HTTP_ECHO rid 200 b#ok corsHeaders b#{}))
+;   | return ()
+; * _
+;   ; : _ < fork (syscall (**HTTP_ECHO rid 400 b#bad corsHeaders b#{}))
+;   | return ()
 
 
-= (runHttpServer vSt return)
-: ??(rhs_heard req) < syscall HTTP_HEAR
-: _                 < handleReq vSt req
-| runHttpServer vSt return
+; = (runHttpServer vSt return)
+; : ??(rhs_heard req) < syscall HTTP_HEAR
+; ; : _                 < handleReq vSt req
+; | runHttpServer vSt return
 
-= (portResponder return)
-: _    < syscall | COG_TELL fileCogChannel (_ _ & [NONE ()])
-| trk %portResponder0
-: port < syscall HTTP_PORT
-| trk [%portResponder1 port]
-: _    < syscall | COG_TELL fileCogChannel (_ _ & (trk %tellFun [SOME-port ()]))
-| trk %portResponder2
-| portResponder return
+; TODO:
+# typedef HTTPRequest Any
 
-> HTTPRequest > Cog HTTPResponse
+# typedef HTTPResponse Any
+
+# typedef Cog Any
+
+# typedef Proc Any
+
+; > HTTPRequest > Cog HTTPResponse
 = (spinFiles httpReq return)
-: servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
-: vSt         < newRef (PIN | newCogState servThread)
-: _           < modifyState vSt id
+; handler for writes
+; TODO:
+; : servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
+; : vSt         < newRef (PIN | newCogState servThread)
+; TODO:
+; : _           < modifyState vSt id
 ; TODO: these will have to change to httpReq things:
 ;: httpThread1 < fork (runHttpServer vSt)
 ;: httpThread2 < fork (runHttpServer vSt)
@@ -347,7 +357,15 @@ fileCogChannel=66
 0
 
 ; TODO:
-> HTTPRequest > Proc HTTPResponse
+= (getMethod msg)
+b#{GET}
+
+; TODO:
+= (getBody msg)
+b#{htmlthings}
+
+; TODO:
+; > HTTPRequest > Proc HTTPResponse
 = (responseHandler msg return)
 ; based on the request i got, return something or other to be formulated as an http msg
 ;
@@ -359,6 +377,7 @@ fileCogChannel=66
   ;     URL params) and then _act on it properly_.
   ;     A "Controller", basically.
   : gotRes < syscall | DB_READ (getBody msg)
+  | trk [%read gotRes]
   | return (formulateResponse gotRes)
 * b#POST
   ; TODO:
@@ -366,16 +385,17 @@ fileCogChannel=66
   ; something like a Model. Either way, _something_ will need to determine whether
   ; we just respond with "ok"/204 or with a more robust (JSON?) response that
   ; a complex client will use for its state.
-  : gotRes < syscall | DB_WRITE (getBody msg)
-  | return (formulateResponse gotRes)
+  : result < tag_syscall | DB_WRITE (getBody msg)
+  | trk [%wrote result]
+  | return (formulateResponse result)
 * b#HEAD
   ; if this should even be here...
   | return (formulateResponse b#{})
 
 ; scaffold for proc
-; TODO: import proc_http
 = (newHttp return)
-: _ < work EXEC-(serverLoop responseHandler)  spinFiles
+;
+: _ < work EXEC-(httpServer responseHandler)  spinFiles
 ;     3 args:  ^ worker. if it does DB_WRITE   ^ cog thread / handler for worker
 ;     1-workr  it has a cog thread to apply     activates when worker sends msg
 ;     2-cog    these writes to. (DB_READ)
@@ -383,6 +403,4 @@ fileCogChannel=66
 ;              uses its public state.
 | return ()
 
-; main=(runCog spinFiles)
-
-^-^ spinFiles
+main=(runCog 0 0 newHttp)

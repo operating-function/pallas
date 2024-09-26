@@ -1,17 +1,10 @@
+; Copyright 2024 The OPfN Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
 #### proc_http <- prelude
 
-;;;;;;
-;
-; There are are many comments inline in the functions below that either explain
-; what the functions currently do, what is lacking or not yet finished, etc.
-; Run the cog to see the current machinery work on a simple HTTP message split
-; over many TCP packets (with some of the "is this HTTP 1.0 message definitely
-; complete?" checks sort of short-circuited and faked for now.
-;
-;;;;;;
-;
 ; Definite TODOS:
-; - Adjust the "receivedLength" property. This should only be about the request body
 ; - Error things:
 ;   - "If a request contains an entity body and Content-Length is not specified,
 ;     and the server does not recognize or cannot calculate the length from other
@@ -19,22 +12,9 @@
 ;
 ; Things that need to happen:
 ; - make sure header parsing handles strange things
-; - test with HTTP body included (pretty sure the parsing won't know this
-;   is different than the headers and will likely try to glom the body
-;   into the buffer's headers map
-; - handle all of the "message complete" possibilities for HTTP 1.0
-;   (explained inline in some of the functions below)
-; - make sure request line works properly with other Method types
-; - Pass JSON body in a POST request - probably need to do a bunch after that
-; - Properly handle the server loop / processMessage flow with multiple
+; - Test passing JSON body in a POST request - probably need to do a bunch after that
+; - Properly test the server loop / processMessage flow with multiple
 ;   connections. re-open / new connections, etc.
-; - What do actually _do_ with a complete HTTP message once we have a whole one
-;   in a buffer?
-; - Haven't yet done anything on the other side: going FROM a "buffer" (which we
-;   likely would have gotten from an app that wants to send a response) to
-;   slicing it up into a pieces to send back to TCP hardware to go out.
-; - The above isn't an exhuastive list, but at least some things that need
-;   to happen next.
 
 :| prelude
 
@@ -155,22 +135,22 @@
 | if isMatch (CONS found more)
 | else more
 
-; TODO: basically unused now that barSubstringLinesList exists.
-> Bar > Maybe Nat
-= (findDoubleCRLF bar)
-@ doubleCRLF x#0d0a
-@ results (barSubstringSearch doubleCRLF bar)
-| listCase results
-    NONE
-& (firstMatch _)
-| SOME firstMatch
-
-; Using actual x haxes rather than fake b haxes. mostly for \r \n reasons
-; = testBar | b#{GET /thing HTTP/1.1\nHost: example.com\r\nContent-Type: text/html\r\nContent-Length: 15\r\n\r\nHello, World!}
-= testBar | x#474554202F7468696E6720485454502F312E310A486F73743A206578616D706C652E636F6D0d0A436F6E74656E742D547970653A20746578742F68746D6C0A436F6E74656E742D4C656E6774683A2031350d0A48656C6C6F2C20576F726C6421
+; ; TODO: basically unused now that barSubstringLinesList exists.
+; > Bar > Maybe Nat
+; = (findDoubleCRLF bar)
+; @ doubleCRLF x#0d0a
+; @ results (barSubstringSearch doubleCRLF bar)
+; | listCase results
+;     NONE
+; & (firstMatch _)
+; | SOME firstMatch
+;
+; ; Using actual x haxes rather than fake b haxes. mostly for \r \n reasons
+; ; = testBar | b#{GET /thing HTTP/1.1\nHost: example.com\r\nContent-Type: text/html\r\nContent-Length: 15\r\n\r\nHello, World!}
+= testBar | x#474554202F7468696E6720485454502F312E310d0A486F73743A206578616D706C652E636F6D0d0d0A436F6E74656E742D547970653A20746578742F68746D6C0d0A436F6E74656E742D4C656E6774683A2031350d0d0A0d0a48656C6C6F2C20576F726C6421
 = testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{} NONE FALSE 0 b#{} FALSE
-
-=?= (SOME 37) | (findDoubleCRLF testBar)
+;
+; =?= (SOME 37) | (findDoubleCRLF testBar)
 
 ; Like barSubstringLines, but allows splitting on arbitrary characters.
 > Bar > Bar > List Bar
@@ -240,14 +220,14 @@
   NONE
 | SOME (listIdx 0 l)
 
-; YES, I realize this is an insane function.
-; TODO: don't be insane.
-> Bar > Bar > Maybe Nat
-= (getSecondIdxSubstring sought full)
-@ l | barSubstringSearch sought full
-| if (eql 0 l)
-  NONE
-| SOME (listIdx 1 l)
+; ; YES, I realize this is an insane function.
+; ; don't be insane.
+; > Bar > Bar > Maybe Nat
+; = (getSecondIdxSubstring sought full)
+; @ l | barSubstringSearch sought full
+; | if (eql 0 l)
+;   NONE
+; | SOME (listIdx 1 l)
 
 =?= (0 2) | getFirstIdxSubstring b#x b#aaxaa
 
@@ -293,7 +273,6 @@ buffer
 ; now request line is parsed, so we AT LEAST got the first x#0d0a...
 ; so we should wait until we have _all_ the headers, which is denoted by
 ; an empty line.
-; TODO: find empty line
 | maybeCase (getFirstIdxSubstring x#0d0a stream) buffer
 ; if so, we have a reqline
 & requestLineIdx
@@ -307,7 +286,6 @@ buffer
 @ h | barTake headersEndIdx remainTrimmed
 @ headers | (extractHeaders h)
 @ buffer | setHeaders headers buffer
-; TODO: use the good bits from extractHeaders here?
 ; mark it parsed
 @ buffer | setHeadersParsed TRUE buffer
 buffer
@@ -423,6 +401,10 @@ parseNat-cl
 =?= SOME-15 | mayExplainContentLength clSome
 
 
+; TODO: > Bar > Bar > Maybe HTTPBuffer
+; Depending on how the stream-parsing goes, if this function sticks around, it
+; should be updated to return a Maybe HTTPBuffer - with the NONE case indicating
+; some kind of poorly-constructed request error.
 > Bar > Bar > HTTPBuffer
 = (parseAndSetBody stream buffer)
 @ doubleCRLF | x#0d0a0d0a
@@ -440,13 +422,38 @@ parseNat-cl
 @ body | barDrop (barLen doubleCRLF) | barDrop headersEndIdx stream
 @ newReceivedLength | (add (getReceivedLength buffer) | barLen body)
 @ buffer | setReceivedLength newReceivedLength buffer
+| trk [%thing contentLength]
+| trk [%len (barLen body)]
+| trk [%lth (lth (barLen body) contentLength)]
+| if (gth (barLen body) contentLength)
+  ; TODO:
+  ; body is longer than headers indicated. bad request!
+  NONE
 | if (lth (barLen body) contentLength)
   ; we don't have all the content yet. allow the processing to continue
+  ; TODO:
+  ; | SOME buffer
   buffer
-; TODO: need to handle weird cases where the body is longer than content length?
 @ buffer | setBody body buffer
 @ buffer | setBodyParsed TRUE buffer
+; TODO:
+; | SOME buffer
 buffer
+
+; TODO: write a test that has a request where the body is longer than the content
+; length. this should be considered a 400 error
+
+= headersWithContentLength | tabFromPairs [[b#a b#b] [b#{Content-Length} b#1]]
+; This assembled data is a full POST request with a body content that is longer than the "Content-Length"
+= testAssembledData | x#504F5354202F776861742D69732D6C69666520485454502F312E300d0A486F73743A20676F6F676C652E636F6D0d0A557365722D4167656E743A206375726C2F372E37312E310d0A436F6E74656E742D4C656E6774683A20320d0A0d0A48656C6C6F
+
+= buffer | HTTP_BUF 9999 8888 testAssembledData TRUE headersWithContentLength TRUE b#{POST /what-is-life HTTP/1.0} 1 FALSE (barLen testAssembledData) b#{Hello} TRUE
+= badStream | x#48454144202F776861742D69732D6C69666520485454502F312E300d0A486F73743A20676F6F676C652E636F6D0d0A557365722D4167656E743A206375726C2F372E37312E310d0A436F6E74656E742D4C656E6774683A20320d0a0d0a48656C6C6F
+
+; todo try running the other parsers first as a setup
+
+=?= NONE
+  | parseAndSetBody badStream buffer
 
 ; Take an HTTP chunk of any size and help build a buffer.
 ; - append into the assembledData
@@ -470,24 +477,6 @@ buffer
   @ buffer | parseAndSetBody newAssembledData buffer
   buffer
 buffer
-
-; Deprecated. Remove.
-; TODO: this doesn't actually do anything yet except print some stuff.
-; and set up a new buffer with hardcoded, obviously-wrong IP and Port.
-; = (handleCompletedMessage io buffer return)
-; | trk [%completeHTTPBuffer buffer]
-; | trk [%io io]
-; | trk [%assembledData (getAssembledData buffer)]
-; ; For testing fun:
-; | trk [%method (unpackSome-(mayExplainMethod buffer))]
-; | trk [%uri (unpackSome-(mayExplainUri buffer))]
-; | trk [%headers (getHeaders buffer)]
-; | trk [%generatingResponseIGuess]
-; @ sendMessage | b#{hello world}
-; | trk [%toSendLen (barLen sendMessage)]
-; : sentLen < syscall | TCP_GIVE io sendMessage
-; | trk [%sentLen sentLen]
-; | return ()
 
 > HTTPBuffer > Bit
 = (isMessageComplete buffer)
@@ -546,7 +535,6 @@ b#{thing}
   | tabMapWithKey
   (k v & (barCat [k b#{: } v]))
   headers
-| SOME
 | HTTP_RES
 * version
 * statusCode
@@ -565,7 +553,7 @@ b#{thing}
 * expectedHeaderList
 * b#{wut}
 
-=?= SOME-expectedRes
+=?= expectedRes
   | appResponseToHTTP appHeaders b#{wut} 200
 
 ; TODO:
@@ -601,7 +589,7 @@ b#{thing}
     printBody
 
 = appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}] [b#{Content-Type} b#{text/plain; charset=UTF-8}] [b#{Content-Length} b#{9}]]
-= preparedResponse | unpackSome-(appResponseToHTTP appHeaders b#{Nice body} 200)
+= preparedResponse | appResponseToHTTP appHeaders b#{Nice body} 200
 
 = hexResponse
   | barCat
@@ -638,7 +626,7 @@ b#{thing}
     b#{Content-Length: 0}
 
 = appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}]]
-= prep2 | unpackSome-(appResponseToHTTP appHeaders b#{} 204)
+= prep2 | appResponseToHTTP appHeaders b#{} 204
 
 =?= hex2
    | (httpResToBar prep2)
@@ -646,16 +634,18 @@ b#{thing}
 ; TODO: test with no body
 
 ; TODO:
+> HTTPBuffer > Bit
 = (validRequest request)
 ; early response for malformed requests - potentially depends on better strategy
 ; for _short-circuiting_ message chunk ingesting. See processHTTPChunk.
 TRUE
 
 ; TODO:
+> HTTPResponse > Bit
 = (validResponse response)
 ; did we get a garbage response from the app?
 ; if so, we shouldn't send it out.
-; return either a bar to be sent out, or nothign (maybe)
+; return either a bar to be sent out, or nothing (maybe)
 ;
 ; Do the validation work here. call this in appResponseToHTTP
 TRUE
@@ -691,16 +681,6 @@ TRUE
 : bytes  < maybeCase mBytes  | syscall (TCP_SHUT io) return
 | if (barLen response == bytes) | syscall (TCP_SHUT io) return
 | sendAndClose | barDrop bytes response
-
-= (serverLoop responseHandler return)
-: [io ip port] < syscall | TCP_HEAR
-; TODO: use ipToWord
-; ip and port from who connected to us.
-| trk [=io]
-| trk [=ip]
-| trk [=port]
-: tid < pumpFork (serverLoop responseHandler)
-| processConnection io responseHandler (emptyBuffer ip port) return
 
 = testIP | b#{192.168.10.10}
 = testIpWord | ipToWord testIP
@@ -798,7 +778,7 @@ TRUE
    | getBody assembledBuffer
 
 = httpHead | x#48454144202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a0d0a
- 
+
 = splitHTTPRow | splitBarIntoSegments 5 httpHead
 
 = headersTab
@@ -817,6 +797,17 @@ TRUE
 =?= (getBody expectedBuffer)
    | getBody assembledBuffer
 
+= (httpServer responseHandler return)
+: [io ip port] < syscall | TCP_HEAR
+; TODO: use ipToWord
+; ip and port from who connected to us.
+| trk [=io]
+| trk [=ip]
+| trk [=port]
+: tid < pumpFork (httpServer responseHandler)
+| processConnection io responseHandler (emptyBuffer ip port) return
+
+
 ; TODO: use ipToWord?
 = (hydrate return)
 : port < syscall | TCP_MINE
@@ -830,7 +821,10 @@ TRUE
 ;
 | return ()
 
-> HTTPReq > Proc HTTPRes
+; TODO: should be Proc HTTPResponse
+> HTTPRequest > HTTPResponse
+; This is here for testing purposes.
+; In the real world, this will be defined in the cog that uses this proc.
 = (responseHandler msg) | syscall | DB_READ msg
 
 = main
@@ -840,9 +834,11 @@ TRUE
 ; - the cog's public state (not its private closure)
 ; - procID
 ; - the actual message (that we are passing in)
-| trk %started
-: _ < work EXEC-hydrate id
-| trk %started_hydrate
-: _ < work EXEC-(serverLoop responseHandler) id
+; | trk %started_http
+; : _ < work EXEC-hydrate id
+; | trk %started_hydrate
+: port < syscall | TCP_MINE
+| trk [%http_server_port port]
+: _ < work EXEC-(httpServer responseHandler) id
 | trk %started_server
 | exit ()
