@@ -681,7 +681,6 @@ runWrites st writeReqs = do
           CRASH op arg -> RECEIPT_CRASHED{..}
           OKAY{}       -> makeOKReceipt writeReqs
 
-    -- TODO pass output to procs
     let (newCog, output) = case result of
           OKAY _ v ->
             let newCog = fanIdx 0 v
