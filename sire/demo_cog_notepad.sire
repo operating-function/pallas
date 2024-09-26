@@ -3,6 +3,13 @@
 ;;; found in the LICENSE file.
 ;;
 
+; Usage:
+; 1. start cog, note port.
+; 2. curl localhost:<port>/note
+;    - see that you get a { "note": "some text here" } JSON response
+; 3. curl -v localhost:<port>/changed -H "Content-Type: application/json" -d '{"newNote":"new note content here"}'
+;   - see that you get a JSON response with the updated note
+
 #### demo_cog_notepad <- proc_http
 
 :| proc_http
