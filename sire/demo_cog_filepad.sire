@@ -188,15 +188,12 @@
 | COG_STATE
 * files      : (HMap Str (ContentType, Pin Bar))
 * fileBytes  : Nat
-* servThread : Nat
-* ourPort    : Nat
 
 > Nat > CogState
-= (newCogState servThread)
+= (newCogState)
 | COG_STATE
 * startingFiles
 * 0
-* servThread
 
 (bindMaybe mVal k)=(maybeCase mVal NONE k)
 
@@ -239,19 +236,6 @@
 
 = jsonContentType [(b#{content-type}, b#{application/json})]
 = corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{*}) (b#{Access-Control-Allow-Credentials}, b#{true})]
-
-(emptyFileServer req)=NONE
-
-= (fileServer (PIN st) [method path headers (PIN body)])
-| trk [%fileServerRequest method path headers body]
-| trk [%files (**getFiles st)]
-# switch method
-* _ | NONE
-* GET
-  | **fmapMaybe | hmLookup (barNat path) (**getFiles st)
-  & [type (PIN content)]
-  @ head | [(b#{Content-Type}, type) (b#{Access-Control-Allow-Origin}, b#{*})]
-  [200 b#gotcha head content]
 
 ; = (modifyState vSt fun return)
 ; : (PIN old) < readRef vSt
@@ -335,7 +319,7 @@ fileCogChannel=66
 # typedef Proc Any
 
 ; > HTTPRequest > Cog HTTPResponse
-= (spinFiles httpReq return)
+= (writeHandler httpReq return)
 ; handler for writes
 ; TODO:
 ; : servThread  < fork (syscall (**HTTP_SERV emptyFileServer))
@@ -350,12 +334,6 @@ fileCogChannel=66
 ; define a response
 | return response
 
-; TODO;
-> Any > HTTPResponse
-; What shape will the cog return from its read?
-= (formulateResponse someData)
-0
-
 ; TODO:
 = (getMethod msg)
 b#{GET}
@@ -363,15 +341,23 @@ b#{GET}
 
 # typedef Query | Any
 
-> Bar > Query
-= (buildQuery httpBody)
+> HTTPRequest > Query
+= (buildQuery httpRequest)
+@ requestedBody | getReqBody httpRequest
+@ requestedPath | getReqPath httpRequest
 ; Assumes the request body will be just a single bar that corresponds
 ; to cog record fields
-# switch httpBody
-* b#{files}
+| trk [%buildQuery [=httpRequest]]
+| trk [%body [=requestedBody]]
+| trk [%path [=requestedPath]]
+# switch requestedPath
+* b#{/files}
+  | trk [%atFiles]
   | getFiles
 * _
+  | trk [%xxxxfallback]
   | const b#{error}
+
 
 > CogState > Nat > Query > HTTPResponse
 ; "reads" is part of the cog public state. the runtime will inject
@@ -381,7 +367,22 @@ b#{GET}
 | query state
 
 
-; result of buildQuery and the public state will be passed to erad funciton
+; TODO;
+> Any > (Tab Bar Bar, Bar, Nat, Bar)
+; What shape will the cog return from its read?
+= (formulateResponse someData)
+| trk [=someData]
+| if (eql someData b#{error}) ; from the path switch
+  @ headers | emptyTab
+  @ body    | b#{}
+  @ code    | 404
+  @ reas    | b#{Not found}
+  [headers body code reas]
+@ headers | tabFromPairs [[b#{manually-inserted} b#{thing}]]
+@ body    | b#{body}
+@ code    | 200
+@ reas    | b#{Okkkk}
+[headers body code reas]
 
 ; TODO:
 ; > HTTPRequest > Proc HTTPResponse
@@ -397,8 +398,9 @@ b#{GET}
   ;     we'll likely need to expect to get JSON (or some other sort of query, like
   ;     URL params) and then _act on it properly_.
   ;     A "Controller", basically.
-  : gotRes < syscall | DB_READ | buildQuery (getBody msg)
-  | trk [%read gotRes]
+  : gotRes < syscall | DB_READ | buildQuery msg
+  | trk [%res gotRes]
+  | trk [%sending (formulateResponse gotRes)]
   | return (formulateResponse gotRes)
 * b#POST
   ; TODO:
@@ -415,8 +417,7 @@ b#{GET}
 
 ; scaffold for proc
 = (newHttp return)
-;
-: _ < work EXEC-(httpServer responseHandler)  spinFiles
+: _ < work EXEC-(httpServer responseHandler)  writeHandler
 ;     3 args:  ^ worker. if it does DB_WRITE   ^ cog thread / handler for worker
 ;     1-workr  it has a cog thread to apply     activates when worker sends msg
 ;     2-cog    these writes to. (DB_READ)

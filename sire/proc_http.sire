@@ -33,8 +33,9 @@ TRUE
 TRUE
 
 
-> (Tab Bar Bar) > Nat > Bar > > Bar > HTTPResponse
-= (appResponseToHTTP headers body code reason)
+> Tab Bar Bar > Nat > Bar > > Bar > HTTPResponse
+= (appResponseToHTTP [headers body code reason])
+^ trk [httpResponse=_] _
 ; TODO: check validity of headers/body/code we got from app here
 ; Formulate an HTTPResponse anyway (probably a 500 or whatever)
 | ifNot (validResponse b#{TODO})
@@ -83,9 +84,12 @@ TRUE
           ; valid but incomplete
           | processConnection io updatedBuffer return
 ; complete and valid
+| trk [%processConnection %beforeGetREsponse]
 : cogResponse < getResponse request
+| trk [=cogResponse]
 ^ _ (httpResToBar | appResponseToHTTP cogResponse)
 ? (sendAndClose responseBar)
+| trk [=responseBar]
 : mBytes < syscall | TCP_GIVE io responseBar
 | trk [%sent mBytes]
 : bytes  < maybeCase mBytes  | syscall (TCP_SHUT io) return

@@ -14,12 +14,13 @@
 
 # record HTTPRequest
 | HTTP_REQ
-* method  : Bar             ; HTTP method
-* path    : Bar             ; Request URI
-* version : Bar             ; HTTP version
-* headers : List (Bar, Bar) ; List of key-value pairs
-* body    : Bar             ; Request body; may be empty
+* reqMethod  : Bar             ; HTTP method
+* reqPath    : Bar             ; Request URI
+* reqVersion : Bar             ; HTTP version
+* reqHeader  : List (Bar, Bar) ; List of key-value pairs
+* reqBody    : Bar             ; Request body; may be empty
 
+; TODO: prefix these records
 # record HTTPResponse
 | HTTP_RES
 * version      : Bar             ; HTTP version
@@ -297,6 +298,7 @@ buffer
 ; take a valid HTTP Response and create an HTTP-1.0-compliant hex array
 > HTTPResponse > Bar
 = (httpResToBar httpRes)
+^ trk [httpResToBar=_] _
 @ v     | (getVersion      httpRes)
 @ c     | (getStatusCode   httpRes)
 @ s     | (getReasonPhrase httpRes)
