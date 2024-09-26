@@ -1,0 +1,325 @@
+; Copyright 2024 The OPfN Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### proc_http_tests <- proc_http
+
+:| proc_http
+
+;;;;
+
+; lib tests
+
+= testBar | x#474554202F7468696E6720485454502F312E310d0A486F73743A206578616D706C652E636F6D0d0d0A436F6E74656E742D547970653A20746578742F68746D6C0d0A436F6E74656E742D4C656E6774683A2031350d0d0A0d0a48656C6C6F2C20576F726C6421
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{} NONE FALSE 0 b#{} FALSE
+
+= testHeaderBar | x#486f73743a206578616d706c652e636f6d0d0a436f6e74656e742d547970653a20746578742f68746d6c0d0a436f6e74656e742d4c656e6774683a2031350d0a
+= expectedHeaders | tabFromPairs [[b#Host b#{example.com}] [b#{Content-Type} b#{text/html}] [b#{Content-Length} b#15]]
+
+
+=?= (listFromRow [x#de x#ad x#20be x#ef])
+    | barSubstringLinesList x#0d x#{de0dad0d20be0def0d0d}
+
+=?= [x#de x#ad x#20be x#ef]
+    | barSubstringLines x#0d x#{de0dad0d20be0def0d0d}
+
+=?= (listFromRow [x#de x#ad x#20be x#ee x#ef])
+    | barSubstringLinesList x#0d x#{de0dad0d20be0dee0def}
+
+=?= (listFromRow [x#de x#ad x#20be x#ef])
+    | barSubstringLinesList x#0d x#{0d0dde0dad0d20be0def0d}
+
+=?= (listFromRow [x#de x#ad x#200dbe x#ef])
+    | barSubstringLinesList x#0d0a0d x#{de0d0a0dad0d0a0d200dbe0d0a0def0d0a0d}
+
+
+=?= expectedHeaders | (extractHeaders testHeaderBar)
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{GET /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+
+=?= (0 b#{GET}) | mayExplainMethod testBuffer
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{POST /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+
+=?= (0 b#{POST}) | mayExplainMethod testBuffer
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{} NONE FALSE 0 b#{} FALSE
+
+=?= NONE | mayExplainMethod testBuffer
+
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{GET /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+
+=?= (0 b#{/foo}) | mayExplainUri testBuffer
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{asdfsadfsdf} NONE FALSE 0 b#{} FALSE
+
+=?= NONE | mayExplainUri testBuffer
+
+
+= testBuffer | HTTP_BUF 9 8888 testBar FALSE emptyTab FALSE b#{GET /foo HTTP/1.0} NONE FALSE 0 b#{} FALSE
+
+=?= (0 b#{HTTP/1.0}) | mayExplainHttpVersion testBuffer
+
+
+= headersSansContentLength    | tabFromPairs [[b#a b#b] [b#c b#d]]
+= headersContentLengthZero    | tabFromPairs [[b#a b#b] [b#{Content-Length} b#0]]
+= headersContentLengthNonZero | tabFromPairs [[b#a b#b] [b#{Content-Length} b#15]]
+
+=?= FALSE | (haveBodyContent headersSansContentLength)
+
+=?= FALSE | (haveBodyContent headersContentLengthZero)
+
+=?= TRUE  | (haveBodyContent headersContentLengthNonZero)
+
+= headersSansContentLength    | tabFromPairs [[b#a b#b] [b#c b#d]]
+= headersContentLengthZero    | tabFromPairs [[b#a b#b] [b#{Content-Length} b#0]]
+= headersContentLengthNonZero | tabFromPairs [[b#a b#b] [b#{Content-Length} b#15]]
+
+= clSans | HTTP_BUF 9 8888 testBar FALSE headersSansContentLength FALSE b#{GET /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+= clZero | HTTP_BUF 9 8888 testBar FALSE headersContentLengthZero FALSE b#{GET /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+= clSome | HTTP_BUF 9 8888 testBar FALSE headersContentLengthNonZero FALSE b#{GET /foo HTTP/1.1} NONE FALSE 0 b#{} FALSE
+
+=?= NONE    | mayExplainContentLength clSans
+
+=?= NONE    | mayExplainContentLength clZero
+
+=?= SOME-15 | mayExplainContentLength clSome
+
+; TODO: write a test that has a request where the body is longer than the content
+; length. this should be considered a 400 error
+
+= headersWithContentLength | tabFromPairs [[b#a b#b] [b#{Content-Length} b#1]]
+; This assembled data is a full POST request with a body content that is longer than the "Content-Length"
+= testAssembledData | x#504F5354202F776861742D69732D6C69666520485454502F312E300d0A486F73743A20676F6F676C652E636F6D0d0A557365722D4167656E743A206375726C2F372E37312E310d0A436F6E74656E742D4C656E6774683A20320d0A0d0A48656C6C6F
+
+= buffer | HTTP_BUF 9999 8888 testAssembledData TRUE headersWithContentLength TRUE b#{POST /what-is-life HTTP/1.0} 1 FALSE (barLen testAssembledData) b#{Hello} TRUE
+= badStream | x#48454144202F776861742D69732D6C69666520485454502F312E300d0A486F73743A20676F6F676C652E636F6D0d0A557365722D4167656E743A206375726C2F372E37312E310d0A436F6E74656E742D4C656E6774683A20320d0a0d0a48656C6C6F
+
+; todo try running the other parsers first as a setup
+
+=?= NONE
+  | parseAndSetBody badStream buffer
+
+
+=?= [b#hel b#{lo } b#wor b#{ld.}]
+  | splitBarIntoSegments 3 b#{hello world.}
+
+=?= [b#he b#{ll} b#{o } b#{wo} b#{rl} b#{d!} b#{!}]
+  | splitBarIntoSegments 2 b#{hello world!!}
+
+=?= [b#{hello world.}]
+  | splitBarIntoSegments 1000 b#{hello world.}
+
+; TODO: maybe kill altogher:
+= testEmptyBuffer | HTTP_BUF 9999 8888 b#{} FALSE emptyTab FALSE b#{} NONE FALSE 0 b#{} FALSE
+= headersTab
+| tabFromPairs
+, [b#{Host} b#{google.com}]
+  [b#{Accept} b#{*/*}]
+  [b#{User-Agent} b#{curl/7.71.1}]
+  [b#{Content-Type} b#{text/plain}]
+  [b#{Content-Length} b#{11}]
+
+= httpPostWithBody | x#504f5354202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a436f6e74656e742d547970653a20746578742f706c61696e0d0a436f6e74656e742d4c656e6774683a2031310d0a0d0a68656c6c6f20776f726c64
+
+= splitHTTPRow | splitBarIntoSegments 5 httpPostWithBody
+
+= expectedBuffer | HTTP_BUF 9999 8888 httpPostWithBody TRUE headersTab TRUE b#{POST /what-is-life HTTP/1.0} NONE FALSE 600 b#{hello world} FALSE
+
+= assembledBuffer | fakeProcessConnection splitHTTPRow testEmptyBuffer
+
+;;; Integration tests for entire process connection -> set record fields flow
+;;; on simulated re-assembled HTTP message from chunks
+
+; TODO: maybe kill altogher:
+=?= (getReqLine expectedBuffer)
+  | getReqLine assembledBuffer
+
+=?= (getReqLineParsed expectedBuffer)
+  | getReqLineParsed assembledBuffer
+
+=?= (getHeaders expectedBuffer)
+  | getHeaders assembledBuffer
+
+=?= (getHeadersParsed expectedBuffer)
+  | getHeadersParsed assembledBuffer
+
+=?= (getBody expectedBuffer)
+   | getBody assembledBuffer
+
+
+= httpGetNoBody | x#474554202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a0d0a
+
+= splitHTTPRow | splitBarIntoSegments 5 httpGetNoBody
+
+= headersTab
+| tabFromPairs
+, [b#{Host} b#{google.com}]
+  [b#{Accept} b#{*/*}]
+  [b#{User-Agent} b#{curl/7.71.1}]
+
+= expectedBuffer | HTTP_BUF 9999 8888 httpGetNoBody TRUE headersTab TRUE b#{GET /what-is-life HTTP/1.0} NONE FALSE 600 b#{} FALSE
+
+= assembledBuffer | fakeProcessConnection splitHTTPRow testEmptyBuffer
+
+=?= (getReqLine expectedBuffer)
+  | getReqLine assembledBuffer
+
+=?= (getBody expectedBuffer)
+   | getBody assembledBuffer
+
+= httpHead | x#48454144202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a0d0a
+
+= splitHTTPRow | splitBarIntoSegments 5 httpHead
+
+= headersTab
+| tabFromPairs
+, [b#{Host} b#{google.com}]
+  [b#{Accept} b#{*/*}]
+  [b#{User-Agent} b#{curl/7.71.1}]
+
+= expectedBuffer | HTTP_BUF 9999 8888 httpHead TRUE headersTab TRUE b#{HEAD /what-is-life HTTP/1.0} NONE FALSE 600 b#{} FALSE
+
+= assembledBuffer | fakeProcessConnection splitHTTPRow testEmptyBuffer
+
+=?= (getReqLine expectedBuffer)
+  | getReqLine assembledBuffer
+
+=?= (getBody expectedBuffer)
+   | getBody assembledBuffer
+
+
+;;;;;;;; proc tests
+
+= appHeaders | tabFromPairs [[b#hello b#world] [b#cookie b#thing]]
+= expectedHeaderList | listFromRow [b#{hello: world} b#{cookie: thing} b#{Server: Pallas/0.1} b#{Content-Length: 3}]
+
+= expectedRes
+| HTTP_RES
+* b#{HTTP/1.0}
+* 200
+* b#aight
+* expectedHeaderList
+* b#{wut}
+
+=?= expectedRes
+  | appResponseToHTTP appHeaders b#{wut} 200 b#{aight}
+
+= badResponse | b#{nutty thing}
+
+; TODO: complete this test.
+; =?= (error500 b#{are you mad?})
+;   | appResponseToHTTP emptyTab b#{hell} 9999 b#{wtf}
+
+= appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}] [b#{Content-Type} b#{text/plain; charset=UTF-8}] [b#{Content-Length} b#{9}]]
+= preparedResponse | appResponseToHTTP appHeaders b#{Nice body} 200 b#{OK}
+
+= hexResponse
+  | barCat
+  , b#{HTTP/1.0 200 OK}
+    CRLF
+    b#{Date: Tue, 24 Sep 2024 12:00:00 GMT}
+    CRLF
+    b#{Server: Pallas/0.1}
+    CRLF
+    b#{Content-Type: text/plain; charset=UTF-8}
+    CRLF
+    b#{Content-Length: 9}
+    DOUBLE_CRLF
+    b#{Nice body}
+
+= inHex
+  | x#485454502F312E3020323030204F4B0d0A446174653A205475652C2032342053657020323032342031323A30303A303020474D540d0A5365727665723A2050616C6C61732F302E310d0A436F6E74656E742D547970653A20746578742F706C61696E3B20636861727365743D5554462D380d0A436F6E74656E742D4C656E6774683A20390d0A0d0a4E69636520626F6479
+
+; Sanity check that our barCat-constructed, human-readable response is equivalent
+; to its proper hex representation:
+=?= inHex | hexResponse
+
+=?= inHex
+   | (httpResToBar preparedResponse)
+
+= hex2
+  | barCat
+  , b#{HTTP/1.0 204 OK}
+    CRLF
+    b#{Date: Tue, 24 Sep 2024 12:00:00 GMT}
+    CRLF
+    b#{Server: Pallas/0.1}
+    CRLF
+    b#{Content-Length: 0}
+
+= appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}]]
+= prep2 | appResponseToHTTP appHeaders b#{} 204 b#{OK}
+
+=?= hex2
+   | (httpResToBar prep2)
+
+= hexNoBod
+  | barCat
+  , b#{HTTP/1.0 204 GotHead}
+    CRLF
+    b#{Date: Tue, 24 Sep 2024 12:00:00 GMT}
+    CRLF
+    b#{Server: Pallas/0.1}
+    CRLF
+    b#{Content-Length: 0}
+
+= appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}]]
+= prepBodless | appResponseToHTTP appHeaders NIL 204 b#{GotHead}
+
+=?= hexNoBod
+  | (httpResToBar prepBodless)
+
+
+
+; Entire TCP packet from WireShark:
+; = testPacket | x#0000000000000000000000000800450002886f6440004006bb097f0000017f000001800ace6f124ebb61a8099d2780180200007d00000101080a75b32e7e75b32db1474554202f6e6f746520485454502f312e310d0a486f73743a206c6f63616c686f73743a35323834370d0a557365722d4167656e743a204d6f7a696c6c612f352e3020285831313b205562756e74753b204c696e7578207838365f36343b2072763a3132392e3029204765636b6f2f32303130303130312046697265666f782f3132392e300d0a4163636570743a202a2f2a0d0a4163636570742d4c616e67756167653a20656e2d55532c656e3b713d302e350d0a4163636570742d456e636f64696e673a20677a69702c206465666c6174652c2062722c207a7374640d0a526566657265723a20687474703a2f2f6c6f63616c686f73743a35323834372f0d0a436f6e6e656374696f6e3a206b6565702d616c6976650d0a436f6f6b69653a205f706b5f69642e322e316666663d353966343331626532303136396566332e313731373630313536392e3b205f706b5f69642e312e316666663d306261313033373862393362356238332e313731373631323234312e3b20706c756e64617574682d3d353439356562653035616264613961636633366130363733323138383866383133613366353366396461643739623330303032626435623764393036653533623b20435352462d546f6b656e2d35325241353d36507172555464506a5171416854515268725167434b754b6b35794172626b550d0a5365632d46657463682d446573743a20656d7074790d0a5365632d46657463682d4d6f64653a20636f72730d0a5365632d46657463682d536974653a2073616d652d6f726967696e0d0a5072696f726974793a20753d340d0a0d0a
+
+; Same as above, but includes "hello world" body I shoved in.
+; = testPacket | x#0000000000000000000000000800450002886f6440004006bb097f0000017f000001800ace6f124ebb61a8099d2780180200007d00000101080a75b32e7e75b32db1474554202f6e6f746520485454502f312e310d0a486f73743a206c6f63616c686f73743a35323834370d0a557365722d4167656e743a204d6f7a696c6c612f352e3020285831313b205562756e74753b204c696e7578207838365f36343b2072763a3132392e3029204765636b6f2f32303130303130312046697265666f782f3132392e300d0a4163636570743a202a2f2a0d0a4163636570742d4c616e67756167653a20656e2d55532c656e3b713d302e350d0a4163636570742d456e636f64696e673a20677a69702c206465666c6174652c2062722c207a7374640d0a526566657265723a20687474703a2f2f6c6f63616c686f73743a35323834372f0d0a436f6e6e656374696f6e3a206b6565702d616c6976650d0a436f6f6b69653a205f706b5f69642e322e316666663d353966343331626532303136396566332e313731373630313536392e3b205f706b5f69642e312e316666663d306261313033373862393362356238332e313731373631323234312e3b20706c756e64617574682d3d353439356562653035616264613961636633366130363733323138383866383133613366353366396461643739623330303032626435623764393036653533623b20435352462d546f6b656e2d35325241353d36507172555464506a5171416854515268725167434b754b6b35794172626b550d0a5365632d46657463682d446573743a20656d7074790d0a5365632d46657463682d4d6f64653a20636f72730d0a5365632d46657463682d536974653a2073616d652d6f726967696e0d0a5072696f726974793a20753d340d0a0d0a68656c6c6f20776f726c64
+
+; An HTTP-only packet (no TCP stuff!), taken from the above wireshark packet.
+; This is more appropriate for testing this cog
+= testPacketHTTPOnly | x#474554202f6e6f746520485454502f312e310d0a486f73743a206c6f63616c686f73743a35323834370d0a557365722d4167656e743a204d6f7a696c6c612f352e3020285831313b205562756e74753b204c696e7578207838365f36343b2072763a3132392e3029204765636b6f2f32303130303130312046697265666f782f3132392e300d0a4163636570743a202a2f2a0d0a4163636570742d4c616e67756167653a20656e2d55532c656e3b713d302e350d0a4163636570742d456e636f64696e673a20677a69702c206465666c6174652c2062722c207a7374640d0a526566657265723a20687474703a2f2f6c6f63616c686f73743a35323834372f0d0a436f6e6e656374696f6e3a206b6565702d616c6976650d0a436f6f6b69653a205f706b5f69642e322e316666663d353966343331626532303136396566332e313731373630313536392e3b205f706b5f69642e312e316666663d306261313033373862393362356238332e313731373631323234312e3b20706c756e64617574682d3d353439356562653035616264613961636633366130363733323138383866383133613366353366396461643739623330303032626435623764393036653533623b20435352462d546f6b656e2d35325241353d36507172555464506a5171416854515268725167434b754b6b35794172626b550d0a5365632d46657463682d446573743a20656d7074790d0a5365632d46657463682d4d6f64653a20636f72730d0a5365632d46657463682d536974653a2073616d652d6f726967696e0d0a5072696f726974793a20753d340d0a0d0a68656c6c6f20776f726c64
+
+
+
+
+
+;;;;
+
+= (hydrate return)
+: port < syscall | TCP_MINE
+: mout < syscall | TCP_OPEN 16777343 port ; 16777343 == 127.0.0.1
+| trk [=mout]
+: io  < maybeCase mout | return ()
+| trk [=io]
+: gave < syscall | TCP_GIVE io testPacketHTTPOnly
+| trk [=gave]
+; now we're done setting up the test data
+;
+| return ()
+
+; TODO: Proc typedef is busted
+; > HTTPRequest > Proc HTTPResponse
+; This is here for testing purposes.
+; In the real world, this will be defined in the cog that uses this proc.
+= (responseHandler msg) | syscall | DB_READ msg
+
+= main
+: exit < runCog 0 (_ _ _ & b#success)
+; first zero above: starting (public) state.
+; for the lambda's three arguments being ignored:
+; - the cog's public state (not its private closure)
+; - procID
+; - the actual message (that we are passing in)
+| trk %started_http
+; TODO: for testing:
+;: _ < work EXEC-hydrate id
+;| trk %started_hydrate
+: _ < work EXEC-(httpServer responseHandler) id
+| trk %started_server
+| exit ()
+
+;;;;;;;;

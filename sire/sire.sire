@@ -33,4 +33,4 @@
 :| sire_25_datatype [{#datatype} {#datacase} {#record} typeTag]
 :| sire_25_datatype [TRUE FALSE LEFT RIGHT SOME NONE CONS NIL]
 :| sire_26_compile  []
-:| sire_27_sire     [main]
+:| sire_27_sire     [parseNat main]
