@@ -1,6 +1,6 @@
-#### demo_pump_wait <- new_kern
+#### demo_pump_wait <- prelude
 
-:| new_kern
+:| prelude
 
 ;; Main IO loop
 = (waitWriteLoop return)
@@ -8,7 +8,8 @@
 | trk %proc_got_now
 : state < syscall | DB_READ ()
 | trk [current_state=state]
-| void | syscall | DB_WRITE now
+: result < tag_syscall | DB_WRITE now
+| trk [%proc_wrote [=result]]
 : _ < syscall | TIME_WAIT (add 2 now)
 | trk %proc_waited
 | waitWriteLoop return
@@ -16,24 +17,21 @@
 ;; Handle write requests from the IO loop proc
 = (writeInput input return)
 : st < state
-| if (gte len-st 5)
-  | trk {state reached 5 entries, pruning}
-  | write [input] return
-| alter (flip rowSnoc input) return
-
-;; Start everything
-= cog
-: input return < work (EXEC waitWriteLoop) ; writeInput ; Start a worker and its handler.
-: st < state
 | trk [=st]
 | if (gte len-st 5)
   | trk {state reached 5 entries, pruning}
-  | write [input] return
-| alter (flip rowSnoc input) return
+  : _ < write [input]
+  | return 1
+: _ < alter (flip rowSnoc input)
+| return (inc len-st)
 
+;; Start everything
+= (cog return)
+: _ < work (EXEC waitWriteLoop) writeInput ; Start a worker and its handler.
+| return ()
 
 startState=[]
 
 (read state reqId query)=state
 
-main=(runCog cog startState read)
+main=(runCog startState read cog)

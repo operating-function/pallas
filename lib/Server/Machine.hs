@@ -687,13 +687,13 @@ runWrites st writeReqs = do
             let newCog = fanIdx 0 v
                 output = fanIdx 1 v
              in if hasNonzeroReqs newCog
-                 then (CG_SPINNING newCog, output)
-                 else (CG_FINISHED newCog, NAT 0)
-          CRASH op arg     -> (CG_CRASHED op arg fun, NAT 0)
-          TIMEOUT          -> (CG_TIMEOUT runtimeUs fun, NAT 0)
+                 then (CG_SPINNING newCog, fromMaybe mempty $ fromNoun output)
+                 else (CG_FINISHED newCog, mempty)
+          CRASH op arg     -> (CG_CRASHED op arg fun, mempty)
+          TIMEOUT          -> (CG_TIMEOUT runtimeUs fun, mempty)
 
     withAlwaysTrace "Tick" "cog" do
-        (startedFlows, onPersists) <- updateRunner st $ Just (newCog,runtimeUs)
+        (startedFlows, onPersists) <- updateRunner st $ Just (newCog,runtimeUs,output)
         let receiptPairs = [(resultReceipt, onPersists)]
         pure (startedFlows, receiptPairs)
 {-
@@ -717,13 +717,20 @@ concatUnzip :: [([a], [b])] -> ([a], [b])
 concatUnzip a = let (f, s) = unzip a
                 in (concat f, concat s)
 
-updateRunner :: Debug => Runner -> Maybe (CogState, NanoTime) -> IO ([Flow], [STM OnCommitFlow])
+updateRunner :: Debug
+             => Runner -> Maybe (CogState, NanoTime, Array (ProcId, Int, Fan))
+             -> IO ([Flow], [STM OnCommitFlow])
 updateRunner runner update = do
     (sideEffects, flows, onCommit) <- atomically do
-      for_ update \(newCog, timeDelta) ->
+      whenJust update \(newCog, timeDelta, _) ->
         modifyTVar' runner.vMoment \m ->
           m { val=newCog, work=(m.work + timeDelta) }
-      parseWorkers
+      toOutside <- parseWorkers
+      whenJust update \(_, _, outputs) -> forM_ outputs \(PROC_ID worker, reqIdx, msg) ->
+        lookup (fromIntegral worker) <$> readTVar runner.vWorkers >>= \case
+          Just (_, LIVE_EXEC{inbox}) -> inbox $ RTUP (RequestIdx reqIdx) (Just msg)
+          _                          -> pass
+      pure toOutside
     sideEffects $> (flows, onCommit)
   where
 

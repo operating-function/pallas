@@ -16,7 +16,6 @@
 = TCP_MINE               [%tcp %mine]
 = (TCP_SHUT h)           [%tcp %shut h]
 
-
 = (allocateSlot fr sl rq k)
 | ifz fr
     @ key (len sl)
@@ -29,21 +28,23 @@
 @ handler | get hl key
 | k handler end hl st rd ws
 
-= (COG_DONE _ end hl st rd ws)
-| end hl st rd ws
+= (COG_DONE result end out hl st rd ws)
+| end out hl st rd ws
 
-= (COG_KERNEL hl st rd ws inputs)
-^ _ (listFromRow inputs) hl st rd ws
-? (kernel_loop stream hl st rd ws)
+= (COG_KERNEL out hl st rd ws inputs)
+^ _ (listFromRow inputs) ~[] hl st rd ws
+? (kernel_loop stream out hl st rd ws)
 | ifz stream
-  (COG_KERNEL hl st rd ws, [])
-@ [[key input] stream] stream
+  (COG_KERNEL ~[] hl st rd ws, listToRow out)
+@ [[key [callback input]] stream] stream ; TODO extremely ugly to assume a callback
 @ exe | get hl key
 | ifz exe
-  | kernel_loop stream hl st rd ws   ; TODO Should maybe cancel the worker too?
-@ k   | COG_DONE
+  | kernel_loop stream out hl st rd ws   ; TODO Should maybe cancel the worker too?
+@ (k result end out)
+  @ out | CONS (key,callback,result) out
+  | COG_DONE result end out
 @ end | kernel_loop stream
-| exe input k end hl st rd ws
+| exe input k end out hl st rd ws
 
 ; ^ foldl _ COG_DONE inputs
 ; & (end (wid, input))
@@ -55,6 +56,9 @@
 @ rq | rowCons (me,request) rq
 @ sl | put sl me k
 | end fr sl rq
+
+= (tag_syscall (dest,cmd,msg) k end me fr sl rq)
+| syscall (dest,cmd,(me,msg)) k end me fr sl rq
 
 = (PUMP_KERNEL fr sl rq key input)
 @ exe | get sl key
@@ -76,11 +80,11 @@
 : tid fr sl rq < allocateSlot fr sl rq
 | act () (k end me) tid [tid fr] sl rq
 
-= (write x k end hl st rd ws) | k () end hl x      rd ws
-= (state k end hl st rd ws)   | k st end hl st     rd ws
-= (alter f k end hl st rd ws) | k () end hl (f st) rd ws
+= (write x k end out hl st rd ws) | k () end out hl x      rd ws
+= (state k end out hl st rd ws)   | k st end out hl st     rd ws
+= (alter f k end out hl st rd ws) | k () end out hl (f st) rd ws
 
-= (work req@[mode worker] handler k end hl st rd ws)
+= (work req@[mode worker] handler k end out hl st rd ws)
 @ w
   @ k   | PUMP_DONE
   @ end | PUMP_KERNEL
@@ -92,12 +96,12 @@
   | [mode (worker k end me fr sl rq)]
 @ ws | rowSnoc ws w
 @ hl | rowSnoc hl handler
-| k len-ws end hl st rd ws
+| k len-ws end out hl st rd ws
 
-;; TODO this should probably take st and rd as arguments?
 = (runCog st rd cog)
 @ k   | COG_DONE
 @ end | COG_KERNEL
 @ hl  | []
 @ ws  | []
-| cog k end hl st rd ws
+@ out | ~[]
+| cog k end out hl st rd ws
