@@ -29,15 +29,12 @@
 | k handler end hl st rd ws
 
 = (COG_DONE result end out hl st rd ws)
-^ trk [%cog_kernel_done [=result =end =out =hl =st =rd =ws done=_]] _
 | end out hl st rd ws
 
 = (COG_KERNEL out hl st rd ws inputs)
-| trk [%cog_kernel_started [=out =hl =st =rd =ws =inputs]]
 ^ _ (listFromRow inputs) ~[] hl st rd ws
 ? (kernel_loop stream out hl st rd ws)
 | ifz stream
-  | trk [%cog_kernel_started_stream_ended [=out =hl =st =rd =ws]]
   (COG_KERNEL ~[] hl st rd ws, listToRow out)
 @ [[key [callback input]] stream] stream ; TODO extremely ugly to assume a callback
 @ exe | get hl key
