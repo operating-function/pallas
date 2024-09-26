@@ -1,0 +1,223 @@
+;;; Copyright 2024 OPfN
+;;; Use of this source code is governed by a BSD-style license that can be
+;;; found in the LICENSE file.
+;;
+
+#### demo_cog_notepad <- proc_http
+
+:| proc_http
+:| json
+
+; TODO:
+; templating fileserver.
+; separate patterns for static assets vs state requests
+
+# typedef ContentType Bar
+
+> HMap Str (ContentType, Pin Bar)
+= startingFiles
+| hmSingleton
+* largeConfig
+
+# record CogState
+| COG_STATE
+* note       : Nat
+* files      : (HMap Str (ContentType, Pin Bar))
+* fileBytes  : Nat
+
+> Nat > CogState
+= (newCogState)
+| COG_STATE
+* b#{# Pallas Notepad\n\n- Any text entered here will be saved to Pallas.\n- Feel free to delete all of this intial content.\n\n**Enjoy!**}
+* startingFiles
+* 0
+
+(bindMaybe mVal k)=(maybeCase mVal NONE k)
+
+> Bar > Maybe (Tab Str Json)
+= (jsonMap jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| if (res || leftover) NONE
+# datacase json
+* JMAP|m | SOME m
+* _      | NONE
+
+= (asJsonStr m)
+# datacase m
+* JSTR|s | SOME s
+* _      | NONE
+
+= (asJsonNum m)
+# datacase m
+* JNUM|n | SOME n
+* _      | NONE
+
+= (parseNote jsonBS)
+@ res@[json leftover] (parseJson jsonBS)
+| trk [%parseNote jsonBS]
+: string < bindMaybe (asJsonStr json)
+| SOME string
+
+= (parseNoteJson jsonBS)
+: map < bindMaybe (jsonMap jsonBS)
+: theNote < bindMaybe (tabLookup %newNote map)
+| SOME (barNat theNote)
+
+(msgToStr m)=(JSTR | natBar m)
+
+= (buildNoteJson note)
+| JMAP
+## =note | JVEC note
+
+= (buildJson st)
+@ COG_STATE(..) st
+| JMAP
+## =note  | JVEC note
+## =files | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
+## =totalSize | JNUM fileBytes ; this is structured wrong ?
+
+; = corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{*}) (b#{Access-Control-Allow-Credentials}, b#{true})]
+
+# typedef HTTPRequest Any
+
+# typedef HTTPResponse Any
+
+# typedef Cog Any
+
+# typedef Proc Any
+
+# typedef Query | Any
+
+# typedef Command | Any
+
+
+; TODO:
+; > HTTPRequest > Cog (Tab Bar Bar, Bar, Nat, Bar)
+= (writeHandler httpRequest return)
+: st < state
+| trk [%writeHandlerCalled [=httpRequest]]
+| trk [%hasState [=st]]
+@ requestedBody | getReqBody   httpRequest
+@ requestedPath | getReqPath   httpRequest
+@ requestedMeth | getReqMethod httpRequest
+;
+| trk [%body [=requestedBody]]
+| trk [%path [=requestedPath]]
+| trk [%method [=requestedMeth]]
+# switch requestedPath
+* b#{/changed}
+  | trk [%atChangedNote]
+  ; TODO: feels like this should live elsewhere
+  @ priorNote | getNote st
+  @ noteNat   | fromSome priorNote | parseNoteJson requestedBody
+  @ note      | natBar noteNat
+  @ newState  | setNote note st
+  : _ < write newState
+  | return newState
+* _
+  | trk [%xxxxfallback]
+  | const b#{error}
+
+# typedef Method | Bar
+
+> HTTPRequest > Method
+= (getMethod httpRequest)
+; TODO: do we need to handle failures here?
+| getReqMethod httpRequest
+
+> HTTPRequest > Query
+= (buildQuery httpRequest)
+@ requestedBody | getReqBody   httpRequest
+@ requestedPath | getReqPath   httpRequest
+@ requestedMeth | getReqMethod httpRequest
+| trk [%buildQuery [=httpRequest]]
+| trk [%body [=requestedBody]]
+| trk [%path [=requestedPath]]
+| trk [%method [=requestedMeth]]
+# switch requestedPath
+* b#{/note}
+  | trk [%atNote]
+  | getNote
+* _
+  | trk [%xxxxfallback]
+  | const b#{error}
+
+> CogState > Nat > Query > HTTPResponse
+; "reads" is part of the cog public state. the runtime will inject
+; state, procId and query
+= (reads state procId query)
+; ignore procId, we only have the one proc_http atm
+| query state
+
+
+; TODO;
+> Any > (Tab Bar Bar, Bar, Nat, Bar)
+; What shape will the cog return from its read?
+= (formulateResponse someData)
+| trk [=someData]
+| if (eql someData b#{error}) ; from the path switch
+  @ headers | emptyTab
+  @ body    | b#{}
+  @ code    | 404
+  @ reas    | b#{Not found}
+  [headers body code reas]
+; TODO: how would formulateResponse know _what_ kind of response it has?
+; - an html template?
+; - a cog record, which needs to be JSON'ed?
+;
+; We probably want this formulator to be pretty "dumb"? maybe it should receive
+; the body and content type and just be responsible for sort of putting it together?
+; **types** / head-tagged unions would be one urbity way to handle this?
+;
+;----
+;
+; This assumes we'll _only ever have notes_, which is true for now but not always.
+@ noteJson   | buildNoteJson someData
+@ noteJsonBS | printJson noteJson
+@ headers | tabFromPairs [[b#{Content-Type} b#{application/json}]]
+@ body    | noteJsonBS
+; @ body    | b#{""}
+@ code    | 200
+@ reas    | b#{OK}
+[headers body code reas]
+
+; TODO:
+; - what about requests for "static assets", like favicon.ico? index.html?
+;   we're sort of mixing the "controller" and "view" responsibilities here.
+; > HTTPRequest > Proc HTTPResponse
+= (requestHandler msg return)
+; This is a proc, go wild.
+| trk [%requestHandler [=msg]]
+# switch (getMethod msg)
+    ; TODO: how should we handle crashes?
+    ; at the moment, the cog gets into a bad state forever.
+* _ | trk {unknown method} | todo 500
+* b#GET
+  : gotRes < syscall | DB_READ | buildQuery msg
+  | trk [%res gotRes]
+  | trk [%sending (formulateResponse gotRes)]
+  | return (formulateResponse gotRes)
+* b#POST
+  : newState < tag_syscall | DB_WRITE | msg
+  | trk [%wrote newState]
+  ; TODO: once again assuming "this is only ever about notes". fine for now
+  @ noteState | getNote newState
+  | trk [%sending (formulateResponse noteState)]
+  | return (formulateResponse noteState)
+* b#HEAD
+  ; if this should even be here...
+  | return (formulateResponse b#{})
+
+= (newHttp return)
+: _ < work EXEC-(httpServer requestHandler)  writeHandler
+;     3 args:  ^ worker. if it does DB_WRITE   ^ cog thread / handler for worker
+;     1-workr  it has a cog thread to apply     activates when worker sends msg
+;     2-cog    these writes to. (DB_READ)
+;     3-conti  doesn't hit the cog but rather
+;              uses its public state.
+| return ()
+
+main=(runCog newCogState reads newHttp)
+;            ^ public state
+;                        ^ DB_READ handler (allows parallel reads)
+;                              ^ cog to run
