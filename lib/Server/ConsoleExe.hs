@@ -22,16 +22,9 @@ import System.Environment
 import System.Posix.Signals hiding (Handler)
 import System.Process
 
-import Server.Hardware.Http  (createHardwareHttp)
--- import Server.Hardware.Port  (createHardwarePort)
--- import Server.Hardware.Rand  (createHardwareRand)
 import Server.Hardware.Types (DeviceTable(..))
--- import System.Random         (randomIO)
--- ort Server.Hardware.Sock (createHardwareSock)
 import Server.Hardware.Time (createHardwareTime)
 import Server.Hardware.TCP (createHardwareTCP)
--- ort Server.Hardware.Wock (createHardwareWock)
--- import Server.Hardware.Poke (createHardwarePoke)
 
 import Control.Concurrent       (threadDelay)
 import Control.Monad.State      (State, execState, modify')
@@ -140,7 +133,6 @@ data RunType
     | RTLoot FilePath ProfilingOpts [FilePath]
     | RTBoot ProfilingOpts InterpreterOpts MachineOpts Bool FilePath Text
     | RTUses FilePath Int
-    | RTOpen FilePath
     | RTTerm FilePath
     -- TODO: Rename 'run' or 'spin' or 'crank' or something.
     | RTStart FilePath
@@ -189,9 +181,6 @@ runType :: FilePath -> Parser RunType
 runType defaultDir = subparser
     ( plunderCmd "term" "Connect to the terminal of a cog."
       (RTTerm <$> storeOpt)
-
-   <> plunderCmd "open" "Open a terminal's GUI interface."
-      (RTOpen <$> storeOpt)
 
    <> plunderCmd "sire" "Run a standalone Sire repl."
       (RTSire <$> storeOpt
@@ -364,7 +353,6 @@ main = do
         RTUses d w    -> duMachine d w
         RTShow fp     -> showSeed fp
         RTRepl fp o _ -> replSeed fp o
-        RTOpen d      -> void (openBrowser d)
         RTTerm d      -> void (openTerminal d)
 
         RTLoot _ _ fz -> do
@@ -394,7 +382,6 @@ withProfileOutput args act = do
         RTLoot _ po _       -> Just po
         RTShow _            -> Nothing
         RTRepl{}            -> Nothing
-        RTOpen{}            -> Nothing
         RTTerm{}            -> Nothing
         RTStart _ po _ _ _  -> Just po
         RTUses{}            -> Nothing
@@ -421,7 +408,6 @@ withInterpreterOpts args act = do
         RTLoot _ _ _        -> Nothing
         RTBoot _ io _ _ _ _ -> Just io
         RTUses _ _          -> Nothing
-        RTOpen _            -> Nothing
         RTTerm _            -> Nothing
         RTStart _ _ io _ _  -> Just io
 
@@ -517,18 +503,6 @@ shellFg c a = do
     (_, _, _, ph) <- createProcess p
     waitForProcess ph
 
-openBrowser :: FilePath -> IO ExitCode
-openBrowser dir = do
-    let pax = (dir </> ".http.port") -- TODO which port?
-    exists <- doesFileExist pax
-    unless exists (error "Cog does not serve HTTP")
-    port <- do cont <- readFileUtf8 pax
-               case readMay @Text @Word cont of
-                   Nothing -> throwIO (BAD_PORTS_FILE "http" pax cont)
-                   Just pt -> pure pt
-    let url = "http://localhost:" <> show port
-    shellFg "xdg-open" [url]
-
 openTerminal :: FilePath -> IO ExitCode
 openTerminal dir = do
     let pax = (dir </> ".telnet.port") -- TODO which port?
@@ -539,14 +513,6 @@ openTerminal dir = do
                    Nothing -> throwIO (BAD_PORTS_FILE "telnet" pax cont)
                    Just pt -> pure pt
     shellFg "nc" ["localhost", show port]
-
--- {-
---     Deliver a noun from the outside to a given cog.
--- -}
--- doPoke :: Debug => ServerState -> [Text] -> JellyPack -> IO ()
--- doPoke st path pak = do
---     debug ["poke_cog"]
---     st.poke (fromList path) pak.fan
 
 withMachineIn :: Debug
               => FilePath
@@ -564,34 +530,21 @@ withMachineIn storeDir numWorkers enableSnaps machineAction = do
     writeIORef F.vShowFan  $! Loot.ReplExe.showFan
     writeIORef F.vJetMatch $! F.jetMatch
 
-    -- TODO: Thing about all the shutdown signal behaviour. Right now, we're
+    -- TODO: Think about all the shutdown signal behaviour. Right now, we're
     -- ignoring it, but there's a bunch of things the old system did to catch
     -- Ctrl-C.
 
-    let devTable db = do
-          --hw1_rand          <- createHardwareRand
-          --(hw4_wock, wsApp) <- createHardwareWock
-            let wsApp _ws = pure ()
-            hw2_http          <- createHardwareHttp storeDir db wsApp
-          --hw3_sock          <- createHardwareSock storeDir
-            hw5_time          <- createHardwareTime
-          --hw6_port          <- createHardwarePort
-            hw7_tcp           <- createHardwareTCP
+    let devTable = do
+            hw1_time <- createHardwareTime
+            hw2_tcp  <- createHardwareTCP
             pure . DEVICE_TABLE . mapFromList $
-                [--( "rand", hw1_rand )
-                  ( "http", hw2_http )
-                --( "sock", hw3_sock )
-                --( "wock", hw4_wock )
-                , ( "time", hw5_time )
-                --( "port", hw6_port )
-                --( "poke", hw_poke  )
-                , ( "tcp" , hw7_tcp  )
+                [ ( "time", hw1_time )
+                , ( "tcp" , hw2_tcp  )
                 ]
 
     let machineState = do
             lmdb <- DB.openDatastore storeDir
---          (pokeHW, _submitPoke) <- createHardwarePoke
-            hw <- devTable lmdb
+            hw <- devTable
             eval <- evaluator numWorkers
             pure MACHINE_CONTEXT{lmdb,hw,eval,enableSnaps}
     with machineState machineAction
