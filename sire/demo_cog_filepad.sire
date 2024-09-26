@@ -370,6 +370,7 @@ b#{htmlthings}
 ; based on the request i got, return something or other to be formulated as an http msg
 ;
 # switch (getMethod msg)
+* _ | trk {fallback case in getMethod} | todo 500
 * b#GET
   ; TODO: json stuff
   ; ie. getBody is not likely to be the ultimate way we receive app commands.
