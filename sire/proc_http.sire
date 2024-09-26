@@ -28,11 +28,11 @@
 
 # record HTTPResponse
 | HTTP_RES
-* version     : Bar             ; HTTP version
-* statusCode  : Nat             ; Numeric status code
-* statusText  : Bar             ; Status text (e.g "OK", "Not Found")
-* headerL     : List (Bar, Bar) ; List of key-value pairs
-* bodyContent : Bar             ; Response body
+* version      : Bar             ; HTTP version
+* statusCode   : Nat             ; Numeric status code (for automata)
+* reasonPhrase : Bar             ; e.g "OK", "Not Found" (for humans)
+* resHeaderL   : List (Bar, Bar) ; List of key-value pairs
+* resBody      : Bar             ; Response body
 
 # typedef SenderIP Bar
 
@@ -505,8 +505,8 @@ FALSE
 = (makeMessage buffer)
 b#{thing}
 
-> (HMap Bar Bar) > Nat > Bar > HTTPResponse
-= (appResponseToHTTP headers body code)
+> (HMap Bar Bar) > Nat > Bar > > Bar > HTTPResponse
+= (appResponseToHTTP headers body code reason)
 ; TODO: check validity of headers/body/code we got from app here
 ; Formulate an HTTPResponse anyway (probably a 500 or whatever)
 ;
@@ -515,11 +515,11 @@ b#{thing}
 ; - check format/validity, re: error codes
 ;   - server do whatver else it needs
 ; TODO:
-; - status text should come from app, too
-@ version    | b#{HTTP/1.0}
-@ statusCode | code
-@ statusText | b#{OK}
-@ body       | body
+; - reason phrase should come from app but be overridable by server in case error
+@ version      | b#{HTTP/1.0}
+@ statusCode   | code
+@ reasonPhrase | reason
+@ body         | body
 @ contentLength | natBar | showNat | barLen body ; should be zero if not present
 @ headers | tabIns b#{Content-Length} contentLength headers
 @ headers | tabIns b#{Server} b#{Pallas/0.1} headers
@@ -538,7 +538,7 @@ b#{thing}
 | HTTP_RES
 * version
 * statusCode
-* statusText
+* reasonPhrase
 * headersList
 * body
 
@@ -549,47 +549,39 @@ b#{thing}
 | HTTP_RES
 * b#{HTTP/1.0}
 * 200
-* b#OK
+* b#aight
 * expectedHeaderList
 * b#{wut}
 
 =?= expectedRes
-  | appResponseToHTTP appHeaders b#{wut} 200
+  | appResponseToHTTP appHeaders b#{wut} 200 b#{aight}
 
 ; TODO:
 ; take a valid HTTP Response and create an HTTP-1.0-compliant hex array
 > HTTPResponse > Bar
 = (httpResToBar httpRes)
-;
-; TODO: I have no idea why getHeaders is returning the body...
-;       weird. getHeaders returned body, but when i renamed it to headerL
-;       (so that it was getHeaderL) it worked.
-;       Potentially a bug in #record macro
-;
 @ crlf  | x#0d0a
-@ v     | (getVersion    httpRes)
-@ c     | (getStatusCode httpRes)
-@ s     | (getStatusText httpRes)
-@ h     | (getHeaderL    httpRes)
-@ mBody | if (barIsEmpty (getBodyContent httpRes)) NONE
-        | SOME (getBodyContent httpRes)
-@ mBSep | if (barIsEmpty (getBodyContent httpRes)) NONE
-        | SOME (barCat [crlf crlf])
-| trk [%xxxxmBody mBody]
-@ statusLine        | barCat [v x#20 (natBar | showNat c) x#20 s]
-@ headersSeparated  | barIntercalateList crlf h
-@ printBodySep      | fromSome NIL mBSep
-@ printBody         | fromSome NIL mBody
-| trk [%xxxxprintBody printBody]
+@ v     | (getVersion      httpRes)
+@ c     | (getStatusCode   httpRes)
+@ s     | (getReasonPhrase httpRes)
+@ h     | (getResHeaderL   httpRes)
+@ b     | (getResBody      httpRes)
+@ noBod | (or (barIsEmpty b) (eql 0 b))
+@ mBody | if noBod NONE | else SOME b
+@ mBSep | if noBod NONE | else SOME (barCat [crlf crlf])
+@ statusLine         | barCat [v x#20 (natBar | showNat c) x#20 s]
+@ headersSeparated   | barIntercalateList crlf h
+@ printBodySeparator | fromSome NIL mBSep
+@ printBody          | fromSome NIL mBody
 | barCat
   , statusLine
     crlf
     headersSeparated
-    printBodySep
+    printBodySeparator
     printBody
 
 = appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}] [b#{Content-Type} b#{text/plain; charset=UTF-8}] [b#{Content-Length} b#{9}]]
-= preparedResponse | appResponseToHTTP appHeaders b#{Nice body} 200
+= preparedResponse | appResponseToHTTP appHeaders b#{Nice body} 200 b#{OK}
 
 = hexResponse
   | barCat
@@ -626,12 +618,26 @@ b#{thing}
     b#{Content-Length: 0}
 
 = appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}]]
-= prep2 | appResponseToHTTP appHeaders b#{} 204
+= prep2 | appResponseToHTTP appHeaders b#{} 204 b#{OK}
 
 =?= hex2
    | (httpResToBar prep2)
 
-; TODO: test with no body
+= hexNoBod
+  | barCat
+  , b#{HTTP/1.0 204 GotHead}
+    x#0d0a
+    b#{Date: Tue, 24 Sep 2024 12:00:00 GMT}
+    x#0d0a
+    b#{Server: Pallas/0.1}
+    x#0d0a
+    b#{Content-Length: 0}
+
+= appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}]]
+= prepBodless | appResponseToHTTP appHeaders NIL 204 b#{GotHead}
+
+=?= hexNoBod
+  | (httpResToBar prepBodless)
 
 ; TODO:
 > HTTPBuffer > Bit
@@ -834,11 +840,11 @@ TRUE
 ; - the cog's public state (not its private closure)
 ; - procID
 ; - the actual message (that we are passing in)
-; | trk %started_http
-; : _ < work EXEC-hydrate id
-; | trk %started_hydrate
-: port < syscall | TCP_MINE
-| trk [%http_server_port port]
+| trk %started_http
+: _ < work EXEC-hydrate id
+| trk %started_hydrate
+; : port < syscall | TCP_MINE
+| trk [%http_server_port NIL]
 : _ < work EXEC-(httpServer responseHandler) id
 | trk %started_server
 | exit ()
