@@ -34,7 +34,7 @@
 * senderPort     : Nat
 * assembledData  : Bar
 * headersParsed  : Bit
-* headers        : (HMap Bar Bar)
+* headers        : (Tab Bar Bar)
 * reqLineParsed  : Bit
 * reqLine        : Bar
 * contentLength  : Maybe Nat
@@ -56,6 +56,7 @@
 * FALSE
 * 0
 * b#{}
+* FALSE
 
 
 = CRLF        | x#0d0a
@@ -172,7 +173,7 @@ TRUE
 @ [method uri protocol] | listToRow | barSplit { } reqLine
 | SOME protocol
 
-> (HMap Bar Bar) > Bit
+> (Tab Bar Bar) > Bit
 = (haveBodyContent headerMap)
 @ haveContentLength | tabGet headerMap b#{Content-Length}
 | ifz haveContentLength
@@ -195,14 +196,14 @@ parseNat-cl
 ; TODO: deprecated; remove (soon)
 > HTTPBuffer > Bit
 = (isMessageComplete buffer)
-; headers are parsed and we don't have a body.
-| if (and isNone-(mayExplainContentLength buffer) (getHeadersParsed buffer))
-  TRUE
-; have a body and we've parsed in the full length of it
-| if (and isSome-(mayExplainContentLength buffer) (eql unpackSome-mayExplainContentLength (getReceivedLength buffer)))
-  TRUE
-FALSE
+| maybeCase (mayExplainContentLength buffer)
+  | getHeadersParsed buffer
+  ; headers are parsed and we didn't expect a body.
+& expectedLength
+| eql expectedLength (getReceivedLength buffer)
 
+
+; TODO: write tests for isMessageComplete
 
 ;;;; parsers ;;;;
 
@@ -277,9 +278,6 @@ buffer
 @ body | barDrop (barLen DOUBLE_CRLF) | barDrop headersEndIdx stream
 @ newReceivedLength | (add (getReceivedLength buffer) | barLen body)
 @ buffer | setReceivedLength newReceivedLength buffer
-| trk [%thing contentLength]
-| trk [%len (barLen body)]
-| trk [%lth (lth (barLen body) contentLength)]
 | if (gth (barLen body) contentLength)
   ; TODO:
   ; body is longer than headers indicated. bad request!
@@ -343,20 +341,23 @@ buffer
   @ buffer | parseAndSetBody newAssembledData buffer
   buffer
 buffer
-; For testing.
 
-; TODO:
 > HTTPBuffer > Maybe HTTPRequest
 = (makeRequest buffer)
 | ifNot (isMessageComplete buffer)
   NONE
+: method  < maybeCase (mayExplainMethod buffer) NONE
+: path    < maybeCase (mayExplainUri buffer) NONE
+: version < maybeCase (mayExplainHttpVersion buffer) NONE
+@ headers | getHeaders buffer
+@ body    | getBody buffer
 | SOME
 | HTTP_REQ
-* b#{todo}
-* b#{todo}
-* b#{todo}
-* b#{todo}
-* b#{todo}
+* method
+* path
+* version
+* headers
+* body
 
 
 ; TODO: maybe kill altogher:

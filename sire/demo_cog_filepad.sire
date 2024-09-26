@@ -360,13 +360,33 @@ fileCogChannel=66
 = (getMethod msg)
 b#{GET}
 
-; TODO:
-= (getBody msg)
-b#{htmlthings}
+
+# typedef Query | Any
+
+> Bar > Query
+= (buildQuery httpBody)
+; Assumes the request body will be just a single bar that corresponds
+; to cog record fields
+# switch httpBody
+* b#{files}
+  | getFiles
+* _
+  | const b#{error}
+
+> CogState > Nat > Query > HTTPResponse
+; "reads" is part of the cog public state. the runtime will inject
+; state, procId and query
+= (reads state procId query)
+; ignore procId, we only have the one proc_http atm
+| query state
+
+
+; result of buildQuery and the public state will be passed to erad funciton
 
 ; TODO:
 ; > HTTPRequest > Proc HTTPResponse
 = (responseHandler msg return)
+| trk [%responseHandler [=msg]]
 ; based on the request i got, return something or other to be formulated as an http msg
 ;
 # switch (getMethod msg)
@@ -377,7 +397,7 @@ b#{htmlthings}
   ;     we'll likely need to expect to get JSON (or some other sort of query, like
   ;     URL params) and then _act on it properly_.
   ;     A "Controller", basically.
-  : gotRes < syscall | DB_READ (getBody msg)
+  : gotRes < syscall | DB_READ | buildQuery (getBody msg)
   | trk [%read gotRes]
   | return (formulateResponse gotRes)
 * b#POST
@@ -404,4 +424,7 @@ b#{htmlthings}
 ;              uses its public state.
 | return ()
 
-main=(runCog 0 0 newHttp)
+main=(runCog newCogState reads newHttp)
+;            ^ public state
+;                        ^ DB_READ handler (allows parallel reads)
+;                              ^ cog to run
