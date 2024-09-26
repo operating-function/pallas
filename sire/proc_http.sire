@@ -804,12 +804,12 @@ TRUE
    | getBody assembledBuffer
 
 = (httpServer responseHandler return)
+: port < syscall | TCP_MINE
+| trk [%our [=port]]
 : [io ip port] < syscall | TCP_HEAR
 ; TODO: use ipToWord
 ; ip and port from who connected to us.
-| trk [=io]
-| trk [=ip]
-| trk [=port]
+| trk [%their [=io =ip =port]]
 : tid < pumpFork (httpServer responseHandler)
 | processConnection io responseHandler (emptyBuffer ip port) return
 
@@ -843,8 +843,6 @@ TRUE
 | trk %started_http
 : _ < work EXEC-hydrate id
 | trk %started_hydrate
-; : port < syscall | TCP_MINE
-| trk [%http_server_port NIL]
 : _ < work EXEC-(httpServer responseHandler) id
 | trk %started_server
 | exit ()
