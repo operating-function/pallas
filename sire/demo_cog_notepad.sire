@@ -83,7 +83,7 @@
 ## =files | JVEC (map msgToStr (idx 0 (hmKeys files))) ; row-in-row for some reason
 ## =totalSize | JNUM fileBytes ; this is structured wrong ?
 
-; = corsHeaders [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{*}) (b#{Access-Control-Allow-Credentials}, b#{true})]
+= corsHeaders | [(b#{Access-Control-Allow-Origin}, b#{*}) (b#{Access-Control-Allow-Methods}, b#{PUT, GET, POST, DELETE, OPTIONS}) (b#{Access-Control-Allow-Headers}, b#{*}) (b#{Access-Control-Allow-Credentials}, b#{true})]
 
 # typedef HTTPRequest Any
 
@@ -179,9 +179,10 @@
 ;----
 ;
 ; This assumes we'll _only ever have notes_, which is true for now but not always.
-@ noteJson   | buildNoteJson someData
-@ noteJsonBS | printJson noteJson
-@ headers | tabFromPairs [[b#{Content-Type} b#{application/json}]]
+@ noteJson    | buildNoteJson someData
+@ noteJsonBS  | printJson noteJson
+@ corsHeaderT | tabFromPairs corsHeaders
+@ headers | tabIns b#{Content-Type} b#{application/json} corsHeaderT
 @ body    | noteJsonBS
 ; @ body    | b#{""}
 @ code    | 200
@@ -198,7 +199,9 @@
 # switch (getMethod msg)
     ; TODO: how should we handle crashes?
     ; at the moment, the cog gets into a bad state forever.
-* _ | trk {unknown method} | todo 500
+* _
+  | trk {unknown method}
+  | return (formulateResponse b#{})
 * b#GET
   : gotRes < syscall | DB_READ | buildQuery msg
   | trk [%res gotRes]
