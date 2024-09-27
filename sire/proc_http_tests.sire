@@ -204,16 +204,16 @@
 * b#{wut}
 
 =?= expectedRes
-  | appResponseToHTTP appHeaders b#{wut} 200 b#{aight}
+  | appResponseToHTTP [appHeaders b#{wut} 200 b#{aight}]
 
 = badResponse | b#{nutty thing}
 
 ; TODO: complete this test.
 ; =?= (error500 b#{are you mad?})
-;   | appResponseToHTTP emptyTab b#{hell} 9999 b#{wtf}
+;   | appResponseToHTTP [emptyTab b#{hell} 9999 b#{wtf}]
 
 = appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}] [b#{Content-Type} b#{text/plain; charset=UTF-8}] [b#{Content-Length} b#{9}]]
-= preparedResponse | appResponseToHTTP appHeaders b#{Nice body} 200 b#{OK}
+= preparedResponse | appResponseToHTTP [appHeaders b#{Nice body} 200 b#{OK}]
 
 = hexResponse
   | barCat
@@ -250,7 +250,7 @@
     b#{Content-Length: 0}
 
 = appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}]]
-= prep2 | appResponseToHTTP appHeaders b#{} 204 b#{OK}
+= prep2 | appResponseToHTTP [appHeaders b#{} 204 b#{OK}]
 
 =?= hex2
    | (httpResToBar prep2)
@@ -266,7 +266,7 @@
     b#{Content-Length: 0}
 
 = appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}]]
-= prepBodless | appResponseToHTTP appHeaders NIL 204 b#{GotHead}
+= prepBodless | appResponseToHTTP [appHeaders NIL 204 b#{GotHead}]
 
 =?= hexNoBod
   | (httpResToBar prepBodless)
