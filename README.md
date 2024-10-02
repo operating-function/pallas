@@ -1,7 +1,7 @@
 
 <div align="center">
   <picture>
-    <img alt="Pallas Logo" src="https://github.com/user-attachments/assets/ea2fe70d-5283-4b01-b216-73c7ddbec643" width="70%">
+    <img alt="Pallas Logo" src="https://github.com/user-attachments/assets/fee06d57-ae41-4238-b35e-b5edb384a161" width="70%">
   </picture>
 </div>
 
