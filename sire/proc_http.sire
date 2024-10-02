@@ -35,7 +35,6 @@ TRUE
 
 > Tab Bar Bar > Nat > Bar > > Bar > HTTPResponse
 = (appResponseToHTTP [headers body code reason])
-^ trk [httpResponse=_] _
 ; TODO: check validity of headers/body/code we got from app here
 ; Formulate an HTTPResponse anyway (probably a 500 or whatever)
 | ifNot (validResponse b#{TODO})
@@ -76,30 +75,30 @@ TRUE
   | trk [%connectionClosed %dataBarEmpty]
   | return ()
 @ updatedBuffer | processHttpChunk buffer data
-| trk [%updatedBuffer updatedBuffer]
 | ifNot (validRequest updatedBuffer)
   | processConnection io updatedBuffer return
 : request < maybeCase (makeRequest updatedBuffer)
-          | trk [%processConnectionRecurring]
           ; valid but incomplete
           | processConnection io updatedBuffer return
 ; complete and valid
-| trk [%processConnection %beforeGetREsponse]
 : cogResponse < getResponse request
-| trk [=cogResponse]
+;;;; Just for printing
+@ [headers body code reas] | cogResponse
+@ truncatedBody | idx 0 | barSplitAt 20 body
+| trk [%cogResponse [=headers =code =reas =truncatedBody]]
+;;;;
 ^ _ (httpResToBar | appResponseToHTTP cogResponse)
 ? (sendAndClose responseBar)
-| trk [=responseBar]
 : mBytes < syscall | TCP_GIVE io responseBar
-| trk [%sent mBytes]
+| trk [%sent mBytes %bytes]
 : bytes  < maybeCase mBytes  | syscall (TCP_SHUT io) return
 | if (barLen responseBar == bytes) | syscall (TCP_SHUT io) return
 | sendAndClose | barDrop bytes responseBar
 
 = (httpServer responseHandler return)
 : port < syscall | TCP_MINE
-| trk [%our [=port]]
+| trk [%httpRunning (barCat [b#{visit } b#{http://localhost:} (natBar | showNat port)])]
 : [io ip port] < syscall | TCP_HEAR
-| trk [%their [=io =ip =port]]
+| trk [%theirConnection [=io =ip =port]]
 : tid < pumpFork (httpServer responseHandler)
 | processConnection io responseHandler (emptyBuffer ip port) return
