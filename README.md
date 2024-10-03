@@ -1,6 +1,6 @@
 # Pallas
 
-![notepad-video](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/notepad-captions-smaller.mp4.webm)
+https://github.com/user-attachments/assets/9c975b9b-5c17-4d41-8f9b-1015b8b81e28
 
 Pallas is Vaporware's fork of [Plunder](https://git.sr.ht/\~plan/plunder).
 
