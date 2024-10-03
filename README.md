@@ -69,7 +69,7 @@ To increase developer power and software freedom, your entire computer needs to 
 
 ## System Overview
 
-Pallas collapses the distinction between runtime, database, and operating system. The foundation of Pallas is untyped, but conceptually we can say that a system process is database with a type of:
+Pallas collapses the distinction between runtime, database, and operating system. The foundation of Pallas is untyped, but conceptually we can say that a Pallas process is a database of type:
 
 ```haskell
 type DB = Input -> (Output, DB)
