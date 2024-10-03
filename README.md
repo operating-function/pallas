@@ -9,8 +9,7 @@
 <h1 align="center">An event sourced, purely functional application platform.</h1>
 
 <div align="center">
-Pallas makes it possible for small teams of developers to build high quality distributed applications. By using this technology, we aim to take back control of personal computing from big technology and make the internet more free.
-</div>
+Pallas is a backend platform that makes it easy to build and run p2p, distributed applications. It's like a Turing complete social network where messages can also be programs.</div>
 
 <br/>
 
@@ -29,7 +28,9 @@ Pallas makes it possible for small teams of developers to build high quality dis
 
 ## Introduction
 
-Pallas is an event sourced, purely functional application platform, called an **_operating function_**. Every operation inside an operating function is ACID. Pallas is currently instantiated as a VM and can be run on Linux, Mac, or Nix. The platform ships with a minimal bootstrapping language called _Sire_, but includes an efficient axiomatic IR which can be targeted by mainstream functional languages.
+Pallas is an event sourced, purely functional application platform, called an **_operating function_**. Every operation inside an operating function is ACID. Pallas communicates with the outside world through a small set of frozen hardware interfaces and manages internal processes through an Erlang-style actor model.
+
+The platform ships with a minimal bootstrapping language called _Sire_, but includes an efficient axiomatic IR which can be targeted by mainstream functional languages.
 
 ### Problem
 _Software is being destroyed by accidental complexity_. Our most popular applications require hundreds or thousands of developers to build and maintain. This complexity benefits large corporations who use their dominant capital positions to monopolize and rent seek. This dynamic increases the cost of software, reduces the set of economically viable programs, and disempowers developers and users alike.
@@ -37,11 +38,10 @@ _Software is being destroyed by accidental complexity_. Our most popular applica
 This is not an abstract moral problem. Software is the best tool we have for identifying, organizing, and solving societal issues. Instability in software trickles down to every other domain of human activity.
 
 ### Solution
-More composable software systems directly result in more software freedom. The more power individual developers wield, the more that power is widely distributed. This is true even if "scrolling through silos" is the highest state of computing.
+*More composable software systems directly result in more software freedom.* The more power individual developers wield, the more that power is widely distributed. This is true even if "scrolling through silos" is the highest state of computing.
 
 To increase developer power and software freedom, your entire computer needs to be inspectable and understandable. It should be composable and made of highly generic, unopinionated, easily understood, reusable building blocks. These properties need to be stable regardless of underlying hardware changes and should guarantee a high degree of backward and forward compatibility.
 
-Pallas is a prototype of such a system.
 
 ## Features
 
@@ -58,10 +58,10 @@ Pallas is a prototype of such a system.
     - Data and code is deduplicated, merkleized, and stored in content-addressable memory pages. This creates a global referentially-transparent content store, which is naturally complemented by protocols like BitTorrent.
 
 - **Native networking and identity**
-    - VMs and spawned processes are identified by one or more cryptographic keys. The networking protocol is stateless and guarantees at-least-once-delivery. The runtime implements the protocol, allowing transport details to evolve without breaking internal software.
+    - VMs and spawned processes are identified by one or more cryptographic keys. The networking protocol is stateless and guarantees at-least-once-delivery.
 
 - **Formally specified system calls**
-    - Software breaks at boundaries, so syscalls are specified as pure functions and their spec is designed to be frozen. Runtimes are responsible for matching... (_TODO: enforcing semantics?_)
+    - Software breaks at boundaries, so syscalls are specified as pure functions and their spec is designed to be frozen. As long as the spec is satisfied, runtimes can change implementations without impacting internal software.
   
 - **Extensible language platform**
     - Metaprogramming capabilities include hot reload, zero-overhead virtualization, macro-based type systems, all the way up to custom compilers. 
@@ -69,9 +69,7 @@ Pallas is a prototype of such a system.
 
 ## System Overview
 
-TODO: diagram, major components
-
-The foundation of Pallas is untyped, but conceptually we can say that a process is database. Each database is a function of the type 
+Pallas collapses the distinction between runtime, database, and operating system. The foundation of Pallas is untyped, but conceptually we can say that a system process is database with a type of:
 
 ```haskell
 type DB = Input -> (Output, DB)
