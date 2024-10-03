@@ -13,6 +13,13 @@ Pallas is a backend platform that makes it easy to build and run p2p, distribute
 
 <br/>
 
+https://github.com/user-attachments/assets/9c975b9b-5c17-4d41-8f9b-1015b8b81e28
+
+<div align="center">
+<em>A basic web app demonstration leveraging an in-system HTTP server. All state is automatically persisted and computations can be paused and resumed.</em>
+</div>
+
+
 ## Index
 
 1. [Introduction](#introduction)
