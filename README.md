@@ -1,5 +1,7 @@
 # Pallas
 
+![notepad-video](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/notepad-captions-smaller.mp4)
+
 Pallas is Vaporware's fork of [Plunder](https://git.sr.ht/\~plan/plunder).
 
 To install Pallas and learn more about Plunder and the Sire language, head to [the documentation website](https://vaporware.gitbook.io/vaporware) or view the docs source files at the `doc/` git submodule.
