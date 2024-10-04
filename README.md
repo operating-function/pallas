@@ -183,7 +183,7 @@ Next, we want to do a clock system call for the current time. The `syscall` func
  
  Now we want to wait 1 second. We'll use this opportunity to show an alternative style that you'll come across often in Pallas code.
 
- We're going to use the `TIME_WAIT` syscall. `TIME_WAIT` itself takes a single argument - the amount of time to wait. We want to wait 1 second, which is the current time plus 1. At this point we are in the body of the continuation and have `now` in scope. The `inc` function takes a value and returns the result of adding 1 to it. `inc` is applied to `now` by wrapping both in parentheses.
+ We're going to use the `TIME_WAIT` syscall. `TIME_WAIT` itself takes a single argument - when to stop waiting. We want to wait 1 second, which is the current time plus 1. At this point we are in the body of the continuation and have `now` in scope. The `inc` function takes a value and returns the result of adding 1 to it. `inc` is applied to `now` by wrapping both in parentheses.
 
  Also note that rather than using the `&` anonymous lambda style, we're now using the col macro, `:` ("col" as in colon).
 
