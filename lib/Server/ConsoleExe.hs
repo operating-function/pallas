@@ -142,6 +142,11 @@ data RunType
               ReplayFrom
  -- | RTPoke FilePath Text FilePath
 
+-- cogIdArg :: Parser CogId
+-- cogIdArg = COG_ID <$> argument auto (metavar "COG" <> help helpTxt)
+--   where
+--     helpTxt = "The cog id number"
+
 replayFromOption :: Parser ReplayFrom
 replayFromOption =
     flag LatestSnapshot EarliestSnapshot
