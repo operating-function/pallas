@@ -1,1 +1,0 @@
-nix-shell -p haskellPackages.haskdogs haskellPackages.hasktags haskellPackages.cabal-install ghc --command haskdogs
