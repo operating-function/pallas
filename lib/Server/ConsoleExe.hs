@@ -167,11 +167,11 @@ seedFile =
   where
     helpTxt = "The seed file to write the result to"
 
-lootFile :: Parser FilePath
-lootFile =
-    strArgument (metavar "LOOT" <> help helpTxt)
-  where
-    helpTxt = "A loot file to load before starting the REPL"
+--lootFile :: Parser FilePath
+--lootFile =
+--    strArgument (metavar "LOOT" <> help helpTxt)
+--  where
+--    helpTxt = "A loot file to load before starting the REPL"
 
 plunderCmd :: String -> String -> Parser a -> Mod CommandFields a
 plunderCmd cmd desc parser =
@@ -179,14 +179,15 @@ plunderCmd cmd desc parser =
 
 runType :: FilePath -> Parser RunType
 runType defaultDir = subparser
-    ( plunderCmd "term" "Connect to the terminal of a cog."
-      (RTTerm <$> storeOpt)
-
-   <> plunderCmd "sire" "Run a standalone Sire repl."
+   ( plunderCmd "sire" "Run a standalone Sire repl."
       (RTSire <$> storeOpt
               <*> profilingOpts
               <*> interpreterOpts
               <*> many sireFile)
+
+   -- <> plunderCmd "open" "Open a terminal's GUI interface."
+   -- (RTOpen <$> storeOpt
+   --          <*> cogIdArg)
 
    <> plunderCmd "save" "Load a sire file and save a seed."
       (RTSave <$> profilingOpts
@@ -209,8 +210,8 @@ runType defaultDir = subparser
                <*> machineOpts
                <*> replayFromOption)
 
-   <> plunderCmd "loot" "Run a standalone sire repl."
-      (RTLoot <$> storeOpt <*> profilingOpts <*> many lootFile)
+   -- <> plunderCmd "loot" "Run a standalone sire repl."
+   -- (RTLoot <$> storeOpt <*> profilingOpts <*> many lootFile)
 
    <> plunderCmd "boot" "Boot a machine."
       (RTBoot <$> profilingOpts
@@ -220,8 +221,8 @@ runType defaultDir = subparser
               <*> storeArg
               <*> bootHashArg)
 
-   <> plunderCmd "du" "du -ab compatible output for pin state."
-        (RTUses <$> storeArg <*> numWorkers)
+   -- <> plunderCmd "du" "du -ab compatible output for pin state."
+   --   (RTUses <$> storeArg <*> numWorkers)
 
    -- <> plunderCmd "poke" "Pokes a started cog with a value."
    --      -- TODO: should pokePath parse the '/' instead?
@@ -231,7 +232,7 @@ runType defaultDir = subparser
   where
     -- pokePathHelp = help "Path to send data on"
     -- pokeSireHelp = help "Sire file to parse and send"
-    storeHlp = help "Location of plunder data"
+    storeHlp = help "Location of pallas data"
     profHelp = help "Where to output profile traces (JSON)"
     storeArg = strArgument (metavar "STORE" <> storeHlp)
 
@@ -316,8 +317,8 @@ runInfo :: FilePath -> ParserInfo RunType
 runInfo defaultDir =
     info (runType defaultDir <**> helper)
         ( fullDesc
-       <> progDesc "Let's run plunder."
-       <> header "new-network - a test for running plunder machines"
+       <> progDesc "Pallas"
+       <> header "Run Pallas machines"
         )
 
 data BadPortsFile = BAD_PORTS_FILE Text FilePath Text

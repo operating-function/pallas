@@ -1,8 +1,8 @@
-name:                plunder
-version:             0.1.0.0
-license:             BSD3
-author:              "Plunder Authors"
-copyright:           "2023 Plunder Authors"
+name: plunder
+version: 0.1.0.0
+license: BSD3
+author: "Plunder Authors"
+copyright: "2023 Plunder Authors"
 
 # ghc-options: -O2 -j
 ghc-options: -O -j
@@ -59,7 +59,7 @@ executables:
       - plunder
       - bytestring
 
-  plunder:
+  pallas:
     main: Main.hs
     source-dirs: exe/plunder
     ghc-options: -threaded -rtsopts "-with-rtsopts=-N -Iw60"
@@ -154,132 +154,131 @@ benchmarks:
     dependencies:
       - plunder
 
-
 dependencies:
-- aeson
-- async
-- base
-- base16-bytestring
-- base58-bytestring
-- binary
-- bytestring
-- bytestring-mmap
-- case-insensitive
-- classy-prelude
-- conduit
-- containers
-- criterion
-- deepseq
-- deque
-- directory
-- ed25519
-- entropy
-- exceptions
-- filepath
-- focus
-- ghc-bignum
-- ghc-prim
-- hashable
-- hashtables
-- heap
-- http-client
-- http-client-tls
-- http-types
-- integer-gmp
-- kazura-queue
-- largeword
-- lmdb
-- memory
-- mono-traversable
-- mtl
-- network
-- network-run
-- optics
-- optparse-applicative
-- parallel
-- pretty-show
-- primitive
-- process
-- QuickCheck
-- random
-- random-shuffle
-- resourcet
-- serialise
-- servant
-- servant-client
-- servant-server
-- stm
-- stm-chans
-- stm-containers
-- stm-delay
-- tasty
-- tasty-golden
-- tasty-quickcheck
-- terminal-size
-- text
-- text-builder
-- time
-- transformers
-- unboxed-ref
-- unix
-- unix-time
-- unliftio
-- unordered-containers
-- utf8-string
-- vector
-- vector-algorithms
-- wai
-- wai-app-static
-- wai-websockets
-- warp
-- websockets
+  - aeson
+  - async
+  - base
+  - base16-bytestring
+  - base58-bytestring
+  - binary
+  - bytestring
+  - bytestring-mmap
+  - case-insensitive
+  - classy-prelude
+  - conduit
+  - containers
+  - criterion
+  - deepseq
+  - deque
+  - directory
+  - ed25519
+  - entropy
+  - exceptions
+  - filepath
+  - focus
+  - ghc-bignum
+  - ghc-prim
+  - hashable
+  - hashtables
+  - heap
+  - http-client
+  - http-client-tls
+  - http-types
+  - integer-gmp
+  - kazura-queue
+  - largeword
+  - lmdb
+  - memory
+  - mono-traversable
+  - mtl
+  - network
+  - network-run
+  - optics
+  - optparse-applicative
+  - parallel
+  - pretty-show
+  - primitive
+  - process
+  - QuickCheck
+  - random
+  - random-shuffle
+  - resourcet
+  - serialise
+  - servant
+  - servant-client
+  - servant-server
+  - stm
+  - stm-chans
+  - stm-containers
+  - stm-delay
+  - tasty
+  - tasty-golden
+  - tasty-quickcheck
+  - terminal-size
+  - text
+  - text-builder
+  - time
+  - transformers
+  - unboxed-ref
+  - unix
+  - unix-time
+  - unliftio
+  - unordered-containers
+  - utf8-string
+  - vector
+  - vector-algorithms
+  - wai
+  - wai-app-static
+  - wai-websockets
+  - warp
+  - websockets
 
 default-extensions:
-- ApplicativeDo
-- BangPatterns
-- BlockArguments
-- ConstraintKinds
-- DataKinds
-- DefaultSignatures
-- DeriveAnyClass
-- DeriveDataTypeable
-- DeriveFoldable
-- DeriveGeneric
-- DeriveTraversable
-- DerivingStrategies
-- DuplicateRecordFields
-- EmptyCase
-- EmptyDataDecls
-- FlexibleContexts
-- FlexibleInstances
-- FunctionalDependencies
-- GADTs
-- GeneralizedNewtypeDeriving
-- ImplicitParams
-- LambdaCase
-- MagicHash
-- MultiParamTypeClasses
-- MultiWayIf
-- NamedFieldPuns
-- NoImplicitPrelude
-- NumericUnderscores
-- OverloadedLabels
-- OverloadedRecordDot
-- OverloadedStrings
-- PartialTypeSignatures
-- PatternSynonyms
-- QuasiQuotes
-- Rank2Types
-- RankNTypes
-- RecordWildCards
-- RecursiveDo
-- ScopedTypeVariables
-- StandaloneDeriving
-- TemplateHaskell
-- TupleSections
-- TypeApplications
-- TypeFamilies
-- TypeOperators
-- UndecidableInstances
-- UnicodeSyntax
-- ViewPatterns
+  - ApplicativeDo
+  - BangPatterns
+  - BlockArguments
+  - ConstraintKinds
+  - DataKinds
+  - DefaultSignatures
+  - DeriveAnyClass
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveGeneric
+  - DeriveTraversable
+  - DerivingStrategies
+  - DuplicateRecordFields
+  - EmptyCase
+  - EmptyDataDecls
+  - FlexibleContexts
+  - FlexibleInstances
+  - FunctionalDependencies
+  - GADTs
+  - GeneralizedNewtypeDeriving
+  - ImplicitParams
+  - LambdaCase
+  - MagicHash
+  - MultiParamTypeClasses
+  - MultiWayIf
+  - NamedFieldPuns
+  - NoImplicitPrelude
+  - NumericUnderscores
+  - OverloadedLabels
+  - OverloadedRecordDot
+  - OverloadedStrings
+  - PartialTypeSignatures
+  - PatternSynonyms
+  - QuasiQuotes
+  - Rank2Types
+  - RankNTypes
+  - RecordWildCards
+  - RecursiveDo
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TemplateHaskell
+  - TupleSections
+  - TypeApplications
+  - TypeFamilies
+  - TypeOperators
+  - UndecidableInstances
+  - UnicodeSyntax
+  - ViewPatterns

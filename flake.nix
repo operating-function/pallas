@@ -13,7 +13,7 @@
 
         overlays = [ haskellNix.overlay
           (final: prev: {
-            plunder =
+            pallas =
               final.haskell-nix.project' {
                 src = ./.;
                 compiler-nix-name = compiler;
@@ -67,7 +67,7 @@
           pkgs.zlib
         ];
 
-        flake = pkgs.plunder.flake {};
+        flake = pkgs.pallas.flake {};
 
       in
 
@@ -84,10 +84,10 @@
         };
 
         packages = rec {
-          plunder = flake.packages."plunder:exe:plunder";
+          pallas = flake.packages."plunder:exe:pallas";
           plock = flake.packages."plunder:exe:plock";
           rex = flake.packages."plunder:exe:rex";
-          default = plunder;
+          default = pallas;
           hnix-roots = pkgs.plunder.roots;
         };
 
