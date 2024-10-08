@@ -40,11 +40,13 @@ Pallas is an event sourced, purely functional application platform, called an **
 The platform ships with a minimal bootstrapping language called _Sire_, but includes an efficient axiomatic IR which can be targeted by mainstream functional languages.
 
 ### Problem
+
 _Software is being destroyed by accidental complexity_. Our most popular applications require hundreds or thousands of developers to build and maintain. This complexity benefits large corporations who use their dominant capital positions to monopolize and rent seek. This dynamic increases the cost of software, reduces the set of economically viable programs, and disempowers developers and users alike.
 
 This is not an abstract moral problem. Software is the best tool we have for identifying, organizing, and solving societal issues. Instability in software trickles down to every other domain of human activity.
 
 ### Solution
+
 *More composable software systems directly result in more software freedom.* The more power individual developers wield, the more that power is widely distributed. This is true even if "scrolling through silos" is the highest state of computing.
 
 To increase developer power and software freedom, your entire computer needs to be inspectable and understandable. It should be composable and made of highly generic, unopinionated, easily understood, reusable building blocks. These properties need to be stable regardless of underlying hardware changes and should guarantee a high degree of backward and forward compatibility.
@@ -53,7 +55,7 @@ To increase developer power and software freedom, your entire computer needs to 
 ## Features
 
 - **No database code**
-   - All application data is automatically persisted, without the need for imports or boilerplate. To create a database, you write a pure function.
+   - All application data is automatically persisted, without the need for imports or boilerplate. To create a database, you write a pure transition function.
 
 - **Serialize anything, running programs included**
     - Closures can be serialized and stored on-disk, or sent over the wire. Programs in mid-execution can be paused, moved to a new machine, and resumed with no impact. Open syscalls are included in persisted state and are resumed on reboot.
@@ -94,7 +96,7 @@ The difference is that instead of changing the state value, the recursive versio
 
 ## Example
 
-**Sire** is the default programming language of Pallas. A Pallas machine consists of a set of persistent processes known as Cogs.  
+**Sire** is the default programming language of Pallas. It is an applicative, functional language. A Pallas machine consists of a set of persistent processes known as Cogs.  
 
 This code is for a simple counter cog that gets the time and increments a value. Counter state is persisted through cog restarts.
 
@@ -111,7 +113,7 @@ The [documentation](https://opfn.gitbook.io/pallas/sire/intro) covers the langua
 | trk [{counter is at} count]
 | syscall TIME_WHEN
 & now
-: resultOfTimeWait < syscall (TIME_WAIT (inc now))
+: _ < syscall (TIME_WAIT (inc now))
 | countLoop (inc count) k
 
 = (main)
@@ -181,17 +183,17 @@ Next, we want to do a clock system call for the current time. The `syscall` func
 : resultOfTimeWait < syscall (TIME_WAIT (inc now))
 ```
  
- Now we want to wait 1 second. We'll use this opportunity to show an alternative style that you'll come across often in Pallas code.
+Now we want to wait 1 second. We'll use this opportunity to show an alternative style that you'll come across often in Pallas code.
 
- We're going to use the `TIME_WAIT` syscall. `TIME_WAIT` itself takes a single argument - when to stop waiting. We want to wait 1 second, which is the current time plus 1. At this point we are in the body of the continuation and have `now` in scope. The `inc` function takes a value and returns the result of adding 1 to it. `inc` is applied to `now` by wrapping both in parentheses.
+We're going to use the `TIME_WAIT` syscall. `TIME_WAIT` itself takes a single argument - when to stop waiting. We want to wait 1 second, which is the current time plus 1. At this point we are in the body of the continuation and have `now` in scope. The `inc` function takes a value and returns the result of adding 1 to it. `inc` is applied to `now` by wrapping both in parentheses.
 
- Also note that rather than using the `&` anonymous lambda style, we're now using the col macro, `:` ("col" as in colon).
+Also note that rather than using the `&` anonymous lambda style, we're now using the col macro, `:` ("col" as in colon).
 
 On the right side of the `<` we're doing the syscall and the result of that call gets bound to `resultOfTimeWait`. As with the previous syscall, the next argument is a continuation, which again, is the rest of the code below the col macro.
 
 The col macro is a method of writing continuation-passing style in a way that *feels* like assignment. It feels as if syscall returns `resultOfTimeWait` which can be used in the remainder of the body. Col macro-expands into the same code as the `&` version above.
 
-Our goal with `TIME_WAIT` was just to wait 1 second. We don't actually use the "result" of the `TIME_WAIT` syscall (bound to `resultOfTimeWait`). In this case, we could also have bound it to "_" to denote this.
+Our goal with `TIME_WAIT` was just to wait 1 second. We don't actually use the "result" of the `TIME_WAIT` syscall (bound to `resultOfTimeWait`). In this case, we could also have bound it to `_` to denote this.
 
 ---
 
@@ -199,7 +201,7 @@ Our goal with `TIME_WAIT` was just to wait 1 second. We don't actually use the "
 | countLoop (inc count) k
 ```
 
-After waiting 1 second, we recurr and pass an incremented value for `count`.
+After waiting 1 second, we recur and pass an incremented value for `count`.
 
 ---
 
@@ -384,7 +386,7 @@ Planned, but incomplete features:
 - **Capability-based process security model** - <span style="color:orange">in progress</span>
    - Cogs are designed to run hierarchically with a token, or capability-based, security model. The cog development model is under active development, but capabilities have not yet been added.
 - **Native networking** - <span style="color:red">not started</span>
-   - Native networking is the least complete core feature. There are designs for a basic implementation using HTTP, but more sophisticated approaches are possible.
+   - Native networking is the least complete core feature. There are designs for a basic implementation using TCP, but more sophisticated approaches are possible.
 - **Scalable runtime** - <span style="color:red">not started</span>
    - The existing Haskell runtime is considered adequate for prototyping and hobbyists in the near term, but cannot scale to our required terabytes of data. The runtime will need to be rewritten in a systems language like C, Rust, or Zig. 
 
