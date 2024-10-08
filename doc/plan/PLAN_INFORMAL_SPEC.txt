@@ -1,0 +1,81 @@
+This is an easier to read, but slightly hand-wavy version of the PLAN spec.
+
+The formal spec is very careful to get all the corner cases exactly
+right, but is somewhat obtuse as a result.  This version is slightly
+sloppy for the sake of simplicity, but is mostly correct.
+
+Every PLAN value is either a pin `x:<i>`, a law `x:{n a b}`, an app
+x:(f g), or a nat `x:@`.
+
+- PIN: A DAG pointer (think Etherium, IPFS)
+- LAW: A function ("super combinator", think G-Machine / etc)
+- APP: A partially applied function (and/or pair/cell)
+- NAT: A natural number
+
+The notation `(x y z)` is a short-hand for `((x y) z)`.
+
+If you are familiar with combinator systems like the SK Combinator,
+PLAN works just like that.  There are a bunch of reduction rules, and
+those are applied outside-first and left-to-right.  The result is
+"normal order evaluation", AKA "lazy evaluation".
+
+An app node (f x) can be reduced if f has arity=1.  For example ((add 3) 4)
+can be reduced, but (add 3) cannot.
+
+In cases where the rules need to inspect something, that something is
+evaluated before the inspection.
+
+Here are the reduction rules.
+
+    (<0> x)                 = <force(x)>
+
+    (<1> 0 a b)             = *crash*
+    (<1> n:@ a:@ b)         = {n a force(body)}
+    (<1> n   a b)           = (<0> toNat(n) toNat(b) b)
+
+    (<2> x)                 = toNat(x)+1
+
+    (<3> p _ _ _ _ <x>)     = (p x)
+    (<3> _ l _ _ _ {n a b}) = (l n a b)
+    (<3> _ _ a _ _ (f x))   = (a f x)
+    (<3> _ _ _ z _ 0)       = z
+    (<3> _ _ _ _ m o:@)     = (n (o-1))
+
+    (<@> x)                 = *crash*
+
+    (f:{n a b} ...)         = EXEC([f ...], b)
+    (f:<{n a b}> ...)       = EXEC([f ...], b)
+    (<i> ..)                = (i ..)
+
+    toNat(x:@) = x
+    toNat(_)   = 0
+
+And then, `EXEC` describes how to interpret the code of a law within
+the environment of a self-refence and a list of arguments.  `BIND`
+sets up the environment, and `RUN` expands legal expressions.
+
+    ;; TODO: This is a rough draft, go through this again, but with much
+    ;; more care.
+
+    EXEC(e, b) =
+        let (e2, body) = BIND(e2, e, b)
+        in RUN(e2, body)
+
+    BIND(e2, e, (1 v b)) = BIND(e2, e++[RUN(e2,v)], b)
+    BIND(e2, e, body)    = (e, body)
+
+    RUN(e, n:@)     = e[n] or n if n>=len(e)
+    RUN(e, (0 x y)) = (RUN(x), RUN(y))
+    RUN(e, (0 x))   = x
+    RUN(e, x)       = x
+
+One important detail here, is that nats have infinite arity (formally
+arity=0), and so they are never reduced.  Because of this, you can use
+them to build up arbitrarily large arrays and tagged unions.
+
+    [x, y, z] = (0 x y z) = (((0 x) y) z)
+
+    ([x, y, z] 5) = [x, y, z, 5]
+
+    LEFT(x) = (0 x)
+    RIGHT(x) = (1 x)
