@@ -46,8 +46,8 @@ TRUE
 @ reasonPhrase | reason
 @ body         | body
 @ contentLength | natBar | showNat | barLen body ; should be zero if not present
+@ headers | addDefaultHeaders headers
 @ headers | tabIns b#{Content-Length} contentLength headers
-@ headers | tabIns b#{Server} b#{Pallas/0.1} headers
 ; TODO: need
 ; @ headers | tabIns b#{Date}
 ; TODO: others, maybe:

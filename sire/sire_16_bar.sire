@@ -518,6 +518,60 @@ hexAlphabet=(b#{0123456789abcdef})
 =?= [0 [1 0]]     | barSubstringSearch b#aa b#aaa
 =?= [0 [1 [2 0]]] | barSubstringSearch b#a b#aaa
 
+; Like barSubstringLines, but allows splitting on arbitrary characters.
+> Bar > Bar > List Bar
+= (barSubstringLinesList seek bar)
+@ indices (barSubstringSearch seek bar)
+@ seekLen (barLen seek)
+@ wid (barLen bar)
+^ listFilter (compose not barIsEmpty) _
+^ _ 0 indices
+? (go start idxList)
+| listCase idxList
+  | CONS (barSlice start (sub wid start) bar) NIL
+& (idx rest)
+| CONS (barSlice start (sub idx start) bar)
+| go (add idx seekLen) rest
+
+(barSubstringLines seek bar)=(listToRow | barSubstringLinesList seek bar)
+
+=?= (listFromRow [x#de x#ad x#20be x#ef])
+    | barSubstringLinesList x#0d x#{de0dad0d20be0def0d0d}
+
+=?= [x#de x#ad x#20be x#ef]
+    | barSubstringLines x#0d x#{de0dad0d20be0def0d0d}
+
+=?= (listFromRow [x#de x#ad x#20be x#ee x#ef])
+    | barSubstringLinesList x#0d x#{de0dad0d20be0dee0def}
+
+=?= (listFromRow [x#de x#ad x#20be x#ef])
+    | barSubstringLinesList x#0d x#{0d0dde0dad0d20be0def0d}
+
+=?= (listFromRow [x#de x#ad x#200dbe x#ef])
+    | barSubstringLinesList x#0d0a0d x#{de0d0a0dad0d0a0d200dbe0d0a0def0d0a0d}
+
+> Nat > Bar > List Bar
+= (barSplitSegmentsList segSize bar)
+@ wid (barLen bar)
+^ (_ 0)
+? (go off)
+| if (gte off wid) NIL
+@ end (add off segSize)
+| CONS (barSlice off (sub end off) bar)
+| go end
+
+> Nat > Bar > Row Bar
+(barSplitSegments segSize bar)=(listToRow | barSplitSegmentsList segSize bar)
+
+=?= [b#hel b#{lo } b#wor b#{ld.}]
+  | barSplitSegments 3 b#{hello world.}
+
+=?= [b#he b#{ll} b#{o } b#{wo} b#{rl} b#{d!} b#{!}]
+  | barSplitSegments 2 b#{hello world!!}
+
+=?= [b#{hello world.}]
+  | barSplitSegments 1000 b#{hello world.}
+
 
 ;;; Tests ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -649,6 +703,7 @@ barSliceToNat=_BarSliceToNat
 ^-^ barFindIndex barFindIndexOff
 ^-^ barElemIndex barElemIndexOff barElemIndexEnd
 ^-^ barSplitAt barSplitOne barSplitOneWith barSplitWith barSplit
+^-^ barSplitSegmentsList barSplitSegments
 ^-^ barCountHeadMatching barDropWhile barTakeWhile
 ^-^
 ^-^ hexAlphabet hexChar byteToHex barToHex
@@ -659,5 +714,5 @@ barSliceToNat=_BarSliceToNat
 ^-^
 ^-^ barLinesList barUnlinesList
 ^-^ barLines barUnlines
-^-^ barIsPrefixOf barSubstringSearch
+^-^ barIsPrefixOf barSubstringSearch barSubstringLinesList
 ^-^ barNewline barSpace

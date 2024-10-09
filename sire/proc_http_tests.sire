@@ -17,21 +17,7 @@
 = expectedHeaders | tabFromPairs [[b#Host b#{example.com}] [b#{Content-Type} b#{text/html}] [b#{Content-Length} b#15]]
 
 
-=?= (listFromRow [x#de x#ad x#20be x#ef])
-    | barSubstringLinesList x#0d x#{de0dad0d20be0def0d0d}
-
-=?= [x#de x#ad x#20be x#ef]
-    | barSubstringLines x#0d x#{de0dad0d20be0def0d0d}
-
-=?= (listFromRow [x#de x#ad x#20be x#ee x#ef])
-    | barSubstringLinesList x#0d x#{de0dad0d20be0dee0def}
-
-=?= (listFromRow [x#de x#ad x#20be x#ef])
-    | barSubstringLinesList x#0d x#{0d0dde0dad0d20be0def0d}
-
-=?= (listFromRow [x#de x#ad x#200dbe x#ef])
-    | barSubstringLinesList x#0d0a0d x#{de0d0a0dad0d0a0d200dbe0d0a0def0d0a0d}
-
+; TODO: write tests for isMessageComplete
 
 =?= expectedHeaders | (extractHeaders testHeaderBar)
 
@@ -102,14 +88,19 @@
   | parseAndSetBody badStream buffer
 
 
-=?= [b#hel b#{lo } b#wor b#{ld.}]
-  | splitBarIntoSegments 3 b#{hello world.}
+> Row Bar > HTTPBuffer
+= (fakeProcessConnection fakeIn buffer)
+| if (eql 0 (len fakeIn))
+  | trk [%ranOuttaIns]
+  ; what does this case actually mean?
+  buffer
+@ [data remainder] | splitAt 1 fakeIn ; consider first item
+@ updatedBuffer | processHttpChunk buffer (idx 0 data)
+: request < maybeCase (makeRequest updatedBuffer) ; message incomplete
+          | trk [%processConnectionRecurring]
+          | fakeProcessConnection remainder updatedBuffer
+updatedBuffer
 
-=?= [b#he b#{ll} b#{o } b#{wo} b#{rl} b#{d!} b#{!}]
-  | splitBarIntoSegments 2 b#{hello world!!}
-
-=?= [b#{hello world.}]
-  | splitBarIntoSegments 1000 b#{hello world.}
 
 ; TODO: maybe kill altogher:
 = testEmptyBuffer | HTTP_BUF 9999 8888 b#{} FALSE emptyTab FALSE b#{} NONE FALSE 0 b#{} FALSE
@@ -123,7 +114,7 @@
 
 = httpPostWithBody | x#504f5354202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a436f6e74656e742d547970653a20746578742f706c61696e0d0a436f6e74656e742d4c656e6774683a2031310d0a0d0a68656c6c6f20776f726c64
 
-= splitHTTPRow | splitBarIntoSegments 5 httpPostWithBody
+= splitHTTPRow | barSplitSegments 5 httpPostWithBody
 
 = expectedBuffer | HTTP_BUF 9999 8888 httpPostWithBody TRUE headersTab TRUE b#{POST /what-is-life HTTP/1.0} NONE FALSE 600 b#{hello world} FALSE
 
@@ -151,7 +142,7 @@
 
 = httpGetNoBody | x#474554202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a0d0a
 
-= splitHTTPRow | splitBarIntoSegments 5 httpGetNoBody
+= splitHTTPRow | barSplitSegments 5 httpGetNoBody
 
 = headersTab
 | tabFromPairs
@@ -171,7 +162,7 @@
 
 = httpHead | x#48454144202f776861742d69732d6c69666520485454502f312e300d0a486f73743a20676f6f676c652e636f6d0d0a557365722d4167656e743a206375726c2f372e37312e310d0a4163636570743a202a2f2a0d0a0d0a
 
-= splitHTTPRow | splitBarIntoSegments 5 httpHead
+= splitHTTPRow | barSplitSegments 5 httpHead
 
 = headersTab
 | tabFromPairs
@@ -211,6 +202,9 @@
 ; TODO: complete this test.
 ; =?= (error500 b#{are you mad?})
 ;   | appResponseToHTTP [emptyTab b#{hell} 9999 b#{wtf}]
+
+; =?= (error400 b#{broken})
+;     | appResponseToHTTP [emptyTab b#{bad} 9999 b#{thing}]
 
 = appHeaders | tabFromPairs [[b#Server b#{Pallas/0.1}] [b#Date b#{Tue, 24 Sep 2024 12:00:00 GMT}] [b#{Content-Type} b#{text/plain; charset=UTF-8}] [b#{Content-Length} b#{9}]]
 = preparedResponse | appResponseToHTTP [appHeaders b#{Nice body} 200 b#{OK}]
