@@ -1,18 +1,11 @@
-; Copyright 2024 The OPfN Authors
+; Copyright 2024 The opfn Authors
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
 #### proc_http <- lib_http
 
-; Things that need to happen:
-; - Test passing JSON body in a POST request - probably need to do a bunch after that
-; - Properly test the server loop / processMessage flow with multiple
-;   connections. re-open / new connections, etc.
-
 :| lib_http
 
-
-; TODO:
 > HTTPBuffer > Bit
 = (validRequest request)
 ; early response for malformed requests - potentially depends on better strategy
@@ -20,8 +13,6 @@
 ; Goes nicely with error400
 TRUE
 
-
-; TODO:
 > HTTPResponse > Bit
 = (validResponse response)
 ; did we get a garbage response from the app?
@@ -32,15 +23,10 @@ TRUE
 ; Do the validation work here. call this in appResponseToHTTP
 TRUE
 
-
 > Tab Bar Bar > Nat > Bar > > Bar > HTTPResponse
 = (appResponseToHTTP [headers body code reason])
-; TODO: check validity of headers/body/code we got from app here
-; Formulate an HTTPResponse anyway (probably a 500 or whatever)
 | ifNot (validResponse b#{TODO})
-  | error500 b#{cog did a dumb}
-; TODO:
-; - reason phrase should come from app but be overridable by server in case error
+  | error500 b#{cog error}
 @ version      | b#{HTTP/1.0}
 @ statusCode   | code
 @ reasonPhrase | reason
@@ -48,13 +34,6 @@ TRUE
 @ contentLength | natBar | showNat | barLen body ; should be zero if not present
 @ headers | addDefaultHeaders headers
 @ headers | tabIns b#{Content-Length} contentLength headers
-; TODO: need
-; @ headers | tabIns b#{Date}
-; TODO: others, maybe:
-; @ headers | tabIns b#{Content-Encoding}
-; @ headers | tabIns b#{Content-Type}
-; This concatenation with colons _could_ be done in a subsequent function that
-; is responsible for HTTP_RES -> Hex Bar
 @ headersList
   | tabValsList
   | tabMapWithKey
@@ -66,7 +45,6 @@ TRUE
 * reasonPhrase
 * headersList
 * body
-
 
 = (processConnection io getResponse buffer return)
 : data < syscall | TCP_TAKE io
@@ -82,15 +60,9 @@ TRUE
           | processConnection io updatedBuffer return
 ; complete and valid
 : cogResponse < getResponse request
-;;;; Just for printing
-@ [headers body code reas] | cogResponse
-@ truncatedBody | idx 0 | barSplitAt 20 body
-| trk [%cogResponse [=headers =code =reas =truncatedBody]]
-;;;;
 ^ _ (httpResToBar | appResponseToHTTP cogResponse)
 ? (sendAndClose responseBar)
 : mBytes < syscall | TCP_GIVE io responseBar
-| trk [%sent mBytes %bytes]
 : bytes  < maybeCase mBytes  | syscall (TCP_SHUT io) return
 | if (barLen responseBar == bytes) | syscall (TCP_SHUT io) return
 | sendAndClose | barDrop bytes responseBar
