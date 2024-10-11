@@ -1,6 +1,12 @@
 #### kern <- json
 
 :| sire
+:| stew
+
+typedef#ThreadId#Nat
+typedef#WorkerId#Nat
+
+abstype#(Promise a)
 
 = (EVAL f as)            [0 f as]
 = (EXEC pump)            [1 pump]
@@ -15,6 +21,9 @@
 = (TCP_TAKE h)           [%tcp %take h]
 = TCP_MINE               [%tcp %mine]
 = (TCP_SHUT h)           [%tcp %shut h]
+
+abstype#(Cog a)
+abstype#(Proc a)
 
 = (allocateSlot fr sl rq k)
 | ifz fr
@@ -36,29 +45,37 @@
 ? (kernel_loop stream out hl st rd ws)
 | ifz stream
   (COG_KERNEL ~[] hl st rd ws, listToRow out)
-@ [[key [callback input]] stream] stream ; TODO extremely ugly to assume a callback
-@ exe | get hl key
+@ [[pid input] stream] stream
+@ exe | get hl pid
 | ifz exe
   | kernel_loop stream out hl st rd ws   ; TODO Should maybe cancel the worker too?
-@ (k result end out)
-  @ out | CONS (key,callback,result) out
-  | COG_DONE result end out
+@ k   | COG_DONE
 @ end | kernel_loop stream
-| exe input k end out hl st rd ws
+| exe [pid input] k end out hl st rd ws
 
-; ^ foldl _ COG_DONE inputs
-; & (end (wid, input))
-; ^ trk [%kernel_fold [=wid =input =end res=_]] _
-; : k < getHandler wid
-; | k input const-end
-
+> Call a > Proc a
 = (syscall request k end me fr sl rq)
 @ rq | rowCons (me,request) rq
 @ sl | put sl me k
 | end fr sl rq
 
-= (tag_syscall (dest,cmd,msg) k end me fr sl rq)
-| syscall (dest,cmd,(me,msg)) k end me fr sl rq
+> Promise a > Proc a
+= (await promise k end me fr sl rq)
+@ sl | put sl promise k
+| end fr sl rq
+
+= (PUMP_DONE _ end me fr sl rq)
+| end [me fr] sl rq
+
+> Call a > Proc b > Proc b
+= (void_syscall request end me fr sl rq)
+@ rq | rowCons (me,request) rq
+@ sl | put sl me 0
+| end fr sl rq
+
+> Proc ThreadId
+= (self k end me fr sl rq)
+| k me end me fr sl rq
 
 = (PUMP_KERNEL fr sl rq key input)
 @ exe | get sl key
@@ -69,22 +86,26 @@
 @ me  | key
 | exe input end me fr sl rq
 
-= (PUMP_DONE _ end me fr sl rq)
-| end [me fr] sl rq
-
+> Proc a > Proc ThreadId
 = (pumpFork act k end me fr sl rq)
 : tid fr sl rq < allocateSlot fr sl rq
 | act PUMP_DONE (k tid end me) tid fr sl rq
 
-= (void act k end me fr sl rq)
-: tid fr sl rq < allocateSlot fr sl rq
-| act () (k end me) tid [tid fr] sl rq
+= (putState x k end out hl st rd ws)    | k ()   end out hl x    rd ws
+= (getState k end out hl st rd ws)      | k st   end out hl st   rd ws
+= (getsState f k end out hl st rd ws)   | k f-st end out hl st   rd ws
+= (modifyState f k end out hl st rd ws) | k ()   end out hl f-st rd ws
+= (stateState f k end out hl st rd ws)  @ (a,st) f-st
+                                        | k a    end out hl st   rd ws
 
-= (write x k end out hl st rd ws) | k () end out hl x      rd ws
-= (state k end out hl st rd ws)   | k st end out hl st     rd ws
-= (alter f k end out hl st rd ws) | k () end out hl (f st) rd ws
+= (addWorker worker read write k end out hl st rd ws)
+@ wid | len ws
+@ ws  | rowSnoc ws worker
+@ rd  | put rd 0 | rowSnoc (get rd 0) read
+@ hl  | rowSnoc hl write
+| k wid end out hl st rd ws
 
-= (work req@[mode worker] handler k end out hl st rd ws)
+= (exec proc read write)
 @ w
   @ k   | PUMP_DONE
   @ end | PUMP_KERNEL
@@ -92,16 +113,58 @@
   @ fr  | ~[]
   @ sl  | [0]
   @ rq  | []
-  | ifz mode | req
-  | [mode (worker k end me fr sl rq)]
-@ ws | rowSnoc ws w
-@ hl | rowSnoc hl handler
-| k len-ws end out hl st rd ws
+  | EXEC | proc k end me fr sl rq
+| addWorker w read write
 
-= (runCog st rd cog)
+= (eval f xs)
+| addWorker
+* EVAL f xs
+* (st query)&(trk [{eval worker tried to read} [=st =query]] 0)
+* supply ()
+
+> a > Proc b
+= (read query) | syscall | DB_READ query
+
+> (Nat,Nat) > Any > Cog ()
+= (send (pid,rid) msg k end out hl st rd ws)
+@ out
+  | ifz (fst | get ws pid) | out
+  | CONS (pid,rid,msg) out
+| k () end out hl st rd ws
+
+> ThreadId > Cog a
+= (receive wid k end out hl st rd ws)
+@ hl | put hl wid k
+| end out hl st rd ws
+
+
+= async | pumpFork
+
+; = (exec worker read write k end out hl st rd ws)
+; @ w
+;   @ k   | PUMP_DONE
+;   @ end | PUMP_KERNEL
+;   @ me  | 0
+;   @ fr  | ~[]
+;   @ sl  | [0]
+;   @ rq  | []
+;   | worker k end me fr sl rq
+; @ wid | len ws
+; @ ws  | rowSnoc ws w
+; @ hl  | rowSnoc hl write
+; | k wid end out hl st rd ws
+
+= (getPumpKernel k end me fr sl rq)
+| k (end,me,fr,sl,rq) end me fr sl rq
+
+= (getCogKernel k end out hl st rd ws)
+| k (end,out,hl,st,rd,ws) end out hl st rd ws
+
+= (runCog st cog)
 @ k   | COG_DONE
 @ end | COG_KERNEL
-@ hl  | []
-@ ws  | []
 @ out | ~[]
+@ hl  | []
+@ rd  | get []
+@ ws  | []
 | cog k end out hl st rd ws

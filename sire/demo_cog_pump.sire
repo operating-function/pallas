@@ -1,27 +1,30 @@
-#### demo_cog_pump <- new_kern
+#### demo_cog_pump <- kern
 
-:| new_kern
+:| kern
 
-= (readsFun state reqId query)
-| query state
+;; TODO curry this in kern.sire
+= (writeHandler (pid,(rid,input)) return)
+: res
+  < : st < stateState
+    @ st | rowCons input st
+    (len-st, st)
+: _ < send (pid,rid) res
+| return ()
 
-= (step state reads workers inputs)
-^ (step _ reads workers, [])
-^ trk [newState=_ =inputs oldState=state] _
-^ foldl _ state inputs
-& ((next,st) (pumpId,val))
-| if (pumpId == next)
-* (mod inc-next len-workers, add st val)
-* (next, st)
+= (requestFoo return)
+: me < self
+| void_syscall | DB_WRITE (me, %foo)
 
-= (pump query _ reqId input)
-| pump query
-| ifNot input [(inc reqId, DB_READ query)]
-++ (inc reqId, DB_WRITE (mod reqId 100))
-++ (add 2 reqId, DB_READ query)
+= (proc i return)
+| if i | return ()
+: promise < async requestFoo
+: res < await promise
+: st < syscall | DB_READ len
+| trk [%gotBoth [=st =res]]
+| proc res return
 
-= main
-| step (0,0) readsFun
-: i < gen 10
-@ (myTurn (next,_)) | (i == next)
-| EXEC | pump myTurn [(0, DB_READ myTurn)]
+= (cog return)
+: w0 < exec proc-0 supply writeHandler
+| return ()
+
+main=(runCog [] cog)
