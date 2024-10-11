@@ -632,13 +632,12 @@ runnerFun initialFlows machine processName st = do
             pure (flows, [], receipts)
 
     readHandler :: IO ()
-    readHandler = -- unlessM (readTVarIO machine.shutdownWorkers)
-         do
+    readHandler = do
       readRequests <- atomically do
         workers <- readTVar st.vWorkers
-        concat <$> for workers \(_,worker) -> case worker of
+        concat <$> for (mapToList workers) \(wid,(_,worker)) -> case worker of
           LIVE_EVAL{}      -> pure []
-          LIVE_EXEC{reads} -> flushTQueue reads
+          LIVE_EXEC{reads} -> fmap (wid,) <$> flushTQueue reads
       unless (null readRequests) do
         moment <- readTVarIO st.vMoment
         let cogFun = fromMaybe (error "trying to read from a non-spinning cog")
@@ -646,20 +645,14 @@ runnerFun initialFlows machine processName st = do
         runReads cogFun readRequests
       readHandler
 
-runReads :: Debug => Fan -> [ReadRequest] -> IO ()
+runReads :: Debug => Fan -> [(Int, ReadRequest)] -> IO ()
 runReads cogFun readReqs = do
     let fun = getCurrentReadsNoun cogFun
-    for_ readReqs \(COG_READ idx query (STVAR return)) -> do
+    for_ readReqs \(wid, COG_READ _ query (STVAR return)) -> do
         (_, result) <- evalWithTimeout thirtySecondsInMicroseconds [] fun
-                        [ getCurrentDbNoun cogFun
-                        , NAT $ fromIntegral idx.int
+                        [ NAT $ fromIntegral wid
+                        , getCurrentDbNoun cogFun
                         , query ]
---      traceM $ unlines ["reading from cog: " <> show cogFun
---                       ,"dbstate: " <> show (getCurrentDbNoun cogFun)
---                       ,"reads function: " <> show fun
---                       ,"workers: " <> show (getCurrentWorkerNoun cogFun)
---                       ,"query: " <> show query
---                       ,"result: " <> show result]
         atomically . writeTVar return $ case result of
             OKAY _ resultFan -> DONE resultFan FlowDisabled -- TODO check old var, probably not use CallStateVar?
             _                -> DONE (NAT 0) FlowDisabled -- TODO real flow? do we need flow here?
