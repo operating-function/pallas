@@ -4,27 +4,31 @@
 
 ;; TODO curry this in kern.sire
 = (writeHandler (pid,(rid,input)) return)
+| trk [%writeHandler [=rid =input]]
 : res
   < : st < stateState
     @ st | rowCons input st
     (len-st, st)
-: _ < send (pid,rid) res
+: _ < send (pid,rid) (%bar, res)
 | return ()
 
 = (requestFoo return)
 : me < self
 | void_syscall | DB_WRITE (me, %foo)
 
-= (proc i return)
-| if i | return ()
+= (proc return)
 : promise < async requestFoo
+: promise2 < async requestFoo
 : res < await promise
+| trk [=res]
 : st < syscall | DB_READ len
-| trk [%gotBoth [=st =res]]
-| proc res return
+| trk [=st]
+: res2 < await promise2
+| trk [=res2]
+| return ()
 
 = (cog return)
-: w0 < exec proc-0 supply writeHandler
+: w0 < exec proc supply writeHandler
 | return ()
 
 main=(runCog [] cog)
