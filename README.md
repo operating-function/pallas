@@ -1,82 +1,108 @@
+```ascii
+    +---------------------------------------------------------+
+    |                                                         |
+    |     .+.                                                 |
+    |    // \\                    __l  __l                    |
+    |   //   \\                     l    l                    |
+    |   \\   //                     l    l                    |
+    |    \\ //              ____    l    l    ____    .--.|   |
+    |     \Y/    _p pppp   /    a   l    l   /    a  (s       |
+    |      U      p/    p   __aaa   l    l    __aaa   ssss.   |
+    |    ==U==    pp    p aa   /|   l    l  aa   /|       s   |
+    |      U      p \_pp   aaaa ./ _l_  _l_  aaaa ./ |\___/   |
+    |             p                                           |
+    |            _p_                                          |
+    |                                                         |
+    +---------------------------------------------------------+
+                                                            ┏
+                                                        ┏┓┏┓╋┏┓
+                                                        ┗┛┣┛┛╹┗
 
-<div align="center">
-  <picture>
-    <img alt="Pallas Logo" src="https://github.com/user-attachments/assets/fee06d57-ae41-4238-b35e-b5edb384a161" width="70%">
-  </picture>
-</div>
+         is a purely functional programming environment
+                virtual machine for constructing
+              resilient, distributed applications.
+```
 
-<br />
-<h1 align="center">An event sourced, purely functional application platform.</h1>
+_(Video) A basic web app demonstration leveraging an in-system HTTP server. All state is automatically persisted and computations can be paused and resumed:_ ![demo](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/notepad-demo.mp4)
 
-<div align="center">
-Pallas is a backend platform that makes it easy to build and run p2p, distributed applications. It's like a Turing complete social network where messages can also be programs.</div>
+# Index
 
-<br/>
-
-https://github.com/user-attachments/assets/9c975b9b-5c17-4d41-8f9b-1015b8b81e28
-
-<div align="center">
-<em>A basic web app demonstration leveraging an in-system HTTP server. All state is automatically persisted and computations can be paused and resumed.</em>
-</div>
-
-
-## Index
-
-1. [Introduction](#introduction)
-2. [Features](#features)
-2. [System Overview](#installation)
-4. [Example](#example)
-2. [Installation](#installation)
-3. [Getting Started](#getting-started)
-5. [Contributing](#contributing)
-6. [Caveats](#caveats)
-7. [Additional Resources](#additional-resources)
-
-
-## Introduction
-
-Pallas is an event sourced, purely functional application platform, called an **_operating function_**. Every operation inside an operating function is ACID. Pallas communicates with the outside world through a small set of frozen hardware interfaces and manages internal processes through an Erlang-style actor model.
-
-The platform ships with a minimal bootstrapping language called _Sire_, but includes an efficient axiomatic IR which can be targeted by mainstream functional languages.
-
-### Problem
-
-_Software is being destroyed by accidental complexity_. Our most popular applications require hundreds or thousands of developers to build and maintain. This complexity benefits large corporations who use their dominant capital positions to monopolize and rent seek. This dynamic increases the cost of software, reduces the set of economically viable programs, and disempowers developers and users alike.
-
-This is not an abstract moral problem. Software is the best tool we have for identifying, organizing, and solving societal issues. Instability in software trickles down to every other domain of human activity.
-
-### Solution
-
-*More composable software systems directly result in more software freedom.* The more power individual developers wield, the more that power is widely distributed. This is true even if "scrolling through silos" is the highest state of computing.
-
-To increase developer power and software freedom, your entire computer needs to be inspectable and understandable. It should be composable and made of highly generic, unopinionated, easily understood, reusable building blocks. These properties need to be stable regardless of underlying hardware changes and should guarantee a high degree of backward and forward compatibility.
+1. [Motivation](#motivation)
+2. [Stack Features](#)
+4. [System Overview](#)
+2. [Installation](#)
+3. [Getting Started](#)
+5. [Contributing](#)
+6. [Caveats](#)
+7. [Additional Resources](#)
 
 
-## Features
+# Motivation
 
-- **No database code**
-   - All application data is automatically persisted, without the need for imports or boilerplate. To create a database, you write a pure transition function.
+The current [networked information system stack -- we need to arrive at a term for this. "Internet" for now] internet doesn't permit full inspection - it requires you to trust.  
+This means you cannot truly own your computer or phone, nor the networks you interact with, nor the increasingly wide swaths of your life that are defined by being downstream of this complex. By "own", we mean: fully control, trust, change, opt-out, freely-share.
+
+This trust problem exists up and down the modern information system stack: from the level of the programming language all the way up to the emergent societal patterns that arise from software-mediated, networked social interactions. The result is a digital ecosystem commons and society that is rigid, centralized, homogeneous, wasteful, interdependent, opaque. And software systems that are vulnerable to supply chain attacks, censorship and monopolization.
+
+We want the opposite. We want **resilience**.
+
+Resilient systems...
+
+> ...adapt to changing conditions, long-term  
+> ...have no single point of failure  
+> ...are comprised of a diversity of components  
+> ...are efficient with available resources  
+> ...can be fragmented without catastrophic failure  
+> ...are transparent and don't require trust in authority  
+
+An internet of resilient computers...
+
+> ...enables composable software, directly resulting in more software freedom
+> ...empowers individual developers in a widely distributed manner
+> ...cannot be censored nor monopolized
+> ...insures that a user's computer is ubiquitous
+> ...runs forever
+> ...is robust against supply chain attacks 
+
+# Stack Features
+
+## Write once, run forever
 
 - **Serialize anything, running programs included**
-    - Closures can be serialized and stored on-disk, or sent over the wire. Programs in mid-execution can be paused, moved to a new machine, and resumed with no impact. Open syscalls are included in persisted state and are resumed on reboot.
-
+  - Closures can be serialized and stored on-disk, or sent over the wire. Programs in mid-execution can be paused, moved to a new machine, and resumed with no impact. Open syscalls are included in persisted state and are resumed on reboot.
 - **Parallelism with deterministic replay**
-    - Results from spawned processes, IO, and runtime evaluated expressions are recorded as events using an event-log-and-snapshot model. On replay, terminated events are recomputed with perfect determinism. 
+  - Results from spawned processes, IO, and runtime evaluated expressions are recorded as events using an event-log-and-snapshot model. On replay, terminated events are recomputed with perfect determinism. 
+- **Universal Portability**
+  - Zero host-machine dependencies. Communicates with the outside world via a minimal set of pervasive interfaces (TCP, etc.). Runtime development is easy; thus, futurproof. System calls are formally specified as pure functions and their spec is designed to be frozen.
+
+## All software is malleable
+
+- **Human-Readable All the Way Down**
+  - The underlying data model, PLAN, is human-readable (though barely human-writable), which means you don't need to _trust_ software or compiler binaries, if you'd prefer to audit them. **TK: needs a mention of bootstrapping and sire-in-sire**.
+- **Universal data composability**
+  - From an operator's point of view, all data is equally accessible and composable. "Application UIs" are merely projections, filters and actions applied to a single state. No app silos or walled gardens.
+
+## Uncensorable content, Access to open markets
 
 - **Global referentially-transparent content store**
-    - Data and code is deduplicated, merkleized, and stored in content-addressable memory pages. This creates a global referentially-transparent content store, which is naturally complemented by protocols like BitTorrent.
-
+  - Data and code is deduplicated, merkleized, and stored in content-addressable memory pages. This creates a global referentially-transparent content store, which is naturally complemented by protocols like BitTorrent.
 - **Native networking and identity**
-    - VMs and spawned processes are identified by one or more cryptographic keys. The networking protocol is stateless and guarantees at-least-once-delivery.
+  - VMs and spawned processes are identified by one or more cryptographic keys. The networking protocol is stateless and guarantees at-least-once-delivery.
+- **Peer-to-Peer permissionless distribution**
+  - Connections with other operators are peer-to-peer. Sharing runnable (or running) code is no different than sharing content.
+- **Infrastructure autonomy**
+  - While the market may provide industrial-grade compute for your use if you choose it, falling back to an old laptop in your closet will always work if all else fails. Your freedom of speech is guaranteed by the system, but reach is your responsibility.
 
-- **Formally specified system calls**
-    - Software breaks at boundaries, so syscalls are specified as pure functions and their spec is designed to be frozen. As long as the spec is satisfied, runtimes can change implementations without impacting internal software.
-  
-- **Extensible language platform**
-    - Metaprogramming capabilities include hot reload, zero-overhead virtualization, macro-based type systems, all the way up to custom compilers. 
-    
+## Zero ongoing server costs, no DevOps
 
-## System Overview
+- **Users provide their infrastructure, not developers**
+  - When users have a computer in the cloud, application developers don't have to bear the financial and legal liabilities of maintaining user infrastructure.
+- **Extensible full-stack language platform**
+  - Metaprogramming capabilities include hot reload, zero-overhead virtualization, macro-based type systems, all the way up to custom compilers. Both backend concerns and UIs are generated by the same language.
+- **No database code**
+  - All application data is automatically persisted, without the need for imports or boilerplate. To create a database, you write a pure transition function.
+
+# System Overview
 
 Pallas collapses the distinction between runtime, database, and operating system. The foundation of Pallas is untyped, but conceptually we can say that a Pallas process is a database of type:
 
@@ -94,129 +120,7 @@ type OtherDB = (State, Input) -> (State, Output)
 
 The difference is that instead of changing the state value, the recursive version would change itself. The current version of the function is the state. In other words: programs can upgrade themselves dynamically. Code can construct code. Because of this, we can put an entire compiler toolchain inside the system and the programs it generates have zero dependencies on the outside world.
 
-## Example
-
-**Sire** is the default programming language of Pallas. It is an applicative, functional language. A Pallas machine consists of a set of persistent processes known as Cogs.  
-
-This code is for a simple counter cog that gets the time and increments a value. Counter state is persisted through cog restarts.
-
-The [documentation](https://opfn.gitbook.io/pallas/sire/intro) covers the language more fully.
-
-```
-#### demo_count_up <- prelude
-
-:| prelude
-
-;;; Count Up ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-= (countLoop count k)
-| trk [{counter is at} count]
-| syscall TIME_WHEN
-& now
-: _ < syscall (TIME_WAIT (inc now))
-| countLoop (inc count) k
-
-= (main)
-| runCog (countLoop 0)
-
-;;; Example output:
-;;; ++ [%trk {2024-08-02T17:05:48.468929096Z}]
-;;; ++ [{counter is at} 1]
-;;;
-;;; ++ [%trk {2024-08-02T17:05:49.470040565Z}]
-;;; ++ [{counter is at} 2]
-;;;
-;;; ++ [%trk {2024-08-02T17:05:50.471186301Z}]
-;;; ++ [{counter is at} 3]
-```
-
-### Explanation
-
-```
-#### demo_count_up <- prelude
-```
-
-Inline 'prelude' before 'demo_count_up'.
-
-`:| prelude`
-
-Import 'prelude.sire'.
-
----
-
-```
-= (countLoop count k)
-```
-
-`=` declares a top level binding. The function named `countLoop` takes a 'count' parameter (and a 'k' parameter that we don't need to worry about now).
-
----
-
-```
-| trk [{counter is at} count]
-```
-
-Print out the current count to the console with the `trk` (track) function from the standard library. The bar `|` is function application. It says "apply the function `trk` to the arguments after it."
-
-`trk` is a function that takes two arguments: 
-- the message to log to the terminal and 
-- a value that it will simply return (often the rest of the program)
-
----
-
-```
-| syscall TIME_WHEN
-& now
-```
-
-Next, we want to do a clock system call for the current time. The `syscall` function takes two arguments:
- - a request type of `TIME_WHEN` ("give me the current system time" in this case).
- - a continuation to use when the syscall completes.
-
- The system call might take a while to complete, but when it does, we'll be woken up and the result of the call will be passed as an argument to the continuation function that was provided to `syscall`. We use `&` to define the continuation function as a lambda. The lambda takes one argument called `now`, which will be bound to the result of the `TIME_WHEN` call.
-
- Pallas syscalls are not like those found in GNU C. Each syscall and response is mapped in an array managed by a small internal micro-kernel. The Pallas runtime is responsible for actually interacting with the external system.
-
- ---
-
-```
-: resultOfTimeWait < syscall (TIME_WAIT (inc now))
-```
- 
-Now we want to wait 1 second. We'll use this opportunity to show an alternative style that you'll come across often in Pallas code.
-
-We're going to use the `TIME_WAIT` syscall. `TIME_WAIT` itself takes a single argument - when to stop waiting. We want to wait 1 second, which is the current time plus 1. At this point we are in the body of the continuation and have `now` in scope. The `inc` function takes a value and returns the result of adding 1 to it. `inc` is applied to `now` by wrapping both in parentheses.
-
-Also note that rather than using the `&` anonymous lambda style, we're now using the col macro, `:` ("col" as in colon).
-
-On the right side of the `<` we're doing the syscall and the result of that call gets bound to `resultOfTimeWait`. As with the previous syscall, the next argument is a continuation, which again, is the rest of the code below the col macro.
-
-The col macro is a method of writing continuation-passing style in a way that *feels* like assignment. It feels as if syscall returns `resultOfTimeWait` which can be used in the remainder of the body. Col macro-expands into the same code as the `&` version above.
-
-Our goal with `TIME_WAIT` was just to wait 1 second. We don't actually use the "result" of the `TIME_WAIT` syscall (bound to `resultOfTimeWait`). In this case, we could also have bound it to `_` to denote this.
-
----
-
-```
-| countLoop (inc count) k
-```
-
-After waiting 1 second, we recur and pass an incremented value for `count`.
-
----
-
-```
-= (main)
-| runCog (countLoop 0)
-```
-
-Finally, we'll start a process that will be responsible for running this function and handling any threads or syscalls that are involved. These processes are called "cogs" and are initiated with the `runCog` function.
-
-We bind a top-level `main` function that will call `runCog`. When we pass `countLoop` to `runCog` as its "job", we also need to provide the starting count of zero.
-
-
-
-## Installation
+# Installation
 
 You have two options: build a dev environment using Nix, or clone the repo and install a binary. The binary is supplied for convenience only and still requires the source code in order to function.
 
@@ -278,7 +182,7 @@ Available commands:
   boot                     Boot a machine.
 ```
 
-### Install as a Development Environment
+## Install as a Development Environment
 
 Using Nix is the most straightforward way to install Pallas at this time. 
 If your system doesn't support Nix or if you need further
@@ -331,7 +235,7 @@ Available commands:
   boot                     Boot a machine.
 ```
 
-## Getting Started
+# Getting Started
 
 Navigate to the root of this repository and run the commands below to see
 a simple demonstration of running a Pallas machine.
@@ -359,7 +263,7 @@ application code.
 
 (For more on how Pallas machines work, see [the documentation](https://opfn.gitbook.io/pallas/overview/overview#ships)).
 
-## Contributing
+# Contributing
 
 At this stage in Pallas development, these are the types of contributions that
 are most appropriate:
@@ -374,27 +278,25 @@ suggestions.
 
 [CONTRIBUTING.md](https://github.com/operating-function/pallas/blob/master/CONTRIBUTING.md)
 
-## Caveats
+# Caveats
 
 Pallas is still considered to be a prototype implementation, though some core features are close to done. It currently requires an underlying OS and file system, but has been designed such that these dependencies can eventually be removed.
 
 Planned, but incomplete features:
-- **Sire improvements** - <span style="color:orange">in progress</span>
+- **Sire improvements** - _in progress_
    - Pallas supports macro-based type systems. There is a Hindley–Milner implementation that is ~80% complete that needs to be finished before serious applications are produced.
    - Automatic module linearization will significantly improve LLM integration and reduce onboarding challenges.
    - Add Sire macros for richer namespacing.
-- **Capability-based process security model** - <span style="color:orange">in progress</span>
+- **Capability-based process security model** - _in progress_
    - Cogs are designed to run hierarchically with a token, or capability-based, security model. The cog development model is under active development, but capabilities have not yet been added.
-- **Native networking** - <span style="color:red">not started</span>
+- **Native networking** - _not started_
    - Native networking is the least complete core feature. There are designs for a basic implementation using TCP, but more sophisticated approaches are possible.
-- **Scalable runtime** - <span style="color:red">not started</span>
+- **Scalable runtime** - _not started_
    - The existing Haskell runtime is considered adequate for prototyping and hobbyists in the near term, but cannot scale to our required terabytes of data. The runtime will need to be rewritten in a systems language like C, Rust, or Zig. 
 
 
-## Additional Resources
+# Additional Resources
 
 - [Technical Documentation](https://opfn.gitbook.io/pallas) 
 - [Operating Function Company](https://blog.vaporware.network/)
 - [Telegram Support](https://t.me/vaporwareNetwork)
-
-_This project is a fork of [Plunder](https://sr.ht/~plan/plunder/)._
