@@ -73,12 +73,9 @@ def I(f, o, n):
 def A(o):
     match o.type:
         case 'app': return A(o.head)-1
-        case 'pin':
-            if (o.item.type == 'nat'):
-                return I(Nat(1), desugar((6,1,3,1)), o.item.nat).nat
-            return A(o.item)
+        case 'pin': return A(o.item)
         case 'law': return o.args.nat
-        case 'nat': return 0
+        case 'nat': return I(Nat(1), desugar((3,5,3)), o.nat).nat
         case 'hol': raise Exception("<<loop>>")
 
 # Cast to nat
@@ -93,7 +90,7 @@ def R(n,e,b):
 
     match b.list:
         case [Val(0), f, x]: return App(R(n,e,f), R(n,e,x))
-        case [Val(0), x]:    return x
+        case [Val(2), x]:    return x
         case _:              return b
 
 def L(i,n,e,x):
@@ -109,13 +106,17 @@ def B(a,n,e,b,x):
         case [Val(1), _, k]: return B(a, n+1, App(e, Hol()), b, k)
         case _:              return L(a+1,n,e,b)
 
+# Case matching on nats
+def C(z,p,n):
+    return z if n==0 else App(p, Nat(n-1))
+
 # Pattern match on PLAN values
-def C(p,l,a,z,m,o):
+def P(p,l,a,n,o):
     match o.type:
         case 'app': return App(App(a,o.head), o.tail)
         case 'pin': return App(p, o.item)
         case 'law': return App(App(App(l, o.name), o.args), o.body)
-        case 'nat': return z if o.nat==0 else App(m, Nat(o.nat - 1))
+        case 'nat': return App(n, o)
 
 # Simplify a closure by removing useless pins in the head.
 def S(o):
@@ -135,19 +136,22 @@ def X(k,e):
         case ('law', _): return B(k.args.nat, k.args.nat, e, k.body, k.body)
         case ('hol', _): raise Exception("<<loop>>")
         case (_, 0):
-            (_,x) = e.list
-            return Pin(F(x))
-        case (_, 1):
             (_,n,a,b) = e.list;
             arity = N(a)
             if arity.nat == 0: raise Exception(("crash", e))
             return Law(N(n),arity,F(b))
+        case (_, 1):
+            (_,p,l,a,n,x) = e.list
+            return P(p,l,a,n,E(x))
         case (_, 2):
+            (_,z,p,x) = e.list
+            return C(z,p,N(x).nat)
+        case (_, 3):
             (_,x) = e.list
             return Nat(N(x).nat + 1)
-        case (_, 3):
-            (_,p,l,a,z,m,o) = e.list
-            return C(p,l,a,z,m,E(o))
+        case (_, 4):
+            (_,x) = e.list
+            return Pin(F(x))
         case _:
             raise Exception(("crash", e))
 
@@ -216,90 +220,51 @@ def go(expected, testCase):
         print("FAILED", expect, "!=", result)
         raise e
 
-def Op(x): return Pin(Nat(x))
-
-MkPin=Op(0)
-MkLaw=Op(1)
-Inc=Op(2)
-Case=Op(3) # NatCase PlanCase
-
-# inc(4)
-# 5
-go(5,
-   (Inc, 4))
-
-# inc(1 9)
-# inc(0)
-# 1
+#  inc(1 9) = inc(0)  ==>  1
 go(1,
-   (Inc, (1, 9)))
+   (3, (1, 1, 0, 0, 0, (4,9))))
 
-#  (##3 1 0 0 0 0 (##0 9))
-#  (1,9)
-go((1,9),
-   (Case, 1, 0, 0, 0, 0, (MkPin, 9)))
-
-#  inc-(##3 1 0 0 0 0 (##0 9)) => inc(1 9) = inc(0)  ==>  1
-go(1,
-   (Inc, (Case, 1, 0, 0, 0, 0, (MkPin, 9))))
-
-#  ##1 1 2 (0 (##2 7)) 3 4
-#  ##1 1 2 (0 8) 3 4
-#  (_ _ & 8) 3 4
-#  8
+#  (\_ _ -> 7+1) 3 4  ==>  8
 go(8,
-   ((MkLaw,1,2,(0,(Inc,7))), 3, 4))
+   ((0,1,2,(2,(3,7))), 3, 4))
 
-#  ##1 1 2 (0 ##2 7) 3 4
-#  ##1 1 2 (0 8) 3 4
-#  (_ _ & Inc 1 7) 3 4
-#  Inc 1 7
-#  8
-go(8,
-   ((MkLaw,1,2,(0,Inc,7)), 3, 4))
-
-go( (MkLaw,1,2,0), ((MkLaw,1,2,0), 9, 7 ))
-
-go( 9, ((MkLaw,1,2,1), 9, 7 ))
-go( 7, ((MkLaw,1,2,2), 9, 7 ))
-go( 3, ((MkLaw,1,2,3), 9, 7 ))
+go( (0,1,2,0), ((0,1,2,0), 9, 7 ))
+go( 9,         ((0,1,2,1), 9, 7 ))
+go( 7,         ((0,1,2,2), 9, 7 ))
+go( 3,         ((0,1,2,3), 9, 7 ))
 
 # pins
-go( (MkPin,(0,1),2,3),     ((MkPin,(0,1)), 2, 3)                 )
-go( (MkLaw,1,2,0),         ((MkPin,1), 1, 2, 0)                  )
-go( (MkLaw,1,2,0),         ((MkPin,(MkLaw,1)), 2, 0)             )
-go( (MkPin,(MkLaw,1,2,0)), ((MkPin,(MkLaw,1,2,0)), 3, 4)         )
-go( (MkPin,(MkLaw,1,2,0)), ((MkPin,(MkPin,(MkLaw,1,2,0))), 3, 4) )
+go( (4,(0,1),2,3), ((4,(0,1)), 2, 3)         )
+go( (0,1,2,0),     ((4,0), 1, 2, 0)          )
+go( (0,1,2,0),     ((4,(0,1)), 2, 0)         )
+go( (4,(0,1,2,0)), ((4,(0,1,2,0)), 3, 4)     )
+go( (4,(0,1,2,0)), ((4,(4,(0,1,2,0))), 3, 4) )
 
 # let bindings
-go( 9, ((MkLaw,0,1,1),          9 )) # ? ($0 $1) | 9
-go( 9, ((MkLaw,0,1, (1, 1, 2)), 9 )) # ? ($0 $1) @ $2=$1 | $2
+go( 9, ((0,0,1,1),          9 )) # ? ($0 $1) | 9
+go( 9, ((0,0,1, (1, 1, 2)), 9 )) # ? ($0 $1) @ $2=$1 | $2
 
 # refer to later binder from an earlier one.
 go( 9,
-    (MkLaw,0,1, # ? ($0 $1)
-      (1, 3,    # @ $2 = $3
-      (1, 9,    # @ $3 = 9
-       2)),     # $2
+    (0,0,1,  # ? ($0 $1)
+      (1, 3, # @ $2 = $3
+      (1, 9, # @ $3 = 9
+       2)),  # $2
     9))
 
 # more complex example
-go( (1,(0,2)),         # =?= (1 (0 2))
-    (MkLaw,0,1,        #   | ? ($0 $1)
-      (1, (0,(0,0),3), #     @ $2 = (0,$3)
-      (1, (0,2),       #     @ $3 = 2
+go( (1,(0,2)),       # =?= (1 (0 0 2))
+    (0,0,1,            #   | ? ($0 $1)
+      (1, (0,(2,0),3), #     @ $2 = (0,$3)
+      (1, (2,2),       #     @ $3 = 2
        (0,1,2))),      #     | ($1 $2)
     1))                #   1
 
 # trivial cycles are okay if not used.
-go( 7,          # =?= 7
-    (MkLaw,0,1, #   | ? ($0 $1)
-      (1, 7,    #     @ $2 = 7
-      (1, 3,    #     @ $3 = $3
-                #     $2
-       2)),     #   9
+go( 7,       # =?= 7
+    (0,0,1,  #   | ? ($0 $1)
+      (1, 7, #     @ $2 = 7
+      (1, 3, #     @ $3 = $3
+             #     $2
+       2)),  #   9
     9))
-
-# Pattern matching on arrays.
-go( (2, (3, 4, 5), 6),            #  =?= (2 (3 4 5) 6)
-    (Case,2,2,2,2,2,(3,4,5,6)))   #    | #33 2 2 2 2 2 (3 4 5 6)

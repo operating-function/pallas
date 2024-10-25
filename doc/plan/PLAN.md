@@ -110,7 +110,7 @@ for our needs.  In particular:
 
 The language of laws is something like:
 
-    Law =
+    Law = 
       | self                -- self-reference
       | var x               -- reference bound variable.
       | const k             -- produce constant value
@@ -205,8 +205,8 @@ Pins solve the following problems:
 
     Garbage collection requires a full heap-traversal, which starts to
     be a problem with extremely large heaps.  Pins mitigate this problem
-    because (long-lived) pins never contain references to data *inside*
-    another pin.
+    because (for long-lived pins) pins, pins never contain reference
+    inside another pin.
 
     Because of this, a full garbage collection pass only needs to traverse
     the pins DAG.  It doesn't need to look at the data inside the pins.
@@ -281,42 +281,44 @@ Some notes on notation:
 -   If a series of pattern matches does not handle a pattern, the result
     is a crash.  For example `E(x)` crashes if x is a black hole.
 
-
 ```
-Every PLAN vaue is either a pin x:<i>, a law x:{n a b}, an app x:(f g), a
-nat x:@, or a black hole x:<>.  Black holes only exist during evaluation.
+Every PLAN value is either a pin x:<i>, a law x:{n a b}, an app x:(f g),
+a nat x:@, or a black hole x:<>.  Black holes only exist during evaluation.
 
-(o <- x) mutates o in place, replacing it's value with x.
+(o <- x) mutates o in place, updating its value to equal x.
 
-Run F(x) to normalize a value.
+Unmatched patterns diverge.
 
-E(o:@)     = o                          | F(o) =
-E(o:<x>)   = o                          |     E(o)
-E(o:(f x)) =                            |     when o:(f x)
-    E(f)                                |          F(f); F(x)
-    when A(f)=1                         |     o
-        o <- X(o,o)                     |
-        E(o)                            | N(o) = E(o); if o:@ then o else 0
+Run F[x] to normalize a value, to "evaluate".
+
+F[o] =                                  | N[o] = E[o]; if o:@ then o else 0
+    E[o]                                |
+    when o:(f x)                        | C[z,p,n] = if n=0 then z else p (n-1)
+         F[f]; F[x]                     |
+    o                                   | S[o:(f x y)]       = (S[(f x)] y)
+                                        | S[o:(<{n a b}> y)] = o
+E[o] =                                  | S[o:(<f> x)]       = S[(f x)]
+    when o:(f x)                        | S[o]               = o
+        E[f]                            |
+        when A[f]=1                     | I[f, (e x), 0] = x
+            o <- S[o]                   | I[f, e,     0] = e
+            o <- X[o,o]                 | I[f, (e x), n] = I[f, e, n-1]
+            E[o]                        | I[f, e,     n] = f
     o                                   |
-E(o:{n a b}) =                          | I(f, (e x), 0) = x
-    if a!=0 then o else                 | I(f, e,     0) = e
-        o <- <>                         | I(f, (e x), n) = I(f, e, n-1)
-        o <- R(0,o,b)                   | I(f, e,     n) = f
-        E(o)                            |
-                                        | A((f x))     = A(f)-1
-X((f x), e)         = X(f,e)            | A(<p>)       = A(p)
-X(<p>, e)           = X(p,e)            | A({n a b})   = a
-X({n a b}, e)       = R(a,e,b)          | A(n:@)       = I(1, (3 5 3), n)
-X(0, (_ n a b))     = {N(n) N(a) F(b)}  |
-X(1, (_ p l a n x)) = P(p,l,a,n,E(x))   | R(n,e,b:@) | b≤n = I(x,e,(n-b))
-X(2, (_ z p x))     = C(z,p,N(x))       | R(n,e,(0 f x))   = (R(n,e,f) R(n,e,x))
-X(3, (_ x))         = N(x)+1            | R(n,e,(1 v b))   = L(n,e,v,b)
-X(4, (_ x))         = <F(x)>            | R(n,e,(2 x))     = x
-                                        | R(n,e,x)         = x
-C(z,p,n) = if n=0 then z else (p (n-1)) |
-                                        | L(n,e,v,b) =
-P(p,l,a,n,(f x))   = (a f x)            |     x := <>
-P(p,l,a,n,<x>)     = (p x)              |     f := (e x)
-P(p,l,a,n,{n a b}) = (l n a b)          |     x <- R(n+1,f,v)
-P(p,l,a,n,x:@}     = (n x)              |     R(n+1,f,b)
+                                        | A[(f x)]     = A[f]-1
+X[(f x), e]         = X[f,e]            | A[<p>]       = A[p]
+X[<p>, e]           = X[p,e]            | A[{n a b}]   = a
+X[{n a b}, e]       = B[a,a,e,b,b]      | A[n:@]       = I[1, (3 5 3), n]
+X[0, (_ n a b)]     = W[N[n],N[a],F[b]] |
+X[1, (_ p l a n x)] = P[p,l,a,n,E[x]]   | R[n,e,b:@] | b≤n = I[_,e,(n-b)]
+X[2, (_ z p x)]     = C[z,p,N[x]]       | R[n,e,(0 f x)]   = (R[n,e,f] R[n,e,x])
+X[3, (_ x)]         = N[x]+1            | R[n,e,(2 x)]     = x
+X[4, (_ x)]         = <F[x]>            | R[n,e,x]         = x
+                                        |
+L[i,n,e,(1 v b)] = I[_,e,i] <- R[n,e,v] | P[p,l,a,n,(f x)]   = (a f x)
+                   L[i+1,n,e,b]         | P[p,l,a,n,<x>]     = (p x)
+L[_,n,e,x]       = R[n,e,x]             | P[p,l,a,n,{n a b}] = (l n a b)
+                                        | P[p,l,a,n,x:@]     = (n x)
+B[a,n,e,b,(1 _ k)] = B[a,n+1,(e <>),b,k]|
+B[a,n,e,b,x]       = L[a,n,e,b]         | W[n,a,b] | n>0 = {n,a,b}
 ```
