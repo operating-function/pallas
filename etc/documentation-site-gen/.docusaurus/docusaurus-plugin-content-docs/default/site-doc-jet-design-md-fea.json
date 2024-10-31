@@ -1,0 +1,24 @@
+{
+  "id": "jet-design",
+  "title": "jet-design",
+  "description": "A.  A jet should be a useful primop within a plunder runtime.",
+  "source": "@site/../../doc/jet-design.md",
+  "sourceDirName": ".",
+  "slug": "/jet-design",
+  "permalink": "/docs/jet-design",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/../../doc/jet-design.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Dev Tricks",
+    "permalink": "/docs/TRICKS"
+  },
+  "next": {
+    "title": "PLAN",
+    "permalink": "/docs/plan/"
+  }
+}

@@ -1,0 +1,50 @@
+pre[class*="language-rex"] {
+  background: #000000;
+}
+
+.token.curl {
+  color: #e0ffff;
+} /* NvimLightCyan */
+.token.rune {
+  color: #ffffff;
+} /* White */
+.token.rine {
+  color: #ffffff;
+} /* White */
+.token.cnsr {
+  color: #ff6b68;
+} /* NvimLightRed */
+.token.type {
+  color: #008b8b;
+} /* NvimDarkCyan */
+.token.number {
+  color: #ffffff;
+} /* White */
+.token.word {
+  color: #b3b3b3;
+} /* NvimLightGray4 */
+.token.cnst {
+  color: #8b008b;
+} /* NvimDarkMagenta */
+.token.nest {
+  color: #008b8b;
+} /* NvimDarkCyan */
+.token.note {
+  color: #6c6c6c;
+} /* NvimDarkGray3 */
+.token.cord {
+  color: #e0ffff;
+} /* NvimLightCyan */
+.token.tape {
+  color: #e0ffff;
+} /* NvimLightCyan */
+.token.page {
+  color: #e0ffff;
+} /* NvimLightCyan */
+.token.line {
+  color: #e0ffff;
+} /* NvimLightCyan */
+.token.head {
+  color: #6c6c6c;
+  font-weight: bold;
+} /* NvimDarkGray4 */

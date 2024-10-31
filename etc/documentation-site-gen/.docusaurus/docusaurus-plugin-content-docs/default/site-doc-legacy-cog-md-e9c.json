@@ -1,0 +1,20 @@
+{
+  "id": "legacy/COG",
+  "title": "System Calls",
+  "description": "# data Worker",
+  "source": "@site/../../doc/legacy/COG.md",
+  "sourceDirName": "legacy",
+  "slug": "/legacy/COG",
+  "permalink": "/docs/legacy/COG",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/../../doc/legacy/COG.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "next": {
+    "title": "The Rex Grammar",
+    "permalink": "/docs/legacy/REX"
+  }
+}

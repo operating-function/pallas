@@ -1,0 +1,24 @@
+{
+  "id": "legacy/sire/SIRE_INLINE",
+  "title": "Inlining in Sire",
+  "description": "This document explains the overall idea archtecture of the Sire",
+  "source": "@site/../../doc/legacy/sire/SIRE_INLINE.md",
+  "sourceDirName": "legacy/sire",
+  "slug": "/legacy/sire/SIRE_INLINE",
+  "permalink": "/docs/legacy/sire/SIRE_INLINE",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/../../doc/legacy/sire/SIRE_INLINE.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Compiling Sire to PLAN",
+    "permalink": "/docs/legacy/sire/SIRE_CODEGEN"
+  },
+  "next": {
+    "title": "Sire Spec",
+    "permalink": "/docs/legacy/sire/SIRE_SPEC"
+  }
+}

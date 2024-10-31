@@ -1,0 +1,24 @@
+{
+  "id": "legacy/seed/README",
+  "title": "PLAN Seeds",
+  "description": "Seed is a simple format for encoding binary trees of natural numbers.",
+  "source": "@site/../../doc/legacy/seed/README.md",
+  "sourceDirName": "legacy/seed",
+  "slug": "/legacy/seed/",
+  "permalink": "/docs/legacy/seed/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/../../doc/legacy/seed/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "PLAN_LAW_PACKING",
+    "permalink": "/docs/legacy/plan/PLAN_LAW_PACKING"
+  },
+  "next": {
+    "title": "Sire",
+    "permalink": "/docs/legacy/sire/"
+  }
+}

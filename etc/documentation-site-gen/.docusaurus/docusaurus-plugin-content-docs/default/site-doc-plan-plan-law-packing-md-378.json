@@ -1,0 +1,24 @@
+{
+  "id": "plan/PLAN_LAW_PACKING",
+  "title": "PLAN_LAW_PACKING",
+  "description": "Bit-encoding of law bodies:",
+  "source": "@site/../../doc/plan/PLAN_LAW_PACKING.md",
+  "sourceDirName": "plan",
+  "slug": "/plan/PLAN_LAW_PACKING",
+  "permalink": "/docs/plan/PLAN_LAW_PACKING",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/../../doc/plan/PLAN_LAW_PACKING.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "PLAN",
+    "permalink": "/docs/plan/"
+  },
+  "next": {
+    "title": "PLAN Seeds",
+    "permalink": "/docs/seed/"
+  }
+}

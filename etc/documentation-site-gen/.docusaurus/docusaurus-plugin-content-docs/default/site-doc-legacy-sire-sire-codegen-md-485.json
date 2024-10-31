@@ -1,0 +1,24 @@
+{
+  "id": "legacy/sire/SIRE_CODEGEN",
+  "title": "Compiling Sire to PLAN",
+  "description": "This document explains the overall idea architecture of the Sire",
+  "source": "@site/../../doc/legacy/sire/SIRE_CODEGEN.md",
+  "sourceDirName": "legacy/sire",
+  "slug": "/legacy/sire/SIRE_CODEGEN",
+  "permalink": "/docs/legacy/sire/SIRE_CODEGEN",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/../../doc/legacy/sire/SIRE_CODEGEN.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "The Sire Backend",
+    "permalink": "/docs/legacy/sire/SIRE_BACKEND"
+  },
+  "next": {
+    "title": "Inlining in Sire",
+    "permalink": "/docs/legacy/sire/SIRE_INLINE"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "TRICKS",
+  "title": "Dev Tricks",
+  "description": "Updating Jet Hashes",
+  "source": "@site/../../doc/TRICKS.md",
+  "sourceDirName": ".",
+  "slug": "/TRICKS",
+  "permalink": "/docs/TRICKS",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/../../doc/TRICKS.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "The Rex Grammar",
+    "permalink": "/docs/REX"
+  },
+  "next": {
+    "title": "jet-design",
+    "permalink": "/docs/jet-design"
+  }
+}

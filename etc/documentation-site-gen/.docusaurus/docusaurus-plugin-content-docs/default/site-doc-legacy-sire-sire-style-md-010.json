@@ -1,0 +1,20 @@
+{
+  "id": "legacy/sire/SIRE_STYLE",
+  "title": "Sire Style Guide",
+  "description": "Types of Comments",
+  "source": "@site/../../doc/legacy/sire/SIRE_STYLE.md",
+  "sourceDirName": "legacy/sire",
+  "slug": "/legacy/sire/SIRE_STYLE",
+  "permalink": "/docs/legacy/sire/SIRE_STYLE",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/../../doc/legacy/sire/SIRE_STYLE.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Sire Spec",
+    "permalink": "/docs/legacy/sire/SIRE_SPEC"
+  }
+}

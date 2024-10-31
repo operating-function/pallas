@@ -1,0 +1,24 @@
+{
+  "id": "sire/SIRE_SPEC",
+  "title": "Sire Spec",
+  "description": "This is my first attempt at a specification for Sire.",
+  "source": "@site/../../doc/sire/SIRE_SPEC.md",
+  "sourceDirName": "sire",
+  "slug": "/sire/SIRE_SPEC",
+  "permalink": "/docs/sire/SIRE_SPEC",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/../../doc/sire/SIRE_SPEC.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Inlining in Sire",
+    "permalink": "/docs/sire/SIRE_INLINE"
+  },
+  "next": {
+    "title": "Sire Style Guide",
+    "permalink": "/docs/sire/SIRE_STYLE"
+  }
+}

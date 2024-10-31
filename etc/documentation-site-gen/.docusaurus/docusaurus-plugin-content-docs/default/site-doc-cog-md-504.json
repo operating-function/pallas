@@ -1,0 +1,20 @@
+{
+  "id": "COG",
+  "title": "System Calls",
+  "description": "# data Worker",
+  "source": "@site/../../doc/COG.md",
+  "sourceDirName": ".",
+  "slug": "/COG",
+  "permalink": "/docs/COG",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/../../doc/COG.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "next": {
+    "title": "The Rex Grammar",
+    "permalink": "/docs/REX"
+  }
+}
