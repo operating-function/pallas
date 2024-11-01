@@ -27,17 +27,26 @@ abstype#(Cog a)
 abstype#(Proc a)
 
 = (allocateSlot fr sl rq k)
-| trk [%allocateSlot [=fr =sl =rq]]
-| if (setIsEmpty fr)
-    @ key (len sl)
-    @ sl  (rowSnoc sl 0)
+| ifz fr
+    @ key | len sl
+    @ sl  | rowSnoc sl NONE
     | k key fr sl rq
-@ [key fr] | setPop fr
+@ [key fr] | fr
+@ sl | put sl key NONE
 | k key fr sl rq
 
-= (getHandler key k end hl st rd ws)
-@ handler | get hl key
-| k handler end hl st rd ws
+;; When making a syscall, we need to record that the rid has been used,
+;; to prevent the same rid from being used again.
+;; We could store a list of rids that have been used but it seems cleaner
+;; to just store NONE in sl.
+;; Eventually we should either clear that slot or start listening on it.
+;; But we don't know when making the syscall whether we're interested
+;; in the response or not.
+;; This is what void_syscall was for though.
+;; Eventually it seems like it should be possible to implement `void`
+;; which replaces that? Or we might be able to implement void_syscall.
+;; But the default case should be that we clear manually, i think?
+;; `void` can probably be implemented by virtualizing the cog?
 
 = (COG_DONE result end out hl st rd ws)
 | end out hl st rd ws
@@ -53,61 +62,42 @@ abstype#(Proc a)
   | kernel_loop stream out hl st rd ws   ; TODO Should maybe cancel the worker too?
 @ k   | COG_DONE
 @ end | kernel_loop stream
-| exe [pid input] k end out hl st rd ws
+| exe pid input k end out hl st rd ws
 
 > Call a > Proc a
-= (syscall request k end me fr sl rq)
-| trk [%syscall [=request =me =fr =sl =rq]]
-@ rq | rowCons (me,request) rq
-@ sl | put sl me SOME-k
-| end fr sl rq
+= (syscall mkRequest k end fr sl rq)
+: rid fr sl rq < allocateSlot fr sl rq
+@ request | mkRequest rid
+@ rq | rowSnoc rq (rid, request)
+| k rid end fr sl rq
 
+;; TODO receive and ignore should truncate 0s off of sl
 > Promise a > Proc a
-= (await promise k end me fr sl rq)
+= (receive promise k end fr sl rq)
 : input < maybeCase | get sl promise
-          @ sl | put sl promise SOME-k
-          | end fr sl rq
-@ fr | setIns promise fr
+        @ sl | put sl promise SOME-k
+        | end fr sl rq
+@ fr | [promise fr]
 @ sl | put sl promise NONE
-| k input end me fr sl rq
+| k input end fr sl rq
 
-= (PUMP_DONE _ end me fr sl rq)
-| end (setIns me fr) sl rq
+= (ignore promise k end fr sl rq)
+@ fr | [promise fr]
+@ sl | put sl promise NONE
+| k () end fr sl rq
 
-;; TODO void_syscall needs to call PUMP_DONE in some way??
-;; or maybe that's async's job? fr keeps accumulating slots,
-;; but hmm maybe that's actually not due to PUMP_DONE not running,
-;; because then it would accumulate even more? it's more like
-;; we're not picking them off? but maybe we actually are, just later,
-;; because we have lots of promises and open calls?
-> Call a > Proc b > Proc b
-= (void_syscall request end me fr sl rq)
-| trk [%void_syscall [=end =request =me =fr =sl =rq]]
-@ rq | rowCons (me,request) rq
-@ sl | put sl me NONE
+= (PUMP_DONE _ end fr sl rq)
 | end fr sl rq
-
-> Proc ThreadId
-= (self k end me fr sl rq)
-| k me end me fr sl rq
 
 = (PUMP_KERNEL fr sl rq key input)
 @ rq  | []                 ; TODO This should be solved in the runtime
 @ end | PUMP_KERNEL
 : exe < maybeCase | get sl key
-        @ sl | put sl key SOME-input
-        | end fr sl rq
-@ me  | key
-@ fr  | setIns key fr
+      @ sl | put sl key SOME-input
+      | end fr sl rq
+@ fr  | [key fr]
 @ sl  | put sl key NONE
-| exe input end me fr sl rq
-
-;; TODO we never call PUMP_DONE at the end of void_syscall forks,
-;; that's why we never use free slots.
-> Proc a > Proc ThreadId
-= (pumpFork act k end me fr sl rq)
-: tid fr sl rq < allocateSlot fr sl rq
-| act PUMP_DONE (k tid end me) tid fr sl rq
+| exe input end fr sl rq
 
 = (putState x k end out hl st rd ws)    | k ()   end out hl x    rd ws
 = (getState k end out hl st rd ws)      | k st   end out hl st   rd ws
@@ -127,11 +117,10 @@ abstype#(Proc a)
 @ w
   @ k   | PUMP_DONE
   @ end | PUMP_KERNEL
-  @ me  | 0
-  @ fr  | %[]
-  @ sl  | [0]
+  @ fr  | ~[]
+  @ sl  | []
   @ rq  | []
-  | EXEC | proc k end me fr sl rq
+  | EXEC | proc k end fr sl rq
 | addWorker w read write
 
 = (eval f xs)
@@ -140,9 +129,6 @@ abstype#(Proc a)
 * (st query)&(trk [{eval worker tried to read} [=st =query]] 0)
 * supply ()
 
-> a > Proc b
-= (read query) | syscall | DB_READ query
-
 > (Nat,Nat) > Any > Cog ()
 = (send (pid,rid) msg k end out hl st rd ws)
 @ out
@@ -150,30 +136,8 @@ abstype#(Proc a)
   | CONS (pid,rid,msg) out
 | k () end out hl st rd ws
 
-> ThreadId > Cog a
-= (receive wid k end out hl st rd ws)
-@ hl | put hl wid k
-| end out hl st rd ws
-
-
-= async | pumpFork
-
-; = (exec worker read write k end out hl st rd ws)
-; @ w
-;   @ k   | PUMP_DONE
-;   @ end | PUMP_KERNEL
-;   @ me  | 0
-;   @ fr  | ~[]
-;   @ sl  | [0]
-;   @ rq  | []
-;   | worker k end me fr sl rq
-; @ wid | len ws
-; @ ws  | rowSnoc ws w
-; @ hl  | rowSnoc hl write
-; | k wid end out hl st rd ws
-
-= (getPumpKernel k end me fr sl rq)
-| k [=end =me =fr =sl =rq] end me fr sl rq
+= (getPumpKernel k end fr sl rq)
+| k [=end =fr =sl =rq] end fr sl rq
 
 = (getCogKernel k end out hl st rd ws)
 | k (end,out,hl,st,rd,ws) end out hl st rd ws

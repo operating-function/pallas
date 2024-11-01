@@ -2,9 +2,8 @@
 
 :| kern
 
-;; TODO curry this in kern.sire
-= (writeHandler (pid,(rid,input)) return)
-| trk [%writeHandler [=rid =input]]
+= (writeHandler pid (rid,input) return)
+; trk [%writeHandler [=rid =input]]
 : res
   < : st < stateState
     @ st | rowCons input st
@@ -12,20 +11,46 @@
 : _ < send (pid,rid) (%bar, res)
 | return ()
 
-= (requestFoo return)
-: me < self
-| void_syscall | DB_WRITE (me, %foo)
-
 = (proc return)
-: promise < async requestFoo
-: promise2 < async requestFoo
-: res < await promise
+: promise < syscall rid&(DB_WRITE (rid, %foo))
+: promise2 < syscall rid&(DB_WRITE (rid, %bar))
+: res < receive promise
 | trk [=res]
-: st < syscall | DB_READ len
+: stPromise < syscall | const | DB_READ len
+: st < receive stPromise
 | trk [=st]
-: res2 < await promise2
+: res2 < receive promise2
 | trk [=res2]
 | return ()
+
+;; We want a tid for every syscall, so that we can choose to wait on it.
+;; But for DB_WRITE, we need to create the tid before making the syscall,
+;; since we need to put it into the msg.
+;; This means that we can put the same tid into several calls.
+;; We simply need to be careful not to do that; eventually we can enforce it
+;; with types and/or abstractions, but we're not there atm.
+;; So we need to be able to create a tid. The question is whether this
+;; should be created when we create a thread, or if we should create them
+;; as needed in the same thread: Should they be thread ids or request ids?
+;; It seems to me like a single thread should be able to issue many requests
+;; during the same step. For example both a DB_WRITE and a TCP_GIVE.
+;; If we need sequencing or dependencies then we can enforce that by blocking
+;; and MVars (maybe also TVars).
+;; So a syscall shouldn't block. Though we can allow syscalls to not block
+;; by spawning new threads for each one, and communicating via TVars.
+;; This is how it used to work. The difficult part about this is DB_WRITE,
+;; since that doesn't have a natural continuation. So putting everything in
+;; the format where continuations are optional seems like the saner option.
+;; When we do want continuations, we can add those.
+
+;; Recap
+;; - continuations optional
+;; - syscalls don't block, they just spawn
+;; - request ids instead of thread ids
+;; 
+;; - we can have many syscalls per thread because threads aren't for managing
+;;   responses or continuations
+;; - this means we can't put 
 
 = (cog return)
 : w0 < exec proc supply writeHandler
