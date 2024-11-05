@@ -1,0 +1,27 @@
+{
+  "id": "manifests-cogs-and-drivers",
+  "title": "manifests-cogs-and-drivers",
+  "description": "",
+  "source": "@site/../../doc/05_manifests-cogs-and-drivers.md",
+  "sourceDirName": ".",
+  "slug": "/manifests-cogs-and-drivers",
+  "permalink": "/docs/manifests-cogs-and-drivers",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/05_manifests-cogs-and-drivers.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "VM and Interpreter",
+    "permalink": "/docs/vm-and-interpreter"
+  },
+  "next": {
+    "title": "sire-and-rex",
+    "permalink": "/docs/sire-and-rex"
+  }
+}

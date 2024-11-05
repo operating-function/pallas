@@ -1,0 +1,27 @@
+{
+  "id": "PLAN-evaluation-model",
+  "title": "PLAN-evaluation-model",
+  "description": "PLAN Evaluation model",
+  "source": "@site/../../doc/3_PLAN-evaluation-model.md",
+  "sourceDirName": ".",
+  "slug": "/PLAN-evaluation-model",
+  "permalink": "/docs/PLAN-evaluation-model",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/3_PLAN-evaluation-model.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "PLAN-the-data-model",
+    "permalink": "/docs/PLAN-the-data-model"
+  },
+  "next": {
+    "title": "vm-and-interpreter",
+    "permalink": "/docs/vm-and-interpreter"
+  }
+}

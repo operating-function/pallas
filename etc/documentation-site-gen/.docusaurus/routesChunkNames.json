@@ -249,22 +249,38 @@
     },
     "content": "content---markdown-page-393-028"
   },
-  "/docs-13e": {
+  "/docs-967": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---docsaba-d7c"
     }
   },
-  "/docs-e7e": {
+  "/docs-4f5": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---docs-005-788"
   },
-  "/docs-3a3": {
+  "/docs-c8a": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
-  "/docs/intro-b9e": {
+  "/docs/plan-data-model-a35": {
     "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-intro-08-e-152"
+    "content": "content---docs-plan-the-data-model-159-d66"
+  },
+  "/docs/plan-evaluation-model-eab": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-plan-evaluation-model-562-616"
+  },
+  "/docs/sire-and-rex-432": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-sire-and-rexca-9-be7"
+  },
+  "/docs/system-overview-479": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-intro-3-b-0-3c3"
+  },
+  "/docs/vm-and-interpreter-b13": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-vm-and-interpreter-082-563"
   },
   "/-e5f": {
     "__comp": "__comp---site-src-pages-index-tsx-1-df-d3e",

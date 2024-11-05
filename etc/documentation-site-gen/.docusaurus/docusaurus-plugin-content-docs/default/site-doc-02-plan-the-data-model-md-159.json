@@ -1,0 +1,29 @@
+{
+  "id": "plan-data-model",
+  "title": "PLAN; the data model",
+  "description": "The previous section provided an overview of the system and how the different components contribute to its overall functioning. Let’s now take a closer look at each component, starting with PLAN.",
+  "source": "@site/../../doc/02_PLAN-the-data-model.md",
+  "sourceDirName": ".",
+  "slug": "/plan-data-model",
+  "permalink": "/docs/plan-data-model",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/02_PLAN-the-data-model.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "id": "plan-data-model",
+    "title": "PLAN; the data model"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "System Overview",
+    "permalink": "/docs/system-overview"
+  },
+  "next": {
+    "title": "PLAN; the evaluation model",
+    "permalink": "/docs/plan-evaluation-model"
+  }
+}

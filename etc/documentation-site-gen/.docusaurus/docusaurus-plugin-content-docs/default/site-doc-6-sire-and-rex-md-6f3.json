@@ -1,0 +1,23 @@
+{
+  "id": "sire-and-rex",
+  "title": "sire-and-rex",
+  "description": "Sire",
+  "source": "@site/../../doc/6_sire-and-rex.md",
+  "sourceDirName": ".",
+  "slug": "/sire-and-rex",
+  "permalink": "/docs/sire-and-rex",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/6_sire-and-rex.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 6,
+  "frontMatter": {
+    "sidebar_position": 6
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "manifests-cogs-and-drivers",
+    "permalink": "/docs/manifests-cogs-and-drivers"
+  }
+}

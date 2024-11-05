@@ -8,11 +8,31 @@
           "label": "Next",
           "isLast": true,
           "path": "/docs",
-          "mainDocId": "intro",
+          "mainDocId": "system-overview",
           "docs": [
             {
-              "id": "intro",
-              "path": "/docs/intro",
+              "id": "plan-data-model",
+              "path": "/docs/plan-data-model",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "plan-evaluation-model",
+              "path": "/docs/plan-evaluation-model",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "sire-and-rex",
+              "path": "/docs/sire-and-rex",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "system-overview",
+              "path": "/docs/system-overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "vm-and-interpreter",
+              "path": "/docs/vm-and-interpreter",
               "sidebar": "tutorialSidebar"
             }
           ],
@@ -20,8 +40,8 @@
           "sidebars": {
             "tutorialSidebar": {
               "link": {
-                "path": "/docs/intro",
-                "label": "intro"
+                "path": "/docs/system-overview",
+                "label": "system-overview"
               }
             }
           }

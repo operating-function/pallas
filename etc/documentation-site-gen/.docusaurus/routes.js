@@ -114,19 +114,43 @@ export default [
   },
   {
     path: '/docs',
-    component: ComponentCreator('/docs', '13e'),
+    component: ComponentCreator('/docs', '967'),
     routes: [
       {
         path: '/docs',
-        component: ComponentCreator('/docs', 'e7e'),
+        component: ComponentCreator('/docs', '4f5'),
         routes: [
           {
             path: '/docs',
-            component: ComponentCreator('/docs', '3a3'),
+            component: ComponentCreator('/docs', 'c8a'),
             routes: [
               {
-                path: '/docs/intro',
-                component: ComponentCreator('/docs/intro', 'b9e'),
+                path: '/docs/plan-data-model',
+                component: ComponentCreator('/docs/plan-data-model', 'a35'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/docs/plan-evaluation-model',
+                component: ComponentCreator('/docs/plan-evaluation-model', 'eab'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/docs/sire-and-rex',
+                component: ComponentCreator('/docs/sire-and-rex', '432'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/docs/system-overview',
+                component: ComponentCreator('/docs/system-overview', '479'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/docs/vm-and-interpreter',
+                component: ComponentCreator('/docs/vm-and-interpreter', 'b13'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               }
