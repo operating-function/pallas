@@ -52,7 +52,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    defaultMode: "dark",
+    defaultMode: 'dark',
     disableSwitch: true,
     respectPrefersColorScheme: false,
     image: "img/docusaurus-social-card.jpg",
@@ -65,9 +65,15 @@ const config: Config = {
       items: [
         {
           type: "docSidebar",
-          sidebarId: "tutorialSidebar",
+          sidebarId: "explanationSidebar",
           position: "left",
-          label: "System Overview",
+          label: "Explanation",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "referenceSidebar",
+          position: "left",
+          label: "Reference",
         },
         // { to: "/blog", label: "Blog", position: "left" },
         {

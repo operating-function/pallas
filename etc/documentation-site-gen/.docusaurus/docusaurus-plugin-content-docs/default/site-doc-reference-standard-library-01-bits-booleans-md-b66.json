@@ -1,0 +1,23 @@
+{
+  "id": "reference/standard-library/bits-booleans",
+  "title": "Bits (Booleans)",
+  "description": "Type signatures are provisional and may contain errors.",
+  "source": "@site/../../doc/reference/standard-library/01_bits-booleans.md",
+  "sourceDirName": "reference/standard-library",
+  "slug": "/reference/standard-library/bits-booleans",
+  "permalink": "/docs/reference/standard-library/bits-booleans",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/01_bits-booleans.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "title": "Bits (Booleans)"
+  },
+  "sidebar": "referenceSidebar",
+  "next": {
+    "title": "Natural Numbers",
+    "permalink": "/docs/reference/standard-library/natural-numbers"
+  }
+}

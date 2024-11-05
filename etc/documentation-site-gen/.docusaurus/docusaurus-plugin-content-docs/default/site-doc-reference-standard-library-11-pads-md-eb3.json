@@ -1,0 +1,25 @@
+{
+  "id": "reference/standard-library/pads",
+  "title": "pads",
+  "description": "",
+  "source": "@site/../../doc/reference/standard-library/11_pads.md",
+  "sourceDirName": "reference/standard-library",
+  "slug": "/reference/standard-library/pads",
+  "permalink": "/docs/reference/standard-library/pads",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/11_pads.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 11,
+  "frontMatter": {},
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "kv-tables",
+    "permalink": "/docs/reference/standard-library/kv-tables"
+  },
+  "next": {
+    "title": "bars-byte-arrays",
+    "permalink": "/docs/reference/standard-library/bars-byte-arrays"
+  }
+}

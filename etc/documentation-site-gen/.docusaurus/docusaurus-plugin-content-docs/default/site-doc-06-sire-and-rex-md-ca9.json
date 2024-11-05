@@ -17,7 +17,7 @@
     "id": "sire-and-rex",
     "title": "Sire and Rex"
   },
-  "sidebar": "tutorialSidebar",
+  "sidebar": "explanationSidebar",
   "previous": {
     "title": "VM and Interpreter",
     "permalink": "/docs/vm-and-interpreter"

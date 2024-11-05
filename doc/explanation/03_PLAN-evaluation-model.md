@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 id: plan-evaluation-model
-title: PLAN; the evaluation model
+title: Evaluation Model
 ---
 
 # PLAN Evaluation model

@@ -249,38 +249,98 @@
     },
     "content": "content---markdown-page-393-028"
   },
-  "/docs-967": {
+  "/docs-5c4": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---docsaba-d7c"
     }
   },
-  "/docs-4f5": {
+  "/docs-842": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---docs-005-788"
   },
-  "/docs-c8a": {
+  "/docs-b1b": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
-  "/docs/plan-data-model-a35": {
+  "/docs/explanation/plan-data-model-f21": {
     "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-plan-the-data-model-159-d66"
+    "content": "content---docs-explanation-plan-data-modele-72-ef5"
   },
-  "/docs/plan-evaluation-model-eab": {
+  "/docs/explanation/plan-evaluation-model-afe": {
     "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-plan-evaluation-model-562-616"
+    "content": "content---docs-explanation-plan-evaluation-model-2-eb-ab1"
   },
-  "/docs/sire-and-rex-432": {
+  "/docs/explanation/sire-and-rex-02f": {
     "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-sire-and-rexca-9-be7"
+    "content": "content---docs-explanation-sire-and-rex-98-e-90b"
   },
-  "/docs/system-overview-479": {
+  "/docs/explanation/system-overview-65f": {
     "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-intro-3-b-0-3c3"
+    "content": "content---docs-explanation-system-overview-336-d2e"
   },
-  "/docs/vm-and-interpreter-b13": {
+  "/docs/explanation/vm-and-interpreter-2de": {
     "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-vm-and-interpreter-082-563"
+    "content": "content---docs-explanation-vm-and-interpreter-736-e54"
+  },
+  "/docs/reference/ref-test-3bc": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-ref-test-253-49e"
+  },
+  "/docs/reference/standard-library/bars-byte-arrays-5d0": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-bars-byte-arraysc-4-c-540"
+  },
+  "/docs/reference/standard-library/bits-booleans-ec6": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-bits-booleansb-66-48f"
+  },
+  "/docs/reference/standard-library/characters-strings-39b": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-characters-strings-29-b-931"
+  },
+  "/docs/reference/standard-library/comparisons-a46": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-comparisonsbb-7-3a8"
+  },
+  "/docs/reference/standard-library/either-f79": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-eitherd-42-4d8"
+  },
+  "/docs/reference/standard-library/kv-tables-5e4": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-kv-tables-977-6a8"
+  },
+  "/docs/reference/standard-library/lists-7d7": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-listscea-564"
+  },
+  "/docs/reference/standard-library/maybe-8c6": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-maybecbd-9d7"
+  },
+  "/docs/reference/standard-library/natural-numbers-f00": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-natural-numbers-473-65e"
+  },
+  "/docs/reference/standard-library/pads-1ab": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-padseb-3-5f9"
+  },
+  "/docs/reference/standard-library/rows-dad": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-rows-5-ab-a8b"
+  },
+  "/docs/reference/standard-library/sets-3cd": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-setsc-80-037"
+  },
+  "/docs/reference/standard-library/standard-library-intro-69f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-standard-library-intro-9-e-9-554"
+  },
+  "/docs/reference/standard-library/types-4f8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-typesf-32-88b"
   },
   "/-e5f": {
     "__comp": "__comp---site-src-pages-index-tsx-1-df-d3e",

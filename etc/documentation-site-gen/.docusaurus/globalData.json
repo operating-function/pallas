@@ -8,40 +8,119 @@
           "label": "Next",
           "isLast": true,
           "path": "/docs",
-          "mainDocId": "system-overview",
+          "mainDocId": "explanation/system-overview",
           "docs": [
             {
-              "id": "plan-data-model",
-              "path": "/docs/plan-data-model",
-              "sidebar": "tutorialSidebar"
+              "id": "explanation/plan-data-model",
+              "path": "/docs/explanation/plan-data-model",
+              "sidebar": "explanationSidebar"
             },
             {
-              "id": "plan-evaluation-model",
-              "path": "/docs/plan-evaluation-model",
-              "sidebar": "tutorialSidebar"
+              "id": "explanation/plan-evaluation-model",
+              "path": "/docs/explanation/plan-evaluation-model",
+              "sidebar": "explanationSidebar"
             },
             {
-              "id": "sire-and-rex",
-              "path": "/docs/sire-and-rex",
-              "sidebar": "tutorialSidebar"
+              "id": "explanation/sire-and-rex",
+              "path": "/docs/explanation/sire-and-rex",
+              "sidebar": "explanationSidebar"
             },
             {
-              "id": "system-overview",
-              "path": "/docs/system-overview",
-              "sidebar": "tutorialSidebar"
+              "id": "explanation/system-overview",
+              "path": "/docs/explanation/system-overview",
+              "sidebar": "explanationSidebar"
             },
             {
-              "id": "vm-and-interpreter",
-              "path": "/docs/vm-and-interpreter",
-              "sidebar": "tutorialSidebar"
+              "id": "explanation/vm-and-interpreter",
+              "path": "/docs/explanation/vm-and-interpreter",
+              "sidebar": "explanationSidebar"
+            },
+            {
+              "id": "reference/ref-test",
+              "path": "/docs/reference/ref-test"
+            },
+            {
+              "id": "reference/standard-library/bars-byte-arrays",
+              "path": "/docs/reference/standard-library/bars-byte-arrays",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/bits-booleans",
+              "path": "/docs/reference/standard-library/bits-booleans",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/characters-strings",
+              "path": "/docs/reference/standard-library/characters-strings",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/comparisons",
+              "path": "/docs/reference/standard-library/comparisons",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/either",
+              "path": "/docs/reference/standard-library/either",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/kv-tables",
+              "path": "/docs/reference/standard-library/kv-tables",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/lists",
+              "path": "/docs/reference/standard-library/lists",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/maybe",
+              "path": "/docs/reference/standard-library/maybe",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/natural-numbers",
+              "path": "/docs/reference/standard-library/natural-numbers",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/pads",
+              "path": "/docs/reference/standard-library/pads",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/rows",
+              "path": "/docs/reference/standard-library/rows",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/sets",
+              "path": "/docs/reference/standard-library/sets",
+              "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/standard-library/standard-library-intro",
+              "path": "/docs/reference/standard-library/standard-library-intro"
+            },
+            {
+              "id": "reference/standard-library/types",
+              "path": "/docs/reference/standard-library/types",
+              "sidebar": "referenceSidebar"
             }
           ],
           "draftIds": [],
           "sidebars": {
-            "tutorialSidebar": {
+            "explanationSidebar": {
               "link": {
-                "path": "/docs/system-overview",
-                "label": "system-overview"
+                "path": "/docs/explanation/system-overview",
+                "label": "explanation/system-overview"
+              }
+            },
+            "referenceSidebar": {
+              "link": {
+                "path": "/docs/reference/standard-library/bits-booleans",
+                "label": "reference/standard-library/bits-booleans"
               }
             }
           }

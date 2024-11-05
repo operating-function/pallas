@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 id: plan-data-model
-title: PLAN; the data model
+title: Data Model
 ---
 
 The previous section provided an overview of the system and how the different components contribute to its overall functioning. Let’s now take a closer look at each component, starting with PLAN.
@@ -61,7 +61,9 @@ These four constructs are what give PLAN its name, and they abstractly represent
 
 Every PLAN expression is a heap that consists of a merkle-DAG of subheaps. Every subheap is a tree structure containing absolutely pure n-ary functions, closures, natural numbers, and pointers to other subheaps. We represent our heap as a merkle-DAG because its hash-based nature gives us pointers that remain stable between VM runs, allowing us to support huge heaps by transparently paging subheaps in and out from disk. This allows users to e.g. keep their whole media library “in memory”.
 
-[TK diagram]
+::::warning[TODO]
+Diagram forthcoming
+::::
 
 There’s a lot to unpack in that description, so let’s go through the four constructs one by one.
 

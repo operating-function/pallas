@@ -1,0 +1,21 @@
+{
+  "id": "reference/standard-library/types",
+  "title": "types",
+  "description": "",
+  "source": "@site/../../doc/reference/standard-library/13_types.md",
+  "sourceDirName": "reference/standard-library",
+  "slug": "/reference/standard-library/types",
+  "permalink": "/docs/reference/standard-library/types",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/13_types.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 13,
+  "frontMatter": {},
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "bars-byte-arrays",
+    "permalink": "/docs/reference/standard-library/bars-byte-arrays"
+  }
+}

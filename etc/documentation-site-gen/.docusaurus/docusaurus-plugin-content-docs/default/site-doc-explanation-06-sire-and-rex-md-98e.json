@@ -1,0 +1,25 @@
+{
+  "id": "explanation/sire-and-rex",
+  "title": "Sire and Rex",
+  "description": "Sire is a minimalist functional language that bootstraps itself from PLAN. Unlike PLAN, Sire aims to be realistic for humans to write. In service of this goal, it allows programmers to reference previously defined names in an environment, which it uses lambda lifting to eliminate when compiling itself to PLAN.",
+  "source": "@site/../../doc/explanation/06_sire-and-rex.md",
+  "sourceDirName": "explanation",
+  "slug": "/explanation/sire-and-rex",
+  "permalink": "/docs/explanation/sire-and-rex",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/explanation/06_sire-and-rex.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5,
+    "id": "sire-and-rex",
+    "title": "Sire and Rex"
+  },
+  "sidebar": "explanationSidebar",
+  "previous": {
+    "title": "VM and Interpreter",
+    "permalink": "/docs/explanation/vm-and-interpreter"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "reference/standard-library/standard-library-intro",
+  "title": "Standard Library",
+  "description": "Finding additional standard library functions",
+  "source": "@site/../../doc/reference/standard-library/00_standard-library-intro.md",
+  "sourceDirName": "reference/standard-library",
+  "slug": "/reference/standard-library/standard-library-intro",
+  "permalink": "/docs/reference/standard-library/standard-library-intro",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/00_standard-library-intro.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 0,
+  "frontMatter": {
+    "id": "standard-library-intro",
+    "title": "Standard Library"
+  }
+}

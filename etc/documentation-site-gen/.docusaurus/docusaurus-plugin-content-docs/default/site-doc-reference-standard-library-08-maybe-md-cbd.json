@@ -1,0 +1,25 @@
+{
+  "id": "reference/standard-library/maybe",
+  "title": "maybe",
+  "description": "",
+  "source": "@site/../../doc/reference/standard-library/08_maybe.md",
+  "sourceDirName": "reference/standard-library",
+  "slug": "/reference/standard-library/maybe",
+  "permalink": "/docs/reference/standard-library/maybe",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/08_maybe.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 8,
+  "frontMatter": {},
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "either",
+    "permalink": "/docs/reference/standard-library/either"
+  },
+  "next": {
+    "title": "sets",
+    "permalink": "/docs/reference/standard-library/sets"
+  }
+}

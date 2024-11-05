@@ -7,10 +7,10 @@ export default {
   "title": "Pallas documentation",
   "tagline": "Computer",
   "favicon": "img/favicon.ico",
-  "url": "https://your-docusaurus-site.example.com",
+  "url": "https://docs.opfn.co",
   "baseUrl": "/",
-  "organizationName": "facebook",
-  "projectName": "docusaurus",
+  "organizationName": "The Operating Function Company",
+  "projectName": "Pallas",
   "onBrokenLinks": "throw",
   "onBrokenMarkdownLinks": "warn",
   "i18n": {
@@ -48,7 +48,7 @@ export default {
     "respectPrefersColorScheme": false,
     "image": "img/docusaurus-social-card.jpg",
     "navbar": {
-      "title": "My Site",
+      "title": "Pallas docs",
       "logo": {
         "alt": "My Site Logo",
         "src": "img/logo.svg"
@@ -56,9 +56,15 @@ export default {
       "items": [
         {
           "type": "docSidebar",
-          "sidebarId": "tutorialSidebar",
+          "sidebarId": "explanationSidebar",
           "position": "left",
-          "label": "Tutorial"
+          "label": "Explanation"
+        },
+        {
+          "type": "docSidebar",
+          "sidebarId": "referenceSidebar",
+          "position": "left",
+          "label": "Reference"
         },
         {
           "href": "https://github.com/operating-function/pallas",
@@ -75,8 +81,8 @@ export default {
           "title": "Docs",
           "items": [
             {
-              "label": "Tutorial",
-              "to": "/docs/intro"
+              "label": "System Overview",
+              "to": "/docs/system-overview"
             }
           ]
         },

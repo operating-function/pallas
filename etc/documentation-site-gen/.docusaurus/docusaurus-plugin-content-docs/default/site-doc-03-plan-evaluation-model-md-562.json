@@ -1,6 +1,6 @@
 {
   "id": "plan-evaluation-model",
-  "title": "PLAN; the evaluation model",
+  "title": "Evaluation Model",
   "description": "So far we’ve only looked at PLAN as inert data. We’ve hinted at dynamics, but we haven’t given any details. Let’s go through the rest of the specification chunk by chunk.",
   "source": "@site/../../doc/03_PLAN-evaluation-model.md",
   "sourceDirName": ".",
@@ -15,11 +15,11 @@
   "frontMatter": {
     "sidebar_position": 3,
     "id": "plan-evaluation-model",
-    "title": "PLAN; the evaluation model"
+    "title": "Evaluation Model"
   },
-  "sidebar": "tutorialSidebar",
+  "sidebar": "explanationSidebar",
   "previous": {
-    "title": "PLAN; the data model",
+    "title": "Data Model",
     "permalink": "/docs/plan-data-model"
   },
   "next": {

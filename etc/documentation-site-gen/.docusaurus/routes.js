@@ -114,45 +114,133 @@ export default [
   },
   {
     path: '/docs',
-    component: ComponentCreator('/docs', '967'),
+    component: ComponentCreator('/docs', '5c4'),
     routes: [
       {
         path: '/docs',
-        component: ComponentCreator('/docs', '4f5'),
+        component: ComponentCreator('/docs', '842'),
         routes: [
           {
             path: '/docs',
-            component: ComponentCreator('/docs', 'c8a'),
+            component: ComponentCreator('/docs', 'b1b'),
             routes: [
               {
-                path: '/docs/plan-data-model',
-                component: ComponentCreator('/docs/plan-data-model', 'a35'),
+                path: '/docs/explanation/plan-data-model',
+                component: ComponentCreator('/docs/explanation/plan-data-model', 'f21'),
                 exact: true,
-                sidebar: "tutorialSidebar"
+                sidebar: "explanationSidebar"
               },
               {
-                path: '/docs/plan-evaluation-model',
-                component: ComponentCreator('/docs/plan-evaluation-model', 'eab'),
+                path: '/docs/explanation/plan-evaluation-model',
+                component: ComponentCreator('/docs/explanation/plan-evaluation-model', 'afe'),
                 exact: true,
-                sidebar: "tutorialSidebar"
+                sidebar: "explanationSidebar"
               },
               {
-                path: '/docs/sire-and-rex',
-                component: ComponentCreator('/docs/sire-and-rex', '432'),
+                path: '/docs/explanation/sire-and-rex',
+                component: ComponentCreator('/docs/explanation/sire-and-rex', '02f'),
                 exact: true,
-                sidebar: "tutorialSidebar"
+                sidebar: "explanationSidebar"
               },
               {
-                path: '/docs/system-overview',
-                component: ComponentCreator('/docs/system-overview', '479'),
+                path: '/docs/explanation/system-overview',
+                component: ComponentCreator('/docs/explanation/system-overview', '65f'),
                 exact: true,
-                sidebar: "tutorialSidebar"
+                sidebar: "explanationSidebar"
               },
               {
-                path: '/docs/vm-and-interpreter',
-                component: ComponentCreator('/docs/vm-and-interpreter', 'b13'),
+                path: '/docs/explanation/vm-and-interpreter',
+                component: ComponentCreator('/docs/explanation/vm-and-interpreter', '2de'),
                 exact: true,
-                sidebar: "tutorialSidebar"
+                sidebar: "explanationSidebar"
+              },
+              {
+                path: '/docs/reference/ref-test',
+                component: ComponentCreator('/docs/reference/ref-test', '3bc'),
+                exact: true
+              },
+              {
+                path: '/docs/reference/standard-library/bars-byte-arrays',
+                component: ComponentCreator('/docs/reference/standard-library/bars-byte-arrays', '5d0'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/bits-booleans',
+                component: ComponentCreator('/docs/reference/standard-library/bits-booleans', 'ec6'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/characters-strings',
+                component: ComponentCreator('/docs/reference/standard-library/characters-strings', '39b'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/comparisons',
+                component: ComponentCreator('/docs/reference/standard-library/comparisons', 'a46'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/either',
+                component: ComponentCreator('/docs/reference/standard-library/either', 'f79'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/kv-tables',
+                component: ComponentCreator('/docs/reference/standard-library/kv-tables', '5e4'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/lists',
+                component: ComponentCreator('/docs/reference/standard-library/lists', '7d7'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/maybe',
+                component: ComponentCreator('/docs/reference/standard-library/maybe', '8c6'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/natural-numbers',
+                component: ComponentCreator('/docs/reference/standard-library/natural-numbers', 'f00'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/pads',
+                component: ComponentCreator('/docs/reference/standard-library/pads', '1ab'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/rows',
+                component: ComponentCreator('/docs/reference/standard-library/rows', 'dad'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/sets',
+                component: ComponentCreator('/docs/reference/standard-library/sets', '3cd'),
+                exact: true,
+                sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/standard-library/standard-library-intro',
+                component: ComponentCreator('/docs/reference/standard-library/standard-library-intro', '69f'),
+                exact: true
+              },
+              {
+                path: '/docs/reference/standard-library/types',
+                component: ComponentCreator('/docs/reference/standard-library/types', '4f8'),
+                exact: true,
+                sidebar: "referenceSidebar"
               }
             ]
           }

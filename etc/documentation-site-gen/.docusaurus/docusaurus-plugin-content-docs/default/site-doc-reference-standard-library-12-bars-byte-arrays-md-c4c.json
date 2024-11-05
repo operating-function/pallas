@@ -1,0 +1,25 @@
+{
+  "id": "reference/standard-library/bars-byte-arrays",
+  "title": "bars-byte-arrays",
+  "description": "",
+  "source": "@site/../../doc/reference/standard-library/12_bars-byte-arrays.md",
+  "sourceDirName": "reference/standard-library",
+  "slug": "/reference/standard-library/bars-byte-arrays",
+  "permalink": "/docs/reference/standard-library/bars-byte-arrays",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/12_bars-byte-arrays.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 12,
+  "frontMatter": {},
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "pads",
+    "permalink": "/docs/reference/standard-library/pads"
+  },
+  "next": {
+    "title": "types",
+    "permalink": "/docs/reference/standard-library/types"
+  }
+}

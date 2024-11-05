@@ -1,0 +1,25 @@
+{
+  "id": "reference/standard-library/characters-strings",
+  "title": "Characters and Strings",
+  "description": "TODO: rectify ord and chr with REPL formatting; should results format as in the REPL?",
+  "source": "@site/../../doc/reference/standard-library/04_characters-strings.md",
+  "sourceDirName": "reference/standard-library",
+  "slug": "/reference/standard-library/characters-strings",
+  "permalink": "/docs/reference/standard-library/characters-strings",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/04_characters-strings.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {},
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "Comparisons",
+    "permalink": "/docs/reference/standard-library/comparisons"
+  },
+  "next": {
+    "title": "Rows",
+    "permalink": "/docs/reference/standard-library/rows"
+  }
+}

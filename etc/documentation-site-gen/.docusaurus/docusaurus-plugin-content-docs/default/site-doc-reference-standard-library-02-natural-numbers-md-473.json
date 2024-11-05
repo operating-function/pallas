@@ -1,0 +1,25 @@
+{
+  "id": "reference/standard-library/natural-numbers",
+  "title": "Natural Numbers",
+  "description": "Type signatures are provisional and may contain errors.",
+  "source": "@site/../../doc/reference/standard-library/02_natural-numbers.md",
+  "sourceDirName": "reference/standard-library",
+  "slug": "/reference/standard-library/natural-numbers",
+  "permalink": "/docs/reference/standard-library/natural-numbers",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/02_natural-numbers.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {},
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "Bits (Booleans)",
+    "permalink": "/docs/reference/standard-library/bits-booleans"
+  },
+  "next": {
+    "title": "Comparisons",
+    "permalink": "/docs/reference/standard-library/comparisons"
+  }
+}

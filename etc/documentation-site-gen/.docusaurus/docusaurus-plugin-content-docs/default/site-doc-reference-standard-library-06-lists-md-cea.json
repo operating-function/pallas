@@ -1,0 +1,25 @@
+{
+  "id": "reference/standard-library/lists",
+  "title": "lists",
+  "description": "",
+  "source": "@site/../../doc/reference/standard-library/06_lists.md",
+  "sourceDirName": "reference/standard-library",
+  "slug": "/reference/standard-library/lists",
+  "permalink": "/docs/reference/standard-library/lists",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/06_lists.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 6,
+  "frontMatter": {},
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "Rows",
+    "permalink": "/docs/reference/standard-library/rows"
+  },
+  "next": {
+    "title": "either",
+    "permalink": "/docs/reference/standard-library/either"
+  }
+}

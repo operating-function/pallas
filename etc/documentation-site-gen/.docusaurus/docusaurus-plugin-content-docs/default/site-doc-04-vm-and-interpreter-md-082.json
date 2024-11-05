@@ -17,13 +17,5 @@
     "id": "vm-and-interpreter",
     "title": "VM and Interpreter"
   },
-  "sidebar": "tutorialSidebar",
-  "previous": {
-    "title": "PLAN; the evaluation model",
-    "permalink": "/docs/plan-evaluation-model"
-  },
-  "next": {
-    "title": "Sire and Rex",
-    "permalink": "/docs/sire-and-rex"
-  }
+  "sidebar": "referenceSidebar"
 }

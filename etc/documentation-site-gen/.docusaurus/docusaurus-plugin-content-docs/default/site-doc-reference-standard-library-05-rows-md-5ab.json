@@ -1,0 +1,25 @@
+{
+  "id": "reference/standard-library/rows",
+  "title": "Rows",
+  "description": "This page is under active development. It may contain bugs or incomplete descriptions.",
+  "source": "@site/../../doc/reference/standard-library/05_rows.md",
+  "sourceDirName": "reference/standard-library",
+  "slug": "/reference/standard-library/rows",
+  "permalink": "/docs/reference/standard-library/rows",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/05_rows.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 5,
+  "frontMatter": {},
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "Characters and Strings",
+    "permalink": "/docs/reference/standard-library/characters-strings"
+  },
+  "next": {
+    "title": "lists",
+    "permalink": "/docs/reference/standard-library/lists"
+  }
+}

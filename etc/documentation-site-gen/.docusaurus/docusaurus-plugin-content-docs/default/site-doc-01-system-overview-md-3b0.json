@@ -17,9 +17,9 @@
     "id": "system-overview",
     "title": "System Overview"
   },
-  "sidebar": "tutorialSidebar",
+  "sidebar": "explanationSidebar",
   "next": {
-    "title": "PLAN; the data model",
+    "title": "Data Model",
     "permalink": "/docs/plan-data-model"
   }
 }

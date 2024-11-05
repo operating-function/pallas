@@ -45,8 +45,13 @@ export default function Home(): JSX.Element {
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
-            to="/docs/system-overview">
+    to="/docs/explanation/system-overview">
     System Overview
+          </Link>
+          <Link
+            className="button button--secondary button--lg"
+    to="/docs/reference/ref-test">
+    Reference
           </Link>
         </div>
     {/* <HomepageFeatures /> */}

@@ -1,0 +1,29 @@
+{
+  "id": "explanation/vm-and-interpreter",
+  "title": "VM and Interpreter",
+  "description": "PLAN is a standard for representing compute and data in the abstract; a PLAN expression is a specification of a program. We need to be able to turn such specifications into actual hardware operations. This is the job of a PLAN interpreter. A PLAN interpreter implements PLAN.",
+  "source": "@site/../../doc/explanation/04_vm-and-interpreter.md",
+  "sourceDirName": "explanation",
+  "slug": "/explanation/vm-and-interpreter",
+  "permalink": "/docs/explanation/vm-and-interpreter",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/explanation/04_vm-and-interpreter.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "id": "vm-and-interpreter",
+    "title": "VM and Interpreter"
+  },
+  "sidebar": "explanationSidebar",
+  "previous": {
+    "title": "Evaluation Model",
+    "permalink": "/docs/explanation/plan-evaluation-model"
+  },
+  "next": {
+    "title": "Sire and Rex",
+    "permalink": "/docs/explanation/sire-and-rex"
+  }
+}
