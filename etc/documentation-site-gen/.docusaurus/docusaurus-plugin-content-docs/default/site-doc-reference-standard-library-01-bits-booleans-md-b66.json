@@ -16,6 +16,10 @@
     "title": "Bits (Booleans)"
   },
   "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "Runes",
+    "permalink": "/docs/reference/sire-runes-macros"
+  },
   "next": {
     "title": "Natural Numbers",
     "permalink": "/docs/reference/standard-library/natural-numbers"

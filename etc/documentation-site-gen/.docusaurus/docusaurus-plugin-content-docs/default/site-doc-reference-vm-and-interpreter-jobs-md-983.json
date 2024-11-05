@@ -14,5 +14,14 @@
   "frontMatter": {
     "id": "jobs-reference",
     "title": "Jobs Reference"
+  },
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "Drivers Reference",
+    "permalink": "/docs/reference/vm-and-interpreter/drivers-reference"
+  },
+  "next": {
+    "title": "Effects Reference",
+    "permalink": "/docs/reference/vm-and-interpreter/effects-reference"
   }
 }

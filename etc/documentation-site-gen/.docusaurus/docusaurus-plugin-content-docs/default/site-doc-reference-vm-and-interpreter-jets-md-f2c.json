@@ -14,5 +14,14 @@
   "frontMatter": {
     "id": "jets-reference",
     "title": "Jets Reference"
+  },
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "Types",
+    "permalink": "/docs/reference/standard-library/types"
+  },
+  "next": {
+    "title": "Cogs Reference",
+    "permalink": "/docs/reference/vm-and-interpreter/cogs-reference"
   }
 }

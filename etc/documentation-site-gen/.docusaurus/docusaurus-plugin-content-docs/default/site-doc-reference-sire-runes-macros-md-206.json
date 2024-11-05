@@ -11,5 +11,10 @@
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/sire-runes-macros.md",
   "tags": [],
   "version": "current",
-  "frontMatter": {}
+  "frontMatter": {},
+  "sidebar": "referenceSidebar",
+  "next": {
+    "title": "Bits (Booleans)",
+    "permalink": "/docs/reference/standard-library/bits-booleans"
+  }
 }

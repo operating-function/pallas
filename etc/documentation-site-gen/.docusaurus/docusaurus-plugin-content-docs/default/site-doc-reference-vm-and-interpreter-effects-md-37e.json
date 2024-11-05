@@ -14,5 +14,14 @@
   "frontMatter": {
     "id": "effects-reference",
     "title": "Effects Reference"
+  },
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "Jobs Reference",
+    "permalink": "/docs/reference/vm-and-interpreter/jobs-reference"
+  },
+  "next": {
+    "title": "PLAN",
+    "permalink": "/docs/reference/plan/"
   }
 }

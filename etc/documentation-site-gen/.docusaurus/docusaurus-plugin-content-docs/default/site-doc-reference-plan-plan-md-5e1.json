@@ -14,5 +14,10 @@
   "frontMatter": {
     "id": "plan-reference",
     "title": "PLAN"
+  },
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "Effects Reference",
+    "permalink": "/docs/reference/vm-and-interpreter/effects-reference"
   }
 }

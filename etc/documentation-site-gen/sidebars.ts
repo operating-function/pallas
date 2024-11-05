@@ -26,26 +26,32 @@ const sidebars: SidebarsConfig = {
   ],
 
   referenceSidebar: [
-    'reference/sire-runs-macros',
-    {
-      type: 'category',
-      label: 'Sire Standard Library',
-      collapsed: true,
+    { type: 'category',
+      label: 'Sire',
+      collapsed: false,
       items: [
-        'reference/standard-library/bits-booleans',
-        'reference/standard-library/natural-numbers',
-        'reference/standard-library/comparisons',
-        'reference/standard-library/characters-strings',
-        'reference/standard-library/rows',
-        'reference/standard-library/lists',
-        'reference/standard-library/either',
-        'reference/standard-library/maybe',
-        'reference/standard-library/sets',
-        'reference/standard-library/kv-tables',
-        'reference/standard-library/pads',
-        'reference/standard-library/bars-byte-arrays',
-        'reference/standard-library/types',
+        'reference/sire-runes-macros',
+        {
+          type: 'category',
+          label: 'Sire Standard Library',
+          collapsed: true,
+          items: [
+            'reference/standard-library/bits-booleans',
+            'reference/standard-library/natural-numbers',
+            'reference/standard-library/comparisons',
+            'reference/standard-library/characters-strings',
+            'reference/standard-library/rows',
+            'reference/standard-library/lists',
+            'reference/standard-library/either',
+            'reference/standard-library/maybe',
+            'reference/standard-library/sets',
+            'reference/standard-library/kv-tables',
+            'reference/standard-library/pads',
+            'reference/standard-library/bars-byte-arrays',
+            'reference/standard-library/types',
 
+          ]
+        }
       ]
     },
     {
@@ -53,14 +59,14 @@ const sidebars: SidebarsConfig = {
       label: 'VM and Interpreter',
       collapsed: true,
       items: [
-        'reference/vm-and-interpreter/jets',
-        'reference/vm-and-interpreter/cogs',
-        'reference/vm-and-interpreter/drivers',
-        'reference/vm-and-interpreter/jobs',
-        'reference/vm-and-interpreter/effects',
+        'reference/vm-and-interpreter/jets-reference',
+        'reference/vm-and-interpreter/cogs-reference',
+        'reference/vm-and-interpreter/drivers-reference',
+        'reference/vm-and-interpreter/jobs-reference',
+        'reference/vm-and-interpreter/effects-reference',
       ]
     },
-    'reference/plan/plan',
+    'reference/plan/plan-reference',
   ],
 
   tutorialSidebar: [

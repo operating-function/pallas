@@ -17,5 +17,9 @@
   "previous": {
     "title": "Bars (byte arrays)",
     "permalink": "/docs/reference/standard-library/bars-byte-arrays"
+  },
+  "next": {
+    "title": "Jets Reference",
+    "permalink": "/docs/reference/vm-and-interpreter/jets-reference"
   }
 }

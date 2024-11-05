@@ -41,11 +41,13 @@
             },
             {
               "id": "reference/plan/plan-reference",
-              "path": "/docs/reference/plan/"
+              "path": "/docs/reference/plan/",
+              "sidebar": "referenceSidebar"
             },
             {
               "id": "reference/sire-runes-macros",
-              "path": "/docs/reference/sire-runes-macros"
+              "path": "/docs/reference/sire-runes-macros",
+              "sidebar": "referenceSidebar"
             },
             {
               "id": "reference/standard-library/bars-byte-arrays",
@@ -118,27 +120,33 @@
             },
             {
               "id": "reference/vm-and-interpreter/cogs-reference",
-              "path": "/docs/reference/vm-and-interpreter/cogs-reference"
+              "path": "/docs/reference/vm-and-interpreter/cogs-reference",
+              "sidebar": "referenceSidebar"
             },
             {
               "id": "reference/vm-and-interpreter/drivers-reference",
-              "path": "/docs/reference/vm-and-interpreter/drivers-reference"
+              "path": "/docs/reference/vm-and-interpreter/drivers-reference",
+              "sidebar": "referenceSidebar"
             },
             {
               "id": "reference/vm-and-interpreter/effects-reference",
-              "path": "/docs/reference/vm-and-interpreter/effects-reference"
+              "path": "/docs/reference/vm-and-interpreter/effects-reference",
+              "sidebar": "referenceSidebar"
             },
             {
               "id": "reference/vm-and-interpreter/jets-reference",
-              "path": "/docs/reference/vm-and-interpreter/jets-reference"
+              "path": "/docs/reference/vm-and-interpreter/jets-reference",
+              "sidebar": "referenceSidebar"
             },
             {
               "id": "reference/vm-and-interpreter/jobs-reference",
-              "path": "/docs/reference/vm-and-interpreter/jobs-reference"
+              "path": "/docs/reference/vm-and-interpreter/jobs-reference",
+              "sidebar": "referenceSidebar"
             },
             {
               "id": "tutorial/intro",
-              "path": "/docs/tutorial/intro"
+              "path": "/docs/tutorial/intro",
+              "sidebar": "tutorialSidebar"
             }
           ],
           "draftIds": [],
@@ -151,8 +159,14 @@
             },
             "referenceSidebar": {
               "link": {
-                "path": "/docs/reference/standard-library/bits-booleans",
-                "label": "reference/standard-library/bits-booleans"
+                "path": "/docs/reference/sire-runes-macros",
+                "label": "reference/sire-runes-macros"
+              }
+            },
+            "tutorialSidebar": {
+              "link": {
+                "path": "/docs/tutorial/intro",
+                "label": "tutorial/intro"
               }
             }
           }

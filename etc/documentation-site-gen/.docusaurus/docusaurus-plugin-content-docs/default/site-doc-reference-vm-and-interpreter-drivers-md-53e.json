@@ -14,5 +14,14 @@
   "frontMatter": {
     "id": "drivers-reference",
     "title": "Drivers Reference"
+  },
+  "sidebar": "referenceSidebar",
+  "previous": {
+    "title": "Cogs Reference",
+    "permalink": "/docs/reference/vm-and-interpreter/cogs-reference"
+  },
+  "next": {
+    "title": "Jobs Reference",
+    "permalink": "/docs/reference/vm-and-interpreter/jobs-reference"
   }
 }

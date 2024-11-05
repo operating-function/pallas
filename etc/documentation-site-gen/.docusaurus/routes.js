@@ -114,15 +114,15 @@ export default [
   },
   {
     path: '/docs',
-    component: ComponentCreator('/docs', 'c62'),
+    component: ComponentCreator('/docs', '56a'),
     routes: [
       {
         path: '/docs',
-        component: ComponentCreator('/docs', '3be'),
+        component: ComponentCreator('/docs', '4ca'),
         routes: [
           {
             path: '/docs',
-            component: ComponentCreator('/docs', '7ff'),
+            component: ComponentCreator('/docs', 'f46'),
             routes: [
               {
                 path: '/docs/explanation/plan-data-model',
@@ -161,13 +161,15 @@ export default [
               },
               {
                 path: '/docs/reference/plan/',
-                component: ComponentCreator('/docs/reference/plan/', '0fe'),
-                exact: true
+                component: ComponentCreator('/docs/reference/plan/', '510'),
+                exact: true,
+                sidebar: "referenceSidebar"
               },
               {
                 path: '/docs/reference/sire-runes-macros',
-                component: ComponentCreator('/docs/reference/sire-runes-macros', '7b1'),
-                exact: true
+                component: ComponentCreator('/docs/reference/sire-runes-macros', 'bdc'),
+                exact: true,
+                sidebar: "referenceSidebar"
               },
               {
                 path: '/docs/reference/standard-library/bars-byte-arrays',
@@ -254,33 +256,39 @@ export default [
               },
               {
                 path: '/docs/reference/vm-and-interpreter/cogs-reference',
-                component: ComponentCreator('/docs/reference/vm-and-interpreter/cogs-reference', '641'),
-                exact: true
+                component: ComponentCreator('/docs/reference/vm-and-interpreter/cogs-reference', '2cf'),
+                exact: true,
+                sidebar: "referenceSidebar"
               },
               {
                 path: '/docs/reference/vm-and-interpreter/drivers-reference',
-                component: ComponentCreator('/docs/reference/vm-and-interpreter/drivers-reference', '24d'),
-                exact: true
+                component: ComponentCreator('/docs/reference/vm-and-interpreter/drivers-reference', '868'),
+                exact: true,
+                sidebar: "referenceSidebar"
               },
               {
                 path: '/docs/reference/vm-and-interpreter/effects-reference',
-                component: ComponentCreator('/docs/reference/vm-and-interpreter/effects-reference', 'c60'),
-                exact: true
+                component: ComponentCreator('/docs/reference/vm-and-interpreter/effects-reference', '6cd'),
+                exact: true,
+                sidebar: "referenceSidebar"
               },
               {
                 path: '/docs/reference/vm-and-interpreter/jets-reference',
-                component: ComponentCreator('/docs/reference/vm-and-interpreter/jets-reference', '9f3'),
-                exact: true
+                component: ComponentCreator('/docs/reference/vm-and-interpreter/jets-reference', '71d'),
+                exact: true,
+                sidebar: "referenceSidebar"
               },
               {
                 path: '/docs/reference/vm-and-interpreter/jobs-reference',
-                component: ComponentCreator('/docs/reference/vm-and-interpreter/jobs-reference', 'af8'),
-                exact: true
+                component: ComponentCreator('/docs/reference/vm-and-interpreter/jobs-reference', 'fd1'),
+                exact: true,
+                sidebar: "referenceSidebar"
               },
               {
                 path: '/docs/tutorial/intro',
-                component: ComponentCreator('/docs/tutorial/intro', '16e'),
-                exact: true
+                component: ComponentCreator('/docs/tutorial/intro', '9b8'),
+                exact: true,
+                sidebar: "tutorialSidebar"
               }
             ]
           }
