@@ -26,6 +26,7 @@ const sidebars: SidebarsConfig = {
   ],
 
   referenceSidebar: [
+    'reference/sire-runs-macros',
     {
       type: 'category',
       label: 'Sire Standard Library',
@@ -47,20 +48,31 @@ const sidebars: SidebarsConfig = {
 
       ]
     },
+    {
+      type: 'category',
+      label: 'VM and Interpreter',
+      collapsed: true,
+      items: [
+        'reference/vm-and-interpreter/jets',
+        'reference/vm-and-interpreter/cogs',
+        'reference/vm-and-interpreter/drivers',
+        'reference/vm-and-interpreter/jobs',
+        'reference/vm-and-interpreter/effects',
+      ]
+    },
+    'reference/plan/plan',
   ],
 
-  // But you can create a sidebar manually
-  /*
   tutorialSidebar: [
-    'intro',
-    'hello',
     {
       type: 'category',
       label: 'Tutorial',
-      items: ['tutorial-basics/create-a-document'],
+      collapsed: true,
+      items: [
+        'tutorial/intro',
+      ]
     },
   ],
-   */
 };
 
 export default sidebars;

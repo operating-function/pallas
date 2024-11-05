@@ -249,17 +249,17 @@
     },
     "content": "content---markdown-page-393-028"
   },
-  "/docs-5c4": {
+  "/docs-c62": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---docsaba-d7c"
     }
   },
-  "/docs-842": {
+  "/docs-3be": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---docs-005-788"
   },
-  "/docs-b1b": {
+  "/docs-7ff": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/docs/explanation/plan-data-model-f21": {
@@ -282,9 +282,17 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-explanation-vm-and-interpreter-736-e54"
   },
-  "/docs/reference/ref-test-3bc": {
+  "/docs/philosophy/philosopy-intro-79b": {
     "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-reference-ref-test-253-49e"
+    "content": "content---docs-philosophy-philosopy-intro-350-3ca"
+  },
+  "/docs/reference/plan/-0fe": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-plan-5-e-1-50f"
+  },
+  "/docs/reference/sire-runes-macros-7b1": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-sire-runes-macros-206-eef"
   },
   "/docs/reference/standard-library/bars-byte-arrays-5d0": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -326,6 +334,10 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-reference-standard-library-padseb-3-5f9"
   },
+  "/docs/reference/standard-library/rex-dc9": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-standard-library-rex-035-968"
+  },
   "/docs/reference/standard-library/rows-dad": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-reference-standard-library-rows-5-ab-a8b"
@@ -334,13 +346,33 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-reference-standard-library-setsc-80-037"
   },
-  "/docs/reference/standard-library/standard-library-intro-69f": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-reference-standard-library-standard-library-intro-9-e-9-554"
-  },
   "/docs/reference/standard-library/types-4f8": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-reference-standard-library-typesf-32-88b"
+  },
+  "/docs/reference/vm-and-interpreter/cogs-reference-641": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-vm-and-interpreter-cogs-reference-897-0f6"
+  },
+  "/docs/reference/vm-and-interpreter/drivers-reference-24d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-vm-and-interpreter-drivers-reference-53-e-c5c"
+  },
+  "/docs/reference/vm-and-interpreter/effects-reference-c60": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-vm-and-interpreter-effects-reference-37-e-cf1"
+  },
+  "/docs/reference/vm-and-interpreter/jets-reference-9f3": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-vm-and-interpreter-jets-referencef-2-c-c59"
+  },
+  "/docs/reference/vm-and-interpreter/jobs-reference-af8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reference-vm-and-interpreter-jobs-reference-983-893"
+  },
+  "/docs/tutorial/intro-16e": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-tutorial-intro-363-301"
   },
   "/-e5f": {
     "__comp": "__comp---site-src-pages-index-tsx-1-df-d3e",

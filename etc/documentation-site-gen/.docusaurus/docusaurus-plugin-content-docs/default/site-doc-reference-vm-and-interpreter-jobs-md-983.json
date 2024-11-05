@@ -1,0 +1,18 @@
+{
+  "id": "reference/vm-and-interpreter/jobs-reference",
+  "title": "Jobs Reference",
+  "description": "Forthcoming",
+  "source": "@site/../../doc/reference/vm-and-interpreter/jobs.md",
+  "sourceDirName": "reference/vm-and-interpreter",
+  "slug": "/reference/vm-and-interpreter/jobs-reference",
+  "permalink": "/docs/reference/vm-and-interpreter/jobs-reference",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/vm-and-interpreter/jobs.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "jobs-reference",
+    "title": "Jobs Reference"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "reference/vm-and-interpreter/jets-reference",
+  "title": "Jets Reference",
+  "description": "Forthcoming",
+  "source": "@site/../../doc/reference/vm-and-interpreter/jets.md",
+  "sourceDirName": "reference/vm-and-interpreter",
+  "slug": "/reference/vm-and-interpreter/jets-reference",
+  "permalink": "/docs/reference/vm-and-interpreter/jets-reference",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/vm-and-interpreter/jets.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "jets-reference",
+    "title": "Jets Reference"
+  }
+}

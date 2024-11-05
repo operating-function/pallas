@@ -114,15 +114,15 @@ export default [
   },
   {
     path: '/docs',
-    component: ComponentCreator('/docs', '5c4'),
+    component: ComponentCreator('/docs', 'c62'),
     routes: [
       {
         path: '/docs',
-        component: ComponentCreator('/docs', '842'),
+        component: ComponentCreator('/docs', '3be'),
         routes: [
           {
             path: '/docs',
-            component: ComponentCreator('/docs', 'b1b'),
+            component: ComponentCreator('/docs', '7ff'),
             routes: [
               {
                 path: '/docs/explanation/plan-data-model',
@@ -155,8 +155,18 @@ export default [
                 sidebar: "explanationSidebar"
               },
               {
-                path: '/docs/reference/ref-test',
-                component: ComponentCreator('/docs/reference/ref-test', '3bc'),
+                path: '/docs/philosophy/philosopy-intro',
+                component: ComponentCreator('/docs/philosophy/philosopy-intro', '79b'),
+                exact: true
+              },
+              {
+                path: '/docs/reference/plan/',
+                component: ComponentCreator('/docs/reference/plan/', '0fe'),
+                exact: true
+              },
+              {
+                path: '/docs/reference/sire-runes-macros',
+                component: ComponentCreator('/docs/reference/sire-runes-macros', '7b1'),
                 exact: true
               },
               {
@@ -220,6 +230,11 @@ export default [
                 sidebar: "referenceSidebar"
               },
               {
+                path: '/docs/reference/standard-library/rex',
+                component: ComponentCreator('/docs/reference/standard-library/rex', 'dc9'),
+                exact: true
+              },
+              {
                 path: '/docs/reference/standard-library/rows',
                 component: ComponentCreator('/docs/reference/standard-library/rows', 'dad'),
                 exact: true,
@@ -232,15 +247,40 @@ export default [
                 sidebar: "referenceSidebar"
               },
               {
-                path: '/docs/reference/standard-library/standard-library-intro',
-                component: ComponentCreator('/docs/reference/standard-library/standard-library-intro', '69f'),
-                exact: true
-              },
-              {
                 path: '/docs/reference/standard-library/types',
                 component: ComponentCreator('/docs/reference/standard-library/types', '4f8'),
                 exact: true,
                 sidebar: "referenceSidebar"
+              },
+              {
+                path: '/docs/reference/vm-and-interpreter/cogs-reference',
+                component: ComponentCreator('/docs/reference/vm-and-interpreter/cogs-reference', '641'),
+                exact: true
+              },
+              {
+                path: '/docs/reference/vm-and-interpreter/drivers-reference',
+                component: ComponentCreator('/docs/reference/vm-and-interpreter/drivers-reference', '24d'),
+                exact: true
+              },
+              {
+                path: '/docs/reference/vm-and-interpreter/effects-reference',
+                component: ComponentCreator('/docs/reference/vm-and-interpreter/effects-reference', 'c60'),
+                exact: true
+              },
+              {
+                path: '/docs/reference/vm-and-interpreter/jets-reference',
+                component: ComponentCreator('/docs/reference/vm-and-interpreter/jets-reference', '9f3'),
+                exact: true
+              },
+              {
+                path: '/docs/reference/vm-and-interpreter/jobs-reference',
+                component: ComponentCreator('/docs/reference/vm-and-interpreter/jobs-reference', 'af8'),
+                exact: true
+              },
+              {
+                path: '/docs/tutorial/intro',
+                component: ComponentCreator('/docs/tutorial/intro', '16e'),
+                exact: true
               }
             ]
           }

@@ -1,0 +1,15 @@
+{
+  "id": "reference/sire-runes-macros",
+  "title": "Runes",
+  "description": "Runes are special symbols or characters that serve as syntactic markers for various language constructs and operations. Runes are a key part of flexible syntax system that is used by Sire, known as Rex (R-expressions), which allows for multiple ways to express the same code structure.",
+  "source": "@site/../../doc/reference/sire-runes-macros.md",
+  "sourceDirName": "reference",
+  "slug": "/reference/sire-runes-macros",
+  "permalink": "/docs/reference/sire-runes-macros",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/sire-runes-macros.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

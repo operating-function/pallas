@@ -145,7 +145,7 @@ Note again that PLAN trees encoded with seed can contain *computations*, not jus
 
 ## Loot (disassembly)
 
-PLAN values can be disassembled and displayed in a human-readable form using the **loot** [algorithm](TK link to loot). For example, below is the disassembled PLAN of the foldr function, including all functions it has inlined into its body:
+PLAN values can be disassembled and displayed in a human-readable form using the **loot** [algorithm](https://github.com/operating-function/pallas/blob/master/lib/Loot.hs). For example, below is the disassembled PLAN of the foldr function, including all functions it has inlined into its body:
 
 ```unset
 * (_If a b c)=(2 c ((d e & d) b) a)  

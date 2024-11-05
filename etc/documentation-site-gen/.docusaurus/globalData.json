@@ -36,8 +36,16 @@
               "sidebar": "explanationSidebar"
             },
             {
-              "id": "reference/ref-test",
-              "path": "/docs/reference/ref-test"
+              "id": "philosophy/philosopy-intro",
+              "path": "/docs/philosophy/philosopy-intro"
+            },
+            {
+              "id": "reference/plan/plan-reference",
+              "path": "/docs/reference/plan/"
+            },
+            {
+              "id": "reference/sire-runes-macros",
+              "path": "/docs/reference/sire-runes-macros"
             },
             {
               "id": "reference/standard-library/bars-byte-arrays",
@@ -90,6 +98,10 @@
               "sidebar": "referenceSidebar"
             },
             {
+              "id": "reference/standard-library/rex",
+              "path": "/docs/reference/standard-library/rex"
+            },
+            {
               "id": "reference/standard-library/rows",
               "path": "/docs/reference/standard-library/rows",
               "sidebar": "referenceSidebar"
@@ -100,13 +112,33 @@
               "sidebar": "referenceSidebar"
             },
             {
-              "id": "reference/standard-library/standard-library-intro",
-              "path": "/docs/reference/standard-library/standard-library-intro"
-            },
-            {
               "id": "reference/standard-library/types",
               "path": "/docs/reference/standard-library/types",
               "sidebar": "referenceSidebar"
+            },
+            {
+              "id": "reference/vm-and-interpreter/cogs-reference",
+              "path": "/docs/reference/vm-and-interpreter/cogs-reference"
+            },
+            {
+              "id": "reference/vm-and-interpreter/drivers-reference",
+              "path": "/docs/reference/vm-and-interpreter/drivers-reference"
+            },
+            {
+              "id": "reference/vm-and-interpreter/effects-reference",
+              "path": "/docs/reference/vm-and-interpreter/effects-reference"
+            },
+            {
+              "id": "reference/vm-and-interpreter/jets-reference",
+              "path": "/docs/reference/vm-and-interpreter/jets-reference"
+            },
+            {
+              "id": "reference/vm-and-interpreter/jobs-reference",
+              "path": "/docs/reference/vm-and-interpreter/jobs-reference"
+            },
+            {
+              "id": "tutorial/intro",
+              "path": "/docs/tutorial/intro"
             }
           ],
           "draftIds": [],

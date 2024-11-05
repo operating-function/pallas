@@ -1,0 +1,18 @@
+{
+  "id": "reference/plan/plan-reference",
+  "title": "PLAN",
+  "description": "Forthcoming",
+  "source": "@site/../../doc/reference/plan/plan.md",
+  "sourceDirName": "reference/plan",
+  "slug": "/reference/plan/",
+  "permalink": "/docs/reference/plan/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/plan/plan.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "plan-reference",
+    "title": "PLAN"
+  }
+}

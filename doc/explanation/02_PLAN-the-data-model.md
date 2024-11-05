@@ -47,7 +47,7 @@ Unmatched patterns diverge.
     EXEC(e, x)              = x
 ```
 
-This informal specification glosses over some details regarding evaluation order and normalization, but is otherwise correct. For a more detailed and implementation-oriented specification, see the [reference](TK TODO link).
+This informal specification glosses over some details regarding evaluation order and normalization, but is otherwise correct. For a more detailed and implementation-oriented specification, see the [reference](reference/plan/plan).
 
 To start, we can note that the specification contains three things: at the top there’s a data model, which is then followed by a few informal instructions and finally a number of rewrites over the data model. We’ll go through the data model, then the rewrite rules, and finally the informal instructions.
 

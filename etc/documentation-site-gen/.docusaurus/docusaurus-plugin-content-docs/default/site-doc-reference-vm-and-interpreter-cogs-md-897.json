@@ -1,0 +1,18 @@
+{
+  "id": "reference/vm-and-interpreter/cogs-reference",
+  "title": "Cogs Reference",
+  "description": "Forthcoming",
+  "source": "@site/../../doc/reference/vm-and-interpreter/cogs.md",
+  "sourceDirName": "reference/vm-and-interpreter",
+  "slug": "/reference/vm-and-interpreter/cogs-reference",
+  "permalink": "/docs/reference/vm-and-interpreter/cogs-reference",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/vm-and-interpreter/cogs.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "cogs-reference",
+    "title": "Cogs Reference"
+  }
+}

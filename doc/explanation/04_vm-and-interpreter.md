@@ -14,7 +14,7 @@ Let’s talk about interpreting PLAN first, then we’ll move on to how manifest
 
 ## Interpreting PLAN
 
-While the [informal PLAN specification](TK TODO link) is shown in this explanation, the [formal specification](TK TODO link) is purposefully written in a very implementation-oriented form, to emphasize that this is a wholly practical system despite being so minimal. Most of the implementation falls out directly from that specification. However, some optimizations are necessary to make a PLAN interpreter practically useful. In the [explanation of PLAN’s data model](TK TODO link), we’ve explained how the memory layout of pins and apps can be optimized and how the former helps with garbage collection, but we also need to consider jets and data jets.
+While the [informal PLAN specification](TK TODO link) is shown in this explanation, the [formal specification](TK TODO link) is purposefully written in a very implementation-oriented form, to emphasize that this is a wholly practical system despite being so minimal. Most of the implementation falls out directly from that specification. However, some optimizations are necessary to make a PLAN interpreter practically useful. In the [explanation of PLAN’s data model](explanation/02_PLAN-the-data-model.md), we’ve explained how the memory layout of pins and apps can be optimized and how the former helps with garbage collection, but we also need to consider jets and data jets.
 
 ### Jets
 
@@ -24,7 +24,7 @@ The reason why PLAN doesn’t have more than 5 opcodes is because it needs to be
 
 A jet is always a pinned law, `<{n a b}>`. Since laws are how we store code, they are the only things that make sense to jet, but checking every law that we encounter against the interpreter’s jet table would be expensive. Pins give us constant-time equality checks, so we immediately know whether a pinned law should be jetted or not.
 
-[Jets reference and examples](TK link to new stub page, and add stubs in general to contribution suggestions)
+[Jets reference and examples](../reference/vm-and-interpreter/jets.md)
 
 ### Data jets
 
@@ -53,7 +53,9 @@ Both cogs and drivers are transition functions expressed in PLAN – closures th
 
 ### Cogs
 
-[TK diagram]
+::::warning[TODO]
+Diagram forthcoming
+::::
 
 Cogs are programs that run forever. Even if you reboot your machine, a cog will continue exactly where it left off. Cogs are important because both code and data are important. The traditional persistence solution is to do a complex orchestration involving some combination of a database and source code, configuration files and binaries on a filesystem, and hope that these will allow the machine to get back to the same state at a later time. Or not – “have you tried turning it off and on again?” implies that we often aren’t able to achieve this. In contrast, cogs simply keep their state “in memory” and advance the entire system state transactionally.
 
@@ -85,11 +87,13 @@ The most important takeaway here is that the cog is free to change itself. It ca
 
 We’ve said that the VM will persist the most recent state of the cog. If a cog grows large, writing its entire PLAN value to disk (or to a cloud server!) could be quite expensive. But because cogs are transition functions, we don’t need to do that. We can simply write each batch of inputs to a log. If we need to get back to our latest state after a reboot, we can replay the log. Whenever the log grows large, we can write a snapshot of the current cog state, prune the log up until that point, and start writing a new log.
 
-See the [cog reference](TK TODO link) for a more detailed description of this process.
+See the [cog reference](../reference/vm-and-interpreter/cogs.md) for a more detailed description of this process.
 
 ### Drivers
 
-[TK diagram]
+::::warning[TODO]
+Diagram forthcoming
+::::
 
 Drivers are programs that mediate the cog’s interactions with the outside world. They allow the cog to tell the VM how and when it should perform actions beyond pure computations. Drivers are important to minimize disk writes in a predictable and portable way. A naive architecture might feed all incoming data to the cog, but since this would incur a high number of disk writes, in practice this architecture would force the VM to implement a poorly specified exoskeleton that sifts through incoming data and decides when something should get persisted. This would almost certainly vary between runtimes, and so those performance optimizations wouldn’t be portable. In the extreme, certain network protocols that use many small packets to build up huge logical messages might only work on runtimes that are aware of these optimizations. We use drivers to ensure that we can optimize disk writes in a way that’s actually portable.
 
@@ -108,24 +112,24 @@ Just as a cog, a driver is expected to produce a new driver and an array of outp
 
 The simplest version of a driver is one that simply opens a connection to the outside world and always just forwards any incoming data to the cog as an input. No state is necessary for this, so drivers aren’t required to capture any additional values in a closure the way that a cog does. But in practice, most drivers will close over some custom state, so that they can respond intelligently to incoming data. Most of the time, it’s neither efficient nor useful to indiscriminately persist all incoming data, so most realistic drivers should implement *protocols* such as HTTP, Telnet or RTP.
 
-See the [driver reference](TK TODO link) for more information on the driver format.
+See the [driver reference](../reference/vm-and-interpreter/drivers.md) for more information on the driver format.
 
 #### *Effects*
 
-```
-[TK diagram: cog<->driver->effects<->runtime<->driver]
-```
+::::warning[TODO]
+Diagram forthcoming
+::::
 
 Drivers can ask the VM to do three things: query the cog’s current state, submit an input to the cog, and handle outside connections. They do this by emitting effects. Effects are simply arrays which contain the name of an effect together with some data. The runtime, or an in-system virtualization environment, will read this, perform some operation, and might inject an input back into the driver at a later time. 
 
-For now, the only interface that workers have to the outside world is TCP. UDP will be added in the future. You can do basically everything over these – for example the host machine’s file system can be read and manipulated over TCP using an FTP driver. By limiting ourselves to proven network transports such as TCP and UDP, we can do everything within the system instead of having to continuously extend the runtime, thus maximizing forward compatibility and [making it easy to support new architectures](TK: link-to-philosophy).
+For now, the only interface that workers have to the outside world is TCP. UDP will be added in the future. You can do basically everything over these – for example the host machine’s file system can be read and manipulated over TCP using an FTP driver. By limiting ourselves to proven network transports such as TCP and UDP, we can do everything within the system instead of having to continuously extend the runtime, thus maximizing forward compatibility and [making it easy to support new architectures](../philosophy/placeholder.md).
 
 Of course, some things require lower latency than either TCP or UDP can offer, for example real-time audio or graphics. Eventually we’ll have to add effects for such interfaces, but we expect these to be few and new ones to be very infrequent. We can’t guarantee perfect forward compatibility, but we expect it to be very good in practice.
 
-See the [effect reference](TK TODO link) for a list of all available effects.
+See the [effect reference](../reference/vm-and-interpreter/effects.md) for a list of all available effects.
 
 ### Jobs
 
 When discussing the cog’s array of workers, we mentioned that a worker can be either a driver or a parallel evaluation **job**. While drivers handle concurrency, jobs handle parallelism. A job is simply a PLAN expression that the cog asks the VM to evaluate. Once evaluation has crashed or completed, the result will be logged and injected as an input to the cog.
 
-See the [job reference](TK TODO link) for more information.
+See the [job reference](../reference/vm-and-interpreter/jobs.md) for more information.
