@@ -34,7 +34,7 @@ CONS 1 (CONS 2 (CONS 3 NIL))  == [1 [2 [3 0]]]    ; a list with three elements
 
 ### listCase
 
-```
+```unset
 (listCase xs d k)
 > xs : List a
 > d  : a

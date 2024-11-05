@@ -77,6 +77,9 @@ export default function prismIncludeLanguages(PrismObject) {
     },
   };
 
+  // alias "sire" code blocks to rex
+  PrismObject.languages.sire = PrismObject.languages.rex;
+
   PrismObject.languages.haskell = Prism.languages.haskell;
 
   console.log(

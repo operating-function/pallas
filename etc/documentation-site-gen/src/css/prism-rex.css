@@ -1,50 +1,60 @@
-pre[class*="language-rex"] {
-  background: #000000;
+:root {
+  --rex-bg: #ffffff;
+  --rex-curl: #008b8b;
+  --rex-rune: #000000;
+  --rex-rine: #000000;
+  --rex-cnsr: #ff0000;
+  --rex-type: #008b8b;
+  --rex-number: #000000;
+  --rex-word: #777777;
+  --rex-cnst: #8b008b;
+  --rex-nest: #008b8b;
+  --rex-note: #bbbbbb;
+  --rex-cord: #008b8b;
+  --rex-tape: #008b8b;
+  --rex-page: #008b8b;
+  --rex-line: #008b8b;
+  --rex-head: #6c6c6c;
 }
 
-.token.curl {
-  color: #e0ffff;
-} /* NvimLightCyan */
-.token.rune {
-  color: #ffffff;
-} /* White */
-.token.rine {
-  color: #ffffff;
-} /* White */
-.token.cnsr {
-  color: #ff6b68;
-} /* NvimLightRed */
-.token.type {
-  color: #008b8b;
-} /* NvimDarkCyan */
-.token.number {
-  color: #ffffff;
-} /* White */
-.token.word {
-  color: #b3b3b3;
-} /* NvimLightGray4 */
-.token.cnst {
-  color: #8b008b;
-} /* NvimDarkMagenta */
-.token.nest {
-  color: #008b8b;
-} /* NvimDarkCyan */
-.token.note {
-  color: #6c6c6c;
-} /* NvimDarkGray3 */
-.token.cord {
-  color: #e0ffff;
-} /* NvimLightCyan */
-.token.tape {
-  color: #e0ffff;
-} /* NvimLightCyan */
-.token.page {
-  color: #e0ffff;
-} /* NvimLightCyan */
-.token.line {
-  color: #e0ffff;
-} /* NvimLightCyan */
-.token.head {
-  color: #6c6c6c;
+[data-theme='dark'] {
+  --rex-bg: #000000;
+  --rex-curl: #e0ffff;
+  --rex-rune: #ffffff;
+  --rex-rine: #ffffff;
+  --rex-cnsr: #ff6b68;
+  --rex-type: #008b8b;
+  --rex-number: #ffffff;
+  --rex-word: #b3b3b3;
+  --rex-cnst: #8b008b;
+  --rex-nest: #008b8b;
+  --rex-note: #6c6c6c;
+  --rex-cord: #e0ffff;
+  --rex-tape: #e0ffff;
+  --rex-page: #e0ffff;
+  --rex-line: #e0ffff;
+  --rex-head: #6c6c6c;
+}
+
+pre[class*="language-rex"] {
+  background: var(--rex-bg);
+}
+
+.token.curl { color: var(--rex-curl); }
+.token.rune { color: var(--rex-rune); }
+.token.rine { color: var(--rex-rine); }
+.token.cnsr { color: var(--rex-cnsr); }
+.token.type { color: var(--rex-type); }
+.token.number { color: var(--rex-number); }
+.token.word { color: var(--rex-word); }
+.token.cnst { color: var(--rex-cnst); }
+.token.nest { color: var(--rex-nest); }
+.token.note { color: var(--rex-note); }
+.token.cord { color: var(--rex-cord); }
+.token.tape { color: var(--rex-tape); }
+.token.page { color: var(--rex-page); }
+.token.line { color: var(--rex-line); }
+.token.head { 
+  color: var(--rex-head);
   font-weight: bold;
-} /* NvimDarkGray4 */
+}
