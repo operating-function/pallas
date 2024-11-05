@@ -224,11 +224,11 @@ data EvalCancelledError = LIVE_EVAL_CANCELLED
   deriving (Exception, Show)
 
 data Worker
-  = EXEC { pump :: Fan }
+  = EXEC { driver :: Fan }
   | EVAL { fun :: Fan, args :: Vector Fan }
 
 stageWorker :: Debug => DeviceTable -> Worker -> STM (IO LiveWorker)
-stageWorker hw EXEC{pump} = do
+stageWorker hw EXEC{driver} = do
     writes <- newTQueue
     let write = writeTQueue writes
     reads <- newTQueue
@@ -239,7 +239,7 @@ stageWorker hw EXEC{pump} = do
                        , makeCall pc >>= callHardware hw
                        ] `orElse` (kill pc $> (CANCEL pass, []))
     pure do
-      (thread, inbox) <- spawnProc pump call
+      (thread, inbox) <- spawnProc driver call
       pure LIVE_EXEC{..}
 
 instance Alternative f => Effect f SysCall where
@@ -249,17 +249,17 @@ instance Alternative f => Effect f SysCall where
 
 instance FromNoun Worker where
   fromNoun v = fromNoun v >>= \case
-    [0,f,as] -> EVAL f <$> fromNoun as
-    [1,pump] -> Just $ EXEC pump
-    _        -> Nothing
+    [0,f,as]   -> EVAL f <$> fromNoun as
+    [1,driver] -> Just $ EXEC driver
+    _          -> Nothing
 
 data LiveWorker
-  = LIVE_EXEC { pump :: Fan, reads :: TQueue ReadRequest, writes :: TQueue WriteRequest, inbox :: ResponseTuple -> STM (), thread :: Async () }
+  = LIVE_EXEC { driver :: Fan, reads :: TQueue ReadRequest, writes :: TQueue WriteRequest, inbox :: ResponseTuple -> STM (), thread :: Async () }
   | LIVE_EVAL { fun :: Fan, args :: Vector Fan, eval :: Evaluation, thread :: Async () }
 
 instance Show LiveWorker where
   show = \case
-    LIVE_EXEC{pump} -> "LIVE_EXEC{" <> show pump <> "}"
+    LIVE_EXEC{driver} -> "LIVE_EXEC{" <> show driver <> "}"
     LIVE_EVAL{fun,args} -> "LIVE_EVAL{fun=" <> show fun <> ", args=" <> show args <> "}"
 
 -- | A list of parsed out valid requests from `noun`. For every cog, for every
