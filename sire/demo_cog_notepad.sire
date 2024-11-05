@@ -15,10 +15,6 @@
 :| proc_http
 :| json
 
-; TODO:
-; templating fileserver.
-; separate patterns for static assets vs state requests
-
 # typedef ContentType Bar
 
 > HMap Str (ContentType, Pin Bar)
@@ -99,8 +95,8 @@
 
 ; TODO:
 ; > HTTPRequest > Cog (Tab Bar Bar, Bar, Nat, Bar)
-= (writeHandler httpRequest return)
-: st < state
+= (writeHandler pid (rid,httpRequest) return)
+: st < getState
 @ requestedBody | getReqBody   httpRequest
 @ requestedPath | getReqPath   httpRequest
 @ requestedMeth | getReqMethod httpRequest
@@ -112,11 +108,13 @@
   @ noteNat   | fromSome priorNote | parseNoteJson requestedBody
   @ note      | natBar noteNat
   @ newState  | setNote note st
-  : _ < write newState
-  | return newState
+  : _ < putState newState
+  : _ < send (pid,rid) newState
+  | return ()
 * _
   | trk [%xxxxWritePathHandlerFallback]
-  | const b#{error}
+  : _ < send (pid,rid) b#error
+  | return ()
 
 # typedef Method | Bar
 
@@ -124,15 +122,6 @@
 = (getMethod httpRequest)
 ; TODO: do we need to handle failures here?
 | getReqMethod httpRequest
-
-
-; Whatever function we pass here for "Query" will be called against state.
-> CogState > Nat > Query > HTTPResponse
-; "reads" is part of the cog public state.
-; the runtime will inject state, procId and query
-= (reads state procId query)
-; ignore procId, we only have the one - proc_http - at the moment.
-| query state
 
 
 > Any > (Tab Bar Bar, Bar, Nat, Bar)
@@ -194,18 +183,17 @@
 * b#GET
   # switch requestedPath
   * b#{/note}
-    : gotRes < syscall | DB_READ | getNote
+    : gotRes < launch | DB_READ | getNote
     | return (formulateResponse [b#noteGet gotRes])
   * b#{/}
     | return (formulateResponse [b#index notesIndexHtml])
-  ; This would make a great default route
   * b#{/favicon.ico}
     | return (formulateResponse [b#favicon pallasFavicon])
   * _
   | trk [%xxxxRequestPathHandlerFallback]
   | return (const b#{error})
 * b#POST
-  : newState < tag_syscall | DB_WRITE | httpRequest
+  : newState < launchWith rid&(DB_WRITE (rid, httpRequest))
   | trk [%wroteState newState]
   @ noteState | getNote newState
   | return (formulateResponse [b#updatedNoteState noteState])
@@ -214,15 +202,7 @@
   | return (formulateResponse [b#empty b#{}])
 
 = (newHttp return)
-: _ < work EXEC-(httpServer requestHandler)  writeHandler
-;     3 args:  ^ worker. if it does DB_WRITE   ^ cog thread / handler for worker
-;     1-workr  it has a cog thread to apply     activates when worker sends msg
-;     2-cog    these writes to. (DB_READ)
-;     3-conti  doesn't hit the cog but rather
-;              uses its public state.
+: _ < install (httpServer requestHandler) supply writeHandler
 | return ()
 
-main=(runCog newCogState reads newHttp)
-;            ^ public state
-;                        ^ DB_READ handler (allows parallel reads)
-;                              ^ cog to run
+main=(runCog newCogState newHttp)
