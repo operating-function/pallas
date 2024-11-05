@@ -1,7 +1,7 @@
 {
   "id": "reference/standard-library/bars-byte-arrays",
-  "title": "bars-byte-arrays",
-  "description": "",
+  "title": "Bars (byte arrays)",
+  "description": "Macro for creating ASCII bar literals.",
   "source": "@site/../../doc/reference/standard-library/12_bars-byte-arrays.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/bars-byte-arrays",
@@ -15,11 +15,11 @@
   "frontMatter": {},
   "sidebar": "referenceSidebar",
   "previous": {
-    "title": "pads",
+    "title": "Pads",
     "permalink": "/docs/reference/standard-library/pads"
   },
   "next": {
-    "title": "types",
+    "title": "Types",
     "permalink": "/docs/reference/standard-library/types"
   }
 }

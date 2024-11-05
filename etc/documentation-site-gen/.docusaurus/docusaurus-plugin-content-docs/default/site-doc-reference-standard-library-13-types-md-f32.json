@@ -1,7 +1,7 @@
 {
   "id": "reference/standard-library/types",
-  "title": "types",
-  "description": "",
+  "title": "Types",
+  "description": "Type Tags",
   "source": "@site/../../doc/reference/standard-library/13_types.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/types",
@@ -15,7 +15,7 @@
   "frontMatter": {},
   "sidebar": "referenceSidebar",
   "previous": {
-    "title": "bars-byte-arrays",
+    "title": "Bars (byte arrays)",
     "permalink": "/docs/reference/standard-library/bars-byte-arrays"
   }
 }

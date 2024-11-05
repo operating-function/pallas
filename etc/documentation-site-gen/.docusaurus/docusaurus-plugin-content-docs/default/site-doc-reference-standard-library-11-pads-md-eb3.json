@@ -1,7 +1,7 @@
 {
   "id": "reference/standard-library/pads",
-  "title": "pads",
-  "description": "",
+  "title": "Pads",
+  "description": "Pads are bit-strings encoded as non-zero natural numbers. Pads are not data-jetted, since the direct nat works perfectly. Pads are encoded least-significant-bit-first, with the high bit used to indicate the end of the bit-array.",
   "source": "@site/../../doc/reference/standard-library/11_pads.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/pads",
@@ -15,11 +15,11 @@
   "frontMatter": {},
   "sidebar": "referenceSidebar",
   "previous": {
-    "title": "kv-tables",
+    "title": "KV Tables",
     "permalink": "/docs/reference/standard-library/kv-tables"
   },
   "next": {
-    "title": "bars-byte-arrays",
+    "title": "Bars (byte arrays)",
     "permalink": "/docs/reference/standard-library/bars-byte-arrays"
   }
 }

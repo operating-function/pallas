@@ -1,7 +1,7 @@
 {
   "id": "reference/standard-library/maybe",
-  "title": "maybe",
-  "description": "",
+  "title": "Maybe",
+  "description": "NONE",
   "source": "@site/../../doc/reference/standard-library/08_maybe.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/maybe",
@@ -15,11 +15,11 @@
   "frontMatter": {},
   "sidebar": "referenceSidebar",
   "previous": {
-    "title": "either",
+    "title": "Either",
     "permalink": "/docs/reference/standard-library/either"
   },
   "next": {
-    "title": "sets",
+    "title": "Sets",
     "permalink": "/docs/reference/standard-library/sets"
   }
 }

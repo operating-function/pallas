@@ -6,7 +6,7 @@ This page is under active development. It may contain bugs or incomplete descrip
 TODO: Update with function and type signatures.
 ::::
 
-This module defines operations on rows, which are [data-jetted](../../deeper/jets.md) arrays. Since PLAN is untyped, these are also used as the building blocks for tuples, records, and datatypes.
+This module defines operations on rows, which are [TODO TK: data-jetted](#) arrays. Since PLAN is untyped, these are also used as the building blocks for tuples, records, and datatypes.
 
 They are defined with `[]`:
 

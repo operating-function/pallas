@@ -1,7 +1,7 @@
 {
   "id": "reference/standard-library/either",
-  "title": "either",
-  "description": "",
+  "title": "Either",
+  "description": "LEFT",
   "source": "@site/../../doc/reference/standard-library/07_either.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/either",
@@ -15,11 +15,11 @@
   "frontMatter": {},
   "sidebar": "referenceSidebar",
   "previous": {
-    "title": "lists",
+    "title": "Lists",
     "permalink": "/docs/reference/standard-library/lists"
   },
   "next": {
-    "title": "maybe",
+    "title": "Maybe",
     "permalink": "/docs/reference/standard-library/maybe"
   }
 }

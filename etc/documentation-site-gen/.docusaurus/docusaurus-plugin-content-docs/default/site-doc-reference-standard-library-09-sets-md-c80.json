@@ -1,7 +1,7 @@
 {
   "id": "reference/standard-library/sets",
-  "title": "sets",
-  "description": "",
+  "title": "Sets",
+  "description": "Type signatures are provisional and may contain errors.",
   "source": "@site/../../doc/reference/standard-library/09_sets.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/sets",
@@ -15,11 +15,11 @@
   "frontMatter": {},
   "sidebar": "referenceSidebar",
   "previous": {
-    "title": "maybe",
+    "title": "Maybe",
     "permalink": "/docs/reference/standard-library/maybe"
   },
   "next": {
-    "title": "kv-tables",
+    "title": "KV Tables",
     "permalink": "/docs/reference/standard-library/kv-tables"
   }
 }

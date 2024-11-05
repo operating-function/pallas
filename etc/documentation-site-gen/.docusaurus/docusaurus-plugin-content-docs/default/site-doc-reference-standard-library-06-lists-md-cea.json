@@ -1,7 +1,7 @@
 {
   "id": "reference/standard-library/lists",
-  "title": "lists",
-  "description": "",
+  "title": "Lists",
+  "description": "Lists are zero-terminated, nested row 2-tuples. They are declared by prepending a ~ to what looks like row syntax, like this",
   "source": "@site/../../doc/reference/standard-library/06_lists.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/lists",
@@ -19,7 +19,7 @@
     "permalink": "/docs/reference/standard-library/rows"
   },
   "next": {
-    "title": "either",
+    "title": "Either",
     "permalink": "/docs/reference/standard-library/either"
   }
 }
