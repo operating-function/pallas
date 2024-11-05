@@ -32,8 +32,11 @@ TRUE
 ; Do the validation work here. call this in appResponseToHTTP
 TRUE
 
+;; An app returns a tuple [headers body cody reason]
+;; which the HTTP server turns into a response.
+# typedef AppResponse (Tab Bar Bar, Nat, Bar, Bar)
 
-> Tab Bar Bar > Nat > Bar > > Bar > HTTPResponse
+> AppResponse > HTTPResponse
 = (appResponseToHTTP [headers body code reason])
 ; TODO: check validity of headers/body/code we got from app here
 ; Formulate an HTTPResponse anyway (probably a 500 or whatever)
@@ -69,7 +72,7 @@ TRUE
 
 
 = (processConnection io getResponse buffer return)
-: data < syscall | TCP_TAKE io
+: data < launch | TCP_TAKE io
 | if (barIsEmpty data)
   ; TCP has been SHUT
   | trk [%connectionClosed %dataBarEmpty]
@@ -89,16 +92,18 @@ TRUE
 ;;;;
 ^ _ (httpResToBar | appResponseToHTTP cogResponse)
 ? (sendAndClose responseBar)
-: mBytes < syscall | TCP_GIVE io responseBar
+: mBytes < launch | TCP_GIVE io responseBar
 | trk [%sent mBytes %bytes]
-: bytes  < maybeCase mBytes  | syscall (TCP_SHUT io) return
-| if (barLen responseBar == bytes) | syscall (TCP_SHUT io) return
+: bytes  < maybeCase mBytes | launch (TCP_SHUT io) return
+| if (barLen responseBar == bytes) | launch (TCP_SHUT io) return
 | sendAndClose | barDrop bytes responseBar
 
 = (httpServer responseHandler return)
-: port < syscall | TCP_MINE
+: port < launch | TCP_MINE
 | trk [%httpRunning (barCat [b#{visit } b#{http://localhost:} (natBar | showNat port)])]
-: [io ip port] < syscall | TCP_HEAR
+^ _ return
+? (go return)
+: [io ip port] < launch | TCP_HEAR
 | trk [%theirConnection [=io =ip =port]]
-: tid < pumpFork (httpServer responseHandler)
-| processConnection io responseHandler (emptyBuffer ip port) return
+: _ < processConnection io responseHandler (emptyBuffer ip port)
+| go return

@@ -1,0 +1,35 @@
+#### demo_cog_driver <- kern
+
+:| kern
+
+= (proc return)
+: promise < fireWith rid&(DB_WRITE (rid, %a))
+: promise2 < fireWith rid&(DB_WRITE (rid, %b))
+: _ < launch_ | DB_WRITE %c
+: res1 < receive promise
+: stPromise < fire | DB_READ len
+: st < receive stPromise
+: res2 < receive promise2
+: res3 < launchWith rid&(DB_WRITE (rid, %d))
+| if | neq [1 2 3 4]
+     | [res1 res2 st res3]
+  | trk {failure}
+  | return ()
+| trk {success}
+| return ()
+
+= (writeHandler pid msg return)
+| if (len-msg /= 2)
+  | modifyState (rowCons msg) return
+@ (rid,input) msg 
+; trk [%writeHandler [=rid =input]]
+: _ < modifyState (rowCons input)
+: res < getsState len
+: _ < send (pid,rid) res
+| return ()
+
+= (cog return)
+: w0 < install proc supply writeHandler
+| return ()
+
+main=(runCog [] cog)

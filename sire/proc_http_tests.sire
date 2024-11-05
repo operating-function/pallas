@@ -290,12 +290,12 @@
 ;;;;
 
 = (hydrate return)
-: port < syscall | TCP_MINE
-: mout < syscall | TCP_OPEN 16777343 port ; 16777343 == 127.0.0.1
+: port < launch | TCP_MINE
+: mout < launch | TCP_OPEN 16777343 port ; 16777343 == 127.0.0.1
 | trk [=mout]
 : io  < maybeCase mout | return ()
 | trk [=io]
-: gave < syscall | TCP_GIVE io testPacketHTTPOnly
+: gave < launch | TCP_GIVE io testPacketHTTPOnly
 | trk [=gave]
 ; now we're done setting up the test data
 ;
@@ -305,20 +305,16 @@
 ; > HTTPRequest > Proc HTTPResponse
 ; This is here for testing purposes.
 ; In the real world, this will be defined in the cog that uses this proc.
-= (responseHandler msg) | syscall | DB_READ msg
+= (responseHandler msg) | launch | DB_READ msg
 
 = main
-: exit < runCog 0 (_ _ _ & b#success)
+: exit < runCog 0
 ; first zero above: starting (public) state.
-; for the lambda's three arguments being ignored:
-; - the cog's public state (not its private closure)
-; - procID
-; - the actual message (that we are passing in)
 | trk %started_http
 ; TODO: for testing:
-;: _ < work EXEC-hydrate id
-;| trk %started_hydrate
-: _ < work EXEC-(httpServer responseHandler) id
+: _ < install hydrate die die
+| trk %started_hydrate
+: _ < install (httpServer responseHandler) (_ _ & b#success) die
 | trk %started_server
 | exit ()
 

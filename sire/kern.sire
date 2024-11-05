@@ -9,8 +9,8 @@ typedef#WorkerId#Nat
 abstype#(Promise a)
 abstype#(Call a)
 
-= (EVAL f as)            [0 f as]
-= (EXEC pump)            [1 pump]
+= (JOB f as)            [0 f as]
+= (DRIVER driver)       [1 driver]
 
 = (DB_READ query)        [0 %read query]
 = (DB_WRITE cmd)         [0 %write cmd]
@@ -65,11 +65,13 @@ abstype#(Proc a)
 | exe pid input k end out hl st rd ws
 
 > Call a > Proc a
-= (syscall mkRequest k end fr sl rq)
+= (fireWith mkRequest k end fr sl rq)
 : rid fr sl rq < allocateSlot fr sl rq
 @ request | mkRequest rid
 @ rq | rowSnoc rq (rid, request)
 | k rid end fr sl rq
+
+= (fire req) | fireWith const-req
 
 ;; TODO receive and ignore should truncate 0s off of sl
 > Promise a > Proc a
@@ -85,6 +87,16 @@ abstype#(Proc a)
 @ fr | [promise fr]
 @ sl | put sl promise NONE
 | k () end fr sl rq
+
+= (launchWith mkRequest return)
+: promise < fireWith mkRequest
+| receive promise return
+
+= (launch req) | launchWith const-req
+
+= (launch_ req return)
+: promise < fire req
+| ignore promise return
 
 = (PUMP_DONE _ end fr sl rq)
 | end fr sl rq
@@ -113,20 +125,20 @@ abstype#(Proc a)
 @ hl  | rowSnoc hl write
 | k wid end out hl st rd ws
 
-= (exec proc read write)
+= (install driver read write)
 @ w
   @ k   | PUMP_DONE
   @ end | PUMP_KERNEL
   @ fr  | ~[]
   @ sl  | []
   @ rq  | []
-  | EXEC | proc k end fr sl rq
+  | DRIVER | driver k end fr sl rq
 | addWorker w read write
 
-= (eval f xs)
+= (work f xs)
 | addWorker
-* EVAL f xs
-* (st query)&(trk [{eval worker tried to read} [=st =query]] 0)
+* JOB f xs
+* (st query)&(trk [{job tried to read} [=st =query]] 0)
 * supply ()
 
 > (Nat,Nat) > Any > Cog ()
