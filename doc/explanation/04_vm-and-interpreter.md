@@ -14,7 +14,7 @@ Let’s talk about interpreting PLAN first, then we’ll move on to how manifest
 
 ## Interpreting PLAN
 
-While the [informal PLAN specification](TK TODO link) is shown in this explanation, the [formal specification](TK TODO link) is purposefully written in a very implementation-oriented form, to emphasize that this is a wholly practical system despite being so minimal. Most of the implementation falls out directly from that specification. However, some optimizations are necessary to make a PLAN interpreter practically useful. In the [explanation of PLAN’s data model](explanation/02_PLAN-the-data-model.md), we’ve explained how the memory layout of pins and apps can be optimized and how the former helps with garbage collection, but we also need to consider jets and data jets.
+While the [informal PLAN specification](TK TODO link) is shown in this explanation, the [formal specification](TK TODO link) is purposefully written in a very implementation-oriented form, to emphasize that this is a wholly practical system despite being so minimal. Most of the implementation falls out directly from that specification. However, some optimizations are necessary to make a PLAN interpreter practically useful. In the [explanation of PLAN’s data model](explanation/02.5_PLAN-the-data-model.md), we’ve explained how the memory layout of pins and apps can be optimized and how the former helps with garbage collection, but we also need to consider jets and data jets.
 
 ### Jets
 

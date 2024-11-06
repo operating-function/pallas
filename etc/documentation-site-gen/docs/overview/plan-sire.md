@@ -1,4 +1,0 @@
----
-description: 'Document Type: Explanation'
----
-

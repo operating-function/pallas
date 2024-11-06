@@ -52,7 +52,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    defaultMode: 'dark',
+    defaultMode: "dark",
     disableSwitch: true,
     respectPrefersColorScheme: false,
     image: "img/docusaurus-social-card.jpg",
@@ -91,7 +91,7 @@ const config: Config = {
           items: [
             {
               label: "System Overview",
-              to: "/docs/system-overview",
+              to: "docs/explanation/system-overview"
             },
           ],
         },
@@ -99,16 +99,12 @@ const config: Config = {
           title: "Community",
           items: [
             {
-              label: "Stack Overflow",
-              href: "https://stackoverflow.com/questions/tagged/docusaurus",
-            },
-            {
-              label: "Discord",
-              href: "https://discordapp.com/invite/docusaurus",
+              label: "Telegram",
+              href: "https://t.me/vaporwareNetwork",
             },
             {
               label: "Twitter",
-              href: "https://twitter.com/docusaurus",
+              href: "https://twitter.com/__vaporware__",
             },
           ],
         },
@@ -116,12 +112,16 @@ const config: Config = {
           title: "More",
           items: [
             {
+              label: "opfn",
+              to: "https://opfn.co",
+            },
+            {
               label: "Blog",
-              to: "/blog",
+              to: "https://blog.vaporware.network",
             },
             {
               label: "GitHub",
-              href: "https://github.com/facebook/docusaurus",
+              href: "https://github.com/operating-function/pallas",
             },
           ],
         },

@@ -82,7 +82,7 @@ export default {
           "items": [
             {
               "label": "System Overview",
-              "to": "/docs/system-overview"
+              "to": "docs/explanation/system-overview"
             }
           ]
         },
@@ -90,16 +90,12 @@ export default {
           "title": "Community",
           "items": [
             {
-              "label": "Stack Overflow",
-              "href": "https://stackoverflow.com/questions/tagged/docusaurus"
-            },
-            {
-              "label": "Discord",
-              "href": "https://discordapp.com/invite/docusaurus"
+              "label": "Telegram",
+              "href": "https://t.me/vaporwareNetwork"
             },
             {
               "label": "Twitter",
-              "href": "https://twitter.com/docusaurus"
+              "href": "https://twitter.com/__vaporware__"
             }
           ]
         },
@@ -107,12 +103,16 @@ export default {
           "title": "More",
           "items": [
             {
+              "label": "opfn",
+              "to": "https://opfn.co"
+            },
+            {
               "label": "Blog",
-              "to": "/blog"
+              "to": "https://blog.vaporware.network"
             },
             {
               "label": "GitHub",
-              "href": "https://github.com/facebook/docusaurus"
+              "href": "https://github.com/operating-function/pallas"
             }
           ]
         }
