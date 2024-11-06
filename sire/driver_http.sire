@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### proc_http <- lib_http
+#### driver_http <- lib_http
 
 ; Things that need to happen:
 ; - Test passing JSON body in a POST request - probably need to do a bunch after that

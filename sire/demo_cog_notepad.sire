@@ -10,9 +10,9 @@
 ; 3. curl -v localhost:<port>/changed -H "Content-Type: application/json" -d '{"newNote":"new note content here"}'
 ;   - see that you get a JSON response with the updated note
 
-#### demo_cog_notepad <- proc_http
+#### demo_cog_notepad <- driver_http
 
-:| proc_http
+:| driver_http
 :| json
 
 # typedef ContentType Bar

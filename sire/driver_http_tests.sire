@@ -2,9 +2,9 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### proc_http_tests <- proc_http
+#### driver_http_tests <- driver_http
 
-:| proc_http
+:| driver_http
 
 ;;;;
 
