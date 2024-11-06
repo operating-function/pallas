@@ -11,6 +11,11 @@
           "mainDocId": "explanation/system-overview",
           "docs": [
             {
+              "id": "explanation/plan",
+              "path": "/docs/explanation/plan",
+              "sidebar": "explanationSidebar"
+            },
+            {
               "id": "explanation/plan-data-model",
               "path": "/docs/explanation/plan-data-model",
               "sidebar": "explanationSidebar"

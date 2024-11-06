@@ -70,10 +70,10 @@ Laws are executed by applying the EXEC function to an environment containing the
 The EXEC helper function uses an environment to execute law bodies, which are written in an embedded domain-specific language (EDSL). This EDSL is not a separate language per se, but rather a specific way of using PLAN constructs to represent law bodies – PLAN expressions that will have access to an environment of a specific size. Before going into EXEC, it is informative to look at the EDSL for law bodies in the abstract. It doesn’t have a syntax, but if it did, it would look something like this:
 
 ```unset
-LawBody ::= Self                   -- self-reference  
-          | Var Nat                -- var-reference (index into environment)  
-          | Literal PLAN           -- produce literal value  
-          | Apply LawBody LawBody  -- function application  
+LawBody ::= Self                   -- self-reference
+          | Var Nat                -- var-reference (index into environment)
+          | Literal PLAN           -- produce literal value
+          | Apply LawBody LawBody  -- function application
           | let LawBody in LawBody -- let binding (append to environment)
 ```
 

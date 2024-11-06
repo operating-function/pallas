@@ -1,0 +1,27 @@
+{
+  "id": "explanation/plan",
+  "title": "PLAN",
+  "description": "The previous section provided an overview of the system and how the different components contribute to its overall functioning. Let’s now take a closer look at each component, starting with PLAN.",
+  "source": "@site/../../doc/explanation/02_plan.md",
+  "sourceDirName": "explanation",
+  "slug": "/explanation/plan",
+  "permalink": "/docs/explanation/plan",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/explanation/02_plan.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "title": "PLAN"
+  },
+  "sidebar": "explanationSidebar",
+  "previous": {
+    "title": "System Overview",
+    "permalink": "/docs/explanation/system-overview"
+  },
+  "next": {
+    "title": "Data Model",
+    "permalink": "/docs/explanation/plan-data-model"
+  }
+}

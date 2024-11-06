@@ -1,7 +1,7 @@
 {
   "id": "reference/plan/plan-reference",
   "title": "PLAN",
-  "description": "Forthcoming",
+  "description": "Reference for implementing a PLAN interpreter",
   "source": "@site/../../doc/reference/plan/plan.md",
   "sourceDirName": "reference/plan",
   "slug": "/reference/plan/",

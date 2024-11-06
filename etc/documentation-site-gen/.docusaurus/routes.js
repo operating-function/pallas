@@ -114,19 +114,25 @@ export default [
   },
   {
     path: '/docs',
-    component: ComponentCreator('/docs', '56a'),
+    component: ComponentCreator('/docs', '3bb'),
     routes: [
       {
         path: '/docs',
-        component: ComponentCreator('/docs', '4ca'),
+        component: ComponentCreator('/docs', '4c1'),
         routes: [
           {
             path: '/docs',
-            component: ComponentCreator('/docs', 'f46'),
+            component: ComponentCreator('/docs', '517'),
             routes: [
               {
+                path: '/docs/explanation/plan',
+                component: ComponentCreator('/docs/explanation/plan', 'e99'),
+                exact: true,
+                sidebar: "explanationSidebar"
+              },
+              {
                 path: '/docs/explanation/plan-data-model',
-                component: ComponentCreator('/docs/explanation/plan-data-model', 'f21'),
+                component: ComponentCreator('/docs/explanation/plan-data-model', 'da1'),
                 exact: true,
                 sidebar: "explanationSidebar"
               },
