@@ -196,14 +196,14 @@ sleep 0.1
 PORT=$(cat "$MACHINE_DIR"/tcp.port)
 
 echo "Setting interface files..."
-curl --data-binary @./elm/tag-site-demo/elm.js -H "Content-Type: text/javascript" -X PUT http://localhost:$PORT/elm.js
-curl --data-binary @./elm/tag-site-demo/index-xmlhttprequest.html -H "Content-Type: text/html" -X PUT http://localhost:$PORT/index.html
+curl --http1.0 --data-binary @./elm/tag-site-demo/elm.js -H "Content-Type: text/javascript" -H "X-Put-Path: /elm.js" -X POST http://localhost:$PORT/put
+curl --http1.0 --data-binary @./elm/tag-site-demo/index-xmlhttprequest.html -H "Content-Type: text/html" -H "X-Put-Path: /index.html" -X POST http://localhost:$PORT/put
 
 echo "Interface files are set. Running on http://localhost:$PORT/index.html"
 
 if [ ${UPLOAD_IMG} -eq 1 ]; then
     echo "Setting use local images only..."
-    curl -X POST "http://localhost:$PORT/uselocal"
+    curl --http1.0 -X POST "http://localhost:$PORT/uselocal"
 fi
 
 echo "Sending JSON dumps..."
@@ -248,7 +248,7 @@ upload_images_for_file () {
     done
 
     # Upload files 50 at a time so we get some http connection reusage.
-    curl $CURL_ARGS
+    curl --http1.0 $CURL_ARGS
 
     # If we error, we have to hard stop this thread because otherwise we're
     # going to spam the console to the point where noone can see what happened.
@@ -280,7 +280,7 @@ upload_pages () {
             upload_images_for_file "$FILE"
 
             echo "page-$i.json"
-            curl -d @$FILE -H "Content-Type: application/json" -X POST "$url"
+            curl --http1.0 -d @$FILE -H "Content-Type: application/json" -X POST "$url"
             if [[ $? != 0 ]]; then
                 exit -1
             fi
@@ -315,7 +315,7 @@ then
 
     sleep 0.5
 
-    curl -XPOST http://localhost:$PORT/search -d "$json" >out.json
+    curl --http1.0 -XPOST http://localhost:$PORT/search -d "$json" >out.json
 
     cleanup () { rm -f out.json; rm -r "$MACHINE_DIR"; }
     trap cleanup EXIT

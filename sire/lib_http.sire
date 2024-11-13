@@ -18,7 +18,7 @@
 * reqPath    : Bar             ; Request URI
 * reqVersion : Bar             ; HTTP version
 * reqHeader  : List (Bar, Bar) ; List of key-value pairs
-* reqBody    : Bar             ; Request body; may be empty
+* reqBody    : Pin Bar         ; Request body; may be empty
 
 ; TODO: prefix these records
 # record HTTPResponse
@@ -358,7 +358,7 @@ buffer
 * path
 * version
 * headers
-* body
+* PIN-body
 
 
 ; TODO: maybe kill altogher:
