@@ -50,8 +50,9 @@ export default {
     "navbar": {
       "title": "Pallas docs",
       "logo": {
-        "alt": "My Site Logo",
-        "src": "img/logo.svg"
+        "alt": "opfn logo",
+        "src": "img/opfn-logo.png",
+        "srcDark": "img/opfn-logo-light.png"
       },
       "items": [
         {

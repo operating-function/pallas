@@ -10,3 +10,5 @@ If you want to make changes or re-generate the docs:
 - `npm i`
 - `npm run start` - gives you a dev server
 - `npm run build` - builds the static site
+
+## Deployment

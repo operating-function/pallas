@@ -59,8 +59,9 @@ const config: Config = {
     navbar: {
       title: "Pallas docs",
       logo: {
-        alt: "My Site Logo",
-        src: "img/logo.svg",
+        alt: "opfn logo",
+        src: "img/opfn-logo.png",
+        srcDark: "img/opfn-logo-light.png"
       },
       items: [
         {
@@ -91,7 +92,7 @@ const config: Config = {
           items: [
             {
               label: "System Overview",
-              to: "docs/explanation/system-overview"
+              to: "docs/explanation/system-overview",
             },
           ],
         },
