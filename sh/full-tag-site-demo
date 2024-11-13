@@ -83,7 +83,7 @@ do
   esac
 done
 
-# Both curl and plunder consume a ton of file descriptors and mmap segments, in
+# Both curl and pallas consume a ton of file descriptors and mmap segments, in
 # the current demo design. We must check that we have enough fds for all files,
 # and that we have a high enough max_map_count.
 
@@ -176,14 +176,14 @@ do
 done
 
 # TODO: error out if this broke.
-plunder boot "$MACHINE_DIR" sire/demo_full_tag_site.sire
+pallas boot "$MACHINE_DIR" sire/demo_full_tag_site.sire
 
-plunder start "${MACHINE_ARGS[@]}" "$MACHINE_DIR" &
+pallas start "${MACHINE_ARGS[@]}" "$MACHINE_DIR" &
 RUN_MACHINE=$!
 
 echo "started..."
 
-until find "$MACHINE_DIR" -maxdepth 1 -name "*.http.port" -quit
+until find "$MACHINE_DIR" -maxdepth 1 -name "tcp.port" -quit
 do
      echo "Waiting..."
      sleep 0.1
@@ -193,7 +193,7 @@ done
 # port file was created, but hasn't been written to yet.
 sleep 0.1
 
-PORT=$(cat "$MACHINE_DIR"/*.http.port)
+PORT=$(cat "$MACHINE_DIR"/tcp.port)
 
 echo "Setting interface files..."
 curl --data-binary @./elm/tag-site-demo/elm.js -H "Content-Type: text/javascript" -X PUT http://localhost:$PORT/elm.js

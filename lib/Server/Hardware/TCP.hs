@@ -27,15 +27,15 @@ data TCPState = TCP_STATE
     , shutReqs     :: TQueue (SysCall, Int)
     }
 
-createHardwareTCP :: Acquire Device
+createHardwareTCP :: Acquire (PortNumber, Device)
 createHardwareTCP = do
     st <- mkAcquire startup shutdown
-    pure DEVICE
+    pure (st.port, DEVICE
         { stop     = pass -- TODO ??
         , call     = runSysCall st
         , category = categoryCall
         , describe = describeCall
-        }
+        })
   where
     startup :: IO TCPState
     startup = do
