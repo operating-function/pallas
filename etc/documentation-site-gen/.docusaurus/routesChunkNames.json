@@ -1,181 +1,138 @@
 {
-  "/__docusaurus/debug-5ff": {
-    "__comp": "__comp---theme-debug-config-23-a-2ff",
-    "__context": {
-      "plugin": "plugin---docusaurus-debugb-38-ad3"
-    }
-  },
-  "/__docusaurus/debug/config-5ba": {
-    "__comp": "__comp---theme-debug-config-23-a-2ff",
-    "__context": {
-      "plugin": "plugin---docusaurus-debugb-38-ad3"
-    }
-  },
-  "/__docusaurus/debug/content-a2b": {
-    "__comp": "__comp---theme-debug-contentba-8-ce7",
-    "__context": {
-      "plugin": "plugin---docusaurus-debugb-38-ad3"
-    },
-    "__props": "__props---docusaurus-debug-content-3-c-0-be2"
-  },
-  "/__docusaurus/debug/globalData-c3c": {
-    "__comp": "__comp---theme-debug-global-dataede-0fa",
-    "__context": {
-      "plugin": "plugin---docusaurus-debugb-38-ad3"
-    }
-  },
-  "/__docusaurus/debug/metadata-156": {
-    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
-    "__context": {
-      "plugin": "plugin---docusaurus-debugb-38-ad3"
-    }
-  },
-  "/__docusaurus/debug/registry-88c": {
-    "__comp": "__comp---theme-debug-registry-679-501",
-    "__context": {
-      "plugin": "plugin---docusaurus-debugb-38-ad3"
-    }
-  },
-  "/__docusaurus/debug/routes-000": {
-    "__comp": "__comp---theme-debug-routes-946-699",
-    "__context": {
-      "plugin": "plugin---docusaurus-debugb-38-ad3"
-    }
-  },
   "/markdown-page-3d7": {
-    "__comp": "__comp---theme-mdx-page-1-f-3-b90",
+    "__comp": "1f391b9e",
     "__context": {
-      "plugin": "plugin---markdown-pagea-74-7b5"
+      "plugin": "a7456010"
     },
-    "content": "content---markdown-page-393-028"
+    "content": "393be207"
   },
   "/-067": {
-    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
+    "__comp": "5e95c892",
     "__context": {
-      "plugin": "plugin---aba-d70"
+      "plugin": "aba21aa0"
     }
   },
   "/-ead": {
-    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
-    "__props": "__props---22-d-307"
+    "__comp": "a7bd4aaa",
+    "__props": "22dd74f7"
   },
   "/-958": {
-    "__comp": "__comp---theme-doc-roota-94-67a"
+    "__comp": "a94703ab"
   },
   "/explanation/plan-2d7": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---explanation-planc-6-e-96d"
+    "__comp": "17896441",
+    "content": "c6e9325a"
   },
   "/explanation/plan-data-model-823": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---explanation-plan-data-modelfa-7-71c"
+    "__comp": "17896441",
+    "content": "fa73fa13"
   },
   "/explanation/plan-evaluation-model-0df": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---explanation-plan-evaluation-model-2-eb-4e6"
+    "__comp": "17896441",
+    "content": "2ebf8d47"
   },
   "/explanation/sire-and-rex-dfb": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---explanation-sire-and-rex-98-e-e03"
+    "__comp": "17896441",
+    "content": "98e6adeb"
   },
   "/explanation/vm-and-interpreter-d86": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---explanation-vm-and-interpreter-736-d6e"
+    "__comp": "17896441",
+    "content": "736dbc67"
   },
   "/philosophy/philosopy-intro-69c": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---philosophy-philosopy-intro-350-07b"
+    "__comp": "17896441",
+    "content": "350b0e4a"
   },
   "/reference/plan/-2b9": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-plan-5-e-1-cd2"
+    "__comp": "17896441",
+    "content": "5e141af0"
   },
   "/reference/sire-runes-macros-b25": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-sire-runes-macros-206-2ba"
+    "__comp": "17896441",
+    "content": "206dc757"
   },
   "/reference/standard-library/bars-byte-arrays-d77": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-bars-byte-arraysc-4-c-869"
+    "__comp": "17896441",
+    "content": "c4cb2ebf"
   },
   "/reference/standard-library/bits-booleans-6b1": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-bits-booleansb-66-734"
+    "__comp": "17896441",
+    "content": "b66ca770"
   },
   "/reference/standard-library/characters-strings-fe8": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-characters-strings-29-b-94a"
+    "__comp": "17896441",
+    "content": "29b55e3e"
   },
   "/reference/standard-library/comparisons-aa0": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-comparisonsbb-7-056"
+    "__comp": "17896441",
+    "content": "bb7d87b9"
   },
   "/reference/standard-library/either-9da": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-eitherd-42-ef8"
+    "__comp": "17896441",
+    "content": "d4279a5f"
   },
   "/reference/standard-library/kv-tables-435": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-kv-tables-977-c8c"
+    "__comp": "17896441",
+    "content": "977ade49"
   },
   "/reference/standard-library/lists-35e": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-listscea-81a"
+    "__comp": "17896441",
+    "content": "cea83cbe"
   },
   "/reference/standard-library/maybe-4c5": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-maybecbd-ee0"
+    "__comp": "17896441",
+    "content": "cbd9ae0c"
   },
   "/reference/standard-library/natural-numbers-640": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-natural-numbers-473-ad1"
+    "__comp": "17896441",
+    "content": "473411cb"
   },
   "/reference/standard-library/pads-50d": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-padseb-3-265"
+    "__comp": "17896441",
+    "content": "eb39826a"
   },
   "/reference/standard-library/rex-358": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-rex-035-2a8"
+    "__comp": "17896441",
+    "content": "0352f28a"
   },
   "/reference/standard-library/rows-7a8": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-rows-5-ab-8d3"
+    "__comp": "17896441",
+    "content": "5aba89da"
   },
   "/reference/standard-library/sets-619": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-setsc-80-563"
+    "__comp": "17896441",
+    "content": "c801ff30"
   },
   "/reference/standard-library/types-d8c": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-standard-library-typesf-32-101"
+    "__comp": "17896441",
+    "content": "f32fd85f"
   },
   "/reference/vm-and-interpreter/cogs-reference-825": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-vm-and-interpreter-cogs-reference-897-12c"
+    "__comp": "17896441",
+    "content": "8977604e"
   },
   "/reference/vm-and-interpreter/drivers-reference-e79": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-vm-and-interpreter-drivers-reference-53-e-68b"
+    "__comp": "17896441",
+    "content": "53e57719"
   },
   "/reference/vm-and-interpreter/effects-reference-344": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-vm-and-interpreter-effects-reference-37-e-179"
+    "__comp": "17896441",
+    "content": "37e5ddb2"
   },
   "/reference/vm-and-interpreter/jets-reference-735": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-vm-and-interpreter-jets-referencef-2-c-1f5"
+    "__comp": "17896441",
+    "content": "f2c1d9b5"
   },
   "/reference/vm-and-interpreter/jobs-reference-aff": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---reference-vm-and-interpreter-jobs-reference-983-56d"
+    "__comp": "17896441",
+    "content": "98330256"
   },
   "/tutorial/intro-50a": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---tutorial-intro-363-de4"
+    "__comp": "17896441",
+    "content": "3638f25a"
   },
   "/-b5d": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---336-206"
+    "__comp": "17896441",
+    "content": "336e3baa"
   }
 }
