@@ -5,7 +5,7 @@
   "source": "@site/../../doc/tutorial/intro.md",
   "sourceDirName": "tutorial",
   "slug": "/tutorial/intro",
-  "permalink": "/docs/tutorial/intro",
+  "permalink": "/tutorial/intro",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/tutorial/intro.md",

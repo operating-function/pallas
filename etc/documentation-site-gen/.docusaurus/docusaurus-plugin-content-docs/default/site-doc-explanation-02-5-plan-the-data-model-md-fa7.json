@@ -5,7 +5,7 @@
   "source": "@site/../../doc/explanation/02.5_PLAN-the-data-model.md",
   "sourceDirName": "explanation",
   "slug": "/explanation/plan-data-model",
-  "permalink": "/docs/explanation/plan-data-model",
+  "permalink": "/explanation/plan-data-model",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/explanation/02.5_PLAN-the-data-model.md",
@@ -20,10 +20,10 @@
   "sidebar": "explanationSidebar",
   "previous": {
     "title": "PLAN",
-    "permalink": "/docs/explanation/plan"
+    "permalink": "/explanation/plan"
   },
   "next": {
     "title": "Evaluation Model",
-    "permalink": "/docs/explanation/plan-evaluation-model"
+    "permalink": "/explanation/plan-evaluation-model"
   }
 }

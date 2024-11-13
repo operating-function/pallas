@@ -31,6 +31,7 @@ export default {
             "legacy/**"
           ],
           "sidebarPath": "./sidebars.ts",
+          "routeBasePath": "/",
           "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/"
         },
         "theme": {

@@ -4,8 +4,8 @@
   "description": "Pallas is a stack of technologies. At the bottom lies PLAN, an evaluation model. On top of PLAN we have two separate stacks: on one hand Rex and Sire allow programmers to implement programming languages which compile to PLAN, while a manifest format consisting of cogs and drivers is used to completely specify the behavior of a virtual machine that runs PLAN. We’ll start by explaining how these fit together on a high level, and then go into each one in detail.",
   "source": "@site/../../doc/explanation/01_system-overview.md",
   "sourceDirName": "explanation",
-  "slug": "/explanation/system-overview",
-  "permalink": "/docs/explanation/system-overview",
+  "slug": "/",
+  "permalink": "/",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/explanation/01_system-overview.md",
@@ -15,11 +15,12 @@
   "frontMatter": {
     "sidebar_position": 1,
     "id": "system-overview",
-    "title": "System Overview"
+    "title": "System Overview",
+    "slug": "/"
   },
   "sidebar": "explanationSidebar",
   "next": {
     "title": "PLAN",
-    "permalink": "/docs/explanation/plan"
+    "permalink": "/explanation/plan"
   }
 }

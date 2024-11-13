@@ -5,7 +5,7 @@
   "source": "@site/../../doc/explanation/04_vm-and-interpreter.md",
   "sourceDirName": "explanation",
   "slug": "/explanation/vm-and-interpreter",
-  "permalink": "/docs/explanation/vm-and-interpreter",
+  "permalink": "/explanation/vm-and-interpreter",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/explanation/04_vm-and-interpreter.md",
@@ -20,10 +20,10 @@
   "sidebar": "explanationSidebar",
   "previous": {
     "title": "Evaluation Model",
-    "permalink": "/docs/explanation/plan-evaluation-model"
+    "permalink": "/explanation/plan-evaluation-model"
   },
   "next": {
     "title": "Sire and Rex",
-    "permalink": "/docs/explanation/sire-and-rex"
+    "permalink": "/explanation/sire-and-rex"
   }
 }

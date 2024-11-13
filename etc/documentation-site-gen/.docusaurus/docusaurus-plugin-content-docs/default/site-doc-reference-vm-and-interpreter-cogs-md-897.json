@@ -5,7 +5,7 @@
   "source": "@site/../../doc/reference/vm-and-interpreter/cogs.md",
   "sourceDirName": "reference/vm-and-interpreter",
   "slug": "/reference/vm-and-interpreter/cogs-reference",
-  "permalink": "/docs/reference/vm-and-interpreter/cogs-reference",
+  "permalink": "/reference/vm-and-interpreter/cogs-reference",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/vm-and-interpreter/cogs.md",
@@ -18,10 +18,10 @@
   "sidebar": "referenceSidebar",
   "previous": {
     "title": "Jets Reference",
-    "permalink": "/docs/reference/vm-and-interpreter/jets-reference"
+    "permalink": "/reference/vm-and-interpreter/jets-reference"
   },
   "next": {
     "title": "Drivers Reference",
-    "permalink": "/docs/reference/vm-and-interpreter/drivers-reference"
+    "permalink": "/reference/vm-and-interpreter/drivers-reference"
   }
 }

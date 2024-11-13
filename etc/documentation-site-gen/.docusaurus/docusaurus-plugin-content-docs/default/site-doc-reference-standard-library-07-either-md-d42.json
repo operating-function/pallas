@@ -5,7 +5,7 @@
   "source": "@site/../../doc/reference/standard-library/07_either.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/either",
-  "permalink": "/docs/reference/standard-library/either",
+  "permalink": "/reference/standard-library/either",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/07_either.md",
@@ -16,10 +16,10 @@
   "sidebar": "referenceSidebar",
   "previous": {
     "title": "Lists",
-    "permalink": "/docs/reference/standard-library/lists"
+    "permalink": "/reference/standard-library/lists"
   },
   "next": {
     "title": "Maybe",
-    "permalink": "/docs/reference/standard-library/maybe"
+    "permalink": "/reference/standard-library/maybe"
   }
 }

@@ -5,7 +5,7 @@
   "source": "@site/../../doc/reference/vm-and-interpreter/jobs.md",
   "sourceDirName": "reference/vm-and-interpreter",
   "slug": "/reference/vm-and-interpreter/jobs-reference",
-  "permalink": "/docs/reference/vm-and-interpreter/jobs-reference",
+  "permalink": "/reference/vm-and-interpreter/jobs-reference",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/vm-and-interpreter/jobs.md",
@@ -18,10 +18,10 @@
   "sidebar": "referenceSidebar",
   "previous": {
     "title": "Drivers Reference",
-    "permalink": "/docs/reference/vm-and-interpreter/drivers-reference"
+    "permalink": "/reference/vm-and-interpreter/drivers-reference"
   },
   "next": {
     "title": "Effects Reference",
-    "permalink": "/docs/reference/vm-and-interpreter/effects-reference"
+    "permalink": "/reference/vm-and-interpreter/effects-reference"
   }
 }

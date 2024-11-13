@@ -5,7 +5,7 @@
   "source": "@site/../../doc/reference/sire-runes-macros.md",
   "sourceDirName": "reference",
   "slug": "/reference/sire-runes-macros",
-  "permalink": "/docs/reference/sire-runes-macros",
+  "permalink": "/reference/sire-runes-macros",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/sire-runes-macros.md",
@@ -15,6 +15,6 @@
   "sidebar": "referenceSidebar",
   "next": {
     "title": "Bits (Booleans)",
-    "permalink": "/docs/reference/standard-library/bits-booleans"
+    "permalink": "/reference/standard-library/bits-booleans"
   }
 }

@@ -5,7 +5,7 @@
   "source": "@site/../../doc/reference/standard-library/03_comparisons.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/comparisons",
-  "permalink": "/docs/reference/standard-library/comparisons",
+  "permalink": "/reference/standard-library/comparisons",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/03_comparisons.md",
@@ -16,10 +16,10 @@
   "sidebar": "referenceSidebar",
   "previous": {
     "title": "Natural Numbers",
-    "permalink": "/docs/reference/standard-library/natural-numbers"
+    "permalink": "/reference/standard-library/natural-numbers"
   },
   "next": {
     "title": "Characters and Strings",
-    "permalink": "/docs/reference/standard-library/characters-strings"
+    "permalink": "/reference/standard-library/characters-strings"
   }
 }

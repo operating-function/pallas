@@ -5,7 +5,7 @@
   "source": "@site/../../doc/reference/plan/plan.md",
   "sourceDirName": "reference/plan",
   "slug": "/reference/plan/",
-  "permalink": "/docs/reference/plan/",
+  "permalink": "/reference/plan/",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/plan/plan.md",
@@ -18,6 +18,6 @@
   "sidebar": "referenceSidebar",
   "previous": {
     "title": "Effects Reference",
-    "permalink": "/docs/reference/vm-and-interpreter/effects-reference"
+    "permalink": "/reference/vm-and-interpreter/effects-reference"
   }
 }

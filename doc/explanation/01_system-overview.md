@@ -2,6 +2,7 @@
 sidebar_position: 1
 id: system-overview
 title: System Overview
+slug: '/'
 ---
 
 # System Overview

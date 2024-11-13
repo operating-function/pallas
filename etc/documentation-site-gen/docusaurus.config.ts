@@ -26,6 +26,7 @@ const config: Config = {
           path: "../../doc",
           exclude: ["legacy/**"],
           sidebarPath: "./sidebars.ts",
+          routeBasePath: '/', // This makes /docs the root
           editUrl:
             "https://github.com/operating-function/pallas/edit/main/doc/",
         },

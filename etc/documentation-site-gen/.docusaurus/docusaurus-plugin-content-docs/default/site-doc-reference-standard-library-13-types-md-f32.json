@@ -5,7 +5,7 @@
   "source": "@site/../../doc/reference/standard-library/13_types.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/types",
-  "permalink": "/docs/reference/standard-library/types",
+  "permalink": "/reference/standard-library/types",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/13_types.md",
@@ -16,10 +16,10 @@
   "sidebar": "referenceSidebar",
   "previous": {
     "title": "Bars (byte arrays)",
-    "permalink": "/docs/reference/standard-library/bars-byte-arrays"
+    "permalink": "/reference/standard-library/bars-byte-arrays"
   },
   "next": {
     "title": "Jets Reference",
-    "permalink": "/docs/reference/vm-and-interpreter/jets-reference"
+    "permalink": "/reference/vm-and-interpreter/jets-reference"
   }
 }

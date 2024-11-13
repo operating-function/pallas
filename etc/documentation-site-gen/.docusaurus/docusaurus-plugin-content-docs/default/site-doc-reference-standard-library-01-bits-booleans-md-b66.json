@@ -5,7 +5,7 @@
   "source": "@site/../../doc/reference/standard-library/01_bits-booleans.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/bits-booleans",
-  "permalink": "/docs/reference/standard-library/bits-booleans",
+  "permalink": "/reference/standard-library/bits-booleans",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/01_bits-booleans.md",
@@ -18,10 +18,10 @@
   "sidebar": "referenceSidebar",
   "previous": {
     "title": "Runes",
-    "permalink": "/docs/reference/sire-runes-macros"
+    "permalink": "/reference/sire-runes-macros"
   },
   "next": {
     "title": "Natural Numbers",
-    "permalink": "/docs/reference/standard-library/natural-numbers"
+    "permalink": "/reference/standard-library/natural-numbers"
   }
 }

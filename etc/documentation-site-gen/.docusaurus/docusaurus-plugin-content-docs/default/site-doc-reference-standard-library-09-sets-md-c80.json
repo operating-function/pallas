@@ -5,7 +5,7 @@
   "source": "@site/../../doc/reference/standard-library/09_sets.md",
   "sourceDirName": "reference/standard-library",
   "slug": "/reference/standard-library/sets",
-  "permalink": "/docs/reference/standard-library/sets",
+  "permalink": "/reference/standard-library/sets",
   "draft": false,
   "unlisted": false,
   "editUrl": "https://github.com/operating-function/pallas/edit/main/doc/../../doc/reference/standard-library/09_sets.md",
@@ -16,10 +16,10 @@
   "sidebar": "referenceSidebar",
   "previous": {
     "title": "Maybe",
-    "permalink": "/docs/reference/standard-library/maybe"
+    "permalink": "/reference/standard-library/maybe"
   },
   "next": {
     "title": "KV Tables",
-    "permalink": "/docs/reference/standard-library/kv-tables"
+    "permalink": "/reference/standard-library/kv-tables"
   }
 }
