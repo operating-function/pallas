@@ -18,3 +18,5 @@ sire.cache
 .fulltag-demo
 etc/documentation-site-gen/node_modules
 etc/documentation-site-gen/package-lock.json
+etc/documentation-site-gen/build
+etc/documentation-site-gen/.docusaurus
