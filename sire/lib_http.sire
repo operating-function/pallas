@@ -65,17 +65,13 @@
 
 
 = (error400 msg)
-@ headers | emptyTab
-; TODO: move these thigns to "constants"
-@ headers | tabIns b#{Content-Length} 0 headers
-@ headers | tabIns b#{Server} b#{Pallas/0.1} headers
-@ headersList
-  | tabValsList
-  | tabMapWithKey
-  (k v & (barCat [k b#{: } v]))
-  headers
+@ headers | tabIns b#{Content-Length} 0
+          | tabSing b#{Server} b#{Pallas/0.1}
+@ headersList | tabValsList
+              | tabMapWithKey (k v & (barCat [k b#{: } v]))
+              | headers
 | HTTP_RES
-; TODO: move these thigns to "constants"
+;; TODO: move these things to "constants"
 * b#{HTTP/1.0}
 * 400
 * msg
@@ -83,17 +79,13 @@
 * NIL
 
 = (error500 msg)
-@ headers | emptyTab
-; TODO: move these thigns to "constants"
-@ headers | tabIns b#{Content-Length} 0 headers
-@ headers | tabIns b#{Server} b#{Pallas/0.1} headers
-@ headersList
-  | tabValsList
-  | tabMapWithKey
-  (k v & (barCat [k b#{: } v]))
-  headers
+@ headers | tabIns b#{Content-Length} 0
+          | tabSing b#{Server} b#{Pallas/0.1}
+@ headersList | tabValsList
+              | tabMapWithKey (k v & (barCat [k b#{: } v]))
+              | headers
 | HTTP_RES
-; TODO: move these thigns to "constants"
+;; TODO: move these things to "constants"
 * b#{HTTP/1.0}
 * 500
 * msg
@@ -110,12 +102,11 @@
 @ indices (barSubstringSearch seek bar)
 @ seekLen (barLen seek)
 @ wid (barLen bar)
-^ listFilter (compose not barIsEmpty) _
+| listFilter (compose not barIsEmpty)
 ^ _ 0 indices
 ? (go start idxList)
-| listCase idxList
-  | CONS (barSlice start (sub wid start) bar) NIL
-& (idx rest)
+: idx rest < listCase idxList
+           | listSing (barSlice start (sub wid start) bar)
 | CONS (barSlice start (sub idx start) bar)
 | go (add idx seekLen) rest
 
@@ -135,221 +126,161 @@
 ; Helper for determining if the Request Line looks right
 > Bar > Bit
 = (validReqLine reqLine)
-| if (eql reqLine 0)
-  FALSE
 @ split | listToRow | barSplit { } reqLine
-| if (neq 3 (len split))
-  ; we don't have three items
-  FALSE
-| if (any (x & (or (eql x 0) (eql 0 (barLen x)))) split)
-  ; we have three, but some of them are empty?
-  | die [split]
-  FALSE
-TRUE
+| and | not (barIsEmpty reqLine)
+| and (len-split == 3)
+| not (any x&(x==0 || (barLen x)==0) split) ;; TODO x==0 seems ill-typed?
 
-; Helper for getting the Method
 > HTTPBuffer > Maybe Bar
 = (mayExplainMethod buffer)
 @ reqLine | getReqLine buffer
-| if | not (validReqLine reqLine)
-  NONE
-@ [method uri protocol] | listToRow | barSplit { } reqLine
+| maybeGuard | validReqLine reqLine
+@ [method _ _] | listToRow | barSplit { } reqLine
 | SOME method
 
-; Helper for getting the URI
 > HTTPBuffer > Maybe Bar
 = (mayExplainUri buffer)
 @ reqLine | getReqLine buffer
-| if | not (validReqLine reqLine)
-  NONE
-@ [method uri protocol] | listToRow | barSplit { } reqLine
+| maybeGuard | validReqLine reqLine
+@ [_ uri _] | listToRow | barSplit { } reqLine
 | SOME uri
 
-; Helper for getting the HTTP version
 > HTTPBuffer > Maybe Bar
 = (mayExplainHttpVersion buffer)
 @ reqLine | getReqLine buffer
-| if | not (validReqLine reqLine)
-  NONE
-@ [method uri protocol] | listToRow | barSplit { } reqLine
+| maybeGuard | validReqLine reqLine
+@ [_ _ protocol] | listToRow | barSplit { } reqLine
 | SOME protocol
 
 > (Tab Bar Bar) > Bit
 = (haveBodyContent headerMap)
-@ haveContentLength | tabGet headerMap b#{Content-Length}
-| ifz haveContentLength
-  ; No Content-Length header at all
-  FALSE
-| ifz unpackSome-(parseNat haveContentLength)
-  ; Content-Length header, but received a 0 for value
-  FALSE
-; Non-zero Content-Length header
-TRUE
+| bindMaybe | tabLookup b#{Content-Length} headerMap
+| neq b#{0}
 
 ; Helper for getting the Content-Length
 > HTTPBuffer > Maybe Nat
 = (mayExplainContentLength buffer)
-| if | not (haveBodyContent (getHeaders buffer))
-  NONE
-@ cl | tabGet (getHeaders buffer) b#{Content-Length}
-parseNat-cl
+| maybeGuard | haveBodyContent (getHeaders buffer)
+| parseNat | tabGet (getHeaders buffer) b#{Content-Length}
 
-; TODO: deprecated; remove (soon)
 > HTTPBuffer > Bit
 = (isMessageComplete buffer)
 | maybeCase (mayExplainContentLength buffer)
   | getHeadersParsed buffer
-  ; headers are parsed and we didn't expect a body.
-& expectedLength
-| eql expectedLength (getReceivedLength buffer)
-
-
-; TODO: write tests for isMessageComplete
+| eql (getReceivedLength buffer)
 
 ;;;; parsers ;;;;
 
 
-; Given an HTTP stream from the beginning, see if its appropriate
-; to parse the request line yet, and if so, do it and update the buffer
+;; Given an HTTP stream from the beginning, see if its appropriate
+;; to parse the request line yet, and if so, do it and update the buffer
 > Bar > Bar > HTTPBuffer
 = (parseAndSetReqline stream buffer)
-| if (getReqLineParsed buffer)
-  ; already done, nothing to do.
-  buffer
-; do we have a first 0d0a?
-; if not, just return buffer
-| listCase (barSubstringSearch CRLF stream) buffer
-& (idx _)
-; if so, we have a reqline
-; slice from here to the 0d0a
+| if (getReqLineParsed buffer)                      | buffer
+;; do we have a first 0d0a?
+;; if not, just return buffer
+: idx _ < listCase (barSubstringSearch CRLF stream) | buffer
+;; if so, we have a reqline
+;; slice from here to the 0d0a
 @ rl | barTake idx stream
-; put that in reqline
+;; put that in reqline
 @ buffer | setReqLine rl buffer
-; mark it parsed
+;; mark it parsed
 @ buffer | setReqLineParsed TRUE buffer
-buffer
+| buffer
 
 
-; Given an HTTP stream from the beginning, see if its appropriate
-; to parse the headers yet, and if so, do it and update the buffer
+;; Given an HTTP stream from the beginning, see if its appropriate
+;; to parse the headers yet, and if so, do it and update the buffer
 > Bar > Bar > HTTPBuffer
 = (parseAndSetHeaders stream buffer)
-| if | not (getReqLineParsed buffer)
-  ; haven't even done request line yet, stop!
-  buffer
-; now request line is parsed, so we AT LEAST got the first x#0d0a...
-; so we should wait until we have _all_ the headers, which is denoted by
-; an empty line.
-| listCase (barSubstringSearch CRLF stream) buffer
-; if so, we have a reqline
-& (requestLineIdx _)
-; split at the request line and ignore it
+| ifNot (getReqLineParsed buffer) | buffer ; haven't even done request line yet, stop!
+;; now request line is parsed, so we AT LEAST got the first x#0d0a...
+;; so we should wait until we have _all_ the headers, which is denoted by
+;; an empty line.
+: requestLineIdx _ < listCase (barSubstringSearch CRLF stream) buffer
+;; if so, we have a reqline
+;; split at the request line and ignore it
 @ [rl remain] | barSplitAt requestLineIdx stream
 @ remainTrimmed | barDrop 2 remain
-; Again, check to see if we have CRLF yet...
-| listCase (barSubstringSearch DOUBLE_CRLF remainTrimmed) buffer
-; if so, we have all the headers
-& (headersEndIdx _)
-@ h | barTake headersEndIdx remainTrimmed
-@ headers | (extractHeaders h)
-@ buffer | setHeaders headers buffer
-; mark it parsed
-@ buffer | setHeadersParsed TRUE buffer
-buffer
+: headersEndIdx _ < listCase (barSubstringSearch DOUBLE_CRLF remainTrimmed)
+                  | buffer
+@ h       | barTake headersEndIdx remainTrimmed
+@ headers | extractHeaders h
+@ buffer  | setHeaders headers buffer
+@ buffer  | setHeadersParsed TRUE buffer
+| buffer
 
 
-; TODO: > Bar > Bar > Maybe HTTPBuffer
-; Depending on how the stream-parsing goes, if this function sticks around, it
-; should be updated to return a Maybe HTTPBuffer - with the NONE case indicating
-; some kind of poorly-constructed request error.
-> Bar > Bar > HTTPBuffer
+> Bar > Bar > Maybe HTTPBuffer
 = (parseAndSetBody stream buffer)
-| if | not (getHeadersParsed buffer)
-  ; haven't parsed headers yet, stop!
-  buffer
-; Do we have a content length? (we should already be guarded against this
-; by the fact that this function will not be called in processHttpChunk unless
-; there is a content length but its worth being careful)
-| maybeCase (mayExplainContentLength buffer) buffer
-& contentLength
-; Find the first double CRLF - this should be the end of the headers
-| listCase (barSubstringSearch DOUBLE_CRLF stream) buffer
-; if so, we have a reqline
-& (headersEndIdx _)
+| ifNot (getHeadersParsed buffer) | SOME buffer ; haven't parsed headers yet, stop!
+;; Do we have a content length? (we should already be guarded against this
+;; by the fact that this function will not be called in processHttpChunk unless
+;; there is a content length but its worth being careful)
+: contentLength < maybeCase (mayExplainContentLength buffer) | SOME buffer
+;; Find the first double CRLF - this should be the end of the headers
+: headersEndIdx _ < listCase (barSubstringSearch DOUBLE_CRLF stream) | SOME buffer
+;; if so, we have a reqline
 @ body | barDrop (barLen DOUBLE_CRLF) | barDrop headersEndIdx stream
-@ newReceivedLength | (add (getReceivedLength buffer) | barLen body)
+@ newReceivedLength | add (getReceivedLength buffer) | barLen body
 @ buffer | setReceivedLength newReceivedLength buffer
-| if (gth (barLen body) contentLength)
-  ; TODO:
-  ; body is longer than headers indicated. bad request!
-  NONE
+| maybeGuardNot (gth (barLen body) contentLength) ;; body too long
 | if (lth (barLen body) contentLength)
-  ; we don't have all the content yet. allow the processing to continue
-  ; TODO:
-  ; | SOME buffer
-  buffer
+  | SOME buffer ; we don't have all content yet. allow processing to continue
 @ buffer | setBody body buffer
 @ buffer | setBodyParsed TRUE buffer
-; TODO:
-; | SOME buffer
-buffer
+| SOME buffer
 
-; TODO:
 ; take a valid HTTP Response and create an HTTP-1.0-compliant hex array
 > HTTPResponse > Bar
 = (httpResToBar httpRes)
-@ v     | (getVersion      httpRes)
-@ c     | (getStatusCode   httpRes)
-@ s     | (getReasonPhrase httpRes)
-@ h     | (getResHeaderL   httpRes)
-@ b     | (getResBody      httpRes)
-@ noBod | (or (barIsEmpty b) (eql 0 b))
-@ mBody | if noBod NONE | else SOME b
-@ mBSep | if noBod NONE | else SOME DOUBLE_CRLF
+@ v     | getVersion      httpRes
+@ c     | getStatusCode   httpRes
+@ s     | getReasonPhrase httpRes
+@ h     | getResHeaderL   httpRes
+@ b     | getResBody      httpRes
+@ noBod | or (barIsEmpty b) (b == 0)
 @ statusLine         | barCat [v x#20 (natBar | showNat c) x#20 s]
 @ headersSeparated   | barIntercalateList CRLF h
-@ printBodySeparator | fromSome NIL mBSep
-@ printBody          | fromSome NIL mBody
+@ printBodySeparator | if noBod b#{} DOUBLE_CRLF
+@ printBody          | if noBod b#{} b
 | barCat
-  , statusLine
-    CRLF
-    headersSeparated
-    printBodySeparator
-    printBody
+++ statusLine
+++ CRLF
+++ headersSeparated
+++ printBodySeparator
+++ printBody
 
 
-
-
-; Take an HTTP chunk of any size and help build a buffer.
-; - append into the assembledData
-; - if we have the Request Line completed yet, set it in the buffer
-; - if we have all the headers completed yet, set them in the buffer
-; - if we have a body, set it in the buffer
-;
-; TODO: this is a sort of crummy pattern. Each of the parseAndSet* things below
-; runs every time, and each of those (see their bodies) have some repeated
-; logic for dealing with the _entire_ assembledData bar.
-; We should  do this more efficiently and in such a way that:
-; - this can return a Maybe (so that a consumer knows that NONE == malformed)
-; - the individual parsers aren't running unnecessarily
-; - the individual parsers don't have logic from othe responsibilities mixed in
+;; Take an HTTP chunk of any size and help build a buffer.
+;; - append into the assembledData
+;; - if we have the Request Line completed yet, set it in the buffer
+;; - if we have all the headers completed yet, set them in the buffer
+;; - if we have a body, set it in the buffer
+;;
+;; TODO: this is a sort of crummy pattern. Each of the parseAndSet* things below
+;; runs every time, and each of those (see their bodies) have some repeated
+;; logic for dealing with the _entire_ assembledData bar.
+;; We should  do this more efficiently and in such a way that:
+;; - this can return a Maybe (so that a consumer knows that NONE == malformed)
+;; - the individual parsers aren't running unnecessarily
+;; - the individual parsers don't have logic from othe responsibilities mixed in
 = (processHttpChunk buffer chunk)
-@ newAssembledData  | (barWeld (getAssembledData buffer) chunk)
+@ newAssembledData  | barWeld (getAssembledData buffer) chunk
 @ buffer | setAssembledData newAssembledData buffer
 @ buffer | parseAndSetReqline newAssembledData buffer
 @ buffer | parseAndSetHeaders newAssembledData buffer
 | if (haveBodyContent (getHeaders buffer))
-  @ buffer | parseAndSetBody newAssembledData buffer
-  buffer
-buffer
+  | parseAndSetBody newAssembledData buffer
+| SOME buffer
 
 > HTTPBuffer > Maybe HTTPRequest
 = (makeRequest buffer)
-| ifNot (isMessageComplete buffer)
-  NONE
-: method  < maybeCase (mayExplainMethod buffer) NONE
-: path    < maybeCase (mayExplainUri buffer) NONE
-: version < maybeCase (mayExplainHttpVersion buffer) NONE
+| maybeGuard | isMessageComplete buffer
+: method  < bindMaybe | mayExplainMethod buffer
+: path    < bindMaybe | mayExplainUri buffer
+: version < bindMaybe | mayExplainHttpVersion buffer
 @ headers | getHeaders buffer
 @ body    | getBody buffer
 | SOME
@@ -361,30 +292,28 @@ buffer
 * PIN-body
 
 
-; TODO: maybe kill altogher:
+;; TODO: maybe kill altogher:
 > Row Bar > HTTPBuffer
 = (fakeProcessConnection fakeIn buffer)
-| if (eql 0 (len fakeIn))
-  | trk [%ranOuttaIns]
-  ; what does this case actually mean?
-  buffer
+| ifz (len fakeIn) | buffer ; what does this case actually mean?
 @ [data remainder] | splitAt 1 fakeIn ; consider first item
-@ updatedBuffer | processHttpChunk buffer (idx 0 data)
-: request < maybeCase (makeRequest updatedBuffer) ; message incomplete
-          | trk [%processConnectionRecurring]
-          | fakeProcessConnection remainder updatedBuffer
-updatedBuffer
+: updatedBuffer < maybeCase | processHttpChunk buffer (idx 0 data)
+                | die {bad buffer}
+: request       < maybeCase | makeRequest updatedBuffer ; message incomplete
+                | fakeProcessConnection remainder updatedBuffer
+| updatedBuffer
 
 = (splitBarIntoSegmentsList segSize bar)
 @ wid (barLen bar)
-^ (_ 0)
+^ _ 0
 ? (go off)
 | if (gte off wid) NIL
 @ end (add off segSize)
 | CONS (barSlice off (sub end off) bar)
 | go end
 
-(splitBarIntoSegments segSize bar)=(listToRow | splitBarIntoSegmentsList segSize bar)
+= (splitBarIntoSegments segSize bar)
+| listToRow | splitBarIntoSegmentsList segSize bar
 
 
 ;;;;;;;;;;;; Unused now, may be useful later

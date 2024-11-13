@@ -76,7 +76,9 @@ TRUE
 | if (barIsEmpty data)
   | trk [connectionClosed=io]
   | return ()
-@ updatedBuffer | processHttpChunk buffer data
+: updatedBuffer < maybeCase | processHttpChunk buffer data
+                | launch (TCP_SHUT io) return
+| trk [=io tookBytes=(barLen data) received=(getReceivedLength buffer) expected=(mayExplainContentLength buffer)]
 | ifNot (validRequest updatedBuffer)
   | processConnection io getResponse updatedBuffer return
 | trk [validRequestOn=io]
