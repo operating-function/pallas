@@ -24,7 +24,7 @@ abstype#(Call a)
 = (TCP_SHUT h)           [%tcp %shut h]
 
 abstype#(Cog a)
-abstype#(Proc a)
+abstype#(Driver a)
 
 = (allocateSlot fr sl rq k)
 | ifz fr
@@ -34,19 +34,6 @@ abstype#(Proc a)
 @ [key fr] | fr
 @ sl | put sl key NONE
 | k key fr sl rq
-
-;; When making a syscall, we need to record that the rid has been used,
-;; to prevent the same rid from being used again.
-;; We could store a list of rids that have been used but it seems cleaner
-;; to just store NONE in sl.
-;; Eventually we should either clear that slot or start listening on it.
-;; But we don't know when making the syscall whether we're interested
-;; in the response or not.
-;; This is what void_syscall was for though.
-;; Eventually it seems like it should be possible to implement `void`
-;; which replaces that? Or we might be able to implement void_syscall.
-;; But the default case should be that we clear manually, i think?
-;; `void` can probably be implemented by virtualizing the cog?
 
 = (COG_DONE result end out hl st rd ws)
 | end out hl st rd ws
@@ -64,7 +51,7 @@ abstype#(Proc a)
 @ end | kernel_loop stream
 | exe pid input k end out hl st rd ws
 
-> Call a > Proc a
+> (Nat > Call a) > Driver (Promise a)
 = (fireWith mkRequest k end fr sl rq)
 : rid fr sl rq < allocateSlot fr sl rq
 @ request | mkRequest rid
@@ -74,7 +61,7 @@ abstype#(Proc a)
 = (fire req) | fireWith const-req
 
 ;; TODO receive and ignore should truncate 0s off of sl
-> Promise a > Proc a
+> Promise a > Driver a
 = (receive promise k end fr sl rq)
 : input < maybeCase | get sl promise
         @ sl | put sl promise SOME-k
@@ -98,18 +85,21 @@ abstype#(Proc a)
 : promise < fire req
 | ignore promise return
 
-= (PUMP_DONE _ end fr sl rq)
+= (DRIVER_DONE _ end fr sl rq)
 | end fr sl rq
 
-= (PUMP_KERNEL fr sl rq key input)
+= (DRIVER_KERNEL fr sl rq key input)
 @ rq  | []                 ; TODO This should be solved in the runtime
-@ end | PUMP_KERNEL
+@ end | DRIVER_KERNEL
 : exe < maybeCase | get sl key
       @ sl | put sl key SOME-input
       | end fr sl rq
 @ fr  | [key fr]
 @ sl  | put sl key NONE
 | exe input end fr sl rq
+
+= (fork act k end fr sl rq)
+| act DRIVER_DONE (k () end) fr sl rq
 
 = (putState x k end out hl st rd ws)    | k ()   end out hl x    rd ws
 = (getState k end out hl st rd ws)      | k st   end out hl st   rd ws
@@ -127,8 +117,8 @@ abstype#(Proc a)
 
 = (install driver read write)
 @ w
-  @ k   | PUMP_DONE
-  @ end | PUMP_KERNEL
+  @ k   | DRIVER_DONE
+  @ end | DRIVER_KERNEL
   @ fr  | ~[]
   @ sl  | []
   @ rq  | []

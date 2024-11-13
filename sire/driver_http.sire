@@ -74,27 +74,24 @@ TRUE
 = (processConnection io getResponse buffer return)
 : data < launch | TCP_TAKE io
 | if (barIsEmpty data)
-  ; TCP has been SHUT
-  | trk [%connectionClosed %dataBarEmpty]
+  | trk [connectionClosed=io]
   | return ()
 @ updatedBuffer | processHttpChunk buffer data
 | ifNot (validRequest updatedBuffer)
-  | processConnection io updatedBuffer return
+  | processConnection io getResponse updatedBuffer return
+| trk [validRequestOn=io]
 : request < maybeCase (makeRequest updatedBuffer)
-          ; valid but incomplete
-          | processConnection io updatedBuffer return
-; complete and valid
-: cogResponse < getResponse request
-;;;; Just for printing
-@ [headers body code reas] | cogResponse
-@ truncatedBody | idx 0 | barSplitAt 20 body
-| trk [%cogResponse [=headers =code =reas =truncatedBody]]
+          | trk [parseFailedOn=io]
+          | processConnection io getResponse updatedBuffer return
+| trk [parsedRequestOn=io]
+: cogResponse@[headers body code reas] < getResponse request
+| trk [%cogResponse [=io =headers =code =reas body=(barTake 20 body)]]
 ;;;;
 ^ _ (httpResToBar | appResponseToHTTP cogResponse)
 ? (sendAndClose responseBar)
 : mBytes < launch | TCP_GIVE io responseBar
-| trk [%sent mBytes %bytes]
-: bytes  < maybeCase mBytes | launch (TCP_SHUT io) return
+| trk [=io sentBytes=mBytes]
+: bytes < maybeCase mBytes | launch (TCP_SHUT io) return
 | if (barLen responseBar == bytes) | launch (TCP_SHUT io) return
 | sendAndClose | barDrop bytes responseBar
 
@@ -104,6 +101,6 @@ TRUE
 ^ _ return
 ? (go return)
 : [io ip port] < launch | TCP_HEAR
-| trk [%theirConnection [=io =ip =port]]
-: _ < processConnection io responseHandler (emptyBuffer ip port)
+| trk [newConnection=io]
+: _ < fork | processConnection io responseHandler (emptyBuffer ip port)
 | go return
