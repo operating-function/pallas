@@ -1,67 +1,98 @@
-; Copyright 2024 The OPfN Authors
-; Use of this source code is governed by a BSD-style license that can be
-; found in the LICENSE file.
-
 #### lib_http <- prelude
 
 :| prelude
 
-;;;;
+;;; Bar helpers ;; TODO move these?
 
-# typedef SenderIP Bar
+;; Like barSubstringLines, but allows splitting on arbitrary characters.
+> Bar > Bar > List Bar
+= (barSubstringLinesList seek bar)
+@ indices (barSubstringSearch seek bar)
+@ seekLen (barLen seek)
+@ wid (barLen bar)
+| listFilter (compose not barIsEmpty)
+^ _ 0 indices
+? (go start idxList)
+: idx rest < listCase idxList
+           | listSing (barSlice start (sub wid start) bar)
+| CONS (barSlice start (sub idx start) bar)
+| go (add idx seekLen) rest
 
-# typedef ConnectionHandle Bar
+(barSubstringLines seek bar)=(listToRow | barSubstringLinesList seek bar)
+
+=?= ~[x#de x#ad x#20be x#ef]
+  | barSubstringLinesList x#0d x#{de0dad0d20be0def0d0d}
+
+=?= [x#de x#ad x#20be x#ef]
+  | barSubstringLines x#0d x#{de0dad0d20be0def0d0d}
+
+=?= ~[x#de x#ad x#20be x#ee x#ef]
+  | barSubstringLinesList x#0d x#{de0dad0d20be0dee0def}
+
+=?= ~[x#de x#ad x#20be x#ef]
+  | barSubstringLinesList x#0d x#{0d0dde0dad0d20be0def0d}
+
+=?= ~[x#de x#ad x#200dbe x#ef]
+  | barSubstringLinesList x#0d0a0d x#{de0d0a0dad0d0a0d200dbe0d0a0def0d0a0d}
+
+
+> Bar > Bar > Maybe (Bar, Bar)
+= (barSplitOnSubstring substr bar)
+: idx _ < listCase | barSubstringSearch substr bar
+        | NONE
+| SOME (barTake idx bar, barDrop (add idx (barLen substr)) bar)
+
+
+=?= SOME-[b#foo b#baz]   | barSplitOnSubstring b#bar b#foobarbaz
+=?= SOME-[b#{} b#barbaz] | barSplitOnSubstring b#foo b#foobarbaz
+=?= SOME-[b#foobar b#{}] | barSplitOnSubstring b#baz b#foobarbaz
+=?= NONE                 | barSplitOnSubstring b#{ } b#foobarbaz
+
+
+= CRLF        | x#0d0a
+= DOUBLE_CRLF | x#0d0a0d0a
+
+
+;;; HTTP types
+
+# datatype Method
+* GET=GET
+* POST=POST
+
 
 # record HTTPRequest
 | HTTP_REQ
-* reqMethod  : Bar             ; HTTP method
+* reqMethod  : Method          ; HTTP method
 * reqPath    : Bar             ; Request URI
 * reqVersion : Bar             ; HTTP version
-* reqHeader  : List (Bar, Bar) ; List of key-value pairs
+* reqHeader  : Tab Bar Bar     ; Request headers
 * reqBody    : Pin Bar         ; Request body; may be empty
 
-; TODO: prefix these records
 # record HTTPResponse
 | HTTP_RES
 * version      : Bar             ; HTTP version
 * statusCode   : Nat             ; Numeric status code (for automata)
 * reasonPhrase : Bar             ; e.g "OK", "Not Found" (for humans)
-* resHeaderL   : List (Bar, Bar) ; List of key-value pairs
-* resBody      : Bar             ; Response body
-
-# record HTTPBuffer
-| HTTP_BUF
-* senderIP       : SenderIP
-* senderPort     : Nat
-* assembledData  : Bar
-* headersParsed  : Bit
-* headers        : (Tab Bar Bar)
-* reqLineParsed  : Bit
-* reqLine        : Bar
-* contentLength  : Maybe Nat
-* chunked        : Bit ; Don't need for 1.0
-* receivedLength : Nat
-* body           : Bar
-* bodyParsed     : Bit
-
-= (emptyBuffer senderIP senderPort)
-| HTTP_BUF
-* senderIP
-* senderPort
-* b#{}
-* FALSE
-* emptyTab
-* FALSE
-* b#{}
-* NONE
-* FALSE
-* 0
-* b#{}
-* FALSE
+* resHeaderL   : Tab Bar Bar     ; Response headers
+* resBody      : Bar             ; Response body ;; TODO pin this?
 
 
-= CRLF        | x#0d0a
-= DOUBLE_CRLF | x#0d0a0d0a
+> HTTPResponse > Bar
+= (httpResToBar httpRes)
+@ v     | getVersion      httpRes
+@ c     | getStatusCode   httpRes
+@ s     | getReasonPhrase httpRes
+@ h     | getResHeaderL   httpRes
+@ b     | getResBody      httpRes
+@ statusLine         | barCat [v x#20 (natBar | showNat c) x#20 s]
+@ headersSeparated   | barIntercalateList CRLF h
+@ printBodySeparator | if (barIsEmpty b) b#{} DOUBLE_CRLF
+| barCat
+++ statusLine
+++ CRLF
+++ headersSeparated
+++ printBodySeparator
+++ b
 
 
 = (error400 msg)
@@ -78,6 +109,7 @@
 * headersList
 * NIL
 
+
 = (error500 msg)
 @ headers | tabIns b#{Content-Length} 0
           | tabSing b#{Server} b#{Pallas/0.1}
@@ -93,653 +125,127 @@
 * NIL
 
 
-;;;;;;;;;;;
+;;; Request parsing
 
-; TODO: move to _not_ http
-; Like barSubstringLines, but allows splitting on arbitrary characters.
-> Bar > Bar > List Bar
-= (barSubstringLinesList seek bar)
-@ indices (barSubstringSearch seek bar)
-@ seekLen (barLen seek)
-@ wid (barLen bar)
-| listFilter (compose not barIsEmpty)
-^ _ 0 indices
-? (go start idxList)
-: idx rest < listCase idxList
-           | listSing (barSlice start (sub wid start) bar)
-| CONS (barSlice start (sub idx start) bar)
-| go (add idx seekLen) rest
-
-(barSubstringLines seek bar)=(listToRow | barSubstringLinesList seek bar)
-
-;;;; helpers and printers ;;;;
+# datatype ParserState
+* AWAITING_REQ_LINE
+* AWAITING_HEADERS      reqLine:(Method,Bar,Bar)
+* AWAITING_BODY len:Nat reqLine:(Method,Bar,Bar) headers:(Tab Bar Bar)
+* COMPLETE              reqLine:(Method,Bar,Bar) headers:(Tab Bar Bar) body:Bar
+* PARSER_ERROR  err:Bar
 
 
-> Bar > (Tab Bar Bar)
-= (extractHeaders headerBar)
-@ headerLines | (barSubstringLinesList CRLF headerBar)
-^ listFoldr _ emptyTab headerLines
-& (line acc)
-@ [key value] | listToRow | barSubstringLinesList b#{: } line
-| tabIns key value acc
-
-; Helper for determining if the Request Line looks right
-> Bar > Bit
-= (validReqLine reqLine)
-@ split | listToRow | barSplit { } reqLine
-| and | not (barIsEmpty reqLine)
-| and (len-split == 3)
-| not (any x&(x==0 || (barLen x)==0) split) ;; TODO x==0 seems ill-typed?
-
-> HTTPBuffer > Maybe Bar
-= (mayExplainMethod buffer)
-@ reqLine | getReqLine buffer
-| maybeGuard | validReqLine reqLine
-@ [method _ _] | listToRow | barSplit { } reqLine
-| SOME method
-
-> HTTPBuffer > Maybe Bar
-= (mayExplainUri buffer)
-@ reqLine | getReqLine buffer
-| maybeGuard | validReqLine reqLine
-@ [_ uri _] | listToRow | barSplit { } reqLine
-| SOME uri
-
-> HTTPBuffer > Maybe Bar
-= (mayExplainHttpVersion buffer)
-@ reqLine | getReqLine buffer
-| maybeGuard | validReqLine reqLine
-@ [_ _ protocol] | listToRow | barSplit { } reqLine
-| SOME protocol
-
-> (Tab Bar Bar) > Bit
-= (haveBodyContent headerMap)
-| bindMaybe | tabLookup b#{Content-Length} headerMap
-| neq b#{0}
-
-; Helper for getting the Content-Length
-> HTTPBuffer > Maybe Nat
-= (mayExplainContentLength buffer)
-| maybeGuard | haveBodyContent (getHeaders buffer)
-| parseNat | tabGet (getHeaders buffer) b#{Content-Length}
-
-> HTTPBuffer > Bit
-= (isMessageComplete buffer)
-| maybeCase (mayExplainContentLength buffer)
-  | getHeadersParsed buffer
-| eql (getReceivedLength buffer)
-
-;;;; parsers ;;;;
+# record HTTPParser 
+| HTTP_PARSER
+* accumulated : Bar
+* state       : ParserState
 
 
-;; Given an HTTP stream from the beginning, see if its appropriate
-;; to parse the request line yet, and if so, do it and update the buffer
-> Bar > Bar > HTTPBuffer
-= (parseAndSetReqline stream buffer)
-| if (getReqLineParsed buffer)                      | buffer
-;; do we have a first 0d0a?
-;; if not, just return buffer
-: idx _ < listCase (barSubstringSearch CRLF stream) | buffer
-;; if so, we have a reqline
-;; slice from here to the 0d0a
-@ rl | barTake idx stream
-;; put that in reqline
-@ buffer | setReqLine rl buffer
-;; mark it parsed
-@ buffer | setReqLineParsed TRUE buffer
-| buffer
+= newHTTPParser
+| HTTP_PARSER
+* b#{}
+* AWAITING_REQ_LINE
 
 
-;; Given an HTTP stream from the beginning, see if its appropriate
-;; to parse the headers yet, and if so, do it and update the buffer
-> Bar > Bar > HTTPBuffer
-= (parseAndSetHeaders stream buffer)
-| ifNot (getReqLineParsed buffer) | buffer ; haven't even done request line yet, stop!
-;; now request line is parsed, so we AT LEAST got the first x#0d0a...
-;; so we should wait until we have _all_ the headers, which is denoted by
-;; an empty line.
-: requestLineIdx _ < listCase (barSubstringSearch CRLF stream) buffer
-;; if so, we have a reqline
-;; split at the request line and ignore it
-@ [rl remain] | barSplitAt requestLineIdx stream
-@ remainTrimmed | barDrop 2 remain
-: headersEndIdx _ < listCase (barSubstringSearch DOUBLE_CRLF remainTrimmed)
-                  | buffer
-@ h       | barTake headersEndIdx remainTrimmed
-@ headers | extractHeaders h
-@ buffer  | setHeaders headers buffer
-@ buffer  | setHeadersParsed TRUE buffer
-| buffer
+= (parseRequestLine line)
+@ parts | listToRow | barSplit { } line
+| maybeGuard (len-parts == 3)
+@ [method path version] | parts
+@ method | barNat method
+| maybeGuard (any (eql method) [GET POST]) ;; TODO remove once we have types
+; maybeGuard (version == b#{HTTP/1.0}) ;; TODO eeh?
+| SOME (method, path, version)
 
 
-> Bar > Bar > Maybe HTTPBuffer
-= (parseAndSetBody stream buffer)
-| ifNot (getHeadersParsed buffer) | SOME buffer ; haven't parsed headers yet, stop!
-;; Do we have a content length? (we should already be guarded against this
-;; by the fact that this function will not be called in processHttpChunk unless
-;; there is a content length but its worth being careful)
-: contentLength < maybeCase (mayExplainContentLength buffer) | SOME buffer
-;; Find the first double CRLF - this should be the end of the headers
-: headersEndIdx _ < listCase (barSubstringSearch DOUBLE_CRLF stream) | SOME buffer
-;; if so, we have a reqline
-@ body | barDrop (barLen DOUBLE_CRLF) | barDrop headersEndIdx stream
-@ newReceivedLength | add (getReceivedLength buffer) | barLen body
-@ buffer | setReceivedLength newReceivedLength buffer
-| maybeGuardNot (gth (barLen body) contentLength) ;; body too long
-| if (lth (barLen body) contentLength)
-  | SOME buffer ; we don't have all content yet. allow processing to continue
-@ buffer | setBody body buffer
-@ buffer | setBodyParsed TRUE buffer
-| SOME buffer
-
-; take a valid HTTP Response and create an HTTP-1.0-compliant hex array
-> HTTPResponse > Bar
-= (httpResToBar httpRes)
-@ v     | getVersion      httpRes
-@ c     | getStatusCode   httpRes
-@ s     | getReasonPhrase httpRes
-@ h     | getResHeaderL   httpRes
-@ b     | getResBody      httpRes
-@ noBod | or (barIsEmpty b) (b == 0)
-@ statusLine         | barCat [v x#20 (natBar | showNat c) x#20 s]
-@ headersSeparated   | barIntercalateList CRLF h
-@ printBodySeparator | if noBod b#{} DOUBLE_CRLF
-@ printBody          | if noBod b#{} b
-| barCat
-++ statusLine
-++ CRLF
-++ headersSeparated
-++ printBodySeparator
-++ printBody
+> HTTPParser > ((Method, Bar, Bar) > Bar > HTTPParser) > HTTPParser
+= (processReqLine parser step)
+# datacase | getState parser
+* _ | parser
+* AWAITING_REQ_LINE
+: (line, rest) < maybeCase | barSplitOnSubstring CRLF | getAccumulated parser
+               | parser
+: reqLineParts < maybeCase | parseRequestLine line
+               | trk [reqLine=line]
+               | setState (PARSER_ERROR b#{Invalid request line}) parser
+| step reqLineParts rest
 
 
-;; Take an HTTP chunk of any size and help build a buffer.
-;; - append into the assembledData
-;; - if we have the Request Line completed yet, set it in the buffer
-;; - if we have all the headers completed yet, set them in the buffer
-;; - if we have a body, set it in the buffer
-;;
-;; TODO: this is a sort of crummy pattern. Each of the parseAndSet* things below
-;; runs every time, and each of those (see their bodies) have some repeated
-;; logic for dealing with the _entire_ assembledData bar.
-;; We should  do this more efficiently and in such a way that:
-;; - this can return a Maybe (so that a consumer knows that NONE == malformed)
-;; - the individual parsers aren't running unnecessarily
-;; - the individual parsers don't have logic from othe responsibilities mixed in
-= (processHttpChunk buffer chunk)
-@ newAssembledData  | barWeld (getAssembledData buffer) chunk
-@ buffer | setAssembledData newAssembledData buffer
-@ buffer | parseAndSetReqline newAssembledData buffer
-@ buffer | parseAndSetHeaders newAssembledData buffer
-| if (haveBodyContent (getHeaders buffer))
-  | parseAndSetBody newAssembledData buffer
-| SOME buffer
+> Bar > Tab Bar Bar
+= (parseHeaders bar)
+^ listFoldl _ emptyTab | barSubstringLinesList CRLF bar
+& (headers line)
+@ (key,val) | barSplitOne {:} line
+@ key | barTrim key
+@ val | barTrim val
+| if barIsEmpty-key | headers
+| tabIns key val headers
 
-> HTTPBuffer > Maybe HTTPRequest
-= (makeRequest buffer)
-| maybeGuard | isMessageComplete buffer
-: method  < bindMaybe | mayExplainMethod buffer
-: path    < bindMaybe | mayExplainUri buffer
-: version < bindMaybe | mayExplainHttpVersion buffer
-@ headers | getHeaders buffer
-@ body    | getBody buffer
-| SOME
+
+> HTTPParser > (Tab Bar Bar > Bar > HTTPParser) > HTTPParser
+= (processHeaders parser step)
+@ HTTP_PARSER(..) parser
+# datacase state
+* _ | parser
+* AWAITING_HEADERS|_
+: (headerBar, rest) < maybeCase | barSplitOnSubstring DOUBLE_CRLF accumulated
+                    | parser
+@ headers | parseHeaders headerBar
+| step headers rest
+
+
+= (processBody parser step)
+@ HTTP_PARSER(..) parser
+# datacase state
+* _ | parser
+* (AWAITING_BODY sz _ _)
+| if (gth sz | barLen accumulated) | parser
+| uncurry step | barSplitAt sz accumulated
+
+
+= (stepParser parser)
+@ HTTP_PARSER(..) parser
+# datacase state
+* (COMPLETE _ _ _)   | parser
+* (PARSER_ERROR msg) | parser
+* AWAITING_REQ_LINE
+  : reqLine rest < processReqLine parser
+  | stepParser
+  | HTTP_PARSER rest | AWAITING_HEADERS reqLine
+* (AWAITING_HEADERS reqLine)
+  : headers rest < processHeaders parser
+  | trk [parsedHeaders=headers]
+  @ done | HTTP_PARSER rest | COMPLETE reqLine headers b#{}
+  | fromSome done
+  : contentLength < bindMaybe | tabLookup b#{Content-Length} headers
+  : sz            < bindMaybe | parseNat contentLength
+  | maybeGuardNot | eql sz 0
+  ^ SOME | stepParser _
+  | HTTP_PARSER rest | AWAITING_BODY sz reqLine headers
+* (AWAITING_BODY _ reqLine headers)
+  | trk [awaitingBody=(barLen accumulated)]
+  : body rest < processBody parser
+  | ifNot (barIsEmpty rest)
+    | trk [=rest]
+    | setState (PARSER_ERROR b#{body too long}) parser
+  | HTTP_PARSER rest | COMPLETE reqLine headers body
+
+
+> HTTPParser > Bar > HTTPParser
+= (feedData parser newData)
+@ cum | getAccumulated parser
+| stepParser | setAccumulated (barWeld cum newData) parser
+
+
+> HTTPParser > Maybe (Either Bar HTTPRequest)
+= (getResult parser)
+# datacase | getState parser
+* _                | NONE
+* PARSER_ERROR|msg | SOME LEFT-msg
+* (COMPLETE (method,path,version) headers body)
+^ SOME | RIGHT _
 | HTTP_REQ
 * method
-* path
+* path 
 * version
 * headers
-* PIN-body
-
-
-;; TODO: maybe kill altogher:
-> Row Bar > HTTPBuffer
-= (fakeProcessConnection fakeIn buffer)
-| ifz (len fakeIn) | buffer ; what does this case actually mean?
-@ [data remainder] | splitAt 1 fakeIn ; consider first item
-: updatedBuffer < maybeCase | processHttpChunk buffer (idx 0 data)
-                | die {bad buffer}
-: request       < maybeCase | makeRequest updatedBuffer ; message incomplete
-                | fakeProcessConnection remainder updatedBuffer
-| updatedBuffer
-
-= (splitBarIntoSegmentsList segSize bar)
-@ wid (barLen bar)
-^ _ 0
-? (go off)
-| if (gte off wid) NIL
-@ end (add off segSize)
-| CONS (barSlice off (sub end off) bar)
-| go end
-
-= (splitBarIntoSegments segSize bar)
-| listToRow | splitBarIntoSegmentsList segSize bar
-
-
-;;;;;;;;;;;; Unused now, may be useful later
-
-> Bar > Word32
-= (ipToWord ipBar)
-@ octets (listToRow | barSplit 46 ipBar) ; 46 is ASCII for '.'
-| if (neq 4 | len octets)
-  | die {Invalid IP address format}
-^ foldl _ 0 octets
-& (acc octet)
-@ value (barLoadDecimal octet)
-| if (or (lth value 0) (gth value 255))
-  | die {Invalid octet value}
-| add (lsh acc 8) value
-
-> Word32 > Bar
-= (wordToIp ipWord)
-@ octet1 | barShowDecimal (div ipWord 16777216)
-@ octet2 | barShowDecimal (mod (div ipWord 65536) 256)
-@ octet3 | barShowDecimal (mod (div ipWord 256) 256)
-@ octet4 | barShowDecimal (mod ipWord 256)
-| barCat [octet1 b#{.} octet2 b#{.} octet3 b#{.} octet4]
-
-= testIp b#{192.168.1.2}
-= testWord (ipToWord testIp)
-= backToIp (wordToIp testWord)
-
-=?= testIp backToIp
-
-= testIp b#{192.0.0.0}
-= testWord (ipToWord testIp)
-= backToIp (wordToIp testWord)
-
-=?= testIp backToIp
-
-;;;;;;; Temporarily hiding large html templates here
-
-= notesIndexHtml
-# b
-} <!DOCTYPE html>
-} <html lang="en">
-}   <head>
-}     <meta charset="UTF-8" />
-}     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-}     <title>Pallas Notepad</title>
-}     <script
-}       src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-}       defer
-}     ></script>
-}     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-}     <style>
-}       body {
-}         font-family: Arial, sans-serif;
-}         max-width: 1200px;
-}         margin: 0 auto;
-}         padding: 20px;
-}       }
-}       .editor-container {
-}         display: flex;
-}         gap: 20px;
-}       }
-}       #editor,
-}       #preview {
-}         width: 50%;
-}         height: 400px;
-}         border: 1px solid #ccc;
-}         padding: 10px;
-}         overflow-y: auto;
-}       }
-}       #preview {
-}         height: 90vw;
-}       }
-}       #editor {
-}         resize: vertical;
-}       }
-}       #status {
-}         font-style: italic;
-}         opacity: 0.25;
-}         margin-top: 10px;
-}       }
-}       .port-input {
-}         margin-bottom: 10px;
-}       }
-}       #context-menu {
-}         position: absolute;
-}         background-color: #f9f9f9;
-}         border: 1px solid #ccc;
-}         padding: 5px;
-}         z-index: 1000;
-}       }
-}       #context-menu a {
-}         display: block;
-}         padding: 5px;
-}         text-decoration: none;
-}         color: #333;
-}       }
-}       #context-menu a:hover {
-}         background-color: #e9e9e9;
-}       }
-}       .context-menu-section {
-}         border-top: 1px solid #ccc;
-}         margin-top: 5px;
-}         padding-top: 5px;
-}       }
-}       .context-menu-section:first-child {
-}         border-top: none;
-}         margin-top: 0;
-}         padding-top: 0;
-}       }
-}       .context-menu-footer {
-}         border-top: 1px solid #ccc;
-}         margin-top: 5px;
-}         padding-top: 5px;
-}       }
-} 
-}       /* Basic Markdown Styles for preview */
-}       #preview h1,
-}       #preview h2,
-}       #preview h3 {
-}         margin-top: 0;
-}       }
-}       #preview strong {
-}         font-weight: bold;
-}       }
-}       #preview em {
-}         font-style: italic;
-}       }
-}       #preview ul,
-}       #preview ol {
-}         padding-left: 20px;
-}       }
-}       #preview code {
-}         background-color: #f0f0f0;
-}         padding: 2px 4px;
-}         border-radius: 3px;
-}       }
-}       #preview img {
-}         max-width: 100%;
-}         height: auto;
-}       }
-}     </style>
-}   </head>
-}   <body>
-}     <div x-data="notepad">
-}       <div class="port-input" x-show="false">
-}         <label for="port">Enter Port:</label>
-}         <input type="number" id="port" x-model="port" @input="validatePort" />
-}         <button @click="initializeApp" :disabled="!isPortValid">Connect</button>
-}       </div>
-}       <div class="editor-container">
-}         <textarea
-}           id="editor"
-}           x-model="noteText"
-}           @input="updateNote"
-}           x-ref="editor"
-}           @contextmenu.prevent="showContextMenu"
-}         ></textarea>
-}         <div id="preview" x-html="renderedMarkdown"></div>
-}       </div>
-}       <div id="status" x-text="status"></div>
-} 
-}       <div
-}         id="context-menu"
-}         x-show="showMenu"
-}         :style="{ top: menuY + 'px', left: menuX + 'px' }"
-}       >
-}         <div class="context-menu-section">
-}           <a href="#" @click.prevent="triggerFileUpload">Upload a file</a>
-}         </div>
-}         <div class="context-menu-section" x-show="files.length > 0">
-}           <template x-for="file in files">
-}             <a
-}               href="#"
-}               @click.prevent="insertExistingFileLink(file)"
-}               x-text="file"
-}             ></a>
-}           </template>
-}         </div>
-}         <div class="context-menu-footer">
-}           <a href="#" @click.prevent="hideContextMenu">Cancel</a>
-}         </div>
-}       </div>
-}       <input
-}         type="file"
-}         x-ref="fileInput"
-}         @change="uploadFile"
-}         style="display: none"
-}       />
-}     </div>
-}     <script>
-}       document.addEventListener("alpine:init", () => {
-}         Alpine.data("notepad", () => ({
-}           noteText: "",
-}           renderedMarkdown: "",
-}           status: "",
-}           debounceTimer: null,
-}           port: "",
-}           filePort: "",
-}           isPortValid: false,
-}           isConnected: false,
-}           showMenu: false,
-}           menuX: 0,
-}           menuY: 0,
-}           files: [],
-} 
-}           init() {
-}             this.validatePort();
-}             this.initializeApp();
-}           },
-} 
-}           validatePort() {
-}             this.isPortValid =
-}               this.port.trim() !== "" &&
-}               !isNaN(this.port) &&
-}               this.port > 0 &&
-}               this.port < 65536;
-}           },
-} 
-}           initializeApp() {
-}             this.fetchNote();
-}             // if (this.isPortValid) {
-}             //   this.isConnected = true;
-}             //   // TODO: no files for now
-}             //   // this.fetchFiles();
-}             // }
-}           },
-} 
-}           fetchNote() {
-}             // if (!this.isConnected) return;
-} 
-}             fetch(`${window.location.href}note`)
-}               .then((response) => response.text())
-}               .then((text) => {
-}                 try {
-}                   const data = JSON.parse(text);
-}                   this.noteText = data.note;
-}                   this.renderMarkdown();
-}                   this.status = "Note loaded";
-}                   setTimeout(() => {
-}                     this.status = "";
-}                   }, 2000);
-}                 } catch (e) {
-}                   console.error("Error parsing JSON:", e);
-}                   this.status = "Error parsing note data";
-}                 }
-}               })
-}               .catch((error) => {
-}                 console.error("Error fetching note:", error);
-}                 this.status = "Error loading note";
-}               });
-}           },
-} 
-}           updateNote() {
-}             // if (!this.isConnected) return;
-} 
-}             this.renderMarkdown();
-} 
-}             clearTimeout(this.debounceTimer);
-} 
-}             this.debounceTimer = setTimeout(() => {
-}               this.status = "Saving...";
-}               this.saveNote();
-}             }, 1000);
-}           },
-} 
-}           saveNote() {
-}             // if (!this.isConnected) return;
-} 
-}             fetch(`${window.location.href}changed`, {
-}               method: "POST",
-}               headers: {
-}                 "Content-Type": "application/json",
-}               },
-}               body: JSON.stringify({ newNote: this.noteText }),
-}             })
-}               .then((response) => {
-}                 if (response.ok) {
-}                   this.status = "Saved!";
-}                   setTimeout(() => {
-}                     this.status = "";
-}                   }, 2000);
-}                 } else {
-}                   this.status = "Error saving";
-}                 }
-}               })
-}               .catch((error) => {
-}                 console.error("Error saving note:", error);
-}                 this.status = "Error saving";
-}               });
-}           },
-} 
-}           renderMarkdown() {
-}             this.renderedMarkdown = marked.parse(this.noteText);
-}           },
-} 
-}           showContextMenu(event) {
-}             this.menuX = event.clientX;
-}             this.menuY = event.clientY;
-}             this.showMenu = true;
-}             // TODO: no files for now
-}             // this.fetchFiles();
-}           },
-} 
-}           hideContextMenu() {
-}             this.showMenu = false;
-}           },
-} 
-}           triggerFileUpload() {
-}             this.hideContextMenu();
-}             this.$refs.fileInput.click();
-}           },
-} 
-}           uploadFile(event) {
-}             const file = event.target.files[0];
-}             if (!file) return;
-} 
-}             const formData = new FormData();
-}             formData.append("file", file);
-} 
-}             fetch(`http://localhost:${this.filePort}/${file.name}`, {
-}               method: "POST",
-}               body: file,
-}               headers: {
-}                 "Content-Type": file.type,
-}               },
-}             })
-}               .then((response) => {
-}                 if (response.ok) {
-}                   this.status = "File uploaded successfully";
-}                   this.insertFileLink(file.name, file.type);
-}                   // TODO: no files for now
-}                   // this.fetchFiles();
-}                 } else {
-}                   throw new Error("Upload failed");
-}                 }
-}               })
-}               .catch((error) => {
-}                 console.error("Error uploading file:", error);
-}                 this.status = "Error uploading file";
-}               });
-}           },
-} 
-}           fetchFiles() {
-}             fetch(`http://localhost:${this.filePort}/files`)
-}               .then((response) => response.text())
-}               .then((text) => {
-}                 try {
-}                   const data = JSON.parse(text);
-}                   this.files = data.files;
-}                   this.status = "Files loaded";
-}                   setTimeout(() => {
-}                     this.status = "";
-}                   }, 2000);
-}                 } catch (e) {
-}                   console.error("Error parsing JSON:", e);
-}                   this.status = "Error parsing files data";
-}                 }
-}               })
-}               .catch((error) => {
-}                 console.error("Error fetching files:", error);
-}                 this.status = "Error loading files";
-}               });
-}           },
-} 
-}           insertExistingFileLink(filename) {
-}             this.hideContextMenu();
-}             this.insertFileLink(filename);
-}           },
-} 
-}           insertFileLink(filename, filetype) {
-}             if (filename.startsWith("/")) {
-}               filename = filename.slice(1);
-}             } else {
-}               filename = filename;
-}             }
-} 
-}             const link = `http://localhost:${this.filePort}/${filename}`;
-} 
-}             if (!filetype) {
-}               const extension = filename.split(".").pop().toLowerCase();
-}               const imageExtensions = [
-}                 "jpg",
-}                 "jpeg",
-}                 "png",
-}                 "gif",
-}                 "bmp",
-}                 "svg",
-}               ];
-}               filetype = imageExtensions.includes(extension)
-}                 ? "image/"
-}                 : "application/";
-}             }
-} 
-}             if (filetype.startsWith("image/")) {
-}               markdownLink = `![${filename}](${link})`;
-}             } else {
-}               markdownLink = `[${filename}](${link})`;
-}             }
-} 
-}             // Insert the link at the current cursor position
-}             const textarea = this.$refs.editor;
-}             const cursorPos = textarea.selectionStart;
-}             const textBefore = this.noteText.substring(0, cursorPos);
-}             const textAfter = this.noteText.substring(cursorPos);
-}             this.noteText = textBefore + markdownLink + textAfter;
-} 
-}             // Update the preview
-}             this.renderMarkdown();
-} 
-}             // Set cursor position after the inserted link
-}             this.$nextTick(() => {
-}               textarea.focus();
-}               textarea.setSelectionRange(
-}                 cursorPos + markdownLink.length,
-}                 cursorPos + markdownLink.length
-}               );
-}             });
-} 
-}             this.saveNote();
-}           },
-}         }));
-}       });
-}     </script>
-}   </body>
-} </html>
-
-
-= pallasFavicon | x#000001000300101000000100200068040000360000002020000001002000281100009e040000303000000100200068260000c615000028000000100000002000000001002000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdbdbdbffdbdbdbffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff949494ff929292ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd2d2d2ff959595ff565656ff555555ff959595ffd3d3d3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd0d0d0ff919191ff545454ff535353ff919191ffd2d2d2ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff949494ff929292ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff949494ff929292ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe9e9e9ff313131ff2e2e2effe6e6e6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeaeaeaff323232ffb1b1b1ffb5b5b5ff303030ffe8e8e8ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffebebebff333333ffaeaeaeffffffffffffffffffb3b3b3ff323232ffeaeaeaffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff6d6d6dff606060ffffffffffffffffffffffffffffffffff676767ff6a6a6afffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff6f6f6ff434343ff939393ffffffffffffffffff989898ff414141fff5f5f5fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff5f5f5ff414141ff969696ff9a9a9aff3f3f3ffff3f3f3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff4f4f4ff3f3f3fff3c3c3cfff2f2f2fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff3f3f3fff1f1f1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000028000000200000004000000001002000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff707070ff6f6f6fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff292929ff262626ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff292929ff262626ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff292929ff262626ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff4c4c4cff2b2b2bff2b2b2bff2b2b2bff070707ff060606ff2b2b2bff2b2b2bff2b2b2bff515151ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff464646ff232323ff232323ff232323ff050505ff050505ff232323ff232323ff232323ff4b4b4bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff292929ff262626ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff292929ff262626ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff292929ff262626ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff292929ff262626ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff292929ff262626ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa6a6a6ff030303ff010101ff989898ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff030303ff1b1b1bff1f1f1fff010101ff9c9c9cffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffabababff040404ff191919ffd8d8d8ffddddddff1e1e1eff020202ffa0a0a0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffadadadff040404ff171717ffd6d6d6ffffffffffffffffffdcdcdcff1c1c1cff020202ffa4a4a4ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffb0b0b0ff050505ff161616ffd4d4d4ffffffffffffffffffffffffffffffffffdbdbdbff1b1b1bff030303ffa7a7a7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffb2b2b2ff060606ff141414ffd2d2d2ffffffffffffffffffffffffffffffffffffffffffffffffffd9d9d9ff1a1a1aff040404ffabababffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffb8b8b8ff060606ff0f0f0fffcfcfcfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd7d7d7ff151515ff050505ffb2b2b2ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdcdcdcff1d1d1dff020202ffa1a1a1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffacacacff040404ff191919ffd8d8d8ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdbdbdbff1b1b1bff020202ffa4a4a4ffffffffffffffffffffffffffffffffffffffffffffffffffaeaeaeff050505ff171717ffd7d7d7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd9d9d9ff191919ff030303ffa7a7a7ffffffffffffffffffffffffffffffffffb0b0b0ff050505ff161616ffd4d4d4ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd7d7d7ff181818ff040404ffaaaaaaffffffffffffffffffb2b2b2ff060606ff141414ffd2d2d2ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd5d5d5ff161616ff040404ffacacacffb4b4b4ff060606ff131313ffd0d0d0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd3d3d3ff151515ff050505ff070707ff111111ffcececeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd1d1d1ff131313ff101010ffcbcbcbffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcfcfcfffc9c9c9ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000028000000300000006000000001002000000000000000000000000000000000000000000000000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0f0f0ffd7d7d7ffd6d6d6fff0f0f0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffafafafff232323ff1e1e1effadadadffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa6a6a6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa6a6a6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa6a6a6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa6a6a6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe2e2e2ffafafafffabababffabababffabababffabababff717171ff0a0a0aff060606ff6f6f6fffabababffabababffabababffabababffaeaeaeffe4e4e4ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffabababff191919ff0a0a0aff0a0a0aff0a0a0aff0a0a0aff070707ff000000ff000000ff070707ff0a0a0aff0a0a0aff0a0a0aff0a0a0aff151515ffb1b1b1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffacacacff1b1b1bff0d0d0dff0d0d0dff0d0d0dff0d0d0dff080808ff000000ff000000ff080808ff0d0d0dff0d0d0dff0d0d0dff0d0d0dff181818ffb1b1b1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdfdfdfffa8a8a8ffa3a3a3ffa3a3a3ffa3a3a3ffa3a3a3ff6b6b6bff090909ff060606ff6a6a6affa3a3a3ffa3a3a3ffa3a3a3ffa3a3a3ffa7a7a7ffe1e1e1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa6a6a6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa6a6a6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa6a6a6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa6a6a6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa6a6a6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa6a6a6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa8a8a8ff0f0f0fff090909ffa5a5a5ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeaeaeaff565656ff010101ff000000ff494949ffddddddffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe9e9e9ff5e5e5eff030303ff000000ff000000ff010101ff4a4a4affdededeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe8e8e8ff474747ff010101ff000000ff4c4c4cff606060ff000000ff000000ff313131ffdfdfdfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffecececff5b5b5bff020202ff020202ff4b4b4bffe7e7e7fff0f0f0ff555555ff040404ff000000ff505050ffe2e2e2ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffebebebff646464ff040404ff000000ff414141ffd7d7d7fffefefefffefefeffdcdcdcff535353ff000000ff020202ff525252ffe3e3e3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffebebebff4c4c4cff020202ff000000ff424242ffebebebfffefefefffffffffffffffffffefefefff0f0f0ff585858ff000000ff010101ff373737ffe5e5e5ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeeeeeeff616161ff030303ff020202ff444444ffe3e3e3ffffffffffffffffffffffffffffffffffffffffffffffffffefefefff4f4f4fff030303ff010101ff575757ffe5e5e5ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeeeeeeff696969ff050505ff000000ff3a3a3affd3d3d3fffefefefffffffffffffffffffffffffffffffffffffffffffffffffffefefeffdadadaff4d4d4dff000000ff030303ff595959ffe8e8e8ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeeeeeeff515151ff020202ff000000ff393939ffe8e8e8fffefefefffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffefefeffefefefff4f4f4fff000000ff010101ff3e3e3effeaeaeafffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff2f2f2ff666666ff040404ff010101ff3c3c3cffdfdfdfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffedededff494949ff020202ff020202ff5f5f5fffebebebffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdfdfdfff242424ff000000ff040404ff7e7e7efff8f8f8fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfbfbff8c8c8cff090909ff000000ff1f1f1fffcfcfcffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcfcfcffa9a9a9ff131313ff000000ff101010ffa7a7a7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc1c1c1ff161616ff000000ff0b0b0bffa1a1a1fffbfbfbfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffefefeffa0a0a0ff111111ff000000ff070707ffaaaaaafff9f9f9fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffafafaffbcbcbcff0e0e0eff000000ff0e0e0eff8f8f8ffffefefefffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffefefeffa5a5a5ff1a1a1aff000000ff121212ffa6a6a6fff9f9f9fffffffffffffffffffffffffffffffffffffffffffffffffffcfcfcffafafafff1e1e1eff000000ff171717ff959595fffefefefffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcfcfcffa2a2a2ff101010ff000000ff131313ffafafafffffffffffffffffffffffffffffffffffffffffffffffffffc6c6c6ff191919ff000000ff090909ff9a9a9afffafafafffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffefefeff989898ff0f0f0fff000000ff0a0a0affb1b1b1fffafafafffffffffffffffffffbfbfbffc1c1c1ff111111ff000000ff0c0c0cff858585fffdfdfdfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffefefeff9e9e9eff171717ff000000ff151515ffabababfffafafafffcfcfcffb3b3b3ff212121ff000000ff141414ff8e8e8efffcfcfcfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfbfbff9b9b9bff0e0e0eff000000ff161616ffb6b6b6ffcacacaff1b1b1bff000000ff080808ff939393fff9f9f9fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdfdfdff8f8f8fff0d0d0dff000000ff0d0d0dff141414ff000000ff0a0a0aff7c7c7cfffcfcfcfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdfdfdff979797ff141414ff000000ff000000ff111111ff878787fffbfbfbfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfbfbff949494ff0c0c0cff070707ff8c8c8cfff8f8f8fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcfcfcff878787ff737373fffafafafffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcfcfcfff9f9f9ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+* PIN body
