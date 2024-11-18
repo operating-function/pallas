@@ -26,7 +26,7 @@ const config: Config = {
           path: "../../doc",
           exclude: ["legacy/**"],
           sidebarPath: "./sidebars.ts",
-          routeBasePath: '/', // This makes /docs the root
+          routeBasePath: "/", // This makes /docs the root
           editUrl:
             "https://github.com/operating-function/pallas/edit/main/doc/",
         },
@@ -62,7 +62,7 @@ const config: Config = {
       logo: {
         alt: "opfn logo",
         src: "img/opfn-logo.png",
-        srcDark: "img/opfn-logo-light.png"
+        srcDark: "img/opfn-logo-light.png",
       },
       items: [
         {
@@ -93,7 +93,7 @@ const config: Config = {
           items: [
             {
               label: "System Overview",
-              to: "docs/explanation/system-overview",
+              to: "/",
             },
           ],
         },
