@@ -1,15 +1,15 @@
 ```ascii
 
-                                    +---------------------+
-                                    |           ┏         |
-                                    |       ┏┓┏┓╋┏┓       |
-                                    |       ┗┛┣┛┛╹┗       |
-                                    +---------------------+
+             +---------------------+
+             |           ┏         |
+             |       ┏┓┏┓╋┏┓       |
+             |       ┗┛┣┛┛╹┗       |
+             +---------------------+
 
-                                     an Operating Function
-                          is a purely functional programming environment
-                                 virtual machine for constructing
-                               resilient, distributed applications.
+              an Operating Function
+   is a purely functional programming environment
+          virtual machine for constructing
+        resilient, distributed applications.
 
 ```
 
