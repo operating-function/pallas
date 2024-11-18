@@ -18,3 +18,4 @@ sire.cache
 .fulltag-demo
 etc/documentation-site-gen/node_modules
 etc/documentation-site-gen/package-lock.json
+.vercel
