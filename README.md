@@ -1,124 +1,33 @@
 ```ascii
-    +---------------------------------------------------------+
-    |                                                         |
-    |     .+.                                                 |
-    |    // \\                    __l  __l                    |
-    |   //   \\                     l    l                    |
-    |   \\   //                     l    l                    |
-    |    \\ //              ____    l    l    ____    .--.|   |
-    |     \Y/    _p pppp   /    a   l    l   /    a  (s       |
-    |      U      p/    p   __aaa   l    l    __aaa   ssss.   |
-    |    ==U==    pp    p aa   /|   l    l  aa   /|       s   |
-    |      U      p \_pp   aaaa ./ _l_  _l_  aaaa ./ |\___/   |
-    |             p                                           |
-    |            _p_                                          |
-    |                                                         |
-    +---------------------------------------------------------+
-                                                            ┏
-                                                        ┏┓┏┓╋┏┓
-                                                        ┗┛┣┛┛╹┗
 
-         is a purely functional programming environment
-                virtual machine for constructing
-              resilient, distributed applications.
+                                    +---------------------+
+                                    |           ┏         |
+                                    |       ┏┓┏┓╋┏┓       |
+                                    |       ┗┛┣┛┛╹┗       |
+                                    +---------------------+
+
+                                     an Operating Function
+                          is a purely functional programming environment
+                                 virtual machine for constructing
+                               resilient, distributed applications.
+
 ```
 
 _(Video) A basic web app demonstration leveraging an in-system HTTP server. All state is automatically persisted and computations can be paused and resumed:_ ![demo](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/notepad-demo.mp4)
 
-# Index
 
-1. [Motivation](#motivation)
-2. [Stack Features](#)
-4. [System Overview](#)
-2. [Installation](#)
-3. [Getting Started](#)
-5. [Contributing](#)
-6. [Caveats](#)
-7. [Additional Resources](#)
+- Discover what an Operating Function is: [opfn.co](https://opfn.co)
+- Understand why we care; and why you might, as well: [Motivation](https://opfn.co/about)
+- Learn the system: [Technical Documentation](https://docs.opfn.co)
 
+---
+---
 
-# Motivation
+1. [Installation](#installation)
+2. [Getting Started](#getting-started)
+3. [Contributing](#contributing)
+4. [Additional Resources](#additional-resources)
 
-The current [networked information system stack -- we need to arrive at a term for this. "Internet" for now] internet doesn't permit full inspection - it requires you to trust.  
-This means you cannot truly own your computer or phone, nor the networks you interact with, nor the increasingly wide swaths of your life that are defined by being downstream of this complex. By "own", we mean: fully control, trust, change, opt-out, freely-share.
-
-This trust problem exists up and down the modern information system stack: from the level of the programming language all the way up to the emergent societal patterns that arise from software-mediated, networked social interactions. The result is a digital ecosystem commons and society that is rigid, centralized, homogeneous, wasteful, interdependent, opaque. And software systems that are vulnerable to supply chain attacks, censorship and monopolization.
-
-We want the opposite. We want **resilience**.
-
-Resilient systems...
-
-> ...adapt to changing conditions, long-term  
-> ...have no single point of failure  
-> ...are comprised of a diversity of components  
-> ...are efficient with available resources  
-> ...can be fragmented without catastrophic failure  
-> ...are transparent and don't require trust in authority  
-
-An internet of resilient computers...
-
-> ...enables composable software, directly resulting in more software freedom
-> ...empowers individual developers in a widely distributed manner
-> ...cannot be censored nor monopolized
-> ...insures that a user's computer is ubiquitous
-> ...runs forever
-> ...is robust against supply chain attacks 
-
-# Stack Features
-
-## Write once, run forever
-
-- **Serialize anything, running programs included**
-  - Closures can be serialized and stored on-disk, or sent over the wire. Programs in mid-execution can be paused, moved to a new machine, and resumed with no impact. Open syscalls are included in persisted state and are resumed on reboot.
-- **Parallelism with deterministic replay**
-  - Results from spawned processes, IO, and runtime evaluated expressions are recorded as events using an event-log-and-snapshot model. On replay, terminated events are recomputed with perfect determinism. 
-- **Universal Portability**
-  - Zero host-machine dependencies. Communicates with the outside world via a minimal set of pervasive interfaces (TCP, etc.). Runtime development is easy; thus, futurproof. System calls are formally specified as pure functions and their spec is designed to be frozen.
-
-## All software is malleable
-
-- **Human-Readable All the Way Down**
-  - The underlying data model, PLAN, is human-readable (though barely human-writable), which means you don't need to _trust_ software or compiler binaries, if you'd prefer to audit them. **TK: needs a mention of bootstrapping and sire-in-sire**.
-- **Universal data composability**
-  - From an operator's point of view, all data is equally accessible and composable. "Application UIs" are merely projections, filters and actions applied to a single state. No app silos or walled gardens.
-
-## Uncensorable content, Access to open markets
-
-- **Global referentially-transparent content store**
-  - Data and code is deduplicated, merkleized, and stored in content-addressable memory pages. This creates a global referentially-transparent content store, which is naturally complemented by protocols like BitTorrent.
-- **Native networking and identity**
-  - VMs and spawned processes are identified by one or more cryptographic keys. The networking protocol is stateless and guarantees at-least-once-delivery.
-- **Peer-to-Peer permissionless distribution**
-  - Connections with other operators are peer-to-peer. Sharing runnable (or running) code is no different than sharing content.
-- **Infrastructure autonomy**
-  - While the market may provide industrial-grade compute for your use if you choose it, falling back to an old laptop in your closet will always work if all else fails. Your freedom of speech is guaranteed by the system, but reach is your responsibility.
-
-## Zero ongoing server costs, no DevOps
-
-- **Users provide their infrastructure, not developers**
-  - When users have a computer in the cloud, application developers don't have to bear the financial and legal liabilities of maintaining user infrastructure.
-- **Extensible full-stack language platform**
-  - Metaprogramming capabilities include hot reload, zero-overhead virtualization, macro-based type systems, all the way up to custom compilers. Both backend concerns and UIs are generated by the same language.
-- **No database code**
-  - All application data is automatically persisted, without the need for imports or boilerplate. To create a database, you write a pure transition function.
-
-# System Overview
-
-Pallas collapses the distinction between runtime, database, and operating system. The foundation of Pallas is untyped, but conceptually we can say that a Pallas process is a database of type:
-
-```haskell
-type DB = Input -> (Output, DB)
-```
-
-If a user supplies such a function, the Pallas runtime will create a database using a snapshot-and-event-log system. The user can write their programs as if they were keeping their data "in memory", without any need for manual persistence or other forms of cache management.
-
-The recursive part of the type above might seem strange. You can think of it almost as a normal stateful function:
-
-```haskell
-type OtherDB = (State, Input) -> (State, Output)
-```
-
-The difference is that instead of changing the state value, the recursive version would change itself. The current version of the function is the state. In other words: programs can upgrade themselves dynamically. Code can construct code. Because of this, we can put an entire compiler toolchain inside the system and the programs it generates have zero dependencies on the outside world.
 
 # Installation
 
@@ -187,7 +96,7 @@ Available commands:
 Using Nix is the most straightforward way to install Pallas at this time. 
 If your system doesn't support Nix or if you need further
 instruction (including instructions for Docker), refer to
-[the documentation](https://opfn.gitbook.io/pallas/installation/installation).
+[the documentation](https://docs.opfn.co)
 
 1. Clone this repo. Navigate to the root of it.
 
@@ -261,7 +170,7 @@ left off. You'll notice that there is no explicit saving or
 writing to disk or a database. You get persistence for free by writing
 application code.
 
-(For more on how Pallas machines work, see [the documentation](https://opfn.gitbook.io/pallas/overview/overview#ships)).
+(For more on how Pallas machines work, see [the documentation](https://docs.opfn.co/explanation/vm-and-interpreter)).
 
 # Contributing
 
@@ -278,25 +187,8 @@ suggestions.
 
 [CONTRIBUTING.md](https://github.com/operating-function/pallas/blob/master/CONTRIBUTING.md)
 
-# Caveats
-
-Pallas is still considered to be a prototype implementation, though some core features are close to done. It currently requires an underlying OS and file system, but has been designed such that these dependencies can eventually be removed.
-
-Planned, but incomplete features:
-- **Sire improvements** - _in progress_
-   - Pallas supports macro-based type systems. There is a Hindley–Milner implementation that is ~80% complete that needs to be finished before serious applications are produced.
-   - Automatic module linearization will significantly improve LLM integration and reduce onboarding challenges.
-   - Add Sire macros for richer namespacing.
-- **Capability-based process security model** - _in progress_
-   - Cogs are designed to run hierarchically with a token, or capability-based, security model. The cog development model is under active development, but capabilities have not yet been added.
-- **Native networking** - _not started_
-   - Native networking is the least complete core feature. There are designs for a basic implementation using TCP, but more sophisticated approaches are possible.
-- **Scalable runtime** - _not started_
-   - The existing Haskell runtime is considered adequate for prototyping and hobbyists in the near term, but cannot scale to our required terabytes of data. The runtime will need to be rewritten in a systems language like C, Rust, or Zig. 
-
-
 # Additional Resources
 
-- [Technical Documentation](https://opfn.gitbook.io/pallas) 
-- [Operating Function Company](https://blog.vaporware.network/)
+- [Technical Documentation](https://docs.opfn.co)
+- [Operating Function Company](https://opfn.co/)
 - [Telegram Support](https://t.me/vaporwareNetwork)
