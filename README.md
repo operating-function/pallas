@@ -18,9 +18,9 @@ https://github.com/user-attachments/assets/9c975b9b-5c17-4d41-8f9b-1015b8b81e28
 _(Video) A basic web app demonstration leveraging an in-system HTTP server. All state is automatically persisted and computations can be paused and resumed:_ ![demo](https://general-static-assets.nyc3.cdn.digitaloceanspaces.com/docs-images/notepad-demo.mp4)
 
 
-- Discover what an Operating Function is: [opfn.co](https://opfn.co)
-- Understand why we care; and why you might, as well: [Motivation](https://opfn.co/about)
-- Learn the system: [Technical Documentation](https://docs.opfn.co)
+- **Discover what an Operating Function is**: [opfn.co](https://opfn.co)
+- Understand why we care; and why you might, as well**: [Motivation](https://opfn.co/about)
+- **Learn the system**: [Technical Documentation](https://docs.opfn.co)
 
 ---
 ---
