@@ -147,6 +147,7 @@
 * AWAITING_REQ_LINE
 
 
+> Bar > Maybe (Method, Bar, Bar)
 = (parseRequestLine line)
 @ parts | listToRow | barSplit { } line
 | maybeGuard (len-parts == 3)
@@ -213,16 +214,13 @@
   | HTTP_PARSER rest | AWAITING_HEADERS reqLine
 * (AWAITING_HEADERS reqLine)
   : headers rest < processHeaders parser
-  | trk [parsedHeaders=headers]
-  @ done | HTTP_PARSER rest | COMPLETE reqLine headers b#{}
-  | fromSome done
+  | fromSome | HTTP_PARSER rest | COMPLETE reqLine headers b#{}
   : contentLength < bindMaybe | tabLookup b#{Content-Length} headers
-  : sz            < bindMaybe | parseNat contentLength
+  : sz            < bindMaybe | parseNat contentLength ;; TODO error instead
   | maybeGuardNot | eql sz 0
   ^ SOME | stepParser _
   | HTTP_PARSER rest | AWAITING_BODY sz reqLine headers
 * (AWAITING_BODY _ reqLine headers)
-  | trk [awaitingBody=(barLen accumulated)]
   : body rest < processBody parser
   | ifNot (barIsEmpty rest)
     | trk [=rest]

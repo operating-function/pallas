@@ -68,22 +68,19 @@
 = (processConnection io requestHandler parser return)
 : data < launch | TCP_TAKE io
 | if (barIsEmpty data)
-  | trk [connectionClosed=io]
+  ; trk [connectionClosed=io]
   | return ()
 @ newParser | feedData parser data
 : res < maybeCase | getResult newParser
-      | trk %noResult
       | processConnection io requestHandler newParser return
 : req < eitherCase res error&(trk [=error] | launch (TCP_SHUT io) return)
-| trk [parsedRequestOn=io =req]
 : cogResponse@[headers body code reas] < requestHandler req
-| trk [%cogResponse [=io =headers =code =reas body=(barTake 20 body)]]
+; trk [%cogResponse [=io =headers =code =reas body=(barTake 20 body)]]
 ;;;;
 ^ _ (httpResToBar | appResponseToHTTP cogResponse)
 ? (sendAndClose responseBar)
-| trk [=io sending=responseBar]
 : mBytes < launch | TCP_GIVE io responseBar
-| trk [=io sentBytes=mBytes]
+; trk [=io sentBytes=mBytes]
 : bytes < maybeCase mBytes | launch (TCP_SHUT io) return
 | if (barLen responseBar == bytes) | launch (TCP_SHUT io) return
 | sendAndClose | barDrop bytes responseBar
@@ -94,6 +91,5 @@
 ^ _ return
 ? (go return)
 : (io,_,_) < launch | TCP_HEAR
-| trk [newConnection=io]
 : _ < fork | processConnection io requestHandler newHTTPParser
 | go return
