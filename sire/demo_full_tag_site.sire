@@ -229,7 +229,6 @@ typedef#Tag#Str
 > Bar > LearnData
 = (parseLearn (PIN jsonBS))
 @ [!json _]
-  | trk %parse
   | parseJson jsonBS
 @ !rows
   | catMaybes
@@ -238,7 +237,6 @@ typedef#Tag#Str
   | unsafeTabLookup %images
   | unsafeGetJsonMap json
 @ !addTags
-  | trk %addTags
   | foldl (tabUnionWith setUnion) #[]
   | map imgRowToTagTabSet rows
 @ !addImgs
@@ -252,7 +250,7 @@ abstype#Image ;; TODO: fix.  What is the real type?
 > Pin LearnData
 > (HMap ImgId ImgRow, HSetMap Tag Image, Nat, Nat)
 = (calcLearnSt (PIN st) (PIN [rows addImgs addTags]))
-| trk [%calcLearnSt (len rows) %rows]
+; trk [%calcLearnSt (len rows) %rows]
 @ COG_STATE(..) st
 @ !nuImgs   | hmInsertMany addImgs imgs
 @ !nuTags   | hsmInsertMany addTags tags
@@ -437,21 +435,17 @@ abstype#Image ;; TODO: fix.  What is the real type?
 
 > HTTPRequest > Driver (Tab Bar Bar, Bar, Nat, Bar)
 = (requestHandler req@[method path version headers pBody@(PIN body)] return)
-| trk [requestHandler=req]
 @ badRequest [emptyTab b#{} 400 b#{bad}]
 # switch method
 * _ | return badRequest
-* b#GET
-  : kern < getPumpKernel
-  | trk [reqHandleKern0=kern]
+* GET
   : files < launch | DB_READ getFiles
-  : kern < getPumpKernel
-  | trk [reqHandleKern0=kern]
   : (type, (PIN content)) < maybeCase | hmLookup (barNat path) files
+                          | trk %badRequest
                           | return badRequest
   @ head | tabSing b#{content-type} type
   | return [head content 200 b#gotcha]
-* b#POST
+* POST
   # switch path
   * b#{/search}
     : st < launch | DB_READ id
@@ -462,15 +456,15 @@ abstype#Image ;; TODO: fix.  What is the real type?
     * STATUSCMD
       @ statusJson | doStatus st
       @ statusBS   | printJson statusJson
-      | return [emptyTab b#gotcha 200 statusBS]
+      | return [emptyTab statusBS 200 b#gotcha]
     * (SEARCHCMD offset tags)
       @ searchJson | doSearch st [offset tags]
       @ searchBS   | printJson searchJson
-      | return [emptyTab b#gotcha 200 searchBS]
-  * b#{/usecdn}   | todo {todo}
-  * b#{/uselocal} | todo {todo}
+      | return [emptyTab searchBS 200 b#gotcha]
+  * b#{/usecdn}   | todo path
+  * b#{/uselocal} | todo path
   * b#{/learn}
-    @ parsed | parseLearn body
+    @ parsed | parseLearn pBody
     | launchWith & rid | DB_WRITE (%LEARN, rid, parsed)
     | return ;; TODO possibly return less http-coupled data
   * b#{/put}
@@ -478,27 +472,25 @@ abstype#Image ;; TODO: fix.  What is the real type?
     | return [emptyTab b#done 201 b#{}]
 
 = (writeHandler pid msg return)
-| trk [%writeHandler [=msg]]
 # switch fst-msg
 * LEARN
   @ (_,rid,parsed) msg
   : ??(ats_learned _) < addLearningsToState (PIN parsed)
-  | send (pid,rid) [emptyTab b#ok 200 b#{}]
+  | send (pid,rid) [emptyTab b#{} 200 b#ok]
   | return
 * PUT
   @ (_,rid,headers,pBody@(PIN body)) msg
-  | trk msg
-  @ path | fromSome | die {put fromSome failed}
+  @ path | fromSome b#{text/plain}
          | tabLookup b#{X-Put-Path} headers
   @ barType | **fromSome b#{text/plain}
             | tabLookup b#{Content-Type} headers
   : _ < modifyState
-      & (pSt@(PIN st))
+      & pSt@(PIN st)
       | PIN
-      ^ trk [modifiedState=_] _
       @ newTotalSize | add (barLen body) | getFileBytes st
       @ files | hmInsert (barNat path) [barType pBody] | getFiles st
       | setFileBytes newTotalSize
+      | trk [setFileBytes=newTotalSize new=(barLen body)]
       | setFiles files
       | st
   | send (pid,rid) ()
