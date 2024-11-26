@@ -464,9 +464,8 @@ abstype#Image ;; TODO: fix.  What is the real type?
   * b#{/usecdn}   | todo path
   * b#{/uselocal} | todo path
   * b#{/learn}
-    @ parsed | parseLearn pBody
-    | launchWith & rid | DB_WRITE (%LEARN, rid, parsed)
-    | return ;; TODO possibly return less http-coupled data
+    | launchWith & rid | DB_WRITE (%LEARN, rid, pBody)
+    | return ;; TODO possibly have write return less http-coupled data
   * b#{/put}
     : _ < launchWith & rid | DB_WRITE (%PUT, rid, headers, pBody)
     | return [emptyTab b#done 201 b#{}]
@@ -474,7 +473,10 @@ abstype#Image ;; TODO: fix.  What is the real type?
 = (writeHandler pid msg return)
 # switch fst-msg
 * LEARN
-  @ (_,rid,parsed) msg
+  @ (_,rid,jsonPin) msg
+  : evalResult < work parseLearn [jsonPin]
+  : parsed < eitherCase evalResult | send (pid,rid) [emptyTab b#{} 500 b#error]
+                                   | return
   : ??(ats_learned _) < addLearningsToState (PIN parsed)
   | send (pid,rid) [emptyTab b#{} 200 b#ok]
   | return
