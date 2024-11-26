@@ -13,7 +13,7 @@
 {-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE Strict           #-}
 {-# LANGUAGE StrictData       #-}
--- {-# OPTIONS_GHC -Wall   #-}
+--{-# OPTIONS_GHC -Wall   #-}
 {-# OPTIONS_GHC -Werror #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -freverse-errors #-}
@@ -43,7 +43,6 @@ import qualified GHC.Natural as GHC
 import Data.Sorted
 import Fan.Convert
 import Fan.Prof
-import Server.Common
 import Server.Debug
 import Server.Evaluator
 import Server.Hardware.Types
@@ -52,7 +51,6 @@ import Server.Proc
 import Server.Time
 import Server.Types.Logging
 
--- import qualified Data.IntMap as IM
 import qualified Data.Map    as M
 import qualified Data.Vector as V
 
@@ -140,7 +138,6 @@ data WriteRequest = COG_WRITE
 -- STM instead. f should probably always have an Alternative instance though.
 class Effect f c where
     makeCall :: Eff -> f c
---  writeResponse :: c ->
 
 instance Effect STM WriteRequest where
   makeCall eff@EFF{..} = kill eff *> liftMaybe do
@@ -220,15 +217,17 @@ fromEndOfClosure idx = \case
 hasNonzeroReqs :: Fan -> Bool
 hasNonzeroReqs = any (/= NAT 0) . getCurrentWorkerNoun
 
-data EvalCancelledError = LIVE_EVAL_CANCELLED
-  deriving (Exception, Show)
-
 data Worker
   = EXEC { driver :: Fan }
-  | EVAL { fun :: Fan, args :: Vector Fan }
+  | EVAL { func :: Fan, args :: Vector Fan }
 
-stageWorker :: Debug => DeviceTable -> Worker -> STM (IO LiveWorker)
-stageWorker hw EXEC{driver} = do
+stageWorker :: Debug => Int -> MachineContext -> Worker -> STM (IO LiveWorker)
+stageWorker idx MACHINE_CONTEXT{eval} EVAL{func,args} = do
+    let flow = FlowDisabled -- TODO actual flow
+    let timeoutMs = 10000 -- TODO should probably tune this? or set in the worker.
+    job <- pleaseEvaluate eval EVAL_REQUEST{..}
+    pure $ pure LIVE_EVAL{..}
+stageWorker idx MACHINE_CONTEXT{hw} EXEC{driver} = do
     writes <- newTQueue
     let write = writeTQueue writes
     reads <- newTQueue
@@ -239,7 +238,7 @@ stageWorker hw EXEC{driver} = do
                        , makeCall pc >>= callHardware hw
                        ] `orElse` (kill pc $> (CANCEL pass, []))
     pure do
-      (thread, inbox) <- spawnProc driver call
+      (thread, inbox) <- spawnProc (pack $ show idx) driver call
       pure LIVE_EXEC{..}
 
 instance Alternative f => Effect f SysCall where
@@ -254,13 +253,27 @@ instance FromNoun Worker where
     _          -> Nothing
 
 data LiveWorker
-  = LIVE_EXEC { driver :: Fan, reads :: TQueue ReadRequest, writes :: TQueue WriteRequest, inbox :: ResponseTuple -> STM (), thread :: Async () }
-  | LIVE_EVAL { fun :: Fan, args :: Vector Fan, eval :: Evaluation, thread :: Async () }
+  = LIVE_EXEC
+    { driver :: Fan
+    , reads  :: TQueue ReadRequest
+    , writes :: TQueue WriteRequest
+    , inbox  :: ResponseTuple -> STM ()
+    , thread :: Async ()
+    }
+  | LIVE_EVAL
+    { func :: Fan
+    , args :: Vector Fan
+    , job  :: Evaluation
+    }
 
 instance Show LiveWorker where
   show = \case
     LIVE_EXEC{driver} -> "LIVE_EXEC{" <> show driver <> "}"
-    LIVE_EVAL{fun,args} -> "LIVE_EVAL{fun=" <> show fun <> ", args=" <> show args <> "}"
+    LIVE_EVAL{func,args} -> "LIVE_EVAL{func="
+                            <> show func
+                            <> ", args="
+                            <> show args
+                            <> "}"
 
 -- | A list of parsed out valid requests from `noun`. For every cog, for every
 -- index in that cog's requests table, there is a raw fan value and a
@@ -515,7 +528,7 @@ replayAndCrankMachine cache ctx replayFrom = do
           handle (onErr "log") $ logFun machine
 
         runnerAsync <- asyncOnCurProcess $ withThreadName threadName $ do
-          handle (onErr "runner") $
+          handle (onErr "cog") $
             runnerFun initialFlows machine processName runner
 
         let workersAsyncs = runner.vWorkers
@@ -533,7 +546,9 @@ replayAndCrankMachine cache ctx replayFrom = do
 -- | Synchronously shuts down a machine and wait for it to exit.
 shutdownMachine :: Machine -> IO ()
 shutdownMachine machine@MACHINE{..} = do
-  readTVarIO workersAsyncs >>= traverse_ (\(_,worker) -> cancel worker.thread)
+  readTVarIO workersAsyncs >>= traverse_ \case
+    (_,LIVE_EXEC{thread}) -> cancel thread
+    (_,LIVE_EVAL{job}) -> atomically job.cancel.action
   -- Kill the runner to immediately cancel any computation being done.
   cancel runnerAsync
   waitForLogAsyncShutdown machine
@@ -606,10 +621,17 @@ runnerFun initialFlows machine processName st = do
 
     machineTick :: IO ()
     machineTick = do
-      writeRequests <- atomically do
+      writeRequests <- atomically do -- TODO probably not do this all in the same atomically
         workers <- readTVar st.vWorkers
         allWrites <- concat <$> for (mapToList workers) \(i,(_,worker)) -> do
-          pendingWrites <- flushTQueue worker.writes
+          pendingWrites <- case worker of
+            LIVE_EXEC{writes} -> flushTQueue writes
+            LIVE_EVAL{job}    -> getEvalOutcome job >>= \case
+              -- TODO maybe use specialized eval constructor instead of COG_WRITE
+              Nothing -> pure []
+              Just (OKAY ns val,flow) -> pure [COG_WRITE (toNoun (NAT 1,val)) flow]
+              Just (CRASH err val,flow) -> pure [COG_WRITE (toNoun (NAT 0,(err,val))) flow]
+              Just (TIMEOUT,flow) -> pure [COG_WRITE (toNoun (NAT 0,())) flow]
           pure $ zip (repeat $ PROC_ID $ fromIntegral i) pendingWrites
         guarded (not . null) allWrites
       results <- cogTick writeRequests
@@ -633,7 +655,7 @@ runnerFun initialFlows machine processName st = do
 
     readHandler :: IO ()
     readHandler = do
-      readRequests <- atomically do
+      readRequests <- atomically do -- TODO probably not do this all in the same atomically
         workers <- readTVar st.vWorkers
         concat <$> for (mapToList workers) \(wid,(_,worker)) -> case worker of
           LIVE_EVAL{}      -> pure []
@@ -642,13 +664,13 @@ runnerFun initialFlows machine processName st = do
         moment <- readTVarIO st.vMoment
         let cogFun = fromMaybe (error "trying to read from a non-spinning cog")
                    $ cogSpinningFun moment.val
-        runReads cogFun readRequests
+        void $ async $ runReads cogFun readRequests
       readHandler
 
 runReads :: Debug => Fan -> [(Int, ReadRequest)] -> IO ()
 runReads cogFun readReqs = do
     let fun = getCurrentReadsNoun cogFun
-    for_ readReqs \(wid, COG_READ _ query (STVAR return)) -> do
+    forConcurrently_ readReqs \(wid, COG_READ _ query (STVAR return)) -> do
         (_, result) <- evalWithTimeout thirtySecondsInMicroseconds [] fun
                         [ NAT $ fromIntegral wid
                         , getCurrentDbNoun cogFun
@@ -704,10 +726,6 @@ keep x y =
     case reallyUnsafePtrEquality# x y of
         1# -> True
         _  -> False
-
-concatUnzip :: [([a], [b])] -> ([a], [b])
-concatUnzip a = let (f, s) = unzip a
-                in (concat f, concat s)
 
 updateRunner :: Debug
              => Runner -> Maybe (CogState, NanoTime, Array (ProcId, Int, Fan))
@@ -781,12 +799,14 @@ updateRunner runner update = do
                 Nothing -> error "deleteWorker: impossible"
                 Just (_, worker) -> do
                     modifying' #workers $ deleteMap key
-                    modifying' #cancels (>> cancel worker.thread)
+                    modifying' #cancels $ case worker of
+                      LIVE_EXEC{thread} -> (>> cancel thread)
+                      LIVE_EVAL{job} -> (>> atomically job.cancel.action)
 
         addWorker :: Int -> Fan -> StateT ParseRequestsState STM ()
         addWorker i fan = do
           whenJust (fromNoun fan) \w -> do
-            staged <- lift $ stageWorker runner.ctx.hw w
+            staged <- lift $ stageWorker i runner.ctx w
             modifying' #newWorkers $ insertMap i (fan, staged)
 
 
