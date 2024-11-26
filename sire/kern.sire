@@ -35,21 +35,28 @@ abstype#(Driver a)
 @ sl | put sl key NONE
 | k key fr sl rq
 
-= (COG_DONE result end out hl st rd ws)
-| end out hl st rd ws
+= (COG_DONE result end out fr hl st rd ws)
+| end out fr hl st rd ws
 
-= (COG_KERNEL out hl st rd ws inputs)
-^ _ (listFromRow inputs) ~[] hl st rd ws
-? (kernel_loop stream out hl st rd ws)
+= (COG_KERNEL out fr hl st rd ws inputs)
+^ _ (listFromRow inputs) ~[] fr hl st rd ws
+? (kernel_loop stream out fr hl st rd ws)
 | ifz stream
-  (COG_KERNEL ~[] hl st rd ws, listToRow out)
+  (COG_KERNEL ~[] fr hl st rd ws, listToRow out)
 @ [[pid input] stream] stream
 @ exe | get hl pid
+@ tag | fst | get ws pid
+@ [fr hl rd ws]
+  | if (tag == 1) [fr hl rd ws]
+  ++ [pid fr]
+  ++ put hl pid 0
+  ++ put rd pid 0
+  ++ put ws pid 0
 | ifz exe
-  | kernel_loop stream out hl st rd ws   ; TODO Should maybe cancel the worker too?
+  | kernel_loop stream out fr hl st rd ws   ; TODO Should maybe cancel the worker too?
 @ k   | COG_DONE
 @ end | kernel_loop stream
-| exe pid input k end out hl st rd ws
+| exe pid input k end out fr hl st rd ws
 
 > (Nat > Call a) > Driver (Promise a)
 = (fireWith mkRequest k end fr sl rq)
@@ -101,19 +108,19 @@ abstype#(Driver a)
 = (fork act k end fr sl rq)
 | act DRIVER_DONE (k () end) fr sl rq
 
-= (putState x k end out hl st rd ws)    | k ()   end out hl x    rd ws
-= (getState k end out hl st rd ws)      | k st   end out hl st   rd ws
-= (getsState f k end out hl st rd ws)   | k f-st end out hl st   rd ws
-= (modifyState f k end out hl st rd ws) | k ()   end out hl f-st rd ws
-= (stateState f k end out hl st rd ws)  @ (a,st) f-st
-                                        | k a    end out hl st   rd ws
+= (putState x k end out fr hl st rd ws)    | k ()   end out fr hl x    rd ws
+= (getState k end out fr hl st rd ws)      | k st   end out fr hl st   rd ws
+= (getsState f k end out fr hl st rd ws)   | k f-st end out fr hl st   rd ws
+= (modifyState f k end out fr hl st rd ws) | k ()   end out fr hl f-st rd ws
+= (stateState f k end out fr hl st rd ws)  @ (a,st) f-st
+                                           | k a    end out fr hl st   rd ws
 
-= (addWorker worker read write k end out hl st rd ws)
+= (addWorker worker read write k end out fr hl st rd ws)
 @ wid | len ws
 @ ws  | rowSnoc ws worker
 @ rd  | put rd 0 | rowSnoc (get rd 0) read
 @ hl  | rowSnoc hl write
-| k wid end out hl st rd ws
+| k wid end out fr hl st rd ws
 
 = (install driver read write)
 @ w
@@ -125,30 +132,42 @@ abstype#(Driver a)
   | DRIVER | driver k end fr sl rq
 | addWorker w read write
 
-= (work f xs)
-| addWorker
-* JOB f xs
-* (st query)&(trk [{job tried to read} [=st =query]] 0)
-* supply ()
+= (work f xs k end out fr hl st rd ws)
+@ w | JOB f xs
+@ (read st query) | trk [{job tried to read} [=st =query]] 0
+@ handler (_ input _ & k input) ;; TODO kind of ugly, should harmonize w/ drivers
+@ [fr ws rd hl]
+  | ifz fr
+    ++ fr
+    ++ rowSnoc ws w
+    ++ put rd 0 | rowSnoc (get rd 0) read
+    ++ rowSnoc hl handler
+  @ [wid fr] | fr
+  ++ fr
+  ++ put ws wid w
+  ++ put rd 0 | put (get rd 0) wid read
+  ++ put hl wid handler
+| end out fr hl st rd ws
 
 > (Nat,Nat) > Any > Cog ()
-= (send (pid,rid) msg k end out hl st rd ws)
+= (send (pid,rid) msg k end out fr hl st rd ws)
 @ out
   | ifz (fst | get ws pid) | out
   | CONS (pid,rid,msg) out
-| k () end out hl st rd ws
+| k () end out fr hl st rd ws
 
 = (getPumpKernel k end fr sl rq)
 | k [=end =fr =sl =rq] end fr sl rq
 
-= (getCogKernel k end out hl st rd ws)
-| k (end,out,hl,st,rd,ws) end out hl st rd ws
+= (getCogKernel k end out fr hl st rd ws)
+| k (end,out,fr,hl,st,rd,ws) end out fr hl st rd ws
 
 = (runCog st cog)
 @ k   | COG_DONE
 @ end | COG_KERNEL
 @ out | ~[]
+@ fr  | ~[]
 @ hl  | []
 @ rd  | get []
 @ ws  | []
-| cog k end out hl st rd ws
+| cog k end out fr hl st rd ws
