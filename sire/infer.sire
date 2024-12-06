@@ -24,6 +24,7 @@
 :| types  [TVAR TCON showType loadAnnBindWithHack {#getTypeRoot}]
 :| types  [tnodeMapParams tnodeParams]
 :| types  [TRUE FALSE bit not inc add]
+:| sire_27_sire [executeSire replCase]
 
 
 ;;; Inference ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -451,27 +452,21 @@ abstype#(Read2 a b)
 ; only using this AST for type-checking, the actual macro-expansion is
 ; just the rex raw input without the annotation.
 
-; TODO: This does *not* assign the infered type to the annotated binding.
-;
-; We can't actually do that here, because of reasons.
 
 = ({>} ss rex err ok)
 : ss type vars k bRex < loadAnnBindWithHack ss rex err
 : sig body            < parseBinding bRex err
 @ self,sire           | desugaredBindingBody sig body
 : type                < doCheck ss type sire err
-;
-; TODO: Need to add the type property *directly* to the binding.
-; Or, alternately, to inject the binding followed immediatly by another
-; re-binding with the property in Q.
-;
-; Ah, but we can't really do that here, because we aren't in control of
-; the pipeline.  Can we stub out this code, and then do it *for real*
-; in the next interation?
-;
-; @ ss                  | addPropsToLocalBindingByKey ss k #[=type]
-; trk `($(WORD 0 self 0) :: $(showType p type))
-| ok ss bRex
+: ss rex              < .({=}) ss (rexHeir rex) err
+: ss _                < replCase | executeSire rex ss
+: _ _ binding         < getBind self ss rex err
+^ ok _ '(#*)
+@ [k ctx bs ms] | ss
+^ [k ctx _ ms]
+| tabPut bs self
+@ [k val code ctx self ps] | binding
+| PIN [k val code ctx self (btPut ps {type} type)]
 
 > Nat > Nat
 = add3 (add 3)
@@ -554,3 +549,7 @@ backfill#t2#(a > b > (a,b))
 = (countDown x y)
 | if (isZero x) x
 | countDown (dec x) (dec y)
+
+; This won't work
+; > List Bar
+; = nats | CONS 0 NIL
