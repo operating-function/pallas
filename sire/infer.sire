@@ -551,5 +551,5 @@ backfill#t2#(a > b > (a,b))
 | countDown (dec x) (dec y)
 
 ; This won't work
-; > List Bar
-; = nats | CONS 0 NIL
+> Bar
+= five | add3 2
