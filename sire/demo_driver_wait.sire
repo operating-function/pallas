@@ -1,0 +1,37 @@
+#### demo_driver_wait <- prelude
+
+:| prelude
+
+;; Main IO loop
+= (waitWriteLoop return)
+: now < launch TIME_WHEN
+| trk %proc_got_now
+: state < launch | DB_READ ()
+| trk [current_state=state]
+: result < launchWith rid&(DB_WRITE (rid,now))
+| trk [%proc_wrote [=result]]
+: _ < launch | TIME_WAIT (add 2 now)
+| trk %proc_waited
+| waitWriteLoop return
+
+;; Handle write requests from the IO loop proc
+= (writeInput pid (rid,input) return)
+: st < getState
+| trk [=st]
+| if (gte len-st 5)
+  | trk {state reached 5 entries, pruning}
+  : _ < putState [input]
+  : _ < send (pid,rid) 1
+  | return ()
+: _ < modifyState (flip rowSnoc input)
+: _ < send (pid,rid) | inc len-st
+| return ()
+
+;; Start everything
+= (cog return)
+: _ < install waitWriteLoop const writeInput
+| return ()
+
+startState=[]
+
+main=(runCog startState cog)

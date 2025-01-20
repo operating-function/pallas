@@ -123,14 +123,14 @@ makeFieldLabelsNoPrefix ''Runner
 -- No template haskell beyond this point because optics.
 -- -----------------------------------------------------------------------
 
-spawnProc :: Debug => Fan -> Outbox -> IO (Async (), ResponseTuple -> STM ())
-spawnProc proc call = do
+spawnProc :: Debug => Text -> Fan -> Outbox -> IO (Async (), ResponseTuple -> STM ())
+spawnProc procName proc call = do
     let init = proc
     let reqs = mempty
     inbox <- atomically newTQueue
     handle <- asyncOnCurProcess $ withThreadName "Foo"
-      $ handle (onErr "runner foo")
-      $ runnerFun "procname" RUNNER{..}
+      $ handle (onErr $ "runner " <> procName)
+      $ runnerFun procName RUNNER{..}
     pure (handle, writeTQueue inbox)
   where
     onErr name e = do
@@ -146,15 +146,9 @@ receiveResponse LIVE_EFF{eff} = readTVar eff.state.var >>= \case
     LIVE     -> pure Nothing
     DEAD     -> pure $ Just RTUP{key=eff.reqIdx, resp=Nothing}
 
--- Design point: Why not use optics and StateT in Runner? Because StateT in IO
--- doesn't have a MonandUnliftIO instance, which means that we can't bracket
--- our calls to the profiling system, which you really want to do to keep
--- things exception safe. We thus only use it in the one super stateful method,
--- parseRequests.
-
 -- The Proc Runner --------------------------------------------------------------
 
-runnerFun :: Debug => ByteString -> Runner -> IO ()
+runnerFun :: Debug => Text -> Runner -> IO ()
 runnerFun processName st = flip finally cancelOpenSyscalls do
         -- Process the initial syscall vector
         newReqs <- atomically $ parseRequests st
@@ -174,7 +168,7 @@ runnerFun processName st = flip finally cancelOpenSyscalls do
         responses <- mapMaybeA receiveResponse $ IM.elems st.reqs
         cogOutputs <- flushTQueue st.inbox
         guarded (not . null) $ responses <> cogOutputs
-      st' <- withProcessName processName $
+      st' <- withProcessName (encodeUtf8 processName) $
               withThreadName ("Proc: ") $
                 foldM runResponse st inputs
       procTick st'

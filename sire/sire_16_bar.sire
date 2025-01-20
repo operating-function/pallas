@@ -512,6 +512,22 @@ hexAlphabet=(b#{0123456789abcdef})
 | if isMatch (CONS found more)
 | else more
 
+= (barRev bar) | barFromListRev | barToList bar
+
+= (barTrim bar)
+| barRev
+| barDropWhile eql-{ }
+| barRev
+| barDropWhile eql-{ }
+| bar
+
+=?= b#foo | barTrim b#{   foo}
+=?= b#foo | barTrim b#{   foo   }
+=?= b#foo | barTrim b#{foo   }
+=?= b#foo | barTrim b#{foo}
+=?= b#{}  | barTrim b#{}
+=?= b#{}  | barTrim b#{  }
+
 =?= [0 [1 [2 0]]] | barSubstringSearch b#{} b#bba
 =?= [2 [6 0]]     | barSubstringSearch b#aa b#bbaabbaa
 =?= [0 [4 0]]     | barSubstringSearch b#aa b#aabbaabb
@@ -658,6 +674,6 @@ barSliceToNat=_BarSliceToNat
 ^-^ {#b} {#x} {#}
 ^-^
 ^-^ barLinesList barUnlinesList
-^-^ barLines barUnlines
+^-^ barLines barUnlines barRev barTrim
 ^-^ barIsPrefixOf barSubstringSearch
 ^-^ barNewline barSpace

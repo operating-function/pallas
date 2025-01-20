@@ -2,7 +2,7 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### proc_http <- lib_http
+#### driver_http <- lib_http
 
 ; Things that need to happen:
 ; - Test passing JSON body in a POST request - probably need to do a bunch after that
@@ -12,17 +12,14 @@
 :| lib_http
 
 
-; TODO:
-> HTTPBuffer > Bit
-= (validRequest request)
-; early response for malformed requests - potentially depends on better strategy
-; for _short-circuiting_ message chunk ingesting. See processHTTPChunk.
-; Goes nicely with error400
-TRUE
+
+;; An app returns a tuple [headers body cody reason]
+;; which the HTTP server turns into a response.
+# typedef AppResponse (Tab Bar Bar, Nat, Bar, Bar)
 
 
 ; TODO:
-> HTTPResponse > Bit
+> AppResponse > Bit
 = (validResponse response)
 ; did we get a garbage response from the app?
 ; if so, we shouldn't send it out.
@@ -30,10 +27,10 @@ TRUE
 ; Goes nicely with error500
 ;
 ; Do the validation work here. call this in appResponseToHTTP
-TRUE
+| TRUE
 
 
-> Tab Bar Bar > Nat > Bar > > Bar > HTTPResponse
+> AppResponse > HTTPResponse
 = (appResponseToHTTP [headers body code reason])
 ; TODO: check validity of headers/body/code we got from app here
 ; Formulate an HTTPResponse anyway (probably a 500 or whatever)
@@ -68,37 +65,31 @@ TRUE
 * body
 
 
-= (processConnection io getResponse buffer return)
-: data < syscall | TCP_TAKE io
+= (processConnection io requestHandler parser return)
+: data < launch | TCP_TAKE io
 | if (barIsEmpty data)
-  ; TCP has been SHUT
-  | trk [%connectionClosed %dataBarEmpty]
+  ; trk [connectionClosed=io]
   | return ()
-@ updatedBuffer | processHttpChunk buffer data
-| ifNot (validRequest updatedBuffer)
-  | processConnection io updatedBuffer return
-: request < maybeCase (makeRequest updatedBuffer)
-          ; valid but incomplete
-          | processConnection io updatedBuffer return
-; complete and valid
-: cogResponse < getResponse request
-;;;; Just for printing
-@ [headers body code reas] | cogResponse
-@ truncatedBody | idx 0 | barSplitAt 20 body
-| trk [%cogResponse [=headers =code =reas =truncatedBody]]
+@ newParser | feedData parser data
+: res < maybeCase | getResult newParser
+      | processConnection io requestHandler newParser return
+: req < eitherCase res error&(trk [=error] | launch (TCP_SHUT io) return)
+: cogResponse@[headers body code reas] < requestHandler req
+; trk [%cogResponse [=io =headers =code =reas body=(barTake 20 body)]]
 ;;;;
 ^ _ (httpResToBar | appResponseToHTTP cogResponse)
 ? (sendAndClose responseBar)
-: mBytes < syscall | TCP_GIVE io responseBar
-| trk [%sent mBytes %bytes]
-: bytes  < maybeCase mBytes  | syscall (TCP_SHUT io) return
-| if (barLen responseBar == bytes) | syscall (TCP_SHUT io) return
+: mBytes < launch | TCP_GIVE io responseBar
+; trk [=io sentBytes=mBytes]
+: bytes < maybeCase mBytes | launch (TCP_SHUT io) return
+| if (barLen responseBar == bytes) | launch (TCP_SHUT io) return
 | sendAndClose | barDrop bytes responseBar
 
-= (httpServer responseHandler return)
-: port < syscall | TCP_MINE
+= (httpServer requestHandler return)
+: port < launch | TCP_MINE
 | trk [%httpRunning (barCat [b#{visit } b#{http://localhost:} (natBar | showNat port)])]
-: [io ip port] < syscall | TCP_HEAR
-| trk [%theirConnection [=io =ip =port]]
-: tid < pumpFork (httpServer responseHandler)
-| processConnection io responseHandler (emptyBuffer ip port) return
+^ _ return
+? (go return)
+: (io,_,_) < launch | TCP_HEAR
+: _ < fork | processConnection io requestHandler newHTTPParser
+| go return

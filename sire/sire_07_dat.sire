@@ -180,6 +180,11 @@
 =?= SOME-1 | fmapMaybe SOME-0 inc
 =?= NONE   | fmapMaybe NONE   inc
 
+= (bindMaybe myb k) | maybeCase myb NONE k
+
+=?= (SOME 1) | bindMaybe (SOME 0) (compose SOME inc)
+=?= NONE     | bindMaybe NONE     (compose SOME inc)
+
 =?= 1 | isSome (SOME 0)
 =?= 0 | isSome NONE
 =?= 0 | isNone (SOME 0)
@@ -960,7 +965,7 @@ F=found
 ^-^
 ^-^ NONE SOME maybeCase maybe
 ^-^ fromSome unpackSome
-^-^ isSome isNone fmapMaybe
+^-^ isSome isNone fmapMaybe bindMaybe
 ^-^ maybeGuard maybeGuardNot
 ^-^
 ^-^ mapMaybe catMaybes
