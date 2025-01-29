@@ -147,6 +147,14 @@
 * AWAITING_REQ_LINE
 
 
+> ParserState > Maybe (Tab Bar Bar)
+= (getHTTPHeaders p)
+# datacase p
+* (AWAITING_BODY _ _ headers) | SOME headers
+* (COMPLETE _ headers _)      | SOME headers
+* _                           | NONE
+
+
 > Bar > Maybe (Method, Bar, Bar)
 = (parseRequestLine line)
 @ parts | listToRow | barSplit { } line

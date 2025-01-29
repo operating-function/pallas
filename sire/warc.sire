@@ -1,0 +1,654 @@
+#### warc <- driver_http
+
+:| kern
+:| driver_http
+
+= (listMerge left right cmp merge)
+: x xs < listCase left right
+: y ys < listCase right left
+@ res | cmp x y
+| if res==LT |           x::(listMerge xs   right cmp merge)
+| if res==GT |           y::(listMerge left ys    cmp merge)
+| else       | (merge x y)::(listMerge xs   ys    cmp merge)
+
+# record EntryMetadata
+| ENTRY_METADATA
+* recordType     : Bar
+* metaTimestamp  : Bar
+* targetURI      : Maybe Bar
+* concurrentTo   : Maybe Bar
+* recordID       : Maybe Bar
+* httpStatus     : Maybe Nat
+* httpLocation   : Maybe Bar
+* httpContentType: Maybe Bar
+
+
+# record WARCLocation
+| WARC_LOC
+* nodeName : Nat
+* offset   : Nat
+
+# record CDXEntry
+| CDX_ENTRY
+* canonicalURL : Bar
+* timestamp    : Bar
+* originalUrl  : Bar
+* mimeType     : Bar
+* responseCode : Nat ;; Remember that 0 should serialize to b#{-}
+* digest       : Bar
+* redirectUrl  : Bar
+* robotsTags   : Bar
+* length       : Nat
+* sources      : List WARCLocation
+
+> EntryMetadata > Bar
+= (makeMimeType meta)
+# switch (getRecordType meta)
+* b#revisit  | b#{warc/revisit}
+* b#request  | b#{-}
+* b#response | fromSome b#unk | getHttpContentType meta
+* _          | b#unk
+
+> EntryMetadata > Nat
+= (makeStatus meta)
+# switch (getRecordType meta)
+* b#response | fromSome 0 | getHttpStatus meta
+* _          | 0
+
+> EntryMetadata > Maybe EntryMetadata > EntryMetadata
+= (findPreferredHeaders m0 mm1)
+: m1 < maybeCase mm1 m0
+# switch | getRecordType m0
+* b#response | m0
+* b#revisit  | if (getRecordType-m1 == b#response) m1 m0
+* _          | m1
+
+
+> EntryMetadata > EntryMetadata > Bit
+= (shouldCombine m1 m2)
+| and (getTargetURI m1 == getTargetURI m2)
+@ t1 (getRecordType m1) 
+@ t2 (getRecordType m2)
+| if ((t1 == b#request) && ((t2 == b#response) || (t2 == b#revisit)))
+  | (getConcurrentTo-m2 == getRecordID-m1)
+| if ((t2 == b#request) && ((t1 == b#response) || (t1 == b#revisit))) 
+  | (getConcurrentTo-m1 == getRecordID-m2) 
+| FALSE
+
+= (combine m0 mm1)
+: m1 < maybeCase mm1       | RIGHT m0
+| if (shouldCombine m0 m1) | RIGHT | findPreferredHeaders m0 mm1
+| LEFT m1
+
+
+> Tab Bar Bar > Tab Bar Bar > Maybe Nat > Maybe EntryMetadata 
+= (makeMetadata warcHeaders httpHeaders mCode)
+: recordType    < bindMaybe | tabLookup b#{WARC-Type} warcHeaders
+: timestamp     < bindMaybe | tabLookup b#{WARC-Date} warcHeaders
+| SOME
+| ENTRY_METADATA
+* recordType
+* timestamp
+* tabLookup b#{WARC-Target-URI} warcHeaders 
+* tabLookup b#{WARC-Concurrent-To} warcHeaders
+* tabLookup b#{WARC-Record-ID} warcHeaders
+* mCode
+* tabLookup b#{Location} httpHeaders
+* tabLookup b#{Content-Type} httpHeaders
+
+
+= sampleCDX1
+| CDX_ENTRY
+* b#{http://example.com}
+* b#{20240101000000}
+* b#{http://example.com}
+* b#{text/html}
+* 200
+* b#{b3:123}
+* b#{-}
+* b#{-}
+* 100
+* ~[(WARC_LOC 1 100)]
+
+= sampleCDX2 
+| CDX_ENTRY
+* b#{http://example.com}
+* b#{20240101000000}
+* b#{http://example.com}
+* b#{text/html}
+* 200
+* b#{b3:123}
+* b#{-}
+* b#{-}
+* 100
+* ~[(WARC_LOC 2 200)]
+
+= sampleCDX3
+| CDX_ENTRY
+* b#{http://other.com}
+* b#{20240101000000}
+* b#{http://other.com}
+* b#{text/html}
+* 200
+* b#{b3:789}
+* b#{-}
+* b#{-}
+* 100
+* ~[(WARC_LOC 3 300)]
+
+> Bar
+= requestRecord
+| barIntercalate CRLF
+++ # b } WARC/1.1
+++ # b } WARC-Type: request
+++ # b } WARC-Target-URI: http://www.archive.org/images/logoc.jpg
+++ # b } WARC-Warcinfo-ID: <urn:uuid:d7ae5c10-e6b3-4d27-967d-34780c58ba39>
+++ # b } WARC-Date: 2016-09-19T17:20:24Z
+++ # b } Content-Length: 243
+++ # b } WARC-Record-ID: <urn:uuid:92283950-ef2f-4d72-b224-f54c6ec90bb0>
+++ # b } Content-Type: application/http;msgtype=request
+++ # b } 
+++ # b } GET /images/logoc.jpg HTTP/1.0
+++ # b } User-Agent: Mozilla/5.0 (compatible; heritrix/1.10.0)
+++ # b } From: stack@example.org
+++ # b } Connection: close
+++ # b } Referer: http://www.archive.org/
+++ # b } Host: www.archive.org
+++ # b } Cookie: PHPSESSID=009d7bb11022f80605aa87e18224d824o
+++ CRLF
+
+> Bar
+= responseRecord
+| barIntercalate CRLF
+++ # b } WARC/1.1
+++ # b } WARC-Type: response
+++ # b } WARC-Target-URI: http://www.archive.org/images/logoc.jpg
+++ # b } WARC-Warcinfo-ID: <urn:uuid:d7ae5c10-e6b3-4d27-967d-34780c58ba39>
+++ # b } WARC-Date: 2016-09-19T17:20:24Z
+++ # b } WARC-Block-Digest: sha1:UZY6ND6CCHXETFVJD2MSS7ZENMWF7KQ2
+++ # b } WARC-Payload-Digest: sha1:CCHXETFVJD2MUZY6ND6SS7ZENMWF7KQ2
+++ # b } WARC-IP-Address: 207.241.233.58
+++ # b } WARC-Record-ID: <urn:uuid:4885803b-eebd-4b27-a090-144450c11594>
+++ # b } WARC-Concurrent-To: <urn:uuid:92283950-ef2f-4d72-b224-f54c6ec90bb0>
+++ # b } Content-Type: application/http;msgtype=response
+++ # b } WARC-Identified-Payload-Type: image/jpeg
+++ # b } Content-Length: 279
+++ # b } 
+++ # b } HTTP/1.1 200 OK
+++ # b } Date: Tue, 19 Sep 2016 17:18:40 GMT
+++ # b } Server: Apache/2.0.54 (Ubuntu)
+++ # b } Last-Modified: Mon, 16 Jun 2013 22:28:51 GMT
+++ # b } ETag: "3e45-67e-2ed02ec0"
+++ # b } Accept-Ranges: bytes
+++ # b } Content-Length: 1662
+++ # b } Connection: close
+++ # b } Content-Type: image/jpeg
+++ # b } 
+++ # b } [image/jpeg binary data here]
+
+> Bar
+= revisitRecord
+| barIntercalate CRLF
+++ # b } WARC/1.1
+++ # b } WARC-Type: revisit
+++ # b } WARC-Target-URI: http://www.archive.org/images/logoc.jpg
+++ # b } WARC-Date: 2017-06-23T12:43:35Z
+++ # b } WARC-Profile: http://netpreserve.org/warc/1.1/server-not-modified
+++ # b } WARC-Record-ID: <urn:uuid:16da6da0-bcdc-49c3-927e-57494593bbbb>
+++ # b } WARC-Refers-To: <urn:uuid:4885803b-eebd-4b27-a090-144450c11594>
+++ # b } WARC-Refers-To-Target-URI: http://www.archive.org/images/logoc.jpg
+++ # b } WARC-Refers-To-Date: 2016-09-19T17:20:24Z
+++ # b } Content-Type: message/http
+++ # b } Content-Length: 202
+++ # b } 
+++ # b } HTTP/1.x 304 Not Modified
+++ # b } Date: Tue, 06 Mar 2017 00:43:35 GMT
+++ # b } Server: Apache/2.0.54 (Ubuntu) PHP/5.0.5-2ubuntu1.4 Connection: Keep-Alive
+++ # b } Keep-Alive: timeout=15, max=100
+++ # b } ETag: "3e45-67e-2ed02ec0"
+++ CRLF
+
+= differentUrlRecord
+| barIntercalate CRLF
+++ # b } WARC/1.1
+++ # b } WARC-Type: response
+++ # b } WARC-Target-URI: http://www.different.org/images/logo.jpg
+++ # b } WARC-Date: 2016-09-19T17:20:24Z
+++ # b } WARC-Record-ID: <urn:uuid:different-uuid-here>
+++ # b } Content-Type: application/http;msgtype=response
+++ # b } Content-Length: 71
+++ # b } 
+++ # b } HTTP/1.1 200 OK
+++ # b } Content-Type: image/jpeg
+++ # b } 
+++ # b } [different image data]
+++ CRLF
+
+= sampleWarcHeaders
+| tabFromPairs
+++ , b#{WARC-Type} b#{response}
+++ , b#{WARC-Date} b#{2024-01-01T00:00:00Z}
+
+= sampleHttpHeaders  
+| tabFromPairs
+++ , b#{Content-Type} b#{text/html}
+
+=?= | makeMetadata sampleWarcHeaders sampleHttpHeaders SOME-200
+  | SOME
+  | ENTRY_METADATA
+  * b#response
+  * b#{2024-01-01T00:00:00Z}
+  * NONE
+  * NONE  
+  * NONE
+  * SOME 200
+  * NONE
+  * SOME b#{text/html}
+
+=?= NONE
+  | makeMetadata
+  * tabDel b#{WARC-Type} sampleWarcHeaders
+  * sampleHttpHeaders
+  * NONE
+
+=?= NONE
+  | makeMetadata  
+  * tabDel b#{WARC-Date} sampleWarcHeaders
+  * sampleHttpHeaders
+  * NONE
+
+
+> List Bar > Tab Bar Bar
+= (parseLinesIntoHeaders lines)
+^ listFoldl _ #[] lines
+? (go acc line)
+@ [key val] | barSplitOne {:} line
+@ key | barTrim key
+@ val | barTrim val
+| tabIns key val acc
+
+=?= | tabFromPairs [(b#Key1, b#Val1) (b#Key2, b#Val2)]
+  | parseLinesIntoHeaders ~[b#{Key1: Val1} b#{Key2: Val2}]
+
+
+> Bar > Maybe (Nat, Tab Bar Bar, Bar)
+= (parseWarcHeaders bar)
+@ magic | barTake 8 bar
+| if ((barTake 8 bar) /= b#{WARC/1.1}) | NONE ;; TODO deal with different versions
+; Skip CRLF after magic
+@ pos | 10
+: (wHead,rest) < bindMaybe | barSplitOnSubstring DOUBLE_CRLF | barDrop pos bar
+@ warcHeaders | parseLinesIntoHeaders | barSubstringLinesList CRLF wHead
+| SOME (add pos (add 4 barLen-wHead), warcHeaders, rest)
+
+
+
+> Bar > (Maybe Nat, Tab Bar Bar)
+= (parseHttpHeaders bar)
+@ error | (NONE, emptyTab)
+: (headBlock,_)    < maybeCase (barSplitOnSubstring DOUBLE_CRLF bar) | error
+: (respLine,hHead) < maybeCase (barSplitOnSubstring CRLF headBlock)  | error ;; TODO too greedy
+@ mCode
+  @ codeBar | listIdx 1 | barSplit { } respLine
+  | parseNat codeBar
+@ heads
+  @ (_,pState) | stepParser | HTTP_PARSER (barWeld hHead DOUBLE_CRLF) ;; TODO ugly
+                                  (AWAITING_HEADERS (0,0,0))  ;; TODO ugly
+  | fromSome emptyTab | getHTTPHeaders pState
+| (mCode,heads)
+
+
+
+> Bar > Maybe (EntryMetadata, Nat)
+= (getNextRecord bar)
+| trk , getNextRecord [=bar]
+: (headLen,warcHeaders,rest) < bindMaybe | parseWarcHeaders bar
+| trk , getNextRecord [=warcHeaders]
+: length                     < bindMaybe | tabLookup b#{Content-Length} warcHeaders
+: length                     < bindMaybe | parseNat length
+@ (mCode,httpHeaders)                    | parseHttpHeaders | barTake length rest
+| trk , getNextRecord [=httpHeaders warcBody=(barTake length rest)]
+: meta                       < bindMaybe | makeMetadata warcHeaders httpHeaders mCode
+| SOME (meta, add headLen length)
+
+
+= tinyRecord
+| barIntercalate CRLF
+++ # b } WARC/1.1
+++ # b } WARC-Type: request
+++ # b } WARC-Date: 2016-09-19T17:20:24Z
+++ # b } Content-Length: 55
+++ # b } 
+++ # b } GET /index.html HTTP/1.0
+++ # b } Host: http://example.com/
+++ CRLF
+
+=?= SOME-(barLen tinyRecord)
+  ^ fmapMaybe _ snd
+  | getNextRecord tinyRecord
+
+= requestMeta
+| ENTRY_METADATA
+* b#{request}
+* b#{2016-09-19T17:20:24Z}
+* SOME b#{http://www.archive.org/images/logoc.jpg}
+* NONE
+* SOME b#{<urn:uuid:92283950-ef2f-4d72-b224-f54c6ec90bb0>}
+* NONE
+* NONE
+* NONE
+
+= responseMeta
+| ENTRY_METADATA  
+* b#{response}
+* b#{2016-09-19T17:20:24Z}
+* SOME b#{http://www.archive.org/images/logoc.jpg} 
+* SOME b#{<urn:uuid:92283950-ef2f-4d72-b224-f54c6ec90bb0>}
+* SOME b#{<urn:uuid:4885803b-eebd-4b27-a090-144450c11594>}
+* SOME 200
+* NONE
+* SOME b#{image/jpeg}
+
+= revisitMeta 
+| ENTRY_METADATA
+* b#{revisit}
+* b#{2017-06-23T12:43:35Z}
+* SOME b#{http://www.archive.org/images/logoc.jpg}
+* NONE
+* SOME b#{<urn:uuid:16da6da0-bcdc-49c3-927e-57494593bbbb>}
+* SOME 304
+* NONE
+* NONE
+
+=?= | getNextRecord requestRecord
+  | SOME (requestMeta, barLen requestRecord) 
+
+=?= | getNextRecord responseRecord
+  | SOME (responseMeta, barLen responseRecord)
+
+=?= | getNextRecord revisitRecord
+  | SOME (revisitMeta, barLen revisitRecord)
+
+=?= | getNextRecord | barCat [requestRecord responseRecord revisitRecord]
+  | SOME (requestMeta, barLen requestRecord) 
+
+
+> Bar > List (Nat, Nat, EntryMetadata)
+= (warcBlocks warcFile)
+^ _ 0 0 NONE ~[]
+? (go off pos mPrev acc)
+@ loc | add off pos
+: (meta, recLen) < maybeCase | getNextRecord | barDrop loc warcFile ;; TODO why inc??
+                 : prev < maybeCase mPrev | trk [warcBlocks %only acc] acc
+                 | trk , warcBlocks %adding (off,pos,prev)::acc
+                 | (off,pos,prev)::acc
+| trk , warcBlocks
+      ## =recLen
+      ## =curr | barTake recLen | barDrop loc warcFile
+      ## =rest | barDrop (add recLen loc) warcFile
+: newMeta < eitherCase | combine meta mPrev
+          & old
+          | trk , warcBlocks %notCombining [=meta =mPrev]
+          | go loc recLen (SOME meta) (off,pos,old)::acc
+| trk , warcBlocks %combining [=meta =mPrev =newMeta]
+| go off (add pos recLen) (SOME newMeta) acc
+
+=?= ~[(0, barLen requestRecord, requestMeta)]
+  | warcBlocks requestRecord
+
+=?= ~[(0, barLen responseRecord, responseMeta)]
+  | warcBlocks responseRecord
+
+=?= ~[(0, barLen (barWeld requestRecord responseRecord), responseMeta)]
+  | warcBlocks | barWeld requestRecord responseRecord
+
+= (barReplaceAll old new bar)
+| barIntercalateList new | barSplit old bar
+
+=?= b#{hello-world}   | barReplaceAll {_} b#{-} b#{hello_world}
+=?= b#{hello_world}   | barReplaceAll {-} b#{_} b#{hello_world}
+=?= b#{helloworld}    | barReplaceAll {_} b#{} b#{hello_world}
+=?= b#{hello-=-world} | barReplaceAll {_} b#{-=-} b#{hello_world}
+
+= (canonicalize url)
+: (scheme,rest) < maybeCase (barSplitOnSubstring b#{://} url) url
+@ (address,path) | barSplitOne {/} rest
+@ (domain,port)  | barSplitOne {:} address
+@ address | if (port == b#{80}) domain address
+@ norm | barMap toLower | barCat [scheme b#{://} address]
+@ path | if barIsEmpty-path b#{} | barWeld b#{/} path
+| barReplaceAll 0x0d b#{%0D}
+| barReplaceAll 0x0a b#{%0A} 
+| barReplaceAll 0x09 b#{%09}
+| barReplaceAll b#{:80/} b#{/}
+| barWeld norm path
+
+=?= b#{http://example.com/path}
+  | canonicalize b#{HTTP://EXAMPLE.com:80/path}
+
+=?= b#{http://example.com/Path/camelCase}
+  | canonicalize b#{HTTP://EXAMPLE.com/Path/camelCase}
+
+=?= b#{http://example.com}
+  | canonicalize b#{HTTP://EXAMPLE.com:80}
+
+=?= b#{not-a-url} 
+  | canonicalize b#{not-a-url}
+
+=?= b#{http://example.com/foo%09bar%0A}
+  | canonicalize | barCat [b#{HTTP://example.com/foo} (barSing 0x09) b#bar barNewline]
+
+
+> Pin Bar > > List CDXEntry
+= (buildCDX @(PIN warcFile))
+: (off,len,meta) < listForEach | warcBlocks warcFile
+@ content | barSlice off (add off len) warcFile
+@ url | fromSome b#{} | getTargetURI meta
+@ status | makeStatus meta
+@ redirectUrl
+  | ifNot ((lte 300 status) && (lth status 400)) b#{-}
+  | fromSome b#{-} | getHttpLocation meta
+| CDX_ENTRY
+* canonicalize url
+* getMetaTimestamp meta
+* url
+* makeMimeType meta
+* status
+* barWeld b#{b3:} | barToHex planHash-content
+* redirectUrl
+* b#{-} ;; don't parse robots.txt for now
+* len
+* ~[(WARC_LOC {fname} off)]
+
+=?= | buildCDX | PIN | barWeld requestRecord responseRecord
+  ^ ~[_]
+  | CDX_ENTRY
+  * canonicalize | fromSome b#{} | getTargetURI responseMeta
+  * getMetaTimestamp responseMeta
+  * fromSome b#{} | getTargetURI responseMeta
+  * makeMimeType responseMeta
+  * makeStatus responseMeta
+  * barWeld b#{b3:} | barToHex planHash-(barWeld requestRecord responseRecord)
+  * fromSome b#{-} | getHttpLocation responseMeta
+  * b#{-}
+  * barLen | barWeld requestRecord responseRecord
+  * ~[(WARC_LOC {fname} 0)]
+
+= reqres
+| PIN | barWeld requestRecord responseRecord
+
+=?= 2
+  ^ listLen | buildCDX | PIN | barCat _
+  [requestRecord responseRecord differentUrlRecord]
+
+=?= 2
+  ^ listLen | buildCDX | PIN | barCat _
+  [requestRecord responseRecord revisitRecord]
+
+=?= 3
+  ^ listLen | buildCDX | PIN | barCat _
+  [requestRecord revisitRecord responseRecord]
+
+=?= 3
+  ^ listLen | buildCDX | PIN | barCat _
+  [requestRecord responseRecord revisitRecord differentUrlRecord]
+
+=?= 4
+  ^ listLen | buildCDX | PIN | barCat _
+  [requestRecord revisitRecord responseRecord differentUrlRecord]
+
+= (cmpCDX x y)
+@ (cmpOn f) | cmp f-x f-y
+| ordWeld | cmpOn getCanonicalURL
+| ordWeld | cmpOn getTimestamp
+| ordWeld | cmpOn getDigest
+| ordWeld | cmpOn getOriginalUrl
+| ordWeld | cmpOn getMimeType
+| ordWeld | cmpOn getResponseCode
+| ordWeld | cmpOn getRedirectUrl
+| cmpOn getLength
+
+=?= EQ | cmpCDX sampleCDX1 sampleCDX2
+=?= GT | cmpCDX sampleCDX1 sampleCDX3
+=?= LT | cmpCDX sampleCDX3 sampleCDX1
+
+= (mergeCDX x y)
+^ setSources _ x
+| listMerge getSources-x getSources-y cmp const
+
+=?= ~[(WARC_LOC 1 100) (WARC_LOC 2 200)]
+  | getSources | mergeCDX sampleCDX1 sampleCDX2
+
+=?= | take (dec | len sampleCDX1) sampleCDX1
+  | take (dec | len sampleCDX1) | mergeCDX sampleCDX1 sampleCDX2
+
+= (addCDXs newCDXs)
+: (warc, oldCDXs) < modifyState
+| (warc, listMerge oldCDXs newCDXs cmpCDX mergeCDX)
+
+= (appendWARC warcBar)
+: (warc, cdxs) < modifyState
+| (barWeld warc warcBar, cdxs)
+
+= (offset off cdx)
+^ setSources _ cdx
+: @(WARC_LOC ship loc) < listForEach | getSources cdx
+| WARC_LOC ship | add loc off
+
+=?= ~[(WARC_LOC 1 200)]
+  | getSources | offset 100 sampleCDX1
+
+= (printNat n) | natBar | showNat n
+
+> CDXEntry > Bar
+= (serializeCDX cdx)
+| barIntercalate b#{ }
+++ getCanonicalURL cdx
+++ getTimestamp cdx
+++ getOriginalUrl cdx
+++ getMimeType cdx
+++ ^ ifz _ b#{-} | printNat _
+   | getResponseCode cdx
+++ getDigest cdx
+++ getRedirectUrl cdx
+++ getRobotsTags cdx
+++ ^ ifz _ b#{-} | printNat _
+   | getLength cdx
+++ barCat
+  ++ b#{[}
+  ++ | barIntercalateList b#{ }
+     : (name,off) < listForEach | getSources cdx
+     | barCat [(printNat name) b#{,} (printNat off)]
+  ++ b#{]}
+  ++ barNewline
+
+
+
+=?= | serializeCDX sampleCDX1 
+  | barCat
+  ++ b#{http://example.com }  
+  ++ b#{20240101000000 }
+  ++ b#{http://example.com }
+  ++ b#{text/html }
+  ++ b#{200 }
+  ++ b#{b3:123 }
+  ++ b#{- }
+  ++ b#{- }
+  ++ b#{100 }
+  ++ b#{[1,100]}
+  ++ barNewline
+
+> HTTPRequest > Driver (Tab Bar Bar, Bar, Nat, Bar)
+= (requestHandler req@[method path version headers pBody@(PIN body)] return)
+@ badRequest [emptyTab b#{} 400 b#{bad}]
+@ warc_head | tabSing b#{content-type} b#warc
+@ cdxs_head | tabSing b#{Content-Type} b#{x-cdx}
+# switch method
+* _ | return badRequest
+* GET
+  @ [path query] | barSplitOne {?} path
+  # switch path
+  * b#{/print}
+    : _ < launch | DB_READ [%PRINT]
+    | return [emptyTab emptyBar 200 b#gotcha]
+  * b#{/index}
+    : cdxs < launch | DB_READ [%INDEX]
+    | return [cdxs_head (barCatList | listMap serializeCDX cdxs) 200 b#gotcha]
+  * b#{/read}
+    @ params       | tabFromPairsList | listMap barSplitOne-{=} | barSplit {&} query
+    : start        < maybeCase (parseNat | tabGet params b#start)  | return badRequest
+    : size         < maybeCase (parseNat | tabGet params b#length) | return badRequest
+    : bar < launch | DB_READ (%READ, start, size)
+    | return [warc_head bar 200 b#gotcha]
+* POST
+  # switch path
+  * b#{/warc}
+    : cdxs < launchWith & rid | DB_WRITE (%WARC, rid, pBody)
+    | return [cdxs_head (barCatList | listMap serializeCDX cdxs) 200 b#gotcha]
+  * b#{/cdx}
+    | launchWith & rid | DB_WRITE (%CDX, rid, pBody)
+    | return 
+
+= (readHandler (warc,cdxs) query)
+| trk readHandler
+# switch fst-query
+* PRINT | trk [warcSize=(barLen warc) cdxEntries=(listLen cdxs)] 0
+* INDEX | cdxs
+* READ
+@ (_,start,size) | query
+^ trk readHandler,[=query result=_] _
+| barSlice start size warc ; TODO check arg order
+
+= (ames _) | todo {wtf}
+
+= (writeHandler pid (cmd,rid,pBody) return)
+# switch cmd
+* WARC
+  : evalResult < work buildCDX [pBody]
+  : newCDXs < eitherCase evalResult
+              | trk [buildCDX %failed]
+              | send (pid,rid) NIL
+              | return
+  : off < getsState (warc, _)&(barLen warc)
+  | trk [buildCDX %succeeded %length (listLen newCDXs) %offset off]
+  @ newCDXs | listMap (offset off) newCDXs
+  : _ < addCDXs newCDXs
+  : _ < appendWARC | pinItem pBody
+  : _ < send (pid,rid) newCDXs
+  : _ < send (ames, 0) newCDXs
+  | return ()
+* CDX
+  @ error | send (pid,rid) [emptyTab b#{} 500 b#error] return
+  : evalResult < work pCDX&(_LoadSeed | pinItem pCDX) [pBody]
+  : newCDXs < eitherCase evalResult | error
+  | ifz newCDXs                     | error
+  : _ < addCDXs newCDXs
+  | send (pid,rid) [emptyTab emptyBar 201 b#created]
+  | return
+
+> Cog ()
+= (warcCog return)
+: http < install (httpServer requestHandler) readHandler writeHandler
+| return ()
+
+= main | runCog (emptyBar, NIL) warcCog
