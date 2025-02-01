@@ -15,26 +15,23 @@
 
 ;; An app returns a tuple [headers body cody reason]
 ;; which the HTTP server turns into a response.
-# typedef AppResponse (Tab Bar Bar, Nat, Bar, Bar)
+# typedef AppResponse (Tab Bar Bar, Bar, Nat, Bar)
 
 
 ; TODO:
 > AppResponse > Bit
-= (validResponse response)
-; did we get a garbage response from the app?
-; if so, we shouldn't send it out.
-; return either a bar to be sent out, or nothing (maybe)
-; Goes nicely with error500
-;
-; Do the validation work here. call this in appResponseToHTTP
-| TRUE
+= (validResponse res@(headers, body, code, reason))
+| rowAnd
+++ (len-res == 4)
+++ isTab headers
+++ isBar body
+++ isNat code
+++ isBar reason
 
 
 > AppResponse > HTTPResponse
-= (appResponseToHTTP [headers body code reason])
-; TODO: check validity of headers/body/code we got from app here
-; Formulate an HTTPResponse anyway (probably a 500 or whatever)
-| ifNot (validResponse b#{TODO})
+= (appResponseToHTTP fromCog@[headers body code reason])
+| ifNot (validResponse fromCog)
   | error500 b#{cog did a dumb}
 ; TODO:
 ; - reason phrase should come from app but be overridable by server in case error
@@ -84,6 +81,7 @@
 : bytes < maybeCase mBytes | launch (TCP_SHUT io) return
 | if (barLen responseBar == bytes) | launch (TCP_SHUT io) return
 | sendAndClose | barDrop bytes responseBar
+
 
 = (httpServer requestHandler return)
 : port < launch | TCP_MINE
