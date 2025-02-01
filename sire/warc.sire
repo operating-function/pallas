@@ -301,13 +301,10 @@
 
 > Bar > Maybe (EntryMetadata, Nat)
 = (getNextRecord bar)
-| trk , getNextRecord [=bar]
 : (headLen,warcHeaders,rest) < bindMaybe | parseWarcHeaders bar
-| trk , getNextRecord [=warcHeaders]
 : length                     < bindMaybe | tabLookup b#{Content-Length} warcHeaders
 : length                     < bindMaybe | parseNat length
 @ (mCode,httpHeaders)                    | parseHttpHeaders | barTake length rest
-| trk , getNextRecord [=httpHeaders warcBody=(barTake length rest)]
 : meta                       < bindMaybe | makeMetadata warcHeaders httpHeaders mCode
 | SOME (meta, add headLen length)
 
@@ -379,18 +376,11 @@
 ? (go off pos mPrev acc)
 @ loc | add off pos
 : (meta, recLen) < maybeCase | getNextRecord | barDrop loc warcFile ;; TODO why inc??
-                 : prev < maybeCase mPrev | trk [warcBlocks %only acc] acc
-                 | trk , warcBlocks %adding (off,pos,prev)::acc
+                 : prev < maybeCase mPrev acc
                  | (off,pos,prev)::acc
-| trk , warcBlocks
-      ## =recLen
-      ## =curr | barTake recLen | barDrop loc warcFile
-      ## =rest | barDrop (add recLen loc) warcFile
 : newMeta < eitherCase | combine meta mPrev
           & old
-          | trk , warcBlocks %notCombining [=meta =mPrev]
           | go loc recLen (SOME meta) (off,pos,old)::acc
-| trk , warcBlocks %combining [=meta =mPrev =newMeta]
 | go off (add pos recLen) (SOME newMeta) acc
 
 =?= ~[(0, barLen requestRecord, requestMeta)]
@@ -610,32 +600,25 @@
     | return 
 
 = (readHandler (warc,cdxs) query)
-| trk readHandler
 # switch fst-query
 * PRINT | trk [warcSize=(barLen warc) cdxEntries=(listLen cdxs)] 0
 * INDEX | cdxs
 * READ
 @ (_,start,size) | query
-^ trk readHandler,[=query result=_] _
 | barSlice start size warc ; TODO check arg order
-
-= (ames _) | todo {wtf}
 
 = (writeHandler pid (cmd,rid,pBody) return)
 # switch cmd
 * WARC
   : evalResult < work buildCDX [pBody]
   : newCDXs < eitherCase evalResult
-              | trk [buildCDX %failed]
               | send (pid,rid) NIL
               | return
   : off < getsState (warc, _)&(barLen warc)
-  | trk [buildCDX %succeeded %length (listLen newCDXs) %offset off]
   @ newCDXs | listMap (offset off) newCDXs
   : _ < addCDXs newCDXs
   : _ < appendWARC | pinItem pBody
   : _ < send (pid,rid) newCDXs
-  : _ < send (ames, 0) newCDXs
   | return ()
 * CDX
   @ error | send (pid,rid) [emptyTab b#{} 500 b#error] return
