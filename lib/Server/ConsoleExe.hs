@@ -537,10 +537,7 @@ withMachineIn storeDir numWorkers enableSnaps machineAction = do
 
     let devTable = do
             hw1_time <- createHardwareTime
-            (port,hw2_tcp) <- createHardwareTCP
-            let portFile = storeDir <> "/tcp.port"
-            debugTextVal "_tcp_port_file" $ pack portFile
-            writeFileUtf8 portFile $ tshow port
+            hw2_tcp  <- createHardwareTCP
             pure . DEVICE_TABLE . mapFromList $
                 [ ( "time", hw1_time )
                 , ( "tcp" , hw2_tcp  )

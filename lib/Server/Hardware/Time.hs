@@ -139,8 +139,9 @@ createHardwareTime :: Debug => Acquire Device
 createHardwareTime = do
     st <- mkAcquire mk release
     pure DEVICE
-        { stop = pass
-        , call = runSysCall st
+        { start = const pass
+        , stop = const pass
+        , call = const $ runSysCall st
         , category = categoryCall
         , describe = describeCall
         }

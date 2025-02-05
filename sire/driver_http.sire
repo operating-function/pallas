@@ -62,24 +62,24 @@
 * body
 
 
-= (processConnection io requestHandler parser return)
-: data < launch | TCP_TAKE io
+= (processConnection io@(ip,port) requestHandler parser return)
+: data < launch | TCP_TAKE ip port
 | if (barIsEmpty data)
   ; trk [connectionClosed=io]
   | return ()
-@ newParser | feedData parser data
-: res < maybeCase | getResult newParser
+@ newParser | feedReqData parser data
+: res < maybeCase | getRequest newParser
       | processConnection io requestHandler newParser return
-: req < eitherCase res error&(trk [=error] | launch (TCP_SHUT io) return)
+: req < eitherCase res error&(trk [=error] | launch (TCP_SHUT ip port) return)
 : cogResponse@[headers body code reas] < requestHandler req
 ; trk [%cogResponse [=io =headers =code =reas body=(barTake 20 body)]]
 ;;;;
 ^ _ (httpResToBar | appResponseToHTTP cogResponse)
 ? (sendAndClose responseBar)
-: mBytes < launch | TCP_GIVE io responseBar
+: mBytes < launch | TCP_GIVE ip port responseBar
 ; trk [=io sentBytes=mBytes]
-: bytes < maybeCase mBytes | launch (TCP_SHUT io) return
-| if (barLen responseBar == bytes) | launch (TCP_SHUT io) return
+: bytes < maybeCase mBytes | launch (TCP_SHUT ip port) return
+| if (barLen responseBar == bytes) | launch (TCP_SHUT ip port) return
 | sendAndClose | barDrop bytes responseBar
 
 
@@ -88,6 +88,6 @@
 | trk [%httpRunning (barCat [b#{visit } b#{http://localhost:} (natBar | showNat port)])]
 ^ _ return
 ? (go return)
-: (io,_,_) < launch | TCP_HEAR
-: _ < fork | processConnection io requestHandler newHTTPParser
+: io < launch | TCP_HEAR
+: _ < fork | processConnection io requestHandler newReqParser
 | go return

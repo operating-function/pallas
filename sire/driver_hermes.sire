@@ -1,0 +1,204 @@
+; Copyright 2024 The OPfN Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### driver_hermes <- driver_http_client
+
+:| kern
+:| lib_http [DOUBLE_CRLF barSplitOnSubstring]
+
+;; TODO move BiMap somewhere
+
+# record (BiMap k v)
+| BI_MAP  
+* forward  : Tab k v    ; name -> (socket,ip,port)
+* backward : Tab v k    ; (ip,port) -> (socket,name)
+
+> k > v > BiMap k v > Bit  
+= (biMapHas k v bimap)
+| and (tabHas k | getForward bimap)
+     (tabHas v | getBackward bimap)
+
+> k > BiMap k v > Bit
+= (biMapHasForward k bimap)
+| tabHas k | getForward bimap
+
+> v > BiMap k v > Bit
+= (biMapHasReverse v bimap) 
+| tabHas v | getBackward bimap
+
+> k > BiMap k v > Maybe v
+= (biMapLookup k bimap)    
+| tabLookup k | getForward bimap
+
+> v > BiMap k v > Maybe k
+= (biMapReverseLookup v bimap)
+| tabLookup v | getBackward bimap
+
+> BiMap k v
+= emptyBiMap
+| BI_MAP #[] #[]
+
+> k > v > BiMap k v > BiMap k v
+= (biMapInsert k v bimap)
+@ forward  | tabIns k v | getForward bimap
+@ backward | tabIns v k | getBackward bimap  
+| BI_MAP forward backward
+
+> k > BiMap k v > BiMap k v
+= (biMapDelete k bimap)
+: v < maybeCase (tabLookup k | getForward bimap) bimap
+@ forward  | tabDel k | getForward bimap
+@ backward | tabDel v | getBackward bimap
+| BI_MAP forward backward
+
+> v > BiMap k v > BiMap k v  
+= (biMapDeleteReverse v bimap)
+: k < maybeCase (tabLookup v | getBackward bimap) bimap
+@ forward  | tabDel k | getForward bimap
+@ backward | tabDel v | getBackward bimap
+| BI_MAP forward backward
+
+
+;;;;;;;
+
+= (makeMessage plan)
+@ seed | _SaveSeed plan
+^ barCat [_ DOUBLE_CRLF seed]
+| natBar | showNat | barLen seed
+
+
+# datatype ParserState
+* AWAITING_SIZE
+* AWAITING_SEED len:Nat
+* PARSER_ERROR  err:Bar
+
+# record HermesParser
+| HERMES_PARSER
+* queue : Bar
+* msgs  : List Any
+* state : ParserState
+
+= newHermesParser
+| HERMES_PARSER
+* emptyBar
+* NIL
+* AWAITING_SIZE
+
+
+> HermesParser > Maybe (Nat, Bar)
+= (processSize parser)
+# datacase | getState parser
+* _             | NONE
+* AWAITING_SIZE
+: (szBar, rest) < bindMaybe | barSplitOnSubstring DOUBLE_CRLF | getQueue parser
+: sz < bindMaybe | parseNat szBar
+| SOME (sz,rest)
+
+= (processSeed parser)
+@ HERMES_PARSER(..) | parser
+# datacase state
+* _ | NONE
+* (AWAITING_SEED size)
+| maybeGuard | lte size | barLen queue
+| SOME | barSplitAt size queue
+
+
+= (stepParser parser)
+@ HERMES_PARSER(..) parser
+# datacase state
+* AWAITING_SIZE
+  | trk AWAITING_SIZE
+  : (size,rest) < maybeCase (processSize parser) parser
+  | trk [=size =rest]
+  | stepParser
+  | HERMES_PARSER rest msgs | AWAITING_SEED size
+* (AWAITING_SEED size)
+  | trk AWAITING_SEED
+  : (seed,rest) < maybeCase (processSeed parser) parser
+  | trk [=seed =rest]
+  | stepParser
+  | HERMES_PARSER rest (_LoadSeed seed)::msgs AWAITING_SIZE
+
+= (feedData parser newData)
+@ queue | getQueue parser
+| stepParser | setQueue (barWeld queue newData) parser
+
+= (test _)
+| feedData newHermesParser x#37320d0a0d0a000000000000000000000000000000000300000000000000020000000000000002000000000000005052494e540000006261720000000000666f6f00000000000300231ad6550800
+
+= (inbox ip,port msgHandler return)
+^ _ newHermesParser return
+? (go parser return)
+: data < launch | TCP_TAKE ip port
+| trk , inbox [took=data from=(ip,port)]
+| if (barIsEmpty data)
+  | return ()
+@ newParser | feedData parser data
+| trk , inbox [=newParser]
+: _ < traverseList msgHandler | getMsgs newParser
+| go (setMsgs ~[] newParser) return
+
+
+= (outbox return)
+: (name,msg) < listen
+| trk , outbox [received=msg to=name]
+: _          < fork outbox
+: mAddr      < launch | DB_READ | biMapLookup name
+| trk , outbox [readResult=mAddr]
+: (ip,port)  < maybeCase mAddr
+             | trk [%no_such_peer name %ignoring msg]
+             | return ()
+: success    < launch | TCP_OPEN ip port
+| ifNot success
+  | trk , outbox [%failed_to_connect name ip port]
+  | return ()
+| trk , outbox [sending=msg to=(ip,port)]
+| launch_ | TCP_GIVE ip port | makeMessage msg
+| return
+
+
+= (namespaceAt lens state query)
+| query | lens state
+
+
+= (hermes msgHandler return)
+: _ < fork outbox
+: port < launch | TCP_MINE
+| trk , hermes [port=(natBar | showNat port) rawPort=port]
+^ _ return
+? (go return)
+: addr < launch TCP_HEAR
+| trk , hermes [heardFrom=addr]
+;; : known < launch | DB_READ | biMapHasReverse addr
+;; | ifNot known
+;;   | trk [%connection_from_nonpeer addr]
+;;   : _ < launch_ | uncurry TCP_SHUT addr
+;;   | go return
+: _ < fork | inbox addr msgHandler
+| go return
+
+= (requestHandler (cmd,msg) return)
+# switch cmd
+* PRINT | trk [%got_from_remote msg] | return ()
+* NAME
+| trk , requestHandler [newName=msg]
+: _ < launch_ | DB_WRITE | msg
+| return ()
+
+
+= (writeHandler _ (name,addr))
+| trk , writeHandler [=name =addr]
+| modifyState | biMapInsert name addr
+
+
+= (exampleCog return)
+@ name | %our
+@ addr | (16777343,38453) ; 16777343 == 127.0.0.1
+@ msg  | [%PRINT [%foo %bar]]
+: _ < putState | biMapInsert name addr emptyBiMap
+: hermes < install (hermes requestHandler) supply writeHandler
+: _ < install (launch_ | DB_WRITE ()) die (_ _ & send (hermes,0) (name,msg))
+| return ()
+
+main=(runCog emptyBiMap exampleCog)

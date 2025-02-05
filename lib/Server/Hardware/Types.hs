@@ -30,6 +30,7 @@ import Fan      (Fan)
 import Fan.Prof (Flow, allocateResponseFlow)
 import Server.Evaluator (Cancel(..))
 import Server.Proc
+import Server.Types.Logging (ProcId)
 
 --------------------------------------------------------------------------------
 {-
@@ -74,8 +75,9 @@ data SysCall = SYSCALL
   deriving Show
 
 data Device = DEVICE
-    { call     :: SysCall -> STM (Cancel, [Flow])
-    , stop     :: IO ()
+    { start    :: ProcId -> IO ()
+    , call     :: ProcId -> SysCall -> STM (Cancel, [Flow])
+    , stop     :: ProcId -> IO ()
     , category :: Vector Fan -> Text
     , describe :: Vector Fan -> Text
     }
@@ -125,10 +127,10 @@ getCallResponse call = readTVar call.state.var >>= \case
 
 -- TODO: Make this just echo back the incoming Flow so the invalid call
 -- directly flows to the invalid 0 response.
-callHardware :: DeviceTable -> SysCall -> STM (Cancel, [Flow])
-callHardware db call = do
+callHardware :: DeviceTable -> ProcId -> SysCall -> STM (Cancel, [Flow])
+callHardware db idx call = do
     case lookup call.dev.nat db.table of -- TODO should be array index
-        Just device -> device.call call
+        Just device -> device.call idx call
         Nothing     -> do
           -- In the case of unrecognized hardware, immediately send
           -- back a 0 response.

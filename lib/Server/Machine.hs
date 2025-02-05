@@ -235,7 +235,7 @@ stageWorker idx MACHINE_CONTEXT{hw} EXEC{driver} = do
 
     let call pc = asum [ makeCall pc >>= read  >> pure (CANCEL pass, [])
                        , makeCall pc >>= write >> pure (CANCEL pass, [])
-                       , makeCall pc >>= callHardware hw
+                       , makeCall pc >>= callHardware hw (procId idx)
                        ] `orElse` (kill pc $> (CANCEL pass, []))
     pure do
       (thread, inbox) <- spawnProc (pack $ show idx) driver call
@@ -282,6 +282,11 @@ instance Show LiveWorker where
 --
 -- TODO this should be an array/vector instead.
 type CogWorkers = IntMap (Fan, LiveWorker)
+
+-- Need this since we're using an IntMap
+procId :: Int -> ProcId
+procId = PROC_ID . fromIntegral
+
 
 -- | All the information needed for both
 data TellPayload = TELL_PAYLOAD
@@ -369,7 +374,7 @@ recomputeEvals m tells tab =
             ReceiptEvalOK  -> do
                 -- We performed an eval which succeeded the
                 -- first time.
-                case getEvalFunAt m (PROC_ID $ fromIntegral idx) of
+                case getEvalFunAt m (procId idx) of
                     Nothing ->
                         throwIO INVALID_OK_RECEIPT_IN_LOGBATCH
                     Just (fun, args)  -> do
@@ -465,7 +470,7 @@ performReplay cache ctx replayFrom = do
 
                 loop bn (updateRunner, t) xs
 
-    
+
 -- | Main entry point for starting running a Cog.
 replayAndCrankMachine
     :: Debug
@@ -632,7 +637,7 @@ runnerFun initialFlows machine processName st = do
               Just (OKAY ns val,flow) -> pure [COG_WRITE (toNoun (NAT 1,val)) flow]
               Just (CRASH err val,flow) -> pure [COG_WRITE (toNoun (NAT 0,(err,val))) flow]
               Just (TIMEOUT,flow) -> pure [COG_WRITE (toNoun (NAT 0,())) flow]
-          pure $ zip (repeat $ PROC_ID $ fromIntegral i) pendingWrites
+          pure $ zip (repeat $ procId i) pendingWrites
         guarded (not . null) allWrites
       results <- cogTick writeRequests
       atomically do
@@ -801,13 +806,17 @@ updateRunner runner update = do
                     modifying' #workers $ deleteMap key
                     modifying' #cancels $ case worker of
                       LIVE_EXEC{thread} -> (>> cancel thread)
-                      LIVE_EVAL{job} -> (>> atomically job.cancel.action)
+                      LIVE_EVAL{job} -> (>> do
+                        atomically job.cancel.action
+                        for_ runner.ctx.hw.table \d -> d.stop (procId key))
 
         addWorker :: Int -> Fan -> StateT ParseRequestsState STM ()
         addWorker i fan = do
           whenJust (fromNoun fan) \w -> do
             staged <- lift $ stageWorker i runner.ctx w
             modifying' #newWorkers $ insertMap i (fan, staged)
+            modifying' #cancels
+              (>> for_ runner.ctx.hw.table \d -> d.start (procId i))
 
 
 evalWithTimeout

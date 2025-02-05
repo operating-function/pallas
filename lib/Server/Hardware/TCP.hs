@@ -7,125 +7,158 @@ import Fan.Convert
 import Fan.Eval
 import Fan.Prof
 import PlunderPrelude
+import Server.Types.Logging (ProcId)
 import Server.Hardware.Types
 import Server.Common
 import Network.Socket
 import Network.Socket.ByteString (recv, send)
 import qualified Data.ByteString as BS
-import Data.IntMap.Strict (IntMap)
-import qualified Data.IntMap.Strict as IntMap
+import qualified Data.Map.Strict as Map
+
+type ConnKey = (HostAddress, PortNumber)
+
+data HWState = HW_STATE
+    { procs :: TVar (Map ProcId TCPState) }
 
 data TCPState = TCP_STATE
     { listenSocket :: Socket
     , port         :: PortNumber
-    , connections  :: TVar (IntMap Socket)
-    , nextConnId   :: TVar Int
-    , hearReqs:: TQueue SysCall
+    , connections  :: TVar (Map ConnKey Socket)
+    , hearReqs     :: TQueue SysCall
     , openReqs     :: TQueue (SysCall, HostAddress, PortNumber)
-    , takeReqs     :: TQueue (SysCall, Int)
-    , giveReqs     :: TQueue (SysCall, Int, ByteString)
-    , shutReqs     :: TQueue (SysCall, Int)
+    , takeReqs     :: TQueue (SysCall, HostAddress, PortNumber)
+    , giveReqs     :: TQueue (SysCall, HostAddress, PortNumber, ByteString)
+    , shutReqs     :: TQueue (SysCall, HostAddress, PortNumber)
+    , workers      :: [Async Void]
     }
 
-createHardwareTCP :: Acquire (PortNumber, Device)
+createHardwareTCP :: Acquire Device
 createHardwareTCP = do
     st <- mkAcquire startup shutdown
-    pure (st.port, DEVICE
-        { stop     = pass -- TODO ??
-        , call     = runSysCall st
+    pure DEVICE
+        { start = spinProc st
+        , stop = stopProcById st
+        , call = runSysCall st
         , category = categoryCall
         , describe = describeCall
-        })
-  where
-    startup :: IO TCPState
-    startup = do
+        }
+    where
+    startup :: IO HWState
+    startup = HW_STATE <$> newTVarIO mempty
+
+    shutdown :: HWState -> IO ()
+    shutdown st = do
+        procs <- atomically (readTVar st.procs)
+        for_ procs cancelProc
+
+cancelProc :: TCPState -> IO ()
+cancelProc tcp = do
+    mapM_ cancel tcp.workers
+    close tcp.listenSocket
+    mapM_ close =<< readTVarIO tcp.connections
+
+stopProcById :: HWState -> ProcId -> IO ()
+stopProcById st procId = do
+    maybeProcState <- atomically do
+        oldTab <- readTVar st.procs
+        writeTVar st.procs (deleteMap procId oldTab)
+        pure (lookup procId oldTab)
+    maybe pass cancelProc maybeProcState
+
+spinProc :: HWState -> ProcId -> IO ()
+spinProc st procId = do
+    tcpState <- mdo
         listenSocket <- socket AF_INET Stream defaultProtocol
         setSocketOption listenSocket ReuseAddr 1
         bind listenSocket $ SockAddrInet 0 0
         listen listenSocket 5
         port <- getSocketName listenSocket >>= \case
-            SockAddrInet port _      -> pure port
+            SockAddrInet port _ -> pure port
             SockAddrInet6 port _ _ _ -> pure port
-            _                        -> error "couldn't get tcp port"
-        connections <- newTVarIO IntMap.empty
-        nextConnId <- newTVarIO 0
+            _ -> error "couldn't get tcp port"
+        connections <- newTVarIO Map.empty
         hearReqs <- newTQueueIO
         openReqs <- newTQueueIO
         takeReqs <- newTQueueIO
         giveReqs <- newTQueueIO
         shutReqs <- newTQueueIO
-        let st = TCP_STATE {..}
-        async $ hearWorker st -- TODO save handles to shut down
-        async $ takeWorker st
-        async $ openWorker st
-        async $ giveWorker st
-        async $ shutWorker st
-        pure st
+        let workers = []
+        let st = TCP_STATE{..}
+        workers' <- sequence
+            [ async $ hearWorker st
+            , async $ takeWorker st
+            , async $ openWorker st
+            , async $ giveWorker st
+            , async $ shutWorker st
+            ]
+        pure st{workers=workers'}
 
-    shutdown :: TCPState -> IO ()
-    shutdown st = do
-        close st.listenSocket
-        mapM_ close =<< readTVarIO st.connections
+    atomically $ modifyTVar st.procs $ insertMap procId tcpState
 
-runSysCall :: TCPState -> SysCall -> STM (Cancel, [Flow])
-runSysCall st syscall = case decodeRequest syscall.args of
-    Just MINE                  -> onMine st syscall
-    Just HEAR                  -> onHear st syscall
-    Just (OPEN ip port)        -> onOpen st syscall ip port
-    Just (TAKE handle)         -> onTake st syscall handle
-    Just (GIVE handle payload) -> onGive st syscall handle payload
-    Just (SHUT handle)         -> onShut st syscall handle
-    Nothing                    -> fillInvalidSyscall syscall $> (CANCEL pass, [])
+runSysCall :: HWState -> ProcId -> SysCall -> STM (Cancel, [Flow])
+runSysCall st idx syscall = do
+    tcp <- lookup idx <$> readTVar st.procs
+    fromMaybe (fillInvalidSyscall syscall $> (CANCEL pass, [])) $
+      decodeRequest syscall.args >>= \case
+        MINE                 -> onMine syscall <$> tcp
+        HEAR                 -> onHear syscall <$> tcp
+        OPEN ip port         -> onOpen syscall ip port <$> tcp
+        TAKE ip port         -> onTake syscall ip port <$> tcp
+        GIVE ip port payload -> onGive syscall ip port payload <$> tcp
+        SHUT ip port         -> onShut syscall ip port <$> tcp
 
 decodeRequest :: Vector Fan -> Maybe TCPRequest
 decodeRequest = toList <&> \case
-    [NAT "mine"]                          -> Just MINE
-    [NAT "hear"]                          -> Just HEAR
-    [NAT "take", NAT handle]              -> Just $ TAKE (fromIntegral handle)
-    [NAT "give", NAT handle, BAR payload] -> Just $ GIVE (fromIntegral handle) payload
-    [NAT "open", NAT ip, NAT port] -> do
-        ip <- toIntegralSized ip
-        port <- toIntegralSized @Integer @Word16 $ toInteger port
-        Just $ OPEN ip (fromIntegral port)
-    [NAT "shut", NAT handle]              -> Just $ SHUT (fromIntegral handle)
+    [NAT "mine"]                                -> Just MINE
+    [NAT "hear"]                                -> Just HEAR
+    [NAT "take", NAT ip, NAT port]              -> uncurry TAKE <$> convertAddr ip port
+    [NAT "give", NAT ip, NAT port, BAR payload] -> uncurry GIVE <$> convertAddr ip port <*> pure payload
+    [NAT "open", NAT ip, NAT port]              -> uncurry OPEN <$> convertAddr ip port
+    [NAT "shut", NAT ip, NAT port]              -> uncurry SHUT <$> convertAddr ip port
     _ -> Nothing
+    where
+    convertAddr :: Natural -> Natural -> Maybe (HostAddress, PortNumber)
+    convertAddr ip port = do
+        ip' <- toIntegralSized ip
+        port' <- toIntegralSized @Integer @Word16 $ toInteger port
+        pure (ip', fromIntegral port')
 
 data TCPRequest
     = MINE
     | HEAR
     | OPEN HostAddress PortNumber
-    | TAKE Int
-    | GIVE Int ByteString
-    | SHUT Int
+    | TAKE HostAddress PortNumber
+    | GIVE HostAddress PortNumber ByteString
+    | SHUT HostAddress PortNumber
 
-onMine :: TCPState -> SysCall -> STM (Cancel, [Flow])
-onMine TCP_STATE{port} syscall = do
+onMine :: SysCall -> TCPState -> STM (Cancel, [Flow])
+onMine syscall TCP_STATE{port} = do
     flow <- writeResponse syscall (NAT $ fromIntegral port)
     pure (CANCEL pass, [flow])
 
-onHear :: TCPState -> SysCall -> STM (Cancel, [Flow])
-onHear st syscall = do
+onHear :: SysCall -> TCPState -> STM (Cancel, [Flow])
+onHear syscall st = do
     writeTQueue st.hearReqs syscall
     pure (CANCEL pass, [])
 
-onOpen :: TCPState -> SysCall -> HostAddress -> PortNumber -> STM (Cancel, [Flow])
-onOpen st syscall ip port = do
+onOpen :: SysCall -> HostAddress -> PortNumber -> TCPState -> STM (Cancel, [Flow])
+onOpen syscall ip port st = do
     writeTQueue st.openReqs (syscall, ip, port)
     pure (CANCEL pass, [])
 
-onTake :: TCPState -> SysCall -> Int -> STM (Cancel, [Flow])
-onTake st syscall handle = do
-    writeTQueue st.takeReqs (syscall, handle)
+onTake :: SysCall -> HostAddress -> PortNumber -> TCPState -> STM (Cancel, [Flow])
+onTake syscall ip port st = do
+    writeTQueue st.takeReqs (syscall, ip, port)
     pure (CANCEL pass, [])
 
-onGive :: TCPState -> SysCall -> Int -> ByteString -> STM (Cancel, [Flow])
-onGive st syscall handle payload = do
-    writeTQueue st.giveReqs (syscall, handle, payload)
+onGive :: SysCall -> HostAddress -> PortNumber -> ByteString -> TCPState -> STM (Cancel, [Flow])
+onGive syscall ip port payload st = do
+    writeTQueue st.giveReqs (syscall, ip, port, payload)
     pure (CANCEL pass, [])
 
-onShut :: TCPState -> SysCall -> Int -> STM (Cancel, [Flow])
-onShut st syscall handle = do
-    writeTQueue st.shutReqs (syscall, handle)
+onShut :: SysCall -> HostAddress -> PortNumber -> TCPState -> STM (Cancel, [Flow])
+onShut syscall ip port st = do
+    writeTQueue st.shutReqs (syscall, ip, port)
     pure (CANCEL pass, [])
 
 categoryCall :: Vector Fan -> Text
@@ -153,56 +186,57 @@ hearWorker st = forever do
     syscall <- atomically $ readTQueue st.hearReqs
     (socket, SockAddrInet port ip) <- accept st.listenSocket -- TODO IPv6
     atomically do
-        connId <- stateTVar st.nextConnId \prev -> (prev, prev+1)
-        modifyTVar st.connections $ insertMap connId socket
-        void $ writeResponse syscall (NAT $ fromIntegral connId, ip, NAT $ fromIntegral port)
+        modifyTVar st.connections $ Map.insert (ip,port) socket
+        void $ writeResponse syscall (ip, NAT $ fromIntegral port)
 
 openWorker :: TCPState -> IO Void
 openWorker st = forever do
     (syscall, ip, port) <- atomically $ readTQueue st.openReqs
+    whenM (Map.member (ip,port) <$> readTVarIO st.connections)
+      do void $ atomically $ writeResponse syscall True
     socket <- socket AF_INET Stream defaultProtocol
     try (connect socket $ SockAddrInet port ip) >>= \case
-        Left (_ :: IOError) -> do -- TODO propagate errors?
+        Left (_ :: IOError) -> do
             close socket
-            void $ atomically $ writeResponse syscall (Nothing :: Maybe Nat)
+            void $ atomically $ writeResponse syscall False
         Right _ -> do
             atomically do
-                connId <- stateTVar st.nextConnId \prev -> (prev, prev+1)
-                modifyTVar st.connections $ insertMap connId socket
-                void $ writeResponse syscall (Just $ NAT $ fromIntegral connId)
+                modifyTVar st.connections $ Map.insert (ip,port) socket
+                void $ writeResponse syscall True
 
-takeWorker :: TCPState -> IO ()
+takeWorker :: TCPState -> IO Void
 takeWorker st = forever do
-    (syscall, connId) <- atomically $ readTQueue st.takeReqs
-    mconn <- atomically $ IntMap.lookup connId <$> readTVar st.connections
+    (syscall, ip, port) <- atomically $ readTQueue st.takeReqs
+    mconn <- atomically $ Map.lookup (ip,port) <$> readTVar st.connections
     case mconn of
         Just socket -> do
             payload <- recv socket 4096
             atomically do
-                when (BS.null payload) $ modifyTVar st.connections $ deleteMap connId
+                when (BS.null payload) $ modifyTVar st.connections $ Map.delete (ip,port)
                 void $ writeResponse syscall payload
         Nothing -> void $ atomically $ writeResponse syscall BS.empty
 
 giveWorker :: TCPState -> IO Void
 giveWorker st = forever do
-    (syscall, handle, payload, msocket) <- atomically do
-      (syscall, handle, payload) <- readTQueue st.giveReqs
-      msocket <- lookup handle <$> readTVar st.connections
-      pure (syscall, handle, payload, msocket)
+    (syscall, ip, port, payload, msocket) <- atomically do
+      (syscall, ip, port, payload) <- readTQueue st.giveReqs
+      msocket <- Map.lookup (ip,port) <$> readTVar st.connections
+      pure (syscall, ip, port, payload, msocket)
     case msocket of
       Nothing -> atomically $ writeResponse syscall (Nothing :: Maybe Nat)
       Just socket -> try (send socket payload) >>= \case
         Left (_ :: IOError) -> atomically do
-          modifyTVar st.connections $ deleteMap handle
+          modifyTVar st.connections $ Map.delete (ip,port)
           writeResponse syscall (Nothing :: Maybe Nat)
         Right bytesSent -> atomically $
           writeResponse syscall $ Just $ NAT $ fromIntegral bytesSent
 
 shutWorker :: TCPState -> IO Void
 shutWorker st = forever do
-    (syscall, msocket) <- atomically do
-      (syscall, handle) <- readTQueue st.shutReqs
-      (syscall,) <$>
-        stateTVar st.connections (updateLookupWithKey (\_ _ -> Nothing) handle)
+    (syscall, ip, port, msocket) <- atomically do
+      (syscall, ip, port) <- readTQueue st.shutReqs
+      msocket <- Map.lookup (ip,port) <$> readTVar st.connections
+      modifyTVar st.connections $ Map.delete (ip,port)
+      pure (syscall, ip, port, msocket)
     whenJust msocket close
     void $ atomically $ writeResponse syscall ()

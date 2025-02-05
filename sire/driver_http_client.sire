@@ -1,0 +1,116 @@
+; Copyright 2024 The OPfN Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+#### driver_http_client <- driver_http
+
+; Things that need to happen:
+; - Test passing JSON body in a POST request - probably need to do a bunch after that
+; - Properly test the server loop / processMessage flow with multiple
+;   connections. re-open / new connections, etc.
+
+:| lib_http
+
+
+= NAME_SERVER_URL
+| b#{http://localhost:8000/users}
+
+= NAME_SERVER_DOMAIN
+| b#{http://localhost:8000}
+
+= NAME_SERVER_PATH
+| b#{/users}
+
+= NAME_SERVER_ADDR
+| (16777343, 8000)
+
+= (splitURL url)
+| if url==NAME_SERVER_URL | (NAME_SERVER_DOMAIN, NAME_SERVER_PATH)
+| die splitURL
+
+;; Method Path Headers Body
+# typedef AppRequest (Method, Bar, Tab Bar Bar, Bar)
+
+; TODO:
+> AppRequest > Bit
+= (validRequest res@(method, path, headers, body))
+| rowAnd
+++ (len-res == 4)
+++ (method==GET || method==POST)
+++ isBar path
+++ isTab headers
+++ isBar body
+
+
+> AppRequest > HTTPRequest
+= (appRequestToHttp fromCog@(method, url, headers, body))
+| maybeGuard | validRequest fromCog
+| SOME
+@ version      | b#{HTTP/1.0}
+@ contentLength | natBar | showNat | barLen body ; should be zero if not present
+@ (_, path) | splitURL url
+@ headers | tabIns b#{Content-Length} contentLength
+          | tabIns b#{User-Agent} b#{Pallas/0.1}
+          | headers
+| HTTP_REQ
+* method
+* path
+* version
+* headers
+* body
+
+
+
+
+
+= (dnsLookup domain)
+| if (domain == NAME_SERVER_DOMAIN) | NAME_SERVER_ADDR
+| die dnsLookup
+
+= (processResponse ip port responseHandler return)
+^ _ newResParser
+? (go parser)
+: data < launch | TCP_TAKE ip port
+| if (barIsEmpty data)
+  ; trk [connectionClosed=io]
+  | return ()
+@ newParser | feedResData parser data
+: res < maybeCase (getResponse newParser) | go newParser
+: res < eitherCase res error&(trk [=error] | launch (TCP_SHUT ip port) return)
+: _   < responseHandler res
+| return ()
+
+
+= (httpClient responseHandler return)
+: port < launch TCP_MINE
+| trk , httpClient [=port]
+: fromCog@(method,url,headers,body) < listen
+| trk [=fromCog]
+: _ < fork | httpClient responseHandler
+: req < maybeCase | appRequestToHttp fromCog
+      | trk %idklol
+      | return ()
+@ (domain,path) | splitURL url
+@ (ip,port) | dnsLookup domain
+: open < launch | TCP_OPEN ip port
+| ifNot open
+  | trk , httpClient {couldn't connect} [=ip =port]
+  | return ()
+^ _ | httpReqToBar req
+? (sendAndListen requestBar)
+| trk , httpClient [=requestBar]
+: mBytes < launch | TCP_GIVE ip port requestBar
+: bytes < maybeCase mBytes | launch_ (TCP_SHUT ip port) return
+| if (barLen requestBar /= bytes) | sendAndListen | barDrop bytes requestBar
+| processResponse ip port responseHandler return
+
+
+;; = (exampleCog return)
+;; : client < install (httpClient responseHandler) die writeHandler
+;; : _ < install
+;;     * launch_ | DB_WRITE ()
+;;     * die
+;;     * (_ _ & send (client,0) (GET, NAME_SERVER_URL, emptyTab, b#{}))
+;; | return ()
+
+;; main=(runCog emptyTab exampleCog)

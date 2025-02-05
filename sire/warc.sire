@@ -1,7 +1,9 @@
-#### warc <- driver_http
+#### warc <- driver_hermes
 
 :| kern
 :| driver_http
+:| driver_http_client
+:| driver_hermes [hermes]
 
 = (listMerge left right cmp merge)
 : x xs < listCase left right
@@ -292,9 +294,9 @@
   @ codeBar | listIdx 1 | barSplit { } respLine
   | parseNat codeBar
 @ heads
-  @ (_,pState) | stepParser | HTTP_PARSER (barWeld hHead DOUBLE_CRLF) ;; TODO ugly
+  @ (_,pState) | stepReqParser | REQ_PARSER (barWeld hHead DOUBLE_CRLF) ;; TODO ugly
                                   (AWAITING_HEADERS (0,0,0))  ;; TODO ugly
-  | fromSome emptyTab | getHTTPHeaders pState
+  | fromSome emptyTab | getReqHeaders pState
 | (mCode,heads)
 
 
@@ -513,12 +515,12 @@
   | take (dec | len sampleCDX1) | mergeCDX sampleCDX1 sampleCDX2
 
 = (addCDXs newCDXs)
-: (warc, oldCDXs) < modifyState
-| (warc, listMerge oldCDXs newCDXs cmpCDX mergeCDX)
+: (warc, oldCDXs, names) < modifyState
+| (warc, listMerge oldCDXs newCDXs cmpCDX mergeCDX, names)
 
 = (appendWARC warcBar)
-: (warc, cdxs) < modifyState
-| (barWeld warc warcBar, cdxs)
+: (warc, cdxs, names) < modifyState
+| (barWeld warc warcBar, cdxs, names)
 
 = (offset off cdx)
 ^ setSources _ cdx
@@ -593,45 +595,87 @@
 * POST
   # switch path
   * b#{/warc}
-    : cdxs < launchWith & rid | DB_WRITE (%WARC, rid, pBody)
+    : cdxs < launchWith & rid | DB_WRITE (rid, pBody)
     | return [cdxs_head (barCatList | listMap serializeCDX cdxs) 200 b#gotcha]
-  * b#{/cdx}
-    | launchWith & rid | DB_WRITE (%CDX, rid, pBody)
-    | return 
 
-= (readHandler (warc,cdxs) query)
+= (readHandler (warc,cdxs,names) query)
 # switch fst-query
-* PRINT | trk [warcSize=(barLen warc) cdxEntries=(listLen cdxs)] 0
+* PRINT | trk [warcSize=(barLen warc) cdxEntries=(listLen cdxs) =names] 0
 * INDEX | cdxs
+* NAMES | names
 * READ
 @ (_,start,size) | query
 | barSlice start size warc ; TODO check arg order
 
-= (writeHandler pid (cmd,rid,pBody) return)
-# switch cmd
-* WARC
-  : evalResult < work buildCDX [pBody]
-  : newCDXs < eitherCase evalResult
-              | send (pid,rid) NIL
-              | return
-  : off < getsState (warc, _)&(barLen warc)
-  @ newCDXs | listMap (offset off) newCDXs
-  : _ < addCDXs newCDXs
-  : _ < appendWARC | pinItem pBody
-  : _ < send (pid,rid) newCDXs
-  | return ()
-* CDX
-  @ error | send (pid,rid) [emptyTab b#{} 500 b#error] return
-  : evalResult < work pCDX&(_LoadSeed | pinItem pCDX) [pBody]
-  : newCDXs < eitherCase evalResult | error
-  | ifz newCDXs                     | error
-  : _ < addCDXs newCDXs
-  | send (pid,rid) [emptyTab emptyBar 201 b#created]
-  | return
+= (nameServer (_,_,names) query)
+| trk nameServer
+| query names
+
+= (barToNameRecord @(PIN bar))
+| todo barToNameRecord
+
+= (warcWriter hermes httpClient pid (rid,pBody) return)
+: evalResult < work buildCDX [pBody]
+: newCDXs < eitherCase evalResult
+            | send (pid,rid) NIL
+            | return
+: off < getsState (warc, _, _)&(barLen warc)
+@ newCDXs | listMap (offset off) newCDXs
+: _ < addCDXs newCDXs
+: _ < appendWARC | pinItem pBody
+: _ < send (pid,rid) newCDXs
+: names < getsState (_,_,names)&(tabKeysList names)
+: _ < traverseList name&(send (hermes,0) (name,newCDXs)) names
+| return ()
+
+= (cdxWriter pid cdx)
+;; evalResult < work pCDX&(_LoadSeed | pinItem pCDX) [pBody]
+;; newCDXs < eitherCase evalResult | error
+| addCDXs cdx
+
+= (inbox cdx)
+| trk , %hermesInbox [=cdx]
+| launch_ | DB_WRITE cdx
+
+= (timer return)
+: _   < launch_ | DB_WRITE ()
+: now < launch TIME_WHEN
+: _   < launch | TIME_WAIT | add now 5
+| timer return
+
+= (responseHandler httpRes return)
+@ HTTP_RES(..) httpRes
+| ifNot statusCode==200 | trk [failed=statusCode] | return ()
+| launch_ | DB_WRITE resBody
+| return
+
+= (parseNames bar)
+| trk , parseNames [=bar json=(parseJson bar)]
+@ (entries,_) | parseJson bar
+: xs
+  < ^ rowTraverse _ entries
+    & (entry return)
+    : name < bindMaybe   | tabLookup %name       entry
+    : ip   < bindMaybe   | tabLookup %ip_address entry
+    : pubkey < bindMaybe | tabLookup %public_key entry
+    | return (name,(ip,pubkey))
+| SOME | tabFromPairs xs
+
+= (nameWriter _ resBody return)
+| trk , nameWriter [len=(barLen resBody)]
+: res < work parseNames [resBody]
+: mNames < eitherCase res error&(trk [=error] return-())
+: names < maybeCase mNames | trk %noNewNames | return ()
+| trk , nameWriter [=names]
+| modifyState (warc,cdxs,_)&(warc,cdxs,names) return
+
 
 > Cog ()
 = (warcCog return)
-: http < install (httpServer requestHandler) readHandler writeHandler
+: names < install (httpClient responseHandler) die nameWriter
+: hermes < install (hermes inbox) nameServer cdxWriter
+: http < install (httpServer requestHandler) readHandler (warcWriter hermes httpClient)
+: _ < install timer die (_ _ & send (names,0) (GET, NAME_SERVER_URL, emptyTab, b#{}))
 | return ()
 
-= main | runCog (emptyBar, NIL) warcCog
+= main | runCog (emptyBar, NIL, emptyTab) warcCog ;; TODO change names to biMap

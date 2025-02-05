@@ -65,15 +65,34 @@
 * reqMethod  : Method          ; HTTP method
 * reqPath    : Bar             ; Request URI
 * reqVersion : Bar             ; HTTP version
-* reqHeader  : Tab Bar Bar     ; Request headers
+* reqHeaders : Tab Bar Bar     ; Request headers
 * reqBody    : Pin Bar         ; Request body; may be empty
+
+
+> HTTPRequest > Bar
+= (httpReqToBar httpReq)
+@ HTTP_REQ(..) | httpReq
+@ headers | barIntercalateList CRLF
+          | tabValsList
+          | tabMapWithKey (k v & barCat [k b#{: } v]) reqHeaders
+| barCat
+++ natBar reqMethod
+++ b#{ }
+++ reqPath
+++ b#{ }
+++ reqVersion
+++ CRLF
+++ headers
+++ DOUBLE_CRLF
+++ pinItem reqBody
+
 
 # record HTTPResponse
 | HTTP_RES
 * version      : Bar             ; HTTP version
 * statusCode   : Nat             ; Numeric status code (for automata)
 * reasonPhrase : Bar             ; e.g "OK", "Not Found" (for humans)
-* resHeaderL   : Tab Bar Bar     ; Response headers
+* resHeader    : Tab Bar Bar     ; Response headers
 * resBody      : Bar             ; Response body ;; TODO pin this?
 
 
@@ -82,7 +101,7 @@
 @ v     | getVersion      httpRes
 @ c     | getStatusCode   httpRes
 @ s     | getReasonPhrase httpRes
-@ h     | getResHeaderL   httpRes
+@ h     | getResHeader    httpRes
 @ b     | getResBody      httpRes
 @ statusLine         | barCat [v x#20 (natBar | showNat c) x#20 s]
 @ headersSeparated   | barIntercalateList CRLF h
@@ -127,7 +146,7 @@
 
 ;;; Request parsing
 
-# datatype ParserState
+# datatype ReqParserState
 * AWAITING_REQ_LINE
 * AWAITING_HEADERS      reqLine:(Method,Bar,Bar)
 * AWAITING_BODY len:Nat reqLine:(Method,Bar,Bar) headers:(Tab Bar Bar)
@@ -135,20 +154,40 @@
 * PARSER_ERROR  err:Bar
 
 
-# record HTTPParser 
-| HTTP_PARSER
+# record ReqParser
+| REQ_PARSER
 * accumulated : Bar
-* state       : ParserState
+* state       : ReqParserState
 
 
-= newHTTPParser
-| HTTP_PARSER
+= newReqParser
+| REQ_PARSER
 * b#{}
 * AWAITING_REQ_LINE
 
 
-> ParserState > Maybe (Tab Bar Bar)
-= (getHTTPHeaders p)
+# datatype ResParserState
+* AWAITING_STATUS_LINE
+* AWAITING_HEADERS      statusLine:(Bar,Nat,Bar)
+* AWAITING_BODY len:Nat statusLine:(Bar,Nat,Bar) headers:(Tab Bar Bar)
+* COMPLETE              statusLine:(Bar,Nat,Bar) headers:(Tab Bar Bar) body:Bar
+* PARSER_ERROR err:Bar
+
+
+# record ResParser
+| RES_PARSER
+* accumulated : Bar
+* state       : ResParserState
+
+
+= newResParser
+| RES_PARSER
+* b#{}
+* AWAITING_STATUS_LINE
+
+
+> ReqParserState > Maybe (Tab Bar Bar)
+= (getReqHeaders p)
 # datacase p
 * (AWAITING_BODY _ _ headers) | SOME headers
 * (COMPLETE _ headers _)      | SOME headers
@@ -166,7 +205,7 @@
 | SOME (method, path, version)
 
 
-> HTTPParser > ((Method, Bar, Bar) > Bar > HTTPParser) > HTTPParser
+> ReqParser > ((Method, Bar, Bar) > Bar > ReqParser) > ReqParser
 = (processReqLine parser step)
 # datacase | getState parser
 * _ | parser
@@ -174,7 +213,6 @@
 : (line, rest) < maybeCase | barSplitOnSubstring CRLF | getAccumulated parser
                | parser
 : reqLineParts < maybeCase | parseRequestLine line
-               | trk [reqLine=line]
                | setState (PARSER_ERROR b#{Invalid request line}) parser
 | step reqLineParts rest
 
@@ -190,9 +228,9 @@
 | tabIns key val headers
 
 
-> HTTPParser > (Tab Bar Bar > Bar > HTTPParser) > HTTPParser
+> ReqParser > (Tab Bar Bar > Bar > ReqParser) > ReqParser
 = (processHeaders parser step)
-@ HTTP_PARSER(..) parser
+@ REQ_PARSER(..) parser
 # datacase state
 * _ | parser
 * AWAITING_HEADERS|_
@@ -203,7 +241,7 @@
 
 
 = (processBody parser step)
-@ HTTP_PARSER(..) parser
+@ REQ_PARSER(..) parser
 # datacase state
 * _ | parser
 * (AWAITING_BODY sz _ _)
@@ -211,39 +249,38 @@
 | uncurry step | barSplitAt sz accumulated
 
 
-= (stepParser parser)
-@ HTTP_PARSER(..) parser
+= (stepReqParser parser)
+@ REQ_PARSER(..) parser
 # datacase state
 * (COMPLETE _ _ _)   | parser
 * (PARSER_ERROR msg) | parser
 * AWAITING_REQ_LINE
   : reqLine rest < processReqLine parser
-  | stepParser
-  | HTTP_PARSER rest | AWAITING_HEADERS reqLine
+  | stepReqParser
+  | REQ_PARSER rest | AWAITING_HEADERS reqLine
 * (AWAITING_HEADERS reqLine)
   : headers rest < processHeaders parser
-  | fromSome | HTTP_PARSER rest | COMPLETE reqLine headers b#{}
-  : contentLength < bindMaybe | tabLookup b#{Content-Length} headers
+  | fromSome | REQ_PARSER rest | COMPLETE reqLine headers b#{}
+  : contentLength < bindMaybe | tabLookup b#{content-length} headers ;; TODO map keys to lowercase
   : sz            < bindMaybe | parseNat contentLength ;; TODO error instead
   | maybeGuardNot | eql sz 0
-  ^ SOME | stepParser _
-  | HTTP_PARSER rest | AWAITING_BODY sz reqLine headers
+  ^ SOME | stepReqParser _
+  | REQ_PARSER rest | AWAITING_BODY sz reqLine headers
 * (AWAITING_BODY _ reqLine headers)
   : body rest < processBody parser
   | ifNot (barIsEmpty rest)
-    | trk [=rest]
     | setState (PARSER_ERROR b#{body too long}) parser
-  | HTTP_PARSER rest | COMPLETE reqLine headers body
+  | REQ_PARSER rest | COMPLETE reqLine headers body
 
 
-> HTTPParser > Bar > HTTPParser
-= (feedData parser newData)
+> ReqParser > Bar > ReqParser
+= (feedReqData parser newData)
 @ cum | getAccumulated parser
-| stepParser | setAccumulated (barWeld cum newData) parser
+| stepReqParser | setAccumulated (barWeld cum newData) parser
 
 
-> HTTPParser > Maybe (Either Bar HTTPRequest)
-= (getResult parser)
+> ReqParser > Maybe (Either Bar HTTPRequest)
+= (getRequest parser)
 # datacase | getState parser
 * _                | NONE
 * PARSER_ERROR|msg | SOME LEFT-msg
@@ -255,3 +292,89 @@
 * version
 * headers
 * PIN body
+
+
+> Bar > Maybe (Bar, Nat, Bar)
+= (parseStatusLine line)
+@ [version rest]   | barSplitOne { } line
+@ [codeBar reason] | barSplitOne { } rest
+: code < bindMaybe | parseNat codeBar
+| SOME (version, code, reason)
+
+
+> ResParser > ((Bar, Nat, Bar) > Bar > ResParser) > ResParser
+= (processStatusLine parser step)
+# datacase | getState parser
+* _ | parser
+* AWAITING_STATUS_LINE
+: (line, rest) < maybeCase | barSplitOnSubstring CRLF | getAccumulated parser
+               | parser
+: statusLineParts < maybeCase | parseStatusLine line
+                  | setState (PARSER_ERROR b#{Invalid status line}) parser
+| step statusLineParts rest
+
+
+;; > ResParser > (Tab Bar Bar > Bar > ResParser) > ResParser
+;; = (processHeaders parser step)
+;; @ RES_PARSER(..) parser
+;; # datacase state
+;; * _ | parser
+;; * AWAITING_HEADERS|_
+;; : (headerBar, rest) < maybeCase | barSplitOnSubstring DOUBLE_CRLF accumulated
+;;                     | parser
+;; @ headers | parseHeaders headerBar
+;; | step headers rest
+
+
+;; = (processBody parser step)
+;; @ RES_PARSER(..) parser
+;; # datacase state
+;; * _ | parser
+;; * (AWAITING_BODY sz _ _)
+;; | if (gth sz | barLen accumulated) | parser
+;; | uncurry step | barSplitAt sz accumulated
+
+
+= (stepResParser parser)
+@ RES_PARSER(..) parser
+# datacase state
+* (COMPLETE _ _ _)   | parser
+* (PARSER_ERROR msg) | parser
+* AWAITING_STATUS_LINE 
+  : statusLine rest < processStatusLine parser
+  | stepResParser
+  | RES_PARSER rest | AWAITING_HEADERS statusLine
+* (AWAITING_HEADERS statusLine)
+  : headers rest < processHeaders parser
+  | fromSome | RES_PARSER rest | COMPLETE statusLine headers b#{}
+  : contentLength < bindMaybe | tabLookup b#{content-length} headers ;; TODO lowercase keys
+  : sz            < bindMaybe | parseNat contentLength ;; TODO error instead
+  | maybeGuardNot | eql sz 0
+  ^ SOME | stepResParser _
+  | RES_PARSER rest | AWAITING_BODY sz statusLine headers
+* (AWAITING_BODY _ statusLine headers)
+  : body rest < processBody parser
+  | ifNot (barIsEmpty rest)
+    | setState (PARSER_ERROR b#{body too long}) parser
+  | RES_PARSER rest | COMPLETE statusLine headers body
+
+
+> ResParser > Bar > ResParser
+= (feedResData parser newData)
+@ cum | getAccumulated parser
+| stepResParser | setAccumulated (barWeld cum newData) parser
+
+
+> ResParser > Maybe (Either Bar HTTPResponse)
+= (getResponse parser)
+# datacase | getState parser
+* _                | NONE
+* PARSER_ERROR|msg | SOME LEFT-msg
+* (COMPLETE (version,code,reason) headers body)
+^ SOME | RIGHT _
+| HTTP_RES
+* version
+* code
+* reason
+* headers
+* body

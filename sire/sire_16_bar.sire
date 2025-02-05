@@ -484,10 +484,7 @@ hexAlphabet=(b#{0123456789abcdef})
   | NIL
 
 = (barUnlinesList lines)
-| barCatList
-^ listFoldr _ NIL lines
-& (x xs)
-| [x [newlineChar xs]]
+| barIntercalateList barNewline lines
 
 (barUnlines lines)=(barUnlinesList | listFromRow lines)
 

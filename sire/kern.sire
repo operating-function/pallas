@@ -17,11 +17,11 @@ abstype#(Call a)
 = TIME_WHEN              [%time %when]
 = (TIME_WAIT t)          [%time %wait t]
 = (TCP_OPEN a p)         [%tcp %open a p]
-= (TCP_GIVE h d)         [%tcp %give h d]
+= (TCP_GIVE a p d)       [%tcp %give a p d]
 = TCP_HEAR               [%tcp %hear]
-= (TCP_TAKE h)           [%tcp %take h]
+= (TCP_TAKE a p)         [%tcp %take a p]
 = TCP_MINE               [%tcp %mine]
-= (TCP_SHUT h)           [%tcp %shut h]
+= (TCP_SHUT a p)         [%tcp %shut a p]
 
 abstype#(Cog a)
 abstype#(Driver a)
@@ -73,12 +73,15 @@ abstype#(Driver a)
 : input < maybeCase | get sl promise
         @ sl | put sl promise SOME-k
         | end fr sl rq
-@ fr | [promise fr]
+@ fr | ifz promise fr [promise fr]
 @ sl | put sl promise NONE
 | k input end fr sl rq
 
+> Driver a
+= listen | receive 0
+
 = (ignore promise k end fr sl rq)
-@ fr | [promise fr]
+@ fr | ifz promise fr [promise fr]
 @ sl | put sl promise NONE
 | k () end fr sl rq
 
@@ -101,7 +104,7 @@ abstype#(Driver a)
 : exe < maybeCase | get sl key
       @ sl | put sl key SOME-input
       | end fr sl rq
-@ fr  | [key fr]
+@ fr  | ifz key fr [key fr]
 @ sl  | put sl key NONE
 | exe input end fr sl rq
 
@@ -127,7 +130,7 @@ abstype#(Driver a)
   @ k   | DRIVER_DONE
   @ end | DRIVER_KERNEL
   @ fr  | ~[]
-  @ sl  | []
+  @ sl  | [0]
   @ rq  | []
   | DRIVER | driver k end fr sl rq
 | addWorker w read write
