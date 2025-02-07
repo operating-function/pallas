@@ -1,11 +1,10 @@
 #### warc <- driver_hermes
 
 :| kern
+:| networking
 :| driver_http
 :| driver_http_client
 :| driver_hermes [makeHermes emptyBiMap biMapInsert biMapKeys]
-
-= OUR b#vinney
 
 = (listMerge left right cmp merge)
 : x xs < listCase left right
@@ -512,13 +511,6 @@
 =?= | take (dec | len sampleCDX1) sampleCDX1
   | take (dec | len sampleCDX1) | mergeCDX sampleCDX1 sampleCDX2
 
-= (addCDXs newCDXs)
-: (warc, oldCDXs, names) < modifyState
-| (warc, listMerge oldCDXs newCDXs cmpCDX mergeCDX, names)
-
-= (appendWARC warcBar)
-: (warc, cdxs, names) < modifyState
-| (barWeld warc warcBar, cdxs, names)
 
 = (offset off cdx)
 ^ setSources _ cdx
@@ -568,6 +560,25 @@
   ++ b#{[1,100]}
   ++ barNewline
 
+# record WARCState
+| WARC_STATE
+* warc       : Bar
+* cdxs       : List CDXEntry
+* names      : BiMap Bar (Nat, Nat)
+* hermesPort : Maybe Nat
+* httpPort   : Maybe Nat
+
+
+= (addCDXs newCDXs)
+: (warc, oldCDXs, names, hermesPort, httpPort) < modifyState
+| (warc, listMerge oldCDXs newCDXs cmpCDX mergeCDX, names, hermesPort, httpPort)
+
+
+= (appendWARC warcBar) 
+: (warc, cdxs, names, hermesPort, httpPort) < modifyState
+| (barWeld warc warcBar, cdxs, names, hermesPort, httpPort)
+
+
 > HTTPRequest > Driver (Tab Bar Bar, Bar, Nat, Bar)
 = (requestHandler req@[method path version headers pBody@(PIN body)] return)
 @ badRequest [emptyTab b#{} 400 b#{bad}]
@@ -593,72 +604,66 @@
 * POST
   # switch path
   * b#{/warc}
-    : cdxs < launchWith & rid | DB_WRITE (rid, pBody)
+    : cdxs < launchWith & rid | DB_WRITE (%WARC, (rid, pBody))
     | return [cdxs_head (barCatList | listMap serializeCDX cdxs) 200 b#gotcha]
 
-= (readHandler (warc,cdxs,names) query)
+= (readHandler (warc,cdxs,names,hermes,http) query)
 # switch fst-query
-* PRINT | trk [warcSize=(barLen warc) cdxEntries=(listLen cdxs) =names] 0
+* PRINT | trk [warcSize=(barLen warc) cdxEntries=(listLen cdxs) =names =hermes =http] 0
 * INDEX | cdxs
 * NAMES | names
 * READ
 @ (_,start,size) | query
 | barSlice start size warc ; TODO check arg order
 
-= (nameServer (_,_,names) query)
-| trk nameServer
+= (nameServer (_,_,names,_,_) query)
 | query names
 
 = (barToNameRecord @(PIN bar))
 | todo barToNameRecord
 
-= (warcWriter hermes pid (rid,pBody) return)
+= (warcWriter hermes pid (cmd,msg) return)
+# switch cmd
+* PORT | modifyState (setHttpPort SOME-msg) return
+* WARC
+@ (rid,pBody) | msg
 : evalResult < work buildCDX [pBody]
 : newCDXs < eitherCase evalResult
             & error
             | trk , warcWriter [=error]
             | send (pid,rid) NIL
             | return
-: off < getsState (warc, _, _)&(barLen warc)
+: off < getsState (warc, _, _, _, _)&(barLen warc)
 @ newCDXs | listMap (offset off) newCDXs
 : _ < addCDXs newCDXs
 : _ < appendWARC | pinItem pBody
 : _ < send (pid,rid) newCDXs
-: names < getsState (_,_,names)&(biMapKeys names)
-| trk , warcWriter [=names newCDXs=(listLen newCDXs)]
+: names < getsState (_,_,names,_,_)&(biMapKeys names)
 : _
   < ^ rowTraverse _ names
     & (name return)
-    | trk , traverseList [=name]
     | send (hermes,0) (name,newCDXs) return
 | return ()
 
 
-= (cdxWriter httpClient _ (cmd,msg))
-# switch cmd
-* CDX | addCDXs msg
-* PORT
-  | send (httpClient,0)
-  ++ POST
-  ++ NAME_SERVER_POST
-  ++ tabFromPairs 
-     ++ , b#{accept}       b#{application/json}
-     ++ , b#{Content-Type} b#{application/json}
-  ++ ^ printJson (JMAP _)
-     ## =name        OUR
-     ## =hermes_port printNat-msg
-     ## =signature   b#{}
-     ## =warc_port   b#1337 ;; TODO fix this asap
+= (cdxWriter _ (cmd,msg))
+# switch cmd 
+* CDX  | addCDXs msg
+* PORT | modifyState (setHermesPort SOME-msg)
+
 
 = (inbox cdx)
-| trk , %hermesInbox [=cdx]
 | launch_ | DB_WRITE (%CDX, cdx)
 
 = (repeatEvery t return)
+: now < launch TIME_WHEN
+: _   < launch | TIME_WAIT | add now 1
+^ _ return
+? (go return)
 : _   < launch_ | DB_WRITE ()
 : now < launch TIME_WHEN
 : _   < launch | TIME_WAIT | add now t
-| repeatEvery t return
+| go return
 
 = (writeHttp response return)
 @ HTTP_RES(..) response
@@ -673,13 +678,11 @@
 : xs
   < ^ rowTraverse _ entries
     & (entry return)
-    | trk , parseNames [=entry]
     : name  < bindMaybe | tabLookup %name entry
     : ipBar < bindMaybe | tabLookup %ip   entry
     : ip    < bindMaybe | ipToNat ipBar
     : mPort < bindMaybe | tabLookup %hermes_port entry
     : port  < bindMaybe | mPort
-    | trk , parseNames %success [=port]
     | return (name, (ip,port))
 ^ SOME | foldl _ emptyBiMap xs
 & (names (name,addr))
@@ -692,20 +695,35 @@
 : mNames < eitherCase res error&(trk [=error] return-())
 : names < maybeCase mNames | trk %noNewNames | return ()
 | trk , nameWriter [=names]
-| modifyState (warc,cdxs,_)&(warc,cdxs,names) return
+| modifyState (setNames names) return
 
 
 = (syncNames httpClient return)
 : _ < send (httpClient,0) (GET, NAME_SERVER_GET, emptyTab, b#{})
+: (mHermesPort, mHttpPort) < getsState drop-3
+: hermesPort < maybeCase mHermesPort | return ()
+: httpPort   < maybeCase mHttpPort   | return ()
+: _ < send (httpClient,0)
+    ++ POST
+    ++ NAME_SERVER_POST
+    ++ tabFromPairs 
+       ++ , b#{accept}       b#{application/json}
+       ++ , b#{Content-Type} b#{application/json}
+    ++ ^ printJson (JMAP _)
+       ## =name        OUR
+       ## =hermes_port printNat-hermesPort 
+       ## =signature   b#{}
+       ## =warc_port   printNat-httpPort
 | return ()
 
 
 > Cog ()
 = (warcCog return)
 : httpClient < install (makeHttpClient writeHttp) die nameWriter
-: hermes < install (makeHermes inbox) nameServer (cdxWriter httpClient)
+: hermes < install (makeHermes inbox) nameServer cdxWriter
 : http   < install (httpServer requestHandler) readHandler (warcWriter hermes)
 : _      < install repeatEvery-120 die (_ _)&(syncNames httpClient)
 | return ()
 
-= main | runCog (emptyBar, NIL, emptyBiMap) warcCog
+
+= main | runCog (emptyBar, NIL, emptyBiMap, NONE, NONE) warcCog

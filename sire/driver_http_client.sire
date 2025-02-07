@@ -2,53 +2,11 @@
 ; Use of this source code is governed by a BSD-style license that can be
 ; found in the LICENSE file.
 
-#### driver_http_client <- driver_http
+#### driver_http_client <- networking
 
-; Things that need to happen:
-; - Test passing JSON body in a POST request - probably need to do a bunch after that
-; - Properly test the server loop / processMessage flow with multiple
-;   connections. re-open / new connections, etc.
-
+:| networking
 :| lib_http
 
-= NAME_SERVER_DOMAIN
-| b#{localhost:8000}
-
-= NAME_SERVER_GET
-| barCat [b#{http://} NAME_SERVER_DOMAIN b#{/users}]
-
-= NAME_SERVER_POST
-| barCat [b#{http://} NAME_SERVER_DOMAIN b#{/announce}]
-
-
-= NAME_SERVER_ADDR
-| (16777343, 8000)
-
-= (ipToNat bar)
-: nats
-  < ^ traverseList _ | barSplit {.} bar
-    & (byte return)
-    : n < bindMaybe | parseNat byte
-    | maybeGuard | lth n 256
-    | return n
-| maybeGuard (listLen nats == 4)
-^ SOME | listSum | listZipWith mul nats _
-| listMap pow-256 ~[0 1 2 3]
-
-
-=?= SOME-16777343  | ipToNat b#{127.0.0.1}
-=?= SOME-612615823 | ipToNat b#{143.198.131.36}
-=?= NONE           | ipToNat b#{143.1.1}
-=?= NONE           | ipToNat b#{143.1.1.1.1}
-=?= NONE           | ipToNat b#{foo}
-
-= (splitURL url)
-: (protocol,address) < bindMaybe | barSplitOnSubstring b#{//} url
-@ (domain,path) | barSplitOne {/} address
-| SOME (domain, barWeld b#{/} path)
-
-=?= SOME-(NAME_SERVER_DOMAIN, b#{/users})
-  | splitURL NAME_SERVER_GET
 
 ;; Method Path Headers Body
 # typedef AppRequest (Method, Bar, Tab Bar Bar, Bar)
@@ -64,7 +22,7 @@
 ++ isBar body
 
 
-> AppRequest > HTTPRequest
+> AppRequest > Maybe HTTPRequest
 = (appRequestToHttp fromCog@(method, url, headers, body) host path)
 | maybeGuard | validRequest fromCog
 | SOME
@@ -90,10 +48,12 @@
 ^ _ newResParser
 ? (go parser)
 : data < launch | TCP_TAKE ip port
+| trk , processResponse [took=data]
 | if (barIsEmpty data)
   ; trk [connectionClosed=io]
   | return | LEFT b#{connection closed before response received}
 @ newParser | feedResData parser data
+| trk , processResponse [=newParser]
 : res < maybeCase (getResponse newParser) | go newParser
 : _   < launch_ | TCP_SHUT ip port
 | return res
@@ -118,7 +78,6 @@
   | go return
 ^ _ | httpReqToBar req
 ? (sendAndListen requestBar)
-| trk , makeHttpClient [=requestBar =ip =port]
 : mBytes < launch | TCP_GIVE ip port requestBar
 : bytes < maybeCase mBytes | launch_ (TCP_SHUT ip port) | go return
 | if (barLen requestBar /= bytes) | sendAndListen | barDrop bytes requestBar
@@ -126,14 +85,3 @@
 : res < eitherCase res error&(trk [=error] | go return)
 : _   < responseHandler res
 | go return
-
-
-;; = (exampleCog return)
-;; : client < install (httpClient responseHandler) die writeHandler
-;; : _ < install
-;;     * launch_ | DB_WRITE ()
-;;     * die
-;;     * (_ _ & send (client,0) (GET, NAME_SERVER_URL, emptyTab, b#{}))
-;; | return ()
-
-;; main=(runCog emptyTab exampleCog)

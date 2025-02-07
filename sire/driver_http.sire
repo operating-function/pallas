@@ -79,6 +79,7 @@
 = (httpServer requestHandler return)
 : port < launch | TCP_MINE
 | trk [%httpRunning (barCat [b#{visit } b#{http://localhost:} (natBar | showNat port)])]
+: _ < launch_ | DB_WRITE (%PORT, port)
 ^ _ return
 ? (go return)
 : io < launch | TCP_HEAR

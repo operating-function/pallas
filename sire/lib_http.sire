@@ -261,7 +261,6 @@
 * (AWAITING_REQ_HEADERS reqLine)
   : headers rest < processReqHeaders parser
   | fromSome
-    | trk , stepReqParser [noBody=rest =headers]
     | REQ_PARSER rest | COMPLETE_REQ reqLine headers b#{}
   : contentLength < bindMaybe | tabLookup b#{content-length} headers ;; TODO map keys to lowercase
   : sz            < bindMaybe | parseNat contentLength ;; TODO error instead

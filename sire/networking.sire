@@ -1,0 +1,45 @@
+#### networking <- driver_http
+
+:| sire
+:| lib_http [barSplitOnSubstring]
+
+= OUR b#vinney
+
+= NAME_SERVER_DOMAIN
+| b#{localhost:8000}
+
+= NAME_SERVER_GET
+| barCat [b#{http://} NAME_SERVER_DOMAIN b#{/users}]
+
+= NAME_SERVER_POST
+| barCat [b#{http://} NAME_SERVER_DOMAIN b#{/announce}]
+
+= NAME_SERVER_ADDR
+| (16777343, 8000)
+
+= (ipToNat bar)
+: nats
+  < ^ traverseList _ | barSplit {.} bar
+    & (byte return)
+    : n < bindMaybe | parseNat byte
+    | maybeGuard | lth n 256
+    | return n
+| maybeGuard (listLen nats == 4)
+^ SOME | listSum | listZipWith mul nats _
+| listMap pow-256 ~[0 1 2 3]
+
+
+=?= SOME-16777343  | ipToNat b#{127.0.0.1}
+=?= SOME-612615823 | ipToNat b#{143.198.131.36}
+=?= NONE           | ipToNat b#{143.1.1}
+=?= NONE           | ipToNat b#{143.1.1.1.1}
+=?= NONE           | ipToNat b#{foo}
+
+= (splitURL url)
+: (protocol,address) < bindMaybe | barSplitOnSubstring b#{//} url
+@ (domain,path) | barSplitOne {/} address
+| SOME (domain, barWeld b#{/} path)
+
+=?= SOME-(NAME_SERVER_DOMAIN, b#{/users})
+  | splitURL NAME_SERVER_GET
+
