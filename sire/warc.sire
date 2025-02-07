@@ -3,7 +3,9 @@
 :| kern
 :| driver_http
 :| driver_http_client
-:| driver_hermes [hermes]
+:| driver_hermes [makeHermes emptyBiMap biMapInsert biMapKeys]
+
+= OUR b#vinney
 
 = (listMerge left right cmp merge)
 : x xs < listCase left right
@@ -27,7 +29,7 @@
 
 # record WARCLocation
 | WARC_LOC
-* nodeName : Nat
+* nodeName : Bar
 * offset   : Nat
 
 # record CDXEntry
@@ -95,8 +97,8 @@
 * tabLookup b#{WARC-Concurrent-To} warcHeaders
 * tabLookup b#{WARC-Record-ID} warcHeaders
 * mCode
-* tabLookup b#{Location} httpHeaders
-* tabLookup b#{Content-Type} httpHeaders
+* tabLookup b#{location} httpHeaders
+* tabLookup b#{content-type} httpHeaders
 
 
 = sampleCDX1
@@ -110,7 +112,7 @@
 * b#{-}
 * b#{-}
 * 100
-* ~[(WARC_LOC 1 100)]
+* ~[(WARC_LOC b#1 100)]
 
 = sampleCDX2 
 | CDX_ENTRY
@@ -123,7 +125,7 @@
 * b#{-}
 * b#{-}
 * 100
-* ~[(WARC_LOC 2 200)]
+* ~[(WARC_LOC b#2 200)]
 
 = sampleCDX3
 | CDX_ENTRY
@@ -136,7 +138,7 @@
 * b#{-}
 * b#{-}
 * 100
-* ~[(WARC_LOC 3 300)]
+* ~[(WARC_LOC b#3 300)]
 
 > Bar
 = requestRecord
@@ -232,8 +234,7 @@
 ++ , b#{WARC-Date} b#{2024-01-01T00:00:00Z}
 
 = sampleHttpHeaders  
-| tabFromPairs
-++ , b#{Content-Type} b#{text/html}
+| tabSing b#{content-type} b#{text/html}
 
 =?= | makeMetadata sampleWarcHeaders sampleHttpHeaders SOME-200
   | SOME
@@ -293,10 +294,7 @@
 @ mCode
   @ codeBar | listIdx 1 | barSplit { } respLine
   | parseNat codeBar
-@ heads
-  @ (_,pState) | stepReqParser | REQ_PARSER (barWeld hHead DOUBLE_CRLF) ;; TODO ugly
-                                  (AWAITING_HEADERS (0,0,0))  ;; TODO ugly
-  | fromSome emptyTab | getReqHeaders pState
+@ heads | parseHeaders hHead
 | (mCode,heads)
 
 
@@ -450,7 +448,7 @@
 * redirectUrl
 * b#{-} ;; don't parse robots.txt for now
 * len
-* ~[(WARC_LOC {fname} off)]
+* ~[(WARC_LOC OUR off)]
 
 =?= | buildCDX | PIN | barWeld requestRecord responseRecord
   ^ ~[_]
@@ -464,7 +462,7 @@
   * fromSome b#{-} | getHttpLocation responseMeta
   * b#{-}
   * barLen | barWeld requestRecord responseRecord
-  * ~[(WARC_LOC {fname} 0)]
+  * ~[(WARC_LOC OUR 0)]
 
 = reqres
 | PIN | barWeld requestRecord responseRecord
@@ -508,7 +506,7 @@
 ^ setSources _ x
 | listMerge getSources-x getSources-y cmp const
 
-=?= ~[(WARC_LOC 1 100) (WARC_LOC 2 200)]
+=?= ~[(WARC_LOC b#1 100) (WARC_LOC b#2 200)]
   | getSources | mergeCDX sampleCDX1 sampleCDX2
 
 =?= | take (dec | len sampleCDX1) sampleCDX1
@@ -527,7 +525,7 @@
 : @(WARC_LOC ship loc) < listForEach | getSources cdx
 | WARC_LOC ship | add loc off
 
-=?= ~[(WARC_LOC 1 200)]
+=?= ~[(WARC_LOC b#1 200)]
   | getSources | offset 100 sampleCDX1
 
 = (printNat n) | natBar | showNat n
@@ -550,7 +548,7 @@
   ++ b#{[}
   ++ | barIntercalateList b#{ }
      : (name,off) < listForEach | getSources cdx
-     | barCat [(printNat name) b#{,} (printNat off)]
+     | barCat [name b#{,} (printNat off)]
   ++ b#{]}
   ++ barNewline
 
@@ -614,9 +612,11 @@
 = (barToNameRecord @(PIN bar))
 | todo barToNameRecord
 
-= (warcWriter hermes httpClient pid (rid,pBody) return)
+= (warcWriter hermes pid (rid,pBody) return)
 : evalResult < work buildCDX [pBody]
 : newCDXs < eitherCase evalResult
+            & error
+            | trk , warcWriter [=error]
             | send (pid,rid) NIL
             | return
 : off < getsState (warc, _, _)&(barLen warc)
@@ -624,45 +624,70 @@
 : _ < addCDXs newCDXs
 : _ < appendWARC | pinItem pBody
 : _ < send (pid,rid) newCDXs
-: names < getsState (_,_,names)&(tabKeysList names)
-: _ < traverseList name&(send (hermes,0) (name,newCDXs)) names
+: names < getsState (_,_,names)&(biMapKeys names)
+| trk , warcWriter [=names newCDXs=(listLen newCDXs)]
+: _
+  < ^ rowTraverse _ names
+    & (name return)
+    | trk , traverseList [=name]
+    | send (hermes,0) (name,newCDXs) return
 | return ()
 
-= (cdxWriter pid cdx)
-;; evalResult < work pCDX&(_LoadSeed | pinItem pCDX) [pBody]
-;; newCDXs < eitherCase evalResult | error
-| addCDXs cdx
+
+= (cdxWriter httpClient _ (cmd,msg))
+# switch cmd
+* CDX | addCDXs msg
+* PORT
+  | send (httpClient,0)
+  ++ POST
+  ++ NAME_SERVER_POST
+  ++ tabFromPairs 
+     ++ , b#{accept}       b#{application/json}
+     ++ , b#{Content-Type} b#{application/json}
+  ++ ^ printJson (JMAP _)
+     ## =name        OUR
+     ## =hermes_port printNat-msg
+     ## =signature   b#{}
+     ## =warc_port   b#1337 ;; TODO fix this asap
 
 = (inbox cdx)
 | trk , %hermesInbox [=cdx]
-| launch_ | DB_WRITE cdx
+| launch_ | DB_WRITE (%CDX, cdx)
 
-= (timer return)
+= (repeatEvery t return)
 : _   < launch_ | DB_WRITE ()
 : now < launch TIME_WHEN
-: _   < launch | TIME_WAIT | add now 5
-| timer return
+: _   < launch | TIME_WAIT | add now t
+| repeatEvery t return
 
-= (responseHandler httpRes return)
-@ HTTP_RES(..) httpRes
-| ifNot statusCode==200 | trk [failed=statusCode] | return ()
+= (writeHttp response return)
+@ HTTP_RES(..) response
+| ifNot statusCode==200 | trk writeHttp,[not200=statusCode =response] | return ()
 | launch_ | DB_WRITE resBody
 | return
 
+
 = (parseNames bar)
-| trk , parseNames [=bar json=(parseJson bar)]
 @ (entries,_) | parseJson bar
+| maybeGuard (len entries /= 0)
 : xs
   < ^ rowTraverse _ entries
     & (entry return)
-    : name < bindMaybe   | tabLookup %name       entry
-    : ip   < bindMaybe   | tabLookup %ip_address entry
-    : pubkey < bindMaybe | tabLookup %public_key entry
-    | return (name,(ip,pubkey))
-| SOME | tabFromPairs xs
+    | trk , parseNames [=entry]
+    : name  < bindMaybe | tabLookup %name entry
+    : ipBar < bindMaybe | tabLookup %ip   entry
+    : ip    < bindMaybe | ipToNat ipBar
+    : mPort < bindMaybe | tabLookup %hermes_port entry
+    : port  < bindMaybe | mPort
+    | trk , parseNames %success [=port]
+    | return (name, (ip,port))
+^ SOME | foldl _ emptyBiMap xs
+& (names (name,addr))
+| if name==OUR | names
+| biMapInsert name addr names
+
 
 = (nameWriter _ resBody return)
-| trk , nameWriter [len=(barLen resBody)]
 : res < work parseNames [resBody]
 : mNames < eitherCase res error&(trk [=error] return-())
 : names < maybeCase mNames | trk %noNewNames | return ()
@@ -670,12 +695,17 @@
 | modifyState (warc,cdxs,_)&(warc,cdxs,names) return
 
 
-> Cog ()
-= (warcCog return)
-: names < install (httpClient responseHandler) die nameWriter
-: hermes < install (hermes inbox) nameServer cdxWriter
-: http < install (httpServer requestHandler) readHandler (warcWriter hermes httpClient)
-: _ < install timer die (_ _ & send (names,0) (GET, NAME_SERVER_URL, emptyTab, b#{}))
+= (syncNames httpClient return)
+: _ < send (httpClient,0) (GET, NAME_SERVER_GET, emptyTab, b#{})
 | return ()
 
-= main | runCog (emptyBar, NIL, emptyTab) warcCog ;; TODO change names to biMap
+
+> Cog ()
+= (warcCog return)
+: httpClient < install (makeHttpClient writeHttp) die nameWriter
+: hermes < install (makeHermes inbox) nameServer (cdxWriter httpClient)
+: http   < install (httpServer requestHandler) readHandler (warcWriter hermes)
+: _      < install repeatEvery-120 die (_ _)&(syncNames httpClient)
+| return ()
+
+= main | runCog (emptyBar, NIL, emptyBiMap) warcCog

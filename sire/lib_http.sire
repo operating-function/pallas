@@ -148,9 +148,9 @@
 
 # datatype ReqParserState
 * AWAITING_REQ_LINE
-* AWAITING_HEADERS      reqLine:(Method,Bar,Bar)
-* AWAITING_BODY len:Nat reqLine:(Method,Bar,Bar) headers:(Tab Bar Bar)
-* COMPLETE              reqLine:(Method,Bar,Bar) headers:(Tab Bar Bar) body:Bar
+* AWAITING_REQ_HEADERS      reqLine:(Method,Bar,Bar)
+* AWAITING_REQ_BODY len:Nat reqLine:(Method,Bar,Bar) headers:(Tab Bar Bar)
+* COMPLETE_REQ              reqLine:(Method,Bar,Bar) headers:(Tab Bar Bar) body:Bar
 * PARSER_ERROR  err:Bar
 
 
@@ -167,10 +167,10 @@
 
 
 # datatype ResParserState
-* AWAITING_STATUS_LINE
-* AWAITING_HEADERS      statusLine:(Bar,Nat,Bar)
-* AWAITING_BODY len:Nat statusLine:(Bar,Nat,Bar) headers:(Tab Bar Bar)
-* COMPLETE              statusLine:(Bar,Nat,Bar) headers:(Tab Bar Bar) body:Bar
+* AWAITING_RES_LINE
+* AWAITING_RES_HEADERS      statusLine:(Bar,Nat,Bar)
+* AWAITING_RES_BODY len:Nat statusLine:(Bar,Nat,Bar) headers:(Tab Bar Bar)
+* COMPLETE_RES              statusLine:(Bar,Nat,Bar) headers:(Tab Bar Bar) body:Bar
 * PARSER_ERROR err:Bar
 
 
@@ -183,15 +183,15 @@
 = newResParser
 | RES_PARSER
 * b#{}
-* AWAITING_STATUS_LINE
+* AWAITING_RES_LINE
 
 
 > ReqParserState > Maybe (Tab Bar Bar)
 = (getReqHeaders p)
 # datacase p
-* (AWAITING_BODY _ _ headers) | SOME headers
-* (COMPLETE _ headers _)      | SOME headers
-* _                           | NONE
+* (AWAITING_REQ_BODY _ _ headers) | SOME headers
+* (COMPLETE_REQ _ headers _)      | SOME headers
+* _                               | NONE
 
 
 > Bar > Maybe (Method, Bar, Bar)
@@ -222,29 +222,29 @@
 ^ listFoldl _ emptyTab | barSubstringLinesList CRLF bar
 & (headers line)
 @ (key,val) | barSplitOne {:} line
-@ key | barTrim key
+@ key | barMap toLower | barTrim key
 @ val | barTrim val
 | if barIsEmpty-key | headers
 | tabIns key val headers
 
 
 > ReqParser > (Tab Bar Bar > Bar > ReqParser) > ReqParser
-= (processHeaders parser step)
+= (processReqHeaders parser step)
 @ REQ_PARSER(..) parser
 # datacase state
 * _ | parser
-* AWAITING_HEADERS|_
+* AWAITING_REQ_HEADERS|_
 : (headerBar, rest) < maybeCase | barSplitOnSubstring DOUBLE_CRLF accumulated
                     | parser
 @ headers | parseHeaders headerBar
 | step headers rest
 
 
-= (processBody parser step)
+= (processReqBody parser step)
 @ REQ_PARSER(..) parser
 # datacase state
 * _ | parser
-* (AWAITING_BODY sz _ _)
+* (AWAITING_REQ_BODY sz _ _)
 | if (gth sz | barLen accumulated) | parser
 | uncurry step | barSplitAt sz accumulated
 
@@ -252,25 +252,27 @@
 = (stepReqParser parser)
 @ REQ_PARSER(..) parser
 # datacase state
-* (COMPLETE _ _ _)   | parser
+* (COMPLETE_REQ _ _ _)   | parser
 * (PARSER_ERROR msg) | parser
 * AWAITING_REQ_LINE
   : reqLine rest < processReqLine parser
   | stepReqParser
-  | REQ_PARSER rest | AWAITING_HEADERS reqLine
-* (AWAITING_HEADERS reqLine)
-  : headers rest < processHeaders parser
-  | fromSome | REQ_PARSER rest | COMPLETE reqLine headers b#{}
+  | REQ_PARSER rest | AWAITING_REQ_HEADERS reqLine
+* (AWAITING_REQ_HEADERS reqLine)
+  : headers rest < processReqHeaders parser
+  | fromSome
+    | trk , stepReqParser [noBody=rest =headers]
+    | REQ_PARSER rest | COMPLETE_REQ reqLine headers b#{}
   : contentLength < bindMaybe | tabLookup b#{content-length} headers ;; TODO map keys to lowercase
   : sz            < bindMaybe | parseNat contentLength ;; TODO error instead
   | maybeGuardNot | eql sz 0
   ^ SOME | stepReqParser _
-  | REQ_PARSER rest | AWAITING_BODY sz reqLine headers
-* (AWAITING_BODY _ reqLine headers)
-  : body rest < processBody parser
+  | REQ_PARSER rest | AWAITING_REQ_BODY sz reqLine headers
+* (AWAITING_REQ_BODY _ reqLine headers)
+  : body rest < processReqBody parser
   | ifNot (barIsEmpty rest)
-    | setState (PARSER_ERROR b#{body too long}) parser
-  | REQ_PARSER rest | COMPLETE reqLine headers body
+    | setState (PARSER_ERROR (b#{body too long}, [=body =rest])) parser
+  | REQ_PARSER rest | COMPLETE_REQ reqLine headers body
 
 
 > ReqParser > Bar > ReqParser
@@ -284,7 +286,7 @@
 # datacase | getState parser
 * _                | NONE
 * PARSER_ERROR|msg | SOME LEFT-msg
-* (COMPLETE (method,path,version) headers body)
+* (COMPLETE_REQ (method,path,version) headers body)
 ^ SOME | RIGHT _
 | HTTP_REQ
 * method
@@ -306,7 +308,7 @@
 = (processStatusLine parser step)
 # datacase | getState parser
 * _ | parser
-* AWAITING_STATUS_LINE
+* AWAITING_RES_LINE
 : (line, rest) < maybeCase | barSplitOnSubstring CRLF | getAccumulated parser
                | parser
 : statusLineParts < maybeCase | parseStatusLine line
@@ -314,49 +316,48 @@
 | step statusLineParts rest
 
 
-;; > ResParser > (Tab Bar Bar > Bar > ResParser) > ResParser
-;; = (processHeaders parser step)
-;; @ RES_PARSER(..) parser
-;; # datacase state
-;; * _ | parser
-;; * AWAITING_HEADERS|_
-;; : (headerBar, rest) < maybeCase | barSplitOnSubstring DOUBLE_CRLF accumulated
-;;                     | parser
-;; @ headers | parseHeaders headerBar
-;; | step headers rest
+> ResParser > (Tab Bar Bar > Bar > ResParser) > ResParser
+= (processResHeaders parser step)
+@ RES_PARSER(..) parser
+# datacase state
+* _ | parser
+* AWAITING_RES_HEADERS|_
+: (headerBar, rest) < maybeCase | barSplitOnSubstring DOUBLE_CRLF accumulated
+                    | parser
+@ headers | parseHeaders headerBar
+| step headers rest
 
-
-;; = (processBody parser step)
-;; @ RES_PARSER(..) parser
-;; # datacase state
-;; * _ | parser
-;; * (AWAITING_BODY sz _ _)
-;; | if (gth sz | barLen accumulated) | parser
-;; | uncurry step | barSplitAt sz accumulated
+= (processResBody parser step)
+@ RES_PARSER(..) parser
+# datacase state
+* _ | parser
+* (AWAITING_RES_BODY sz _ _)
+| if (gth sz | barLen accumulated) | parser
+| uncurry step | barSplitAt sz accumulated
 
 
 = (stepResParser parser)
 @ RES_PARSER(..) parser
 # datacase state
-* (COMPLETE _ _ _)   | parser
+* (COMPLETE_RES _ _ _)   | parser
 * (PARSER_ERROR msg) | parser
-* AWAITING_STATUS_LINE 
+* AWAITING_RES_LINE 
   : statusLine rest < processStatusLine parser
   | stepResParser
-  | RES_PARSER rest | AWAITING_HEADERS statusLine
-* (AWAITING_HEADERS statusLine)
-  : headers rest < processHeaders parser
-  | fromSome | RES_PARSER rest | COMPLETE statusLine headers b#{}
+  | RES_PARSER rest | AWAITING_RES_HEADERS statusLine
+* (AWAITING_RES_HEADERS statusLine)
+  : headers rest < processResHeaders parser
+  | fromSome | RES_PARSER rest | COMPLETE_RES statusLine headers b#{}
   : contentLength < bindMaybe | tabLookup b#{content-length} headers ;; TODO lowercase keys
   : sz            < bindMaybe | parseNat contentLength ;; TODO error instead
-  | maybeGuardNot | eql sz 0
+  | maybeGuardNot sz==0
   ^ SOME | stepResParser _
-  | RES_PARSER rest | AWAITING_BODY sz statusLine headers
-* (AWAITING_BODY _ statusLine headers)
-  : body rest < processBody parser
+  | RES_PARSER rest | AWAITING_RES_BODY sz statusLine headers
+* (AWAITING_RES_BODY _ statusLine headers)
+  : body rest < processResBody parser
   | ifNot (barIsEmpty rest)
-    | setState (PARSER_ERROR b#{body too long}) parser
-  | RES_PARSER rest | COMPLETE statusLine headers body
+    | setState (PARSER_ERROR (b#{body too long}, [=body =rest])) parser
+  | RES_PARSER rest | COMPLETE_RES statusLine headers body
 
 
 > ResParser > Bar > ResParser
@@ -370,7 +371,7 @@
 # datacase | getState parser
 * _                | NONE
 * PARSER_ERROR|msg | SOME LEFT-msg
-* (COMPLETE (version,code,reason) headers body)
+* (COMPLETE_RES (version,code,reason) headers body)
 ^ SOME | RIGHT _
 | HTTP_RES
 * version

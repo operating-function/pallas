@@ -59,6 +59,14 @@
 @ backward | tabDel v | getBackward bimap
 | BI_MAP forward backward
 
+> BiMap k v > Row k
+= (biMapKeys bimap)
+| tabKeysRow | getForward bimap
+
+> BiMap k v > Row v 
+= (biMapVals bimap)
+| tabValsRow | getForward bimap
+
 
 ;;;;;;;
 
@@ -108,15 +116,11 @@
 @ HERMES_PARSER(..) parser
 # datacase state
 * AWAITING_SIZE
-  | trk AWAITING_SIZE
   : (size,rest) < maybeCase (processSize parser) parser
-  | trk [=size =rest]
   | stepParser
   | HERMES_PARSER rest msgs | AWAITING_SEED size
 * (AWAITING_SEED size)
-  | trk AWAITING_SEED
   : (seed,rest) < maybeCase (processSeed parser) parser
-  | trk [=seed =rest]
   | stepParser
   | HERMES_PARSER rest (_LoadSeed seed)::msgs AWAITING_SIZE
 
@@ -162,14 +166,15 @@
 | query | lens state
 
 
-= (hermes msgHandler return)
+= (makeHermes msgHandler return)
 : _ < fork outbox
 : port < launch | TCP_MINE
-| trk , hermes [port=(natBar | showNat port) rawPort=port]
+: _ < launch_ | DB_WRITE (%PORT, port)
+| trk , makeHermes [port=(natBar | showNat port) rawPort=port]
 ^ _ return
 ? (go return)
 : addr < launch TCP_HEAR
-| trk , hermes [heardFrom=addr]
+| trk , makeHermes [heardFrom=addr]
 ;; : known < launch | DB_READ | biMapHasReverse addr
 ;; | ifNot known
 ;;   | trk [%connection_from_nonpeer addr]
@@ -183,7 +188,7 @@
 * PRINT | trk [%got_from_remote msg] | return ()
 * NAME
 | trk , requestHandler [newName=msg]
-: _ < launch_ | DB_WRITE | msg
+: _ < launch_ | DB_WRITE (%CDX, msg)
 | return ()
 
 
@@ -197,7 +202,7 @@
 @ addr | (16777343,38453) ; 16777343 == 127.0.0.1
 @ msg  | [%PRINT [%foo %bar]]
 : _ < putState | biMapInsert name addr emptyBiMap
-: hermes < install (hermes requestHandler) supply writeHandler
+: hermes < install (makeHermes requestHandler) supply writeHandler
 : _ < install (launch_ | DB_WRITE ()) die (_ _ & send (hermes,0) (name,msg))
 | return ()
 

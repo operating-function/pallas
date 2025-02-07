@@ -40,15 +40,9 @@
 @ reasonPhrase | reason
 @ body         | body
 @ contentLength | natBar | showNat | barLen body ; should be zero if not present
-@ headers | tabIns b#{Content-Length} contentLength headers
-@ headers | tabIns b#{Server} b#{Pallas/0.1} headers
-; TODO: need
-; @ headers | tabIns b#{Date}
-; TODO: others, maybe:
-; @ headers | tabIns b#{Content-Encoding}
-; @ headers | tabIns b#{Content-Type}
-; This concatenation with colons _could_ be done in a subsequent function that
-; is responsible for HTTP_RES -> Hex Bar
+@ headers | tabIns b#{Content-Length} contentLength
+          | tabIns b#{Server} b#{Pallas/0.1}
+          | headers
 @ headersList
   | tabValsList
   | tabMapWithKey
@@ -72,7 +66,6 @@
       | processConnection io requestHandler newParser return
 : req < eitherCase res error&(trk [=error] | launch (TCP_SHUT ip port) return)
 : cogResponse@[headers body code reas] < requestHandler req
-; trk [%cogResponse [=io =headers =code =reas body=(barTake 20 body)]]
 ;;;;
 ^ _ (httpResToBar | appResponseToHTTP cogResponse)
 ? (sendAndClose responseBar)

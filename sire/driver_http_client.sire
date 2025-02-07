@@ -11,22 +11,44 @@
 
 :| lib_http
 
-
-= NAME_SERVER_URL
-| b#{http://localhost:8000/users}
-
 = NAME_SERVER_DOMAIN
-| b#{http://localhost:8000}
+| b#{localhost:8000}
 
-= NAME_SERVER_PATH
-| b#{/users}
+= NAME_SERVER_GET
+| barCat [b#{http://} NAME_SERVER_DOMAIN b#{/users}]
+
+= NAME_SERVER_POST
+| barCat [b#{http://} NAME_SERVER_DOMAIN b#{/announce}]
+
 
 = NAME_SERVER_ADDR
 | (16777343, 8000)
 
+= (ipToNat bar)
+: nats
+  < ^ traverseList _ | barSplit {.} bar
+    & (byte return)
+    : n < bindMaybe | parseNat byte
+    | maybeGuard | lth n 256
+    | return n
+| maybeGuard (listLen nats == 4)
+^ SOME | listSum | listZipWith mul nats _
+| listMap pow-256 ~[0 1 2 3]
+
+
+=?= SOME-16777343  | ipToNat b#{127.0.0.1}
+=?= SOME-612615823 | ipToNat b#{143.198.131.36}
+=?= NONE           | ipToNat b#{143.1.1}
+=?= NONE           | ipToNat b#{143.1.1.1.1}
+=?= NONE           | ipToNat b#{foo}
+
 = (splitURL url)
-| if url==NAME_SERVER_URL | (NAME_SERVER_DOMAIN, NAME_SERVER_PATH)
-| die splitURL
+: (protocol,address) < bindMaybe | barSplitOnSubstring b#{//} url
+@ (domain,path) | barSplitOne {/} address
+| SOME (domain, barWeld b#{/} path)
+
+=?= SOME-(NAME_SERVER_DOMAIN, b#{/users})
+  | splitURL NAME_SERVER_GET
 
 ;; Method Path Headers Body
 # typedef AppRequest (Method, Bar, Tab Bar Bar, Bar)
@@ -43,66 +65,67 @@
 
 
 > AppRequest > HTTPRequest
-= (appRequestToHttp fromCog@(method, url, headers, body))
+= (appRequestToHttp fromCog@(method, url, headers, body) host path)
 | maybeGuard | validRequest fromCog
 | SOME
-@ version      | b#{HTTP/1.0}
+@ version      | b#{HTTP/1.1}
 @ contentLength | natBar | showNat | barLen body ; should be zero if not present
-@ (_, path) | splitURL url
 @ headers | tabIns b#{Content-Length} contentLength
           | tabIns b#{User-Agent} b#{Pallas/0.1}
+          | tabIns b#Host host
           | headers
 | HTTP_REQ
 * method
 * path
 * version
 * headers
-* body
-
-
-
+* PIN body
 
 
 = (dnsLookup domain)
 | if (domain == NAME_SERVER_DOMAIN) | NAME_SERVER_ADDR
 | die dnsLookup
 
-= (processResponse ip port responseHandler return)
+= (processResponse ip port return)
 ^ _ newResParser
 ? (go parser)
 : data < launch | TCP_TAKE ip port
 | if (barIsEmpty data)
   ; trk [connectionClosed=io]
-  | return ()
+  | return | LEFT b#{connection closed before response received}
 @ newParser | feedResData parser data
 : res < maybeCase (getResponse newParser) | go newParser
-: res < eitherCase res error&(trk [=error] | launch (TCP_SHUT ip port) return)
-: _   < responseHandler res
-| return ()
+: _   < launch_ | TCP_SHUT ip port
+| return res
 
 
-= (httpClient responseHandler return)
+= (makeHttpClient responseHandler return)
 : port < launch TCP_MINE
-| trk , httpClient [=port]
+| trk , makeHttpClient [=port]
+^ _ return
+? (go return)
 : fromCog@(method,url,headers,body) < listen
-| trk [=fromCog]
-: _ < fork | httpClient responseHandler
-: req < maybeCase | appRequestToHttp fromCog
-      | trk %idklol
-      | return ()
-@ (domain,path) | splitURL url
-@ (ip,port) | dnsLookup domain
+: (host,path) < maybeCase | splitURL url
+              | trk , makeHttpClient [invalid=url]
+              | go return
+: req < maybeCase | appRequestToHttp fromCog host path
+      | trk , makeHttpClient [invalid=fromCog]
+      | go return
+@ (ip,port) | dnsLookup host
 : open < launch | TCP_OPEN ip port
 | ifNot open
-  | trk , httpClient {couldn't connect} [=ip =port]
-  | return ()
+  | trk , makeHttpClient {couldn't connect} [=ip =port]
+  | go return
 ^ _ | httpReqToBar req
 ? (sendAndListen requestBar)
-| trk , httpClient [=requestBar]
+| trk , makeHttpClient [=requestBar =ip =port]
 : mBytes < launch | TCP_GIVE ip port requestBar
-: bytes < maybeCase mBytes | launch_ (TCP_SHUT ip port) return
+: bytes < maybeCase mBytes | launch_ (TCP_SHUT ip port) | go return
 | if (barLen requestBar /= bytes) | sendAndListen | barDrop bytes requestBar
-| processResponse ip port responseHandler return
+: res < processResponse ip port
+: res < eitherCase res error&(trk [=error] | go return)
+: _   < responseHandler res
+| go return
 
 
 ;; = (exampleCog return)
