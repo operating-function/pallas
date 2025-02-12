@@ -520,7 +520,6 @@
 =?= ~[(WARC_LOC b#1 200)]
   | getSources | offset 100 sampleCDX1
 
-= (printNat n) | natBar | showNat n
 
 > CDXEntry > Bar
 = (serializeCDX cdx)
@@ -629,10 +628,10 @@
 @ (rid,pBody) | msg
 : evalResult < work buildCDX [pBody]
 : newCDXs < eitherCase evalResult
-            & error
-            | trk , warcWriter [=error]
-            | send (pid,rid) NIL
-            | return
+          & error
+          | trk , warcWriter [=error]
+          | send (pid,rid) NIL
+          | return
 : off < getsState (warc, _, _, _, _)&(barLen warc)
 @ newCDXs | listMap (offset off) newCDXs
 : _ < addCDXs newCDXs
@@ -693,7 +692,7 @@
 = (nameWriter _ resBody return)
 : res < work parseNames [resBody]
 : mNames < eitherCase res error&(trk [=error] return-())
-: names < maybeCase mNames | trk %noNewNames | return ()
+: names < maybeCase mNames | trk [noNewNamesIn=resBody] | return ()
 | trk , nameWriter [=names]
 | modifyState (setNames names) return
 

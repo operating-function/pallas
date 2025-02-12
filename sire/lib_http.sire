@@ -4,6 +4,8 @@
 
 ;;; Bar helpers ;; TODO move these?
 
+= (printNat n) | natBar | showNat n
+
 ;; Like barSubstringLines, but allows splitting on arbitrary characters.
 > Bar > Bar > List Bar
 = (barSubstringLinesList seek bar)
