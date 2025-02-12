@@ -5,6 +5,7 @@
 #### driver_hermes <- driver_http_client
 
 :| kern
+:| pinhash
 :| lib_http [DOUBLE_CRLF barSplitOnSubstring]
 
 ;; TODO move BiMap somewhere
@@ -72,8 +73,8 @@
 
 = (makeMessage plan)
 @ seed | _SaveSeed plan
-^ barCat [_ DOUBLE_CRLF seed]
-| natBar | showNat | barLen seed
+^ barWeld _ seed
+| natToSizedBar 4 | barLen seed
 
 
 # datatype ParserState
@@ -96,12 +97,14 @@
 
 > HermesParser > Maybe (Nat, Bar)
 = (processSize parser)
-# datacase | getState parser
-* _             | NONE
+@ HERMES_PARSER(..) parser
+# datacase state
+* _ | NONE
 * AWAITING_SIZE
-: (szBar, rest) < bindMaybe | barSplitOnSubstring DOUBLE_CRLF | getQueue parser
-: sz < bindMaybe | parseNat szBar
-| SOME (sz,rest)
+| maybeGuard (gte (barLen queue) 4)
+@ (sz,rest) | barSplitAt 4 queue
+| SOME (barNat sz, rest)
+
 
 = (processSeed parser)
 @ HERMES_PARSER(..) | parser
@@ -128,59 +131,67 @@
 @ queue | getQueue parser
 | stepParser | setQueue (barWeld queue newData) parser
 
-= (test _)
-| feedData newHermesParser x#37320d0a0d0a000000000000000000000000000000000300000000000000020000000000000002000000000000005052494e540000006261720000000000666f6f00000000000300231ad6550800
 
-= (inbox ip,port msgHandler return)
-^ _ newHermesParser return
-? (go parser return)
-: data < launch | TCP_TAKE ip port
-| trk , inbox [took=data from=(ip,port)]
+=?= | HERMES_PARSER emptyBar ~[{foo}] AWAITING_SIZE
+  | feedData newHermesParser
+  | makeMessage {foo}
+
+= (msgId bar) | barTake 4 | planHash bar
+
+= (inbox socket msgHandler return)
+^ _ newHermesParser
+? (go parser)
+: data < launch | TCP_TAKE socket
 | if (barIsEmpty data)
+  | trk , inbox %connection_closed [=socket]
   | return ()
+| trk , inbox [tookChunk=(msgId data) =socket]
 @ newParser | feedData parser data
-| trk , inbox [=newParser]
-: _ < traverseList msgHandler | getMsgs newParser
-| go (setMsgs ~[] newParser) return
+: _ < ^ traverseList _ | getMsgs newParser
+      & msg | trk inbox,[tookMsg=(msgId msg)] | msgHandler msg
+| go (setMsgs ~[] newParser)
 
 
 = (outbox return)
 : (name,msg) < listen
-| trk , outbox [received=msg to=name]
+| trk , outbox [gotMsg=(msgId msg) to=name]
 : _          < fork outbox
 : mAddr      < launch | DB_READ | biMapLookup name
-| trk , outbox [readResult=mAddr]
 : (ip,port)  < maybeCase mAddr
-             | trk [%no_such_peer name %ignoring msg]
+             | trk , outbox %ignoring_no_such_peer [=name =msgId]
              | return ()
-: success    < launch | TCP_OPEN ip port
-| ifNot success
-  | trk , outbox [%failed_to_connect name ip port]
-  | return ()
-| trk , outbox [sending=msg to=(ip,port)]
-| launch_ | TCP_GIVE ip port | makeMessage msg
-| return
-
-
-= (namespaceAt lens state query)
-| query | lens state
+: mSocket    < launch | TCP_OPEN ip port
+: socket     < maybeCase mSocket
+             | trk , outbox %failed_to_connect [=name =ip =port =msgId]
+             | return ()
+| trk , outbox %sending [=socket msgId=(msgId msg) size=(barLen | makeMessage msg) to=(ip,port)]
+^ _ | makeMessage msg
+? (go bar)
+: mBytes < launch | TCP_GIVE socket bar
+: bytes < maybeCase mBytes
+        | trk , outbox %closed [=socket]
+        | launch (TCP_SHUT socket) return
+| trk , outbox %sent [sentChunk=(msgId | barTake bytes bar) =bytes]
+| if bytes/=(barLen bar) | go | barDrop bytes bar
+| trk , outbox [finished=(msgId msg)]
+| launch (TCP_SHUT socket) return
 
 
 = (makeHermes msgHandler return)
 : _ < fork outbox
 : port < launch | TCP_MINE
 : _ < launch_ | DB_WRITE (%PORT, port)
-| trk , makeHermes [port=(natBar | showNat port) rawPort=port]
+| trk , makeHermes [=port]
 ^ _ return
 ? (go return)
-: addr < launch TCP_HEAR
-| trk , makeHermes [heardFrom=addr]
+: (socket,ip,port) < launch TCP_HEAR
+| trk , makeHermes %connection_from [=ip =port =socket]
 ;; : known < launch | DB_READ | biMapHasReverse addr
 ;; | ifNot known
 ;;   | trk [%connection_from_nonpeer addr]
-;;   : _ < launch_ | uncurry TCP_SHUT addr
+;;   : _ < launch | TCP_SHUT socket
 ;;   | go return
-: _ < fork | inbox addr msgHandler
+: _ < fork | inbox socket msgHandler
 | go return
 
 = (requestHandler (cmd,msg) return)
@@ -197,13 +208,13 @@
 | modifyState | biMapInsert name addr
 
 
-= (exampleCog return)
-@ name | %our
-@ addr | (16777343,38453) ; 16777343 == 127.0.0.1
-@ msg  | [%PRINT [%foo %bar]]
-: _ < putState | biMapInsert name addr emptyBiMap
-: hermes < install (makeHermes requestHandler) supply writeHandler
-: _ < install (launch_ | DB_WRITE ()) die (_ _ & send (hermes,0) (name,msg))
-| return ()
-
-main=(runCog emptyBiMap exampleCog)
+;; = (exampleCog return)
+;; @ name | %our
+;; @ addr | (16777343,40131) ; 16777343 == 127.0.0.1
+;; @ msg  | [%PRINT [%foo %bar]]
+;; : _ < putState | biMapInsert name addr emptyBiMap
+;; : hermes < install (makeHermes requestHandler) supply writeHandler
+;; : _ < install (launch_ | DB_WRITE ()) die (_ _ & send (hermes,0) (name,msg))
+;; | return ()
+;; 
+;; main=(runCog emptyBiMap exampleCog)

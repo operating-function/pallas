@@ -56,32 +56,32 @@
 * body
 
 
-= (processConnection io@(ip,port) requestHandler parser return)
-: data < launch | TCP_TAKE ip port
+= (processConnection io requestHandler parser return)
+: data < launch | TCP_TAKE io
 | if (barIsEmpty data)
   ; trk [connectionClosed=io]
   | return ()
 @ newParser | feedReqData parser data
 : res < maybeCase | getRequest newParser
       | processConnection io requestHandler newParser return
-: req < eitherCase res error&(trk [=error] | launch (TCP_SHUT ip port) return)
+: req < eitherCase res error&(trk [=error] | launch (TCP_SHUT io) return)
 : cogResponse@[headers body code reas] < requestHandler req
 ;;;;
 ^ _ (httpResToBar | appResponseToHTTP cogResponse)
 ? (sendAndClose responseBar)
-: mBytes < launch | TCP_GIVE ip port responseBar
+: mBytes < launch | TCP_GIVE io responseBar
 ; trk [=io sentBytes=mBytes]
-: bytes < maybeCase mBytes | launch (TCP_SHUT ip port) return
-| if (barLen responseBar == bytes) | launch (TCP_SHUT ip port) return
+: bytes < maybeCase mBytes | launch (TCP_SHUT io) return
+| if (barLen responseBar == bytes) | launch (TCP_SHUT io) return
 | sendAndClose | barDrop bytes responseBar
 
 
 = (httpServer requestHandler return)
 : port < launch | TCP_MINE
-| trk [%httpRunning (barCat [b#{visit } b#{http://localhost:} (natBar | showNat port)])]
+| trk [%httpRunning (barWeld b#{visit http://localhost:} (printNat port))]
 : _ < launch_ | DB_WRITE (%PORT, port)
 ^ _ return
 ? (go return)
-: io < launch | TCP_HEAR
+: (io,ip,port) < launch | TCP_HEAR
 : _ < fork | processConnection io requestHandler newReqParser
 | go return

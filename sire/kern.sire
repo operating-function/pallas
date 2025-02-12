@@ -17,11 +17,11 @@ abstype#(Call a)
 = TIME_WHEN              [%time %when]
 = (TIME_WAIT t)          [%time %wait t]
 = (TCP_OPEN a p)         [%tcp %open a p]
-= (TCP_GIVE a p d)       [%tcp %give a p d]
+= (TCP_GIVE s d)         [%tcp %give s d]
 = TCP_HEAR               [%tcp %hear]
-= (TCP_TAKE a p)         [%tcp %take a p]
+= (TCP_TAKE s)           [%tcp %take s]
 = TCP_MINE               [%tcp %mine]
-= (TCP_SHUT a p)         [%tcp %shut a p]
+= (TCP_SHUT s)           [%tcp %shut s]
 
 abstype#(Cog a)
 abstype#(Driver a)

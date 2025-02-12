@@ -44,18 +44,16 @@
 | if (domain == NAME_SERVER_DOMAIN) | NAME_SERVER_ADDR
 | die dnsLookup
 
-= (processResponse ip port return)
+= (processResponse socket return)
 ^ _ newResParser
 ? (go parser)
-: data < launch | TCP_TAKE ip port
-| trk , processResponse [took=data]
+: data < launch | TCP_TAKE socket
 | if (barIsEmpty data)
-  ; trk [connectionClosed=io]
+  ; trk %connectionClosed [=socket]
   | return | LEFT b#{connection closed before response received}
 @ newParser | feedResData parser data
-| trk , processResponse [=newParser]
 : res < maybeCase (getResponse newParser) | go newParser
-: _   < launch_ | TCP_SHUT ip port
+: _   < launch | TCP_SHUT socket
 | return res
 
 
@@ -65,6 +63,7 @@
 ^ _ return
 ? (go return)
 : fromCog@(method,url,headers,body) < listen
+: _ < fork go
 : (host,path) < maybeCase | splitURL url
               | trk , makeHttpClient [invalid=url]
               | go return
@@ -72,16 +71,16 @@
       | trk , makeHttpClient [invalid=fromCog]
       | go return
 @ (ip,port) | dnsLookup host
-: open < launch | TCP_OPEN ip port
-| ifNot open
-  | trk , makeHttpClient {couldn't connect} [=ip =port]
-  | go return
+: mSocket < launch | TCP_OPEN ip port
+: socket < maybeCase mSocket
+         | trk , makeHttpClient {couldn't connect} [=ip =port]
+         | return ()
 ^ _ | httpReqToBar req
 ? (sendAndListen requestBar)
-: mBytes < launch | TCP_GIVE ip port requestBar
-: bytes < maybeCase mBytes | launch_ (TCP_SHUT ip port) | go return
+: mBytes < launch | TCP_GIVE socket requestBar
+: bytes < maybeCase mBytes | launch (TCP_SHUT socket) | return ()
 | if (barLen requestBar /= bytes) | sendAndListen | barDrop bytes requestBar
-: res < processResponse ip port
-: res < eitherCase res error&(trk [=error] | go return)
+: res < processResponse socket
+: res < eitherCase res error&(trk [=error] | return ())
 : _   < responseHandler res
-| go return
+| return ()
