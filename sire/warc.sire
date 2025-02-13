@@ -1,3 +1,10 @@
+;; Things to optimize
+;; - warcBlocks could insert instead of rowConsing. But then then we need
+;;   to actually build the CDX in the same step because that how we merge/cmp.
+;; - We should probably offset the newCDXs in an eval/work.
+;; - Same with offsetting them
+;; - And same with `addCDXs`, it will block subsequent requests.
+;; OH but can we actually do all that? Remember we need transactionality.
 #### warc <- driver_hermes
 
 :| kern
@@ -6,6 +13,13 @@
 :| driver_http_client
 :| driver_hermes [makeHermes emptyBiMap biMapInsert biMapKeys]
 
+# abstype Ord
+# backfill EQ Ord
+# backfill LT Ord
+# backfill GT Ord
+
+;; Saved for historical reasons? Would be nice to create the list
+;; operation from the row operation kind of like `rowPort` but in reverse.
 = (listMerge left right cmp merge)
 : x xs < listCase left right
 : y ys < listCase right left
@@ -13,6 +27,56 @@
 | if res==LT |           x::(listMerge xs   right cmp merge)
 | if res==GT |           y::(listMerge left ys    cmp merge)
 | else       | (merge x y)::(listMerge xs   ys    cmp merge)
+
+;; Merges two sorted rows using a comparision function and a merge function.
+;; Note that the two lists might be shorter than the sum of the input lengths,
+;; since if two elements compare to EQ, they will be merged.
+> Row Any > Row Any > (Any > Any > Ord) > (Any > Any > Any) > Row Any
+= (merge left right cmd mergeFun)
+@ lenL | len left
+@ lenR | len right
+^ _ 0 0 0 | rep 0 | add lenL lenR
+? (go idxL idxR idx result)
+| if (gte idxL lenL) | weld (take idx result) (drop idxR right)
+| if (gte idxR lenR) | weld (take idx result) (drop idxL left)
+@ elemL | get left  idxL
+@ elemR | get right idxR
+@ res   | cmp elemL elemR
+| if res==LT | go inc-idxL idxR inc-idx | put result idx elemL
+| if res==GT | go idxL inc-idxR inc-idx | put result idx elemR
+| go inc-idxL inc-idxR inc-idx | put result idx | mergeFun elemL elemR
+
+=?= [1 2 3 4 5 6]     | merge [1 3 5] [2 4 6] cmp const
+=?= [1 2 3 4 5]       | merge [1 2 3] [2 4 5] cmp const
+=?= [1 2 3]           | merge [1 2 3] [] cmp const
+=?= [1 2 3]           | merge [] [1 2 3] cmp const
+=?= []                | merge [] [] cmp const
+=?= [1 2 3 4]         | merge [1 2] [3 4] cmp const
+=?= [1 4 3 4 5]       | merge [1 2 4] [2 3 5] cmp add
+=?= [1 6 5]           | merge [1 3] [3 5] cmp add
+=?= [1 4 6 5]         | merge [1 2 3] [2 3 5] cmp add
+
+> (Any > Any > Ord) > (Any > Any > Any) > Row Any > Row Any
+= (mergeSort cmp mergeFun xs)
+@ len | len xs
+| if (lte len 1) | xs
+@ mid   | div len 2
+@ left  | take mid xs
+@ right | drop mid xs
+| merge
+* mergeSort cmp mergeFun left
+* mergeSort cmp mergeFun right
+* cmp
+* mergeFun
+
+=?= []                | mergeSort cmp const []
+=?= [1]               | mergeSort cmp const [1]
+=?= [1 2 3 4 5]       | mergeSort cmp const [5 4 3 2 1]
+=?= [1 2 3 4 5]       | mergeSort cmp const [3 1 5 2 4]
+=?= [1 2 3 4 5]       | mergeSort cmp const [3 1 5 3 2 4]
+=?= [1 {a} {b}]       | mergeSort cmp const [{b} {a} 1]
+=?= [1 4 4 5]         | mergeSort cmp add [2 1 2 4 5]
+=?= [1 4 6]           | mergeSort cmp add [2 2 3 3 1]
 
 # record EntryMetadata
 | ENTRY_METADATA
@@ -42,7 +106,7 @@
 * redirectUrl  : Bar
 * robotsTags   : Bar
 * length       : Nat
-* sources      : List WARCLocation
+* sources      : Row WARCLocation
 
 > EntryMetadata > Bar
 = (makeMimeType meta)
@@ -111,7 +175,7 @@
 * b#{-}
 * b#{-}
 * 100
-* ~[(WARC_LOC b#1 100)]
+* [(WARC_LOC b#1 100)]
 
 = sampleCDX2 
 | CDX_ENTRY
@@ -124,7 +188,7 @@
 * b#{-}
 * b#{-}
 * 100
-* ~[(WARC_LOC b#2 200)]
+* [(WARC_LOC b#2 200)]
 
 = sampleCDX3
 | CDX_ENTRY
@@ -137,7 +201,7 @@
 * b#{-}
 * b#{-}
 * 100
-* ~[(WARC_LOC b#3 300)]
+* [(WARC_LOC b#3 300)]
 
 > Bar
 = requestRecord
@@ -369,26 +433,26 @@
   | SOME (requestMeta, barLen requestRecord) 
 
 
-> Bar > List (Nat, Nat, EntryMetadata)
+> Bar > Row (Nat, Nat, EntryMetadata)
 = (warcBlocks warcFile)
-^ _ 0 0 NONE ~[]
+^ _ 0 0 NONE []
 ? (go off pos mPrev acc)
 @ loc | add off pos
-: (meta, recLen) < maybeCase | getNextRecord | barDrop loc warcFile ;; TODO why inc??
+: (meta, recLen) < maybeCase | getNextRecord | barDrop loc warcFile
                  : prev < maybeCase mPrev acc
-                 | (off,pos,prev)::acc
+                 | rowCons (off,pos,prev) acc
 : newMeta < eitherCase | combine meta mPrev
           & old
-          | go loc recLen (SOME meta) (off,pos,old)::acc
+          | go loc recLen (SOME meta) | rowCons (off,pos,old) acc
 | go off (add pos recLen) (SOME newMeta) acc
 
-=?= ~[(0, barLen requestRecord, requestMeta)]
+=?= [(0, barLen requestRecord, requestMeta)]
   | warcBlocks requestRecord
 
-=?= ~[(0, barLen responseRecord, responseMeta)]
+=?= [(0, barLen responseRecord, responseMeta)]
   | warcBlocks responseRecord
 
-=?= ~[(0, barLen (barWeld requestRecord responseRecord), responseMeta)]
+=?= [(0, barLen (barWeld requestRecord responseRecord), responseMeta)]
   | warcBlocks | barWeld requestRecord responseRecord
 
 = (barReplaceAll old new bar)
@@ -427,65 +491,6 @@
 =?= b#{http://example.com/foo%09bar%0A}
   | canonicalize | barCat [b#{HTTP://example.com/foo} (barSing 0x09) b#bar barNewline]
 
-
-> Pin Bar > > List CDXEntry
-= (buildCDX @(PIN warcFile))
-: (off,len,meta) < listForEach | warcBlocks warcFile
-@ content | barSlice off (add off len) warcFile
-@ url | fromSome b#{} | getTargetURI meta
-@ status | makeStatus meta
-@ redirectUrl
-  | ifNot ((lte 300 status) && (lth status 400)) b#{-}
-  | fromSome b#{-} | getHttpLocation meta
-| CDX_ENTRY
-* canonicalize url
-* getMetaTimestamp meta
-* url
-* makeMimeType meta
-* status
-* barWeld b#{b3:} | barToHex planHash-content
-* redirectUrl
-* b#{-} ;; don't parse robots.txt for now
-* len
-* ~[(WARC_LOC OUR off)]
-
-=?= | buildCDX | PIN | barWeld requestRecord responseRecord
-  ^ ~[_]
-  | CDX_ENTRY
-  * canonicalize | fromSome b#{} | getTargetURI responseMeta
-  * getMetaTimestamp responseMeta
-  * fromSome b#{} | getTargetURI responseMeta
-  * makeMimeType responseMeta
-  * makeStatus responseMeta
-  * barWeld b#{b3:} | barToHex planHash-(barWeld requestRecord responseRecord)
-  * fromSome b#{-} | getHttpLocation responseMeta
-  * b#{-}
-  * barLen | barWeld requestRecord responseRecord
-  * ~[(WARC_LOC OUR 0)]
-
-= reqres
-| PIN | barWeld requestRecord responseRecord
-
-=?= 2
-  ^ listLen | buildCDX | PIN | barCat _
-  [requestRecord responseRecord differentUrlRecord]
-
-=?= 2
-  ^ listLen | buildCDX | PIN | barCat _
-  [requestRecord responseRecord revisitRecord]
-
-=?= 3
-  ^ listLen | buildCDX | PIN | barCat _
-  [requestRecord revisitRecord responseRecord]
-
-=?= 3
-  ^ listLen | buildCDX | PIN | barCat _
-  [requestRecord responseRecord revisitRecord differentUrlRecord]
-
-=?= 4
-  ^ listLen | buildCDX | PIN | barCat _
-  [requestRecord revisitRecord responseRecord differentUrlRecord]
-
 = (cmpCDX x y)
 @ (cmpOn f) | cmp f-x f-y
 | ordWeld | cmpOn getCanonicalURL
@@ -503,21 +508,81 @@
 
 = (mergeCDX x y)
 ^ setSources _ x
-| listMerge getSources-x getSources-y cmp const
+| merge getSources-x getSources-y cmp const
 
-=?= ~[(WARC_LOC b#1 100) (WARC_LOC b#2 200)]
+=?= [(WARC_LOC b#1 100) (WARC_LOC b#2 200)]
   | getSources | mergeCDX sampleCDX1 sampleCDX2
 
 =?= | take (dec | len sampleCDX1) sampleCDX1
   | take (dec | len sampleCDX1) | mergeCDX sampleCDX1 sampleCDX2
 
 
+> Pin Bar > Row CDXEntry
+= (buildCDX @(PIN warcFile))
+| mergeSort cmpCDX mergeCDX
+: (off,len,meta) < foreach | warcBlocks warcFile
+@ content | barSlice off (add off len) warcFile
+@ url     | fromSome b#{} | getTargetURI meta
+@ status  | makeStatus meta
+@ redirectUrl
+  | ifNot ((lte 300 status) && (lth status 400)) b#{-}
+  | fromSome b#{-} | getHttpLocation meta
+| CDX_ENTRY
+* canonicalize url
+* getMetaTimestamp meta
+* url
+* makeMimeType meta
+* status
+* barWeld b#{b3:} | barToHex planHash-content
+* redirectUrl
+* b#{-} ;; don't parse robots.txt for now
+* len
+* [(WARC_LOC OUR off)]
+
+=?= | buildCDX | PIN | barWeld requestRecord responseRecord
+  ^ [_]
+  | CDX_ENTRY
+  * canonicalize | fromSome b#{} | getTargetURI responseMeta
+  * getMetaTimestamp responseMeta
+  * fromSome b#{} | getTargetURI responseMeta
+  * makeMimeType responseMeta
+  * makeStatus responseMeta
+  * barWeld b#{b3:} | barToHex planHash-(barWeld requestRecord responseRecord)
+  * fromSome b#{-} | getHttpLocation responseMeta
+  * b#{-}
+  * barLen | barWeld requestRecord responseRecord
+  * [(WARC_LOC OUR 0)]
+
+= reqres
+| PIN | barWeld requestRecord responseRecord
+
+=?= 2
+  ^ len | buildCDX | PIN | barCat _
+  [requestRecord responseRecord differentUrlRecord]
+
+=?= 2
+  ^ len | buildCDX | PIN | barCat _
+  [requestRecord responseRecord revisitRecord]
+
+=?= 3
+  ^ len | buildCDX | PIN | barCat _
+  [requestRecord revisitRecord responseRecord]
+
+=?= 3
+  ^ len | buildCDX | PIN | barCat _
+  [requestRecord responseRecord revisitRecord differentUrlRecord]
+
+=?= 4
+  ^ len | buildCDX | PIN | barCat _
+  [requestRecord revisitRecord responseRecord differentUrlRecord]
+
+
 = (offset off cdx)
 ^ setSources _ cdx
-: @(WARC_LOC ship loc) < listForEach | getSources cdx
+: @(WARC_LOC ship loc) < foreach | getSources cdx
 | WARC_LOC ship | add loc off
 
-=?= ~[(WARC_LOC b#1 200)]
+=?= [(WARC_LOC b#1 200)]
   | getSources | offset 100 sampleCDX1
 
 
@@ -536,11 +601,9 @@
 ++ ^ ifz _ b#{-} | printNat _
    | getLength cdx
 ++ barCat
-  ++ b#{[}
-  ++ | barIntercalateList b#{ }
-     : (name,off) < listForEach | getSources cdx
-     | barCat [name b#{,} (printNat off)]
-  ++ b#{]}
+  ++ | barIntercalateList b#{|}
+     : (name,off) < foreach | getSources cdx
+     | barCat [name b#{:} (printNat off)]
   ++ barNewline
 
 
@@ -556,13 +619,13 @@
   ++ b#{- }
   ++ b#{- }
   ++ b#{100 }
-  ++ b#{[1,100]}
+  ++ b#{1:100}
   ++ barNewline
 
 # record WARCState
 | WARC_STATE
 * warc       : Bar
-* cdxs       : List CDXEntry
+* cdxs       : Row CDXEntry
 * names      : BiMap Bar (Nat, Nat)
 * hermesPort : Maybe Nat
 * httpPort   : Maybe Nat
@@ -570,7 +633,7 @@
 
 = (addCDXs newCDXs)
 : (warc, oldCDXs, names, hermesPort, httpPort) < modifyState
-| (warc, listMerge oldCDXs newCDXs cmpCDX mergeCDX, names, hermesPort, httpPort)
+| (warc, merge oldCDXs newCDXs cmpCDX mergeCDX, names, hermesPort, httpPort)
 
 
 = (appendWARC warcBar) 
@@ -593,22 +656,23 @@
     | return [emptyTab emptyBar 200 b#gotcha]
   * b#{/index}
     : cdxs < launch | DB_READ [%INDEX]
-    | return [cdxs_head (barCatList | listMap serializeCDX cdxs) 200 b#gotcha]
+    | return [cdxs_head (barCatList | map serializeCDX cdxs) 200 b#gotcha]
   * b#{/read}
-    @ params       | tabFromPairsList | listMap barSplitOne-{=} | barSplit {&} query
-    : start        < maybeCase (parseNat | tabGet params b#start)  | return badRequest
-    : size         < maybeCase (parseNat | tabGet params b#length) | return badRequest
-    : bar < launch | DB_READ (%READ, start, size)
+    @ params | tabFromPairsList | listMap barSplitOne-{=} | barSplit {&} query
+    : start  < maybeCase (parseNat | tabGet params b#start)  | return badRequest
+    : size   < maybeCase (parseNat | tabGet params b#length) | return badRequest
+    : bar    < launch | DB_READ (%READ, start, size)
     | return [warc_head bar 200 b#gotcha]
 * POST
   # switch path
+  * _ | trk %invalid_http_request | return ()
   * b#{/warc}
     : cdxs < launchWith & rid | DB_WRITE (%WARC, (rid, pBody))
-    | return [cdxs_head (barCatList | listMap serializeCDX cdxs) 200 b#gotcha]
+    | return [cdxs_head (barCatList | map serializeCDX cdxs) 200 b#gotcha]
 
 = (readHandler (warc,cdxs,names,hermes,http) query)
 # switch fst-query
-* PRINT | trk [warcSize=(barLen warc) cdxEntries=(listLen cdxs) =names =hermes =http] 0
+* PRINT | trk [warcSize=(barLen warc) cdxEntries=(len cdxs) names=(fst names) =hermes =http] 0
 * INDEX | cdxs
 * NAMES | names
 * READ
@@ -630,13 +694,13 @@
 : newCDXs < eitherCase evalResult
           & error
           | trk , warcWriter [=error]
-          | send (pid,rid) NIL
+          | send (pid,rid) []
           | return
 : off < getsState (warc, _, _, _, _)&(barLen warc)
-@ newCDXs | listMap (offset off) newCDXs
+@ newCDXs | map (offset off) newCDXs
+: _ < send (pid,rid) newCDXs
 : _ < addCDXs newCDXs
 : _ < appendWARC | pinItem pBody
-: _ < send (pid,rid) newCDXs
 : names < getsState (_,_,names,_,_)&(biMapKeys names)
 : _
   < ^ rowTraverse _ names
@@ -725,4 +789,4 @@
 | return ()
 
 
-= main | runCog (emptyBar, NIL, emptyBiMap, NONE, NONE) warcCog
+= main | runCog (emptyBar, [], emptyBiMap, NONE, NONE) warcCog

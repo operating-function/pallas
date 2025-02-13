@@ -18,13 +18,14 @@
 | (16777343, 8000)
 
 = (ipToNat bar)
+@ bytes | barSplit {.} bar
+| maybeGuard (listLen bytes == 4)
 : nats
-  < ^ traverseList _ | barSplit {.} bar
+  < ^ traverseList _ bytes
     & (byte return)
     : n < bindMaybe | parseNat byte
     | maybeGuard | lth n 256
     | return n
-| maybeGuard (listLen nats == 4)
 ^ SOME | listSum | listZipWith mul nats _
 | listMap pow-256 ~[0 1 2 3]
 
