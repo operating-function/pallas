@@ -6,6 +6,7 @@ module PlunderPrelude
     ( module X
     , writeTQueue'
     , writeTBQueue'
+    , flushNonEmptyTQueue
     , turn
     , whenJust
     , guarded
@@ -42,6 +43,11 @@ writeTQueue' a b = writeTQueue a $! b
 
 writeTBQueue' :: TBQueue a -> a -> STM ()
 writeTBQueue' a b = writeTBQueue a $! b
+
+flushNonEmptyTQueue :: TQueue a -> STM [a]
+flushNonEmptyTQueue queue = isEmptyTQueue queue >>= \case
+  True -> singleton <$> readTQueue queue
+  False -> flushTQueue queue
 
 turn :: Functor f => f a -> (a -> b) -> f b
 turn = (<&>)

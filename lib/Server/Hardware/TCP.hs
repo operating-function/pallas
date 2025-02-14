@@ -172,7 +172,7 @@ insertNewSocket socket connections = do
 
 worker :: ToNoun o => TQueue (SysCall, i) -> (i -> IO o) -> IO Void
 worker q f = forever $
-    atomically (flushTQueue q) >>=
+    atomically (flushNonEmptyTQueue q) >>=
     mapConcurrently_ \(syscall, args) ->
       atomically . writeResponse syscall =<< f args
 

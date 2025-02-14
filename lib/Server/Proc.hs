@@ -98,11 +98,6 @@ spawnProc procName initProc call = do
       debugText $ name <> " thread was killed by: " <> pack (displayException e)
       throwIO (e :: SomeException)
 
-drainNonEmptyTQueue :: TQueue a -> STM [a]
-drainNonEmptyTQueue queue = isEmptyTQueue queue >>= \case
-  True -> singleton <$> readTQueue queue
-  False -> flushTQueue queue
-
 -- The Proc Runner --------------------------------------------------------------
 
 runnerFun :: Debug => Text -> Runner -> IO ()
@@ -116,7 +111,7 @@ runnerFun processName runner = do
     procTick :: Runner -> IO ()
     procTick st = do
       inputs <- withAlwaysTrace "WaitForReponse" "proc" $
-                 atomically $ drainNonEmptyTQueue st.inbox
+                 atomically $ flushNonEmptyTQueue st.inbox
       st' <- withProcessName (encodeUtf8 processName) $
               withThreadName ("Proc: ") $
                 foldM runResponse st inputs
