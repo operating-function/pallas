@@ -18,6 +18,16 @@
 # backfill LT Ord
 # backfill GT Ord
 
+
+= (barReplaceAll old new bar)
+| barIntercalateList new | barSplit old bar
+
+=?= b#{hello-world}   | barReplaceAll {_} b#{-} b#{hello_world}
+=?= b#{hello_world}   | barReplaceAll {-} b#{_} b#{hello_world}
+=?= b#{helloworld}    | barReplaceAll {_} b#{} b#{hello_world}
+=?= b#{hello-=-world} | barReplaceAll {_} b#{-=-} b#{hello_world}
+
+
 ;; Saved for historical reasons? Would be nice to create the list
 ;; operation from the row operation kind of like `rowPort` but in reverse.
 = (listMerge left right cmp merge)
@@ -101,7 +111,7 @@
 * timestamp    : Bar
 * originalUrl  : Bar
 * mimeType     : Bar
-* responseCode : Nat ;; Remember that 0 should serialize to b#{-}
+* responseCode : Nat
 * digest       : Bar
 * redirectUrl  : Bar
 * robotsTags   : Bar
@@ -113,7 +123,7 @@
 # switch (getRecordType meta)
 * b#revisit  | b#{warc/revisit}
 * b#request  | b#{-}
-* b#response | fromSome b#unk | getHttpContentType meta
+* b#response | maybeCase (getHttpContentType meta) b#unk | barReplaceAll { } b#{}
 * _          | b#unk
 
 > EntryMetadata > Nat
@@ -455,13 +465,6 @@
 =?= [(0, barLen (barWeld requestRecord responseRecord), responseMeta)]
   | warcBlocks | barWeld requestRecord responseRecord
 
-= (barReplaceAll old new bar)
-| barIntercalateList new | barSplit old bar
-
-=?= b#{hello-world}   | barReplaceAll {_} b#{-} b#{hello_world}
-=?= b#{hello_world}   | barReplaceAll {-} b#{_} b#{hello_world}
-=?= b#{helloworld}    | barReplaceAll {_} b#{} b#{hello_world}
-=?= b#{hello-=-world} | barReplaceAll {_} b#{-=-} b#{hello_world}
 
 = (canonicalize url)
 : (scheme,rest) < maybeCase (barSplitOnSubstring b#{://} url) url
@@ -473,7 +476,7 @@
 | barReplaceAll 0x0d b#{%0D}
 | barReplaceAll 0x0a b#{%0A} 
 | barReplaceAll 0x09 b#{%09}
-| barReplaceAll b#{:80/} b#{/}
+;; | barReplaceAll b#{:80/} b#{/} ;; TODO fix types here
 | barWeld norm path
 
 =?= b#{http://example.com/path}
