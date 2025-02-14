@@ -656,7 +656,7 @@
     | return [emptyTab emptyBar 200 b#gotcha]
   * b#{/index}
     : cdxs < launch | DB_READ [%INDEX]
-    | return [cdxs_head (barCatList | map serializeCDX cdxs) 200 b#gotcha]
+    | return [cdxs_head (barCat | map serializeCDX cdxs) 200 b#gotcha]
   * b#{/read}
     @ params | tabFromPairsList | listMap barSplitOne-{=} | barSplit {&} query
     : start  < maybeCase (parseNat | tabGet params b#start)  | return badRequest
