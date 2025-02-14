@@ -657,19 +657,20 @@ runnerFun initialFlows machine processName st = do
             (flows, receipts) <- runWrites st writeReqs
             pure (flows, [], receipts)
 
-    readHandler :: IO ()
-    readHandler = do
-      readRequests <- atomically do -- TODO probably not do this all in the same atomically
+    readHandler :: IO Void
+    readHandler = forever do
+      readRequests <- atomically do
         workers <- readTVar st.vWorkers
-        concat <$> for (mapToList workers) \(wid,(_,worker)) -> case worker of
-          LIVE_EVAL{}      -> pure []
-          LIVE_EXEC{reads} -> fmap (wid,) <$> flushTQueue reads
-      unless (null readRequests) do
-        moment <- readTVarIO st.vMoment
-        let cogFun = fromMaybe (error "trying to read from a non-spinning cog")
-                   $ cogSpinningFun moment.val
-        void $ async $ runReads cogFun readRequests
-      readHandler
+        allReqs <- concat <$> for (mapToList workers) \(wid,(_,worker)) ->
+            case worker of
+              LIVE_EVAL{}      -> pure []
+              LIVE_EXEC{reads} -> fmap (wid,) <$> flushTQueue reads
+        guarded (not . null) allReqs
+
+      moment <- readTVarIO st.vMoment
+      let cogFun = fromMaybe (error "no spinning fun")
+                  $ cogSpinningFun moment.val
+      async $ runReads cogFun readRequests
 
 runReads :: Debug => Fan -> [(Int, ReadRequest)] -> IO ()
 runReads cogFun readReqs = do
