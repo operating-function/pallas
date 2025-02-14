@@ -5,33 +5,30 @@
 {-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE Strict           #-}
 {-# LANGUAGE StrictData       #-}
-{-# OPTIONS_GHC -Wall   #-}
 {-# OPTIONS_GHC -Werror #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -freverse-errors #-}
 
-
+{-# OPTIONS_GHC -Wall   #-}
 module Server.Proc
-    ( spawnProc, Eff(..), EffState(..), CallStateVar(..), DeviceName(..), ResponseTuple(..), kill )
+    ( spawnProc
+    , Eff(..)
+    , DeviceName(..)
+    , ResponseTuple(..)
+    )
 where
-
 import PlunderPrelude
-
-import Control.Monad.State   (execStateT, modify, get)
+import Control.Monad.State   (execStateT, get)
 import Fan                   (Fan(..), PrimopCrash(..), (%%))
--- import Optics                (set)
 import Server.Convert        ()
 
 import Fan.Convert
 import Fan.Prof
 import Server.Debug
 import Server.Evaluator
--- import Server.Hardware.Types
 import Server.Time
 import Server.Types.Logging
 
-import qualified Data.IntMap as IM
--- import qualified Data.Map    as M
 import qualified Data.Vector as V
 
 --------------------------------------------------------------------------------
@@ -39,25 +36,9 @@ import qualified Data.Vector as V
 thirtySecondsInMicroseconds :: Nat
 thirtySecondsInMicroseconds = 30 * 10 ^ (6::Int)
 
-getCurrentReqNoun :: Fan -> Vector Fan
-getCurrentReqNoun = \case
-  KLO _ xs ->
-      let len = sizeofSmallArray xs in
-      case (xs .! (len-1)) of
-          ROW x -> V.fromArray x
-          _     -> mempty
-  _ -> mempty
   
 data EvalCancelledError = EVAL_CANCELLED
   deriving (Exception, Show)
-
-data EffState
-    = LIVE           -- ^ The call has not yet returned
-    | DONE Fan Flow  -- ^ The call returned a value not yet processed.
-    | DEAD           -- ^ Won't return (already processed, invalid, or nonreturning).
-  deriving Show
-
-newtype CallStateVar = STVAR { var :: TVar EffState }
 
 newtype DeviceName = DEV_NAME { nat :: Nat }
   deriving newtype (Eq, Ord, FromNoun, ToNoun, IsString)
@@ -68,46 +49,28 @@ instance Show DeviceName where
             Left _  -> show nam
             Right t -> show t
 
-instance Show CallStateVar where
-    show = const "CallStateVar"
-
-kill :: Eff -> STM ()
-kill eff = writeTVar eff.state.var DEAD
-
--- | A list of parsed out valid requests from `noun`. For every proc, for every
--- index in that proc's requests table, there is a raw fan value and a
--- `LiveRequest` which contains STM variables to listen
-type LiveEffs = IntMap LiveEff
-
 data Eff = EFF
-  { reqIdx :: RequestIdx
-  , fan    :: Vector Fan
-  , state  :: CallStateVar
-  , cause  :: Flow
+  { reqIdx  :: RequestIdx
+  , fan     :: Vector Fan
+  , respond :: forall a. ToNoun a => a -> STM ()
+  , cause   :: Flow
   }
 
 instance Show Eff where
   show EFF{reqIdx,fan} = "EFF{idx=" <> show reqIdx <> ", fan=" <> show fan <> "}"
 
-type Outbox = Eff -> STM (Cancel, [Flow])
-
-data LiveEff = LIVE_EFF
-  { eff    :: Eff
-  , cancel :: Cancel
-  }
+type Outbox = Eff -> STM [Flow]
 
 -- | Data used only by the Runner async. This is all the data needed to
 -- run the main thread of Fan evaluation and start Requests that it made.
 data Runner = RUNNER
-    { call  :: Outbox
-    , init  :: Fan          -- ^ Starting value
-    , proc  :: Fan          -- ^ Current value
-    , reqs  :: LiveEffs    -- ^ Current requests table
-    , inbox :: TQueue ResponseTuple
+    { initProc :: Fan          -- ^ Starting value
+    , currProc :: Fan          -- ^ Current value
+    , call     :: Outbox
+    , inbox    :: TQueue ResponseTuple
     }
 
 -- -----------------------------------------------------------------------
-
 
 data ResponseTuple = RTUP
     { key  :: RequestIdx
@@ -124,50 +87,36 @@ makeFieldLabelsNoPrefix ''Runner
 -- -----------------------------------------------------------------------
 
 spawnProc :: Debug => Text -> Fan -> Outbox -> IO (Async (), ResponseTuple -> STM ())
-spawnProc procName proc call = do
-    let init = proc
-    let reqs = mempty
+spawnProc procName initProc call = do
     inbox <- atomically newTQueue
-    handle <- asyncOnCurProcess $ withThreadName "Foo"
+    thread <- asyncOnCurProcess $ withThreadName "Foo"
       $ handle (onErr $ "runner " <> procName)
-      $ runnerFun procName RUNNER{..}
-    pure (handle, writeTQueue inbox)
+      $ runnerFun procName RUNNER{currProc=initProc, ..}
+    pure (thread, writeTQueue inbox)
   where
     onErr name e = do
       debugText $ name <> " thread was killed by: " <> pack (displayException e)
       throwIO (e :: SomeException)
 
--- TODO it would be nice if we could flatten this into just STM ResponseTuple
--- and rely on the Alternative STM instance instead of using Maybe.
-receiveResponse :: LiveEff -> STM (Maybe ResponseTuple)
-receiveResponse LIVE_EFF{eff} = readTVar eff.state.var >>= \case
-    DONE x _ -> Just RTUP{key=eff.reqIdx, resp=Just x} -- TODO Flow
-                <$ kill eff
-    LIVE     -> pure Nothing
-    DEAD     -> pure $ Just RTUP{key=eff.reqIdx, resp=Nothing}
+drainNonEmptyTQueue :: TQueue a -> STM [a]
+drainNonEmptyTQueue queue = isEmptyTQueue queue >>= \case
+  True -> singleton <$> readTQueue queue
+  False -> flushTQueue queue
 
 -- The Proc Runner --------------------------------------------------------------
 
 runnerFun :: Debug => Text -> Runner -> IO ()
-runnerFun processName st = flip finally cancelOpenSyscalls do
+runnerFun processName runner = do
         -- Process the initial syscall vector
-        newReqs <- atomically $ parseRequests st
+        atomically $ launchRequests runner
 
-        -- Run the event loop until we're forced to stop.
-        procTick st{reqs=newReqs}
+        -- Run the event loop until we're forced to runnerop.
+        procTick runner
   where
-    -- TODO right idea but uses the old `st`. Need st.reqs to be a TVar
-    -- (or preferably rearchitect in some way)
-    cancelOpenSyscalls :: IO ()
-    cancelOpenSyscalls = for_ st.reqs \LIVE_EFF{cancel} ->
-      atomically cancel.action
-
     procTick :: Runner -> IO ()
     procTick st = do
-      inputs <- withAlwaysTrace "WaitForReponse" "proc" $ atomically do
-        responses <- mapMaybeA receiveResponse $ IM.elems st.reqs
-        cogOutputs <- flushTQueue st.inbox
-        guarded (not . null) $ responses <> cogOutputs
+      inputs <- withAlwaysTrace "WaitForReponse" "proc" $
+                 atomically $ drainNonEmptyTQueue st.inbox
       st' <- withProcessName (encodeUtf8 processName) $
               withThreadName ("Proc: ") $
                 foldM runResponse st inputs
@@ -187,44 +136,33 @@ runnerFun processName st = flip finally cancelOpenSyscalls do
         requests.
 -}
 runResponse :: Debug => Runner -> ResponseTuple -> IO Runner
-runResponse st@RUNNER{..} rt = flip execStateT st do
-    modifying' #reqs (deleteMap rt.key.int)
+runResponse st@RUNNER{initProc, currProc} rt = flip execStateT st do
     whenJust rt.resp \input -> do
       (_, result) <- lift $ withAlwaysTrace "Eval" "proc" $
         evalWithTimeout thirtySecondsInMicroseconds []
-          (proc %% toNoun rt.key) (toNoun input)
+          (currProc %% toNoun rt.key) (toNoun input)
 
-      assign' #proc case result of
+      assign' #currProc case result of
         OKAY _ resultFan -> resultFan
-        _                -> init
+        _                -> initProc
 
-      assign' #reqs =<< lift . atomically . parseRequests =<< get
+      get >>= lift . atomically . launchRequests
 
--- | Update the requests in a runner according to the current proc.
--- TODO maybe just take the proc Fan value and give back a diff map?
-parseRequests :: Debug => Runner -> STM LiveEffs
-parseRequests RUNNER{..} =
-    flip execStateT reqs $
-      for_ (getCurrentReqNoun proc) \reqNoun ->
-        whenJust (reqFromFan reqNoun) \(reqIdx, eff) -> do
-          liveEff <- lift (buildLiveRequest call reqIdx eff)
-          lift (readTVar liveEff.eff.state.var) >>= \case
-            DEAD -> pass
-            _    -> modify $ insertMap reqIdx.int liveEff
+launchRequests :: Debug => Runner -> STM ()
+launchRequests RUNNER{..} = for_ reqs \(reqIdx,fan) -> do
+    void $ call EFF
+      { cause = FlowDisabled
+      , respond = \a -> writeTQueue inbox $ RTUP reqIdx $ Just $ toNoun a
+      , .. }
   where
-    reqFromFan :: Fan -> Maybe (RequestIdx, Vector Fan)
-    reqFromFan v = do
+    reqs :: Vector (RequestIdx, Vector Fan)
+    reqs = fromMaybe mempty do
+      KLO _ xs <- Just currProc
+      let len = sizeofSmallArray xs
+      ROW reqNouns <- Just $ xs .! (len-1)
+      fmap V.fromArray $ for reqNouns \v -> do
         (idx, ROW eff) <- fromNoun v
         Just (RequestIdx idx, V.fromArray eff)
-
--- | Given a Request parsed from the proc, turn it into a LiveRequest that can
--- produce a value and that we can listen to.
-buildLiveRequest :: Debug => Outbox -> RequestIdx -> Vector Fan -> STM LiveEff
-buildLiveRequest call reqIdx fan = do
-    state <- STVAR <$> newTVar LIVE
-    let eff = EFF reqIdx fan state FlowDisabled
-    (cancel, _) <- call eff -- TODO flow
-    pure LIVE_EFF{..}
 
 evalWithTimeout
     :: Debug

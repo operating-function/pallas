@@ -140,19 +140,18 @@ class Effect f c where
     makeCall :: Eff -> f c
 
 instance Effect STM WriteRequest where
-  makeCall eff@EFF{..} = kill eff *> liftMaybe do
+  makeCall eff@EFF{..} = liftMaybe do
     [NAT 0, NAT "write", cmd] <- sequence [fan V.!? 0, fan V.!? 1, fan V.!? 2]
     pure COG_WRITE{..}
 
 data ReadRequest = COG_READ
-  { reqIdx :: RequestIdx
+  { effect :: Eff
   , query  :: Fan
-  , state  :: CallStateVar
 --, cause  :: Flow
   }
 
 instance Alternative f => Effect f ReadRequest where
-  makeCall EFF{..} = liftMaybe do
+  makeCall effect@EFF{..} = liftMaybe do
     [NAT 0, NAT "read", query] <- sequence [fan V.!? 0, fan V.!? 1, fan V.!? 2]
     pure COG_READ{..}
 
@@ -233,16 +232,16 @@ stageWorker idx MACHINE_CONTEXT{hw} EXEC{driver} = do
     reads <- newTQueue
     let read = writeTQueue reads
 
-    let call pc = asum [ makeCall pc >>= read  >> pure (CANCEL pass, [])
-                       , makeCall pc >>= write >> pure (CANCEL pass, [])
+    let call pc = asum [ makeCall pc >>= read  >> pure []
+                       , makeCall pc >>= write >> pure []
                        , makeCall pc >>= callHardware hw (procId idx)
-                       ] `orElse` (kill pc $> (CANCEL pass, []))
+                       ] `orElse` pure []
     pure do
       (thread, inbox) <- spawnProc (pack $ show idx) driver call
       pure LIVE_EXEC{..}
 
 instance Alternative f => Effect f SysCall where
-  makeCall EFF{..} = liftMaybe $ V.uncons fan >>= \case
+  makeCall effect@EFF{..} = liftMaybe $ V.uncons fan >>= \case
      (NAT i, args) | i /= 0 -> Just SYSCALL{dev=DEV_NAME i, ..}
      _                      -> Nothing
 
@@ -675,14 +674,14 @@ runnerFun initialFlows machine processName st = do
 runReads :: Debug => Fan -> [(Int, ReadRequest)] -> IO ()
 runReads cogFun readReqs = do
     let fun = getCurrentReadsNoun cogFun
-    forConcurrently_ readReqs \(wid, COG_READ _ query (STVAR return)) -> do
+    forConcurrently_ readReqs \(wid, COG_READ{query,effect=EFF{respond}}) -> do
         (_, result) <- evalWithTimeout thirtySecondsInMicroseconds [] fun
                         [ NAT $ fromIntegral wid
                         , getCurrentDbNoun cogFun
                         , query ]
-        atomically . writeTVar return $ case result of
-            OKAY _ resultFan -> DONE resultFan FlowDisabled -- TODO check old var, probably not use CallStateVar?
-            _                -> DONE (NAT 0) FlowDisabled -- TODO real flow? do we need flow here?
+        atomically . respond $ case result of
+            OKAY _ resultFan -> resultFan
+            _                -> NAT 0
 
 runWrites :: Debug
           => Runner -> [(ProcId, WriteRequest)]

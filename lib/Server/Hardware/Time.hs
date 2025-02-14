@@ -103,25 +103,24 @@ data HWState = HW_STATE
     , whenWorker :: ThreadId
     }
 
-runSysCall :: HWState -> SysCall -> STM (Cancel, [Flow])
+runSysCall :: HWState -> SysCall -> STM [Flow]
 runSysCall st kal = do
     case toList kal.args of
         ["when"] -> do
             modifyTVar' st.whens (kal :)
-            pure (CANCEL pass, [])
+            pure []
         ["wait", NAT wakeTime] -> do
             let wen = fromIntegral wakeTime
             if wakeTime /= fromIntegral wen then
                 -- If the wakeTime overflows an Int64, we never return.
-                pure (CANCEL pass, [])
+                pure []
             else do
                 key <- poolRegister st.waitPool kal
                 modifyTVar' st.waits (Heap.insert (wen, key))
-                pure (CANCEL (poolUnregister st.waitPool key), [])
+                pure []
         _ -> do
-            --
             fillInvalidSyscall kal
-            pure (CANCEL pass, [])
+            pure []
 
 categoryCall :: Vector Fan -> Text
 categoryCall args = "%time " <> case toList args of
@@ -185,8 +184,9 @@ runWhenWorker st = do
           unixNow <- getUnixTime
           let CTime cNow = unixNow.utSeconds
           let fan        = NAT (fromIntegral cNow)
-          startFlows <- atomically $ for whens $ \kal -> writeResponse kal fan
-          pure (startFlows, [], ())
+          _ <- atomically $ for whens $ \kal -> writeResponse kal fan
+          let startFlows' = []
+          pure (startFlows', [], ())
 
 -- TODO: Profiler Tracing
 runWaitWorker :: HWState -> IO Void
@@ -197,7 +197,7 @@ runWaitWorker st = do
   where
     step :: IO ()
     step = withTracingResultsFlow "alarm" "time" $ do
-        (description, action, endFlows, startFlows) <- atomically do
+        (description, action, endFlows, _) <- atomically do
             waits <- readTVar st.waits
             alarm <- readTVar st.alarm -- Maybe (Nat, TVar Bool, ThreadId)
 
@@ -260,4 +260,5 @@ runWaitWorker st = do
 
         action
         let traceArgs = M.singleton "wakeup reason" (Right description)
-        pure (traceArgs, startFlows, [], endFlows, ())
+        let startFlows' = []
+        pure (traceArgs, startFlows', [], endFlows, ())

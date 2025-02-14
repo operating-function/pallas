@@ -98,10 +98,10 @@ spinProc st procId = do
 
     atomically $ modifyTVar st.procs $ insertMap procId tcpState
 
-runSysCall :: HWState -> ProcId -> SysCall -> STM (Cancel, [Flow])
+runSysCall :: HWState -> ProcId -> SysCall -> STM [Flow]
 runSysCall st idx syscall = do
     mTcp <- lookup idx <$> readTVar st.procs
-    fromMaybe (fillInvalidSyscall syscall $> (CANCEL pass, [])) $ do
+    fromMaybe (fillInvalidSyscall syscall $> []) $ do
       tcp@TCP_STATE{..} <- mTcp
       decodeRequest syscall.args <&> \case
         MINE                 -> onMine syscall tcp.port
@@ -135,13 +135,13 @@ data TCPRequest
     | GIVE Int ByteString
     | SHUT Int
 
-onMine :: SysCall -> PortNumber -> STM (Cancel, [Flow])
+onMine :: SysCall -> PortNumber -> STM [Flow]
 onMine syscall port = do
     flow <- writeResponse syscall (NAT $ fromIntegral port)
-    pure (CANCEL pass, [flow])
+    pure []
 
-queueSysCall :: TQueue a -> a -> STM (Cancel, [Flow])
-queueSysCall queue req = writeTQueue queue req $> (CANCEL pass, [])
+queueSysCall :: TQueue a -> a -> STM [Flow]
+queueSysCall queue req = writeTQueue queue req $> []
 
 categoryCall :: Vector Fan -> Text
 categoryCall args = "%tcp " <> case decodeRequest args of
