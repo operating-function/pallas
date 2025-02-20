@@ -1,9 +1,12 @@
 #### networking <- driver_http
 
 :| sire
+:| blake3 [blake3]
 :| lib_http [barSplitOnSubstring]
 
-= OUR b#vinney
+= OUR         | b#vinney
+= SECRET      | b#secret
+= SHOULD_AUTH | TRUE
 
 = NAME_SERVER_DOMAIN
 | b#{localhost:8000}
@@ -44,3 +47,69 @@
 =?= SOME-(NAME_SERVER_DOMAIN, b#{/users})
   | splitURL NAME_SERVER_GET
 
+
+# record BlockHasher
+| BLOCK_HASHER
+* hash : Bar > Bar  ; hash function
+* blockSize : Nat   ; block size in bytes
+
+> BlockHasher
+= blake3_64 | BLOCK_HASHER blake3 64
+
+> BlockHasher > Bar > Bar > Bar
+= (hmac hf key message)
+@ bSize | getBlockSize hf
+@ hashF | getHash hf
+@ keyPadded
+  | if (gth (barLen key) bSize) | hashF key
+  | barWeld key | barRep 0 | sub bSize (barLen key)
+@ opad | barMap (mix 0x5c) keyPadded
+@ ipad | barMap (mix 0x36) keyPadded
+| hashF | barWeld opad | hashF | barWeld ipad message
+
+> BlockHasher > Bar > Bar > Bar > Bit
+= (verifyHMAC hf key message)
+| eql | hmac hf key message
+
+!! | verifyHMAC blake3_64 b#key b#message
+   | hmac blake3_64 b#key b#message
+
+!! | not | verifyHMAC blake3_64 b#key b#message
+         | hmac blake3_64 b#key b#MESSAGE
+
+= (authenticate headers now key)
+| ifNot SHOULD_AUTH | TRUE
+@ timeBar | tabGet headers b#time
+: time < bindMaybe | parseNat timeBar
+| trk , authenticate [=headers =now =key =time =timeBar]
+| and ((lte (sub now 60) time) && (lte time (add now 60)))
+| verifyHMAC blake3_64 key timeBar
+| tabGet headers b#mac
+
+!! | ifNot SHOULD_AUTH | TRUE
+   ^ authenticate _ 5000 b#secret
+   @ timeBar b#5060
+   | tabFromPairs
+   ++ , b#time timeBar
+   ++ , b#mac  (hmac blake3_64 b#secret timeBar)
+
+!! | ifNot SHOULD_AUTH | TRUE
+   ^ not | authenticate _ 5000 b#secret
+   @ timeBar b#5061
+   | tabFromPairs
+   ++ , b#time timeBar
+   ++ , b#mac  (hmac blake3_64 b#secret timeBar)
+
+!! | ifNot SHOULD_AUTH | TRUE
+   ^ authenticate _ 5000 b#secret
+   @ timeBar b#4940
+   | tabFromPairs
+   ++ , b#time timeBar
+   ++ , b#mac  (hmac blake3_64 b#secret timeBar)
+
+!! | ifNot SHOULD_AUTH | TRUE
+   ^ not | authenticate _ 5000 b#secret
+   @ timeBar b#4939
+   | tabFromPairs
+   ++ , b#time timeBar
+   ++ , b#mac  (hmac blake3_64 b#secret timeBar)
