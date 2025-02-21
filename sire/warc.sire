@@ -764,6 +764,7 @@
 * GET
   @ [path query] | barSplitOne {?} path
   # switch path
+  * _ | return badRequest
   * b#{/whitelist}
     | auth
     : json < launch | DB_READ [%WHITELIST]
@@ -787,7 +788,7 @@
 * POST
   | auth
   # switch path
-  * _ | trk %invalid_http_request | return ()
+  * _ | return badRequest
   * b#{/warc}
     : cdxs < launchWith & rid | DB_WRITE (%WARC, (rid, pBody))
     | return [cdxs_head (barCatList | map serializeCDX cdxs) 200 b#gotcha]
