@@ -862,7 +862,7 @@
   @ (rid,pBody) | msg
   : newWhite < maybeCase (parseWhite | pinItem pBody)
              | send (pid,rid) FALSE return
-  : _ < stateState (setWhitelist newWhite)
+  : _ < modifyState (setWhitelist newWhite)
   | send (pid,rid) (printWhitelist newWhite) return
 * WARC
   @ (rid,pBody) | msg
