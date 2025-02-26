@@ -95,6 +95,7 @@
 * httpStatus     : Maybe Nat
 * httpLocation   : Maybe Bar
 * httpContentType: Maybe Bar
+* metaBaseUrl    : Maybe Bar
 
 
 # record WARCLocation
@@ -113,6 +114,7 @@
 * redirectUrl  : Bar
 * robotsTags   : Bar
 * length       : Nat
+* baseUrl      : Bar
 * sources      : Row WARCLocation
 
 > EntryMetadata > Bar
@@ -169,6 +171,7 @@
 * mCode
 * tabLookup b#{location} httpHeaders
 * tabLookup b#{content-type} httpHeaders
+* tabLookup b#{Base-URL} warcHeaders
 
 
 = sampleCDX1
@@ -182,6 +185,7 @@
 * b#{-}
 * b#{-}
 * 100
+* b#{http://example.com}
 * [(WARC_LOC b#1 100)]
 
 = sampleCDX2 
@@ -195,6 +199,7 @@
 * b#{-}
 * b#{-}
 * 100
+* b#{http://example.com}
 * [(WARC_LOC b#2 200)]
 
 = sampleCDX3
@@ -208,6 +213,7 @@
 * b#{-}
 * b#{-}
 * 100
+* b#{http://example.com}
 * [(WARC_LOC b#3 300)]
 
 > Bar
@@ -221,6 +227,7 @@
 ++ # b } Content-Length: 243
 ++ # b } WARC-Record-ID: <urn:uuid:92283950-ef2f-4d72-b224-f54c6ec90bb0>
 ++ # b } Content-Type: application/http;msgtype=request
+++ # b } Base-URL: http://www.archive.org/
 ++ # b } 
 ++ # b } GET /images/logoc.jpg HTTP/1.0
 ++ # b } User-Agent: Mozilla/5.0 (compatible; heritrix/1.10.0)
@@ -247,6 +254,7 @@
 ++ # b } Content-Type: application/http;msgtype=response
 ++ # b } WARC-Identified-Payload-Type: image/jpeg
 ++ # b } Content-Length: 279
+++ # b } Base-URL: http://www.archive.org/
 ++ # b } 
 ++ # b } HTTP/1.1 200 OK
 ++ # b } Date: Tue, 19 Sep 2016 17:18:40 GMT
@@ -274,6 +282,7 @@
 ++ # b } WARC-Refers-To-Date: 2016-09-19T17:20:24Z
 ++ # b } Content-Type: message/http
 ++ # b } Content-Length: 202
+++ # b } Base-URL: http://www.archive.org/
 ++ # b } 
 ++ # b } HTTP/1.x 304 Not Modified
 ++ # b } Date: Tue, 06 Mar 2017 00:43:35 GMT
@@ -291,6 +300,7 @@
 ++ # b } WARC-Record-ID: <urn:uuid:different-uuid-here>
 ++ # b } Content-Type: application/http;msgtype=response
 ++ # b } Content-Length: 71
+++ # b } Base-URL: http://www.different.org/
 ++ # b } 
 ++ # b } HTTP/1.1 200 OK
 ++ # b } Content-Type: image/jpeg
@@ -317,6 +327,7 @@
   * SOME 200
   * NONE
   * SOME b#{text/html}
+  * NONE
 
 =?= NONE
   | makeMetadata
@@ -401,6 +412,7 @@
 * NONE
 * NONE
 * NONE
+* SOME b#{http://www.archive.org/}
 
 = responseMeta
 | ENTRY_METADATA  
@@ -412,6 +424,7 @@
 * SOME 200
 * NONE
 * SOME b#{image/jpeg}
+* SOME b#{http://www.archive.org/}
 
 = revisitMeta 
 | ENTRY_METADATA
@@ -423,6 +436,7 @@
 * SOME 304
 * NONE
 * NONE
+* SOME b#{http://www.archive.org/}
 
 =?= | getNextRecord requestRecord
   | SOME (requestMeta, barLen requestRecord) 
@@ -497,6 +511,7 @@
 | ordWeld | cmpOn getMimeType
 | ordWeld | cmpOn getResponseCode
 | ordWeld | cmpOn getRedirectUrl
+| ordWeld | cmpOn getBaseUrl
 | cmpOn getLength
 
 =?= EQ | cmpCDX sampleCDX1 sampleCDX2
@@ -514,8 +529,9 @@
   | take (dec | len sampleCDX1) | mergeCDX sampleCDX1 sampleCDX2
 
 
-> Pin Bar > Row CDXEntry
+> Bar > Row CDXEntry
 = (buildCDX warcFile)
+| trk [=warcFile]
 | mergeSort cmpCDX mergeCDX
 : (off,len,meta) < foreach | warcBlocks warcFile
 @ content | barSlice off (add off len) warcFile
@@ -534,6 +550,7 @@
 * redirectUrl
 * b#{-} ;; don't parse robots.txt for now
 * len
+* fromSome b#{-} | getMetaBaseUrl meta
 * [(WARC_LOC OUR off)]
 
 =?= | buildCDX | barWeld requestRecord responseRecord
@@ -548,6 +565,7 @@
   * fromSome b#{-} | getHttpLocation responseMeta
   * b#{-}
   * barLen | barWeld requestRecord responseRecord
+  * fromSome b{-} | getMetaBaseUrl requestMeta
   * [(WARC_LOC OUR 0)]
 
 = reqres
@@ -597,12 +615,12 @@
 ++ getRobotsTags cdx
 ++ ^ ifz _ b#{-} | printNat _
    | getLength cdx
+++ getBaseUrl cdx
 ++ barCat
   ++ | barIntercalateList b#{|}
      : (name,off) < foreach | getSources cdx
      | barCat [name b#{:} (printNat off)]
   ++ barNewline
-
 
 
 =?= | serializeCDX sampleCDX1 
@@ -616,6 +634,7 @@
   ++ b#{- }
   ++ b#{- }
   ++ b#{100 }
+  ++ b#{http://example.com }
   ++ b#{1:100}
   ++ barNewline
 
@@ -685,7 +704,7 @@
 > Tab Str WhitelistEntry > CDXEntry > Bit
 = (isPublic whitelist cdx)
 @ CDX_ENTRY(..) cdx
-@ urls [canonicalUrl originalUrl redirectUrl]
+@ urls [canonicalUrl originalUrl redirectUrl baseUrl]
 ^ not | tabIsEmpty _
 : url WHITELIST_ENTRY(..) < flip tabFilterWithKey whitelist
 @ url         | natBar url
@@ -705,6 +724,7 @@
 * b#{http://redirect.com}    ; redirect
 * b#{}                       ; robots
 * 0
+* b#{http://example.com}
 * []
 
 = prefixCDX
@@ -718,7 +738,9 @@
 * b#{}
 * b#{}
 * 0
+* b#{}
 * []
+
 
 = exampleWhitelist
 ## ={http://example.com} | WHITELIST_ENTRY FALSE
@@ -733,8 +755,8 @@
 !! | isPublic exampleWhitelist
    | setCanonicalUrl b#{http://prefix.com/foo} exactUrlCDX
 
-!! ^ not | isPublic exampleWhitelist _
-   @ url b#{http://other.com}
+!! | isPublic exampleWhitelist
+   @ url b#{http://blocked.com}
    | setOriginalUrl url | setCanonicalUrl url exactUrlCDX
 
 = (addCDXs newCDXs st)
@@ -829,6 +851,9 @@
 = (barToNameRecord @(PIN bar))
 | todo barToNameRecord
 
+= (updateWhitelist new old)
+^ (tabFoldlWithKey _ new old, new)
+& (rem url _) | tabDel url rem
 
 = (warcWriter hermes pid (cmd,msg) return)
 # switch cmd
@@ -837,7 +862,7 @@
   @ (rid,pBody) | msg
   : newWhite < maybeCase (parseWhite | pinItem pBody)
              | send (pid,rid) FALSE return
-  : _ < modifyState (setWhitelist newWhite)
+  : _ < stateState (setWhitelist newWhite)
   | send (pid,rid) (printWhitelist newWhite) return
 * WARC
   @ (rid,pBody) | msg
