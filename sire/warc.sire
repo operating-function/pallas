@@ -531,7 +531,6 @@
 
 > Bar > Row CDXEntry
 = (buildCDX warcFile)
-| trk [=warcFile]
 | mergeSort cmpCDX mergeCDX
 : (off,len,meta) < foreach | warcBlocks warcFile
 @ content | barSlice off (add off len) warcFile
@@ -851,9 +850,16 @@
 = (barToNameRecord @(PIN bar))
 | todo barToNameRecord
 
-= (updateWhitelist new old)
-^ (tabFoldlWithKey _ new old, new)
+= (updateWhitelist new st)
+^ (tabFoldlWithKey _ new (getWhitelist st), setWhitelist new st)
 & (rem url _) | tabDel url rem
+
+= extraExampleWhitelist
+| tabIns {http://new.com/} [TRUE] exampleWhitelist
+
+=?= | updateWhitelist extraExampleWhitelist
+    | setWhitelist exampleWhitelist emptyWarcState
+  ([{http://new.com/}=[TRUE]], setWhitelist extraExampleWhitelist emptyWarcState)
 
 = (warcWriter hermes pid (cmd,msg) return)
 # switch cmd
@@ -862,8 +868,13 @@
   @ (rid,pBody) | msg
   : newWhite < maybeCase (parseWhite | pinItem pBody)
              | send (pid,rid) FALSE return
-  : _ < modifyState (setWhitelist newWhite)
-  | send (pid,rid) (printWhitelist newWhite) return
+  : _ < send (pid,rid) (printWhitelist newWhite)
+  : diff < stateState (updateWhitelist newWhite)
+  : (cdxs,names) < getsState st&(getCdxs st, biMapKeys getNames-st)
+  @ filteredCDXs | filter (isPublic diff) cdxs
+  | if (null filteredCDXs) | return ()
+  : _ < rowTraverse name&(send (hermes,0) (name,filteredCDXs)) names
+  | return ()
 * WARC
   @ (rid,pBody) | msg
   : evalResult < work buildCDX [(pinItem pBody)]
