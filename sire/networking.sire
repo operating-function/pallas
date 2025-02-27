@@ -62,7 +62,7 @@
 @ hashF | getHash hf
 @ keyPadded
   | if (gth (barLen key) bSize) | hashF key
-  | barWeld key | barRep 0 | sub bSize (barLen key)
+  | barWeld key | barRep (sub bSize (barLen key)) 0
 @ opad | barMap (mix 0x5c) keyPadded
 @ ipad | barMap (mix 0x36) keyPadded
 | hashF | barWeld opad | hashF | barWeld ipad message
@@ -113,3 +113,8 @@
    | tabFromPairs
    ++ , b#time timeBar
    ++ , b#mac  (hmac blake3_64 b#secret timeBar)
+
+!! ^ authenticate _ 1740692540 b#mySecret
+   | tabFromPairs
+   ++ , b#mac  x#b5dc4258bc402de5469a2a64560bb814fd1a28ad11b3d2f4a96d808b528a1f91
+   ++ , b#time b#1740692540
