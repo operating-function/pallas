@@ -21,10 +21,12 @@ import Server.Types.Logging
 import System.Environment
 import System.Posix.Signals hiding (Handler)
 import System.Process
+import qualified Data.Map.Strict as Map
 
 import Server.Hardware.Types (DeviceTable(..))
 import Server.Hardware.Time (createHardwareTime)
 import Server.Hardware.TCP (createHardwareTCP)
+import Server.Hardware.CLI (createHardwareCLI)
 
 import Control.Concurrent       (threadDelay)
 import Control.Monad.State      (State, execState, modify')
@@ -140,7 +142,7 @@ data RunType
               InterpreterOpts
               MachineOpts
               ReplayFrom
- -- | RTPoke FilePath Text FilePath
+              [(String, String)]
 
 replayFromOption :: Parser ReplayFrom
 replayFromOption =
@@ -208,7 +210,8 @@ runType defaultDir = subparser
                <*> profilingOpts
                <*> interpreterOpts
                <*> machineOpts
-               <*> replayFromOption)
+               <*> replayFromOption
+               <*> many cliOption)
 
    -- <> plunderCmd "loot" "Run a standalone sire repl."
    -- (RTLoot <$> storeOpt <*> profilingOpts <*> many lootFile)
@@ -305,6 +308,21 @@ runType defaultDir = subparser
                  <> help "Where to write the formal output"
                   )
 
+    -- Parse CLI options in format --opt key=value or --opt key (empty value)
+    cliOption :: Parser (String, String)
+    cliOption = option parseKeyValue $
+       long "opt"
+       <> metavar "KEY[=VALUE]"
+       <> help "CLI option to pass to sire scripts (can be used multiple times)"
+
+    -- Parser for key-value strings in format "key=value" or just "key"
+    parseKeyValue :: ReadM (String, String)
+    parseKeyValue = eitherReader $ \s ->
+        case break (=='=') s of
+            (key, "")      -> Right (key, "")
+            (key, '=':val) -> Right (key, val)
+            _              -> Left $ "Invalid format for option: " ++ s
+
     numWorkers =
         option auto ( long "eval-workers"
                    <> value 8
@@ -349,7 +367,7 @@ main = do
         RTBoot _ _ mo start d y    -> do
             bootMachine d y
             when start $ do
-              runMachine d EarliestSnapshot mo
+              runMachine d EarliestSnapshot mo []
 
         RTUses d w    -> duMachine d w
         RTShow fp     -> showSeed fp
@@ -366,8 +384,8 @@ main = do
         RTSave _ _ sd sr -> do
             saveSeed sd sr
 
-        RTStart d _ _ mo r -> do
-            runMachine d r mo
+        RTStart d _ _ mo r cliOpts -> do
+            runMachine d r mo cliOpts
 
 withProfileOutput :: RunType -> IO () -> IO ()
 withProfileOutput args act = do
@@ -384,7 +402,7 @@ withProfileOutput args act = do
         RTShow _            -> Nothing
         RTRepl{}            -> Nothing
         RTTerm{}            -> Nothing
-        RTStart _ po _ _ _  -> Just po
+        RTStart _ po _ _ _ _ -> Just po
         RTUses{}            -> Nothing
         RTBoot po _ _ _ _ _ -> Just po
      -- RTPoke _ _ _ _      -> Nothing
@@ -410,7 +428,7 @@ withInterpreterOpts args act = do
         RTBoot _ io _ _ _ _ -> Just io
         RTUses _ _          -> Nothing
         RTTerm _            -> Nothing
-        RTStart _ _ io _ _  -> Just io
+        RTStart _ _ io _ _ _ -> Just io
 
 bootMachine :: (Debug, Rex.RexColor) => FilePath -> Text -> IO ()
 bootMachine storeDir pash = do
@@ -519,9 +537,10 @@ withMachineIn :: Debug
               => FilePath
               -> Int
               -> Bool
+              -> [(String, String)]
               -> (MachineContext -> IO a)
               -> IO a
-withMachineIn storeDir numWorkers enableSnaps machineAction = do
+withMachineIn storeDir numWorkers enableSnaps cliOpts machineAction = do
   withDirectoryWriteLock storeDir do
     -- Setup plunder interpreter state.
     writeIORef F.vTrkFan $! \x -> do
@@ -535,12 +554,18 @@ withMachineIn storeDir numWorkers enableSnaps machineAction = do
     -- ignoring it, but there's a bunch of things the old system did to catch
     -- Ctrl-C.
 
+    -- Convert the CLI options to ByteString pairs
+    let cliOptions = Map.fromList $ cliOpts <&> \(k,v) ->
+                     (encodeUtf8 $ pack k, encodeUtf8 $ pack v)
+
     let devTable = do
             hw1_time <- createHardwareTime
             hw2_tcp  <- createHardwareTCP
+            hw3_cli  <- createHardwareCLI cliOptions
             pure . DEVICE_TABLE . mapFromList $
                 [ ( "time", hw1_time )
                 , ( "tcp" , hw2_tcp  )
+                , ( "cli" , hw3_cli  )
                 ]
 
     let machineState = do
@@ -550,10 +575,10 @@ withMachineIn storeDir numWorkers enableSnaps machineAction = do
             pure MACHINE_CONTEXT{lmdb,hw,eval,enableSnaps}
     with machineState machineAction
 
-runMachine :: Debug => FilePath -> ReplayFrom -> MachineOpts -> IO ()
-runMachine storeDir replayFrom (MachineOpts enableSnaps numWorkers) = do
+runMachine :: Debug => FilePath -> ReplayFrom -> MachineOpts -> [(String, String)] -> IO ()
+runMachine storeDir replayFrom (MachineOpts enableSnaps numWorkers) cliOpts = do
     cache <- DB.CUSHION <$> newIORef mempty
-    withMachineIn storeDir numWorkers enableSnaps $ \ctx -> do
+    withMachineIn storeDir numWorkers enableSnaps cliOpts $ \ctx -> do
         machine <- withCogDebugging $ replayAndCrankMachine cache ctx replayFrom
 
         -- Listen for Ctrl-C and external shutdown signals.
@@ -581,7 +606,7 @@ runMachine storeDir replayFrom (MachineOpts enableSnaps numWorkers) = do
 
 duMachine :: Debug => FilePath -> Int -> IO ()
 duMachine storeDir numWorkers = do
-    withMachineIn storeDir numWorkers False $ \ctx -> do
+    withMachineIn storeDir numWorkers False [] $ \ctx -> do
         retLines <- walkNoun ctx
         forM_ retLines $ putStrLn
   where

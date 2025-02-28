@@ -1,0 +1,18 @@
+;; Run using:
+;; pallas start /path/to/ship --opt foo=bar
+
+#### cli_opts <- kern
+
+:| kern
+
+= (driver return)
+: foo < launch | CLI_OPT b#foo
+: bar < launch | CLI_OPT b#bar
+| trk , driver [=foo =bar]
+| return ()
+
+= (cog return)
+: _ < install driver die die
+| return ()
+
+= main | runCog 0 cog

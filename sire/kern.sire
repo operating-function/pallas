@@ -22,6 +22,7 @@ abstype#(Call a)
 = (TCP_TAKE s)           [%tcp %take s]
 = TCP_MINE               [%tcp %mine]
 = (TCP_SHUT s)           [%tcp %shut s]
+= (CLI_OPT n)            [%cli %opt n]
 
 abstype#(Cog a)
 abstype#(Driver a)
