@@ -1,5 +1,12 @@
-;; Run using:
-;; pallas start /path/to/ship --opt foo=bar
+;; Run using either one of the following (or other combos):
+;; pallas start /path/to/ship --opt foo=hello --opt bar=420
+;; pallas start /path/to/ship --opt foo=hello --opt bar
+;; pallas start /path/to/ship --opt foo
+;; pallas start /path/to/ship
+;;
+;; Options with a value will return (SOME valueAsBar).
+;; Options that lack a value will return (SOME b#{}).
+;; Missing options will return NONE.
 
 #### cli_opts <- kern
 
