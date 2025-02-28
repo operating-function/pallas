@@ -84,37 +84,38 @@
 | trk , authenticate [=headers =now =key =time =timeBar]
 | and ((lte (sub now 60) time) && (lte time (add now 60)))
 | verifyHMAC blake3_64 key timeBar
-| tabGet headers b#mac
+| barFromHex | barNat | tabGet headers b#mac
+
 
 !! | ifNot SHOULD_AUTH | TRUE
    ^ authenticate _ 5000 b#secret
    @ timeBar b#5060
    | tabFromPairs
    ++ , b#time timeBar
-   ++ , b#mac  (hmac blake3_64 b#secret timeBar)
+   ++ , b#mac  (barToHex | hmac blake3_64 b#secret timeBar)
 
 !! | ifNot SHOULD_AUTH | TRUE
    ^ not | authenticate _ 5000 b#secret
    @ timeBar b#5061
    | tabFromPairs
    ++ , b#time timeBar
-   ++ , b#mac  (hmac blake3_64 b#secret timeBar)
+   ++ , b#mac  (barToHex | hmac blake3_64 b#secret timeBar)
 
 !! | ifNot SHOULD_AUTH | TRUE
    ^ authenticate _ 5000 b#secret
    @ timeBar b#4940
    | tabFromPairs
    ++ , b#time timeBar
-   ++ , b#mac  (hmac blake3_64 b#secret timeBar)
+   ++ , b#mac  (barToHex | hmac blake3_64 b#secret timeBar)
 
 !! | ifNot SHOULD_AUTH | TRUE
    ^ not | authenticate _ 5000 b#secret
    @ timeBar b#4939
    | tabFromPairs
    ++ , b#time timeBar
-   ++ , b#mac  (hmac blake3_64 b#secret timeBar)
+   ++ , b#mac  (barToHex | hmac blake3_64 b#secret timeBar)
 
 !! ^ authenticate _ 1740692540 b#mySecret
    | tabFromPairs
-   ++ , b#mac  x#b5dc4258bc402de5469a2a64560bb814fd1a28ad11b3d2f4a96d808b528a1f91
+   ++ , b#mac  b#b5dc4258bc402de5469a2a64560bb814fd1a28ad11b3d2f4a96d808b528a1f91
    ++ , b#time b#1740692540
