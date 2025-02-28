@@ -2,6 +2,7 @@
 
 :| sire
 :| blake3 [blake3]
+:| keccak [sha3]
 :| lib_http [barSplitOnSubstring]
 
 = OUR         | b#vinney
@@ -56,6 +57,9 @@
 > BlockHasher
 = blake3_64 | BLOCK_HASHER blake3 64
 
+> BlockHasher
+= sha3_256 | BLOCK_HASHER sha3-256 136
+
 > BlockHasher > Bar > Bar > Bar
 = (hmac hf key message)
 @ bSize | getBlockSize hf
@@ -77,13 +81,19 @@
 !! | not | verifyHMAC blake3_64 b#key b#message
          | hmac blake3_64 b#key b#MESSAGE
 
+!! | verifyHMAC sha3_256 b#key b#message
+   | hmac sha3_256 b#key b#message
+
+!! | not | verifyHMAC sha3_256 b#key b#message
+         | hmac sha3_256 b#key b#MESSAGE
+
 = (authenticate headers now key)
 | ifNot SHOULD_AUTH | TRUE
 @ timeBar | tabGet headers b#time
 : time < bindMaybe | parseNat timeBar
 | trk , authenticate [=headers =now =key =time =timeBar]
 | and ((lte (sub now 60) time) && (lte time (add now 60)))
-| verifyHMAC blake3_64 key timeBar
+| verifyHMAC sha3_256 key timeBar
 | barFromHex | barNat | tabGet headers b#mac
 
 
@@ -92,30 +102,33 @@
    @ timeBar b#5060
    | tabFromPairs
    ++ , b#time timeBar
-   ++ , b#mac  (barToHex | hmac blake3_64 b#secret timeBar)
+   ++ , b#mac  (barToHex | hmac sha3_256 b#secret timeBar)
 
 !! | ifNot SHOULD_AUTH | TRUE
    ^ not | authenticate _ 5000 b#secret
    @ timeBar b#5061
    | tabFromPairs
    ++ , b#time timeBar
-   ++ , b#mac  (barToHex | hmac blake3_64 b#secret timeBar)
+   ++ , b#mac  (barToHex | hmac sha3_256 b#secret timeBar)
 
 !! | ifNot SHOULD_AUTH | TRUE
    ^ authenticate _ 5000 b#secret
    @ timeBar b#4940
    | tabFromPairs
    ++ , b#time timeBar
-   ++ , b#mac  (barToHex | hmac blake3_64 b#secret timeBar)
+   ++ , b#mac  (barToHex | hmac sha3_256 b#secret timeBar)
 
 !! | ifNot SHOULD_AUTH | TRUE
    ^ not | authenticate _ 5000 b#secret
    @ timeBar b#4939
    | tabFromPairs
    ++ , b#time timeBar
-   ++ , b#mac  (barToHex | hmac blake3_64 b#secret timeBar)
+   ++ , b#mac  (barToHex | hmac sha3_256 b#secret timeBar)
 
-!! ^ authenticate _ 1740692540 b#mySecret
+!! @ secret  | b#mySecret
+   @ now     | 1740692540
+   @ timeBar | b#1740692540
+   ^ authenticate _ now secret
    | tabFromPairs
-   ++ , b#mac  b#b5dc4258bc402de5469a2a64560bb814fd1a28ad11b3d2f4a96d808b528a1f91
-   ++ , b#time b#1740692540
+   ++ , b#mac  | barToHex | hmac sha3_256 secret timeBar
+   ++ , b#time | timeBar
