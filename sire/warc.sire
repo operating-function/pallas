@@ -529,8 +529,8 @@
   | take (dec | len sampleCDX1) | mergeCDX sampleCDX1 sampleCDX2
 
 
-> Bar > Row CDXEntry
-= (buildCDX warcFile)
+> Bar > Bar > Row CDXEntry
+= (buildCDX our warcFile)
 | mergeSort cmpCDX mergeCDX
 : (off,len,meta) < foreach | warcBlocks warcFile
 @ content | barSlice off (add off len) warcFile
@@ -550,9 +550,9 @@
 * b#{-} ;; don't parse robots.txt for now
 * len
 * fromSome b#{-} | getMetaBaseUrl meta
-* [(WARC_LOC OUR off)]
+* [(WARC_LOC our off)]
 
-=?= | buildCDX | barWeld requestRecord responseRecord
+=?= | buildCDX b#our | barWeld requestRecord responseRecord
   ^ [_]
   | CDX_ENTRY
   * canonicalize | fromSome b#{} | getTargetURI responseMeta
@@ -565,29 +565,29 @@
   * b#{-}
   * barLen | barWeld requestRecord responseRecord
   * fromSome b{-} | getMetaBaseUrl requestMeta
-  * [(WARC_LOC OUR 0)]
+  * [(WARC_LOC b#our 0)]
 
 = reqres
 | PIN | barWeld requestRecord responseRecord
 
 =?= 2
-  ^ len | buildCDX | barCat _
+  ^ len | buildCDX emptyBar | barCat _
   [requestRecord responseRecord differentUrlRecord]
 
 =?= 2
-  ^ len | buildCDX | barCat _
+  ^ len | buildCDX emptyBar | barCat _
   [requestRecord responseRecord revisitRecord]
 
 =?= 3
-  ^ len | buildCDX | barCat _
+  ^ len | buildCDX emptyBar | barCat _
   [requestRecord revisitRecord responseRecord]
 
 =?= 3
-  ^ len | buildCDX | barCat _
+  ^ len | buildCDX emptyBar | barCat _
   [requestRecord responseRecord revisitRecord differentUrlRecord]
 
 =?= 4
-  ^ len | buildCDX | barCat _
+  ^ len | buildCDX emptyBar | barCat _
   [requestRecord revisitRecord responseRecord differentUrlRecord]
 
 
@@ -649,10 +649,11 @@
 * hermesPort : Maybe Nat
 * httpPort   : Maybe Nat
 * whitelist  : Tab Str WhitelistEntry
-* secretKey  : Bar
+* secretKey  : Maybe Bar
+* our        : Maybe Bar
 
 = emptyWarcState
-| WARC_STATE emptyBar [] emptyBiMap NONE NONE emptyTab SECRET
+| WARC_STATE emptyBar [] emptyBiMap NONE NONE emptyTab NONE NONE
 
 = (parseWhite bar)
 @ (entries,_) | parseJson bar
@@ -837,7 +838,7 @@
 * READ
 @ (_,start,size,authFun) | query
 @ slice  | barSlice start size warc
-@ cdxs   | buildCDX slice
+@ cdxs   | buildCDX emptyBar slice
 @ public | all (isPublic whitelist) cdxs
 @ auth   | authFun secretKey
 | ifNot (auth || public)                | LEFT [403 b#forbidden]
@@ -877,7 +878,12 @@
   | return ()
 * WARC
   @ (rid,pBody) | msg
-  : evalResult < work buildCDX [(pinItem pBody)]
+  : mOur < getsState getOur
+  : our < maybeCase mOur
+        | trk , warcWriter %noOur
+        | send (pid,rid) []
+        | return
+  : evalResult < work buildCDX [our (pinItem pBody)]
   : newCDXs < eitherCase evalResult
             & error
             | trk , warcWriter [=error]
@@ -921,7 +927,7 @@
 | return
 
 
-= (parseNames bar)
+= (parseNames our bar)
 @ (entries,_) | parseJson bar
 | maybeGuard (len entries /= 0)
 : xs
@@ -935,12 +941,14 @@
     | return (name, (ip,port))
 ^ SOME | foldl _ emptyBiMap xs
 & (names (name,addr))
-| if name==OUR | names
+| if name==our | names
 | biMapInsert name addr names
 
 
 = (nameWriter _ resBody return)
-: res < work parseNames [resBody]
+: mOur < getsState getOur
+: our < maybeCase mOur | trk %noOur | return ()
+: res < work parseNames [our resBody]
 : mNames < eitherCase res error&(trk [=error] return-())
 : names < maybeCase mNames | trk [noNewNamesIn=resBody] | return ()
 | trk , nameWriter [=names]
@@ -949,9 +957,11 @@
 
 = (syncNames httpClient return)
 : _ < send (httpClient,0) (GET, NAME_SERVER_GET, emptyTab, b#{})
-: (mHermesPort, mHttpPort) < getsState st&(getHermesPort st, getHttpPort st)
+: (mHermesPort, mHttpPort, mOur)
+  < getsState st&(getHermesPort st, getHttpPort st, getOur st)
 : hermesPort < maybeCase mHermesPort | return ()
 : httpPort   < maybeCase mHttpPort   | return ()
+: our        < maybeCase mOur        | trk %noOur | return ()
 : _ < send (httpClient,0)
     ++ POST
     ++ NAME_SERVER_POST
@@ -959,15 +969,34 @@
        ++ , b#{accept}       b#{application/json}
        ++ , b#{Content-Type} b#{application/json}
     ++ ^ printJson (JMAP _)
-       ## =name        OUR
+       ## =name        our
        ## =hermes_port printNat-hermesPort 
        ## =signature   b#{}
        ## =warc_port   printNat-httpPort
 | return ()
 
 
+= (identityDriver return)
+: our < launch | CLI_OPT b#our
+: key < launch | CLI_OPT b#key
+| launch_ | DB_WRITE (our,key)
+| return
+
+
+= (identityWriter _ (mOur,mKey) return)
+| trk , identityWriter [setKey=mKey]
+: _ < modifyState (setSecretKey mKey)
+: our < getsState getOur
+| if (isSome our)  | trk %already_owned | return ()
+| if (isNone mOur) | trk %no_our        | return ()
+| trk , identityWriter [born=mOur]
+| modifyState (setOur mOur)
+| return
+
+
 > Cog ()
 = (warcCog return)
+: _ < install identityDriver die identityWriter
 : httpClient < install (makeHttpClient writeHttp) die nameWriter
 : hermes < install (makeHermes inbox) nameServer cdxWriter
 : http   < install (httpServer requestHandler) readHandler (warcWriter hermes)

@@ -5,8 +5,6 @@
 :| keccak [sha3]
 :| lib_http [barSplitOnSubstring]
 
-= OUR         | b#vinney
-= SECRET      | b#secret
 = SHOULD_AUTH | TRUE
 
 = NAME_SERVER_DOMAIN
@@ -87,8 +85,9 @@
 !! | not | verifyHMAC sha3_256 b#key b#message
          | hmac sha3_256 b#key b#MESSAGE
 
-= (authenticate headers now key)
-| ifNot SHOULD_AUTH | TRUE
+= (authenticate headers now mKey)
+| ifNot SHOULD_AUTH    | TRUE
+: key < maybeCase mKey | FALSE
 @ timeBar | tabGet headers b#time
 : time < bindMaybe | parseNat timeBar
 | trk , authenticate [=headers =now =key =time =timeBar]
@@ -98,28 +97,28 @@
 
 
 !! | ifNot SHOULD_AUTH | TRUE
-   ^ authenticate _ 5000 b#secret
+   ^ authenticate _ 5000 (SOME b#secret)
    @ timeBar b#5060
    | tabFromPairs
    ++ , b#time timeBar
    ++ , b#mac  (barToHex | hmac sha3_256 b#secret timeBar)
 
 !! | ifNot SHOULD_AUTH | TRUE
-   ^ not | authenticate _ 5000 b#secret
+   ^ not | authenticate _ 5000 (SOME b#secret)
    @ timeBar b#5061
    | tabFromPairs
    ++ , b#time timeBar
    ++ , b#mac  (barToHex | hmac sha3_256 b#secret timeBar)
 
 !! | ifNot SHOULD_AUTH | TRUE
-   ^ authenticate _ 5000 b#secret
+   ^ authenticate _ 5000 (SOME b#secret)
    @ timeBar b#4940
    | tabFromPairs
    ++ , b#time timeBar
    ++ , b#mac  (barToHex | hmac sha3_256 b#secret timeBar)
 
 !! | ifNot SHOULD_AUTH | TRUE
-   ^ not | authenticate _ 5000 b#secret
+   ^ not | authenticate _ 5000 (SOME b#secret)
    @ timeBar b#4939
    | tabFromPairs
    ++ , b#time timeBar
@@ -128,7 +127,7 @@
 !! @ secret  | b#mySecret
    @ now     | 1740692540
    @ timeBar | b#1740692540
-   ^ authenticate _ now secret
+   ^ authenticate _ now SOME-secret
    | tabFromPairs
    ++ , b#mac  | barToHex | hmac sha3_256 secret timeBar
    ++ , b#time | timeBar
