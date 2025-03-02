@@ -68,7 +68,7 @@
 * reqPath    : Bar             ; Request URI
 * reqVersion : Bar             ; HTTP version
 * reqHeaders : Tab Bar Bar     ; Request headers
-* reqBody    : Pin Bar         ; Request body; may be empty
+* reqBody    : Bar             ; Request body; may be empty
 
 
 > HTTPRequest > Bar
@@ -86,7 +86,7 @@
 ++ CRLF
 ++ headers
 ++ DOUBLE_CRLF
-++ pinItem reqBody
+++ reqBody
 
 
 # record HTTPResponse
@@ -294,7 +294,7 @@
 * path 
 * version
 * headers
-* PIN body
+* body
 
 
 > Bar > Maybe (Bar, Nat, Bar)

@@ -110,7 +110,7 @@
 * originalUrl  : Bar
 * mimeType     : Bar
 * responseCode : Nat
-* digest       : Bar
+* record       : Either Bar (Pin Bar)  ; LEFT is hash, RIGHT is the actual record
 * redirectUrl  : Bar
 * robotsTags   : Bar
 * length       : Nat
@@ -124,6 +124,40 @@
 * b#request  | b#{-}
 * b#response | maybeCase (getHttpContentType meta) b#unk | barReplaceAll { } b#{}
 * _          | b#unk
+
+= (getDigest cdx)
+: pinRec < flip fromLeft | getRecord cdx
+| barWeld b#{b3:} | barToHex | pinHash pinRec
+
+=?= x#deadbeef
+  | getDigest
+  | CDX_ENTRY
+  * b#{test}
+  * b#{test}
+  * b#{test}
+  * b#{test}
+  * 200
+  * LEFT x#deadbeef
+  * b#{test}
+  * b#{test}
+  * 100
+  * b#{test}
+  * []
+
+=?= | barWeld b#{b3:} | barToHex | planHash x#deadbeef
+  | getDigest
+  | CDX_ENTRY
+  * b#{test}
+  * b#{test}
+  * b#{test}
+  * b#{test}
+  * 200
+  * RIGHT | PIN x#deadbeef
+  * b#{test}
+  * b#{test}
+  * 100
+  * b#{test}
+  * []
 
 > EntryMetadata > Nat
 = (makeStatus meta)
@@ -174,6 +208,11 @@
 * tabLookup b#{Base-URL} warcHeaders
 
 
+> CDXEntry > CDXEntry
+= (cdxToRef cdx)
+; Convert a CDX entry with record (RIGHT) to one with hash only (LEFT)
+| setRecord (LEFT | getDigest cdx) cdx
+
 = sampleCDX1
 | CDX_ENTRY
 * b#{http://example.com}
@@ -181,7 +220,7 @@
 * b#{http://example.com}
 * b#{text/html}
 * 200
-* b#{b3:123}
+* RIGHT | PIN b#{sample record 1}
 * b#{-}
 * b#{-}
 * 100
@@ -195,7 +234,7 @@
 * b#{http://example.com}
 * b#{text/html}
 * 200
-* b#{b3:123}
+* RIGHT | PIN b#{sample record 1}  ; Same record, will have same hash
 * b#{-}
 * b#{-}
 * 100
@@ -209,7 +248,7 @@
 * b#{http://other.com}
 * b#{text/html}
 * 200
-* b#{b3:789}
+* RIGHT | PIN b#{sample record 3}  ; Different record, will have different hash
 * b#{-}
 * b#{-}
 * 100
@@ -502,6 +541,7 @@
 =?= b#{http://example.com/foo%09bar%0A}
   | canonicalize | barCat [b#{HTTP://example.com/foo} (barSing 0x09) b#bar barNewline]
 
+
 = (cmpCDX x y)
 @ (cmpOn f) | cmp f-x f-y
 | ordWeld | cmpOn getCanonicalUrl
@@ -545,7 +585,7 @@
 * url
 * makeMimeType meta
 * status
-* barWeld b#{b3:} | barToHex planHash-content
+* RIGHT | PIN content
 * redirectUrl
 * b#{-} ;; don't parse robots.txt for now
 * len
@@ -560,7 +600,7 @@
   * fromSome b#{} | getTargetURI responseMeta
   * makeMimeType responseMeta
   * makeStatus responseMeta
-  * barWeld b#{b3:} | barToHex planHash-(barWeld requestRecord responseRecord)
+  * RIGHT | PIN (barWeld requestRecord responseRecord)
   * fromSome b#{-} | getHttpLocation responseMeta
   * b#{-}
   * barLen | barWeld requestRecord responseRecord
@@ -568,7 +608,7 @@
   * [(WARC_LOC b#our 0)]
 
 = reqres
-| PIN | barWeld requestRecord responseRecord
+| barWeld requestRecord responseRecord
 
 =?= 2
   ^ len | buildCDX emptyBar | barCat _
@@ -623,19 +663,19 @@
 
 
 =?= | serializeCDX sampleCDX1 
-  | barCat
-  ++ b#{http://example.com }  
-  ++ b#{20240101000000 }
-  ++ b#{http://example.com }
-  ++ b#{text/html }
-  ++ b#{200 }
-  ++ b#{b3:123 }
-  ++ b#{- }
-  ++ b#{- }
-  ++ b#{100 }
-  ++ b#{http://example.com }
+  ^ barWeld _ barNewline
+  | barIntercalate b#{ }
+  ++ b#{http://example.com}
+  ++ b#{20240101000000}
+  ++ b#{http://example.com}
+  ++ b#{text/html}
+  ++ b#{200}
+  ++ getDigest sampleCDX1
+  ++ b#{-}
+  ++ b#{-}
+  ++ b#{100}
+  ++ b#{http://example.com}
   ++ b#{1:100}
-  ++ barNewline
 
 # record WhitelistEntry
 | WHITELIST_ENTRY
@@ -643,8 +683,7 @@
 
 # record WARCState
 | WARC_STATE
-* warc       : Bar
-* cdxs       : Row CDXEntry
+* cdxs       : Tab Bar CDXEntry  ; Store CDX entries by their content hash
 * names      : BiMap Bar (Nat, Nat)
 * hermesPort : Maybe Nat
 * httpPort   : Maybe Nat
@@ -653,7 +692,7 @@
 * our        : Maybe Bar
 
 = emptyWarcState
-| WARC_STATE emptyBar [] emptyBiMap NONE NONE emptyTab NONE NONE
+| WARC_STATE emptyTab emptyBiMap NONE NONE emptyTab NONE NONE
 
 = (parseWhite bar)
 @ (entries,_) | parseJson bar
@@ -761,16 +800,25 @@
 
 = (addCDXs newCDXs st)
 ^ setCdxs _ st
-| merge (getCdxs st) newCDXs cmpCDX mergeCDX
+^ foldl _ (getCdxs st) newCDXs
+& (tab cdx)
+| tabIns (getDigest cdx) cdx tab
 
+=?= (tabSing (getDigest sampleCDX1) sampleCDX1)
+  | getCdxs | addCDXs [sampleCDX1] emptyWarcState
 
-= (appendWARC warcBar st)
-^ setWarc _ st
-| barWeld (getWarc st) warcBar
+=?= (tabIns (getDigest sampleCDX3) sampleCDX3 (tabSing (getDigest sampleCDX1) sampleCDX1))
+  | getCdxs | addCDXs [sampleCDX1 sampleCDX3] emptyWarcState
+
+= sampleCDX1Modified
+| setLength 150 sampleCDX1
+
+=?= (tabSing (getDigest sampleCDX1) sampleCDX1Modified)
+  | getCdxs | addCDXs [sampleCDX1 sampleCDX1Modified] emptyWarcState
 
 
 > HTTPRequest > Driver (Tab Bar Bar, Bar, Nat, Bar)
-= (requestHandler req@[method path version headers pBody@(PIN body)] return)
+= (requestHandler req@[method path version headers body] return)
 @ (auth action)
   : now       < launch TIME_WHEN
   : secretKey < launch | DB_READ [%SECRET]
@@ -802,9 +850,8 @@
     : now < launch TIME_WHEN
     @ authFun | authenticate headers now
     @ params  | tabFromPairsList | listMap barSplitOne-{=} | barSplit {&} query
-    : start  < maybeCase (parseNat | tabGet params b#start)  | return badRequest
-    : size   < maybeCase (parseNat | tabGet params b#length) | return badRequest
-    : res    < launch | DB_READ (%READ, start, size, authFun)
+    @ digest | tabGet params b#digest
+    : res    < launch | DB_READ (%READ, digest, authFun)
     : bar    < eitherCase res (code,err)&(return [emptyTab emptyBar code err])
     | return [warc_head bar 200 b#gotcha]
 * POST
@@ -812,44 +859,56 @@
   # switch path
   * _ | return badRequest
   * b#{/warc}
-    : cdxs < launchWith & rid | DB_WRITE (%WARC, (rid, pBody))
+    : cdxs < launchWith & rid | DB_WRITE (%WARC, (rid, body))
     | return [cdxs_head (barCatList | map serializeCDX cdxs) 200 b#gotcha]
   * b#{/update-whitelist}
-    : json < launchWith & rid | DB_WRITE (%WHITELIST, (rid, pBody))
+    : json < launchWith & rid | DB_WRITE (%WHITELIST, (rid, body))
     | return [json_head json 201 b#updated]
 
 
 = (trkState @WARC_STATE(..))
 ^ trk _ 0
-## =warcSize   | barLen warc
-## =cdxEntries | len cdxs
+@ warcSize | sum | map getLength | tabValsRow cdxs
+@ cdxBarSize 
+  | sum
+  : @CDX_ENTRY(..) < foreach | tabValsRow cdxs
+  ^ sum | map barLen _
+  ++ canonicalUrl
+  ++ timestamp
+  ++ originalUrl
+  ++ mimeType
+  ++ redirectUrl
+  ++ robotsTags
+  ++ baseUrl
+  ++ sum | foreach sources (@WARC_LOC(..))&(barLen nodeName)
+  ++ eitherCase record barLen _&0
+## =cdxEntries | tabLen cdxs
 ## =names      | fst names
 ## =hermesPort
 ## =httpPort
 ## =whited     | tabLen whitelist
+## =warcSize   | warcSize
+## =totalState | add warcSize cdxBarSize
 
 
 = (readHandler st@WARC_STATE(..) query)
 # switch fst-query
 * PRINT     | trkState st
-* INDEX     | cdxs
+* INDEX     | tabValsRow cdxs  ; Get all CDX entries from the tab
 * WHITELIST | printWhitelist whitelist
 * SECRET    | secretKey
 * READ
-@ (_,start,size,authFun) | query
-@ slice  | barSlice start size warc
-@ cdxs   | buildCDX emptyBar slice
-@ public | all (isPublic whitelist) cdxs
-@ auth   | authFun secretKey
-| ifNot (auth || public)                | LEFT [403 b#forbidden]
-| if    (barIsEmpty slice || null cdxs) | LEFT [404 b#{not found}]
-| RIGHT slice
+@ (_,digest,authFun) | query
+: cdx      < maybeCase (tabLookup digest cdxs) | LEFT [404 b#{not found}]
+@ public   | isPublic whitelist cdx
+@ auth     | authFun secretKey
+| ifNot (auth || public) | LEFT [403 b#forbidden]
+: @(PIN content) < eitherCase (getRecord cdx)
+                 _&(LEFT [404 b#{digest only, no content}])
+| RIGHT content
 
 = (nameServer st query)
 | query | getNames st
-
-= (barToNameRecord @(PIN bar))
-| todo barToNameRecord
 
 = (updateWhitelist new st)
 ^ (tabFoldlWithKey _ new (getWhitelist st), setWhitelist new st)
@@ -862,43 +921,42 @@
     | setWhitelist exampleWhitelist emptyWarcState
   ([{http://new.com/}=[TRUE]], setWhitelist extraExampleWhitelist emptyWarcState)
 
+
 = (warcWriter hermes pid (cmd,msg) return)
 # switch cmd
 * PORT | modifyState (setHttpPort SOME-msg) return
 * WHITELIST
   @ (rid,pBody) | msg
-  : newWhite < maybeCase (parseWhite | pinItem pBody)
+  : newWhite < maybeCase (parseWhite pBody)
              | send (pid,rid) FALSE return
   : _ < send (pid,rid) (printWhitelist newWhite)
   : diff < stateState (updateWhitelist newWhite)
   : (cdxs,names) < getsState st&(getCdxs st, biMapKeys getNames-st)
-  @ filteredCDXs | filter (isPublic diff) cdxs
-  | if (null filteredCDXs) | return ()
-  : _ < rowTraverse name&(send (hermes,0) (name,filteredCDXs)) names
+  @ filteredRefs | map cdxToRef | filter (isPublic diff) | tabValsRow cdxs
+  | if (null filteredRefs) | return ()
+  : _ < rowTraverse name&(send (hermes,0) (name,filteredRefs)) names
   | return ()
 * WARC
-  @ (rid,pBody) | msg
+  @ (rid,body) | msg
   : mOur < getsState getOur
   : our < maybeCase mOur
         | trk , warcWriter %noOur
         | send (pid,rid) []
         | return
-  : evalResult < work buildCDX [our (pinItem pBody)]
+  : evalResult < work buildCDX [our body]
   : newCDXs < eitherCase evalResult
             & error
             | trk , warcWriter [=error]
             | send (pid,rid) []
             | return
   | trk , warcWriter [writing=(map getCanonicalUrl newCDXs)]
-  : off < getsState st&(barLen | getWarc st)
-  @ newCDXs | map (offset off) newCDXs
-  : _ < send (pid,rid) newCDXs
+  @ newRefs | map cdxToRef newCDXs
+  : _ < send (pid,rid) newRefs
   : _ < modifyState | addCDXs newCDXs
-  : _ < modifyState | appendWARC | pinItem pBody
   : (names,whitelist) < getsState st&(biMapKeys getNames-st, getWhitelist-st)
-  @ filteredCDXs | filter (isPublic whitelist) newCDXs
-  | if (null filteredCDXs) | return ()
-  : _ < rowTraverse name&(send (hermes,0) (name,filteredCDXs)) names
+  @ filteredRefs | filter (isPublic whitelist) newRefs
+  | if (null filteredRefs) | return ()
+  : _ < rowTraverse name&(send (hermes,0) (name,filteredRefs)) names
   | return ()
 
 
