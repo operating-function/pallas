@@ -643,7 +643,7 @@
 
 # record WARCState
 | WARC_STATE
-* warc       : Pin Bar
+* warc       : Bar
 * cdxs       : Row CDXEntry
 * names      : BiMap Bar (Nat, Nat)
 * hermesPort : Maybe Nat
@@ -653,7 +653,7 @@
 * our        : Maybe Bar
 
 = emptyWarcState
-| WARC_STATE PIN-emptyBar [] emptyBiMap NONE NONE emptyTab NONE NONE
+| WARC_STATE emptyBar [] emptyBiMap NONE NONE emptyTab NONE NONE
 
 = (parseWhite bar)
 @ (entries,_) | parseJson bar
@@ -766,7 +766,7 @@
 
 = (appendWARC warcBar st)
 ^ setWarc _ st
-| PIN | barWeld (pinItem | getWarc st) warcBar
+| barWeld (getWarc st) warcBar
 
 
 > HTTPRequest > Driver (Tab Bar Bar, Bar, Nat, Bar)
@@ -821,7 +821,7 @@
 
 = (trkState @WARC_STATE(..))
 ^ trk _ 0
-## =warcSize   | barLen | pinItem warc
+## =warcSize   | barLen warc
 ## =cdxEntries | len cdxs
 ## =names      | fst names
 ## =hermesPort
@@ -837,7 +837,7 @@
 * SECRET    | secretKey
 * READ
 @ (_,start,size,authFun) | query
-@ slice  | barSlice start size | pinItem warc
+@ slice  | barSlice start size warc
 @ cdxs   | buildCDX emptyBar slice
 @ public | all (isPublic whitelist) cdxs
 @ auth   | authFun secretKey
@@ -889,8 +889,8 @@
             | trk , warcWriter [=error]
             | send (pid,rid) []
             | return
-  : off < getsState st&(| barLen | pinItem | getWarc st)
   | trk , warcWriter [writing=(map getCanonicalUrl newCDXs)]
+  : off < getsState st&(barLen | getWarc st)
   @ newCDXs | map (offset off) newCDXs
   : _ < send (pid,rid) newCDXs
   : _ < modifyState | addCDXs newCDXs
