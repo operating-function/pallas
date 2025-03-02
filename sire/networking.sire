@@ -90,7 +90,6 @@
 : key < maybeCase mKey | FALSE
 @ timeBar | tabGet headers b#time
 : time < bindMaybe | parseNat timeBar
-| trk , authenticate [=headers =now =key =time =timeBar]
 | and ((lte (sub now 60) time) && (lte time (add now 60)))
 | verifyHMAC sha3_256 key timeBar
 | barFromHex | barNat | tabGet headers b#mac

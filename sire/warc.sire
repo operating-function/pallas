@@ -890,6 +890,7 @@
             | send (pid,rid) []
             | return
   : off < getsState st&(| barLen | pinItem | getWarc st)
+  | trk , warcWriter [writing=(map getCanonicalUrl newCDXs)]
   @ newCDXs | map (offset off) newCDXs
   : _ < send (pid,rid) newCDXs
   : _ < modifyState | addCDXs newCDXs
