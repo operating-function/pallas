@@ -27,6 +27,27 @@ abstype#(Call a)
 abstype#(Cog a)
 abstype#(Driver a)
 
+= (trim sl fr)
+^ (_, listFilter (gth | len _) fr)
+^ take (_ (dec len-sl)) sl
+? (go pos)
+| ifz pos | 1
+| ifNot (isNone | get sl pos) | inc-pos
+| go dec-pos
+
+=?= []        | fst | trim [] ~[]
+=?= [0]       | fst | trim [0] ~[]
+=?= [1 2 3]   | fst | trim [1 2 3] ~[]
+=?= [1 2 3]   | fst | trim [1 2 3 0] ~[]
+=?= [1 2 3]   | fst | trim [1 2 3 0 0] ~[]
+=?= [0 1 2 3] | fst | trim [0 1 2 3 0] ~[]
+
+=?= [[1 2 3] ~[0 1]]   | trim [1 2 3] ~[0 1]
+
+=?= [[1 2 3] ~[0 1]]   | trim [1 2 3 0] ~[0 1 3]
+
+=?= [[1 2 3] ~[]]      | trim [1 2 3 0] ~[4 5]
+
 = (allocateSlot fr sl rq k)
 | ifz fr
     @ key | len sl
@@ -54,7 +75,7 @@ abstype#(Driver a)
   ++ put rd pid 0
   ++ put ws pid 0
 | ifz exe
-  | kernel_loop stream out fr hl st rd ws   ; TODO Should maybe cancel the worker too?
+  | kernel_loop stream out fr hl st rd ws
 @ k   | COG_DONE
 @ end | kernel_loop stream
 | exe pid input k end out fr hl st rd ws
@@ -68,7 +89,6 @@ abstype#(Driver a)
 
 = (fire req) | fireWith const-req
 
-;; TODO receive and ignore should truncate 0s off of sl
 > Promise a > Driver a
 = (receive promise k end fr sl rq)
 : input < maybeCase | get sl promise
@@ -76,6 +96,7 @@ abstype#(Driver a)
         | end fr sl rq
 @ fr | ifz promise fr [promise fr]
 @ sl | put sl promise NONE
+@ [sl fr] | trim sl fr
 | k input end fr sl rq
 
 > Driver a
@@ -84,6 +105,7 @@ abstype#(Driver a)
 = (ignore promise k end fr sl rq)
 @ fr | ifz promise fr [promise fr]
 @ sl | put sl promise NONE
+@ [sl fr] | trim sl fr
 | k () end fr sl rq
 
 = (launchWith mkRequest return)
