@@ -570,7 +570,7 @@
 
 
 > Bar > Bar > Row CDXEntry
-= (buildCDX our warcFile)
+= (buildCDX our @(PIN warcFile))
 | mergeSort cmpCDX mergeCDX
 : (off,len,meta) < foreach | warcBlocks warcFile
 @ content | barSlice off (add off len) warcFile
@@ -592,7 +592,7 @@
 * fromSome b#{-} | getMetaBaseUrl meta
 * [(WARC_LOC our off)]
 
-=?= | buildCDX b#our | barWeld requestRecord responseRecord
+=?= | buildCDX b#our | PIN | barWeld requestRecord responseRecord
   ^ [_]
   | CDX_ENTRY
   * canonicalize | fromSome b#{} | getTargetURI responseMeta
@@ -611,23 +611,23 @@
 | barWeld requestRecord responseRecord
 
 =?= 2
-  ^ len | buildCDX emptyBar | barCat _
+  ^ len | buildCDX emptyBar | PIN | barCat _
   [requestRecord responseRecord differentUrlRecord]
 
 =?= 2
-  ^ len | buildCDX emptyBar | barCat _
+  ^ len | buildCDX emptyBar | PIN | barCat _
   [requestRecord responseRecord revisitRecord]
 
 =?= 3
-  ^ len | buildCDX emptyBar | barCat _
+  ^ len | buildCDX emptyBar | PIN | barCat _
   [requestRecord revisitRecord responseRecord]
 
 =?= 3
-  ^ len | buildCDX emptyBar | barCat _
+  ^ len | buildCDX emptyBar | PIN | barCat _
   [requestRecord responseRecord revisitRecord differentUrlRecord]
 
 =?= 4
-  ^ len | buildCDX emptyBar | barCat _
+  ^ len | buildCDX emptyBar | PIN | barCat _
   [requestRecord revisitRecord responseRecord differentUrlRecord]
 
 
@@ -825,16 +825,16 @@
   | if (authenticate headers now secretKey)
     | action
   | return [emptyTab emptyBar 403 b#forbidden]
-@ badRequest [emptyTab b#{} 400 b#{bad}]
+@ (badRequest reason) [emptyTab b#{} 400 reason]
 @ warc_head | tabSing b#{content-type} b#warc
 @ cdxs_head | tabSing b#{content-type} b#{x-cdx}
 @ json_head | tabSing b#{content-type} b#{application/json}
 # switch method
-* _ | return badRequest
+* _ | return | badRequest b#invalid_method
 * GET
   @ [path query] | barSplitOne {?} path
   # switch path
-  * _ | return badRequest
+  * _ | return | badRequest b#invalid_path
   * b#{/whitelist}
     | auth
     : json < launch | DB_READ [%WHITELIST]
@@ -857,12 +857,12 @@
 * POST
   | auth
   # switch path
-  * _ | return badRequest
+  * _ | return | badRequest b#invalid_path
   * b#{/warc}
-    : cdxs < launchWith & rid | DB_WRITE (%WARC, (rid, body))
+    : cdxs < launchWith & rid | DB_WRITE (%WARC, (rid, PIN body))
     | return [cdxs_head (barCatList | map serializeCDX cdxs) 200 b#gotcha]
   * b#{/update-whitelist}
-    : json < launchWith & rid | DB_WRITE (%WHITELIST, (rid, body))
+    : json < launchWith & rid | DB_WRITE (%WHITELIST, (rid, PIN body))
     | return [json_head json 201 b#updated]
 
 
@@ -927,7 +927,7 @@
 * PORT | modifyState (setHttpPort SOME-msg) return
 * WHITELIST
   @ (rid,pBody) | msg
-  : newWhite < maybeCase (parseWhite pBody)
+  : newWhite < maybeCase (parseWhite | pinItem pBody)
              | send (pid,rid) FALSE return
   : _ < send (pid,rid) (printWhitelist newWhite)
   : diff < stateState (updateWhitelist newWhite)
@@ -937,19 +937,18 @@
   : _ < rowTraverse name&(send (hermes,0) (name,filteredRefs)) names
   | return ()
 * WARC
-  @ (rid,body) | msg
+  @ (rid,pBody) | msg
   : mOur < getsState getOur
   : our < maybeCase mOur
         | trk , warcWriter %noOur
         | send (pid,rid) []
         | return
-  : evalResult < work buildCDX [our body]
+  : evalResult < work buildCDX [our pBody]
   : newCDXs < eitherCase evalResult
             & error
             | trk , warcWriter [=error]
             | send (pid,rid) []
             | return
-  | trk , warcWriter [writing=(map getCanonicalUrl newCDXs)]
   @ newRefs | map cdxToRef newCDXs
   : _ < send (pid,rid) newRefs
   : _ < modifyState | addCDXs newCDXs
